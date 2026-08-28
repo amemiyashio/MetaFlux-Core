@@ -15,14 +15,33 @@ not a physical endpoint and not a data-plane transport. It owns an isolated
 domain/bus allocation, preallocated config images, presence bits, writable masks,
 serialized scan/add/remove, sysfs, and uevents.
 
-Before `pci_bus_add_device()` exposes a function under an optional synthetic
-identity:
+Linux PCI publication has distinct boundaries. Scanning creates the `pci_dev`
+and calls `device_add()`, which can make the kobject/sysfs identity and uevent
+observable. `pci_bus_add_device()` later enables matching and starts probe; it is
+not the first visibility point. The vroot sequence is therefore:
 
-1. verify `metaflux_pci` is registered;
-2. stage an exclusive driver override/pre-bind policy;
-3. publish only if vendor matching cannot race or take ownership;
-4. quarantine and remove a failed MetaFlux probe;
-5. repeat the full sequence on every re-add.
+1. before config presence, verify `metaflux_pci` is registered and preallocate
+   every policy resource needed for exclusive selection;
+2. expose config presence and scan while PCI matching remains disabled by the
+   target kernel's normal scan/add sequence;
+3. set and verify the exclusive `metaflux_pci` override before calling
+   `pci_bus_add_device()` or otherwise enabling matching;
+4. allow only `metaflux_pci` to probe, and commit registry `ONLINE` only after a
+   successful bind plus lifecycle prepare/commit;
+5. on override or probe failure, keep the function out of registry visibility,
+   quarantine it, and remove it without ever enabling vendor matching;
+6. repeat the full sequence on every re-add.
+
+Tests must treat a scan-created, unbound `pci_dev` as possible transient external
+visibility. Capture its uevent and prove it cannot bind a vendor driver, create
+canonical device nodes, or be mistaken for committed MetaFlux registry state.
+
+Version-sensitive source checks:
+
+- [Linux v6.12 PCI scan/add](https://github.com/torvalds/linux/blob/v6.12/drivers/pci/probe.c)
+  and [bus match enable](https://github.com/torvalds/linux/blob/v6.12/drivers/pci/bus.c);
+- [Linux v6.18 PCI scan/add](https://github.com/torvalds/linux/blob/v6.18/drivers/pci/probe.c)
+  and [bus match enable](https://github.com/torvalds/linux/blob/v6.18/drivers/pci/bus.c).
 
 Config callbacks allocate nothing, do not sleep, make no RPC/userspace access,
 and touch only the predeclared image/masks. Sysfs remove destroys the current

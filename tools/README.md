@@ -14,9 +14,10 @@ become an alternate application-facing MetaFlux API.
 session metadata and JSONL events, stable record IDs, numbered output hashes,
 credential redaction, safe references, and relative Markdown links, plus the
 machine-enforced record-loop rules — index completeness for sessions, plans,
-experience, and skills; the open-decisions ledger count; mandatory session
-distillation; staleness and status-drift warnings; current-progress freshness;
-and the expert-skill form.
+experience, decisions, and skills; plan/ledger open-decision identity; mandatory
+session distillation; staleness and status-drift warnings; current-progress
+freshness; exact skill catalog rows; domain section order; and the repository's
+restricted `agents/openai.yaml` interface schema.
 
 ```sh
 python3 tools/check-agent-records.py .
@@ -25,6 +26,32 @@ python3 tools/check-agent-records.py .
 The same command runs as the independent Nix check
 `checks.x86_64-linux.agent-records`. Agent records are deliberately excluded
 from the runtime, provider, daemon, and toolchain package source sets.
+
+Domain skill metadata currently permits exactly the quoted `interface` fields
+`display_name`, `short_description`, and `default_prompt`; the prompt must name
+its exact `$skill-slug`. Adding icons, policy, or dependencies requires extending
+the repository validator and adding the corresponding checked resources first.
+
+## Skill routing
+
+`check-skill-routing.py` validates the structured English/Chinese trigger corpus
+and can score captured implicit-routing observations for an exact Codex
+model/host/repetition tuple. The domain roster comes from the independent records
+gate, coverage floors are tool policy rather than corpus-controlled values, and
+duplicate locale/prompt pairs are rejected. Each observation is bound to both the
+canonical corpus SHA-256 and a digest of the catalog plus every domain
+`SKILL.md`/`agents/openai.yaml`; its product is exactly `Codex`:
+
+```sh
+python3 -B tools/check-skill-routing.py .
+python3 -B tools/check-skill-routing.py . --emit-template --repetitions 3
+python3 -B tools/check-skill-routing.py . --observed ROUTING_RESULTS.json
+python3 -B tools/test-check-skill-routing.py
+```
+
+The corpus and its self-test run in CTest and the Nix Agent-record check. CI does
+not invoke a remote model: a static pass proves corpus integrity, while only a
+filled observation file proves routing behavior for its recorded environment.
 
 ## Component dependency graph
 
@@ -57,11 +84,11 @@ Fill the TODO fields as the session progresses; the skeleton passes
 ## Validator self-test
 
 `test-check-agent-records.py` pins the validator itself against a synthetic
-golden tree: fifteen cases cover required session fields, event sequencing,
-distillation (including the pre-cutoff grandfathering), index completeness in
-both directions, ledger counts, staleness and status-drift warnings, markdown
-links, checkpoint id/path agreement, and current-progress freshness. It builds
-fixtures in a temporary directory and loads the validator by path.
+golden tree. Its 52 cases cover required session fields, event sequencing,
+distillation, index completeness, decision identity and references, skill
+catalog/metadata rules, staleness and status drift, Markdown links, checkpoint
+identity, and current-progress freshness. It builds fixtures in a temporary
+directory and loads the validator by path without writing bytecode.
 
 ```sh
 python3 tools/test-check-agent-records.py

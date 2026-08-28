@@ -1,13 +1,14 @@
 ---
 name: start-work
-description: Cold-start any task in this repository so rules are read, a session exists, and the matching skill is followed before the first change.
+description: Cold-start repository work so rules are read, the matching skill is followed, and any durable change gets a session before the first edit.
 ---
 
 # Start Work
 
-Use at the beginning of every task, before the first file change. It exists
-because the repository's machinery only protects agents that onboard through
-it.
+Use at the beginning of every task. A read-only inspection loads the required
+context but does not create a session. Any task that will change repository
+state scaffolds its session before the first edit so the record machinery can
+cover the complete change.
 
 ## Steps
 
@@ -23,17 +24,20 @@ it.
 3. If your task resolves a ledger row, follow the `close-decision` skill; if
    it would relax anything in constraints, stop: that requires a recorded
    decision and a canonical source, not an edit.
-4. Scaffold the session before changing anything outside `agent/`:
+4. If the task will change durable repository state, scaffold the session before
+   the first file change:
 
    ```sh
    python3 tools/new-session.py <slug>
    ```
 
+   For a read-only task, do not create an empty session.
 5. Make the change; verify with `python3 tools/check-agent-records.py .` and
    the relevant CTest preset for build-affecting files. The pre-commit hook
    enforces both records validity and session coverage.
-6. Finish through the `record-session` skill: distillation, decision closure,
-   progress refresh, checkpoint, separate content and record commits.
+6. For a durable change, finish through the `record-session` skill:
+   distillation, decision closure, progress refresh, checkpoint, and separate
+   content/record commits. A read-only task reports its evidence directly.
 
 ## Verification
 
@@ -41,5 +45,6 @@ it.
 python3 tools/check-agent-records.py .
 ```
 
-Passing means the session exists, the ledger agrees with the plans, and the
-indexes are complete — the on-ramp was used.
+Passing means existing records, decision identities, indexes, and skill packages
+meet the repository gates. A changing task additionally needs its in-progress
+session; a read-only task intentionally leaves no new record.

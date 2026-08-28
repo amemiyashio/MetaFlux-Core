@@ -36,5 +36,9 @@ fails validation — follow every step.
 python3 tools/check-agent-records.py .
 ```
 
-The ledger-count rule passing is the proof: plan items, ledger rows, and the
-decisions index agree.
+The validator proves structural identity: every numbered open plan decision
+matches exactly one ledger `Decision` cell, duplicates fail, decision-index IDs
+are unique, and every `DNNNN` referenced by Agent Markdown or a decision event
+resolves to the index. It does not prove the technical outcome; the new index row
+and amended plan must still link the canonical rationale and qualification
+evidence.

@@ -2,10 +2,13 @@
 
 ## Independence rule
 
-The interpreter is the executable PTX/Kernel IR oracle. Keep its control,
-arithmetic, and memory implementation structurally independent from MLIR/LLVM
-lowering so one bug is unlikely to reproduce identically. For simple kernels,
-also use a scalar mathematical/reference implementation.
+This skill owns the PTX/Kernel IR semantic oracle: normative relations,
+deterministic expected values, allowed and forbidden outcome sets, and declared
+undefined or unsupported cases. The CPU backend owns interpreter implementation.
+Use that interpreter as an executable implementation under test, not as the
+source of expected answers, and keep it structurally independent from MLIR/LLVM
+lowering. For simple deterministic kernels, also use an independent scalar
+mathematical/reference implementation.
 
 ## Test layers
 
@@ -22,7 +25,20 @@ also use a scalar mathematical/reference implementation.
 6. Metamorphic tests vary dead code, register names, block shape, scheduling,
    and equivalent address expressions without changing expected semantics.
 
+## Result rules
+
+- Classify every case as deterministic, allowed-outcome-set, or
+  undefined/unsupported. Undefined behavior has no upstream result oracle; assert
+  a deterministic rejection only when it is separately labeled as a MetaFlux
+  product strengthening.
+- Compare deterministic integer results byte-for-byte. Use an explicitly
+  justified FP oracle or tolerance per operation.
+- For atomics, divergent scheduling, or weak-memory litmus tests, derive the
+  allowed and forbidden outcomes from the pinned semantic model. Require every
+  observed result to be allowed and assert forbidden outcomes with a finite model,
+  exhaustive enumerator, or equivalent argument where practical. Randomized
+  scheduling is useful sampling, not proof that the outcome set is complete.
+
 Record random seeds, PTX and Kernel IR digests, compiler epoch, target features,
-FP policy, backend version, and the smallest reproducer. Compare integer results
-byte-for-byte; use an explicitly justified FP oracle/tolerance per operation.
+FP policy, backend version, outcome classification, and the smallest reproducer.
 Snapshot diagnostic code and salient fields rather than unstable prose alone.

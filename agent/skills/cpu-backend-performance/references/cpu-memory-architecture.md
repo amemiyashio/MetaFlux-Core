@@ -40,6 +40,26 @@ hot per-stream cursors on separate cache lines. Distinguish compiler ordering,
 CPU memory ordering, kernel DMA ordering, and MMIO ordering; one fence does not
 stand in for all four.
 
+## Effective execution placement
+
+- Read `sched_getaffinity(0, ...)` and `/sys/devices/system/cpu/online`; do not
+  schedule from firmware or CPUID topology alone.
+- Read cgroup v2 `cpuset.cpus.effective` and `cpuset.mems.effective`, or the
+  cgroup v1 `cpuset.effective_cpus` and `cpuset.effective_mems`. Account for parent
+  cgroups, systemd/service policy, and container restrictions; Linux may silently
+  intersect an affinity request with these constraints.
+- Record `/sys/devices/system/node` topology and distances, permitted memory
+  nodes, the process policy reported by `get_mempolicy`, and first-touch behavior
+  before selecting worker and allocation placement.
+- Refresh or invalidate placement after CPU hotplug, affinity, cpuset, or NUMA
+  policy changes. If a requested pin becomes invalid, use the declared fallback
+  or return a stable error rather than silently scheduling outside the effective
+  set.
+
+Keep this dynamic placement profile out of stable object compatibility identity
+unless it changes generated code or helper ABI. Record its exact masks and policy
+generation in runtime diagnostics and benchmark metadata.
+
 Primary sources:
 
 - [Intel Software Developer Manuals](https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html)

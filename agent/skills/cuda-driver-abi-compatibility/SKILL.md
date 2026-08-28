@@ -1,6 +1,6 @@
 ---
 name: cuda-driver-abi-compatibility
-description: Design or review libcuda.so compatibility for CUDA Driver symbols, ELF version aliases, cuGetProcAddress, contexts, modules, memory, streams, events, and CUDA error behavior. Use for M0001 CUDA provider ABI work. Do not use for PTX semantics, compiler lowering, NVML telemetry, or backend execution policy.
+description: Design or review libcuda.so compatibility for CUDA Driver symbols, ELF version aliases, cuGetProcAddress, contexts, modules, memory, streams, events, and CUDA error behavior. Use for M0001 provider ABI work or CUDA-visible M0003 lifecycle behavior. Do not use for PTX semantics, compiler lowering, NVML telemetry, or backend execution policy.
 ---
 
 # CUDA Driver ABI Compatibility
@@ -28,6 +28,11 @@ manifest as the versioned source of truth.
 - Route PTX meaning to `$ptx-simt-semantics`, lowering mechanics to
   `$mlir-compiler-engineering`, CPU execution to `$cpu-backend-performance`, and
   telemetry or `nvidia-smi` behavior to `$nvml-telemetry-compatibility`.
+- Compose `$runtime-contracts-registry` when process-view membership, ordering,
+  `registry_view_id`, or provider freeze rules change, and
+  `$device-lifecycle-resilience` when reset/loss/replacement generation changes.
+  This skill owns the CUDA-visible mapping, handle lifetime, and error outcome;
+  it consumes rather than redefines those shared contracts.
 
 ## Workflow
 
@@ -38,15 +43,21 @@ manifest as the versioned source of truth.
    visibility, aliases, calling convention, data layouts, and dependencies.
 3. Define initialization and registry-view acquisition so loading the DSO alone
    creates no state and the first real call is lazy, reentrant, and fail-safe.
-4. Specify each handle class with owner, generation, valid transitions,
-   concurrency rule, destruction behavior, and stale-handle error.
-5. Trace synchronous and asynchronous error delivery through copies, launches,
-   events, and synchronization points. Preserve CUDA-observable ordering rather
-   than leaking internal transport errors.
-6. Keep the provider C17-only and route execution through the ecosystem-neutral
+4. Classify every observable behavior as normative for the pinned header/spec,
+   observed on a named target driver family/build, or MetaFlux-strengthened where
+   CUDA leaves behavior undefined or unspecified. Never present an observation or
+   strengthening as a CUDA compatibility guarantee.
+5. Specify each handle class with owner, generation, valid transitions,
+   concurrency rule, destruction behavior, stale-handle outcome, and behavior
+   classification.
+6. Trace synchronous and asynchronous error delivery through copies, launches,
+   events, and synchronization points. Preserve normative CUDA observation points;
+   qualify selection/order among multiple pending errors on named driver builds
+   when the specification does not fix it.
+7. Keep the provider C17-only and route execution through the ecosystem-neutral
    client protocol. Do not introduce LLVM/MLIR, a backend dependency, or a C++
    object across the provider boundary.
-7. Build positive, negative, short-buffer, version-mismatch, repeated-lifecycle,
+8. Build positive, negative, short-buffer, version-mismatch, repeated-lifecycle,
    and concurrent tests from the manifest rather than hand-picking symbols.
 
 ## Output
@@ -54,7 +65,8 @@ manifest as the versioned source of truth.
 Return or implement:
 
 - A versioned symbol/alias/status matrix and any manifest changes.
-- An object-lifecycle and error-semantics table for affected APIs.
+- An object-lifecycle and error-semantics table for affected APIs, with each row
+  labeled normative, observed on a named driver build, or MetaFlux-strengthened.
 - A bounded implementation slice naming provider, protocol, and test owners.
 - Qualification evidence with exact target headers, commands, and observed
   behavior; list unsupported calls and their typed CUDA errors explicitly.
@@ -68,6 +80,7 @@ Return or implement:
 - Run the unmodified Add/Copy path across interpreter, cold JIT, warm JIT, and
   AOT when the owning workstream is active.
 - Exercise nulls, short buffers, invalid ordinals, stale handles, duplicate
-  destroy, concurrent init/shutdown, fault injection, and every generated stub.
+  destroy, concurrent init/shutdown, fault injection, and every generated stub;
+  verify each expected result carries its behavior classification and evidence.
 - Report planned gates as planned. Do not claim provider compatibility from a
   fixture-only or compile-only result.

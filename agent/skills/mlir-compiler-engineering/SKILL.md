@@ -1,6 +1,6 @@
 ---
 name: mlir-compiler-engineering
-description: Design or review Kernel IR to MLIR boundaries, ODS operations, verifiers, Dialect Conversion, TypeConverter use, pass pipelines, LLVM or SPIR-V target lowering, compiler epochs, caches, diagnostics, and reproducers. Use for M0001 or M0004 compiler engineering. Do not use to redefine PTX semantics or own target runtime behavior.
+description: Design or review Kernel IR to MLIR boundaries, ODS operations, verifiers, Dialect Conversion, TypeConverter use, pass pipelines, target-lowering conversion mechanics, compiler epochs, caches, diagnostics, and reproducers. Use for M0001 or M0004 compiler engineering. Do not use to redefine PTX semantics or own target-backend lowering policy, implementation, validation, or runtime behavior.
 ---
 
 # MLIR Compiler Engineering
@@ -24,12 +24,13 @@ latest documentation is design guidance, not proof of LLVM/MLIR 22.1.8 behavior.
 - Use [dialect conversion](references/dialect-conversion.md) for legality,
   `TypeConverter`, materialization, and conversion patterns.
 - Use [target lowering](references/target-lowering.md) for CPU/LLVM and
-  Vulkan/SPIR-V pipeline separation.
+  Vulkan/SPIR-V conversion mechanics and pipeline separation.
 - Use [debugging and versioning](references/debugging-and-versioning.md) for pass
   diagnostics, crash reproducers, epochs, artifacts, and cache identity.
-- Route source meaning to `$ptx-simt-semantics`, CPU target policy to
-  `$cpu-backend-performance`, and Vulkan target/runtime constraints to
-  `$vulkan-spirv-compute`.
+- Route source meaning to `$ptx-simt-semantics`. Compose CPU target policy,
+  target-lowering implementation/source placement, validation, and runtime work
+  with `$cpu-backend-performance`; compose the corresponding Vulkan/SPIR-V work
+  with `$vulkan-spirv-compute`.
 
 ## Workflow
 
@@ -44,8 +45,11 @@ latest documentation is design guidance, not proof of LLVM/MLIR 22.1.8 behavior.
    prerequisites, preserved analyses, stable diagnostics, and deterministic
    ordering.
 5. Keep CPU and Vulkan target branches separate after shared canonicalization.
-   CPU lowers to LLVM/PIC ELF; Vulkan lowers to the MLIR SPIR-V dialect with an
-   exact target environment and never through LLVM IR.
+   Own conversion legality, type conversion, materialization, and pass mechanics
+   here. Compose with the CPU backend owner for LLVM/PIC target-lowering policy
+   and implementation, or with the Vulkan backend owner for SPIR-V target
+   environment, lowering, validation, and runtime integration; the Vulkan branch
+   never detours through LLVM IR.
 6. Add verifier, pass, conversion, and end-to-end tests including deliberately
    illegal IR. Capture a minimal reproducer for crashes or nondeterminism.
 7. Namespace every artifact/cache entry by compiler epoch, schema, pipeline,
@@ -58,8 +62,9 @@ Return or implement:
 
 - A boundary/invariant table and affected operation/type definitions.
 - An ordered pass pipeline with legality and type-conversion contracts.
-- Target-specific lowering and cache-key changes, with explicit unsupported
-  diagnostics.
+- Shared and target-specific conversion-mechanics changes, plus an explicit
+  handoff to the owning backend for target-lowering policy, implementation/source
+  placement, validation, runtime integration, and unsupported diagnostics.
 - Minimal reproducers plus verifier, conversion, differential, and artifact
   evidence tied to the pinned compiler epoch.
 
@@ -69,9 +74,11 @@ Return or implement:
   pipeline tests for both valid and invalid modules in scope.
 - Enable verifier-after-pass and diagnostic/reproducer facilities in debug or CI
   qualification; inspect IR at the first divergent pass, not only final output.
-- For CPU, verify LLVM translation, target data layout, PIC relocation policy,
-  helper ABI, object loading, and interpreter/JIT/AOT agreement.
-- For Vulkan, verify `spirv.target_env`, SPIR-V serialization, `spirv-val`,
-  reflection, enabled features/limits, and no LLVM-IR detour.
+- When composed with the CPU backend owner, verify LLVM translation, target data
+  layout, PIC relocation policy, helper ABI, object loading, and
+  interpreter/JIT/AOT agreement.
+- When composed with the Vulkan backend owner, verify `spirv.target_env`, SPIR-V
+  serialization, `spirv-val`, reflection, enabled features/limits, and no LLVM-IR
+  detour.
 - Confirm warm cache loading invokes no compiler framework and that an epoch,
   pipeline, target, or ABI change causes a cache miss.

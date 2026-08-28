@@ -15,15 +15,45 @@ record memory type/heap, size/alignment, mapped range, coherent/cached flags,
 flush/invalidate obligations, export/import ownership, BDA, permissions,
 generation, in-flight use, and destruction order.
 
+## External handle contract
+
+Build a matrix for every advertised memory and semaphore handle type. Record:
+
+- queried import/export, compatible-handle, dedicated-only, timeline, and
+  temporary-import capabilities for the exact physical device;
+- whether a successful Vulkan import consumes the fd and which side closes it
+  on every failure before ownership transfer;
+- whether the imported semaphore payload is permanent or temporary; `SYNC_FD`
+  is a temporary binary payload and is not a timeline-semaphore interchange;
+- whether export returns a reference to the same underlying payload or transfers
+  a temporary synchronization payload, as defined for that handle type;
+- the producer/consumer process, generation, permissions, and destruction order.
+
+Do not treat OPAQUE_FD, DMA-BUF, and SYNC_FD as interchangeable because they all
+use integer file descriptors. Negotiate one exact handle type and verify it
+against `vkGetPhysicalDeviceExternalBufferProperties` or
+`vkGetPhysicalDeviceExternalSemaphoreProperties` before import.
+
+For resources shared with another Vulkan or external queue owner, pair the
+external synchronization primitive with explicit release/acquire ownership
+transfers. Use `VK_QUEUE_FAMILY_EXTERNAL` for Vulkan-defined external ownership
+and `VK_QUEUE_FAMILY_FOREIGN_EXT` only when the negotiated producer is foreign
+under the extension's rules. Record the old/new queue-family indices, stage and
+access masks, image layout where applicable, and the process that owns the
+resource after each barrier. A semaphore signal alone does not perform a missing
+queue-family ownership transfer.
+
 ## Stream/event mapping
 
 - One logical context fixes CPU or Vulkan and its transport before visible
   resource success.
 - Preserve stream FIFO. Encode cross-stream event waits as explicit timeline
-  dependencies; carry legacy-default/PTDS rules from the CUDA provider contract.
+  dependencies. Consume only ecosystem-neutral Graph IR edges; CUDA
+  legacy-default/PTDS translation is completed by the provider/runtime before this
+  boundary.
 - Use Synchronization2 stage/access masks for copy, host, shader, transfer, and
   external visibility. A semaphore orders only the declared dependencies and
-  does not replace non-coherent flush/invalidate.
+  does not replace queue-family transfer or non-coherent flush/invalidate.
 - Complete backend work before publishing the M0002 completion timeline with the
   required release relationship.
 - Queue batching may combine submissions only when all observable dependencies,

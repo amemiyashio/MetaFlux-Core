@@ -1,6 +1,6 @@
 ---
 name: nvml-telemetry-compatibility
-description: Design or review libnvidia-ml.so compatibility for NVML lifecycle, versioned APIs, count/fill queries, telemetry snapshots, process reporting, and stock nvidia-smi qualification. Use for M0001 NVML provider work. Do not use for CUDA execution, PTX lowering, or invented physical telemetry.
+description: Design or review libnvidia-ml.so compatibility for NVML lifecycle, versioned APIs, count/fill queries, telemetry snapshots, process reporting, and stock nvidia-smi qualification. Use for M0001 NVML provider work or NVML-visible M0003 lifecycle behavior. Do not use for CUDA execution, PTX lowering, or invented physical telemetry.
 ---
 
 # NVML Telemetry Compatibility
@@ -26,6 +26,9 @@ license to synthesize a plausible value.
 - Route CUDA object/execution behavior to `$cuda-driver-abi-compatibility`, PCI
   config identity to `$pcie-vpci-device-model`, and reset generation behavior to
   `$device-lifecycle-resilience`.
+- Compose `$runtime-contracts-registry` when process-view membership, ordering,
+  `registry_view_id`, or provider freeze rules change. This skill owns NVML-visible
+  mapping/errors and consumes the shared-view contract rather than redefining it.
 
 ## Workflow
 
@@ -37,11 +40,18 @@ license to synthesize a plausible value.
    interval, age policy, permission, unsupported behavior, and per-field error.
 4. Implement versioned handles/structures and count-then-fill contracts with
    exact null, zero-capacity, short-capacity, and concurrent-change semantics.
-5. Read hot getters from an immutable shared snapshot. Route setters through the
-   control plane and acknowledge only after policy is effective.
-6. Preserve identity and ordering parity with CUDA inside one registry view.
-   Return `NVML_ERROR_NOT_SUPPORTED` and expose `N/A` for unsupported physical
-   fields instead of fabricating measurements.
+5. Read metrics getters from an immutable shared telemetry snapshot, but validate
+   device liveness/generation and effective policy against the runtime lifecycle
+   fence with no stale fallback. Route setters through the control plane and
+   acknowledge only after policy is effective in that fence.
+6. Enumerate the membership revision captured at NVML's zero-to-one init in
+   canonical registry order. Default unfiltered CUDA parity applies only when both
+   providers captured the same process-view revision. Under a CUDA filter or
+   different lifecycle revision, require no count/ordinal parity and correlate
+   only common live incarnations by `(UUID, generation)`; UUID/logical ID tracks
+   persistent identity and BDF alone is insufficient. Return
+   `NVML_ERROR_NOT_SUPPORTED` and expose `N/A` for unsupported physical fields
+   instead of fabricating measurements.
 7. Drive implementation and tests from the stock `nvidia-smi` call traces and
    selected manifest, including XML/CSV structure and per-field failures.
 
@@ -63,7 +73,10 @@ Return or implement:
   invalid handles, short buffers, count changes, and per-field errors.
 - Run supported stock `nvidia-smi -L`, summary, CSV, `compute-apps`, and required
   `-q/-x` queries for zero, one, and multiple devices.
-- Verify CUDA/NVML UUID, ordinal, BDF, name, memory, generation, and state parity
-  within each managed domain.
+- Verify default, unfiltered CUDA and NVML count/order when they capture the same
+  process-view revision. With `CUDA_VISIBLE_DEVICES` or different provider init
+  revisions, verify common live incarnations by `(UUID, generation)` and do not
+  require ordinal/count parity. Never treat UUID, logical ID, or BDF alone as a
+  live-incarnation match after replacement.
 - Measure hot getter and polling overhead from archived raw samples; do not infer
   performance from a unit test.

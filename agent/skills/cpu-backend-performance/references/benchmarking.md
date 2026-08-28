@@ -4,8 +4,10 @@
 
 Record the hypothesis, metric, direct baseline, workload/corpus, input sizes,
 warm-up, samples, stopping rule, host identity, compiler/backend build, topology,
-affinity, NUMA placement, memory policy, frequency policy, and raw-output path.
-Change one independent variable at a time or use a declared factorial design.
+online CPU set, `sched_getaffinity`, effective cpuset CPU/memory-node masks, NUMA
+placement and mempolicy, service/container restrictions, frequency policy, and
+raw-output path. Change one independent variable at a time or use a declared
+factorial design.
 
 ## MetaFlux comparisons
 

@@ -4,15 +4,17 @@ milestone: M0001
 status: Queued
 area: compat.cuda.nvml
 depends_on: [M0001-W02, M0001-W04]
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # NVML Provider and stock nvidia-smi
 
 ## Outcome
 
-Expose the same logical devices and processes through the target NVML ABIs and
-supported stock `nvidia-smi` views.
+Expose the canonical logical-device inventory and processes through the target
+NVML ABIs and supported stock `nvidia-smi` views. Default unfiltered CUDA/NVML
+live identity and order agree for the same captured initial process-view revision;
+CUDA-only filtering does not alter NVML inventory.
 
 ## Required Surface and Semantics
 
@@ -23,8 +25,9 @@ compute processes; compute/persistence modes; and required field queries.
 
 Unsupported physical telemetry returns `NVML_ERROR_NOT_SUPPORTED` and displays
 `N/A`. Memory utilization is not synthesized from used/total. Hot getters read
-the shared snapshot; setters use the Unix control socket and return only after
-policy is effective.
+the shared telemetry snapshot after a no-fallback lifecycle-fence check; setters
+use the Unix control socket and return only after policy is effective in that
+control fence.
 
 ## Work
 
@@ -32,7 +35,10 @@ policy is effective.
   R580, and R610 headers.
 - [ ] Implement the required function families, direct shared-page getters, and
   socket-based setters.
-- [ ] Validate zero/one/multiple devices and CUDA/NVML identity parity.
+- [ ] Validate zero/one/multiple devices; require default unfiltered CUDA/NVML
+  count/order parity for the same initial revision, then map a filtered/reordered
+  CUDA view to unchanged NVML rows by `(UUID, generation)` rather than ordinal or
+  BDF alone.
 - [ ] Test stock `nvidia-smi -L`, summary, CSV, `compute-apps`, and required
   `-q/-x` combinations for every target version.
 

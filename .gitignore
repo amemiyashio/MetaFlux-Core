@@ -7,8 +7,10 @@
 /compile_commands.json
 /CMakeUserPresets.json
 
+__pycache__/
+*.py[cod]
+
 *.profraw
 *.profdata
 *.gcda
 *.gcno
-

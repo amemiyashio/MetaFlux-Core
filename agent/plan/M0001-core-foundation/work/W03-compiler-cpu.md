@@ -58,5 +58,7 @@ produce stable structured diagnostics.
 ## Exit Gates
 
 The interpreter runs the entire declared corpus and rejects every unknown or
-malformed operation. Cold JIT, warm JIT, and AOT produce identical Add/Copy
-results; a cache hit loads the executable without contacting a compiler worker.
+malformed operation. Cold JIT, warm JIT, and AOT produce bit-exact integer and
+exact-FP-form Add/Copy results; all other FP forms satisfy their pinned
+per-operation oracle or allowed-result set. A cache hit loads the executable
+without contacting a compiler worker.

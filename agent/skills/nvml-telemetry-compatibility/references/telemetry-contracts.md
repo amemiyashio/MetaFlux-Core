@@ -6,8 +6,15 @@ window, update cadence, maximum age, privilege, unsupported result, and
 
 ## Truthfulness rules
 
-- Identity, quota, committed memory, process attachment, generation, and state
-  come from the authoritative registry/shared snapshot.
+- Static device identity and canonical enumeration order come from the
+  authoritative read-only registry view. Liveness, lifecycle state, epoch, quota,
+  and effective policy come from the monotonic runtime lifecycle fence and never
+  fall back to telemetry. Dynamic metric/counter fields come from their declared
+  producers in one published snapshot sequence. A telemetry row references its
+  immutable `identity_record_id` and observed lifecycle sequence; it does not
+  duplicate UUID, BDF, generation, or lifecycle state. Persistent UUID/logical ID
+  correlates replacement history, while live CUDA/NVML parity requires
+  `(UUID, generation)` from an applicable common view revision.
 - GPU utilization is a documented capacity-weighted value over the M0001
   100-millisecond window. Name numerator, denominator, idle behavior, saturation,
   and timestamp.
@@ -19,6 +26,10 @@ window, update cadence, maximum age, privilege, unsupported result, and
   generation-bound accounting, and explicit visibility/permission behavior.
 - Snapshot readers observe one published sequence. Use release/acquire or a
   validated sequence protocol; never combine fields from different epochs.
+- A prior telemetry snapshot is eligible only under its field maximum-age rule and
+  when its lifecycle sequence is not older than the fence observed at call entry.
+  Race loss/removal with telemetry publication and retry; stale `ONLINE` liveness
+  is always forbidden.
 - Stale data handling is explicit: return the last sample with age metadata only
   where the API permits it, otherwise report a stable error or unsupported state.
 
@@ -26,5 +37,7 @@ window, update cadence, maximum age, privilege, unsupported result, and
 
 Setters are control-plane operations. Validate privilege and requested value,
 send a request with idempotence identity, and return success only after the
-effective snapshot reflects policy. A transport acknowledgement alone is not
-success. Timeout and partial failure must not leave a falsely reported mode.
+monotonic control fence reflects policy. A transport acknowledgement or telemetry
+bank alone is not success. Timeout and partial failure must not leave a falsely
+reported mode, and getters never recover an older policy through telemetry
+fallback.

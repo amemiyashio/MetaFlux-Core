@@ -1,5 +1,17 @@
 # UAPI Compatibility
 
+## Canonical ownership
+
+The root M0002 transport-envelope manifest lives under
+`contracts/protocol/transport/v1/schema/manifest.json`. Linux ioctl, mmap, and
+broker records remain authored in their zone under `contracts/uapi/linux/v1/`.
+Each definition on the frozen M0002 base allowlist is referenced exactly once by
+that manifest. Later extension definitions stay outside the base closure and are
+referenced by their owning extension manifest. Generated kernel/userspace headers
+and byte/offset fixtures are projections, never competing sources of truth.
+Kernel, transport, and service directories must not copy a public layout into a
+private normative struct.
+
 ## Record shape
 
 - Use fixed-width Linux UAPI types, explicit size/version, flags, reserved fields,

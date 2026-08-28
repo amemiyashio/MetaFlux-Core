@@ -1,4 +1,4 @@
 interface:
   display_name: "GPU Virtualization with vfio-user"
-  short_description: "Review vfio-user negotiation and guest DMA lifetime"
-  default_prompt: "Use $gpu-virtualization-vfio-user to review this vfio-user negotiation, DMA mapping, or reset path."
+  short_description: "Review vfio-user negotiation, ordering, DMA, and reset"
+  default_prompt: "Use $gpu-virtualization-vfio-user to review this vfio-user negotiation, message ordering, DMA mapping, or reset path."

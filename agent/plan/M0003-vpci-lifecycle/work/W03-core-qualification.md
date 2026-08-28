@@ -4,7 +4,7 @@ milestone: M0003
 status: Queued
 area: lifecycle.qualification
 depends_on: [M0003-W02]
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # Core Lifecycle Qualification and Freeze
@@ -16,7 +16,9 @@ freeze `mf_admin_lifecycle_v1` from one schema.
 
 ## Work
 
-- [ ] Implement canonical udev policy and the explicit namespace launcher.
+- [ ] Implement and qualify canonical MetaFlux udev/node policy for existing
+  transports; the optional namespace launcher and NVIDIA-named aliases belong
+  only to M0003-W04.
 - [ ] Run 1,000 memfd, local-cdev, and guest-QMP reset/remove/add cycles under
   concurrent open, mmap, submit, and `nvidia-smi` activity.
 - [ ] Run KUnit, kselftest, ABI fuzz, KASAN, KCSAN, lockdep, kmemleak, crash, and

@@ -31,6 +31,7 @@ let
       llvmPackages.llvm
       llvmPackages.mlir
     ];
+    extraNativeBuildInputs = [ pkgs.python3 ];
   };
 
   format = mkMetafluxPackage {
@@ -45,6 +46,7 @@ let
     extraNativeBuildInputs = [
       llvmPackages.clang-tools
       pkgs.nixfmt
+      pkgs.python3
     ];
   };
 
@@ -161,6 +163,11 @@ let
         ${pkgs.python3}/bin/python3 \
           ${source.agentRecords}/tools/check-agent-records.py \
           ${source.agentRecords}
+        ${pkgs.python3}/bin/python3 -B \
+          ${source.agentRecords}/tools/check-skill-routing.py \
+          ${source.agentRecords}
+        ${pkgs.python3}/bin/python3 -B \
+          ${source.agentRecords}/tools/test-check-skill-routing.py
         touch "$out"
       '';
 

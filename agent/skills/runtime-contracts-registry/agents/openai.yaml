@@ -1,0 +1,4 @@
+interface:
+  display_name: "Runtime Contracts and Registry"
+  short_description: "Review neutral runtime contracts and registry semantics"
+  default_prompt: "Use $runtime-contracts-registry to review this registry, provider-view, shared-memory, client-protocol, or backend-ABI change."

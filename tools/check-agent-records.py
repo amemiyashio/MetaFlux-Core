@@ -61,6 +61,8 @@ SESSION_PATH_RE = re.compile(
 MILESTONE_ID_RE = re.compile(r"^M\d{4}$")
 WORK_ITEM_ID_RE = re.compile(r"^M\d{4}-W\d{2}$")
 EXPERIENCE_ID_RE = re.compile(r"^E\d{4}$")
+DECISION_ID_RE = re.compile(r"^D\d{4}$")
+DECISION_ID_SEARCH_RE = re.compile(r"\bD\d{4}\b")
 CHECKPOINT_ID_RE = re.compile(r"^P\d{8}-\d{3}$")
 STABLE_AGENT_ID_RE = re.compile(
     r"^(?:M\d{4}(?:-W\d{2})?|E\d{4}|P\d{8}-\d{3})$"
@@ -72,7 +74,6 @@ SESSION_ID_SEARCH_RE = re.compile(r"S\d{8}-\d{3}-[a-z0-9][a-z0-9-]*")
 MILESTONE_ID_SEARCH_RE = re.compile(r"M\d{4}")
 EXPERIENCE_ID_SEARCH_RE = re.compile(r"E\d{4}")
 SKILL_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-SKILL_LINK_RE = re.compile(r"([a-z0-9][a-z0-9-]*)/SKILL\.md")
 SKILL_FRONTMATTER_KEYS = {
     "name",
     "description",
@@ -82,6 +83,51 @@ SKILL_FRONTMATTER_KEYS = {
 }
 MAX_SKILL_NAME_LENGTH = 64
 MAX_SKILL_DESCRIPTION_LENGTH = 1024
+DECISION_IDENTITY_STOP_WORDS = {
+    "a",
+    "an",
+    "and",
+    "as",
+    "at",
+    "be",
+    "before",
+    "by",
+    "each",
+    "for",
+    "from",
+    "in",
+    "including",
+    "into",
+    "is",
+    "of",
+    "on",
+    "or",
+    "per",
+    "the",
+    "this",
+    "to",
+    "with",
+}
+DECISION_TERM_ALIASES = {"marks": "mark"}
+SKILL_LIFECYCLE_STATUSES = {"Draft", "Active", "Retired"}
+SKILL_INDEX_COLUMNS = ("Skill", "Status", "Use when")
+DOMAIN_SKILL_SLUGS = {
+    "cpu-backend-performance",
+    "cuda-driver-abi-compatibility",
+    "device-lifecycle-resilience",
+    "gpu-virtualization-vfio-user",
+    "linux-device-driver-uapi",
+    "mlir-compiler-engineering",
+    "nvml-telemetry-compatibility",
+    "pcie-vpci-device-model",
+    "ptx-simt-semantics",
+    "runtime-contracts-registry",
+    "vulkan-spirv-compute",
+}
+DOMAIN_SKILL_SECTIONS = ("Inputs", "Routing", "Workflow", "Output", "Verification")
+OPENAI_INTERFACE_FIELDS = {"display_name", "short_description", "default_prompt"}
+MIN_OPENAI_SHORT_DESCRIPTION_LENGTH = 25
+MAX_OPENAI_SHORT_DESCRIPTION_LENGTH = 64
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".txt", ".yaml", ".yml"}
@@ -608,9 +654,62 @@ class Validator:
                     f"experience index references nonexistent records: {', '.join(stale)}",
                 )
 
+    @staticmethod
+    def numbered_decisions(markdown: str) -> list[str]:
+        """Return full numbered items from the Decisions to Close section."""
+
+        match = re.search(r"(?m)^## Decisions to Close\s*$", markdown)
+        if match is None:
+            return []
+
+        tail = markdown[match.end() :]
+        next_heading = re.search(r"(?m)^##\s+", tail)
+        body = tail[: next_heading.start()] if next_heading else tail
+        decisions: list[str] = []
+        current: list[str] | None = None
+        for line in body.splitlines():
+            item = re.match(r"^\d+\.\s+(.+?)\s*$", line)
+            if item:
+                if current is not None:
+                    decisions.append(" ".join(current))
+                current = [item.group(1)]
+            elif current is not None and (line.startswith("   ") or line.startswith("\t")):
+                current.append(line.strip())
+            elif current is not None:
+                decisions.append(" ".join(current))
+                current = None
+        if current is not None:
+            decisions.append(" ".join(current))
+        return decisions
+
+    @staticmethod
+    def normalized_decision_terms(decision: str) -> tuple[str, ...]:
+        """Build an ordered Unicode-aware identity for one open decision."""
+
+        decision = re.sub(r"\[([^]]+)\]\([^)]+\)", r"\1", decision)
+        decision = decision.replace("`", "").casefold()
+        terms: list[str] = []
+        for token in re.findall(r"[^\W_]+", decision, flags=re.UNICODE):
+            if token in DECISION_IDENTITY_STOP_WORDS:
+                continue
+            if DECISION_ID_RE.fullmatch(token.upper()):
+                continue
+            terms.append(DECISION_TERM_ALIASES.get(token, token))
+        return tuple(terms)
+
+    @classmethod
+    def decisions_match(cls, plan_decision: str, ledger_decision: str) -> bool:
+        """Match plan and ledger decisions by exact normalized identity."""
+
+        plan_terms = cls.normalized_decision_terms(plan_decision)
+        ledger_terms = cls.normalized_decision_terms(ledger_decision)
+        return plan_terms == ledger_terms
+
     def validate_open_decisions(self) -> None:
+        """Verify each milestone plan decision maps uniquely to its ledger row."""
+
         plan_root = self.agent_root / "plan"
-        open_counts: dict[str, int] = {}
+        plan_decisions: dict[str, list[str]] = {}
         for plan_file in sorted(plan_root.glob("M*/plan.md")):
             milestone_id = plan_file.parent.name[:5]
             try:
@@ -619,13 +718,12 @@ class Validator:
                 continue
             if "## Decisions to Close" not in text:
                 continue
-            section = text.split("## Decisions to Close", 1)[1].split("\n## ", 1)[0]
-            count = len(re.findall(r"(?m)^\d+\.\s", section))
-            if count:
-                open_counts[milestone_id] = count
+            decisions = self.numbered_decisions(text)
+            if decisions:
+                plan_decisions[milestone_id] = decisions
 
         ledger = self.agent_root / "memory" / "open-decisions.md"
-        ledger_counts: dict[str, int] = {}
+        ledger_decisions: dict[str, list[str]] = {}
         if ledger.is_file():
             try:
                 ledger_text = ledger.read_text(encoding="utf-8")
@@ -633,34 +731,141 @@ class Validator:
                 self.add_error(ledger, f"is not valid UTF-8: {exc}")
                 ledger_text = ""
             for line in ledger_text.splitlines():
-                if not line.startswith("|"):
-                    continue
-                cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-                if cells and MILESTONE_ID_RE.fullmatch(cells[0]):
-                    ledger_counts[cells[0]] = ledger_counts.get(cells[0], 0) + 1
-        elif open_counts:
+                cells = self.markdown_table_cells(line)
+                if cells is not None and len(cells) >= 2:
+                    if MILESTONE_ID_RE.fullmatch(cells[0]):
+                        ledger_decisions.setdefault(cells[0], []).append(cells[1])
+        elif plan_decisions:
             self.add_error(
                 ledger,
                 "open-decisions ledger is missing while plans declare "
-                f"{sum(open_counts.values())} open decision(s)",
+                f"{sum(len(items) for items in plan_decisions.values())} "
+                "open decision(s)",
             )
             return
 
-        for milestone_id, count in sorted(open_counts.items()):
-            listed = ledger_counts.get(milestone_id, 0)
-            if listed != count:
+        all_milestones = sorted(set(plan_decisions) | set(ledger_decisions))
+        for milestone_id in all_milestones:
+            plan_items = plan_decisions.get(milestone_id, [])
+            ledger_items = ledger_decisions.get(milestone_id, [])
+            if len(plan_items) != len(ledger_items):
                 self.add_error(
                     ledger,
-                    f"{milestone_id} declares {count} open decision(s) but the "
-                    f"ledger lists {listed}",
+                    f"{milestone_id} declares {len(plan_items)} open decision(s) "
+                    f"but the ledger lists {len(ledger_items)}",
                 )
-        for milestone_id in sorted(ledger_counts):
-            if milestone_id not in open_counts:
-                self.add_error(
-                    ledger,
-                    f"ledger lists open decisions for {milestone_id}, whose plan "
-                    "declares none",
-                )
+
+            for source_name, decisions in (
+                ("plan", plan_items),
+                ("ledger", ledger_items),
+            ):
+                seen: set[tuple[str, ...]] = set()
+                for decision in decisions:
+                    signature = self.normalized_decision_terms(decision)
+                    if signature in seen:
+                        self.add_error(
+                            ledger,
+                            f"duplicate {source_name} decision for {milestone_id}: "
+                            f"{decision!r}",
+                        )
+                    seen.add(signature)
+
+            matched_ledger: set[int] = set()
+            for plan_item in plan_items:
+                candidates = [
+                    index
+                    for index, ledger_item in enumerate(ledger_items)
+                    if self.decisions_match(plan_item, ledger_item)
+                ]
+                if not candidates:
+                    self.add_error(
+                        ledger,
+                        f"{milestone_id} plan decision has no matching ledger row: "
+                        f"{plan_item!r}",
+                    )
+                elif len(candidates) > 1:
+                    self.add_error(
+                        ledger,
+                        f"{milestone_id} plan decision matches multiple ledger rows: "
+                        f"{plan_item!r}",
+                    )
+                else:
+                    matched_ledger.add(candidates[0])
+
+            for index, ledger_item in enumerate(ledger_items):
+                if index not in matched_ledger:
+                    self.add_error(
+                        ledger,
+                        f"{milestone_id} ledger decision has no matching plan item: "
+                        f"{ledger_item!r}",
+                    )
+
+    def validate_decision_index(self) -> None:
+        """Validate unique decision IDs and resolve all agent-record references."""
+
+        index_path = self.agent_root / "memory" / "decisions-index.md"
+        indexed: dict[str, int] = {}
+        if index_path.is_file():
+            try:
+                index_text = index_path.read_text(encoding="utf-8")
+            except UnicodeDecodeError as exc:
+                self.add_error(index_path, f"is not valid UTF-8: {exc}")
+                index_text = ""
+            for line_no, line in enumerate(index_text.splitlines(), start=1):
+                cells = self.markdown_table_cells(line)
+                if cells is None or not cells or not DECISION_ID_RE.fullmatch(cells[0]):
+                    continue
+                decision_id = cells[0]
+                if decision_id in indexed:
+                    self.add_error(
+                        index_path,
+                        f"duplicate decision ID {decision_id} "
+                        f"(rows {indexed[decision_id]} and {line_no})",
+                    )
+                else:
+                    indexed[decision_id] = line_no
+
+        references: dict[str, set[Path]] = {}
+        if self.agent_root.is_dir():
+            for path in sorted(self.agent_root.rglob("*.md")):
+                if path == index_path:
+                    continue
+                try:
+                    text = path.read_text(encoding="utf-8")
+                except (OSError, UnicodeDecodeError):
+                    continue
+                for decision_id in DECISION_ID_SEARCH_RE.findall(text):
+                    references.setdefault(decision_id, set()).add(path)
+
+            for events_path in sorted(self.sessions_root.rglob("events.jsonl")):
+                try:
+                    event_lines = events_path.read_text(encoding="utf-8").splitlines()
+                except (OSError, UnicodeDecodeError):
+                    continue
+                for line in event_lines:
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not isinstance(event, dict) or event.get("type") != "decision":
+                        continue
+                    content = event.get("content")
+                    if not isinstance(content, str):
+                        continue
+                    for decision_id in DECISION_ID_SEARCH_RE.findall(content):
+                        references.setdefault(decision_id, set()).add(events_path)
+
+        for decision_id, paths in sorted(references.items()):
+            if decision_id in indexed:
+                continue
+            relative_paths = ", ".join(
+                sorted(str(path.relative_to(self.repo_root)) for path in paths)
+            )
+            self.add_error(
+                index_path,
+                f"decision reference {decision_id} is absent from the index "
+                f"(referenced by {relative_paths})",
+            )
 
     def validate_distillation(self, summary_path: Path | None, session: dict) -> None:
         started_at = session.get("started_at")
@@ -830,6 +1035,259 @@ class Validator:
                         f"the plan says '{plan_status}'; one of them is stale"
                     )
 
+    @staticmethod
+    def markdown_table_cells(line: str) -> tuple[str, ...] | None:
+        stripped = line.strip()
+        if not stripped.startswith("|") or not stripped.endswith("|"):
+            return None
+        return tuple(cell.strip() for cell in stripped[1:-1].split("|"))
+
+    def parse_skills_index(self, path: Path, text: str) -> dict[str, str]:
+        """Parse only the canonical three-column table in the README Index section."""
+        lines = text.splitlines()
+        index_headings = [
+            index for index, line in enumerate(lines) if line.strip() == "## Index"
+        ]
+        if len(index_headings) != 1:
+            self.add_error(path, "skills index requires exactly one '## Index' section")
+            return {}
+
+        section_start = index_headings[0] + 1
+        section_end = next(
+            (
+                index
+                for index in range(section_start, len(lines))
+                if re.fullmatch(r"##[ \t]+.+", lines[index].strip())
+            ),
+            len(lines),
+        )
+        header_index = next(
+            (
+                index
+                for index in range(section_start, section_end)
+                if self.markdown_table_cells(lines[index]) == SKILL_INDEX_COLUMNS
+            ),
+            None,
+        )
+        if header_index is None:
+            self.add_error(
+                path,
+                "skills Index section requires the table columns: Skill, Status, Use when",
+            )
+            return {}
+        if header_index + 1 >= section_end:
+            self.add_error(path, "skills index table is missing its separator row")
+            return {}
+
+        separator = self.markdown_table_cells(lines[header_index + 1])
+        if separator is None or len(separator) != len(SKILL_INDEX_COLUMNS) or not all(
+            re.fullmatch(r":?-{3,}:?", cell) for cell in separator
+        ):
+            self.add_error(path, "skills index table has an invalid separator row")
+            return {}
+
+        indexed: dict[str, str] = {}
+        row_index = header_index + 2
+        while row_index < section_end:
+            line = lines[row_index]
+            if not line.strip():
+                break
+            cells = self.markdown_table_cells(line)
+            if cells is None:
+                break
+            if len(cells) != len(SKILL_INDEX_COLUMNS):
+                self.add_error(
+                    path,
+                    f"skills index row {row_index + 1} must have exactly three columns",
+                )
+                row_index += 1
+                continue
+
+            skill_cell, status, use_when = cells
+            link = re.fullmatch(r"\[([^]]+)\]\(([^)]+)\)", skill_cell)
+            if link is None:
+                self.add_error(
+                    path,
+                    f"skills index row {row_index + 1} has an invalid skill link",
+                )
+                row_index += 1
+                continue
+            label, target = link.groups()
+            slug = label.strip()
+            if not SKILL_SLUG_RE.fullmatch(slug):
+                self.add_error(
+                    path,
+                    f"skills index row {row_index + 1} label is not a skill slug",
+                )
+                row_index += 1
+                continue
+            expected_target = f"{slug}/SKILL.md"
+            if target != expected_target:
+                self.add_error(
+                    path,
+                    f"skills index row {row_index + 1} must link to {expected_target!r}",
+                )
+            if status not in SKILL_LIFECYCLE_STATUSES:
+                self.add_error(
+                    path,
+                    f"skills index row {row_index + 1} has unsupported status {status!r}",
+                )
+            if not use_when:
+                self.add_error(
+                    path,
+                    f"skills index row {row_index + 1} requires a non-empty 'Use when'",
+                )
+            if slug in indexed:
+                self.add_error(path, f"skills index repeats row for: {slug}")
+            else:
+                indexed[slug] = status
+            row_index += 1
+
+        if not indexed:
+            self.add_error(path, "skills index table contains no skill rows")
+        return indexed
+
+    @staticmethod
+    def markdown_h2_headings(text: str) -> list[tuple[int, str]]:
+        headings: list[tuple[int, str]] = []
+        fence_marker: str | None = None
+        fence_length = 0
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            fence = re.match(r"^[ \t]{0,3}(`{3,}|~{3,})(.*)$", line)
+            if fence:
+                marker = fence.group(1)
+                if fence_marker is None:
+                    fence_marker = marker[0]
+                    fence_length = len(marker)
+                elif (
+                    marker[0] == fence_marker
+                    and len(marker) >= fence_length
+                    and not fence.group(2).strip()
+                ):
+                    fence_marker = None
+                    fence_length = 0
+                continue
+            if fence_marker is not None:
+                continue
+            heading = re.fullmatch(r"##[ \t]+(.+?)[ \t]*", line)
+            if heading:
+                headings.append((line_number, heading.group(1)))
+        return headings
+
+    def validate_domain_skill_sections(self, path: Path, text: str) -> None:
+        headings = self.markdown_h2_headings(text)
+        positions: list[int] = []
+        valid = True
+        for required in DOMAIN_SKILL_SECTIONS:
+            matches = [line_number for line_number, heading in headings if heading == required]
+            if len(matches) != 1:
+                self.add_error(
+                    path,
+                    f"domain SKILL.md requires exactly one '## {required}' section",
+                )
+                valid = False
+            else:
+                positions.append(matches[0])
+        if valid and positions != sorted(positions):
+            expected = " -> ".join(DOMAIN_SKILL_SECTIONS)
+            self.add_error(path, f"domain SKILL.md sections must appear in order: {expected}")
+
+    def parse_openai_yaml(
+        self, path: Path, text: str, slug: str
+    ) -> dict[str, str] | None:
+        """Parse the repository's deliberately small agents/openai.yaml subset."""
+        interface: dict[str, str] = {}
+        saw_interface = False
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            if "\t" in line:
+                self.add_error(path, f"line {line_number}: tabs are not allowed")
+                return None
+
+            indentation = len(line) - len(line.lstrip(" "))
+            if indentation == 0:
+                if line != "interface:":
+                    self.add_error(
+                        path,
+                        f"line {line_number}: only the top-level 'interface:' mapping is supported",
+                    )
+                    return None
+                if saw_interface:
+                    self.add_error(path, "agents/openai.yaml repeats 'interface'")
+                    return None
+                saw_interface = True
+                continue
+
+            if indentation != 2 or not saw_interface:
+                self.add_error(
+                    path,
+                    f"line {line_number}: expected a two-space-indented interface field",
+                )
+                return None
+            field_match = re.fullmatch(r"  ([a-z][a-z0-9_-]*):[ ]+(.+)", line)
+            if field_match is None:
+                self.add_error(path, f"line {line_number}: invalid interface field syntax")
+                return None
+            field, raw_value = field_match.groups()
+            if field not in OPENAI_INTERFACE_FIELDS:
+                self.add_error(path, f"line {line_number}: unsupported interface field {field!r}")
+                return None
+            if field in interface:
+                self.add_error(path, f"agents/openai.yaml repeats interface field {field!r}")
+                return None
+            if not raw_value.startswith('"'):
+                self.add_error(path, f"line {line_number}: interface strings must be double-quoted")
+                return None
+            try:
+                value = json.loads(raw_value)
+            except json.JSONDecodeError as exc:
+                self.add_error(
+                    path,
+                    f"line {line_number}: invalid quoted string: {exc.msg}",
+                )
+                return None
+            if not isinstance(value, str):
+                self.add_error(path, f"line {line_number}: interface value must be a string")
+                return None
+            interface[field] = value
+
+        if not saw_interface:
+            self.add_error(path, "agents/openai.yaml requires an 'interface' mapping")
+            return None
+        missing = OPENAI_INTERFACE_FIELDS - interface.keys()
+        if missing:
+            self.add_error(
+                path,
+                "agents/openai.yaml interface is missing field(s): "
+                + ", ".join(sorted(missing)),
+            )
+            return None
+        if not interface["display_name"].strip():
+            self.add_error(path, "interface.display_name must be non-empty")
+        short_description = interface["short_description"].strip()
+        if not (
+            MIN_OPENAI_SHORT_DESCRIPTION_LENGTH
+            <= len(short_description)
+            <= MAX_OPENAI_SHORT_DESCRIPTION_LENGTH
+        ):
+            self.add_error(
+                path,
+                "interface.short_description must be "
+                f"{MIN_OPENAI_SHORT_DESCRIPTION_LENGTH}-{MAX_OPENAI_SHORT_DESCRIPTION_LENGTH} characters",
+            )
+        default_prompt = interface["default_prompt"].strip()
+        skill_token = f"${slug}"
+        token_pattern = re.compile(
+            rf"(?<![$A-Za-z0-9_-]){re.escape(skill_token)}(?![A-Za-z0-9_-])"
+        )
+        if len(token_pattern.findall(default_prompt)) != 1:
+            self.add_error(
+                path,
+                f"interface.default_prompt must mention exact token {skill_token!r} once",
+            )
+        return interface
+
     def parse_skill_frontmatter(self, path: Path, text: str) -> dict[str, str] | None:
         """Parse the top-level scalar fields needed by the Codex skill contract.
 
@@ -991,15 +1449,25 @@ class Validator:
                     f"SKILL.md description exceeds {MAX_SKILL_DESCRIPTION_LENGTH} characters",
                 )
 
+        if slug in DOMAIN_SKILL_SLUGS:
+            self.validate_domain_skill_sections(skill_file, text)
+
         openai_yaml = skill_dir / "agents" / "openai.yaml"
+        if slug in DOMAIN_SKILL_SLUGS and not openai_yaml.is_file():
+            self.add_error(
+                openai_yaml,
+                "domain skill package requires agents/openai.yaml",
+            )
         if openai_yaml.exists():
             if not openai_yaml.is_file():
                 self.add_error(openai_yaml, "agents/openai.yaml must be a regular file")
             else:
                 try:
-                    openai_yaml.read_text(encoding="utf-8")
+                    openai_text = openai_yaml.read_text(encoding="utf-8")
                 except UnicodeDecodeError as exc:
                     self.add_error(openai_yaml, f"is not valid UTF-8: {exc}")
+                else:
+                    self.parse_openai_yaml(openai_yaml, openai_text, slug)
 
     def validate_skills(self) -> None:
         """Enforce Codex-compatible packages and the repository catalog."""
@@ -1052,10 +1520,7 @@ class Validator:
         except UnicodeDecodeError as exc:
             self.add_error(index_path, f"is not valid UTF-8: {exc}")
             return
-        indexed = {
-            match.group(1)
-            for match in SKILL_LINK_RE.finditer(index_text)
-        }
+        indexed = set(self.parse_skills_index(index_path, index_text))
 
         for missing in sorted(actual - indexed):
             self.add_error(index_path, f"skills index is missing: {missing}")
@@ -1267,6 +1732,7 @@ class Validator:
 
         self.validate_index_completeness(actual_session_ids)
         self.validate_open_decisions()
+        self.validate_decision_index()
         self.validate_progress_health()
         self.validate_current_progress()
         self.validate_status_consistency()

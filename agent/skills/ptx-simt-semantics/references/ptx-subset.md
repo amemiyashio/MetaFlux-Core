@@ -12,6 +12,7 @@ Represent support at the full instruction-form level:
 | Control | predicate polarity, uniformity assumptions, branch target |
 | Memory | cache/order/scope/volatile qualifiers, alignment, vector width |
 | Target | PTX version, target feature, address size, capability requirement |
+| Oracle | deterministic, allowed-outcome-set, undefined/unsupported |
 
 M0001's initial corpus includes entries, parameters, registers, predicates,
 required address spaces, 1D/2D thread and block registers, required loads/stores,

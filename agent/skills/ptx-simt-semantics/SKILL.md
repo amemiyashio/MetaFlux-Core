@@ -1,6 +1,6 @@
 ---
 name: ptx-simt-semantics
-description: Specify or review PTX 9.x subset parsing, Kernel IR semantics, state spaces, predication, divergent SIMT control flow, CTA barriers, atomics, memory ordering, and interpreter-oracle tests. Use for M0001 PTX semantic work. Do not use for MLIR pass implementation, CUDA ELF ABI, or target-runtime tuning.
+description: Specify or review PTX 9.x subset parsing, Kernel IR semantics, state spaces, predication, divergent SIMT control flow, CTA barriers, atomics, memory ordering, and deterministic or allowed-outcome semantic-oracle tests. Use whenever PTX source meaning or its oracle changes, including M0001 CPU and M0004 Vulkan paths. Do not use for CPU interpreter implementation, MLIR pass implementation, CUDA ELF ABI, or target-runtime tuning.
 ---
 
 # PTX SIMT Semantics
@@ -9,8 +9,8 @@ description: Specify or review PTX 9.x subset parsing, Kernel IR semantics, stat
 
 - The active milestone/work item, selected PTX ISA version, and exact corpus and
   instruction/capability manifest.
-- Kernel IR schema/verifier rules plus parser, interpreter, native-reference,
-  and differential-test artifacts affected by the task.
+- Kernel IR schema/verifier rules plus parser, semantic-oracle, CPU interpreter,
+  native-reference, and differential-test artifacts affected by the task.
 - Target constraints only where they determine whether a semantic form can be
   advertised; a target limitation must not silently redefine PTX.
 
@@ -27,8 +27,9 @@ width, vector form, state space, qualifiers, scope, and modifiers all matter.
   atomics, fences, and ordering.
 - Use [oracle testing](references/oracle-testing.md) for independent semantic
   evidence and diagnostics.
-- Route dialect/pass mechanics to `$mlir-compiler-engineering`, CPU code shape
-  and tuning to `$cpu-backend-performance`, and Vulkan capability mapping to
+- Route dialect/pass mechanics to `$mlir-compiler-engineering`, CPU interpreter
+  implementation, runtime execution, code shape, and tuning to
+  `$cpu-backend-performance`, and Vulkan capability mapping to
   `$vulkan-spirv-compute`.
 
 ## Workflow
@@ -44,10 +45,15 @@ width, vector form, state space, qualifiers, scope, and modifiers all matter.
    Specify barrier participation and deadlock/error behavior for invalid paths.
 5. Define memory access, alignment, visibility, atomicity, scope, and ordering;
    reject forms whose semantics cannot be represented exactly.
-6. Implement or update the interpreter before optimized lowering. Keep it simple
-   enough to act as an oracle, not as a copy of the MLIR/LLVM implementation.
+6. Define the semantic oracle independently of optimized lowering: exact expected
+   values for deterministic cases, allowed and forbidden outcome sets for
+   scheduler- or memory-sensitive cases, and explicit undefined or unsupported
+   cases. Compose with `$cpu-backend-performance` for interpreter implementation;
+   the interpreter executes oracle tests but does not define their answers.
 7. Add one positive and one precise negative fixture for every advertised form,
-   then differential and randomized cases for interactions.
+   classify each result oracle, then add differential and randomized interaction
+   cases. Random scheduling samples allowed behavior; it is not completeness
+   evidence for a weak-memory outcome set.
 
 ## Output
 
@@ -56,15 +62,21 @@ Return or implement:
 - A PTX form/capability matrix and Kernel IR semantic contract.
 - State-transition descriptions for control flow, barriers, memory, and errors.
 - Stable source-located diagnostics for malformed and unsupported forms.
-- Oracle and differential-test evidence, including any semantic exclusions a
-  backend must report rather than approximate.
+- Oracle and differential-test evidence with every case classified as
+  deterministic, allowed-outcome-set, or undefined/unsupported, including any
+  semantic exclusions a backend must report rather than approximate.
 
 ## Verification
 
 - Prove every advertised form has parser, verifier, interpreter, lowering, and
   differential coverage before promotion.
-- Compare scalar reference, interpreter, CPU JIT/AOT, and available native or
-  Vulkan executions without sharing the same implementation logic as the oracle.
+- Compare deterministic scalar reference, interpreter, CPU JIT/AOT, and available
+  native or Vulkan results byte-for-byte for integer cases and by the declared FP
+  oracle. For scheduler- or memory-sensitive cases, require every result to be in
+  the derived allowed set and assert forbidden outcomes separately.
+- Keep reference models and executable implementations structurally independent.
+  Back randomized litmus sampling with a normative model, exhaustive enumerator,
+  or equivalent argument appropriate to the finite case.
 - Exercise divergent branches, partial predicates, loop backedges, barrier
   participation, boundary addresses, alignment, overflow, atomic contention,
   and scope/order pairs.

@@ -20,7 +20,8 @@ For every supported load, store, atomic, and fence form, record:
 - atomicity and tear behavior;
 - order and scope;
 - synchronization edge created;
-- interpreter implementation and target-lowering precondition;
+- semantic-oracle relation, CPU interpreter requirement, and target-lowering
+  precondition;
 - negative diagnostic when a target cannot preserve the semantics.
 
 CTA barrier semantics include both execution convergence and the specified
@@ -32,8 +33,11 @@ relation is written down.
 
 Cover same-address contention, independent addresses, read-modify-write return
 values, visibility across barrier phases, stale generation, out-of-bounds,
-integer overflow, aliases, and unsupported scope/order combinations. Use litmus
-style tests where one result is forbidden by the contract.
+integer overflow, aliases, and unsupported scope/order combinations. For each
+litmus test, derive the allowed outcome set and named forbidden outcomes from the
+pinned model. Use exhaustive finite enumeration or equivalent model evidence when
+practical; randomized interpreter schedules sample the set but do not prove it
+complete.
 
 Normative details come from the pinned [PTX ISA memory consistency
 model](https://docs.nvidia.com/cuda/parallel-thread-execution/).

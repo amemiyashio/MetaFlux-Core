@@ -44,7 +44,15 @@ let
   testFiles = fileset.unions [
     providerFiles
     daemonFiles
-    (select [ "tests" ])
+    (select [
+      "agent/skills"
+      "tests"
+      "tools/check-agent-records.py"
+      "tools/check-component-graph.py"
+      "tools/check-skill-routing.py"
+      "tools/test-check-agent-records.py"
+      "tools/test-check-skill-routing.py"
+    ])
   ];
   formatFiles = fileset.union testFiles (select [
     ".clang-format"
@@ -77,7 +85,9 @@ let
     "tools/README.md"
     "tools/check-agent-records.py"
     "tools/check-component-graph.py"
+    "tools/check-skill-routing.py"
     "tools/test-check-agent-records.py"
+    "tools/test-check-skill-routing.py"
     "transports"
   ];
 

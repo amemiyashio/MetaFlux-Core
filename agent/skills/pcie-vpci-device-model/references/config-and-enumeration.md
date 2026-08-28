@@ -1,5 +1,18 @@
 # Configuration and Enumeration
 
+## Canonical ownership
+
+The M0002 guest config/BAR profile is declared by the root manifest at
+`contracts/protocol/transport/v1/schema/manifest.json`. The M0003 vroot profile
+is declared by
+`contracts/protocol/transport/v1/schema/extensions/vroot/v1/manifest.json`, which
+imports the frozen M0002 base and lifecycle-extension manifests by content hash
+without changing either. The import closure de-duplicates an identical base tuple
+reached directly and through lifecycle; duplicate direct entries, cycles, and
+path/version/hash conflicts fail validation. Generated config images, writable masks, BAR tables,
+and byte fixtures are consumed by QEMU/server and kernel adapters; callback-local
+copies are not authoritative.
+
 ## Profile matrix
 
 | Property | M0002 guest function | Initial M0003 vroot fixture |
@@ -8,7 +21,7 @@
 | Identity | CI `0x4D46:0x0001`, class `0x120000` | Same CI identity; optional default-off presentation policy |
 | Config size | Per pinned QEMU/profile contract | Preallocated 256-byte Type-0 image |
 | BAR/IRQ | BAR0, BAR2, BAR4/MSI-X | None initially |
-| Reset/hotplug | Static cold-plug, terminal reset in M0002 | Dynamic add/remove/re-add through M0003 lifecycle |
+| Reset/hotplug | Static cold-plug, unadvertised observed reset is terminal in M0002 | Dynamic add/remove/re-add through M0003 lifecycle |
 
 Release VID/DID is an open decision and requires the repository's registration
 or deployment-supplied process. Synthetic vendor identity is presentation only,
@@ -25,7 +38,10 @@ never a claim to a vendor-private ABI.
   only when the profile advertises them.
 - Keep BDF allocation unique within one enumeration domain and persistent only
   to the plan's stated scope. UUID remains cross-domain identity.
-- Serialize presence changes with scan/add/remove so no half-created function is
-  discoverable and no absent function responds as present.
+- Serialize config presence, scan/add/remove, matching enable, driver bind, and
+  registry publication. Linux PCI scanning calls `device_add()` before
+  `pci_bus_add_device()`, so an unbound `pci_dev` may be visible before matching
+  is enabled. It must remain quarantined, never registry-online, and unable to
+  match any vendor driver; an absent function still never answers config reads.
 
 Primary source: [Linux PCI driver documentation](https://docs.kernel.org/driver-api/pci/index.html).

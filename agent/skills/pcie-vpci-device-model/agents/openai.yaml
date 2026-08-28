@@ -1,4 +1,4 @@
 interface:
   display_name: "PCIe and vPCI Device Model"
-  short_description: "Review PCI config, BAR, MSI-X, and hotplug models"
-  default_prompt: "Use $pcie-vpci-device-model to review this PCI configuration, BAR, MSI-X, enumeration, or hotplug change."
+  short_description: "Review PCI config, visibility, binding, and hotplug"
+  default_prompt: "Use $pcie-vpci-device-model to review this PCI configuration, BAR, MSI-X, scan visibility, driver binding, or hotplug change."

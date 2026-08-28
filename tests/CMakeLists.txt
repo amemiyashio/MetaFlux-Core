@@ -40,32 +40,51 @@ if(TARGET metaflux_cuda_ptx_frontend)
 endif()
 
 if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
-  find_package(Python3 COMPONENTS Interpreter)
-  if(
-    Python3_Interpreter_FOUND
-    AND EXISTS "${CMAKE_BINARY_DIR}/metaflux-component-graph.json"
-  )
-    add_test(
-      NAME metaflux.architecture.component-graph
-      COMMAND
-        Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/../tools/check-component-graph.py"
-        "${CMAKE_BINARY_DIR}/metaflux-component-graph.json"
-    )
-    set_tests_properties(
-      metaflux.architecture.component-graph
-      PROPERTIES LABELS "architecture"
-    )
-    add_test(
-      NAME metaflux.architecture.agent-records-selftest
-      COMMAND
-        Python3::Interpreter
-        "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-check-agent-records.py"
-    )
-    set_tests_properties(
-      metaflux.architecture.agent-records-selftest
-      PROPERTIES LABELS "architecture"
-    )
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  if(NOT EXISTS "${CMAKE_BINARY_DIR}/metaflux-component-graph.json")
+    message(FATAL_ERROR "MetaFlux component graph is missing from the build tree")
   endif()
+  add_test(
+    NAME metaflux.architecture.component-graph
+    COMMAND
+      Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/../tools/check-component-graph.py"
+      "${CMAKE_BINARY_DIR}/metaflux-component-graph.json"
+  )
+  set_tests_properties(
+    metaflux.architecture.component-graph
+    PROPERTIES LABELS "architecture"
+  )
+  add_test(
+    NAME metaflux.architecture.agent-records-selftest
+    COMMAND
+      Python3::Interpreter
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-check-agent-records.py"
+  )
+  set_tests_properties(
+    metaflux.architecture.agent-records-selftest
+    PROPERTIES LABELS "architecture"
+  )
+  add_test(
+    NAME metaflux.architecture.skill-routing
+    COMMAND
+      Python3::Interpreter -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/check-skill-routing.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/.."
+  )
+  set_tests_properties(
+    metaflux.architecture.skill-routing
+    PROPERTIES LABELS "architecture"
+  )
+  add_test(
+    NAME metaflux.architecture.skill-routing-selftest
+    COMMAND
+      Python3::Interpreter -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-check-skill-routing.py"
+  )
+  set_tests_properties(
+    metaflux.architecture.skill-routing-selftest
+    PROPERTIES LABELS "architecture"
+  )
 endif()
 
 if(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER OR METAFLUX_BUILD_NVML_PROVIDER)

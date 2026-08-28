@@ -29,7 +29,10 @@ Rust, Cargo, `.rs` sources, and any `rustc`/Cargo build requirement are excluded
 Assembly is excluded from v0.1 unless profiling, disassembly, and a hardware
 benchmark jointly prove a specific compiler-codegen failure.
 
-- Compiler epoch 1 is Clang/LLVM/MLIR/LLD 22.1.8 plus its verified patchset.
+- The current compiler-epoch-1 descriptor selects stock
+  Clang/LLVM/MLIR/LLD 22.1.8 with an empty downstream patch list. The epoch becomes
+  release-frozen only after the exact correctness patchset and derivation hash are
+  qualified and recorded; until then, neither is described as verified.
 - `toolchains/compiler-epoch-1.json` is the single CMake/Nix epoch descriptor and
   records source revision, Nix derivation, patches, flags, targets, and PGO ID.
 - Clang selects LLD through `-fuse-ld=lld`; configure and Nix builds verify the

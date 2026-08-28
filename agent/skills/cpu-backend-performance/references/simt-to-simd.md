@@ -5,7 +5,9 @@
 Translate one grid into CTAs and one CTA into a scheduling unit with explicit
 thread/lane identity, shared storage, barrier phases, active masks, and completion
 state. The mapping may use scalar loops, host threads, SIMD vectors, or a hybrid;
-none may change PTX-observable semantics.
+none may change PTX-observable semantics. This skill owns the CPU interpreter and
+runtime implementation of that mapping; `$ptx-simt-semantics` supplies the
+semantic oracle and expected outcomes.
 
 ## Mapping checklist
 

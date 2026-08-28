@@ -5,7 +5,7 @@ release: v0.2.1
 status: Queued
 depends_on: [M0001]
 areas: [kernel.core, kernel.pci, transport.cdev, transport.vfio-user]
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # M0002: Kernel and Guest Transport
@@ -37,6 +37,16 @@ duplicating that architecture here.
   use C ABI and fixed-width Linux UAPI. No Rust, assembly implementation, or C++
   ABI crosses components. CI uses each supported distribution compiler and
   `LLVM=1` where the target kernel configuration supports it.
+- `contracts/protocol/transport/v1/schema/manifest.json` is the sole M0002
+  base transport-envelope root. It carries a frozen base-definition allowlist
+  and references each listed definition in
+  `contracts/protocol/device/v1`, `contracts/protocol/transport/v1`,
+  `contracts/shared/device/v1`, and `contracts/uapi/linux/v1` exactly once while
+  each zone retains ownership of its bytes. Later extension-owned definitions are
+  outside that base closure and are referenced only by their own extension
+  manifests. Kernel, guest, server, C17, and C++20 layouts plus golden fixtures
+  are generated projections; no layer-local struct or table is a second
+  normative schema.
 - memfd remains local-only fallback and may be selected before visible success
   only for cdev `ENOENT`, `ENODEV`, or explicit ABI incompatibility. Permission,
   malformed/integrity state, and policy rejection never silently fall back.
@@ -44,9 +54,11 @@ duplicating that architecture here.
   process join one mode/transport/`registry_view_id`. Guests require cdev/vfio-user
   and fail closed.
 - QEMU and `metaflux-vfio-userd` are one trusted high-speed boundary.
-- Static guest cold-plug and terminal reset-to-`LOST` are included. Coordinated
-  replacement generations, QMP hotplug, and bare-metal software PCI move to
-  [M0003](../M0003-vpci-lifecycle/plan.md).
+- Static guest cold-plug and terminal reset-to-`LOST` are included. M0002 leaves
+  `VFIO_DEVICE_FLAGS_RESET` clear and advertises no migration capability; a
+  guest/QEMU reset observation is terminal loss, not a supported reset reply.
+  Coordinated replacement generations, reset advertisement, QMP hotplug, and
+  bare-metal software PCI move to [M0003](../M0003-vpci-lifecycle/plan.md).
 - Vulkan/SPIR-V/external Vulkan memory, cubin/SASS/`nvdisasm`, SR-IOV, ATS,
   PASID, PRI, P2P, AER, live migration, and transparent reconnect are excluded.
 - Persistent MetaFlux UUID is cross-domain identity; BDF is stable only within
@@ -90,8 +102,15 @@ Correctness and ABI:
 - Local cdev and guest Add/Copy agree with M0001.
 - CUDA/NVML/PCI/sysfs/cdev agree per domain; UUID/generation agree across mapping,
   while host/guest BDF need only local stability.
-- Reset is not advertised; disconnect publishes `LOST` and requires a fresh
-  instance.
+- `VFIO_USER_DEVICE_GET_INFO` leaves `VFIO_DEVICE_FLAGS_RESET` clear and
+  migration probing reports unsupported. A defensively received
+  `VFIO_USER_DEVICE_RESET` never receives success; the pinned-pair matrix freezes
+  its error reply or terminal close behavior before implementation. Guest/QEMU
+  reset observation and disconnect publish `LOST` and require a fresh instance.
+- vfio-user message IDs remain sender-owned values echoed in replies; they may be
+  reused concurrently and receivers assume no uniqueness. `No_reply` suppresses
+  only the reply, client commands execute in receive order, and opposite
+  directions establish no global total order.
 - Native/compat ABI, short structures, unknown extensions, null/overflow/stale
   generation, and concurrent teardown pass.
 - Exactly one worker lease consumes a live generation; revoked/dead workers cannot

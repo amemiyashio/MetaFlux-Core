@@ -1,0 +1,579 @@
+{
+  "schema_version": 1,
+  "domain_skills": [
+    "runtime-contracts-registry",
+    "cuda-driver-abi-compatibility",
+    "nvml-telemetry-compatibility",
+    "ptx-simt-semantics",
+    "mlir-compiler-engineering",
+    "cpu-backend-performance",
+    "linux-device-driver-uapi",
+    "gpu-virtualization-vfio-user",
+    "pcie-vpci-device-model",
+    "device-lifecycle-resilience",
+    "vulkan-spirv-compute"
+  ],
+  "coverage": {
+    "required_locales": ["en", "zh-CN"],
+    "minimum_positive_per_skill": {"en": 2, "zh-CN": 1},
+    "minimum_near_miss_per_skill": {"en": 1, "zh-CN": 1},
+    "minimum_composition_cases": 12
+  },
+  "cases": [
+    {
+      "id": "RUNTIME-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Define the ecosystem-neutral registry view, provider join/freeze rules, and client-protocol negotiation for M0001-W02.",
+      "expected_skills": ["runtime-contracts-registry"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "RUNTIME-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Generate the M0002 UAPI, device descriptor, and BAR extension layouts from one canonical contract schema.",
+      "expected_skills": ["runtime-contracts-registry"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "RUNTIME-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Choose the exact CUDA error returned by a destroyed stream without changing any neutral registry or protocol layout.",
+      "expected_skills": ["cuda-driver-abi-compatibility"],
+      "forbidden_skills": ["runtime-contracts-registry"]
+    },
+    {
+      "id": "RUNTIME-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "审查共享设备注册表、客户端协议版本协商和 backend C ABI 的中立契约。",
+      "expected_skills": ["runtime-contracts-registry"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "RUNTIME-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "只分析 PTX 分歧分支的语义，不修改注册表、共享布局或客户端协议。",
+      "expected_skills": ["ptx-simt-semantics"],
+      "forbidden_skills": ["runtime-contracts-registry"]
+    },
+
+    {
+      "id": "CUDA-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Review our libcuda.so.1 export map, _v2 aliases, and cuGetProcAddress behavior against the pinned CUDA headers.",
+      "expected_skills": ["cuda-driver-abi-compatibility"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "CUDA-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Implement stale CUDA context, stream, event, and device-memory handle behavior for the M0001 provider.",
+      "expected_skills": ["cuda-driver-abi-compatibility"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "CUDA-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Explain why a PTX barrier inside divergent control deadlocks in the semantic oracle.",
+      "expected_skills": ["ptx-simt-semantics"],
+      "forbidden_skills": ["cuda-driver-abi-compatibility"]
+    },
+    {
+      "id": "CUDA-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "检查 CUDA Driver 导出符号、上下文句柄和 cuGetProcAddress 的兼容行为。",
+      "expected_skills": ["cuda-driver-abi-compatibility"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "CUDA-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "只修改 NVML 的 count/fill 查询和 nvidia-smi 输出，不涉及 CUDA 执行对象。",
+      "expected_skills": ["nvml-telemetry-compatibility"],
+      "forbidden_skills": ["cuda-driver-abi-compatibility"]
+    },
+
+    {
+      "id": "NVML-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Audit repeated nvmlInit_v2/shutdown and versioned count/fill APIs in libnvidia-ml.so.",
+      "expected_skills": ["nvml-telemetry-compatibility"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "NVML-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Qualify stock nvidia-smi -L, CSV, compute-apps, and XML output without inventing thermals.",
+      "expected_skills": ["nvml-telemetry-compatibility"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "NVML-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Tune the CPU worker's sampling-loop cache locality without changing any NVML contract.",
+      "expected_skills": ["cpu-backend-performance"],
+      "forbidden_skills": ["nvml-telemetry-compatibility"]
+    },
+    {
+      "id": "NVML-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "验证 NVML 初始化、遥测快照和原版 nvidia-smi 的查询兼容性。",
+      "expected_skills": ["nvml-telemetry-compatibility"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "NVML-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "只优化 CPU worker 的 NUMA 放置，不改变 NVML API 或遥测字段。",
+      "expected_skills": ["cpu-backend-performance"],
+      "forbidden_skills": ["nvml-telemetry-compatibility"]
+    },
+
+    {
+      "id": "PTX-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Define supported PTX 9.x atom forms, scopes, memory order, and semantic oracle tests.",
+      "expected_skills": ["ptx-simt-semantics"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PTX-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Review active masks, reconvergence, early return, and CTA barrier participation in Kernel IR.",
+      "expected_skills": ["ptx-simt-semantics"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PTX-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Add an MLIR TypeConverter materialization for an already-specified Kernel IR pointer type.",
+      "expected_skills": ["mlir-compiler-engineering"],
+      "forbidden_skills": ["ptx-simt-semantics"]
+    },
+    {
+      "id": "PTX-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "定义 PTX 原子、内存序、分歧控制和 CTA barrier 的规范语义与 oracle。",
+      "expected_skills": ["ptx-simt-semantics"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PTX-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "为已经定义好的 Kernel IR 类型补一个 MLIR TypeConverter，不重新定义 PTX 语义。",
+      "expected_skills": ["mlir-compiler-engineering"],
+      "forbidden_skills": ["ptx-simt-semantics"]
+    },
+
+    {
+      "id": "MLIR-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Design ODS operations, verifiers, dynamic legality, and conversion patterns from Kernel IR.",
+      "expected_skills": ["mlir-compiler-engineering"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "MLIR-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Minimize a pass-manager crash reproducer and fix compiler-epoch cache invalidation.",
+      "expected_skills": ["mlir-compiler-engineering"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "MLIR-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Decide the normative result of a divergent PTX atomic sequence before any lowering exists.",
+      "expected_skills": ["ptx-simt-semantics"],
+      "forbidden_skills": ["mlir-compiler-engineering"]
+    },
+    {
+      "id": "MLIR-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "设计 Kernel IR 到 MLIR 的 ODS、验证器、动态合法性和 conversion pattern。",
+      "expected_skills": ["mlir-compiler-engineering"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "MLIR-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "先确定分歧 PTX 原子序列允许哪些结果，不讨论任何 MLIR pass。",
+      "expected_skills": ["ptx-simt-semantics"],
+      "forbidden_skills": ["mlir-compiler-engineering"]
+    },
+
+    {
+      "id": "CPU-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Choose x86 CPUID/XCR0 feature profiles and a cache-compatible CPU multiversioning plan.",
+      "expected_skills": ["cpu-backend-performance"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "CPU-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Investigate why LLVM did not vectorize the SIMT-to-loop kernel and produce a pinned benchmark.",
+      "expected_skills": ["cpu-backend-performance"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "CPU-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Design a transistor-level Harvard instruction-memory interface for an unrelated FPGA core.",
+      "expected_skills": [],
+      "forbidden_skills": ["cpu-backend-performance"]
+    },
+    {
+      "id": "CPU-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "审查 x86 CPU backend 的 SIMD 映射、cpuset、NUMA 放置和可复现性能数据。",
+      "expected_skills": ["cpu-backend-performance"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "CPU-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "设计一个与 MetaFlux 无关的 FPGA 晶体管级 Harvard 存储接口。",
+      "expected_skills": [],
+      "forbidden_skills": ["cpu-backend-performance"]
+    },
+
+    {
+      "id": "LINUX-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Review a Linux cdev ioctl/mmap ABI with VMA krefs and compat callers.",
+      "expected_skills": ["linux-device-driver-uapi"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "LINUX-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Fix FOLL_PIN|FOLL_LONGTERM DMA registration unwind and MMIO doorbell ordering.",
+      "expected_skills": ["linux-device-driver-uapi"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "LINUX-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Specify a vfio-user protocol capability reply between QEMU and a userspace server.",
+      "expected_skills": ["gpu-virtualization-vfio-user"],
+      "forbidden_skills": ["linux-device-driver-uapi"]
+    },
+    {
+      "id": "LINUX-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "审查 Linux cdev ioctl、mmap、VMA kref、长期页固定和 teardown。",
+      "expected_skills": ["linux-device-driver-uapi"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "LINUX-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "只定义 QEMU 与用户态服务之间的 vfio-user 协议能力回复。",
+      "expected_skills": ["gpu-virtualization-vfio-user"],
+      "forbidden_skills": ["linux-device-driver-uapi"]
+    },
+
+    {
+      "id": "VFIO-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Define vfio-user feature negotiation requiring shared memfd guest RAM and mmap-capable DMA fds.",
+      "expected_skills": ["gpu-virtualization-vfio-user"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "VFIO-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Review concurrent VFIO_USER_DMA_UNMAP, IOVA epoch reuse, and disconnect drain behavior.",
+      "expected_skills": ["gpu-virtualization-vfio-user"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "VFIO-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Configure physical GPU passthrough with host VFIO/IOMMU and no userspace device server.",
+      "expected_skills": [],
+      "forbidden_skills": ["gpu-virtualization-vfio-user"]
+    },
+    {
+      "id": "VFIO-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "检查 vfio-user 协商、guest DMA map/unmap、IOVA epoch 和断连处理。",
+      "expected_skills": ["gpu-virtualization-vfio-user"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "VFIO-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "配置物理 GPU 的 VFIO passthrough，不使用任何 vfio-user 服务。",
+      "expected_skills": [],
+      "forbidden_skills": ["gpu-virtualization-vfio-user"]
+    },
+
+    {
+      "id": "PCIE-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Specify the Type-0 config image, CI VID/DID/class, BDF allocation, and writable masks for vroot.",
+      "expected_skills": ["pcie-vpci-device-model"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PCIE-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Review BAR0/BAR2/BAR4 sizing, MSI-X table/PBA, vector masking, and guest driver binding.",
+      "expected_skills": ["pcie-vpci-device-model"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PCIE-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Diagnose PCIe lane equalization and signal-integrity failures on a physical link.",
+      "expected_skills": [],
+      "forbidden_skills": ["pcie-vpci-device-model"]
+    },
+    {
+      "id": "PCIE-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "审查 vPCI Type-0 配置空间、BAR、MSI-X、枚举和驱动绑定。",
+      "expected_skills": ["pcie-vpci-device-model"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PCIE-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "诊断物理 PCIe 链路的均衡和信号完整性，不涉及虚拟设备模型。",
+      "expected_skills": [],
+      "forbidden_skills": ["pcie-vpci-device-model"]
+    },
+
+    {
+      "id": "LIFE-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Model idempotent reset with daemon incarnation, generation candidate, epoch, drain deadline, and tombstones.",
+      "expected_skills": ["device-lifecycle-resilience"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "LIFE-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Build QMP reply/event/reconnect fault cases for remove and re-add without stale completion.",
+      "expected_skills": ["device-lifecycle-resilience"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "LIFE-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Change only the byte offset of a static guest BAR2 doorbell with no lifecycle behavior.",
+      "expected_skills": ["pcie-vpci-device-model"],
+      "forbidden_skills": ["device-lifecycle-resilience"]
+    },
+    {
+      "id": "LIFE-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "建模 reset/remove/re-add 的 generation、epoch、幂等、deadline 和 tombstone。",
+      "expected_skills": ["device-lifecycle-resilience"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "LIFE-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "只修改静态 guest BAR2 doorbell 的字节偏移，不改变生命周期状态。",
+      "expected_skills": ["pcie-vpci-device-model"],
+      "forbidden_skills": ["device-lifecycle-resilience"]
+    },
+
+    {
+      "id": "VK-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Select a Vulkan compute queue and serialize the exact SPIR-V target environment with BDA limits.",
+      "expected_skills": ["vulkan-spirv-compute"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "VK-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Review Synchronization2, timeline completion, pipeline-cache UUID invalidation, and device loss.",
+      "expected_skills": ["vulkan-spirv-compute"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "VK-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Implement generic MLIR dialect-conversion rollback with no Vulkan or SPIR-V target.",
+      "expected_skills": ["mlir-compiler-engineering"],
+      "forbidden_skills": ["vulkan-spirv-compute"]
+    },
+    {
+      "id": "VK-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "审查 Vulkan compute 队列、SPIR-V target environment、外部内存同步和 device loss。",
+      "expected_skills": ["vulkan-spirv-compute"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "VK-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "只修复通用 MLIR dialect conversion rollback，不涉及 Vulkan 或 SPIR-V target。",
+      "expected_skills": ["mlir-compiler-engineering"],
+      "forbidden_skills": ["vulkan-spirv-compute"]
+    },
+
+    {
+      "id": "COMBO-PTX-CPU",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Add a divergent PTX reduction, interpret it, lower it through MLIR, vectorize it for x86, and differential-test the CPU result.",
+      "expected_skills": ["ptx-simt-semantics", "mlir-compiler-engineering", "cpu-backend-performance"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-PTX-VK",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Compile a PTX atomic kernel through Kernel IR and MLIR to target-constrained SPIR-V, then execute it on Vulkan.",
+      "expected_skills": ["ptx-simt-semantics", "mlir-compiler-engineering", "vulkan-spirv-compute"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-RUNTIME-IDENTITY",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Diagnose why CUDA_VISIBLE_DEVICES reorders CUDA while stock nvidia-smi must retain the default registry order and the same UUIDs.",
+      "expected_skills": ["runtime-contracts-registry", "cuda-driver-abi-compatibility", "nvml-telemetry-compatibility"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-M0002-SCHEMA",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Freeze one M0002 schema that generates Linux UAPI, device protocol, vfio-user regions, and PCI BAR extension layouts.",
+      "expected_skills": ["runtime-contracts-registry", "linux-device-driver-uapi", "gpu-virtualization-vfio-user", "pcie-vpci-device-model"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-M0002-UNMAP",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Fix a static M0002 VFIO_USER_DMA_UNMAP racing BAR2 submission and MSI-X completion, with no reset or replacement generation.",
+      "expected_skills": ["linux-device-driver-uapi", "gpu-virtualization-vfio-user", "pcie-vpci-device-model"],
+      "forbidden_skills": ["device-lifecycle-resilience"]
+    },
+    {
+      "id": "COMBO-VFIO-RESET",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Fix a vfio-user guest reset racing BAR2 doorbells, MSI-X completion, pinned-page unmap, and generation replacement.",
+      "expected_skills": ["linux-device-driver-uapi", "gpu-virtualization-vfio-user", "pcie-vpci-device-model", "device-lifecycle-resilience"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-VK-GUEST",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Handle Vulkan device loss while a vfio-user guest DMA operation is in flight and publish one terminal generation.",
+      "expected_skills": ["vulkan-spirv-compute", "gpu-virtualization-vfio-user", "device-lifecycle-resilience"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-VROOT",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Remove and re-add a vroot function while cdev mappings remain open, without exposing it to a vendor driver or reusing a generation.",
+      "expected_skills": ["linux-device-driver-uapi", "pcie-vpci-device-model", "device-lifecycle-resilience"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-CUDA-COMPILER",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Return the correct CUDA launch error when a supported PTX form fails during MLIR conversion.",
+      "expected_skills": ["cuda-driver-abi-compatibility", "ptx-simt-semantics", "mlir-compiler-engineering"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-ZH-PTX-VK",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "把 PTX 原子内核经过 Kernel IR 和 MLIR 降到受约束的 SPIR-V，并在 Vulkan 上验证允许结果。",
+      "expected_skills": ["ptx-simt-semantics", "mlir-compiler-engineering", "vulkan-spirv-compute"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-ZH-RUNTIME",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "排查 CUDA_VISIBLE_DEVICES 重排后 CUDA 与 NVML 的 UUID、BDF 和默认注册表顺序关系。",
+      "expected_skills": ["runtime-contracts-registry", "cuda-driver-abi-compatibility", "nvml-telemetry-compatibility"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-LIFECYCLE-PROVIDER-VIEW",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "After a UUID-preserving device re-add, initialized CUDA keeps the old generation lost while reinitialized NVML sees the replacement; define shared process-view revisions and both APIs' visible outcomes.",
+      "expected_skills": ["runtime-contracts-registry", "cuda-driver-abi-compatibility", "nvml-telemetry-compatibility", "device-lifecycle-resilience"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-ZH-VFIO",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "处理 vfio-user reset 与 BAR2、MSI-X、页解除固定和 generation replacement 的竞态。",
+      "expected_skills": ["linux-device-driver-uapi", "gpu-virtualization-vfio-user", "pcie-vpci-device-model", "device-lifecycle-resilience"],
+      "forbidden_skills": []
+    }
+  ]
+}

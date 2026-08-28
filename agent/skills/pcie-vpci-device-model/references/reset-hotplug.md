@@ -4,8 +4,9 @@
 
 Distinguish bus/device reset requests, vfio-user device reset, lifecycle reset,
 and capability-level FLR. Do not advertise FLR until its exact config capability
-and semantics exist. In M0002, reset fences work and ends in `LOST`; recovery
-requires a fresh static instance.
+and semantics exist. In M0002, guest/QEMU reset observation fences work and ends
+in `LOST`; reset support is not advertised and recovery requires a fresh static
+instance.
 
 In M0003 coordinated reset, PCI presentation mirrors lifecycle states:
 
@@ -13,9 +14,10 @@ In M0003 coordinated reset, PCI presentation mirrors lifecycle states:
 ONLINE -> QUIESCING -> DRAINING -> RESETTING -> ONLINE(new generation) | LOST
 ```
 
-Mask notifications and reject new accesses before old resources retire. A new
-generation becomes visible only after config/presentation, transport, registry,
-and worker owners are staged and the authority commits it.
+Mask notifications and reject new accesses before old resources retire. Scan may
+expose a quarantined unbound `pci_dev`, but that is not lifecycle publication. A
+new generation becomes provider/registry `ONLINE` only after presentation,
+transport, registry, and worker owners are staged and the authority commits it.
 
 ## Remove and re-add
 
@@ -23,8 +25,9 @@ and worker owners are staged and the authority commits it.
   emit coherent sysfs/uevents.
 - Old config callbacks, BAR mappings, IRQ/eventfd paths, cdev fds, VMAs, DMA
   mappings, and handles remain old-generation tombstones.
-- Re-add allocates a never-reused generation and repeats identity/binding setup.
-  Avoid duplicate BDF/function publication under concurrent rescan.
+- Re-add asks the lifecycle authority to reserve a never-reused generation
+  candidate and repeats identity/binding setup. Avoid duplicate BDF/function
+  publication under concurrent rescan.
 - Idempotent duplicate requests do not allocate identity or emit contradictory
   events.
 

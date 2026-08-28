@@ -27,10 +27,22 @@ M0003 adds only lifecycle transactions and milestone evidence around it.
 
 ## Locked Boundaries
 
-- `metafluxd` alone allocates and publishes new generations/epochs and owns the
-  persistent registry transaction, policy, and generation-bound worker leases.
+- `metafluxd` alone reserves generation candidates, publishes committed
+  generations, advances epoch, and owns the persistent registry transaction,
+  policy, and generation-bound worker leases.
   Transport/kernel owners may transition one way to `LOST` and retain tombstones,
   but may not publish replacement `ONLINE` state.
+- An accepted nonduplicate reset durably consumes exactly one generation
+  candidate even if later staging or pre-transaction work fails. Epoch is not a
+  candidate: it advances exactly once when the atomic replacement transaction
+  retires the old generation and installs the candidate, and every
+  pre-transaction failure leaves it unchanged.
+- The lifecycle extension is authored once under
+  `contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/`. Its own
+  manifest imports the frozen M0002 root manifest by content hash; the M0002 root
+  never imports the extension or changes bytes. M0003-W01 must run the repository
+  model checker with versioned bounds and produce its bounded JSON model-check
+  evidence before any transport or PCI lifecycle adapter is implemented.
 - A non-reusable `daemon_incarnation_id` identifies the coordinator process and
   remains separate from persistent UUID, generation, and epoch. Lifecycle
   requests are deadline-bound and replay-idempotent.
@@ -39,14 +51,20 @@ M0003 adds only lifecycle transactions and milestone evidence around it.
 - PCI class remains `0x120000`; CI VID/DID remains `0x4D46:0x0001` and release
   identity is registered or deployment supplied. `identity=nvidia` is
   default-off, is a presentation disguise rather than a vendor-private ABI
-  claim (D0008), and requires deterministic kernel-side pre-bind before the
-  device is visible; a post-enumeration userspace `driver_override` is
+  claim (D0008). Before scan, the kernel verifies the MetaFlux driver and keeps
+  matching disabled. Linux scan may expose an unbound `pci_dev` through
+  `device_add()`; the override is staged before `pci_bus_add_device()` enables
+  matching, and registry `ONLINE` follows only successful MetaFlux probe. A
+  post-enumeration userspace `driver_override` and all vendor-driver matching are
   unsupported.
 - UUID is stable across restart and guest mapping. Host and guest BDFs are stable
   only inside their respective enumeration domains.
-- Authoritative nodes are `/dev/metafluxctl`, `/dev/metaflux-uvm`, and
-  `/dev/metafluxN`. NVIDIA-named aliases are permitted only in an explicit,
-  isolated mount namespace and never replace a vendor/package-owned node.
+- Authoritative nodes remain the M0002-owned `/dev/metafluxctl` and
+  `/dev/metafluxN`. M0003 adds no functional UVM node or base ioctl/mmap surface.
+  Contracted NVIDIA-named aliases are permitted only in an explicit, isolated
+  mount namespace and never replace a vendor/package-owned node;
+  `/dev/nvidia-uvm*` aliases are excluded until a separately owned UVM contract
+  exists.
 - Bare-metal vroot is presentation-only, default-off, and has a separate package
   promotion gate. Its failure does not delay the lifecycle core or M0004.
 
@@ -76,7 +94,7 @@ Excluded:
 | [M0003-W02](work/W02-existing-transports.md) | Reset/hotplug on memfd, cdev, and guest vfio-user |
 | [M0003-W03](work/W03-core-qualification.md) | 1,000-cycle core qualification and lifecycle v1 freeze |
 | [M0003-W04](work/W04-experimental-vroot.md) | Default-off software root, presentation, pre-bind, and aliases |
-| [M0003-W05](work/W05-performance-release.md) | Core/vroot performance separation, packaging, and release evidence |
+| [M0003-W05](work/W05-performance-release.md) | Lifecycle-core performance, packaging, and release evidence independent of vroot |
 
 ## Acceptance Flows
 
@@ -108,28 +126,52 @@ start static M0002 guest path
 
 Lifecycle correctness:
 
-- Every accepted nonduplicate reset consumes one candidate generation. Epoch
-  increments exactly once if the old generation retires; a successful reset
-  publishes exactly that candidate. Duplicate requests consume none; failed
-  candidates are never reused.
+- Every accepted nonduplicate reset consumes one candidate generation. After all
+  replacement owners stage, one atomic transaction retires the old generation,
+  increments epoch exactly once, and installs exactly that candidate `ONLINE`.
+  A later fault marks the committed candidate `LOST`; duplicate requests consume
+  none and failed staging candidates are never reused.
+- Transport loss alone preserves the current generation and epoch as a `LOST`
+  tombstone. Accepted recovery consumes one candidate, retires that old lost
+  generation with exactly one epoch increment, and installs the candidate in the
+  same atomic transaction. A pre-transaction failure leaves the old generation
+  current, epoch unchanged, and state `LOST`.
+- Normal remove retires the current generation with exactly one epoch increment
+  before reaching `ABSENT`; a later add reserves a new generation candidate.
 - Re-add receives a new generation while daemon incarnation remains separate.
   Old fd, VMA, queue, mapping, event, memory, executable, and handle objects
   return `DEVICE_LOST` and never refer to replacement backing.
 - All event sources enter the same state machine. Memfd, cdev, and vfio-user
-  observe the same commit/`DEVICE_LOST` boundary. Normal removal may reach
-  `ABSENT`; recovery finishes in complete `ONLINE`, `LOST`, or `ABSENT`.
-- Newly added devices obey CUDA/NVML enumeration freeze. Default unfiltered
-  ordering agrees; `CUDA_VISIBLE_DEVICES` may filter/reorder CUDA only.
+  observe the same commit/`DEVICE_LOST` boundary. Normal removal reaches
+  `ABSENT`; reset and recover finish in complete `ONLINE` or `LOST`.
+- CUDA and NVML in one process share one `registry_view_id`. Removal/loss updates
+  frozen entries immediately. Re-add never creates a CUDA ordinal in an
+  initialized process and appears in NVML only after a later zero-to-one init
+  epoch or in a new process. Default unfiltered membership/order agrees only when
+  both providers captured the same process-view revision. If NVML reinitializes
+  while CUDA remains initialized, their count/order may diverge; common live
+  incarnations still match by `(UUID, generation)`. `CUDA_VISIBLE_DEVICES` may
+  filter/reorder CUDA only.
 
 Identity and presentation:
 
-- UUID, generation, epoch, name, and memory agree across every applicable view.
-  Host and guest BDFs are independently stable and need not match.
+- Every common live incarnation agrees on `(UUID, generation)`, name, capabilities,
+  and generation-tagged state. Persistent UUID/logical ID correlates replacements,
+  but UUID or BDF alone never equates old and new generations. Host and guest BDFs
+  are independently stable and need not match.
 - For stock R535/R550/R570/R580/R610 `nvidia-smi`, `-L`, default summary, and
-  core queries agree with CUDA/cdev and guest PCI/sysfs before reset, while lost,
-  and after re-add. Bare-metal PCI/sysfs joins only for vroot promotion.
+  core queries agree with CUDA/cdev and guest PCI/sysfs for common live
+  incarnations and for providers on the same revision. Loss reports the old
+  generation consistently. After re-add, parity is re-established in a new
+  process or after all participating providers capture the replacement revision;
+  an old initialized CUDA view may remain lost while a later NVML epoch lists the
+  replacement. Bare-metal PCI/sysfs joins only for vroot promotion.
 - A synthetic NVIDIA identity is never eligible for a vendor driver. Failed
-  pre-bind publishes no device; failed MetaFlux probe never falls through.
+  pre-scan validation publishes no config-present function. After config presence,
+  Linux `device_add()` may expose a transient unbound `pci_dev`, but matching
+  remains disabled until the kernel-staged MetaFlux override is ready. Failed
+  MetaFlux probe is quarantined and removed, never falls through, creates no
+  canonical node, and never commits registry `ONLINE`.
 - Unsupported PCI/NVIDIA capabilities are absent, not simulated. Promoted vroot
   keeps `lspci`, sysfs, driver binding, uevents, and nodes stable for 1,000 cycles.
 
@@ -146,8 +188,8 @@ Performance and release:
 ## Decisions to Close
 
 1. Exact lifecycle deadline and old-work isolation policy.
-2. Persistence format for generation/epoch high-water marks and
-   `daemon_incarnation_id`.
+2. Persistence format for the generation-candidate high-water mark, committed
+   retirement epoch, and `daemon_incarnation_id`.
 3. Bare-metal domain/bus/devfn allocation and maximum logical functions.
 4. Release VID/DID and optional custom identity workflow, including the
    registration and legal review that a synthetic NVIDIA presentation identity
@@ -157,7 +199,8 @@ Performance and release:
 7. Module-signing and Secure Boot workflow.
 
 Items 1-2 freeze only after M0003-W03 core qualification. Item 3 freezes only for
-the experimental vroot package after M0003-W04 promotion evidence.
+the experimental vroot package after M0003-W04 promotion evidence. Items 6-7 gate
+M0003-W04 package promotion; item 7 also gates M0003-W05 core release packaging.
 
 ## Definition of Done
 
@@ -165,7 +208,8 @@ The lifecycle core is complete when M0002 remains green with no data-plane ABI
 change; every source uses the single coordinator; memfd/cdev/guest 1,000-cycle
 suites pass; old objects deterministically return `DEVICE_LOST`; identity,
 performance, packaging, and fault gates pass; stock `nvidia-smi` stays consistent;
-and `mf_admin_lifecycle_v1` freezes only after qualification. M0004 release
+the canonical bounded-model command and JSON evidence pass; and
+`mf_admin_lifecycle_v1` freezes only after qualification. M0004 release
 integration depends on this core DoD, not vroot promotion.
 
 The experimental vroot package is promoted only when Linux 6.12/6.18

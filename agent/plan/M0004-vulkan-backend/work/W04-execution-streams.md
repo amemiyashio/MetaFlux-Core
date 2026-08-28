@@ -12,15 +12,15 @@ updated: 2026-08-27
 ## Outcome
 
 Execute the advertised corpus through recycled command resources,
-`vkQueueSubmit2`, and timeline semaphores while preserving observable CUDA
-stream/event behavior on local and guest transports.
+`vkQueueSubmit2`, and timeline semaphores while preserving ecosystem-neutral Graph
+IR dependency/event behavior on local and guest transports.
 
 One MetaFlux stream remains FIFO. Event record publishes one backend timeline
 value; cross-stream wait creates an explicit dependency; copy/launch visibility
-uses Synchronization2 stage/access masks. Legacy default-stream and per-thread
-default-stream behavior follow the CUDA provider contract rather than Vulkan
-queue behavior. Batching is permitted only when observable dependencies remain
-identical.
+uses Synchronization2 stage/access masks. The CUDA provider/runtime translates
+legacy default-stream and per-thread-default behavior into explicit Graph IR edges
+before this backend boundary; Vulkan sees no CUDA stream mode. Batching is
+permitted only when observable dependencies remain identical.
 
 The leased worker owns the long-lived `VkInstance`/`VkDevice`, queue set, command
 pools/buffers, any descriptors, and packed argument blocks. The local worker may
@@ -32,8 +32,9 @@ a capability diagnostic and never switch an established context to CPU.
 
 - [ ] Implement pipeline creation, command recycling, batching, and
   `vkQueueSubmit2` timeline completion into the M0002 timeline.
-- [ ] Implement FIFO, cross-stream events, PTDS/default stream, copy visibility,
-  concurrent submission, and bounded error propagation.
+- [ ] Implement Graph IR FIFO/cross-stream dependencies, copy visibility,
+  concurrent submission, and bounded error propagation; verify composed
+  provider/runtime default-stream translation separately.
 - [ ] Run Add/Copy/static-shared-barrier differential tests on both driver
   families through memfd, cdev, and guest vfio-user.
 - [ ] Run Vulkan validation and synchronization validation with reset/device
@@ -44,5 +45,6 @@ a capability diagnostic and never switch an established context to CPU.
 ## Exit Gate
 
 Every advertised kernel agrees with independent CPU/native results on both driver
-families; stream/event/default-stream behavior matches CUDA observables; validation
+families; the backend executes the exact neutral stream/event dependency graph,
+the composed provider/runtime suite matches CUDA observables, and validation
 reports no error.

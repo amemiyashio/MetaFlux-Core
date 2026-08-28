@@ -14,7 +14,9 @@ updated: 2026-08-28
 ## Outcome
 
 Deliver the first executable MetaFlux vertical slice on Linux x86_64/glibc using
-compiler epoch 1 (Clang/LLVM/MLIR/LLD 22.1.8 plus the verified patchset). An
+compiler epoch 1. Its current descriptor selects stock Clang/LLVM/MLIR/LLD 22.1.8;
+the exact downstream correctness patchset and derivation hash remain an open
+freeze gate. An
 unmodified CUDA Driver application discovers one managed CPU-backed logical
 device, loads embedded PTX, executes Add/Copy through interpreter, JIT, and AOT,
 and observes the same device through stock `nvidia-smi`.
@@ -92,15 +94,20 @@ cuInit
 ```
 
 The same unmodified C binary runs against the interpreter, cold JIT miss, warm
-JIT hit, and pre-populated AOT cache. Integer outputs are byte-identical; floating
-point stays within the documented CUDA-compatible tolerance.
+JIT hit, and pre-populated AOT cache. Integer and PTX forms whose pinned semantics
+require exact floating-point results are bit-exact. Every other floating-point
+form is compared with its declared per-operation rounding/FTZ/fusion/approximation
+oracle or allowed-result set; there is no milestone-wide generic tolerance.
 
 ## Milestone Acceptance
 
 Correctness and ABI:
 
 - Scalar reference, interpreter, JIT, and AOT Add/Copy agree.
-- CUDA and NVML agree on order, UUID, BDF, name, and memory.
+- Default, unfiltered CUDA and NVML views captured from the same initial revision
+  agree on order and live incarnation. `CUDA_VISIBLE_DEVICES` may filter or
+  reorder CUDA only; filtered views correlate common live rows by
+  `(UUID, generation)`, not ordinal or BDF alone.
 - ABI tests cover exact exports/versions, layouts, short buffers, nulls, repeated
   init/shutdown, concurrency, and per-field errors.
 - Provider `DT_NEEDED` has no C++ runtime, LLVM/MLIR, `libatomic`, Python, or
@@ -141,9 +148,7 @@ Release compatibility:
 These block the indicated implementation and must become durable decisions before
 their consumers freeze:
 
-1. Final glibc baseline and supported distribution matrix. The baseline is
-   closed as glibc >= 2.31 with Ubuntu 20.04 as the floor distribution (D0009);
-   only the release distribution matrix remains open.
+1. Release distribution matrix (glibc baseline closed by D0009).
 2. Exact LLVM 22 correctness patchset and derivation hash.
 3. Exact PTX corpus and instruction/capability manifest.
 4. CUDA/NVML header acquisition and manifest update procedure.

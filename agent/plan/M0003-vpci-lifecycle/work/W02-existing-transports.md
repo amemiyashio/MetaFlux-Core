@@ -4,7 +4,7 @@ milestone: M0003
 status: Queued
 area: lifecycle.transports
 depends_on: [M0003-W01]
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # Lifecycle on Existing Transports
@@ -32,14 +32,19 @@ IDs. Remove publishes `QUIESCING` before `device_del` and waits for the matching
 device-deleted event; QMP failure leaves a still-present function rejecting work
 in `LOST`. Add stages server/socket and an unpublished generation before
 `device_add`; BAR0 remains not-ready until commit. If QMP succeeds but commit
-fails, the adapter removes the staged function and retires the candidate. Partial
-success never restores an old generation to `ONLINE`.
+fails, the adapter removes the staged function, destroys staging, and leaves the
+candidate consumed without advancing epoch because it never became a committed
+generation. Partial success never restores a retired generation to `ONLINE`.
 
 CUDA and NVML retain the M0001 provider-view epoch and shared
 `registry_view_id`. Removal immediately makes old handles return `DEVICE_LOST`.
 Later additions appear only after a later NVML zero-to-one init epoch or in a new
 process, never as a new ordinal in an initialized CUDA process. Default
-unfiltered ordering remains identical; `CUDA_VISIBLE_DEVICES` affects CUDA only.
+unfiltered membership/order is identical only when both providers captured the
+same process-view revision; after NVML reinitializes while CUDA remains initialized,
+their count/order may diverge. Common live incarnations match by
+`(UUID, generation)`, never UUID/BDF alone. `CUDA_VISIBLE_DEVICES` affects CUDA
+only.
 
 ## Work
 

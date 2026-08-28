@@ -15,8 +15,10 @@ advertised PTX form normatively requires it.
   preserve both paths, and reconverge according to the selected semantic model.
 - Handle nested branches, loops, backedges, early `ret`, and empty masks
   explicitly. A host-language `if` over one representative lane is insufficient.
-- Keep scheduler order unobservable except where PTX defines synchronization or
-  memory visibility. Oracle tests should randomize legal scheduling.
+- Keep scheduler order unobservable except where PTX synchronization or memory
+  visibility permits multiple observations. In those cases, specify allowed and
+  forbidden outcome sets; randomize legal scheduling to sample them, not to claim
+  completeness.
 
 ## CTA barriers
 

@@ -109,8 +109,10 @@ Correctness:
   CPU/native results for every advertised semantic form.
 - Guest import or staging preserves generation, permissions, timeline ordering,
   and unregister/device-loss lifetime without a transport UAPI change.
-- FIFO, cross-stream, default/PTDS, copy visibility, and device-loss pass through
-  memfd, cdev, and guest vfio-user. Unsupported semantics fail explicitly.
+- Ecosystem-neutral FIFO/dependency edges, copy visibility, and device loss pass
+  through memfd, cdev, and guest vfio-user. A composed CUDA-provider/runtime test
+  proves default/PTDS semantics are translated into those edges before the Vulkan
+  boundary. Unsupported semantics fail explicitly.
 - Target environment, actual enabled features/limits, FP behavior, and cache keys
   remain mutually consistent.
 

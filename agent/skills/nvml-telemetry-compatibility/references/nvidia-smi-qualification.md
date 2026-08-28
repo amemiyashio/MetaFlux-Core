@@ -14,8 +14,15 @@ the registry fixture used.
 
 ## Assertions
 
-- Device count/order, UUID, BDF, name, memory, compute mode, persistence mode,
-  utilization, and process data match the same immutable snapshot used by CUDA.
+- NVML device count/order and immutable identity match the membership revision it
+  captured at initialization. The default, unfiltered CUDA view uses the same
+  live membership/order only when it captured the same process-view revision;
+  dynamic NVML fields come from one internally consistent published telemetry
+  sequence, not from a presumed CUDA telemetry snapshot.
+- With `CUDA_VISIBLE_DEVICES` filtering/reordering active, NVML count/order stay
+  canonical and unchanged. Join common live CUDA/NVML incarnations by
+  `(UUID, generation)` rather than ordinal or BDF alone. If NVML captured a later
+  lifecycle revision than initialized CUDA, count/order may intentionally differ.
 - Unsupported physical fields remain structurally present where the stock tool
   expects them and render as `N/A`; no invented zero is accepted as evidence.
 - XML remains well formed and stable enough for the selected compatibility

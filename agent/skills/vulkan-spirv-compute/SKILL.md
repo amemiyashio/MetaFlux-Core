@@ -1,6 +1,6 @@
 ---
 name: vulkan-spirv-compute
-description: Design or review Vulkan 1.3 compute device and queue selection, capability profiles, buffer device address, memory and Synchronization2, SPIR-V target environments and validation, pipeline caches, and device loss. Use for M0004 Vulkan backend work. Do not use for MLIR conversion mechanics, graphics, presentation, or unsupported subgroup assumptions.
+description: Design or review Vulkan 1.3 compute device and queue selection, capability profiles, buffer device address, memory and Synchronization2, SPIR-V target environments and validation, pipeline caches, device loss, and rejection of unsupported subgroup assumptions. Use for M0004 Vulkan backend work. Do not use for MLIR conversion mechanics, graphics, or presentation.
 ---
 
 # Vulkan and SPIR-V Compute
@@ -30,7 +30,13 @@ target environment and cache identity.
   device caches, warm launch, eviction, corruption, and lifecycle integration.
 - Route dialect/conversion/pass implementation to `$mlir-compiler-engineering`,
   PTX source meaning to `$ptx-simt-semantics`, and cross-transport generation
-  handling to `$device-lifecycle-resilience`.
+  handling to `$device-lifecycle-resilience`. Route neutral external-memory ABI
+  fields to `$runtime-contracts-registry` and transport import mechanics to the
+  matching transport skill.
+- Vulkan consumes ecosystem-neutral Graph IR dependency edges. Compose
+  `$cuda-driver-abi-compatibility` and `$runtime-contracts-registry` when changing
+  translation of CUDA legacy-default or per-thread-default stream behavior; the
+  target backend never interprets those CUDA modes itself.
 
 ## Workflow
 
@@ -43,12 +49,13 @@ target environment and cache identity.
 3. Define CTA/workgroup, builtin, Workgroup storage, barrier, atomic, FP,
    subgroup, pointer/BDA, and packed-argument mappings. Unsupported CUDA/PTX
    semantics fail explicitly; never fall back per kernel inside a Vulkan context.
-4. Select one truthful memory tier per allocation/import and define ownership,
-   permissions, flush/invalidate, external synchronization, generation, and
-   unregister/device-loss lifetime.
-5. Preserve stream FIFO, cross-stream dependencies, default/PTDS behavior, copy
-   visibility, and event semantics using `vkQueueSubmit2` and timeline semaphores.
-   Batching may preserve but never weaken dependencies.
+4. Select one truthful memory tier per allocation/import and define handle-type
+   compatibility, fd ownership, temporary/permanent import, queue-family
+   ownership transfer, permissions, flush/invalidate, external synchronization,
+   generation, and unregister/device-loss lifetime.
+5. Execute explicit Graph IR FIFO, dependency, copy-visibility, and event edges
+   using `vkQueueSubmit2` and timeline semaphores. Batching may preserve but never
+   weaken dependencies; no CUDA stream mode crosses this target boundary.
 6. Validate and reflect SPIR-V before creating a shader module/pipeline. Publish
    portable and device-bound cache entries atomically with complete identities.
 7. Integrate device loss with the M0003 authority: stop admission, isolate old
@@ -73,8 +80,10 @@ Return or implement:
   features, limits, storage classes, scopes, memory semantics, layouts, and BDA.
 - Differentially compare every advertised form on at least two independent
   Vulkan driver families with CPU/interpreter/native references as applicable.
-- Test FIFO, cross-stream, default/PTDS, copies, barriers, atomics, imports,
-  unregister, cache corruption/change, and device loss over memfd, cdev, and
-  guest vfio-user where the milestone requires them.
+- Test neutral FIFO/dependency graphs, copies, barriers, atomics, imports,
+  handle-type ownership transfer, temporary/permanent payloads, external/foreign
+  queue families, unregister, cache corruption/change, and device loss over
+  memfd, cdev, and guest vfio-user where the milestone requires them. Test CUDA
+  default-stream translation only in the composed provider/runtime suite.
 - Trace warm launch to prove no MLIR/SPIR-V compiler/validator, shader module,
   pipeline creation, Vulkan allocation, or MetaFlux heap allocation occurs.
