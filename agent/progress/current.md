@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-28
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260828-006
+checkpoint: P20260828-007
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260828-006
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260828-006](checkpoints/2026/P20260828-006-agent-guidance-hardening.md).
+[P20260828-007](checkpoints/2026/P20260828-007-claude-bridge.md).
 
 ## Current state
 
@@ -59,6 +59,10 @@ added the [expert-skills layer](../skills/README.md) with three seeds
 hardened guidance against rule-skipping agents: the root `AGENTS.md` entry
 point, the start-work on-ramp skill, and a devshell-installed pre-commit gate
 requiring an in-progress session for any change outside `agent/`.
+[S20260828-007](../sessions/2026/08/S20260828-007-claude-bridge/summary.md)
+added the repository-local Claude Code bridge: `CLAUDE.md` as an `@AGENTS.md`
+import plus `.claude/` edit-time guards with the same two invariants,
+strictly repo-scoped and inert for other tools.
 
 ## Established bootstrap boundaries
 

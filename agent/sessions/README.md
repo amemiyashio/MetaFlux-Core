@@ -21,7 +21,7 @@ event sequence numbers are immutable once published.
 | [S20260828-004-record-gate-hardening](2026/08/S20260828-004-record-gate-hardening/summary.md) | 2026-08-28 | Exact | Complete | Record gate hardening: current-progress freshness, status-drift warnings, and the fifteen-case validator self-test |
 | [S20260828-005-skills-layer](2026/08/S20260828-005-skills-layer/summary.md) | 2026-08-28 | Exact | Complete | Expert-skills layer under agent/skills with three seeds and validator-enforced form |
 | [S20260828-006-agent-guidance-hardening](2026/08/S20260828-006-agent-guidance-hardening/summary.md) | 2026-08-28 | Exact | Complete | Guidance hardening: root AGENTS.md, start-work skill, pre-commit session-coverage gate |
-| [S20260828-007-claude-bridge](2026/08/S20260828-007-claude-bridge/summary.md) | 2026-08-28 | Exact | In progress | TODO: one-line summary |
+| [S20260828-007-claude-bridge](2026/08/S20260828-007-claude-bridge/summary.md) | 2026-08-28 | Exact | Complete | Repository-local Claude Code bridge: @AGENTS.md import, edit-time guards, drift-checked by the validator |
 
 ## Fidelity and retention
 
