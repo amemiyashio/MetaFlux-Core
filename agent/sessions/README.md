@@ -25,6 +25,7 @@ event sequence numbers are immutable once published.
 | [S20260828-008-codex-entry-points](2026/08/S20260828-008-codex-entry-points/summary.md) | 2026-08-28 | Exact | Complete | Codex-native AGENTS.md verified and repository entry points enforced by an isolated Nix check |
 | [S20260828-009-implementation-readiness-skill](2026/08/S20260828-009-implementation-readiness-skill/summary.md) | 2026-08-28 | Exact | Complete | Codex-native skill packages, enforced discovery compatibility, and implementation-readiness expert guidance |
 | [S20260828-010-domain-expert-skills](2026/08/S20260828-010-domain-expert-skills/summary.md) | 2026-08-28 | Exact | Complete | Ten Codex domain experts, source-backed references, composition routing, and trigger evaluations for M0001-M0004 |
+| [S20260828-011-skill-design-convergence](2026/08/S20260828-011-skill-design-convergence/summary.md) | 2026-08-28 | Exact | Complete | Sixteen bounded expert skills, runtime-contract ownership, structured routing gates, and lifecycle publication invariants |
 | [S20260828-012-ubuntu-2004-glibc-floor](2026/08/S20260828-012-ubuntu-2004-glibc-floor/summary.md) | 2026-08-28 | Exact | Complete | Ubuntu 20.04 LTS and glibc 2.31 fixed as the W01 userspace release floor |
 
 ## Fidelity and retention

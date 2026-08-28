@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-28
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260828-012
+checkpoint: P20260828-013
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260828-012
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260828-012](checkpoints/2026/P20260828-012-ubuntu-2004-glibc-floor.md).
+[P20260828-013](checkpoints/2026/P20260828-013-skill-design-convergence.md).
 
 ## Current state
 
@@ -88,6 +88,16 @@ compiler mechanism, target execution, transport, presentation, and lifecycle;
 the [trigger corpus](../skills/trigger-evals.md) records 30 single-skill and five
 multi-skill routing cases. These are implementation guides, not evidence that
 the corresponding queued workstreams are functionally complete.
+[S20260828-011](../sessions/2026/08/S20260828-011-skill-design-convergence/summary.md)
+converged that design into sixteen validated packages and eleven non-overlapping
+domain owners. The new neutral runtime/contracts expert closes the registry,
+client-protocol, shared-layout, backend-ABI, and canonical-schema gap. A
+structured English/Chinese corpus now contains 68 routing cases, repository
+gates validate package and corpus integrity, and a separate scorer binds real
+model observations to exact input digests. M0001-W02 and M0003 now carry the
+corresponding publication, admission, recovery, telemetry, range, and quarantine
+invariants. This raises architecture and activation quality only; product
+implementation maturity remains unchanged.
 
 ## Established bootstrap boundaries
 
@@ -127,6 +137,11 @@ the corresponding queued workstreams are functionally complete.
   20.04 LTS/glibc 2.31 is fixed, while the additional release distribution
   matrix may add qualified targets but may not raise the floor. This changes
   planning truth only; the release sysroot remains an open W01 deliverable.
+- At content revision `497a58f`, all 16 skill packages passed the bundled Codex
+  validator; Agent records and all 52 self-tests passed; the 11-skill, 68-case
+  routing corpus and all 23 routing self-tests passed; the dev preset passed
+  18/18 tests; and `nix flake check path:. -L` passed. A full three-repetition
+  behavioral routing run remains separate evidence and was not claimed.
 
 ## Next boundary
 
@@ -143,3 +158,6 @@ the corresponding queued workstreams are functionally complete.
 5. For domain work, invoke the smallest matching expert set from the
    [composition table](../skills/README.md); keep exact versions subordinate to
    the active plan, compiler epoch, and pinned headers.
+6. Before qualifying implicit routing for a named model and host, execute and
+   archive the 68-case, three-repetition observation template; do not infer
+   behavioral success from static corpus validation.
