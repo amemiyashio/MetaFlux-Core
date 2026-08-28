@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-28
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260828-009
+checkpoint: P20260828-010
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260828-009
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260828-009](checkpoints/2026/P20260828-009-codex-skill-packages.md).
+[P20260828-010](checkpoints/2026/P20260828-010-domain-expert-skills.md).
 
 ## Current state
 
@@ -21,7 +21,7 @@ execution, compiler service behavior, device registry, and shared transports are
 not yet functionally implemented.
 
 Git history on `main` is a linear bootstrap and governance chain through
-content revision `12efb20`. The 2026-08-28 self-review removed five
+content revision `a40a475`. The 2026-08-28 self-review removed five
 specification contradictions
 ([S20260828-001](../sessions/2026/08/S20260828-001-spec-consistency/summary.md));
 the same-day layering review converged the repository structure on Mesa/Wine
@@ -77,6 +77,16 @@ frontmatter and optional resource layout with 29 synthetic cases. The new
 [implementation-readiness skill](../skills/implementation-readiness/SKILL.md)
 separates architecture, workstream activation, implementation maturity, and
 release readiness instead of collapsing them into one score.
+[S20260828-010](../sessions/2026/08/S20260828-010-domain-expert-skills/summary.md)
+expanded that Codex-native catalog from five to fifteen Active packages. Ten
+single-responsibility domain experts now cover CUDA/NVML ABI and telemetry,
+PTX/SIMT semantics, MLIR compiler engineering, CPU execution, Linux UAPI,
+vfio-user, PCIe/vPCI, lifecycle, and Vulkan/SPIR-V. Their
+[composition routes](../skills/README.md) preserve ownership between semantics,
+compiler mechanism, target execution, transport, presentation, and lifecycle;
+the [trigger corpus](../skills/trigger-evals.md) records 30 single-skill and five
+multi-skill routing cases. These are implementation guides, not evidence that
+the corresponding queued workstreams are functionally complete.
 
 ## Established bootstrap boundaries
 
@@ -107,6 +117,11 @@ release readiness instead of collapsing them into one score.
 - `nix flake check path:. -L`, including `agent-records` and `entry-points`,
   passed at content revision `12efb20`; the dev preset passed 16/16 tests and
   the validator self-test passed 29/29 cases.
+- At content revision `a40a475`, all 15 skill packages passed the bundled Codex
+  validator; static routing checks found 15 unique slugs, 38 new references, 30
+  single-skill cases, and five composition cases. `git diff --cached --check`,
+  the Agent-record validator, and `nix flake check path:. -L` all passed. CTest
+  was not rerun because the content change is confined to `agent/`.
 
 ## Next boundary
 
@@ -120,3 +135,6 @@ release readiness instead of collapsing them into one score.
    bootstrap functions as frozen production ABI.
 4. Refresh this file and create a new checkpoint after any material
    acceptance-boundary change.
+5. For domain work, invoke the smallest matching expert set from the
+   [composition table](../skills/README.md); keep exact versions subordinate to
+   the active plan, compiler epoch, and pinned headers.

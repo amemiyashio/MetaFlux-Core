@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "id": "S20260828-010-domain-expert-skills",
+  "repository": "MetaFlux-Core",
+  "started_at": "2026-08-28",
+  "ended_at": "2026-08-28",
+  "time_precision": "date",
+  "status": "complete",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "Codex domain expert skill matrix implementation agent"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0001",
+      "title": "Core Foundation",
+      "status": "active",
+      "event_seqs": [1, 2, 3, 4, 5, 6, 7, 8]
+    },
+    {
+      "id": "M0002",
+      "title": "Kernel and Guest Transport",
+      "status": "queued",
+      "event_seqs": [1, 2, 4, 5, 6, 7, 8]
+    },
+    {
+      "id": "M0003",
+      "title": "Lifecycle and vPCI Presentation",
+      "status": "queued",
+      "event_seqs": [1, 2, 4, 5, 6, 7, 8]
+    },
+    {
+      "id": "M0004",
+      "title": "Vulkan Execution Backend",
+      "status": "queued",
+      "event_seqs": [1, 2, 4, 5, 6, 7, 8]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "M0001-W01",
+      "milestone_id": "M0001",
+      "title": "Build, Toolchain, and Reproducible Environment",
+      "status": "active"
+    },
+    {
+      "id": "M0001-W03",
+      "milestone_id": "M0001",
+      "title": "Compiler, Interpreter, and CPU Backend",
+      "status": "queued"
+    },
+    {
+      "id": "M0001-W04",
+      "milestone_id": "M0001",
+      "title": "CUDA Driver Provider",
+      "status": "queued"
+    },
+    {
+      "id": "M0001-W05",
+      "milestone_id": "M0001",
+      "title": "NVML Provider and stock nvidia-smi",
+      "status": "queued"
+    },
+    {
+      "id": "M0002-W02",
+      "milestone_id": "M0002",
+      "title": "Local cdev Vertical Slice",
+      "status": "queued"
+    },
+    {
+      "id": "M0002-W03",
+      "milestone_id": "M0002",
+      "title": "Static vfio-user Guest Vertical Slice",
+      "status": "queued"
+    },
+    {
+      "id": "M0003-W01",
+      "milestone_id": "M0003",
+      "title": "Lifecycle Model and ABI 0.x",
+      "status": "queued"
+    },
+    {
+      "id": "M0003-W04",
+      "milestone_id": "M0003",
+      "title": "Experimental Bare-Metal vPCI Presentation",
+      "status": "queued"
+    },
+    {
+      "id": "M0004-W03",
+      "milestone_id": "M0004",
+      "title": "Target-Constrained SPIR-V Lowering",
+      "status": "queued"
+    }
+  ],
+  "base_revision": "f8f0d50ed56c4fa3843887f32e47eeeec4581089",
+  "final_revision": "a40a47553a9654024e06ac80200d61d1543c563b",
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
