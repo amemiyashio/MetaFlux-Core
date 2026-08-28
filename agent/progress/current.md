@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-28
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260828-010
+checkpoint: P20260828-012
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260828-010
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260828-010](checkpoints/2026/P20260828-010-domain-expert-skills.md).
+[P20260828-012](checkpoints/2026/P20260828-012-ubuntu-2004-glibc-floor.md).
 
 ## Current state
 
@@ -29,7 +29,8 @@ patterns ([S20260828-002](../sessions/2026/08/S20260828-002-layout-convergence/s
 
 - D0008: vroot synthetic NVIDIA identity is a presentation disguise with
   registration/legal review required before release promotion.
-- D0009: userspace glibc floor is 2.31 (Ubuntu 20.04) with a restricted
+- D0009: Ubuntu 20.04 LTS is the minimum supported userspace distribution and
+  glibc 2.31 is the fixed ABI floor, with a restricted
   provider `DT_NEEDED` universe.
 - D0010: every transport owns one directory split into C17 client and C++20
   worker halves that never share headers.
@@ -122,6 +123,10 @@ the corresponding queued workstreams are functionally complete.
   single-skill cases, and five composition cases. `git diff --cached --check`,
   the Agent-record validator, and `nix flake check path:. -L` all passed. CTest
   was not rerun because the content change is confined to `agent/`.
+- At content revision `235801e`, M0001-W01 was reconciled with D0009: Ubuntu
+  20.04 LTS/glibc 2.31 is fixed, while the additional release distribution
+  matrix may add qualified targets but may not raise the floor. This changes
+  planning truth only; the release sysroot remains an open W01 deliverable.
 
 ## Next boundary
 

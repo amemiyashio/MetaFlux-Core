@@ -4,7 +4,7 @@
 checkpoints are immutable and grouped by year under `checkpoints/YYYY/`.
 
 Latest checkpoint:
-[P20260828-009](checkpoints/2026/P20260828-009-codex-skill-packages.md).
+[P20260828-012](checkpoints/2026/P20260828-012-ubuntu-2004-glibc-floor.md).
 
 A checkpoint records observed state and verification evidence; it is not a Git
 revision unless its metadata names one. Create a checkpoint at a material
