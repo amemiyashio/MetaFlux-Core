@@ -4,7 +4,7 @@ milestone: M0001
 status: Active
 area: build-toolchain
 depends_on: []
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # Build, Toolchain, and Reproducible Environment
@@ -38,8 +38,11 @@ benchmark jointly prove a specific compiler-codegen failure.
 - LLVM 22 loop-vectorizer reproducers, including upstream #186922, gate epoch 1.
 - Userspace feature-probes the host; Linux 6.12 is a later vPCI validation line,
   not a v0.1 userspace requirement.
-- A dedicated provider sysroot controls the glibc symbol ceiling. glibc 2.31 is
-  only the initial candidate pending the distribution matrix.
+- Ubuntu 20.04 LTS is the minimum supported userspace distribution baseline;
+  its glibc 2.31 is the fixed userspace ABI floor (D0009), not a candidate.
+- A dedicated Ubuntu 20.04/glibc 2.31 provider sysroot controls the release
+  symbol ceiling. The remaining distribution matrix may add qualification
+  targets but may not raise this floor.
 - Providers do not link `libsystemd`; systemd supplies service/socket activation.
 
 ## Nix Outputs and Rules
@@ -67,7 +70,8 @@ checks.x86_64-linux.agent-records
   custom LLVM/MLIR/PGO builds in a MetaFlux binary cache.
 - Use `strictDeps = true` and separate filesets for runtime, provider, daemon,
   tests, and formatting.
-- Build generic providers against the release sysroot, not Nix host glibc.
+- Build generic providers against the Ubuntu 20.04/glibc 2.31 release sysroot,
+  not Nix host glibc, and reject symbols versioned newer than `GLIBC_2.31`.
 - Generic `.deb`, `.rpm`, and `.tar` artifacts contain no required `/nix/store`
   interpreter, RPATH, or runtime path; native NixOS packages may use the store.
 - Release checks inspect `readelf -dW`, `readelf -sDW`,
