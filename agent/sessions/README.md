@@ -18,6 +18,7 @@ event sequence numbers are immutable once published.
 | [S20260828-001-spec-consistency](2026/08/S20260828-001-spec-consistency/summary.md) | 2026-08-28 | Exact | Complete | Five specification self-review amendments, D0008/D0009, first commits |
 | [S20260828-002-layout-convergence](2026/08/S20260828-002-layout-convergence/summary.md) | 2026-08-28 | Exact | Complete | Mesa/Wine-patterned layout convergence, D0010/D0011, component graph gate |
 | [S20260828-003-agent-record-convergence](2026/08/S20260828-003-agent-record-convergence/summary.md) | 2026-08-28 | Exact | Complete | Machine-enforced record-loop rules: index completeness, open-decisions ledger, distillation, staleness warnings, session scaffolder |
+| [S20260828-004-record-gate-hardening](2026/08/S20260828-004-record-gate-hardening/summary.md) | 2026-08-28 | Exact | Complete | Record gate hardening: current-progress freshness, status-drift warnings, and the fifteen-case validator self-test |
 
 ## Fidelity and retention
 

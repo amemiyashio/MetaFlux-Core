@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-28
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260828-003
+checkpoint: P20260828-004
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260828-003
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260828-003](checkpoints/2026/P20260828-003-agent-record-convergence.md).
+[P20260828-004](checkpoints/2026/P20260828-004-record-gate-hardening.md).
 
 ## Current state
 
@@ -49,6 +49,9 @@ index completeness, the
 [open-decisions ledger](../memory/open-decisions.md) (29 unresolved decisions
 across M0001-M0004), mandatory session distillation, staleness warnings, and
 `tools/new-session.py` scaffolding.
+[S20260828-004](../sessions/2026/08/S20260828-004-record-gate-hardening/summary.md)
+added current-progress freshness, status-drift warnings, and the fifteen-case
+validator self-test, so the record gate has its own gate.
 
 ## Established bootstrap boundaries
 
