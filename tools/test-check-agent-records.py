@@ -326,6 +326,34 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         True,
         False,
     ),
+    (
+        "valid Claude entry-point bridge",
+        mutate(
+            {
+                "CLAUDE.md": "# CLAUDE.md\n\n@AGENTS.md\n",
+                ".claude/settings.json": "{\"hooks\": {}}\n",
+            }
+        ),
+        False,
+        False,
+    ),
+    (
+        "CLAUDE.md duplicating rules instead of importing",
+        mutate({"CLAUDE.md": "# CLAUDE.md\n\nRead the rules: do not rewrite history.\n"}),
+        True,
+        False,
+    ),
+    (
+        "broken Claude settings JSON",
+        mutate(
+            {
+                "CLAUDE.md": "# CLAUDE.md\n\n@AGENTS.md\n",
+                ".claude/settings.json": "{not json",
+            }
+        ),
+        True,
+        False,
+    ),
 ]
 
 

@@ -29,3 +29,8 @@ enforced; skipping them fails the pre-commit hook or the Nix checks.
 Product boundaries live in `contracts/README.md` and
 `docs/architecture/repo-layout.md`; the language wall and dependency
 whitelist are machine-checked by `metaflux.architecture.component-graph`.
+
+The Claude Code bridge (`CLAUDE.md` plus `.claude/`) is repository-local and
+optional: it never touches global configuration, it is inert for other tools,
+and these rules plus the pre-commit gate remain authoritative for every
+contributor.

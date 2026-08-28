@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "S20260828-007-claude-bridge",
+  "repository": "MetaFlux-Core",
+  "started_at": "2026-08-28",
+  "ended_at": "2026-08-28",
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "TODO: agent role"
+    }
+  ],
+  "milestones": [],
+  "work_items": [],
+  "base_revision": "de91f4e907e5bbe3d75627cbd21ff11ea4746812",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

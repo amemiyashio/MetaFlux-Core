@@ -877,6 +877,33 @@ class Validator:
                         f"SKILL.md frontmatter requires a non-empty '{field}'",
                     )
 
+    def validate_entry_points(self) -> None:
+        """Keep tool entry-point bridges single-sourced and well-formed.
+
+        Inert when the bridges are absent: these files are conveniences for
+        specific agent CLIs, not requirements of the record system.
+        """
+        claude_md = self.repo_root / "CLAUDE.md"
+        if claude_md.is_file():
+            try:
+                text = claude_md.read_text(encoding="utf-8")
+            except UnicodeDecodeError as exc:
+                self.add_error(claude_md, f"is not valid UTF-8: {exc}")
+            else:
+                if "@AGENTS.md" not in text:
+                    self.add_error(
+                        claude_md,
+                        "must import the canonical rules with an "
+                        "'@AGENTS.md' line instead of duplicating them",
+                    )
+
+        settings = self.repo_root / ".claude" / "settings.json"
+        if settings.is_file():
+            try:
+                json.loads(settings.read_text(encoding="utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                self.add_error(settings, f"is not valid JSON: {exc}")
+
     def validate_markdown_links(self) -> None:
         if not self.agent_root.is_dir():
             self.add_error(self.agent_root, "agent directory is missing")
@@ -1054,6 +1081,7 @@ class Validator:
         self.validate_current_progress()
         self.validate_status_consistency()
         self.validate_skills()
+        self.validate_entry_points()
         self.validate_markdown_links()
         if self.errors:
             for error in self.errors:
