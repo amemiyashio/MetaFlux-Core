@@ -87,5 +87,11 @@ function(metaflux_add_component)
         METAFLUX_COMPONENT_ID "${component_ID}"
         METAFLUX_COMPONENT_ROLE "${component_ROLE}"
     )
+    metaflux_register_component_graph_entry(
+      "${component_TARGET}"
+      "${component_ID}"
+      "${component_ROLE}"
+      "${component_LANGUAGE}"
+    )
   endif()
 endfunction()

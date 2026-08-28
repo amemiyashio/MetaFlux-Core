@@ -10,6 +10,16 @@ target_include_directories(
 )
 target_link_libraries(metaflux_runtime_core PUBLIC MetaFlux::ClientProtocol)
 metaflux_configure_target(metaflux_runtime_core CXX)
+metaflux_register_component_graph_entry(
+  metaflux_runtime_core
+  runtime.core
+  runtime-core
+  CXX
+)
+
+if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
+  add_subdirectory(tests)
+endif()
 
 install(
   TARGETS metaflux_runtime_core

@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # Component Map
@@ -20,6 +20,7 @@ boundary.
 | Kernel | cdev, mappings, waits, PCI binding, lifecycle reference safety | [kernel](../../kernel/README.md) |
 | Packaging | NixOS and generic release integration | [packaging](../../packaging/README.md) |
 | Cross-component tests | ABI, integration, compatibility, fault, qualification | [tests](../../tests/README.md) |
+| Repository layout | Directory taxonomy, dependency direction, navigation | [repo layout](../../docs/architecture/repo-layout.md) |
 
 Dependency direction is contracts outward. Compatibility plugins and execution
 backends meet through runtime contracts, never through direct ecosystem-to-target

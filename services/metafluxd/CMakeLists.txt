@@ -12,6 +12,12 @@ if(TARGET metaflux_cpu_backend_runtime)
   target_compile_definitions(metafluxd PRIVATE METAFLUX_HAVE_BUILTIN_CPU_BACKEND=1)
 endif()
 metaflux_configure_target(metafluxd CXX)
+metaflux_register_component_graph_entry(
+  metafluxd
+  services.metafluxd
+  daemon
+  CXX
+)
 
 install(
   TARGETS metafluxd

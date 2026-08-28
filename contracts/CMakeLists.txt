@@ -7,6 +7,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/plugin/backend/v1/include/metaflux/backen
     metaflux_backend_plugin_api
     PROPERTIES EXPORT_NAME BackendPluginApi
   )
+  metaflux_register_component_graph_entry(
+    metaflux_backend_plugin_api
+    contract.backend-plugin-api
+    backend-plugin-api
+    C
+  )
   target_include_directories(
     metaflux_backend_plugin_api
     INTERFACE
@@ -25,6 +31,12 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/protocol/client/v1/include/metaflux/clien
   add_library(metaflux_client_protocol INTERFACE)
   add_library(MetaFlux::ClientProtocol ALIAS metaflux_client_protocol)
   set_target_properties(metaflux_client_protocol PROPERTIES EXPORT_NAME ClientProtocol)
+  metaflux_register_component_graph_entry(
+    metaflux_client_protocol
+    contract.client-protocol
+    client-protocol
+    C
+  )
   target_include_directories(
     metaflux_client_protocol
     INTERFACE

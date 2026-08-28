@@ -17,6 +17,12 @@ target_include_directories(
 )
 target_link_libraries(metaflux_client_fastpath PUBLIC MetaFlux::ClientProtocol)
 metaflux_configure_target(metaflux_client_fastpath C)
+metaflux_register_component_graph_entry(
+  metaflux_client_fastpath
+  runtime.client-fastpath
+  client-fastpath
+  C
+)
 
 install(
   TARGETS metaflux_client_fastpath

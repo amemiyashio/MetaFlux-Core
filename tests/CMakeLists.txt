@@ -12,15 +12,6 @@ if(CMAKE_CXX_COMPILER_LOADED)
   set_tests_properties(metaflux.abi.cpp PROPERTIES LABELS "abi")
 endif()
 
-if(METAFLUX_BUILD_RUNTIME_CORE)
-  add_executable(metaflux_runtime_unit_smoke unit/runtime_smoke.cpp)
-  target_link_libraries(metaflux_runtime_unit_smoke PRIVATE MetaFlux::RuntimeCore)
-  metaflux_configure_target(metaflux_runtime_unit_smoke CXX)
-  add_test(NAME metaflux.unit.runtime COMMAND metaflux_runtime_unit_smoke)
-  set_tests_properties(metaflux.unit.runtime PROPERTIES LABELS "unit")
-
-endif()
-
 if(METAFLUX_BUILD_CLIENT_FASTPATH)
   add_executable(metaflux_fastpath_performance_smoke performance/fastpath_smoke.c)
   target_link_libraries(metaflux_fastpath_performance_smoke PRIVATE MetaFlux::ClientFastpath)
@@ -46,6 +37,25 @@ if(TARGET metaflux_cuda_ptx_frontend)
   metaflux_configure_target(metaflux_ptx_frontend_smoke CXX)
   add_test(NAME metaflux.unit.ptx-frontend COMMAND metaflux_ptx_frontend_smoke)
   set_tests_properties(metaflux.unit.ptx-frontend PROPERTIES LABELS "unit")
+endif()
+
+if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
+  find_package(Python3 COMPONENTS Interpreter)
+  if(
+    Python3_Interpreter_FOUND
+    AND EXISTS "${CMAKE_BINARY_DIR}/metaflux-component-graph.json"
+  )
+    add_test(
+      NAME metaflux.architecture.component-graph
+      COMMAND
+        Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/../tools/check-component-graph.py"
+        "${CMAKE_BINARY_DIR}/metaflux-component-graph.json"
+    )
+    set_tests_properties(
+      metaflux.architecture.component-graph
+      PROPERTIES LABELS "architecture"
+    )
+  endif()
 endif()
 
 if(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER OR METAFLUX_BUILD_NVML_PROVIDER)

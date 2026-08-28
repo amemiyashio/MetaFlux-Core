@@ -1,8 +1,12 @@
 # Cross-Component Tests
 
-Component unit tests stay beside their owners. This directory contains only
-tests that cross ownership boundaries: contract and ABI fixtures, end-to-end
-integration, compatibility, fault recovery, and performance qualification.
+Component unit tests stay beside their owners (for example
+`runtime/core/tests/`); build them with the component they qualify. This
+directory contains only tests that cross ownership boundaries: contract and ABI
+fixtures, end-to-end integration, compatibility, fault recovery, performance
+qualification, and architecture checks such as the component dependency-graph
+gate (`tools/check-component-graph.py`), which runs as
+`metaflux.architecture.component-graph`.
 
 The suite verifies consistent device identity across visible interfaces,
 provider-only and core-only build boundaries, deterministic AOT/JIT/interpreter

@@ -12,3 +12,9 @@ target_compile_definitions(
   PRIVATE METAFLUX_COMPILER_EPOCH=${METAFLUX_COMPILER_EPOCH}
 )
 metaflux_configure_target(metaflux_compiler_core CXX)
+metaflux_register_component_graph_entry(
+  metaflux_compiler_core
+  compiler.core
+  compiler-core
+  CXX
+)

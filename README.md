@@ -24,4 +24,6 @@ kernel's Kbuild environment.
 MetaFlux project Agent context starts at [`agent/README.md`](agent/README.md),
 including project memory, progress, plans, validated experience, and work
 records. Architecture records remain authoritative under `docs/architecture/`,
-and ABI/UAPI definitions remain authoritative under `contracts/`.
+and ABI/UAPI definitions remain authoritative under `contracts/`. The directory
+taxonomy and dependency map are in
+[`docs/architecture/repo-layout.md`](docs/architecture/repo-layout.md).

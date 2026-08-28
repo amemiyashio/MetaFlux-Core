@@ -1,0 +1,5 @@
+add_executable(metaflux_runtime_core_smoke runtime_smoke.cpp)
+target_link_libraries(metaflux_runtime_core_smoke PRIVATE MetaFlux::RuntimeCore)
+metaflux_configure_target(metaflux_runtime_core_smoke CXX)
+add_test(NAME metaflux.unit.runtime COMMAND metaflux_runtime_core_smoke)
+set_tests_properties(metaflux.unit.runtime PROPERTIES LABELS "unit")

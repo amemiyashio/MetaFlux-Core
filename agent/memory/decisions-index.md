@@ -19,6 +19,8 @@ an index row does not promote `Proposed` material to `Verified`.
 | D0007 | Vulkan is an execution backend with explicit capability tiers | [M0004](../plan/M0004-vulkan-backend/plan.md) | Queued plan |
 | D0008 | Synthetic vendor identity in vroot is a presentation disguise, never a vendor ABI claim or vendor-driver match | [M0003](../plan/M0003-vpci-lifecycle/plan.md) | Queued plan |
 | D0009 | Userspace glibc floor is 2.31 (Ubuntu 20.04) with a restricted provider DT_NEEDED universe | [M0001](../plan/M0001-core-foundation/plan.md) | Active plan |
+| D0010 | Every transport owns one directory split into C17 client and C++20 worker halves that never share headers | [Transports ownership](../../transports/README.md) | Repository boundary |
+| D0011 | Component dependency edges are machine-checked against a role whitelist and the C/CXX language wall | [Component graph check](../../tools/README.md) | Repository boundary |
 
 New decisions receive the next `DNNNN` identifier and point to a plan or
 architecture record containing rationale, consequences, and verification state.

@@ -36,6 +36,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(MetaFluxTargets)
 include(MetaFluxBuildManifest)
+include(MetaFluxComponentGraph)
 
 add_subdirectory(contracts)
 
@@ -65,6 +66,8 @@ endif()
 if(METAFLUX_BUILD_DAEMON)
   add_subdirectory(services)
 endif()
+
+metaflux_write_component_graph("${CMAKE_BINARY_DIR}/metaflux-component-graph.json")
 
 if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_subdirectory(tests)
