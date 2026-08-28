@@ -715,6 +715,110 @@ class Validator:
                         f"(latest checkpoint {latest_checkpoint})"
                     )
 
+    def plan_statuses(self) -> dict[str, str]:
+        """Map milestone and work-item ids to their plan frontmatter status."""
+        statuses: dict[str, str] = {}
+        plan_root = self.agent_root / "plan"
+        candidates = sorted(plan_root.glob("M*/plan.md")) + sorted(
+            plan_root.glob("M*/work/W*-*.md")
+        )
+        for plan_file in candidates:
+            try:
+                text = plan_file.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            record_id = re.search(r"(?m)^id:\s*(\S+)", text)
+            status = re.search(r"(?m)^status:\s*(\S+)", text)
+            if record_id and status:
+                statuses[record_id.group(1)] = status.group(1)
+        return statuses
+
+    def validate_current_progress(self) -> None:
+        current = self.agent_root / "progress" / "current.md"
+        if not current.is_file():
+            return
+        try:
+            text = current.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            return
+        referenced = re.search(r"(?m)^checkpoint:\s*(P\d{8}-\d{3})\b", text)
+        if referenced is None:
+            return
+        known_checkpoints = sorted(
+            record_id
+            for record_id in self.agent_record_ids
+            if CHECKPOINT_ID_RE.fullmatch(record_id)
+        )
+        if not known_checkpoints:
+            return
+        if referenced.group(1) not in known_checkpoints:
+            self.add_error(
+                current,
+                f"references unknown checkpoint {referenced.group(1)}",
+            )
+        elif referenced.group(1) != known_checkpoints[-1]:
+            self.add_error(
+                current,
+                f"references checkpoint {referenced.group(1)} but the latest "
+                f"recorded checkpoint is {known_checkpoints[-1]}; refresh "
+                "current progress",
+            )
+
+    def validate_status_consistency(self) -> None:
+        """Warn when the latest complete session's plan statuses drifted.
+
+        Only the newest complete session is compared: older sessions
+        legitimately reflect the state of their time.
+        """
+        latest: tuple[str, str, Path] | None = None
+        for session_file in sorted(self.sessions_root.rglob("session.json")):
+            if session_file.is_symlink() or not session_file.is_file():
+                continue
+            try:
+                document = json.loads(session_file.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            if not isinstance(document, dict) or document.get("status") != "complete":
+                continue
+            started_at = document.get("started_at")
+            if not isinstance(started_at, str):
+                continue
+            key = (started_at, str(session_file))
+            if latest is None or key > (latest[0], latest[1]):
+                latest = (started_at, str(session_file), session_file)
+        if latest is None:
+            return
+        try:
+            document = json.loads(latest[2].read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            return
+
+        session_to_plan_status = {
+            "queued": "Queued",
+            "active": "Active",
+            "in_progress": "Active",
+            "blocked": "Blocked",
+            "complete": "Complete",
+        }
+        plan_statuses = self.plan_statuses()
+        for collection in ("milestones", "work_items"):
+            records = document.get(collection)
+            if not isinstance(records, list):
+                continue
+            for record in records:
+                if not isinstance(record, dict):
+                    continue
+                record_id = record.get("id")
+                session_status = record.get("status")
+                mapped = session_to_plan_status.get(session_status)
+                plan_status = plan_statuses.get(record_id) if isinstance(record_id, str) else None
+                if mapped and plan_status and mapped != plan_status:
+                    self.warnings.append(
+                        f"{latest[2].relative_to(self.repo_root)}: latest complete "
+                        f"session records {record_id} as '{session_status}' while "
+                        f"the plan says '{plan_status}'; one of them is stale"
+                    )
+
     def validate_markdown_links(self) -> None:
         if not self.agent_root.is_dir():
             self.add_error(self.agent_root, "agent directory is missing")
@@ -889,6 +993,8 @@ class Validator:
         self.validate_index_completeness(actual_session_ids)
         self.validate_open_decisions()
         self.validate_progress_health()
+        self.validate_current_progress()
+        self.validate_status_consistency()
         self.validate_markdown_links()
         if self.errors:
             for error in self.errors:

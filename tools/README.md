@@ -49,3 +49,19 @@ python3 tools/new-session.py my-session-slug
 
 Fill the TODO fields as the session progresses; the skeleton passes
 `check-agent-records.py` immediately after creation.
+
+## Validator self-test
+
+`test-check-agent-records.py` pins the validator itself against a synthetic
+golden tree: fifteen cases cover required session fields, event sequencing,
+distillation (including the pre-cutoff grandfathering), index completeness in
+both directions, ledger counts, staleness and status-drift warnings, markdown
+links, checkpoint id/path agreement, and current-progress freshness. It builds
+fixtures in a temporary directory and loads the validator by path.
+
+```sh
+python3 tools/test-check-agent-records.py
+```
+
+The same suite runs as the CTest `metaflux.architecture.agent-records-selftest`
+in every preset that enables tests, so the record gate has its own gate.

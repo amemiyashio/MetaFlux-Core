@@ -55,6 +55,16 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
       metaflux.architecture.component-graph
       PROPERTIES LABELS "architecture"
     )
+    add_test(
+      NAME metaflux.architecture.agent-records-selftest
+      COMMAND
+        Python3::Interpreter
+        "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-check-agent-records.py"
+    )
+    set_tests_properties(
+      metaflux.architecture.agent-records-selftest
+      PROPERTIES LABELS "architecture"
+    )
   endif()
 endif()
 
