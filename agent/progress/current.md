@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-28
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260828-007
+checkpoint: P20260828-008
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260828-007
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260828-007](checkpoints/2026/P20260828-007-claude-bridge.md).
+[P20260828-008](checkpoints/2026/P20260828-008-codex-entry-points.md).
 
 ## Current state
 
@@ -20,9 +20,9 @@ M0001 boundaries. Targets remain fixtures: CUDA/NVML compatibility, CPU SIMT
 execution, compiler service behavior, device registry, and shared transports are
 not yet functionally implemented.
 
-Git history on `main` now has four commits: the baseline, the spec-consistency
-revision, its records, and the layout convergence revision. The 2026-08-28
-self-review removed five specification contradictions
+Git history on `main` is a linear bootstrap and governance chain through
+content revision `3fe0ace`. The 2026-08-28 self-review removed five
+specification contradictions
 ([S20260828-001](../sessions/2026/08/S20260828-001-spec-consistency/summary.md));
 the same-day layering review converged the repository structure on Mesa/Wine
 patterns ([S20260828-002](../sessions/2026/08/S20260828-002-layout-convergence/summary.md)):
@@ -63,6 +63,11 @@ requiring an in-progress session for any change outside `agent/`.
 added the repository-local Claude Code bridge: `CLAUDE.md` as an `@AGENTS.md`
 import plus `.claude/` edit-time guards with the same two invariants,
 strictly repo-scoped and inert for other tools.
+[S20260828-008](../sessions/2026/08/S20260828-008-codex-entry-points/summary.md)
+verified that Codex reads the root `AGENTS.md` natively and added an isolated
+Nix entry-point check. The check proves the independent Agent-record fileset
+retains `AGENTS.md`, the tool-agnostic pre-commit gate, validator dependencies,
+and the optional Claude bridge without treating Claude hooks as Codex hooks.
 
 ## Established bootstrap boundaries
 
@@ -89,8 +94,8 @@ strictly repo-scoped and inert for other tools.
 - CUDA-only and NVML-only: 6/6 tests passed each.
 - Project records, references, output hashes, and project-scope event types
   passed validation; re-validated after both 2026-08-28 revision rounds.
-- `nix flake check path:. -L`, including `agent-records`, passed at the
-  bootstrap baseline; re-run it before the next checkpoint.
+- `nix flake check path:. -L`, including `agent-records` and `entry-points`,
+  passed at content revision `3fe0ace`.
 
 ## Next boundary
 

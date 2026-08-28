@@ -4,10 +4,9 @@
 checkpoints are immutable and grouped by year under `checkpoints/YYYY/`.
 
 Latest checkpoint:
-[P20260827-001](checkpoints/2026/P20260827-001-engineering-bootstrap-baseline.md).
+[P20260828-008](checkpoints/2026/P20260828-008-codex-entry-points.md).
 
 A checkpoint records observed state and verification evidence; it is not a Git
 revision unless its metadata names one. Create a checkpoint at a material
 handoff, release gate, migration, or before a risky transition. Append a dated
 correction rather than rewriting a recorded checkpoint.
-
