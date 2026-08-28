@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-28
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260828-004
+checkpoint: P20260828-005
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260828-004
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260828-004](checkpoints/2026/P20260828-004-record-gate-hardening.md).
+[P20260828-005](checkpoints/2026/P20260828-005-skills-layer.md).
 
 ## Current state
 
@@ -52,6 +52,9 @@ across M0001-M0004), mandatory session distillation, staleness warnings, and
 [S20260828-004](../sessions/2026/08/S20260828-004-record-gate-hardening/summary.md)
 added current-progress freshness, status-drift warnings, and the fifteen-case
 validator self-test, so the record gate has its own gate.
+[S20260828-005](../sessions/2026/08/S20260828-005-skills-layer/summary.md)
+added the [expert-skills layer](../skills/README.md) with three seeds
+(add-component, close-decision, record-session) and validator-enforced form.
 
 ## Established bootstrap boundaries
 
