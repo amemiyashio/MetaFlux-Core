@@ -1,0 +1,128 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "METAFLUX_ENABLE_WERROR": "ON",
+        "METAFLUX_USE_LLD": "ON"
+      }
+    },
+    {
+      "name": "cxx-base",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "dev",
+      "inherits": "cxx-base",
+      "displayName": "MetaFlux development",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "cxx-base",
+      "displayName": "MetaFlux release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "METAFLUX_ENABLE_LTO": "ON"
+      }
+    },
+    {
+      "name": "profile",
+      "inherits": "cxx-base",
+      "displayName": "MetaFlux optimized profiling",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "METAFLUX_ENABLE_FRAME_POINTERS": "ON"
+      }
+    },
+    {
+      "name": "asan",
+      "inherits": "dev",
+      "displayName": "MetaFlux ASan and UBSan",
+      "cacheVariables": {
+        "METAFLUX_ENABLE_SANITIZERS": "ON"
+      }
+    },
+    {
+      "name": "coverage",
+      "inherits": "dev",
+      "displayName": "MetaFlux coverage",
+      "cacheVariables": {
+        "METAFLUX_ENABLE_COVERAGE": "ON"
+      }
+    },
+    {
+      "name": "provider",
+      "inherits": "base",
+      "displayName": "Provider-only closure",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "METAFLUX_BUILD_RUNTIME_CORE": "OFF",
+        "METAFLUX_BUILD_CLIENT_FASTPATH": "ON",
+        "METAFLUX_BUILD_CUDA_DRIVER_PROVIDER": "ON",
+        "METAFLUX_BUILD_NVML_PROVIDER": "ON",
+        "METAFLUX_BUILD_CUDA_PTX_FRONTEND": "OFF",
+        "METAFLUX_BUILD_DAEMON": "OFF",
+        "METAFLUX_BUILD_COMPILER": "OFF",
+        "METAFLUX_BUILD_CPU_BACKEND_RUNTIME": "OFF",
+        "METAFLUX_ENABLE_LTO": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "dev", "configurePreset": "dev" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "profile", "configurePreset": "profile" },
+    { "name": "asan", "configurePreset": "asan" },
+    { "name": "coverage", "configurePreset": "coverage" },
+    { "name": "provider", "configurePreset": "provider" }
+  ],
+  "testPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "profile",
+      "configurePreset": "profile",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "provider",
+      "configurePreset": "provider",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

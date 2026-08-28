@@ -1,0 +1,9 @@
+{
+  "project_version": "@PROJECT_VERSION@",
+  "compiler_epoch": @METAFLUX_COMPILER_EPOCH_JSON_INLINE@,
+  "c_compiler": "@CMAKE_C_COMPILER_ID@ @CMAKE_C_COMPILER_VERSION@",
+  "cxx_compiler": "@CMAKE_CXX_COMPILER_ID@ @CMAKE_CXX_COMPILER_VERSION@",
+  "linker_selection": "@METAFLUX_LINKER_SELECTION@",
+  "lto": "@METAFLUX_ENABLE_LTO@",
+  "build_type": "@CMAKE_BUILD_TYPE@"
+}

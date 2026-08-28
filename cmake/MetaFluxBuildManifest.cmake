@@ -1,0 +1,56 @@
+set(METAFLUX_COMPILER_EPOCH_FILE "${PROJECT_SOURCE_DIR}/toolchains/compiler-epoch-1.json")
+if(NOT EXISTS "${METAFLUX_COMPILER_EPOCH_FILE}")
+  message(FATAL_ERROR "Missing compiler epoch descriptor: ${METAFLUX_COMPILER_EPOCH_FILE}")
+endif()
+
+file(READ "${METAFLUX_COMPILER_EPOCH_FILE}" METAFLUX_COMPILER_EPOCH_JSON)
+string(REGEX REPLACE "[\r\n]+" "" METAFLUX_COMPILER_EPOCH_JSON_INLINE "${METAFLUX_COMPILER_EPOCH_JSON}")
+string(JSON METAFLUX_COMPILER_EPOCH GET "${METAFLUX_COMPILER_EPOCH_JSON}" epoch)
+string(JSON METAFLUX_LLVM_EPOCH_VERSION GET "${METAFLUX_COMPILER_EPOCH_JSON}" llvm_version)
+
+if(NOT CMAKE_C_COMPILER_ID STREQUAL "Clang")
+  message(FATAL_ERROR "Compiler epoch ${METAFLUX_COMPILER_EPOCH} requires Clang")
+endif()
+if(NOT CMAKE_C_COMPILER_VERSION VERSION_EQUAL METAFLUX_LLVM_EPOCH_VERSION)
+  message(
+    FATAL_ERROR
+    "Compiler epoch ${METAFLUX_COMPILER_EPOCH} requires Clang ${METAFLUX_LLVM_EPOCH_VERSION}; found ${CMAKE_C_COMPILER_VERSION}"
+  )
+endif()
+if(
+  CMAKE_CXX_COMPILER_LOADED
+  AND (
+    NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+    OR NOT CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL METAFLUX_LLVM_EPOCH_VERSION
+  )
+)
+  message(
+    FATAL_ERROR
+    "Compiler epoch ${METAFLUX_COMPILER_EPOCH} requires Clang++ ${METAFLUX_LLVM_EPOCH_VERSION}; found ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}"
+  )
+endif()
+
+if(METAFLUX_USE_LLD)
+  set(METAFLUX_LINKER_SELECTION "lld")
+else()
+  set(METAFLUX_LINKER_SELECTION "compiler-default")
+endif()
+
+configure_file(
+  "${CMAKE_CURRENT_LIST_DIR}/metaflux-build-manifest.json.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/metaflux-build-manifest.json"
+  @ONLY
+)
+
+foreach(component IN ITEMS Runtime Provider Daemon)
+  install(
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/metaflux-build-manifest.json"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/metaflux"
+    COMPONENT ${component}
+  )
+  install(
+    FILES "${METAFLUX_COMPILER_EPOCH_FILE}"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/metaflux/toolchains"
+    COMPONENT ${component}
+  )
+endforeach()

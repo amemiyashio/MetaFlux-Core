@@ -1,0 +1,49 @@
+---
+id: M0004-W01
+milestone: M0004
+status: Queued
+area: backend.vulkan.contract
+depends_on: [M0002]
+updated: 2026-08-27
+---
+
+# Vulkan Capability and ABI 0.x
+
+## Outcome
+
+Define a reproducible Vulkan 1.3 compute target, packed-argument ABI 0.x,
+external-memory extension 0.x, benchmark contract, and semantic capability matrix
+before freezing a public backend extension.
+
+The C++20 backend calls the Vulkan C API and crosses the runtime only through
+`mf_backend_api_v1` plus sized extension records. Vulkan/C++ handles, types,
+exceptions, allocator ownership, and STL objects never cross that C ABI. It uses
+the M0001 compiler epoch and a separate `vulkan_lowering_epoch` containing the
+MLIR pipeline, SPIRV-Tools/validator versions, target-environment serializer, and
+packed-argument revision. SPIRV-Tools runs only in an isolated compile/validation
+stage, never on cache-hit launch.
+
+The baseline verifies Vulkan 1.3 compute queues, timeline semaphores,
+Synchronization2/`vkQueueSubmit2`, buffer device address with
+PhysicalStorageBuffer addressing, and every feature/limit needed by an advertised
+Kernel IR capability. Target identity serializes the actually enabled
+`VkPhysicalDevice*Features` and relevant `VkPhysicalDevice*Properties`, not
+merely API version.
+Subgroup size is never assumed to be 32.
+
+## Work
+
+- [ ] Select the exact feature/limit baseline, minimum versions, and two
+  independent Vulkan driver families.
+- [ ] Draft packed BDA argument layouts and external-memory 0.x fixtures.
+- [ ] Define the exact Kernel IR capability matrix and negative diagnostics.
+- [ ] Define target-environment serialization, cache keys, pipeline residency,
+  compile-required proof, corruption behavior, and epoch fingerprints.
+- [ ] Lock direct-Vulkan baselines plus enqueue, submit, start, and completion
+  timestamp points.
+
+## Exit Gate
+
+Positive/negative target fixtures, packed layouts, cache keys, capability reports,
+and benchmark contracts reproduce on both driver families. No Vulkan-specific
+public extension is frozen yet.

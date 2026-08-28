@@ -1,0 +1,12 @@
+{
+  "epoch": 1,
+  "llvm_version": "22.1.8",
+  "llvm_source_revision": "llvmorg-22.1.8",
+  "nixpkgs_revision": "062346a6d85bc4b49dfaa61c986e9c5be21217d1",
+  "nixpkgs_nar_hash": "sha256-BZWCi9ZRJiARTuKTbbtvFTj7t1TK4G3UEckT3HyNfRg=",
+  "required_targets": ["X86"],
+  "downstream_patches": [],
+  "build_flags": ["stock-nixpkgs"],
+  "pgo_profile": null,
+  "nixpkgs_package": "llvmPackages_22"
+}

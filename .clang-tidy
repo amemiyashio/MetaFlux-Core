@@ -1,0 +1,10 @@
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  performance-*,
+  portability-*
+WarningsAsErrors: ''
+HeaderFilterRegex: '^(contracts|runtime|compiler|plugins|services|tests)/'
+FormatStyle: file
+

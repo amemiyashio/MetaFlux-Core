@@ -1,0 +1,14 @@
+/build/
+/build-*/
+/result
+/result-*
+/.cache/
+/.clangd/
+/compile_commands.json
+/CMakeUserPresets.json
+
+*.profraw
+*.profdata
+*.gcda
+*.gcno
+

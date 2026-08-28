@@ -1,0 +1,11 @@
+if(
+  METAFLUX_BUILD_CUDA_DRIVER_PROVIDER
+  OR METAFLUX_BUILD_NVML_PROVIDER
+  OR METAFLUX_BUILD_CUDA_PTX_FRONTEND
+)
+  add_subdirectory(compat)
+endif()
+
+if(METAFLUX_BUILD_CPU_BACKEND_RUNTIME)
+  add_subdirectory(backend)
+endif()
