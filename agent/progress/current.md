@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-28
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260828-001
+checkpoint: P20260828-002
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260828-001
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260828-001](checkpoints/2026/P20260828-001-spec-consistency-revisions.md).
+[P20260828-002](checkpoints/2026/P20260828-002-layout-convergence.md).
 
 ## Current state
 
@@ -20,21 +20,28 @@ M0001 boundaries. Targets remain fixtures: CUDA/NVML compatibility, CPU SIMT
 execution, compiler service behavior, device registry, and shared transports are
 not yet functionally implemented.
 
-Git history now exists on `main`: baseline
-`9703559ef0056b6dd8ef5432b645a1362e72d734` and the spec-consistency revision
-`5360d51a09234f9753f260f218dc5a87e52c7eef`. The `path:.` Nix practice from
-[E0001](../experience/E0001-nix-untracked-flake.md) is no longer required.
+Git history on `main` now has four commits: the baseline, the spec-consistency
+revision, its records, and the layout convergence revision. The 2026-08-28
+self-review removed five specification contradictions
+([S20260828-001](../sessions/2026/08/S20260828-001-spec-consistency/summary.md));
+the same-day layering review converged the repository structure on Mesa/Wine
+patterns ([S20260828-002](../sessions/2026/08/S20260828-002-layout-convergence/summary.md)):
 
-A 2026-08-28 self-review removed five specification contradictions
-([S20260828-001](../sessions/2026/08/S20260828-001-spec-consistency/summary.md)):
-D0008 records the vroot synthetic NVIDIA identity as a presentation disguise
-with registration/legal review required before release promotion; D0009 closes
-the userspace glibc floor at 2.31 (Ubuntu 20.04) with a restricted provider
-`DT_NEEDED` universe; the v0.1 memfd transport carries an explicit
-at-most-one-wake-syscall budget with the zero-syscall obligation deferred to
-the M0002 doorbell transports; numeric performance budgets are provisional
-until the named harness archives a baseline; and the authoritative
-logical-device view is scoped per managed domain.
+- D0008: vroot synthetic NVIDIA identity is a presentation disguise with
+  registration/legal review required before release promotion.
+- D0009: userspace glibc floor is 2.31 (Ubuntu 20.04) with a restricted
+  provider `DT_NEEDED` universe.
+- D0010: every transport owns one directory split into C17 client and C++20
+  worker halves that never share headers.
+- D0011: component dependency edges are machine-checked against a role
+  whitelist and the C/CXX language wall (CTest
+  `metaflux.architecture.component-graph`).
+- Numeric performance budgets are provisional until the named harness archives
+  a baseline; the authoritative logical-device view is scoped per managed
+  domain; unit tests live beside their owners; planned-component homes are
+  recorded in the [roadmap](../../docs/roadmap.md) instead of placeholder
+  directories; the taxonomy is documented in
+  [repo layout](../../docs/architecture/repo-layout.md).
 
 ## Established bootstrap boundaries
 
@@ -44,6 +51,7 @@ logical-device view is scoped per managed domain.
 - Ecosystem provider, compiler frontend, and execution backend build roles.
 - CUDA/NVML hidden symbol surfaces, independent ABI gates, and co-load test.
 - Runtime and compiler-toolchain install-consumer qualification.
+- Component graph registration and role-whitelist/language-wall enforcement.
 - Stable M0001-M0004 plans, current memory/progress, validated experience,
   templates, and a date-partitioned MetaFlux project work record.
 - A stdlib-only Agent record/link/scope checker with credential-leak detection
@@ -54,14 +62,14 @@ logical-device view is scoped per managed domain.
 
 ## Verified baseline
 
-- Full dev: 14/14 tests passed.
-- Full ASan: 14/14 tests passed.
-- Provider preset: 9/9 tests passed.
-- CUDA-only and NVML-only: 5/5 tests passed each.
+- Full dev, release, and ASan: 15/15 tests passed each (including the
+  component-graph architecture gate).
+- Provider preset: 10/10 tests passed.
+- CUDA-only and NVML-only: 6/6 tests passed each.
 - Project records, references, output hashes, and project-scope event types
-  passed validation; re-validated after the 2026-08-28 spec amendments.
-- `nix flake check path:. -L`, including `agent-records`, passed.
-- `runtime`, `provider`, `daemon`, and `toolchain` packages built.
+  passed validation; re-validated after both 2026-08-28 revision rounds.
+- `nix flake check path:. -L`, including `agent-records`, passed at the
+  bootstrap baseline; re-run it before the next checkpoint.
 
 ## Next boundary
 
