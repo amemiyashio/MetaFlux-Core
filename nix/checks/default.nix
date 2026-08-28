@@ -163,10 +163,34 @@ let
           ${source.agentRecords}
         touch "$out"
       '';
+
+  entry-points =
+    pkgs.runCommand "metaflux-check-entry-points"
+      {
+        nativeBuildInputs = [
+          pkgs.python3
+          pkgs.gitMinimal
+        ];
+      }
+      ''
+        cp -r ${source.agentRecords} repo
+        chmod -R u+w repo
+        git init -q repo
+        ${pkgs.python3}/bin/python3 repo/tools/check-agent-records.py repo
+        test -s repo/AGENTS.md
+        test -s repo/CLAUDE.md
+        grep -q '^@AGENTS.md' repo/CLAUDE.md
+        test -x repo/.githooks/pre-commit
+        test -s repo/.claude/settings.json
+        test -f repo/.claude/hooks/pre_edit.py
+        test -f repo/.claude/hooks/session_start.py
+        touch "$out"
+      '';
 in
 {
   inherit
     agent-records
+    entry-points
     format
     release-closure
     runtime-sdk

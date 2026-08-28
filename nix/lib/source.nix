@@ -57,6 +57,10 @@ let
   ]);
   agentRecordsFiles = select [
     "README.md"
+    ".claude"
+    ".githooks"
+    "AGENTS.md"
+    "CLAUDE.md"
     "agent"
     "compiler"
     "contracts"
@@ -71,6 +75,8 @@ let
     "toolchains"
     "tools/README.md"
     "tools/check-agent-records.py"
+    "tools/check-component-graph.py"
+    "tools/test-check-agent-records.py"
     "transports"
   ];
 
