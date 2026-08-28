@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-28
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260828-005
+checkpoint: P20260828-006
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260828-005
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260828-005](checkpoints/2026/P20260828-005-skills-layer.md).
+[P20260828-006](checkpoints/2026/P20260828-006-agent-guidance-hardening.md).
 
 ## Current state
 
@@ -55,6 +55,10 @@ validator self-test, so the record gate has its own gate.
 [S20260828-005](../sessions/2026/08/S20260828-005-skills-layer/summary.md)
 added the [expert-skills layer](../skills/README.md) with three seeds
 (add-component, close-decision, record-session) and validator-enforced form.
+[S20260828-006](../sessions/2026/08/S20260828-006-agent-guidance-hardening/summary.md)
+hardened guidance against rule-skipping agents: the root `AGENTS.md` entry
+point, the start-work on-ramp skill, and a devshell-installed pre-commit gate
+requiring an in-progress session for any change outside `agent/`.
 
 ## Established bootstrap boundaries
 
