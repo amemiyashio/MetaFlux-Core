@@ -1,0 +1,31 @@
+# UAPI Compatibility
+
+## Record shape
+
+- Use fixed-width Linux UAPI types, explicit size/version, flags, reserved fields,
+  and naturally stable alignment. Avoid pointers, `long`, enums with compiler
+  size, bitfields, implicit padding, timespec variants, and internal kernel types.
+- Validate minimum known size before access; copy only known bytes; require known
+  reserved bytes to be zero; ignore or reject unknown trailing extensions per
+  the frozen contract.
+- Check addition and multiplication overflow before range tests or allocation.
+- Define native and compat behavior from one wire shape. A compat ioctl should
+  not invent a second ABI when fixed-width fields suffice.
+- Assign one ioctl command per semantic operation with correct direction and
+  unique type/number. Do not overload behavior based on accidental user-buffer
+  size.
+- Define interruption, timeout, retry, duplicate request, partial output, and
+  errno behavior. Return `-ENOTTY` for unknown commands.
+
+## mmap and cdev
+
+Specify allowable offsets/regions, page alignment, exact length, protections,
+cache attributes, generation, revocation/tombstone behavior, fork policy, and
+VMA open/close ownership. Validate `vm_pgoff` conversion and overflow. Mapping a
+doorbell must not expose adjacent control pages.
+
+The base data-plane UAPI and extension namespace remain pre-freeze until M0002
+W04 evidence closes the open decisions. Versioning structure now must permit
+that qualification without claiming v1 stability early.
+
+Primary source: [Linux ioctl design](https://docs.kernel.org/driver-api/ioctl.html).

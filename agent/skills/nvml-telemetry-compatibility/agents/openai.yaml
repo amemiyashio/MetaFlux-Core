@@ -1,0 +1,4 @@
+interface:
+  display_name: "NVML Telemetry Compatibility"
+  short_description: "Review NVML telemetry and nvidia-smi behavior"
+  default_prompt: "Use $nvml-telemetry-compatibility to review this NVML provider or nvidia-smi compatibility change."

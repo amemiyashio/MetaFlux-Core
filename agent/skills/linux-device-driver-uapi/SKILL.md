@@ -1,0 +1,77 @@
+---
+name: linux-device-driver-uapi
+description: Design or review Linux 6.12 or 6.18 character-device UAPI, ioctl and mmap behavior, kref and VMA lifetime, long-term page pinning, DMA, eventfd, MMIO barriers, teardown, and kernel qualification. Use for M0002 kernel transport work. Do not use for vfio-user wire protocol or PCI configuration-space design.
+---
+
+# Linux Device Driver UAPI
+
+## Inputs
+
+- The active M0002/M0003 work item, target Linux/Kbuild matrix, UAPI schema, and
+  native/compat callers.
+- Object ownership graph, fd/VMA/mapping/queue/eventfd/worker lifetimes, DMA
+  directions, ordering protocol, quotas, and fault model affected by the task.
+- Existing KUnit, userspace ABI, KASAN/KCSAN/lockdep/kmemleak, and teardown
+  evidence.
+
+Do not copy internal kernel structures into UAPI. Use fixed-width, explicitly
+sized records and compile-probed compatibility shims for supported kernels.
+
+## Routing
+
+- Use [UAPI compatibility](references/uapi-compatibility.md) for cdev, ioctl,
+  compat, extension, and mmap contracts.
+- Use [object and VMA lifetime](references/object-and-vma-lifetime.md) for krefs,
+  tombstones, close/remove races, and teardown.
+- Use [DMA, pinning, and ordering](references/dma-pinning-ordering.md) for
+  `FOLL_PIN`, SG/DMA ownership, eventfd, barriers, and unmap drain.
+- Use [kernel qualification](references/kernel-qualification.md) for supported
+  kernel builds, dynamic analysis, fuzzing, and evidence.
+- Route vfio-user negotiation to `$gpu-virtualization-vfio-user`, PCI config and
+  BAR/MSI-X presentation to `$pcie-vpci-device-model`, and cross-transport reset
+  state to `$device-lifecycle-resilience`.
+
+## Workflow
+
+1. Draw the object/refcount graph and name the authority, lock, generation, and
+   terminal state for every fd-, VMA-, mapping-, queue-, event-, and worker-owned
+   object before changing code.
+2. Define the UAPI envelope with fixed-width fields, size/version, flags,
+   reserved-zero policy, extension namespace, limits, overflow rules, compat
+   behavior, and exact errno for every rejection.
+3. Specify `open`, ioctl, `mmap`, `poll`/wait, eventfd registration, close,
+   remove, daemon death, and module-unload transitions including concurrent
+   interleavings.
+4. For each userspace buffer, choose pin API, long-term/write flags, accounting,
+   DMA direction, SG mapping, synchronization, dirtying, drain, unmap, and unwind
+   order. Reject unsupported memory rather than downgrading silently.
+5. Encode ring publication/consumption and doorbell/completion ordering with the
+   project atomic and DMA/MMIO barrier contract. Separate polling from armed
+   waits and avoid per-command interrupts.
+6. Keep kernel-version differences in compile-probed `kernel/compat/` shims.
+   Never weaken ownership or ordering based on a version check alone.
+7. Add fault injection and concurrent teardown tests before performance work.
+
+## Output
+
+Return or implement:
+
+- A UAPI/errno/compat table and object/refcount state diagram.
+- A pin/map/sync/drain/unmap/unpin ledger for each buffer class.
+- Explicit ordering pairs for descriptor, doorbell, completion, timeline, and
+  event notification.
+- Kernel qualification results across the pinned matrix, with unresolved ABI
+  decisions clearly marked as pre-freeze.
+
+## Verification
+
+- Build with each supported target Kbuild toolchain and `LLVM=1` where the
+  target configuration supports it; run native and compat ABI/layout tests.
+- Exercise short size, unknown extension/flag, reserved bits, nulls, overflow,
+  bad offset/width, stale generation, permission, and interrupted wait cases.
+- Race open/mmap/ioctl/poll/close/unmap/remove/worker death under KUnit, KASAN,
+  KCSAN, lockdep, and kmemleak as applicable.
+- Prove every page and DMA mapping unwinds exactly once on every injected failure
+  and no successful unmap leaves a server/backend/callback reference.
+- Measure the active cdev path only after tracing proves no warm enqueue syscall,
+  allocation, or global lock.

@@ -1,0 +1,28 @@
+# nvidia-smi Qualification
+
+Qualify stock binaries, not a reimplemented parser. Record tool build/version,
+selected NVML target, locale, invocation, exit status, stdout/stderr digest, and
+the registry fixture used.
+
+## Required views
+
+- `nvidia-smi -L` for zero, one, and multiple devices.
+- Default summary output.
+- The approved CSV query set with and without headers/units.
+- `--query-compute-apps` or the selected release's equivalent process view.
+- Required `-q` and XML `-x` combinations, including unsupported fields.
+
+## Assertions
+
+- Device count/order, UUID, BDF, name, memory, compute mode, persistence mode,
+  utilization, and process data match the same immutable snapshot used by CUDA.
+- Unsupported physical fields remain structurally present where the stock tool
+  expects them and render as `N/A`; no invented zero is accepted as evidence.
+- XML remains well formed and stable enough for the selected compatibility
+  contract. CSV escaping, units, ordering, and per-field errors are exact.
+- Concurrent init/shutdown and snapshot publication do not crash, hang, mix
+  generations, or produce an out-of-range process row.
+
+Measure 1 Hz polling impact and hot getter latency only with pinned affinity,
+warm-up, sample count, and raw distributions. The active milestone owns the
+threshold and whether it is provisional or binding.

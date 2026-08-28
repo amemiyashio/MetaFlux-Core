@@ -1,0 +1,4 @@
+interface:
+  display_name: "Device Lifecycle Resilience"
+  short_description: "Review reset, hotplug, epochs, and fault recovery"
+  default_prompt: "Use $device-lifecycle-resilience to review this reset, remove, re-add, epoch, or fault-handling change."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "PTX SIMT Semantics"
+  short_description: "Review PTX subset and SIMT semantic correctness"
+  default_prompt: "Use $ptx-simt-semantics to define or review the PTX and SIMT semantics for this Kernel IR change."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "CPU Backend Performance"
+  short_description: "Review x86 CPU backend correctness and performance"
+  default_prompt: "Use $cpu-backend-performance to review this x86 CPU backend mapping, vectorization, or benchmark change."

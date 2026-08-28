@@ -1,0 +1,4 @@
+interface:
+  display_name: "CUDA Driver ABI Compatibility"
+  short_description: "Review CUDA Driver ABI compatibility work"
+  default_prompt: "Use $cuda-driver-abi-compatibility to review this CUDA Driver provider change against its pinned ABI and object semantics."

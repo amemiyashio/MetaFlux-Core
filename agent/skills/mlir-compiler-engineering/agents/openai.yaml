@@ -1,0 +1,4 @@
+interface:
+  display_name: "MLIR Compiler Engineering"
+  short_description: "Review MLIR dialects, conversion, and lowering"
+  default_prompt: "Use $mlir-compiler-engineering to design or review this Kernel IR to MLIR lowering and pass pipeline."
