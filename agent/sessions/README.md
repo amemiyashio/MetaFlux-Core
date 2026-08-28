@@ -17,6 +17,7 @@ event sequence numbers are immutable once published.
 | [S20260827-001-metaflux-bootstrap](2026/08/S20260827-001-metaflux-bootstrap/summary.md) | 2026-08-27 | Reconstructed | Complete | MetaFlux planning, bootstrap, architecture review, and build hardening |
 | [S20260828-001-spec-consistency](2026/08/S20260828-001-spec-consistency/summary.md) | 2026-08-28 | Exact | Complete | Five specification self-review amendments, D0008/D0009, first commits |
 | [S20260828-002-layout-convergence](2026/08/S20260828-002-layout-convergence/summary.md) | 2026-08-28 | Exact | Complete | Mesa/Wine-patterned layout convergence, D0010/D0011, component graph gate |
+| [S20260828-003-agent-record-convergence](2026/08/S20260828-003-agent-record-convergence/summary.md) | 2026-08-28 | Exact | Complete | Machine-enforced record-loop rules: index completeness, open-decisions ledger, distillation, staleness warnings, session scaffolder |
 
 ## Fidelity and retention
 

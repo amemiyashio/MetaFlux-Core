@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-28
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260828-002
+checkpoint: P20260828-003
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260828-002
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260828-002](checkpoints/2026/P20260828-002-layout-convergence.md).
+[P20260828-003](checkpoints/2026/P20260828-003-agent-record-convergence.md).
 
 ## Current state
 
@@ -43,6 +43,13 @@ patterns ([S20260828-002](../sessions/2026/08/S20260828-002-layout-convergence/s
   directories; the taxonomy is documented in
   [repo layout](../../docs/architecture/repo-layout.md).
 
+The record loop itself is machine-enforced as of
+[S20260828-003](../sessions/2026/08/S20260828-003-agent-record-convergence/summary.md):
+index completeness, the
+[open-decisions ledger](../memory/open-decisions.md) (29 unresolved decisions
+across M0001-M0004), mandatory session distillation, staleness warnings, and
+`tools/new-session.py` scaffolding.
+
 ## Established bootstrap boundaries
 
 - CMake/Ninja component selection and pinned Clang/LLVM/MLIR/LLD epoch 1.
@@ -73,11 +80,9 @@ patterns ([S20260828-002](../sessions/2026/08/S20260828-002-layout-convergence/s
 
 ## Next boundary
 
-1. Close the remaining unresolved decisions in
-   [M0001](../plan/M0001-core-foundation/plan.md); the glibc baseline is now
-   closed by D0009, leaving the release distribution matrix, LLVM 22 patchset,
-   PTX corpus, CUDA/NVML header acquisition, vendor library discovery, cache
-   policy, CPU worker topology, and compiler closure decisions.
+1. Close the unresolved decisions aggregated in
+   [open decisions](../memory/open-decisions.md); the glibc baseline is closed
+   by D0009, and each closure must move its row out of the ledger.
 2. Close the remaining M0001-W01 exit conditions: the release provider sysroot,
    CUDA/NVML header acquisition, the LLVM 22 patchset, and reference-host
    performance qualification that promotes the provisional budgets to binding.

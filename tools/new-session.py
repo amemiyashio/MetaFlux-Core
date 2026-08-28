@@ -150,11 +150,22 @@ def main() -> int:
     index_path = sessions_root / "README.md"
     index_row = (
         f"| [{session_id}]({today:%Y/%m}/{session_id}/summary.md) "
-        f"| {today:%Y-%m-%d} | Exact | In progress | TODO: one-line summary |\n"
+        f"| {today:%Y-%m-%d} | Exact | In progress | TODO: one-line summary |"
     )
     index_text = index_path.read_text(encoding="utf-8") if index_path.is_file() else ""
-    anchor = index_text.rstrip("\n") + "\n" if index_text else ""
-    index_path.write_text(anchor + index_row, encoding="utf-8")
+    lines = index_text.splitlines()
+    insert_at = 0
+    for position, line in enumerate(lines):
+        if line.startswith("| ["):
+            insert_at = position + 1
+    if insert_at == 0:
+        print(
+            "error: sessions README index table not found; append the row manually",
+            file=sys.stderr,
+        )
+        return 1
+    lines.insert(insert_at, index_row)
+    index_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     print(f"created {session_dir.relative_to(repo_root)}")
     print(f"index row appended to {index_path.relative_to(repo_root)}")
