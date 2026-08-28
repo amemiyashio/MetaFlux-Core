@@ -36,3 +36,16 @@ python3 tools/check-component-graph.py build/dev/metaflux-component-graph.json
 
 The same check runs as the CTest `metaflux.architecture.component-graph` in
 every preset that enables tests.
+
+## Session scaffolding
+
+`new-session.py` allocates the next `SYYYYMMDD-NNN` id for today, creates the
+session directory with a validator-clean skeleton, and appends the index row
+to `agent/sessions/README.md` so the index-completeness rule stays green:
+
+```sh
+python3 tools/new-session.py my-session-slug
+```
+
+Fill the TODO fields as the session progresses; the skeleton passes
+`check-agent-records.py` immediately after creation.

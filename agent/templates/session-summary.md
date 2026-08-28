@@ -31,6 +31,14 @@ State the project objective and resulting repository state.
 - Canonical decision links.
 - New or updated experience IDs.
 
+## Distillation
+
+What this session promoted into durable records so reusable knowledge does not
+stay trapped in cold storage. `none` is a valid answer; the validator requires
+this section for sessions from 2026-08-28 onward.
+
+- Distilled: none | memory/<file>, decisions DNNNN, experience ENNNN
+
 ## Unresolved items
 
 - Work ID, blocker/risk, and next action.

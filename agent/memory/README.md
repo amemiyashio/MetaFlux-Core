@@ -7,7 +7,9 @@ Read these compact indexes before current progress and plans:
 3. [`component-map.md`](component-map.md): source ownership and dependency map.
 4. [`decisions-index.md`](decisions-index.md): stable pointers to canonical
    decisions.
-5. [`glossary.md`](glossary.md): shared terminology.
+5. [`open-decisions.md`](open-decisions.md): aggregated unresolved decisions
+   across all milestone plans; the entry point for "what is still undecided".
+6. [`glossary.md`](glossary.md): shared terminology.
 
 Memory summarizes stable context but does not replace source, tests,
 [`contracts/`](../../contracts/README.md), verified

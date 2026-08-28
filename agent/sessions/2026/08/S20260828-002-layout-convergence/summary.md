@@ -23,3 +23,10 @@ Verification: dev/release/asan 15/15, provider 10/10, cuda-only and nvml-only
 6/6 each, agent records ok. Revisions: base
 67aa3975e37bfff5812a32b97490a1eec1c3b11b, final
 cca908221cb5b265ae0944a3e87598b1f5a70956.
+
+## Distillation
+
+- Distilled: decisions D0010 and D0011 into decisions-index; the repo-layout
+  record into docs/architecture/repo-layout.md; the component-map navigation
+  row. No experience records (the graph-check pattern is documented in
+  tools/README.md rather than as reusable procedure).

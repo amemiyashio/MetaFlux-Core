@@ -50,6 +50,10 @@ ALLOWED_TIME_PRECISION = {
     "microsecond",
 }
 MAX_INLINE_TEXT_BYTES = 65_536
+# Session summaries recorded from this date onward must carry a Distillation
+# section; earlier sessions are grandfathered.
+DISTILLATION_REQUIRED_FROM = "2026-08-28"
+STALENESS_WARNING_DAYS = 14
 SESSION_ID_RE = re.compile(r"^S\d{8}-\d{3}-[a-z0-9][a-z0-9-]*$")
 SESSION_PATH_RE = re.compile(
     r"^(?P<year>\d{4})/(?P<month>0[1-9]|1[0-2])/(?P<id>S\d{8}-\d{3}-[a-z0-9][a-z0-9-]*)$"
@@ -62,6 +66,11 @@ STABLE_AGENT_ID_RE = re.compile(
     r"^(?:M\d{4}(?:-W\d{2})?|E\d{4}|P\d{8}-\d{3})$"
 )
 OUTPUT_REF_PATH_RE = re.compile(r"^outputs/\d{4}\.txt$")
+# Unanchored companions of the stable-id patterns, used to extract ids from
+# markdown link targets that carry directory prefixes.
+SESSION_ID_SEARCH_RE = re.compile(r"S\d{8}-\d{3}-[a-z0-9][a-z0-9-]*")
+MILESTONE_ID_SEARCH_RE = re.compile(r"M\d{4}")
+EXPERIENCE_ID_SEARCH_RE = re.compile(r"E\d{4}")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".txt", ".yaml", ".yml"}
@@ -90,6 +99,7 @@ class Validator:
         self.agent_root = repo_root / "agent"
         self.sessions_root = self.agent_root / "sessions"
         self.errors: list[str] = []
+        self.warnings: list[str] = []
         self.session_ids: set[str] = set()
         self.session_count = 0
         self.event_count = 0
@@ -321,8 +331,11 @@ class Validator:
         event_log_path = self.validate_relative_file(
             session_dir, session.get("event_log"), "event_log"
         )
-        self.validate_relative_file(session_dir, session.get("summary"), "summary")
+        summary_path = self.validate_relative_file(
+            session_dir, session.get("summary"), "summary"
+        )
         self.validate_relative_file(session_dir, session.get("notes"), "notes")
+        self.validate_distillation(summary_path, session)
 
         events = self.validate_events(session_dir, event_log_path, schema_version)
         valid_event_seqs = {event["seq"] for event in events if self.is_int(event.get("seq"))}
@@ -505,6 +518,203 @@ class Validator:
                             f"line {line_number}: credential-bearing text is not allowed",
                         )
 
+    def linked_ids(self, path: Path, id_pattern: re.Pattern) -> set[str] | None:
+        """Collect stable IDs from markdown link targets in an index README."""
+        if not path.is_file():
+            self.add_error(path, "required index file is missing")
+            return None
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            self.add_error(path, f"is not valid UTF-8: {exc}")
+            return None
+        ids: set[str] = set()
+        for match in MARKDOWN_LINK_RE.finditer(text):
+            found = id_pattern.search(match.group(1))
+            if found:
+                ids.add(found.group(0))
+        return ids
+
+    def validate_index_completeness(self, actual_session_ids: set[str]) -> None:
+        sessions_index = self.linked_ids(
+            self.sessions_root / "README.md", SESSION_ID_SEARCH_RE
+        )
+        if sessions_index is not None and sessions_index != actual_session_ids:
+            missing = sorted(actual_session_ids - sessions_index)
+            stale = sorted(sessions_index - actual_session_ids)
+            if missing:
+                self.add_error(
+                    self.sessions_root / "README.md",
+                    f"sessions index is missing: {', '.join(missing)}",
+                )
+            if stale:
+                self.add_error(
+                    self.sessions_root / "README.md",
+                    f"sessions index references nonexistent sessions: {', '.join(stale)}",
+                )
+
+        plan_root = self.agent_root / "plan"
+        actual_milestones = {
+            path.parent.name[:5]
+            for path in plan_root.glob("M*/plan.md")
+            if MILESTONE_ID_RE.fullmatch(path.parent.name[:5])
+        }
+        plans_index = self.linked_ids(plan_root / "README.md", MILESTONE_ID_SEARCH_RE)
+        if plans_index is not None and plans_index != actual_milestones:
+            missing = sorted(actual_milestones - plans_index)
+            stale = sorted(plans_index - actual_milestones)
+            if missing:
+                self.add_error(
+                    plan_root / "README.md",
+                    f"milestone index is missing: {', '.join(missing)}",
+                )
+            if stale:
+                self.add_error(
+                    plan_root / "README.md",
+                    f"milestone index references nonexistent milestones: {', '.join(stale)}",
+                )
+
+        experience_root = self.agent_root / "experience"
+        actual_experience = {
+            path.name[:5]
+            for path in experience_root.glob("E*-*.md")
+            if EXPERIENCE_ID_RE.fullmatch(path.name[:5])
+        }
+        experience_index = self.linked_ids(
+            experience_root / "README.md", EXPERIENCE_ID_SEARCH_RE
+        )
+        if experience_index is not None and experience_index != actual_experience:
+            missing = sorted(actual_experience - experience_index)
+            stale = sorted(experience_index - actual_experience)
+            if missing:
+                self.add_error(
+                    experience_root / "README.md",
+                    f"experience index is missing: {', '.join(missing)}",
+                )
+            if stale:
+                self.add_error(
+                    experience_root / "README.md",
+                    f"experience index references nonexistent records: {', '.join(stale)}",
+                )
+
+    def validate_open_decisions(self) -> None:
+        plan_root = self.agent_root / "plan"
+        open_counts: dict[str, int] = {}
+        for plan_file in sorted(plan_root.glob("M*/plan.md")):
+            milestone_id = plan_file.parent.name[:5]
+            try:
+                text = plan_file.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            if "## Decisions to Close" not in text:
+                continue
+            section = text.split("## Decisions to Close", 1)[1].split("\n## ", 1)[0]
+            count = len(re.findall(r"(?m)^\d+\.\s", section))
+            if count:
+                open_counts[milestone_id] = count
+
+        ledger = self.agent_root / "memory" / "open-decisions.md"
+        ledger_counts: dict[str, int] = {}
+        if ledger.is_file():
+            try:
+                ledger_text = ledger.read_text(encoding="utf-8")
+            except UnicodeDecodeError as exc:
+                self.add_error(ledger, f"is not valid UTF-8: {exc}")
+                ledger_text = ""
+            for line in ledger_text.splitlines():
+                if not line.startswith("|"):
+                    continue
+                cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+                if cells and MILESTONE_ID_RE.fullmatch(cells[0]):
+                    ledger_counts[cells[0]] = ledger_counts.get(cells[0], 0) + 1
+        elif open_counts:
+            self.add_error(
+                ledger,
+                "open-decisions ledger is missing while plans declare "
+                f"{sum(open_counts.values())} open decision(s)",
+            )
+            return
+
+        for milestone_id, count in sorted(open_counts.items()):
+            listed = ledger_counts.get(milestone_id, 0)
+            if listed != count:
+                self.add_error(
+                    ledger,
+                    f"{milestone_id} declares {count} open decision(s) but the "
+                    f"ledger lists {listed}",
+                )
+        for milestone_id in sorted(ledger_counts):
+            if milestone_id not in open_counts:
+                self.add_error(
+                    ledger,
+                    f"ledger lists open decisions for {milestone_id}, whose plan "
+                    "declares none",
+                )
+
+    def validate_distillation(self, summary_path: Path | None, session: dict) -> None:
+        started_at = session.get("started_at")
+        if not isinstance(started_at, str) or started_at < DISTILLATION_REQUIRED_FROM:
+            return
+        if summary_path is None:
+            return
+        try:
+            text = summary_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            self.add_error(summary_path, "cannot read session summary for distillation")
+            return
+        parts = text.split("## Distillation", 1)
+        if len(parts) != 2:
+            self.add_error(
+                summary_path,
+                "sessions from "
+                f"{DISTILLATION_REQUIRED_FROM} onward require a '## Distillation' "
+                "section (use 'none' when nothing was promoted)",
+            )
+            return
+        body = parts[1].split("\n## ", 1)[0].strip()
+        if not body:
+            self.add_error(summary_path, "Distillation section is empty")
+        elif "none" not in body.lower() and "- " not in body:
+            self.add_error(
+                summary_path,
+                "Distillation section must state 'none' or list promoted records",
+            )
+
+    def validate_progress_health(self) -> None:
+        checkpoint_dates: list[str] = []
+        checkpoints_root = self.agent_root / "progress" / "checkpoints"
+        for checkpoint_file in checkpoints_root.glob("*/*.md"):
+            match = re.search(r"(?m)^captured:\s*(\d{4}-\d{2}-\d{2})", checkpoint_file.read_text(encoding="utf-8"))
+            if match:
+                checkpoint_dates.append(match.group(1))
+        if not checkpoint_dates:
+            return
+        latest_checkpoint = max(checkpoint_dates)
+
+        def staleness_cutoff(day: str) -> str:
+            captured = dt.date.fromisoformat(day)
+            return (captured - dt.timedelta(days=STALENESS_WARNING_DAYS)).isoformat()
+
+        cutoff = staleness_cutoff(latest_checkpoint)
+        plan_root = self.agent_root / "plan"
+        plan_files = sorted(plan_root.glob("M*/plan.md")) + sorted(
+            plan_root.glob("M*/work/W*-*.md")
+        )
+        for plan_file in plan_files:
+            try:
+                text = plan_file.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            status = re.search(r"(?m)^status:\s*(\S+)", text)
+            updated = re.search(r"(?m)^updated:\s*(\d{4}-\d{2}-\d{2})", text)
+            if status and updated and status.group(1) == "Active":
+                if updated.group(1) < cutoff:
+                    self.warnings.append(
+                        f"{plan_file.relative_to(self.repo_root)}: Active record not "
+                        f"updated since {updated.group(1)} "
+                        f"(latest checkpoint {latest_checkpoint})"
+                    )
+
     def validate_markdown_links(self) -> None:
         if not self.agent_root.is_dir():
             self.add_error(self.agent_root, "agent directory is missing")
@@ -660,6 +870,7 @@ class Validator:
 
     def run(self) -> int:
         self.validate_agent_frontmatter_ids()
+        actual_session_ids: set[str] = set()
         if not self.repo_root.is_dir():
             self.add_error(self.repo_root, "repository root is not a directory")
         elif not self.sessions_root.is_dir():
@@ -672,7 +883,12 @@ class Validator:
                 self.add_error(self.sessions_root, "no session directories found")
             for session_file in session_files:
                 self.validate_session(session_file.parent)
+                if SESSION_ID_RE.fullmatch(session_file.parent.name):
+                    actual_session_ids.add(session_file.parent.name)
 
+        self.validate_index_completeness(actual_session_ids)
+        self.validate_open_decisions()
+        self.validate_progress_health()
         self.validate_markdown_links()
         if self.errors:
             for error in self.errors:
@@ -680,10 +896,14 @@ class Validator:
             print(f"agent record validation failed with {len(self.errors)} error(s)", file=sys.stderr)
             return 1
 
+        for warning in self.warnings:
+            print(f"warning: {warning}", file=sys.stderr)
         print(
             "agent records: ok "
             f"({self.session_count} session(s), {self.event_count} event(s), "
-            f"{self.markdown_count} Markdown file(s))"
+            f"{self.markdown_count} Markdown file(s)"
+            + (f", {len(self.warnings)} warning(s)" if self.warnings else "")
+            + ")"
         )
         return 0
 
