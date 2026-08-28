@@ -57,6 +57,7 @@ let
   ]);
   agentRecordsFiles = select [
     "README.md"
+    ".agents"
     ".claude"
     ".githooks"
     "AGENTS.md"

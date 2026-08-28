@@ -1,7 +1,6 @@
 ---
 name: add-component
 description: Register a new boundary target in the build so language, closure, and dependency rules apply to it automatically.
-status: Active
 ---
 
 # Add a Component

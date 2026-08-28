@@ -1,7 +1,6 @@
 ---
 name: start-work
 description: Cold-start any task in this repository so rules are read, a session exists, and the matching skill is followed before the first change.
-status: Active
 ---
 
 # Start Work

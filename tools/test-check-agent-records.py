@@ -4,9 +4,10 @@
 Builds a minimal valid agent/ tree in a temporary directory and asserts the
 validator's behavior on it, then mutates one aspect per case to pin every rule:
 required session fields, contiguous event sequence numbers, distillation,
-index completeness (both directions), the open-decisions ledger count,
-staleness warnings, markdown link existence, checkpoint id/path agreement,
-current-progress freshness, and latest-session status consistency.
+index completeness (both directions), Codex skill-package compatibility and
+discovery, the open-decisions ledger count, staleness warnings, markdown link
+existence, checkpoint id/path agreement, current-progress freshness, and
+latest-session status consistency.
 
 Run from anywhere:
 
@@ -35,6 +36,7 @@ Validator = check_agent_records.Validator
 
 SESSION_ID = "S20260828-001-selftest"
 SESSION_DIR = f"agent/sessions/2026/08/{SESSION_ID}"
+SYMLINK_PREFIX = "SYMLINK->"
 
 BASE_FILES: dict[str, str] = {
     "agent/plan/M0001-fixture/plan.md": (
@@ -111,11 +113,18 @@ BASE_FILES: dict[str, str] = {
 }
 
 
+def write_fixture_entry(root: Path, relative_path: str, content: str) -> None:
+    target = root / relative_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if content.startswith(SYMLINK_PREFIX):
+        target.symlink_to(content.removeprefix(SYMLINK_PREFIX), target_is_directory=True)
+    else:
+        target.write_text(content, encoding="utf-8")
+
+
 def build_tree(root: Path) -> None:
     for relative_path, content in BASE_FILES.items():
-        target = root / relative_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+        write_fixture_entry(root, relative_path, content)
 
 
 def mutate(paths: dict[str, str]) -> dict[str, str]:
@@ -130,9 +139,7 @@ def mutate(paths: dict[str, str]) -> dict[str, str]:
 
 def write_tree(root: Path, files: dict[str, str]) -> None:
     for relative_path, content in files.items():
-        target = root / relative_path
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+        write_fixture_entry(root, relative_path, content)
 
 
 def run_validator(root: Path) -> tuple[int, list[str], list[str]]:
@@ -157,13 +164,27 @@ SKILL_FILE = (
     "---\n"
     "name: fixture-skill\n"
     "description: fixture skill\n"
-    "status: Active\n"
+    "---\n\n"
+    "# Fixture Skill\n\nSteps.\n"
+)
+EXTENDED_SKILL_FILE = (
+    "---\n"
+    "name: fixture-skill\n"
+    "description: >-\n"
+    "  Fixture skill using standard optional frontmatter.\n"
+    "license: Apache-2.0\n"
+    "allowed-tools:\n"
+    "  - shell\n"
+    "metadata:\n"
+    "  owner: fixture\n"
     "---\n\n"
     "# Fixture Skill\n\nSteps.\n"
 )
 
 
-def with_skills(files: dict[str, str], skill_file: str | None = SKILL_FILE) -> dict[str, str]:
+def with_skills(
+    files: dict[str, str], skill_file: str | None = SKILL_FILE
+) -> dict[str, str]:
     mutated = dict(files)
     mutated["agent/skills/README.md"] = SKILLS_README
     if skill_file is not None:
@@ -172,6 +193,24 @@ def with_skills(files: dict[str, str], skill_file: str | None = SKILL_FILE) -> d
         # keep the directory physically present so the missing-SKILL.md rule,
         # not the nonexistent-skill rule, is what fires
         mutated["agent/skills/fixture-skill/.keep"] = ""
+    mutated[".agents/skills"] = f"{SYMLINK_PREFIX}../agent/skills"
+    return mutated
+
+
+def without_path(files: dict[str, str], path: str) -> dict[str, str]:
+    mutated = dict(files)
+    mutated.pop(path, None)
+    return mutated
+
+
+def with_codex_resources(files: dict[str, str]) -> dict[str, str]:
+    mutated = with_skills(files)
+    mutated["agent/skills/fixture-skill/agents/openai.yaml"] = (
+        'interface:\n  display_name: "Fixture Skill"\n'
+    )
+    mutated["agent/skills/fixture-skill/references/guide.md"] = "# Guide\n"
+    mutated["agent/skills/fixture-skill/scripts/check.sh"] = "#!/bin/sh\nexit 0\n"
+    mutated["agent/skills/fixture-skill/assets/template.txt"] = "fixture\n"
     return mutated
 
 
@@ -291,14 +330,31 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         True,
     ),
     (
-        "valid skills directory",
+        "valid minimal Codex skill package",
         with_skills(BASE_FILES),
         False,
         False,
     ),
     (
+        "valid Codex skill package with optional resources",
+        with_codex_resources(BASE_FILES),
+        False,
+        False,
+    ),
+    (
+        "valid Codex optional frontmatter fields",
+        with_skills(BASE_FILES, skill_file=EXTENDED_SKILL_FILE),
+        False,
+        False,
+    ),
+    (
         "skills index missing row",
-        mutate({"agent/skills/README.md": "# Skills\n\nNo skills.\n", "agent/skills/fixture-skill/SKILL.md": SKILL_FILE}),
+        replace(
+            with_skills(BASE_FILES),
+            "agent/skills/README.md",
+            SKILLS_README,
+            "# Skills\n\nNo skills.\n",
+        ),
         True,
         False,
     ),
@@ -310,19 +366,56 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
     ),
     (
         "skill missing description frontmatter",
-        with_skills(BASE_FILES, skill_file=SKILL_FILE.replace("description: fixture skill\n", "")),
+        with_skills(
+            BASE_FILES,
+            skill_file=SKILL_FILE.replace("description: fixture skill\n", ""),
+        ),
+        True,
+        False,
+    ),
+    (
+        "legacy repository status is not Codex frontmatter",
+        with_skills(
+            BASE_FILES,
+            skill_file=SKILL_FILE.replace(
+                "description: fixture skill\n",
+                "description: fixture skill\nstatus: Active\n",
+            ),
+        ),
+        True,
+        False,
+    ),
+    (
+        "skill name must match directory slug",
+        with_skills(
+            BASE_FILES,
+            skill_file=SKILL_FILE.replace("name: fixture-skill", "name: other-skill"),
+        ),
+        True,
+        False,
+    ),
+    (
+        "Codex discovery symlink missing",
+        without_path(with_skills(BASE_FILES), ".agents/skills"),
+        True,
+        False,
+    ),
+    (
+        "Codex discovery symlink target drift",
+        {
+            **with_skills(BASE_FILES),
+            ".agents/skills": f"{SYMLINK_PREFIX}../wrong-skills",
+        },
         True,
         False,
     ),
     (
         "skill directory name not a slug",
-        mutate(
-            {
-                "agent/skills/README.md": SKILLS_README,
-                "agent/skills/fixture-skill/SKILL.md": SKILL_FILE,
-                "agent/skills/Bad_Name/SKILL.md": SKILL_FILE,
-            }
-        ),
+        {
+            **with_skills(BASE_FILES),
+            "agent/skills/fixture-skill/SKILL.md": SKILL_FILE,
+            "agent/skills/Bad_Name/SKILL.md": SKILL_FILE,
+        },
         True,
         False,
     ),

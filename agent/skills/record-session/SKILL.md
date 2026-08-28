@@ -1,7 +1,6 @@
 ---
 name: record-session
 description: Record a work session from scaffold to checkpoint with every machine-enforced rule satisfied on the first pass.
-status: Active
 ---
 
 # Record a Session

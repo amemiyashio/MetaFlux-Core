@@ -1,7 +1,6 @@
 ---
 name: close-decision
 description: Resolve one row of the open-decisions ledger into a durable decision record without leaving drift behind.
-status: Active
 ---
 
 # Close a Decision

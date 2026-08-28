@@ -71,8 +71,17 @@ OUTPUT_REF_PATH_RE = re.compile(r"^outputs/\d{4}\.txt$")
 SESSION_ID_SEARCH_RE = re.compile(r"S\d{8}-\d{3}-[a-z0-9][a-z0-9-]*")
 MILESTONE_ID_SEARCH_RE = re.compile(r"M\d{4}")
 EXPERIENCE_ID_SEARCH_RE = re.compile(r"E\d{4}")
-SKILL_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+SKILL_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SKILL_LINK_RE = re.compile(r"([a-z0-9][a-z0-9-]*)/SKILL\.md")
+SKILL_FRONTMATTER_KEYS = {
+    "name",
+    "description",
+    "license",
+    "allowed-tools",
+    "metadata",
+}
+MAX_SKILL_NAME_LENGTH = 64
+MAX_SKILL_DESCRIPTION_LENGTH = 1024
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".txt", ".yaml", ".yml"}
@@ -821,11 +830,206 @@ class Validator:
                         f"the plan says '{plan_status}'; one of them is stale"
                     )
 
+    def parse_skill_frontmatter(self, path: Path, text: str) -> dict[str, str] | None:
+        """Parse the top-level scalar fields needed by the Codex skill contract.
+
+        The record validator intentionally stays stdlib-only. It accepts nested
+        YAML under optional fields and block scalars, while validating the two
+        required scalar fields without pretending to be a general YAML parser.
+        """
+        lines = text.splitlines()
+        if not lines or lines[0].strip() != "---":
+            self.add_error(path, "SKILL.md is missing YAML frontmatter")
+            return None
+        try:
+            closing = next(
+                index
+                for index, line in enumerate(lines[1:], start=1)
+                if line.strip() == "---"
+            )
+        except StopIteration:
+            self.add_error(path, "SKILL.md has unterminated YAML frontmatter")
+            return None
+
+        fields: dict[str, str] = {}
+        index = 1
+        while index < closing:
+            line = lines[index]
+            if not line.strip() or line.lstrip().startswith("#"):
+                index += 1
+                continue
+            if line[0].isspace():
+                self.add_error(
+                    path,
+                    f"SKILL.md frontmatter has unexpected indentation at line {index + 1}",
+                )
+                return None
+            match = re.fullmatch(r"([A-Za-z][A-Za-z0-9_-]*):(?:[ \t]*(.*))?", line)
+            if match is None:
+                self.add_error(
+                    path,
+                    f"SKILL.md frontmatter has unsupported syntax at line {index + 1}",
+                )
+                return None
+            key = match.group(1)
+            if key in fields:
+                self.add_error(path, f"SKILL.md frontmatter repeats '{key}'")
+                return None
+            raw_value = (match.group(2) or "").strip()
+
+            if re.fullmatch(r"[>|][+-]?", raw_value):
+                folded = raw_value.startswith(">")
+                block: list[str] = []
+                index += 1
+                while index < closing:
+                    nested = lines[index]
+                    if nested and not nested[0].isspace():
+                        break
+                    block.append(nested.strip())
+                    index += 1
+                fields[key] = (" " if folded else "\n").join(block).strip()
+                continue
+
+            if raw_value.startswith('"'):
+                try:
+                    decoded = json.loads(raw_value)
+                except json.JSONDecodeError as exc:
+                    self.add_error(
+                        path,
+                        f"SKILL.md frontmatter field '{key}' has invalid "
+                        f"quoting: {exc.msg}",
+                    )
+                    return None
+                if not isinstance(decoded, str):
+                    self.add_error(
+                        path,
+                        f"SKILL.md frontmatter field '{key}' must be a string",
+                    )
+                    return None
+                fields[key] = decoded
+            elif raw_value.startswith("'"):
+                if len(raw_value) < 2 or not raw_value.endswith("'"):
+                    self.add_error(
+                        path,
+                        f"SKILL.md frontmatter field '{key}' has invalid quoting",
+                    )
+                    return None
+                fields[key] = raw_value[1:-1].replace("''", "'")
+            else:
+                fields[key] = raw_value
+
+            index += 1
+            while index < closing and (
+                not lines[index].strip() or lines[index][0].isspace()
+            ):
+                index += 1
+
+        unexpected = sorted(set(fields) - SKILL_FRONTMATTER_KEYS)
+        if unexpected:
+            self.add_error(
+                path,
+                "SKILL.md frontmatter has non-Codex field(s): " + ", ".join(unexpected),
+            )
+            return None
+        return fields
+
+    def validate_skill_package(self, skill_dir: Path) -> None:
+        slug = skill_dir.name
+        skill_file = skill_dir / "SKILL.md"
+        if not skill_file.is_file():
+            self.add_error(skill_file, "skill package requires a SKILL.md")
+            return
+        try:
+            text = skill_file.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            self.add_error(skill_file, f"is not valid UTF-8: {exc}")
+            return
+
+        frontmatter = self.parse_skill_frontmatter(skill_file, text)
+        if frontmatter is None:
+            return
+        for field in ("name", "description"):
+            if not frontmatter.get(field, "").strip():
+                self.add_error(
+                    skill_file,
+                    f"SKILL.md frontmatter requires a non-empty '{field}'",
+                )
+
+        name = frontmatter.get("name", "").strip()
+        if name:
+            if not SKILL_SLUG_RE.fullmatch(name):
+                self.add_error(
+                    skill_file,
+                    "SKILL.md name must be a lowercase-hyphenated slug",
+                )
+            if len(name) > MAX_SKILL_NAME_LENGTH:
+                self.add_error(
+                    skill_file,
+                    f"SKILL.md name exceeds {MAX_SKILL_NAME_LENGTH} characters",
+                )
+            if name != slug:
+                self.add_error(
+                    skill_file,
+                    f"SKILL.md name {name!r} must match directory slug {slug!r}",
+                )
+
+        description = frontmatter.get("description", "").strip()
+        if description:
+            if description.startswith("[TODO:"):
+                self.add_error(
+                    skill_file,
+                    "SKILL.md description contains an unfinished TODO",
+                )
+            if "<" in description or ">" in description:
+                self.add_error(
+                    skill_file,
+                    "SKILL.md description must not contain angle brackets",
+                )
+            if len(description) > MAX_SKILL_DESCRIPTION_LENGTH:
+                self.add_error(
+                    skill_file,
+                    f"SKILL.md description exceeds {MAX_SKILL_DESCRIPTION_LENGTH} characters",
+                )
+
+        openai_yaml = skill_dir / "agents" / "openai.yaml"
+        if openai_yaml.exists():
+            if not openai_yaml.is_file():
+                self.add_error(openai_yaml, "agents/openai.yaml must be a regular file")
+            else:
+                try:
+                    openai_yaml.read_text(encoding="utf-8")
+                except UnicodeDecodeError as exc:
+                    self.add_error(openai_yaml, f"is not valid UTF-8: {exc}")
+
     def validate_skills(self) -> None:
-        """Enforce the expert-skill form: indexed, slugged, described."""
+        """Enforce Codex-compatible packages and the repository catalog."""
         skills_root = self.agent_root / "skills"
         if not skills_root.is_dir():
             return
+
+        codex_entry = self.repo_root / ".agents" / "skills"
+        if not codex_entry.is_symlink():
+            self.add_error(
+                codex_entry,
+                "Codex repository discovery requires a symlink to ../agent/skills",
+            )
+        else:
+            target = codex_entry.readlink().as_posix()
+            if target != "../agent/skills":
+                self.add_error(
+                    codex_entry,
+                    f"Codex skill symlink must target '../agent/skills', found {target!r}",
+                )
+            try:
+                resolved_entry = codex_entry.resolve(strict=True)
+            except FileNotFoundError:
+                self.add_error(codex_entry, "Codex skill symlink target does not exist")
+            else:
+                if resolved_entry != skills_root.resolve():
+                    self.add_error(
+                        codex_entry,
+                        "Codex skill symlink resolves outside agent/skills",
+                    )
 
         actual: set[str] = set()
         for entry in sorted(skills_root.iterdir()):
@@ -861,21 +1065,7 @@ class Validator:
             )
 
         for slug in sorted(actual):
-            skill_file = skills_root / slug / "SKILL.md"
-            if not skill_file.is_file():
-                self.add_error(skill_file, "skill directory requires a SKILL.md")
-                continue
-            try:
-                text = skill_file.read_text(encoding="utf-8")
-            except UnicodeDecodeError as exc:
-                self.add_error(skill_file, f"is not valid UTF-8: {exc}")
-                continue
-            for field in ("name", "description", "status"):
-                if not re.search(rf"(?m)^{field}:\s*\S", text):
-                    self.add_error(
-                        skill_file,
-                        f"SKILL.md frontmatter requires a non-empty '{field}'",
-                    )
+            self.validate_skill_package(skills_root / slug)
 
     def validate_entry_points(self) -> None:
         """Keep tool entry-point bridges single-sourced and well-formed.

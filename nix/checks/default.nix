@@ -178,6 +178,9 @@ let
         git init -q repo
         ${pkgs.python3}/bin/python3 repo/tools/check-agent-records.py repo
         test -s repo/AGENTS.md
+        test -L repo/.agents/skills
+        test "$(readlink repo/.agents/skills)" = "../agent/skills"
+        test -f repo/.agents/skills/start-work/SKILL.md
         test -s repo/CLAUDE.md
         grep -q '^@AGENTS.md' repo/CLAUDE.md
         test -x repo/.githooks/pre-commit

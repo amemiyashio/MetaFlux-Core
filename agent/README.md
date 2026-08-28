@@ -42,7 +42,7 @@ contract. Agent records link to canonical material instead of copying it.
 | `progress/current.md` | Replaceable resume point | Refresh after material state changes |
 | `progress/checkpoints/` | Immutable historical snapshots | Append corrections; never rewrite history |
 | `sessions/` | MetaFlux task objectives, technical decisions, commands, results, outputs, notes, and summaries | Keep repository-scoped; do not capture conversations or unrelated context |
-| `skills/` | Expert procedures for working in this repository | Load on demand; every step must be verifiable by a command the skill names |
+| `skills/` | Codex skill packages for repository-specific work | Load on demand; keep `SKILL.md` standard-compatible and verify repository-changing procedures proportionately |
 | `templates/` | Required record shapes | Keep fields and status vocabularies stable |
 
 ## Stable identifiers
@@ -70,7 +70,7 @@ singleton index.
 | Checkpoint | `Recorded` |
 | Project work record | `in_progress`, `complete`, `blocked`, `abandoned` |
 | Architecture decision | `Proposed`, `Verified`, `Superseded` |
-| Skill | `Draft`, `Active`, `Retired` |
+| Skill catalog entry | `Draft`, `Active`, `Retired` |
 | Performance budgets | `provisional`, `binding` |
 
 `Complete` requires the record's acceptance evidence. `Validated` requires a
