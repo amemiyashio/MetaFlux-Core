@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-28
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260828-008
+checkpoint: P20260828-009
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260828-008
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260828-008](checkpoints/2026/P20260828-008-codex-entry-points.md).
+[P20260828-009](checkpoints/2026/P20260828-009-codex-skill-packages.md).
 
 ## Current state
 
@@ -21,7 +21,7 @@ execution, compiler service behavior, device registry, and shared transports are
 not yet functionally implemented.
 
 Git history on `main` is a linear bootstrap and governance chain through
-content revision `3fe0ace`. The 2026-08-28 self-review removed five
+content revision `12efb20`. The 2026-08-28 self-review removed five
 specification contradictions
 ([S20260828-001](../sessions/2026/08/S20260828-001-spec-consistency/summary.md));
 the same-day layering review converged the repository structure on Mesa/Wine
@@ -68,6 +68,15 @@ verified that Codex reads the root `AGENTS.md` natively and added an isolated
 Nix entry-point check. The check proves the independent Agent-record fileset
 retains `AGENTS.md`, the tool-agnostic pre-commit gate, validator dependencies,
 and the optional Claude bridge without treating Claude hooks as Codex hooks.
+[S20260828-009](../sessions/2026/08/S20260828-009-implementation-readiness-skill/summary.md)
+aligned the expert-skills layer with the official Codex package contract.
+Physical packages retain their durable `agent/skills` links while the checked
+`.agents/skills` symlink provides native discovery. All five packages pass the
+bundled Codex validator; the repository validator now covers the standard
+frontmatter and optional resource layout with 29 synthetic cases. The new
+[implementation-readiness skill](../skills/implementation-readiness/SKILL.md)
+separates architecture, workstream activation, implementation maturity, and
+release readiness instead of collapsing them into one score.
 
 ## Established bootstrap boundaries
 
@@ -79,7 +88,8 @@ and the optional Claude bridge without treating Claude hooks as Codex hooks.
 - Runtime and compiler-toolchain install-consumer qualification.
 - Component graph registration and role-whitelist/language-wall enforcement.
 - Stable M0001-M0004 plans, current memory/progress, validated experience,
-  templates, and a date-partitioned MetaFlux project work record.
+  templates, Codex-native expert skill packages, and a date-partitioned
+  MetaFlux project work record.
 - A stdlib-only Agent record/link/scope checker with credential-leak detection
   and an independent Nix fileset that does not enter runtime, provider, daemon,
   or toolchain packages.
@@ -95,7 +105,8 @@ and the optional Claude bridge without treating Claude hooks as Codex hooks.
 - Project records, references, output hashes, and project-scope event types
   passed validation; re-validated after both 2026-08-28 revision rounds.
 - `nix flake check path:. -L`, including `agent-records` and `entry-points`,
-  passed at content revision `3fe0ace`.
+  passed at content revision `12efb20`; the dev preset passed 16/16 tests and
+  the validator self-test passed 29/29 cases.
 
 ## Next boundary
 

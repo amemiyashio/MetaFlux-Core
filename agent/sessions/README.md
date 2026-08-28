@@ -23,6 +23,7 @@ event sequence numbers are immutable once published.
 | [S20260828-006-agent-guidance-hardening](2026/08/S20260828-006-agent-guidance-hardening/summary.md) | 2026-08-28 | Exact | Complete | Guidance hardening: root AGENTS.md, start-work skill, pre-commit session-coverage gate |
 | [S20260828-007-claude-bridge](2026/08/S20260828-007-claude-bridge/summary.md) | 2026-08-28 | Exact | Complete | Repository-local Claude Code bridge: @AGENTS.md import, edit-time guards, drift-checked by the validator |
 | [S20260828-008-codex-entry-points](2026/08/S20260828-008-codex-entry-points/summary.md) | 2026-08-28 | Exact | Complete | Codex-native AGENTS.md verified and repository entry points enforced by an isolated Nix check |
+| [S20260828-009-implementation-readiness-skill](2026/08/S20260828-009-implementation-readiness-skill/summary.md) | 2026-08-28 | Exact | Complete | Codex-native skill packages, enforced discovery compatibility, and implementation-readiness expert guidance |
 
 ## Fidelity and retention
 
