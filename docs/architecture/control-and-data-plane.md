@@ -29,6 +29,14 @@ Kernel components mirror authoritative state and protect references. They may
 publish a one-way local `LOST` condition, but only `metafluxd` may authorize and
 commit a replacement `ONLINE` generation.
 
+The v0.1 memfd transport has no doorbell primitive. Its cold operations (setup,
+registration, teardown, and blocking waits) may syscall freely, and one
+active-queue dispatch may perform at most one wake syscall. Whether a leased
+worker spins, adapts, or sleeps is a worker-side implementation freedom, never
+an application-visible contract. The zero-syscall steady-state obligation
+begins with M0002 and applies only to transports that expose a doorbell or
+mapped wake primitive: local cdev and guest vfio-user BAR2.
+
 The MetaFlux device protocol is always little-endian. Host-native vfio-user
 framing is converted at the `metaflux-vfio-userd` adapter boundary and never
 reinterpreted as a MetaFlux record.

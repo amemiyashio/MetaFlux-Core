@@ -6,7 +6,7 @@ status: Queued
 depends_on: [M0002]
 areas: [lifecycle, kernel.vroot, presentation.vpci]
 kernel_validation: [Linux 6.12 LTS, Linux 6.18 LTS]
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # M0003: Lifecycle and vPCI Presentation
@@ -38,8 +38,10 @@ M0003 adds only lifecycle transactions and milestone evidence around it.
   coordinator and enumeration-freeze behavior.
 - PCI class remains `0x120000`; CI VID/DID remains `0x4D46:0x0001` and release
   identity is registered or deployment supplied. `identity=nvidia` is
-  default-off and requires deterministic kernel-side pre-bind before the device
-  is visible; a post-enumeration userspace `driver_override` is unsupported.
+  default-off, is a presentation disguise rather than a vendor-private ABI
+  claim (D0008), and requires deterministic kernel-side pre-bind before the
+  device is visible; a post-enumeration userspace `driver_override` is
+  unsupported.
 - UUID is stable across restart and guest mapping. Host and guest BDFs are stable
   only inside their respective enumeration domains.
 - Authoritative nodes are `/dev/metafluxctl`, `/dev/metaflux-uvm`, and
@@ -147,7 +149,9 @@ Performance and release:
 2. Persistence format for generation/epoch high-water marks and
    `daemon_incarnation_id`.
 3. Bare-metal domain/bus/devfn allocation and maximum logical functions.
-4. Release VID/DID and optional custom identity workflow.
+4. Release VID/DID and optional custom identity workflow, including the
+   registration and legal review that a synthetic NVIDIA presentation identity
+   requires before any release promotion.
 5. Exact supported kernel/distribution matrix.
 6. Namespace launcher ownership and alias allowlist.
 7. Module-signing and Secure Boot workflow.

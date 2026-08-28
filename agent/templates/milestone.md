@@ -2,6 +2,7 @@
 id: MNNNN
 release: vX.Y
 status: Draft
+budgets: provisional
 depends_on: []
 areas: []
 updated: YYYY-MM-DD
@@ -39,7 +40,9 @@ constraints here.
 ## Acceptance evidence
 
 - Correctness and ABI gate.
-- Performance gate with measurement conditions.
+- Performance gate with measurement conditions. Numeric budgets carry the
+  front-matter `budgets` status: `provisional` until the named measurement
+  harness exists and a baseline is archived, `binding` afterward.
 - Packaging and compatibility gate.
 
 ## Work index

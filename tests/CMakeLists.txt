@@ -82,6 +82,9 @@ if(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER OR METAFLUX_BUILD_NVML_PROVIDER)
       PROPERTIES LABELS "abi"
     )
 
+    # Provider DT_NEEDED universe per D0009: libc.so.6 plus libpthread.so.0 and
+    # libdl.so.2 only where the glibc 2.31 (Ubuntu 20.04) floor requires them.
+    # Current fixtures only need libc; the expected set stays exact per target.
     add_test(
       NAME "metaflux.abi.provider.${provider_name}.dynamic"
       COMMAND

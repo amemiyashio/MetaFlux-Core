@@ -3,9 +3,10 @@ id: M0001
 legacy_id: "0001"
 release: v0.1
 status: Active
+budgets: provisional
 depends_on: []
 areas: [build, contracts, runtime, compiler, backend.cpu, compat.cuda]
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # M0001: Core Foundation
@@ -103,14 +104,19 @@ Correctness and ABI:
 - ABI tests cover exact exports/versions, layouts, short buffers, nulls, repeated
   init/shutdown, concurrency, and per-field errors.
 - Provider `DT_NEEDED` has no C++ runtime, LLVM/MLIR, `libatomic`, Python, or
-  systemd; providers have no project constructor.
+  systemd and is restricted to `libc.so.6` plus `libpthread.so.0` and
+  `libdl.so.2` only where the glibc 2.31 floor requires them (D0009); providers
+  have no project constructor.
 - Loading a provider without calling it creates no thread, socket, or heap state.
 - C and C++ ABI layout assertions agree on every supported build.
 
-Performance:
+Performance (provisional until the M0001-W01 reference-host harness archives
+its first baseline; then binding per the front-matter `budgets` status):
 
 - Local warm launch: p50 <= 1 microsecond and p99 <= 3 microseconds.
-- Uncontended active queue: zero syscall, heap allocation, and global lock.
+- Uncontended active memfd queue: at most one wake syscall per dispatch, zero
+  heap allocation and global lock. The zero-syscall obligation begins with the
+  M0002 doorbell transports (cdev, vfio-user).
 - Kernels >= 100 microseconds: scheduling overhead <= 3%.
 - Copies >= 16 MiB: >= 90% of the same-path native baseline with no whole-buffer
   extra copy.
@@ -135,7 +141,9 @@ Release compatibility:
 These block the indicated implementation and must become durable decisions before
 their consumers freeze:
 
-1. Final glibc baseline and supported distribution matrix.
+1. Final glibc baseline and supported distribution matrix. The baseline is
+   closed as glibc >= 2.31 with Ubuntu 20.04 as the floor distribution (D0009);
+   only the release distribution matrix remains open.
 2. Exact LLVM 22 correctness patchset and derivation hash.
 3. Exact PTX corpus and instruction/capability manifest.
 4. CUDA/NVML header acquisition and manifest update procedure.

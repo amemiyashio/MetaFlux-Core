@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # Durable Constraints
@@ -9,6 +9,10 @@ Canonical sources are [M0001](../plan/M0001-core-foundation/plan.md) and
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md).
 
 - Target Linux x86_64 and glibc. Kernel work uses the target kernel's Kbuild.
+- The userspace glibc floor is 2.31 (Ubuntu 20.04, D0009). Provider `DT_NEEDED`
+  is restricted to `libc.so.6` plus `libpthread.so.0` and `libdl.so.2` only
+  where a pre-2.34 target requires them; the kernel-module validation matrix is
+  independent of this floor.
 - Application-side providers and client fast path use C17 and keep LLVM/MLIR,
   Python, systemd, and the C++ runtime out of the provider closure.
 - Runtime services, compiler code, scheduler, and execution backends use C++20.

@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-08-27
+updated: 2026-08-28
 ---
 
 # Decision Index
@@ -17,6 +17,8 @@ an index row does not promote `Proposed` material to `Verified`.
 | D0005 | Registry authority and leased data-plane worker ownership | [Control and data plane](../../docs/architecture/control-and-data-plane.md) | Proposed |
 | D0006 | cdev/vfio-user transport precedes dynamic vPCI lifecycle | [M0002](../plan/M0002-kernel-guest-transport/plan.md), [M0003](../plan/M0003-vpci-lifecycle/plan.md) | Queued plans |
 | D0007 | Vulkan is an execution backend with explicit capability tiers | [M0004](../plan/M0004-vulkan-backend/plan.md) | Queued plan |
+| D0008 | Synthetic vendor identity in vroot is a presentation disguise, never a vendor ABI claim or vendor-driver match | [M0003](../plan/M0003-vpci-lifecycle/plan.md) | Queued plan |
+| D0009 | Userspace glibc floor is 2.31 (Ubuntu 20.04) with a restricted provider DT_NEEDED universe | [M0001](../plan/M0001-core-foundation/plan.md) | Active plan |
 
 New decisions receive the next `DNNNN` identifier and point to a plan or
 architecture record containing rationale, consequences, and verification state.

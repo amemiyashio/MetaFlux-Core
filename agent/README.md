@@ -59,11 +59,15 @@ singleton index.
 | Checkpoint | `Recorded` |
 | Project work record | `in_progress`, `complete`, `blocked`, `abandoned` |
 | Architecture decision | `Proposed`, `Verified`, `Superseded` |
+| Performance budgets | `provisional`, `binding` |
 
 `Complete` requires the record's acceptance evidence. `Validated` requires a
 reproducible command or artifact. `Blocked` names the blocking condition and the
 next recheck. `Superseded` links its replacement. A checkpoint is immutable and
-does not claim that uncommitted files can be reconstructed.
+does not claim that uncommitted files can be reconstructed. A numeric
+performance budget is `provisional` until the measurement harness it names
+exists and a baseline is archived; provisional budgets guide design but do not
+fail acceptance.
 
 ## Daily read order
 
