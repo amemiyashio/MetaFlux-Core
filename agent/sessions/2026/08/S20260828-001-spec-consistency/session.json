@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "S20260828-001-spec-consistency",
+  "repository": "MetaFlux-Core",
+  "started_at": "2026-08-28",
+  "ended_at": "2026-08-28",
+  "time_precision": "date",
+  "status": "complete",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "MetaFlux-Core integration coordinator"
+    },
+    {
+      "id": "A002",
+      "role": "Specification review and revision agent"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0001",
+      "title": "Core Foundation",
+      "status": "active",
+      "event_seqs": [1, 2, 3, 4, 5, 6, 9, 10, 11]
+    },
+    {
+      "id": "M0003",
+      "title": "Lifecycle and vPCI Presentation",
+      "status": "queued",
+      "event_seqs": [2]
+    }
+  ],
+  "work_items": [],
+  "base_revision": "9703559ef0056b6dd8ef5432b645a1362e72d734",
+  "final_revision": "5360d51a09234f9753f260f218dc5a87e52c7eef",
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

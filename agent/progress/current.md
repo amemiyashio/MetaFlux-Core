@@ -1,9 +1,9 @@
 ---
 status: Active
-updated: 2026-08-27
+updated: 2026-08-28
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260827-001
+checkpoint: P20260828-001
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260827-001
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260827-001](checkpoints/2026/P20260827-001-engineering-bootstrap-baseline.md).
+[P20260828-001](checkpoints/2026/P20260828-001-spec-consistency-revisions.md).
 
 ## Current state
 
@@ -20,10 +20,21 @@ M0001 boundaries. Targets remain fixtures: CUDA/NVML compatibility, CPU SIMT
 execution, compiler service behavior, device registry, and shared transports are
 not yet functionally implemented.
 
-Git is initialized on `main`, but there is no first commit and every repository
-file is untracked. The checkpoint is therefore evidence and a resume aid, not a
-reconstructable Git revision. Until the first commit, use the
-[`path:.` Nix practice](../experience/E0001-nix-untracked-flake.md).
+Git history now exists on `main`: baseline
+`9703559ef0056b6dd8ef5432b645a1362e72d734` and the spec-consistency revision
+`5360d51a09234f9753f260f218dc5a87e52c7eef`. The `path:.` Nix practice from
+[E0001](../experience/E0001-nix-untracked-flake.md) is no longer required.
+
+A 2026-08-28 self-review removed five specification contradictions
+([S20260828-001](../sessions/2026/08/S20260828-001-spec-consistency/summary.md)):
+D0008 records the vroot synthetic NVIDIA identity as a presentation disguise
+with registration/legal review required before release promotion; D0009 closes
+the userspace glibc floor at 2.31 (Ubuntu 20.04) with a restricted provider
+`DT_NEEDED` universe; the v0.1 memfd transport carries an explicit
+at-most-one-wake-syscall budget with the zero-syscall obligation deferred to
+the M0002 doorbell transports; numeric performance budgets are provisional
+until the named harness archives a baseline; and the authoritative
+logical-device view is scoped per managed domain.
 
 ## Established bootstrap boundaries
 
@@ -48,20 +59,21 @@ reconstructable Git revision. Until the first commit, use the
 - Provider preset: 9/9 tests passed.
 - CUDA-only and NVML-only: 5/5 tests passed each.
 - Project records, references, output hashes, and project-scope event types
-  passed validation.
+  passed validation; re-validated after the 2026-08-28 spec amendments.
 - `nix flake check path:. -L`, including `agent-records`, passed.
 - `runtime`, `provider`, `daemon`, and `toolchain` packages built.
 
 ## Next boundary
 
-1. Create the first intentional Git commit after reviewing the entire untracked
-   scaffold.
-2. Close the unresolved decisions in
-   [M0001](../plan/M0001-core-foundation/plan.md).
-3. Close the remaining M0001-W01 exit conditions: the release provider sysroot
-   and glibc floor, CUDA/NVML header acquisition, the LLVM 22 patchset, and
-   reference-host performance qualification.
-4. Then activate M0001-W02 according to its dependencies; do not treat present
+1. Close the remaining unresolved decisions in
+   [M0001](../plan/M0001-core-foundation/plan.md); the glibc baseline is now
+   closed by D0009, leaving the release distribution matrix, LLVM 22 patchset,
+   PTX corpus, CUDA/NVML header acquisition, vendor library discovery, cache
+   policy, CPU worker topology, and compiler closure decisions.
+2. Close the remaining M0001-W01 exit conditions: the release provider sysroot,
+   CUDA/NVML header acquisition, the LLVM 22 patchset, and reference-host
+   performance qualification that promotes the provisional budgets to binding.
+3. Then activate M0001-W02 according to its dependencies; do not treat present
    bootstrap functions as frozen production ABI.
-5. Refresh this file and create a new checkpoint after the first commit or any
-   material acceptance-boundary change.
+4. Refresh this file and create a new checkpoint after any material
+   acceptance-boundary change.
