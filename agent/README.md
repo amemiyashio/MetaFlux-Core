@@ -34,6 +34,7 @@ contract. Agent records link to canonical material instead of copying it.
 | `progress/current.md` | Replaceable resume point | Refresh after material state changes |
 | `progress/checkpoints/` | Immutable historical snapshots | Append corrections; never rewrite history |
 | `sessions/` | MetaFlux task objectives, technical decisions, commands, results, outputs, notes, and summaries | Keep repository-scoped; do not capture conversations or unrelated context |
+| `skills/` | Expert procedures for working in this repository | Load on demand; every step must be verifiable by a command the skill names |
 | `templates/` | Required record shapes | Keep fields and status vocabularies stable |
 
 ## Stable identifiers
@@ -44,6 +45,8 @@ contract. Agent records link to canonical material instead of copying it.
 - Experience: `ENNNN`.
 - Checkpoint: `PYYYYMMDD-NNN`.
 - Project work record: `SYYYYMMDD-NNN-<slug>`.
+- Skill: a durable lowercase-hyphenated slug naming one `skills/<slug>/`
+  directory; slugs are never renamed after links exist.
 
 Identifiers are never reused, renumbered, or changed after links exist. The file
 name starts with the identifier where the record is an instance rather than a
@@ -59,6 +62,7 @@ singleton index.
 | Checkpoint | `Recorded` |
 | Project work record | `in_progress`, `complete`, `blocked`, `abandoned` |
 | Architecture decision | `Proposed`, `Verified`, `Superseded` |
+| Skill | `Draft`, `Active`, `Retired` |
 | Performance budgets | `provisional`, `binding` |
 
 `Complete` requires the record's acceptance evidence. `Validated` requires a

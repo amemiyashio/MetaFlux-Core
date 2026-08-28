@@ -12,7 +12,11 @@ become an alternate application-facing MetaFlux API.
 
 `check-agent-records.py` validates the repository-local collaboration records:
 session metadata and JSONL events, stable record IDs, numbered output hashes,
-credential redaction, safe references, and relative Markdown links.
+credential redaction, safe references, and relative Markdown links, plus the
+machine-enforced record-loop rules — index completeness for sessions, plans,
+experience, and skills; the open-decisions ledger count; mandatory session
+distillation; staleness and status-drift warnings; current-progress freshness;
+and the expert-skill form.
 
 ```sh
 python3 tools/check-agent-records.py .

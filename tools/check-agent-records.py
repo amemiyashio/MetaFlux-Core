@@ -71,6 +71,8 @@ OUTPUT_REF_PATH_RE = re.compile(r"^outputs/\d{4}\.txt$")
 SESSION_ID_SEARCH_RE = re.compile(r"S\d{8}-\d{3}-[a-z0-9][a-z0-9-]*")
 MILESTONE_ID_SEARCH_RE = re.compile(r"M\d{4}")
 EXPERIENCE_ID_SEARCH_RE = re.compile(r"E\d{4}")
+SKILL_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+SKILL_LINK_RE = re.compile(r"([a-z0-9][a-z0-9-]*)/SKILL\.md")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".txt", ".yaml", ".yml"}
@@ -819,6 +821,62 @@ class Validator:
                         f"the plan says '{plan_status}'; one of them is stale"
                     )
 
+    def validate_skills(self) -> None:
+        """Enforce the expert-skill form: indexed, slugged, described."""
+        skills_root = self.agent_root / "skills"
+        if not skills_root.is_dir():
+            return
+
+        actual: set[str] = set()
+        for entry in sorted(skills_root.iterdir()):
+            if not entry.is_dir():
+                continue
+            if SKILL_SLUG_RE.fullmatch(entry.name):
+                actual.add(entry.name)
+            else:
+                self.add_error(
+                    entry,
+                    "skill directory name must be a lowercase-hyphenated slug",
+                )
+
+        index_path = skills_root / "README.md"
+        if not index_path.is_file():
+            self.add_error(index_path, "required skills index is missing")
+            return
+        try:
+            index_text = index_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            self.add_error(index_path, f"is not valid UTF-8: {exc}")
+            return
+        indexed = {
+            match.group(1)
+            for match in SKILL_LINK_RE.finditer(index_text)
+        }
+
+        for missing in sorted(actual - indexed):
+            self.add_error(index_path, f"skills index is missing: {missing}")
+        for stale in sorted(indexed - actual):
+            self.add_error(
+                index_path, f"skills index references nonexistent skill: {stale}"
+            )
+
+        for slug in sorted(actual):
+            skill_file = skills_root / slug / "SKILL.md"
+            if not skill_file.is_file():
+                self.add_error(skill_file, "skill directory requires a SKILL.md")
+                continue
+            try:
+                text = skill_file.read_text(encoding="utf-8")
+            except UnicodeDecodeError as exc:
+                self.add_error(skill_file, f"is not valid UTF-8: {exc}")
+                continue
+            for field in ("name", "description", "status"):
+                if not re.search(rf"(?m)^{field}:\s*\S", text):
+                    self.add_error(
+                        skill_file,
+                        f"SKILL.md frontmatter requires a non-empty '{field}'",
+                    )
+
     def validate_markdown_links(self) -> None:
         if not self.agent_root.is_dir():
             self.add_error(self.agent_root, "agent directory is missing")
@@ -995,6 +1053,7 @@ class Validator:
         self.validate_progress_health()
         self.validate_current_progress()
         self.validate_status_consistency()
+        self.validate_skills()
         self.validate_markdown_links()
         if self.errors:
             for error in self.errors:

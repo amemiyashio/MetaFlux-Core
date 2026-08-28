@@ -147,6 +147,34 @@ def replace(files: dict[str, str], path: str, old: str, new: str) -> dict[str, s
     return mutated
 
 
+SKILLS_README = (
+    "# Skills\n\n"
+    "| Skill | Status |\n"
+    "| --- | --- |\n"
+    "| [fixture-skill](fixture-skill/SKILL.md) | Active |\n"
+)
+SKILL_FILE = (
+    "---\n"
+    "name: fixture-skill\n"
+    "description: fixture skill\n"
+    "status: Active\n"
+    "---\n\n"
+    "# Fixture Skill\n\nSteps.\n"
+)
+
+
+def with_skills(files: dict[str, str], skill_file: str | None = SKILL_FILE) -> dict[str, str]:
+    mutated = dict(files)
+    mutated["agent/skills/README.md"] = SKILLS_README
+    if skill_file is not None:
+        mutated["agent/skills/fixture-skill/SKILL.md"] = skill_file
+    else:
+        # keep the directory physically present so the missing-SKILL.md rule,
+        # not the nonexistent-skill rule, is what fires
+        mutated["agent/skills/fixture-skill/.keep"] = ""
+    return mutated
+
+
 CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
     # name, files, expect failure, expect warning
     ("valid base tree", BASE_FILES, False, False),
@@ -261,6 +289,42 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         replace(BASE_FILES, "agent/plan/M0001-fixture/plan.md", "status: Active", "status: Queued"),
         False,
         True,
+    ),
+    (
+        "valid skills directory",
+        with_skills(BASE_FILES),
+        False,
+        False,
+    ),
+    (
+        "skills index missing row",
+        mutate({"agent/skills/README.md": "# Skills\n\nNo skills.\n", "agent/skills/fixture-skill/SKILL.md": SKILL_FILE}),
+        True,
+        False,
+    ),
+    (
+        "skill directory without SKILL.md",
+        with_skills(BASE_FILES, skill_file=None),
+        True,
+        False,
+    ),
+    (
+        "skill missing description frontmatter",
+        with_skills(BASE_FILES, skill_file=SKILL_FILE.replace("description: fixture skill\n", "")),
+        True,
+        False,
+    ),
+    (
+        "skill directory name not a slug",
+        mutate(
+            {
+                "agent/skills/README.md": SKILLS_README,
+                "agent/skills/fixture-skill/SKILL.md": SKILL_FILE,
+                "agent/skills/Bad_Name/SKILL.md": SKILL_FILE,
+            }
+        ),
+        True,
+        False,
     ),
 ]
 
