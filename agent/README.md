@@ -1,5 +1,13 @@
 # MetaFlux Project Agent Context
 
+## Before changing anything
+
+1. If a task matches an [expert skill](skills/README.md), follow it verbatim.
+2. Scaffold a session first: `python3 tools/new-session.py <slug>` — the
+   pre-commit hook blocks non-`agent/` changes without an in-progress session.
+3. Never relax a durable constraint in [`memory/constraints.md`](memory/constraints.md)
+   without a recorded decision.
+
 This directory serves only the `MetaFlux-Core` repository. It preserves project
 engineering context without turning Agent notes into a second architecture
 specification. It does not store a user profile, personal preferences, general

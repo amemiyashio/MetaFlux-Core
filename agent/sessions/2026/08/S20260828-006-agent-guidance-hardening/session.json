@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "S20260828-006-agent-guidance-hardening",
+  "repository": "MetaFlux-Core",
+  "started_at": "2026-08-28",
+  "ended_at": "2026-08-28",
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "TODO: agent role"
+    }
+  ],
+  "milestones": [],
+  "work_items": [],
+  "base_revision": "5ccc22c964d86e79994cb8633dc272117afdfbbc",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# MetaFlux pre-commit gate (installed via `git config core.hooksPath .githooks`
+# by the Nix devshell). Keeps agents that skipped AGENTS.md from committing.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+# Records must stay valid: indexes, ledger counts, distillation, freshness.
+python3 tools/check-agent-records.py .
+
+# The record gate itself must stay proven.
+python3 tools/test-check-agent-records.py > /dev/null 2>&1
+
+# Durable changes require an in-progress session (AGENTS.md rule 2).
+if git diff --cached --name-only | grep -qv '^agent/'; then
+  if ! grep -rql '"status": "in_progress"' agent/sessions/*/*/*/session.json 2>/dev/null; then
+    echo "error: staged changes outside agent/ require an in-progress session." >&2
+    echo "       scaffold one: python3 tools/new-session.py <slug>   (see AGENTS.md)" >&2
+    exit 1
+  fi
+fi

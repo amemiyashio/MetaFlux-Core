@@ -29,6 +29,7 @@ directory, that every skill directory contains a `SKILL.md` with non-empty
 
 | Skill | Status | Use when |
 | --- | --- | --- |
+| [start-work](start-work/SKILL.md) | Active | Beginning any task, before the first change |
 | [add-component](add-component/SKILL.md) | Active | Adding any new boundary target to the build |
 | [close-decision](close-decision/SKILL.md) | Active | Resolving a row of the open-decisions ledger |
 | [record-session](record-session/SKILL.md) | Active | Recording any work session from start to checkpoint |

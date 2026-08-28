@@ -16,6 +16,7 @@ let
       packages = [
         llvmPackages.lld
         pkgs.git
+        pkgs.python3
       ]
       ++ packages;
       shellHook = ''
@@ -24,6 +25,9 @@ let
         export CXX=clang++
         export LDFLAGS="''${LDFLAGS:+$LDFLAGS }-fuse-ld=lld"
         export NIX_LDFLAGS="''${NIX_LDFLAGS:+$NIX_LDFLAGS }-rpath ${pkgs.stdenv.cc.cc.lib}/lib"
+        if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+          git config core.hooksPath .githooks
+        fi
       '';
     };
 in

@@ -5,6 +5,8 @@ unmodified accelerator applications. The repository is currently in its
 engineering-bootstrap phase; the buildable targets are boundary fixtures, not
 functional CUDA or NVML providers.
 
+Agents start at [`AGENTS.md`](AGENTS.md) before making any change.
+
 ## Bootstrap
 
 The authoritative development environment is Nix. CMake describes project
