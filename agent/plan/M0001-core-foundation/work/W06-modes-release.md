@@ -86,12 +86,12 @@ compiler epoch or `toolchains/`.
   cannot recurse to MetaFlux, and load them with local symbol scope.
 - [x] Implement deterministic managed/passthrough/auto selection and failure
   transfer without modifying vendor files or real `/dev/nvidia*` nodes.
-- [ ] Test real-only, managed-only, and coexistence namespaces.
-- [ ] Train provider/compiler-service PGO profiles from representative workloads
+- [x] Test real-only, managed-only, and coexistence namespaces.
+- [x] Train provider/compiler-service PGO profiles from representative workloads
   and record hashes in owning performance evidence and packaging inputs.
-- [ ] Compare provider `-O2`/`-O3`, monitor instruction-cache growth, apply project
+- [x] Compare provider `-O2`/`-O3`, monitor instruction-cache growth, apply project
   ThinLTO, and defer custom PGO LLVM until the corpus is stable.
-- [ ] Audit allocations, syscalls, locks, cache lines, NUMA, generated assembly,
+- [x] Audit allocations, syscalls, locks, cache lines, NUMA, generated assembly,
   relocations, and private dirty RSS.
 - [ ] Produce relocatable generic and native NixOS packages; run ABI, sanitizer,
   fuzz, soak, performance, and release-closure gates.

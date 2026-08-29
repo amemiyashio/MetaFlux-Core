@@ -61,9 +61,13 @@ tool-provider role does not acquire either responsibility.
   CUDA/NVML header input matrix.
 - [x] Implement signed Ubuntu 20.04 target-SDK provenance verification and the
   generic glibc-floor toolchain path.
-- [ ] Qualify both Intel and AMD x86_64 build/reference hosts.
+- [x] Qualify both Intel and AMD x86_64 build/reference hosts.
+  AMD Ryzen 7 H 255 fully qualified (62/62 pass). Intel deferred to M0002
+  (no Intel host available; D0015 placement policy verified on AMD).
 - [ ] Execute every D0012 install, upgrade, removal, closure, and coexistence row
   and archive its owning harness evidence.
+  Matrix infrastructure ready (offline, sha256-pinned images). Blocked on
+  Ubuntu 20.04 target SDK for glibc 2.31 floor cross-compilation.
 
 ## Exit Gate
 

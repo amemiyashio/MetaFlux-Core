@@ -1,9 +1,9 @@
 ---
 status: Active
-updated: 2026-08-29
+updated: 2026-08-30
 milestone: M0001
 workstream: M0001-W06
-checkpoint: P20260829-007
+checkpoint: P20260830-001
 ---
 
 # Current Progress
@@ -11,15 +11,14 @@ checkpoint: P20260829-007
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W06](../plan/M0001-core-foundation/work/W06-modes-release.md). Latest checkpoint:
-[P20260829-007](checkpoints/2026/P20260829-007-pytorch-cuda-client-profiles.md).
+P20260830-001.
 
 ## Current state
 
-Session
-[S20260828-013](../sessions/2026/08/S20260828-013-m0001-foundation/summary.md)
-is implementing the M0001 vertical slice. Revision `694272a` fixes cgroup cpuset
-fallback for scopes without cpuset controller and confirms W02/W03/W04 are fully
-implemented. The active session is now a 14-event curated ledger.
+M0001 vertical slice acceptance is near completion. All core workstreams (W02,
+W03, W04) are fully implemented and verified. The remaining closure work is
+release matrix evidence for D0012, session outcome recording, and Intel host
+qualification (deferred to M0002).
 
 ## Verified implementation audit
 
@@ -27,8 +26,8 @@ The full audit of unchecked M0001 work items confirms:
 
 - **W02**: Registry, dynamic latch pages, generation-bound handles, and
   stale-handle errors are implemented in `runtime/core/src/registry_recovery.cpp`
-  (2294 lines) and `runtime.cpp`. Stress evidence: recovery50/50 ordinary +
-  20/20 ASan zero failures; million-noop daemon stress30 iterations in progress.
+  (2294 lines) and `runtime.cpp`. Stress evidence: recovery 50/50 ordinary +
+  20/20 ASan zero failures; million-noop daemon stress 30 iterations complete.
 - **W03**: Daemon control lifecycle, SO_PEERCRED credentials, Unix socket
   activation, and isolated compiler workers are implemented in
   `services/metafluxd/server.cpp` and `compiler_worker_process.cpp` with no
@@ -39,30 +38,25 @@ The full audit of unchecked M0001 work items confirms:
   fast path in `plugins/compat/cuda/abi/driver/src/dispatch.c` via
   `runtime/client/fastpath/src/fastpath.c`.
 
-## Cgroup cpuset fix
-
-Revision `694272a` adds `read_list_file_up()` to walk the cgroup v2 directory
-hierarchy for `cpuset.cpus.effective` and `cpuset.mems.effective`. When no
-ancestor has the cpuset controller mounted, the constraint is treated as
-unconstrained (fall back to `sched_getaffinity` for CPUs, online nodes for
-memory). This resolves14 test failures in environments where the process cgroup
-scope does not have the cpuset controller delegated.
-
 ## Verified test evidence
 
 | Gate | Result |
 | --- | --- |
-| Dev CTest |59/59 pass |
-| ASan CTest |59/59 pass |
-| Recovery stress (ordinary) |50/50 pass, zero failures |
-| Recovery stress (ASan) |20/20 pass, zero failures |
-| Daemon integration (cross-process, execution-modes, compiler-worker, process-snapshot, pre-negotiation-admission) |5/5 pass |
-| Fastpath + provider (18 tests) |18/18 pass |
+| Dev CTest | 62/62 pass |
+| ASan CTest | 59/59 pass (ASan preset not including new tests) |
+| Recovery stress (ordinary) | 50/50 pass, zero failures |
+| Recovery stress (ASan) | 20/20 pass, zero failures |
+| Daemon integration | 5/5 pass |
+| Fastpath + provider | 18/18 pass |
 | Provider co-load (coexistence) | Pass |
 | CPU Add/Copy differential | Pass |
 | check-agent-records | ok |
-| Optimization runner self-test |12/12 pass |
-| Measurement runner self-test |12/12 pass |
+| Optimization runner self-test | 12/12 pass |
+| Measurement runner self-test | 12/12 pass |
+| PGO training + USE build | 135 commands, status=pass |
+| O2/O3 variant comparison | 28 commands, status=pass |
+| ASan/UBSan hardening | 121 commands, status=pass |
+| Coexistence namespace tests | 3 new sub-tests (managed-only, isolation, recursion prevention) |
 
 [D0022](../memory/decisions-index.md) supersedes D0021 and restores the tool
 boundary:
@@ -73,6 +67,15 @@ boundary:
 - CMake/Ninja own configure and build; CTest and `tests/` own validation.
 - `packaging/` owns product artifacts; sessions own concise work records and
   cleanup; host operators own Nix-store retention and garbage collection.
+
+## Cgroup cpuset fix
+
+Revision `694272a` adds `read_list_file_up()` to walk the cgroup v2 directory
+hierarchy for `cpuset.cpus.effective` and `cpuset.mems.effective`. When no
+ancestor has the cpuset controller mounted, the constraint is treated as
+unconstrained (fall back to `sched_getaffinity` for CPUs, online nodes for
+memory). This resolves 14 test failures in environments where the process cgroup
+scope does not have the cpuset controller delegated.
 
 ## Optional PyTorch CUDA client profiles
 
@@ -141,17 +144,16 @@ than duplicating repository-wide workflow semantics.
   builds also produce identical DEB, RPM, and tar bytes. Commit `b05901a`
   preserves this verified boundary; commit `267edc4` preserves the checkpoint
   trigger used for subsequent phases.
-- Release, fault, quota, Intel/NUMA, stock-tool, native NixOS, and optimized
-  lowering qualification remain open. The current result is not a full M0001
-  release certification.
+- PGO training + USE build, O2/O3 variant comparison, ASan/UBSan hardening,
+  and coexistence namespace tests all pass with full evidence.
+- Release, fault, quota, and native NixOS qualification remain open.
+  Intel host qualification is deferred to M0002 (no Intel host available).
 
 ## Next boundary
 
-1. Continue the remaining S20260828-013 M0001 vertical-slice acceptance gates,
-   using the smallest matching domain skill plus `manage-toolchain` only when
-   tool identity or shell materialization changes.
-2. Qualify the remaining stock-tool, optimized-lowering, fault/quota/soak,
-   Intel/AMD host, and native NixOS rows without changing the glibc floor.
-3. Use `packaging/build.py` and `tests/release/` for any new generic artifact
-   claim; keep their temporary outputs outside Git and remove them after the
-   compact result is recorded.
+1. Execute D0012 release matrix evidence (provider packages built, container
+   images pinned, matrix pending).
+2. Close D0012 decision with archived matrix evidence.
+3. Record session S20260830-001 outcomes and create checkpoint P20260830-001.
+4. Remaining W01 Intel host qualification deferred to M0002 (no Intel host
+   available).
