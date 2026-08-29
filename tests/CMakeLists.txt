@@ -151,6 +151,26 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     metaflux.performance.measurement-runner-selftest
     PROPERTIES LABELS "performance-smoke;unit"
   )
+  add_test(
+    NAME metaflux.compatibility.pytorch-cuda-probe-selftest
+    COMMAND
+      Python3::Interpreter -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/test_pytorch_cuda_probe.py"
+  )
+  set_tests_properties(
+    metaflux.compatibility.pytorch-cuda-probe-selftest
+    PROPERTIES LABELS "compatibility;cuda;unit"
+  )
+  add_test(
+    NAME metaflux.toolchain.pytorch-cuda-client-manifests
+    COMMAND
+      Python3::Interpreter -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../toolchains/tests/verify_pytorch_cuda_clients.py"
+  )
+  set_tests_properties(
+    metaflux.toolchain.pytorch-cuda-client-manifests
+    PROPERTIES LABELS "toolchain;cuda;unit"
+  )
 endif()
 
 if(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER OR METAFLUX_BUILD_NVML_PROVIDER)
