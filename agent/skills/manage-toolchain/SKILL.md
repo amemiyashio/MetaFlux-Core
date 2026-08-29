@@ -9,6 +9,11 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 
 - Read [`toolchains/README.md`](../../../toolchains/README.md) before changing a
   version, source identity, patch, SDK, header set, or executable tool.
+- Read the [Ubuntu 20.04 target SDK guide](references/ubuntu-20.04-target-sdk.md)
+  whenever constructing, consuming, diagnosing, or qualifying the provider
+  sysroot, complete target SDK, generic LLVM closure, or generic Linux product
+  path. In particular, treat a `GLIBC_2.32` or newer result as a target-
+  consumption failure, not as evidence that the declared SDK is absent.
 - Inspect the affected manifest, `flake.lock`, `flake.nix`, and only the Nix
   toolchain or shell files that materialize that declaration.
 - Read the active task only to learn which fixed tool it requires. A milestone
@@ -24,6 +29,10 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 - Nix owns only locked input resolution, exact tool materialization, and the
   development shell that exposes those tools. It does not wrap or duplicate the
   owners above, archive evidence, snapshot project source, or configure host GC.
+- Entering `nix develop .#release` proves only that the release tools are
+  available. It does not select the Ubuntu 20.04 target SDK, target triple,
+  unwrapped compiler, startup objects, target linker, or generic CMake package
+  roots; the CMake-owned target entry point must select those explicitly.
 - D0009 is a hard compatibility floor for generic Linux artifacts: materialize
   and expose the Ubuntu 20.04 target SDK with glibc 2.31. The host distribution,
   host glibc, and a development-shell compiler wrapper must never raise or
