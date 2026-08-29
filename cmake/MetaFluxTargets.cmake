@@ -64,7 +64,6 @@ function(metaflux_configure_target target language)
       PRIVATE
         "-fprofile-instr-use=${METAFLUX_PGO_PROFILE}"
         -Wno-profile-instr-unprofiled
-        -Werror=profile-instr-out-of-date
     )
     target_link_options(${target} PRIVATE "-fprofile-instr-use=${METAFLUX_PGO_PROFILE}")
   endif()

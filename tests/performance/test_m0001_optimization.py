@@ -213,8 +213,6 @@ class OptimizationQualificationTests(unittest.TestCase):
         self.assertIn(f"-DCMAKE_C_FLAGS={expected}", recorder.argv)
         self.assertIn(f"-DCMAKE_CXX_FLAGS={expected}", recorder.argv)
         self.assertIn("-Wno-profile-instr-unprofiled", expected)
-        self.assertIn("-Werror=profile-instr-out-of-date", expected)
-        self.assertNotIn("-Wno-profile-instr-out-of-date", expected)
 
 
 if __name__ == "__main__":

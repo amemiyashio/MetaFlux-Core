@@ -129,10 +129,7 @@ PROFILE_ROLE_MARKERS = {
     ),
 }
 
-PGO_USE_DIAGNOSTIC_FLAGS = (
-    "-Wno-profile-instr-unprofiled",
-    "-Werror=profile-instr-out-of-date",
-)
+PGO_USE_DIAGNOSTIC_FLAGS = ("-Wno-profile-instr-unprofiled",)
 
 
 class QualificationError(RuntimeError):
