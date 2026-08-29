@@ -836,7 +836,6 @@ static int mf_test_recursion_prevention(const mf_mode_environment* environment,
   mf_cuda_passthrough_policy_v1 cuda_policy;
   mf_cuda_passthrough_policy_v1 nvml_policy;
   mf_cuda_provider_test_mode_snapshot_v1 cuda_snapshot;
-  mf_nvml_provider_test_mode_snapshot_v1 nvml_snapshot;
 
   /* Set provider self-path to the vendor fixture -> inode/build-id match -> POLICY_REJECTED. */
   mf_reset(cuda, nvml);
