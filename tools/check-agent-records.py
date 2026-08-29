@@ -53,6 +53,7 @@ MAX_INLINE_TEXT_BYTES = 65_536
 # Session summaries recorded from this date onward must carry a Distillation
 # section; earlier sessions are grandfathered.
 DISTILLATION_REQUIRED_FROM = "2026-08-28"
+CLEANUP_REQUIRED_FROM = "2026-08-29"
 STALENESS_WARNING_DAYS = 14
 SESSION_ID_RE = re.compile(r"^S\d{8}-\d{3}-[a-z0-9][a-z0-9-]*$")
 SESSION_PATH_RE = re.compile(
@@ -393,6 +394,7 @@ class Validator:
         )
         self.validate_relative_file(session_dir, session.get("notes"), "notes")
         self.validate_distillation(summary_path, session)
+        self.validate_cleanup(summary_path, session)
 
         events = self.validate_events(session_dir, event_log_path, schema_version)
         valid_event_seqs = {event["seq"] for event in events if self.is_int(event.get("seq"))}
@@ -894,6 +896,35 @@ class Validator:
             self.add_error(
                 summary_path,
                 "Distillation section must state 'none' or list promoted records",
+            )
+
+    def validate_cleanup(self, summary_path: Path | None, session: dict) -> None:
+        started_at = session.get("started_at")
+        if not isinstance(started_at, str) or started_at < CLEANUP_REQUIRED_FROM:
+            return
+        if summary_path is None:
+            return
+        try:
+            text = summary_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            self.add_error(summary_path, "cannot read session summary for cleanup")
+            return
+        parts = text.split("## Cleanup", 1)
+        if len(parts) != 2:
+            self.add_error(
+                summary_path,
+                "sessions from "
+                f"{CLEANUP_REQUIRED_FROM} onward require a '## Cleanup' "
+                "section (use 'none' when no disposable work remains)",
+            )
+            return
+        body = parts[1].split("\n## ", 1)[0].strip()
+        if not body:
+            self.add_error(summary_path, "Cleanup section is empty")
+        elif "none" not in body.lower() and "- " not in body:
+            self.add_error(
+                summary_path,
+                "Cleanup section must state 'none' or list removed/retained artifacts",
             )
 
     def validate_progress_health(self) -> None:

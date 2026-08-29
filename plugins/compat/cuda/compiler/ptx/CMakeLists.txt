@@ -1,4 +1,4 @@
-add_library(metaflux_cuda_ptx_frontend STATIC src/frontend.cpp)
+add_library(metaflux_cuda_ptx_frontend STATIC src/frontend.cpp src/parser.cpp)
 add_library(MetaFlux::CudaPtxFrontend ALIAS metaflux_cuda_ptx_frontend)
 
 target_include_directories(
@@ -8,3 +8,7 @@ target_include_directories(
 )
 target_link_libraries(metaflux_cuda_ptx_frontend PUBLIC MetaFlux::CompilerCore)
 metaflux_configure_target(metaflux_cuda_ptx_frontend CXX)
+
+if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
+  add_subdirectory(tests)
+endif()

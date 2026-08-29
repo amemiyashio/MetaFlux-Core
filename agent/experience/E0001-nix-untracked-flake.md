@@ -1,6 +1,6 @@
 ---
 id: E0001
-status: Validated
+status: Superseded
 validated: 2026-08-27
 applies_to: untracked Git worktree flakes
 ---
@@ -10,32 +10,30 @@ applies_to: untracked Git worktree flakes
 ## Observation
 
 When a flake is addressed through the Git worktree form, Nix evaluates the Git
-snapshot and omits untracked files. In a repository with no first commit, a
-normal `nix develop .` or `nix flake check .` may therefore report that
-`flake.nix` is not tracked even though it exists on disk.
+snapshot and omits untracked files. In a repository with no first commit, normal
+Git-worktree flake evaluation may therefore report that `flake.nix` is not
+tracked even though it exists on disk.
 
-## Validated practice
+## Historical practice and correction
 
-Use an explicit path flake until the first commit exists:
+The 2026-08-27 bootstrap used the explicit path-flake form before the first
+commit. That workaround also caused Nix to act as a source snapshot and product
+build orchestrator, so it is no longer a repository practice. Git owns source
+identity and history; Nix only materializes pinned tools. Current commands use
+the committed flake and invoke the owning build or test command directly, for
+example `nix develop . --command ctest --preset dev`.
 
-```sh
-nix develop path:.
-nix flake check path:.
-nix build path:.#runtime path:.#provider path:.#daemon path:.#toolchain
-```
-
-After the repository has a commit containing the flake inputs, the shorter Git
-flake form may be used. Do not stage files merely to change Nix discovery without
-understanding the resulting Git state.
+This record is superseded by the
+[tool-provider boundary](../../toolchains/README.md#tool-provider-boundary-d0022).
 
 ## Evidence and revalidation
 
-The path form was used for the 2026-08-27 bootstrap, where `nix flake check`
-passed and all four packages built. The repository still had no commit and all
-files were untracked at checkpoint
+The path form was used for the 2026-08-27 bootstrap, where the then-current
+broad Nix check passed and four product packages built. The repository still
+had no commit and all files were untracked at checkpoint
 [P20260827-001](../progress/checkpoints/2026/P20260827-001-engineering-bootstrap-baseline.md).
+That result remains historical context and is not current build, test, package,
+or release evidence.
 
-Revalidate after the first commit and whenever the flake source model changes.
-See the [bootstrap overview](../../README.md) and
-[Nix filesets](../../nix/lib/source.nix).
-
+Revalidate tool availability when the committed flake or lock changes. See the
+[bootstrap overview](../../README.md).

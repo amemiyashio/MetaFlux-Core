@@ -58,6 +58,7 @@ for history.
 | Skill | Status | Use when |
 | --- | --- | --- |
 | [start-work](start-work/SKILL.md) | Active | Beginning any task, before the first change |
+| [manage-toolchain](manage-toolchain/SKILL.md) | Active | Pinning tools, changing manifests or shells, or reviewing Nix responsibility |
 | [add-component](add-component/SKILL.md) | Active | Adding any new boundary target to the build |
 | [close-decision](close-decision/SKILL.md) | Active | Resolving a row of the open-decisions ledger |
 | [record-session](record-session/SKILL.md) | Active | Recording any work session from start to checkpoint |
@@ -83,6 +84,7 @@ separate even when one vertical slice needs all of them.
 
 | Request shape | Skills to compose | Ownership order |
 | --- | --- | --- |
+| Tool version, compiler epoch, SDK/header input, development shell, or Nix-scope change | `$manage-toolchain` | Toolchain governance owns portable version identity and provisioning only; Git, CMake, CTest, packaging, tests, and sessions retain their workflows |
 | Registry, client protocol, shared queue, or backend C ABI change | `$runtime-contracts-registry` | Runtime/contracts owns the neutral schema, versioning, generated layouts, and registry-view semantics |
 | PTX form interpreted, lowered, and optimized for CPU | `$ptx-simt-semantics` + `$mlir-compiler-engineering` + `$cpu-backend-performance` | PTX owns meaning/oracle; MLIR owns conversion mechanics; CPU owns interpreter implementation, target lowering, and measurement |
 | CUDA launch plus PTX compiler failure | `$cuda-driver-abi-compatibility` + `$ptx-simt-semantics` + `$mlir-compiler-engineering` | CUDA owns visible API/error; PTX owns accepted form; MLIR owns failing pass |

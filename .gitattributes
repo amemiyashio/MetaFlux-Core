@@ -6,3 +6,5 @@
 *.gif binary
 *.pdf binary
 
+# Unified diffs encode blank context lines with a leading space.
+toolchains/patches/**/*.patch -whitespace

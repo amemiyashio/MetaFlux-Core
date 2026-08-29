@@ -1,0 +1,9 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.entry malformed(.param .f32 value)
+{
+  .reg .b32 %r;
+  ld.param.f32 %r, [value];
+  ret;
+}

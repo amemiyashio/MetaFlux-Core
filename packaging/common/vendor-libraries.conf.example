@@ -1,0 +1,4 @@
+# Set both canonical absolute paths or leave this file absent for restricted
+# distribution-path discovery. Relative paths and partial pairs are rejected.
+cuda=/usr/lib/x86_64-linux-gnu/libcuda.so.1
+nvml=/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1

@@ -40,10 +40,10 @@ for a narrow work-item question, load only the relevant lane.
    real contract end to end, and retires the highest uncertainty. Do not add
    governance unless it closes a concrete blocker or automates a fitness
    function.
-8. Verify claims with the narrowest relevant commands. In this repository use
-   `python3 tools/check-agent-records.py .`, the owning CTest preset, the
-   component-graph gate, and `nix flake check path:. -L` only at the scope their
-   evidence justifies.
+8. Verify claims with the narrowest relevant owner commands. In this repository
+   use `python3 tools/check-agent-records.py .`, the owning CTest preset, and the
+   component-graph gate at the scope their evidence justifies. A Nix tool-version
+   probe establishes tool availability, not implementation or release readiness.
 
 ## Output
 

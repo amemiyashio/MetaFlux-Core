@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "ptx_isa": "9.0",
+  "target": "sm_70",
+  "minimum_sm": 70,
+  "address_size": 64,
+  "kernel_ir_schema": 2,
+  "dimensions": ["x", "y"],
+  "special_registers": [
+    "%tid.x", "%tid.y", "%ntid.x", "%ntid.y",
+    "%ctaid.x", "%ctaid.y", "%nctaid.x", "%nctaid.y"
+  ],
+  "state_spaces": ["param", "register", "global", "shared"],
+  "static_shared_limit_bytes": 49152,
+  "barrier_ids": [0],
+  "fp_environment": "ieee754-binary32-rn-ties-to-even-subnormals-preserved",
+  "excluded": [
+    "atomics", "warp operations", "cluster operations", "z dimension",
+    "approx", "ftz", "sat", "unordered floating comparisons",
+    "dynamic shared memory", "generic pointers", "local memory"
+  ],
+  "ptx_specification": {
+    "url": "https://docs.nvidia.com/cuda/pdf/ptx_isa_9.0.pdf",
+    "sha256": "207acfec55e860c94809b3a5c2d892f6fe70622105cd421a3c76d93617f6e76a"
+  },
+  "forms_path": "forms.jsonl",
+  "forms_sha256": "6b37afb70ac7f28a53b876ddcbaa622c2d77dd17b35586f700ff135cdc63a79a",
+  "corpus_index_path": "../corpus/index.json",
+  "corpus_index_sha256": "0d0049ee2606dc06f777d4ca2fb674d9f85a4915de6ac868232e6c1bcc2e26bd"
+}

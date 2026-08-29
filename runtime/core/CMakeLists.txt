@@ -1,4 +1,9 @@
-add_library(metaflux_runtime_core STATIC src/runtime.cpp)
+add_library(
+  metaflux_runtime_core STATIC
+  src/recovery_model.cpp
+  src/registry_recovery.cpp
+  src/runtime.cpp
+)
 add_library(MetaFlux::RuntimeCore ALIAS metaflux_runtime_core)
 set_target_properties(metaflux_runtime_core PROPERTIES EXPORT_NAME RuntimeCore)
 
@@ -8,7 +13,11 @@ target_include_directories(
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
-target_link_libraries(metaflux_runtime_core PUBLIC MetaFlux::ClientProtocol)
+target_link_libraries(
+  metaflux_runtime_core
+  PUBLIC MetaFlux::ClientProtocol MetaFlux::SharedDeviceLayout
+)
+target_compile_features(metaflux_runtime_core PUBLIC cxx_std_20)
 metaflux_configure_target(metaflux_runtime_core CXX)
 metaflux_register_component_graph_entry(
   metaflux_runtime_core

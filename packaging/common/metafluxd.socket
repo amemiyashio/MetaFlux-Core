@@ -1,0 +1,14 @@
+[Unit]
+Description=MetaFlux local compute socket
+
+[Socket]
+ListenSequentialPacket=/run/metaflux/metafluxd.sock
+SocketMode=0660
+SocketUser=metaflux
+SocketGroup=metaflux
+DirectoryMode=0755
+RemoveOnStop=yes
+Service=metafluxd.service
+
+[Install]
+WantedBy=sockets.target

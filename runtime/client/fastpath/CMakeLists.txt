@@ -15,7 +15,10 @@ target_include_directories(
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
-target_link_libraries(metaflux_client_fastpath PUBLIC MetaFlux::ClientProtocol)
+target_link_libraries(
+  metaflux_client_fastpath
+  PUBLIC MetaFlux::ClientProtocol MetaFlux::SharedDeviceLayout
+)
 metaflux_configure_target(metaflux_client_fastpath C)
 metaflux_register_component_graph_entry(
   metaflux_client_fastpath
@@ -23,6 +26,10 @@ metaflux_register_component_graph_entry(
   client-fastpath
   C
 )
+
+if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
+  add_subdirectory(tests)
+endif()
 
 install(
   TARGETS metaflux_client_fastpath

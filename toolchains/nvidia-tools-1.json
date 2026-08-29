@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "tool": "nvidia-smi",
+  "required_driver_families": [
+    "R535",
+    "R550",
+    "R570",
+    "R580",
+    "R610"
+  ],
+  "repository_signer_fingerprint": "EB693B3035CD5710E231E123A4B469963BF863CC",
+  "tools": [
+    {
+      "driver_family": "R535",
+      "driver_version": "535.104.05",
+      "repository_manifest": "toolchains/nvidia-headers/r535.json",
+      "packages_sha256": "bb95ded0bba536a9388cea13f47dad6f1c6eccf2e2ce07a358d185b06c040838",
+      "package": {
+        "name": "nvidia-utils-535",
+        "version": "535.104.05-0ubuntu1",
+        "architecture": "amd64",
+        "url": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/nvidia-utils-535_535.104.05-0ubuntu1_amd64.deb",
+        "size": 380038,
+        "sha256": "7125cc707db1dafbe4366c899cd035d5eba6e8d21026397aecfe3aae609cc81d"
+      },
+      "binary": {
+        "path": "usr/bin/nvidia-smi",
+        "size": 678064,
+        "sha256": "946828c9988ae35f29aefd86bb4cba24778e17b83dbe699452a19d2b438ee661",
+        "gnu_build_id": null
+      },
+      "license": {
+        "path": "usr/share/doc/nvidia-utils-535/copyright",
+        "sha256": "564ff97fa2cc57eee85dfe76b11126896fbd05e2b1bbb66b29f60a4795052812"
+      }
+    },
+    {
+      "driver_family": "R550",
+      "driver_version": "550.54.15",
+      "repository_manifest": "toolchains/nvidia-headers/r550.json",
+      "packages_sha256": "bb95ded0bba536a9388cea13f47dad6f1c6eccf2e2ce07a358d185b06c040838",
+      "package": {
+        "name": "nvidia-utils-550",
+        "version": "550.54.15-0ubuntu1",
+        "architecture": "amd64",
+        "url": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/nvidia-utils-550_550.54.15-0ubuntu1_amd64.deb",
+        "size": 493658,
+        "sha256": "0f772a73301abf0dde02bae319d0d7472fc49d105277d28171ad463c039dc5de"
+      },
+      "binary": {
+        "path": "usr/bin/nvidia-smi",
+        "size": 1068640,
+        "sha256": "5e86fb52c40daf1a3805a9a102e1147dc297db0995819bf509542012adfd57dd",
+        "gnu_build_id": "83d6f43eb526265b6f624536bc7b34ac7e19116a"
+      },
+      "license": {
+        "path": "usr/share/doc/nvidia-utils-550/copyright",
+        "sha256": "0e23ee3be951fd12574b7abf77b8e1b8d9a10da24db2920c7076841bb15937b7"
+      }
+    },
+    {
+      "driver_family": "R570",
+      "driver_version": "570.124.06",
+      "repository_manifest": "toolchains/nvidia-headers/r570.json",
+      "packages_sha256": "337f7f9cdd8c8dd8468b5e8993fde155b14251515de68c3834f5125c7d5e0c96",
+      "package": {
+        "name": "nvidia-utils-570",
+        "version": "570.124.06-0ubuntu1",
+        "architecture": "amd64",
+        "url": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/nvidia-utils-570_570.124.06-0ubuntu1_amd64.deb",
+        "size": 521602,
+        "sha256": "4368c8e3910791fd54bb4bd82902068326276148b01cc7bdbfda96f4a9500dc1"
+      },
+      "binary": {
+        "path": "usr/bin/nvidia-smi",
+        "size": 1137440,
+        "sha256": "e6f6796aa7a8d895e895f0f49068725d1ce729a3b8d08c2a2791a4923a8e28ff",
+        "gnu_build_id": "b43e07bf994bfdb274cb3ff1f1a4320f919d8a90"
+      },
+      "license": {
+        "path": "usr/share/doc/nvidia-utils-570/copyright",
+        "sha256": "0e23ee3be951fd12574b7abf77b8e1b8d9a10da24db2920c7076841bb15937b7"
+      }
+    },
+    {
+      "driver_family": "R580",
+      "driver_version": "580.95.05",
+      "repository_manifest": "toolchains/nvidia-headers/r580.json",
+      "packages_sha256": "337f7f9cdd8c8dd8468b5e8993fde155b14251515de68c3834f5125c7d5e0c96",
+      "package": {
+        "name": "libnvidia-compute-580",
+        "version": "580.95.05-0ubuntu1",
+        "architecture": "amd64",
+        "url": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/libnvidia-compute-580_580.95.05-0ubuntu1_amd64.deb",
+        "size": 54655824,
+        "sha256": "66182a6cc05c44be0c4da07775f4d0464691b2e5fd0c46d0d07c245892b1ccfa"
+      },
+      "binary": {
+        "path": "usr/bin/nvidia-smi",
+        "size": 1230464,
+        "sha256": "ee4a46b6570578db951e56916d74dfc6abd878b7f7f565791427f9c0efc5799b",
+        "gnu_build_id": "b251a7cb9ec9a33fc8267be574a442a7bd071f95"
+      },
+      "license": {
+        "path": "usr/share/doc/libnvidia-compute-580/copyright",
+        "sha256": "89b836340d5217ad1aca3097c0c7d00c85de24a2cc956361f755e08ae91df26e"
+      }
+    },
+    {
+      "driver_family": "R610",
+      "driver_version": "610.43.02",
+      "repository_manifest": "toolchains/nvidia-headers/r610.json",
+      "packages_sha256": "337f7f9cdd8c8dd8468b5e8993fde155b14251515de68c3834f5125c7d5e0c96",
+      "package": {
+        "name": "libnvidia-compute",
+        "version": "610.43.02-1ubuntu1",
+        "architecture": "amd64",
+        "url": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/libnvidia-compute_610.43.02-1ubuntu1_amd64.deb",
+        "size": 83884812,
+        "sha256": "6d8a355274a4e76287381e2b3dc45bded39e51d65b7dfcb6ce724de348baa382"
+      },
+      "binary": {
+        "path": "usr/bin/nvidia-smi",
+        "size": 1307552,
+        "sha256": "20f889e4468cd4d6fc6e79be1113b98ce4152d0da08fa709156cf870c1a9290d",
+        "gnu_build_id": "de6e91323edf1089c42e7abeaae5f87982feb741"
+      },
+      "license": {
+        "path": "usr/share/doc/libnvidia-compute/copyright",
+        "sha256": "89b836340d5217ad1aca3097c0c7d00c85de24a2cc956361f755e08ae91df26e"
+      }
+    }
+  ]
+}

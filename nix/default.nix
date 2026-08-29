@@ -1,6 +1,6 @@
 {
-  self,
   nixpkgs,
+  ...
 }:
 let
   system = "x86_64-linux";
@@ -9,18 +9,21 @@ let
   };
   lib = pkgs.lib;
   epoch = builtins.fromJSON (builtins.readFile ../toolchains/compiler-epoch-1.json);
-  flakeLock = builtins.fromJSON (builtins.readFile ../flake.lock);
-  lockedNixpkgs = flakeLock.nodes.nixpkgs.locked;
-  llvmPackages = pkgs.${epoch.nixpkgs_package};
-  source = import ./lib/source.nix { inherit lib; };
-  cmakeOptions = import ./lib/cmake-options.nix { inherit lib; };
-  mkMetafluxPackage = import ./lib/mk-metaflux-package.nix {
-    inherit
-      lib
-      pkgs
-      llvmPackages
-      ;
-  };
+  llvmMajor = builtins.head (lib.splitString "." epoch.llvm_version);
+  llvmBasePackages = pkgs."llvmPackages_${llvmMajor}";
+  llvmPatchSpec = builtins.head epoch.downstream_patches;
+  llvmPatchRelative = lib.removePrefix "toolchains/" llvmPatchSpec.path;
+  llvmPatch = ../toolchains + "/${llvmPatchRelative}";
+  llvmPackages = llvmBasePackages.overrideScope (
+    _final: previous: {
+      llvm = previous.llvm.overrideAttrs (old: {
+        patches = (old.patches or [ ]) ++ [ llvmPatch ];
+        passthru = (old.passthru or { }) // {
+          metafluxDownstreamPatches = epoch.downstream_patches;
+        };
+      });
+    }
+  );
   toolchain = import ./toolchains {
     inherit
       lib
@@ -29,50 +32,53 @@ let
       epoch
       ;
   };
-  projectPackages = import ./packages {
-    inherit
-      lib
-      pkgs
-      llvmPackages
-      cmakeOptions
-      mkMetafluxPackage
-      source
-      toolchain
-      ;
+  providerSysroot = import ./toolchains/ubuntu-20.04-sysroot.nix { inherit pkgs; };
+  targetSdk = import ./toolchains/ubuntu-20.04-target-sdk.nix {
+    inherit lib pkgs;
   };
-  projectChecks = import ./checks {
+  genericLlvmToolchain = import ./toolchains/generic-llvm-toolchain.nix {
     inherit
       lib
       pkgs
       llvmPackages
-      cmakeOptions
-      mkMetafluxPackage
-      projectPackages
-      source
+      epoch
+      llvmPatch
       ;
+    targetSdk = targetSdk;
+  };
+  providerHeaders = import ./toolchains/nvidia-headers.nix { inherit pkgs; };
+  providerTools = import ./toolchains/nvidia-tools.nix { inherit pkgs; };
+  toolPackages = {
+    inherit toolchain;
+    generic-llvm-toolchain = genericLlvmToolchain;
+    provider-headers = providerHeaders;
+    provider-sysroot = providerSysroot;
+    "ubuntu-20.04-target-sdk" = targetSdk;
+    nvidia-stock-tools = providerTools;
   };
   projectShells = import ./shells {
     inherit
       pkgs
       llvmPackages
-      projectPackages
+      toolPackages
       ;
   };
 in
 assert lib.assertMsg (llvmPackages.llvm.version == epoch.llvm_version)
-  "MetaFlux compiler epoch ${toString epoch.epoch} requires LLVM ${epoch.llvm_version}, but ${epoch.nixpkgs_package} provides ${llvmPackages.llvm.version}";
+  "MetaFlux compiler epoch ${toString epoch.epoch} requires LLVM ${epoch.llvm_version}, but llvmPackages_${llvmMajor} provides ${llvmPackages.llvm.version}";
 assert lib.assertMsg (
-  lockedNixpkgs.rev == epoch.nixpkgs_revision
-) "MetaFlux compiler epoch ${toString epoch.epoch} does not match the locked nixpkgs revision";
+  builtins.length epoch.downstream_patches == 1
+) "MetaFlux compiler epoch ${toString epoch.epoch} must name its exact downstream patchset";
 assert lib.assertMsg (
-  lockedNixpkgs.narHash == epoch.nixpkgs_nar_hash
-) "MetaFlux compiler epoch ${toString epoch.epoch} does not match the locked nixpkgs hash";
+  builtins.match "toolchains/patches/[A-Za-z0-9._/-]+[.]patch" llvmPatchSpec.path != null
+) "MetaFlux compiler epoch ${toString epoch.epoch} patch path must stay under toolchains/patches";
+assert lib.assertMsg (
+  builtins.hashFile "sha256" llvmPatch == llvmPatchSpec.sha256
+) "MetaFlux compiler epoch ${toString epoch.epoch} patch digest does not match its manifest";
 {
-  packages.${system} = projectPackages // {
-    default = projectPackages.runtime;
+  packages.${system} = toolPackages // {
+    default = toolchain;
   };
-
-  checks.${system} = projectChecks;
   devShells.${system} = projectShells;
   formatter.${system} = pkgs.nixfmt;
 }

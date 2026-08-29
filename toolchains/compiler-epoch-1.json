@@ -1,12 +1,17 @@
 {
+  "schema_version": 1,
   "epoch": 1,
   "llvm_version": "22.1.8",
   "llvm_source_revision": "llvmorg-22.1.8",
-  "nixpkgs_revision": "062346a6d85bc4b49dfaa61c986e9c5be21217d1",
-  "nixpkgs_nar_hash": "sha256-BZWCi9ZRJiARTuKTbbtvFTj7t1TK4G3UEckT3HyNfRg=",
   "required_targets": ["X86"],
-  "downstream_patches": [],
-  "build_flags": ["stock-nixpkgs"],
-  "pgo_profile": null,
-  "nixpkgs_package": "llvmPackages_22"
+  "downstream_patches": [
+    {
+      "id": "llvm-pr-187023-invariant-address-dependence",
+      "path": "toolchains/patches/llvm-22.1.8/0001-laa-reject-same-invariant-address.patch",
+      "strip": 1,
+      "sha256": "414fe68fb6fcd22b7495812ba3b6c8324c9397cc1317b593acc834569c85cbe4",
+      "upstream_commit": "9d592d9e07509f384c2bc0a29df1a8e4ec516763",
+      "upstream_patch_sha256": "55d2e2d834f9c10cdf5e11dbfbde88b5c3fe607142b152017679e2f3d2758bee"
+    }
+  ]
 }

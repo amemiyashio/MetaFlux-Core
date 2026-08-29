@@ -6,7 +6,7 @@ status: Active
 budgets: provisional
 depends_on: []
 areas: [build, contracts, runtime, compiler, backend.cpu, compat.cuda]
-updated: 2026-08-28
+updated: 2026-08-29
 ---
 
 # M0001: Core Foundation
@@ -14,9 +14,7 @@ updated: 2026-08-28
 ## Outcome
 
 Deliver the first executable MetaFlux vertical slice on Linux x86_64/glibc using
-compiler epoch 1. Its current descriptor selects stock Clang/LLVM/MLIR/LLD 22.1.8;
-the exact downstream correctness patchset and derivation hash remain an open
-freeze gate. An
+[compiler epoch 1](../../../toolchains/README.md#compiler-epoch-1-d0018). An
 unmodified CUDA Driver application discovers one managed CPU-backed logical
 device, loads embedded PTX, executes Add/Copy through interpreter, JIT, and AOT,
 and observes the same device through stock `nvidia-smi`.
@@ -36,19 +34,23 @@ The cross-version control/data-plane ownership model is maintained in
 M0001 establishes the registry, client protocol, and backend ABI required by that
 model; it does not implement the M0002 kernel/guest transports.
 
+The milestone consumes the repository's canonical
+[toolchain declarations](../../../toolchains/README.md). It specifies product
+tasks and acceptance evidence, not tool versions or Nix workflow ownership.
+
 ## Workstreams
 
 | Workstream | Status | Deliverable |
 | --- | --- | --- |
-| [M0001-W01](work/W01-build-toolchain.md) | Active | Reproducible build, toolchain epoch, Nix, sysroot, and release closure |
-| [M0001-W02](work/W02-contracts-runtime.md) | Queued | Registry, shared ABI, client protocol, rings, and backend C ABI |
-| [M0001-W03](work/W03-compiler-cpu.md) | Queued | PTX/Kernel IR oracle, CPU execution, JIT/AOT, and cache |
-| [M0001-W04](work/W04-cuda-provider.md) | Queued | CUDA Driver ABI provider and managed Add/Copy |
-| [M0001-W05](work/W05-nvml-provider.md) | Queued | NVML provider and supported stock `nvidia-smi` |
-| [M0001-W06](work/W06-modes-release.md) | Queued | passthrough/auto/fail-open, performance, and packaging |
+| [M0001-W01](work/W01-build-toolchain.md) | Active | Pinned-tool availability and M0001 build/release prerequisite qualification |
+| [M0001-W02](work/W02-contracts-runtime.md) | Active | Registry, shared ABI, client protocol, rings, and backend C ABI |
+| [M0001-W03](work/W03-compiler-cpu.md) | Active | PTX/Kernel IR oracle, CPU execution, JIT/AOT, and cache |
+| [M0001-W04](work/W04-cuda-provider.md) | Active | CUDA Driver ABI provider and managed Add/Copy |
+| [M0001-W05](work/W05-nvml-provider.md) | Active | NVML provider and supported stock `nvidia-smi` |
+| [M0001-W06](work/W06-modes-release.md) | Active | passthrough/auto/fail-open, performance, and packaging |
 
 Every workstream exit gate is mandatory. The dependency metadata in each work
-document permits build/toolchain preparation and compatible fixture work to run
+document permits prerequisite preparation and compatible fixture work to run
 in parallel without weakening the final ordering.
 
 ## Scope
@@ -65,7 +67,8 @@ Included:
 - NVML surface for `nvidia-smi -L`, summary, core CSV, `compute-apps`, and required
   `-q/-x` queries.
 - Recursion-safe absolute-path CUDA/NVML passthrough.
-- Nix development, CI, packaging, ABI, correctness, and performance foundations.
+- Pinned-tool availability plus build, test, packaging, ABI, correctness, and
+  performance task foundations.
 
 Excluded:
 
@@ -143,29 +146,51 @@ Release compatibility:
 - Managed and passthrough files coexist through explicit loader paths or isolated
   namespaces.
 
-## Decisions to Close
+## Compiler Link Closure (D0019)
 
-These block the indicated implementation and must become durable decisions before
-their consumers freeze:
+The generic daemon links the required MLIR and LLVM component archives into one
+static compiler closure. It must not require `libMLIR` or `libLLVM` at runtime.
+`METAFLUX_COMPILER_LINK_SHARED_LLVM` remains a qualification-only comparison
+switch and is off for release builds.
 
-1. Release distribution matrix (glibc baseline closed by D0009).
-2. Exact LLVM 22 correctness patchset and derivation hash.
-3. Exact PTX corpus and instruction/capability manifest.
-4. CUDA/NVML header acquisition and manifest update procedure.
-5. Vendor library discovery rules for each supported distribution.
-6. Cache root, ownership, quota, eviction, and multi-user isolation.
-7. CPU worker topology, NUMA placement, and CTA stealing policy.
-8. Private shared LLVM versus static compiler closure for the generic daemon,
-   decided from cold-start and RSS measurements.
+The comparison used the D0018 toolchain, identical 2026-08-29 source, Release
+mode with LTO, CPU 0 affinity on the AMD Ryzen 7 H 255 reference candidate, and
+a warm filesystem cache. Fresh-process results used 20 warmups and 200 samples
+per variant; idle-daemon results used five warmups and 30 samples per variant.
+
+| Measurement | Static components | Private shared MLIR/LLVM |
+| --- | ---: | ---: |
+| Primary compiler payload | 90,919,584 bytes | 376,267,712 bytes |
+| Fresh `--version` p50 / p99 | 5.296 / 8.411 ms | 33.151 / 50.038 ms |
+| Socket-ready p50 / p99 | 5.008 / 7.658 ms | 31.368 / 50.752 ms |
+| Idle RSS / PSS p50 | 32,032 / 32,004 KiB | 65,648 / 65,636 KiB |
+| Idle private-dirty p50 | 1,672 KiB | 7,348 KiB |
+
+The static closure was faster, used less resident and private-dirty memory, and
+reduced the primary compiler payload by more than four times. It also removes
+two versioned compiler-framework DSOs from the generic runtime dependency set.
+Distribution packaging must still remove build-tree/store RUNPATHs and pass the
+separate release matrix; this decision does not substitute for those gates.
+
+## Resolved Decisions
+
+| ID | Resolution | Canonical detail | Verification state |
+| --- | --- | --- | --- |
+| D0012 | Freeze the v0.1 distribution and package qualification matrix without raising the glibc 2.31 floor. | [M0001-W01](work/W01-build-toolchain.md#release-qualification-matrix-d0012) | Policy frozen; matrix execution remains a release gate. |
+| D0013 | Discover vendor CUDA/NVML only as one validated, same-build absolute-path pair under distribution whitelists or the root-owned override. | [M0001-W06](work/W06-modes-release.md#vendor-library-discovery-d0013) | Policy frozen; coexistence fixtures remain a release gate. |
+| D0014 | Isolate mutable compiler cache content per peer-credential UID with fixed quotas, atomic publication, deterministic eviction, and a separate read-only AOT tier. | [M0001-W03](work/W03-compiler-cpu.md#cache-isolation-and-eviction-d0014) | Policy frozen; fault and quota tests remain W03 gates. |
+| D0015 | Derive workers from effective physical cores, keep NUMA-local pools and CTA-granularity work, and disable cross-node stealing by default. | [M0001-W03](work/W03-compiler-cpu.md#cpu-and-numa-placement-d0015) | Policy frozen; Intel/AMD and NUMA qualification remain W03/W06 gates. |
+| D0017 | Freeze the compiler-epoch-1 PTX 9.0/sm_70 capability, instruction-form, and semantic-oracle corpus manifests. | [M0001-W03](work/W03-compiler-cpu.md#ptx-oracle-and-corpus-d0017) | Manifest hashes, positive/rejection coverage, interpreter differential tests, and ordinary/ASan runs verified. |
+| D0019 | Link the generic daemon to a static MLIR/LLVM component closure; retain shared framework DSOs only as a qualification comparison. | [Compiler link closure](#compiler-link-closure-d0019) | AMD cold-process and idle-RSS comparison verified; distribution packaging gates remain. |
 
 ## Definition of Done
 
 M0001 is complete only when every workstream exit gate and milestone acceptance
 criterion passes, the unmodified CUDA binary runs Add/Copy, supported stock
 `nvidia-smi` sees the same device, all four modes/failure paths are tested, the
-release is reproducible from `flake.lock` and installable without Nix, benchmark
-and compiler fingerprints are archived, and no excluded later feature enters the
-v0.1 hot path.
+release is reproducible from one Git revision and the declared tool identities,
+is installable without Nix, archives benchmark and compiler fingerprints, and
+admits no excluded later feature into the v0.1 hot path.
 
 [M0002](../M0002-kernel-guest-transport/plan.md) begins kernel/cdev and static
 guest transport work only after this DoD or an explicit milestone-boundary

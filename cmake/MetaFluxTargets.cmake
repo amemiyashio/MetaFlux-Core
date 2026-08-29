@@ -49,12 +49,37 @@ function(metaflux_configure_target target language)
     target_link_options(${target} PRIVATE -fprofile-instr-generate -fcoverage-mapping)
   endif()
 
+  if(METAFLUX_PGO_MODE STREQUAL "GENERATE")
+    target_compile_options(
+      ${target}
+      PRIVATE "-fprofile-instr-generate=${METAFLUX_PGO_RAW_PATTERN}"
+    )
+    target_link_options(
+      ${target}
+      PRIVATE "-fprofile-instr-generate=${METAFLUX_PGO_RAW_PATTERN}"
+    )
+  elseif(METAFLUX_PGO_MODE STREQUAL "USE")
+    target_compile_options(
+      ${target}
+      PRIVATE
+        "-fprofile-instr-use=${METAFLUX_PGO_PROFILE}"
+        -Wno-profile-instr-unprofiled
+        -Werror=profile-instr-out-of-date
+    )
+    target_link_options(${target} PRIVATE "-fprofile-instr-use=${METAFLUX_PGO_PROFILE}")
+  endif()
+
   if(METAFLUX_ENABLE_LTO)
     check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error LANGUAGES ${language})
     if(NOT ipo_supported)
       message(FATAL_ERROR "IPO/LTO is unavailable: ${ipo_error}")
     endif()
     set_property(TARGET ${target} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set(ipo_compile_options "${CMAKE_${language}_COMPILE_OPTIONS_IPO}")
+    if(CMAKE_${language}_COMPILER_ID STREQUAL "Clang" AND
+       NOT "${ipo_compile_options}" MATCHES "(^|;)\\-flto=thin($|;)")
+      message(FATAL_ERROR "Clang release IPO must resolve to ThinLTO (-flto=thin)")
+    endif()
   endif()
 endfunction()
 

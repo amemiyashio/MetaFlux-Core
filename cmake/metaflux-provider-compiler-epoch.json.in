@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "kind": "metaflux-provider-compiler-epoch-attestation",
+  "epoch": @METAFLUX_COMPILER_EPOCH@,
+  "llvm_version": "@METAFLUX_LLVM_EPOCH_VERSION@",
+  "llvm_source_revision": "@METAFLUX_LLVM_SOURCE_REVISION@",
+  "source_descriptor_sha256": "@METAFLUX_COMPILER_EPOCH_SHA256@",
+  "downstream_patch": {
+    "id": "@METAFLUX_DOWNSTREAM_PATCH_ID@",
+    "sha256": "@METAFLUX_DOWNSTREAM_PATCH_SHA256@",
+    "upstream_commit": "@METAFLUX_DOWNSTREAM_PATCH_UPSTREAM_COMMIT@",
+    "upstream_patch_sha256": "@METAFLUX_DOWNSTREAM_PATCH_UPSTREAM_SHA256@"
+  }
+}

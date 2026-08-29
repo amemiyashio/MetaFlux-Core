@@ -1,0 +1,23 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.entry fp_rounding(
+  .param .u64 output,
+  .param .u64 input,
+  .param .u32 integer_value,
+  .param .f32 addend
+)
+{
+  .reg .b32 %r;
+  .reg .b64 %rd<2>;
+  .reg .f32 %f<4>;
+  ld.param.u64 %rd0, [output];
+  ld.param.u64 %rd1, [input];
+  ld.param.u32 %r, [integer_value];
+  ld.param.f32 %f0, [addend];
+  ld.global.f32 %f1, [%rd1];
+  cvt.rn.f32.u32 %f2, %r;
+  add.rn.f32 %f3, %f1, %f2;
+  st.global.f32 [%rd0], %f3;
+  ret;
+}

@@ -1,0 +1,9 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.entry unsupported()
+{
+  .reg .b32 %r;
+  mov.u32 %r, %tid.z;
+  ret;
+}

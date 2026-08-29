@@ -4,22 +4,17 @@ milestone: M0002
 status: Queued
 area: transport.release
 depends_on: [M0002-W04]
-updated: 2026-08-27
+updated: 2026-08-29
 ---
 
 # Transport Performance and Release
 
-## Packaging Outputs
+## Packaging and Qualification Owners
 
 ```text
-packages.x86_64-linux.metaflux-vpci-dkms
-packages.x86_64-linux.metaflux-vfio-userd
-packages.x86_64-linux.qemu-vfio-user-fixture
-packages.x86_64-linux.guest-test-image
-checks.x86_64-linux.kernel-6_12
-checks.x86_64-linux.kernel-6_18
-checks.x86_64-linux.cdev-transport
-checks.x86_64-linux.qemu-vfio-user
+packaging: metaflux-vpci-dkms, metaflux-vfio-userd
+test fixtures: qemu-vfio-user, guest-test-image
+qualification gates: kernel-6_12, kernel-6_18, cdev-transport, qemu-vfio-user
 ```
 
 Pin one QEMU/libvfio-user pair for CI and test the newest supported stable pair
@@ -28,6 +23,9 @@ separately. Generic modules build through the exact target
 Generic artifacts have no required Nix store path. Reproducible inputs generate
 udev/systemd/socket policy, QEMU fixture, and guest image. Compile/API probes, not
 only `LINUX_VERSION_CODE`, select 6.12/6.18 compatibility wrappers.
+
+`packaging/` owns the artifacts and `tests/` owns the fixtures and qualification
+gates. Nix provides their fixed tools without constructing either workflow.
 
 ## Measurement Contract
 

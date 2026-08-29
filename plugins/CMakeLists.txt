@@ -6,6 +6,6 @@ if(
   add_subdirectory(compat)
 endif()
 
-if(METAFLUX_BUILD_CPU_BACKEND_RUNTIME)
+if(METAFLUX_BUILD_CPU_BACKEND_COMPILER OR METAFLUX_BUILD_CPU_BACKEND_RUNTIME)
   add_subdirectory(backend)
 endif()

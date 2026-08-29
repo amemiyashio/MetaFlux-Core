@@ -23,17 +23,41 @@ ALLOWED_DEPENDENCIES: dict[str, set[str]] = {
     # Contracts depend on nothing.
     "client-protocol": set(),
     "backend-plugin-api": set(),
+    "shared-device-layout": set(),
     # Neutral core.
-    "client-fastpath": {"client-protocol"},
-    "runtime-core": {"client-protocol"},
+    "client-fastpath": {"client-protocol", "shared-device-layout"},
+    "runtime-core": {"client-protocol", "shared-device-layout"},
     "compiler-core": set(),
     # Application-side plugins (C17 closure).
-    "compat-provider": {"client-protocol", "client-fastpath", "transport-client"},
-    "management-provider": {"client-protocol", "client-fastpath", "transport-client"},
+    "passthrough-helper": set(),
+    "compat-provider": {
+        "client-protocol",
+        "client-fastpath",
+        "passthrough-helper",
+        "transport-client",
+    },
+    "management-provider": {
+        "client-protocol",
+        "client-fastpath",
+        "passthrough-helper",
+        "transport-client",
+    },
     "compiler-frontend": {"compiler-core"},
     # Worker-side plugins.
+    "backend-compiler": {"compiler-core"},
     "backend-runtime": {"backend-plugin-api"},
-    "daemon": {"runtime-core", "compiler-core", "backend-runtime", "transport-worker"},
+    # A v0.x daemon may embed the local worker. It consumes the canonical C17
+    # queue implementation and enabled ecosystem frontends on the worker side;
+    # neither dependency permits an application-side edge back to the daemon.
+    "daemon": {
+        "client-fastpath",
+        "runtime-core",
+        "compiler-core",
+        "compiler-frontend",
+        "backend-compiler",
+        "backend-runtime",
+        "transport-worker",
+    },
     # Transport halves (D0010). No transport code exists yet; the rows freeze
     # the rules the first implementation must satisfy.
     "transport-client": {"client-protocol", "client-fastpath"},
@@ -43,6 +67,7 @@ ALLOWED_DEPENDENCIES: dict[str, set[str]] = {
 CLIENT_SIDE_ROLES = {
     "compat-provider",
     "management-provider",
+    "passthrough-helper",
     "transport-client",
     "client-fastpath",
 }

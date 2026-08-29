@@ -21,6 +21,42 @@ if(METAFLUX_BUILD_CLIENT_FASTPATH)
     metaflux.performance.fastpath-smoke
     PROPERTIES LABELS "performance-smoke"
   )
+
+  add_executable(
+    metaflux_m0001_ring_benchmark
+    performance/m0001_ring_audit.c
+    performance/m0001_ring_benchmark.c
+  )
+  target_link_libraries(
+    metaflux_m0001_ring_benchmark
+    PRIVATE MetaFlux::ClientFastpath
+  )
+  target_link_options(
+    metaflux_m0001_ring_benchmark
+    PRIVATE
+      "LINKER:--wrap=malloc"
+      "LINKER:--wrap=calloc"
+      "LINKER:--wrap=realloc"
+      "LINKER:--wrap=aligned_alloc"
+      "LINKER:--wrap=posix_memalign"
+      "LINKER:--wrap=pthread_mutex_lock"
+      "LINKER:--wrap=pthread_mutex_trylock"
+      "LINKER:--wrap=pthread_rwlock_rdlock"
+      "LINKER:--wrap=pthread_rwlock_tryrdlock"
+      "LINKER:--wrap=pthread_rwlock_wrlock"
+      "LINKER:--wrap=pthread_rwlock_trywrlock"
+      "LINKER:--wrap=pthread_spin_lock"
+      "LINKER:--wrap=pthread_spin_trylock"
+  )
+  metaflux_configure_target(metaflux_m0001_ring_benchmark C)
+  add_test(
+    NAME metaflux.performance.m0001-ring-smoke
+    COMMAND metaflux_m0001_ring_benchmark 8 32
+  )
+  set_tests_properties(
+    metaflux.performance.m0001-ring-smoke
+    PROPERTIES LABELS "performance-smoke;runtime"
+  )
 endif()
 
 if(TARGET metaflux_cpu_backend_runtime)
@@ -85,6 +121,36 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     metaflux.architecture.skill-routing-selftest
     PROPERTIES LABELS "architecture"
   )
+  add_test(
+    NAME metaflux.release.matrix-assertions
+    COMMAND
+      Python3::Interpreter -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/release/test_release_matrix_assertions.py"
+  )
+  set_tests_properties(
+    metaflux.release.matrix-assertions
+    PROPERTIES LABELS "release;unit"
+  )
+  add_test(
+    NAME metaflux.performance.optimization-runner-selftest
+    COMMAND
+      Python3::Interpreter -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_m0001_optimization.py"
+  )
+  set_tests_properties(
+    metaflux.performance.optimization-runner-selftest
+    PROPERTIES LABELS "performance-smoke;unit"
+  )
+  add_test(
+    NAME metaflux.performance.measurement-runner-selftest
+    COMMAND
+      Python3::Interpreter -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_m0001_performance.py"
+  )
+  set_tests_properties(
+    metaflux.performance.measurement-runner-selftest
+    PROPERTIES LABELS "performance-smoke;unit"
+  )
 endif()
 
 if(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER OR METAFLUX_BUILD_NVML_PROVIDER)
@@ -121,9 +187,15 @@ if(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER OR METAFLUX_BUILD_NVML_PROVIDER)
       PROPERTIES LABELS "abi"
     )
 
-    # Provider DT_NEEDED universe per D0009: libc.so.6 plus libpthread.so.0 and
-    # libdl.so.2 only where the glibc 2.31 (Ubuntu 20.04) floor requires them.
-    # Current fixtures only need libc; the expected set stays exact per target.
+    # Provider DT_NEEDED universe per D0009: libc.so.6 plus libdl.so.2 only where
+    # the glibc 2.31 (Ubuntu 20.04) floor requires the historical DSO.
+    # Passthrough discovery uses dlmopen/dlvsym. Those symbols live in libc on
+    # glibc 2.34+ host builds, while the frozen 2.31 sysroot requires libdl.
+    if(CMAKE_SYSROOT)
+      set(provider_expected_needed "libc.so.6;libdl.so.2")
+    else()
+      set(provider_expected_needed "libc.so.6")
+    endif()
     add_test(
       NAME "metaflux.abi.provider.${provider_name}.dynamic"
       COMMAND
@@ -131,7 +203,7 @@ if(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER OR METAFLUX_BUILD_NVML_PROVIDER)
         "-DREADELF=${METAFLUX_READELF_EXECUTABLE}"
         "-DPROVIDER=$<TARGET_FILE:${provider_target}>"
         "-DEXPECTED_SONAME=${expected_soname}"
-        "-DEXPECTED_NEEDED=libc.so.6"
+        "-DEXPECTED_NEEDED=${provider_expected_needed}"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/check_provider_needed.cmake"
     )
     set_tests_properties(
@@ -195,6 +267,133 @@ if(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER AND METAFLUX_BUILD_NVML_PROVIDER)
   set_tests_properties(
     metaflux.integration.provider.co-load
     PROPERTIES LABELS "integration"
+  )
+endif()
+
+if(TARGET metaflux_cuda_provider AND TARGET metafluxd AND METAFLUX_NVIDIA_HEADER_DIR)
+  if(NOT EXISTS "${METAFLUX_NVIDIA_HEADER_DIR}/cuda.h")
+    message(FATAL_ERROR "METAFLUX_NVIDIA_HEADER_DIR does not contain cuda.h")
+  endif()
+  add_executable(metaflux_cuda_add_copy_acceptance compatibility/cuda_add_copy.c)
+  target_include_directories(
+    metaflux_cuda_add_copy_acceptance
+    SYSTEM PRIVATE "${METAFLUX_NVIDIA_HEADER_DIR}"
+  )
+  target_link_libraries(metaflux_cuda_add_copy_acceptance PRIVATE metaflux_cuda_provider)
+  metaflux_configure_target(metaflux_cuda_add_copy_acceptance C)
+  add_executable(metaflux_cuda_process_holder compatibility/cuda_process_holder.c)
+  target_include_directories(
+    metaflux_cuda_process_holder
+    SYSTEM PRIVATE "${METAFLUX_NVIDIA_HEADER_DIR}"
+  )
+  target_link_libraries(metaflux_cuda_process_holder PRIVATE metaflux_cuda_provider)
+  set_target_properties(
+    metaflux_cuda_process_holder
+    PROPERTIES OUTPUT_NAME metaflux-cuda-process-holder
+  )
+  metaflux_configure_target(metaflux_cuda_process_holder C)
+  add_test(
+    NAME metaflux.integration.cuda-add-copy-managed
+    COMMAND
+      Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_cuda_acceptance.py"
+      --daemon $<TARGET_FILE:metafluxd>
+      --application $<TARGET_FILE:metaflux_cuda_add_copy_acceptance>
+      --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
+      --execution-mode interpreter
+      --ptx
+      "${CMAKE_CURRENT_SOURCE_DIR}/../plugins/compat/cuda/compiler/ptx/corpus/fixtures/positive-add-copy.ptx"
+  )
+  set_tests_properties(
+    metaflux.integration.cuda-add-copy-managed
+    PROPERTIES LABELS "compatibility;integration;cuda" TIMEOUT 60
+  )
+
+  foreach(metaflux_execution_mode IN ITEMS cold-jit warm-jit aot)
+    add_test(
+      NAME "metaflux.integration.cuda-add-copy-managed.${metaflux_execution_mode}"
+      COMMAND
+        Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_cuda_acceptance.py"
+        --daemon $<TARGET_FILE:metafluxd>
+        --application $<TARGET_FILE:metaflux_cuda_add_copy_acceptance>
+        --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
+        --execution-mode "${metaflux_execution_mode}"
+        --ptx
+        "${CMAKE_CURRENT_SOURCE_DIR}/../plugins/compat/cuda/compiler/ptx/corpus/fixtures/positive-add-copy.ptx"
+    )
+    set_tests_properties(
+      "metaflux.integration.cuda-add-copy-managed.${metaflux_execution_mode}"
+      PROPERTIES LABELS "compatibility;integration;cuda;compiler;cpu" TIMEOUT 240
+    )
+  endforeach()
+endif()
+
+if(
+  TARGET metaflux_m0001_ring_benchmark
+  AND TARGET metaflux_cuda_provider
+  AND TARGET metaflux_nvml_provider
+  AND TARGET metafluxd
+  AND METAFLUX_NVIDIA_HEADER_DIR
+)
+  if(NOT EXISTS "${METAFLUX_NVIDIA_HEADER_DIR}/nvml.h")
+    message(FATAL_ERROR "METAFLUX_NVIDIA_HEADER_DIR does not contain nvml.h")
+  endif()
+  add_executable(
+    metaflux_m0001_cuda_managed_benchmark
+    performance/m0001_cuda_managed_benchmark.c
+  )
+  target_include_directories(
+    metaflux_m0001_cuda_managed_benchmark
+    SYSTEM PRIVATE "${METAFLUX_NVIDIA_HEADER_DIR}"
+  )
+  target_link_libraries(
+    metaflux_m0001_cuda_managed_benchmark
+    PRIVATE metaflux_cuda_provider
+  )
+  metaflux_configure_target(metaflux_m0001_cuda_managed_benchmark C)
+
+  add_executable(
+    metaflux_m0001_nvml_benchmark
+    performance/m0001_nvml_benchmark.c
+  )
+  target_include_directories(
+    metaflux_m0001_nvml_benchmark
+    SYSTEM PRIVATE "${METAFLUX_NVIDIA_HEADER_DIR}"
+  )
+  target_link_libraries(
+    metaflux_m0001_nvml_benchmark
+    PRIVATE metaflux_nvml_provider
+  )
+  metaflux_configure_target(metaflux_m0001_nvml_benchmark C)
+
+  add_test(
+    NAME metaflux.performance.m0001-managed-smoke
+    COMMAND
+      Python3::Interpreter -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/performance/run_m0001_performance.py"
+      --mode smoke
+      --budget-status provisional
+      --output-dir "${CMAKE_CURRENT_BINARY_DIR}/m0001-performance-smoke-evidence"
+      --repository "${PROJECT_SOURCE_DIR}"
+      --milestone-plan
+      "${PROJECT_SOURCE_DIR}/agent/plan/M0001-core-foundation/plan.md"
+      --ring-benchmark $<TARGET_FILE:metaflux_m0001_ring_benchmark>
+      --cuda-benchmark $<TARGET_FILE:metaflux_m0001_cuda_managed_benchmark>
+      --nvml-benchmark $<TARGET_FILE:metaflux_m0001_nvml_benchmark>
+      --daemon $<TARGET_FILE:metafluxd>
+      --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
+      --cuda-provider $<TARGET_FILE:metaflux_cuda_provider>
+      --nvml-provider $<TARGET_FILE:metaflux_nvml_provider>
+      --compiler-epoch "${METAFLUX_COMPILER_EPOCH_FILE}"
+      --build-manifest "${CMAKE_BINARY_DIR}/metaflux-build-manifest.json"
+      --execution-mode interpreter
+      --warmup 4
+      --samples 16
+      --copy-bytes 16777216
+      --require-all-core-metrics
+  )
+  set_tests_properties(
+    metaflux.performance.m0001-managed-smoke
+    PROPERTIES LABELS "performance-smoke;integration;cuda;nvml;runtime" TIMEOUT 180
   )
 endif()
 

@@ -1,34 +1,68 @@
 ---
 status: Current
-updated: 2026-08-28
+updated: 2026-08-29
 ---
 
 # Durable Constraints
 
-Canonical sources are [M0001](../plan/M0001-core-foundation/plan.md) and
-[M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md).
+Canonical product sources are [M0001](../plan/M0001-core-foundation/plan.md),
+[M0001-W03](../plan/M0001-core-foundation/work/W03-compiler-cpu.md), and
+[M0001-W06](../plan/M0001-core-foundation/work/W06-modes-release.md). Tool
+identity and provisioning boundaries live in
+[`toolchains/README.md`](../../toolchains/README.md).
 
 - Target Linux x86_64 and glibc. Kernel work uses the target kernel's Kbuild.
 - The userspace glibc floor is 2.31 (Ubuntu 20.04, D0009). Provider `DT_NEEDED`
   is restricted to `libc.so.6` plus `libpthread.so.0` and `libdl.so.2` only
   where a pre-2.34 target requires them; the kernel-module validation matrix is
   independent of this floor.
+- The v0.1 generic release matrix is Ubuntu 20.04.6, Ubuntu 22.04.5,
+  Ubuntu 24.04.4, and Rocky Linux 9.8; NixOS 26.05 is a native-package-only
+  row (D0012). Per-run image and update digests remain required evidence.
 - Application-side providers and client fast path use C17 and keep LLVM/MLIR,
   Python, systemd, and the C++ runtime out of the provider closure.
 - Runtime services, compiler code, scheduler, and execution backends use C++20.
+- Generic daemon release builds statically link the required MLIR/LLVM component
+  closure and do not require `libMLIR` or `libLLVM` at runtime (D0019). The
+  shared-framework switch is qualification-only.
 - Cross-component plugin boundaries use versioned C ABIs. Encoded/shared/UAPI
   records follow the narrower rules in the [contracts index](../../contracts/README.md).
-- Compiler epoch 1 is defined only by
-  [`toolchains/compiler-epoch-1.json`](../../toolchains/compiler-epoch-1.json):
-  LLVM/Clang/MLIR/LLD 22.1.8 and its pinned Nix inputs.
-- Nix is the authoritative development and package environment; CMake describes
-  targets and Ninja executes the build graph.
+- Compiler epoch 1 tool identity is defined by the
+  [toolchain index](../../toolchains/README.md#compiler-epoch-1-d0018) and
+  [`compiler-epoch-1.json`](../../toolchains/compiler-epoch-1.json): Clang,
+  MLIR, LLD, and LLVM 22.1.8 plus the single D0018 correctness backport.
+- Compiler epoch 1 accepts only the D0017 PTX 9.0/sm_70 capability and
+  instruction-form manifests bound to their checked-in 17-fixture semantic
+  corpus. Parser, verifier, interpreter, target lowering, and differential
+  evidence advance together for any future manifest revision.
+- CUDA Driver and NVML ABI sources come only from the manifest-epoch-1 exact
+  R535/R550/R570/R580/R610 package and extracted-header digests; changing a
+  family requires an explicit manifest epoch bump (D0016).
+- Nix only fixes and provides declared tool versions. Git owns source identity,
+  CMake/Ninja own configure and build, CTest and test harnesses own testing,
+  `packaging/` owns release artifacts, sessions own durable work evidence, and
+  invoking tools or host operators own cleanup and garbage collection (D0022).
+- A tool newly required by a repeatable workflow is versioned in the Nix-provided
+  tool environment before use; this does not transfer workflow semantics or
+  outputs to Nix. D0022 supersedes the broader D0021 wording.
+- Artifact downloads follow the configured-timezone, adjacent-timezone, then
+  canonical route while frozen upstream identity remains authoritative; route
+  details are per-run evidence (D0020).
 - Rust and handwritten assembly are outside compiler epoch 1 unless a later
   measured decision explicitly changes that boundary.
 - The runtime and compiler core remain ecosystem-neutral. Compatibility plugins
   do not depend on concrete execution backends.
 - Mutable provider state belongs to one negotiated shared view, not per-DSO
   globals. Statically embedded fast-path code remains stateless.
+- Vendor CUDA/NVML passthrough loads one validated same-build pair by canonical
+  absolute paths from the distribution whitelist or root-owned override; ambient
+  loader search paths never participate (D0013).
+- Mutable compiler cache content is peer-credential-UID isolated, quota reserved
+  before compilation, atomically published, and deterministically evicted; the
+  administrator AOT tier is separate and read-only (D0014).
+- CPU execution uses effective physical cores and NUMA-local pools, does not
+  oversubscribe, schedules indivisible CTAs, and keeps cross-node stealing off
+  by default (D0015).
 - Generic packages do not overwrite vendor-owned libraries or device nodes and
   do not require Nix store paths at runtime.
 - Performance budgets are acceptance gates, not aspirations; canonical values

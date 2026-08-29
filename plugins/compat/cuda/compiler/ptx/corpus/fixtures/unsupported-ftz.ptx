@@ -1,0 +1,11 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.entry unsupported(.param .f32 a, .param .f32 b)
+{
+  .reg .f32 %f<3>;
+  ld.param.f32 %f0, [a];
+  ld.param.f32 %f1, [b];
+  add.rn.ftz.f32 %f2, %f0, %f1;
+  ret;
+}

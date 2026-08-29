@@ -25,17 +25,17 @@ is what makes the rules bind.
 4. Add the build option to `cmake/MetaFluxOptions.cmake` if it is new, wire
    the subdir condition in the parent chain, and add a preset variant only if
    the component needs standalone qualification.
-5. Update package filesets in
-   [source.nix](../../../nix/lib/source.nix): each deployment package
-   (runtime, provider, daemon) must include exactly the components it ships.
+5. If the component ships, update the owning CMake install component and the
+   corresponding packaging metadata. Nix does not own product source filesets
+   or package assembly.
 6. For transport components, create `client/` and `worker/` halves per D0010
    with roles `transport-client` / `transport-worker`.
 
 ## Verification
 
 ```sh
-nix develop path:. -c cmake --preset dev
-nix develop path:. -c ctest --preset dev
+nix develop . --command cmake --preset dev
+nix develop . --command ctest --preset dev
 ```
 
 `metaflux.architecture.component-graph` passing proves the new target's edges

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "driver_family": "R535",
+  "representative_driver_version": "535.104.05",
+  "cuda_toolkit_release": "12.2 Update 2",
+  "cuda_api_version": 12020,
+  "repository_snapshot": {
+    "distribution": "ubuntu2204",
+    "architecture": "x86_64",
+    "observed_at": "2026-08-28",
+    "inrelease_url": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/InRelease",
+    "inrelease_sha256": "7e105fd12ae0b801998dd7e445b178ac4629a10ce6a07459b0ab7b6e6ac3fedc",
+    "packages_url": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/Packages.gz",
+    "packages_sha256": "bb95ded0bba536a9388cea13f47dad6f1c6eccf2e2ce07a358d185b06c040838",
+    "signer_fingerprint": "EB693B3035CD5710E231E123A4B469963BF863CC"
+  },
+  "packages": [
+    {
+      "role": "cuda-driver-headers",
+      "name": "cuda-cudart-dev-12-2",
+      "version": "12.2.140-1",
+      "architecture": "amd64",
+      "url": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-cudart-dev-12-2_12.2.140-1_amd64.deb",
+      "sha256": "fdb54705af884fa41277c5b66c8d2f81083ae039a8155fee5e45eae36f09e1e7",
+      "license": {"path": "usr/share/doc/cuda-cudart-dev-12-2/copyright", "sha256": "b9ee12782ca117b887588d99ae1b8c24deb59105e05417fe28ffbd7a55896dd1"},
+      "headers": [
+        {"install_name": "cuda.h", "path": "usr/local/cuda-12.2/targets/x86_64-linux/include/cuda.h", "sha256": "a2b4436404c3a9a4231d667c811f24e9ddac256ab3f30c7a486120550abd78d5"},
+        {"install_name": "cudaTypedefs.h", "path": "usr/local/cuda-12.2/targets/x86_64-linux/include/cudaTypedefs.h", "sha256": "449a8998f711aa3e286fb5a7815da23a4d0d20b0be5e73dbe6f15367e4d6f774"}
+      ]
+    },
+    {
+      "role": "nvml-headers",
+      "name": "cuda-nvml-dev-12-2",
+      "version": "12.2.140-1",
+      "architecture": "amd64",
+      "url": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-nvml-dev-12-2_12.2.140-1_amd64.deb",
+      "sha256": "aa6e07133997f16845723077d75980804b3462526894743c11dca9a9dd433ab6",
+      "license": {"path": "usr/share/doc/cuda-nvml-dev-12-2/copyright", "sha256": "b9ee12782ca117b887588d99ae1b8c24deb59105e05417fe28ffbd7a55896dd1"},
+      "headers": [
+        {"install_name": "nvml.h", "path": "usr/local/cuda-12.2/targets/x86_64-linux/include/nvml.h", "sha256": "6e912f0a3c01a72b339b4f572f61b1af43c32d4feb58f4667892c91857e81710"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.entry ordered_nan(.param .u64 output, .param .f32 a, .param .f32 b, .param .u32 value)
+{
+  .reg .pred %p;
+  .reg .b32 %r;
+  .reg .b64 %rd;
+  .reg .f32 %f<2>;
+  ld.param.u64 %rd, [output];
+  ld.param.f32 %f0, [a];
+  ld.param.f32 %f1, [b];
+  ld.param.u32 %r, [value];
+  setp.lt.f32 %p, %f0, %f1;
+  @%p st.global.u32 [%rd], %r;
+  ret;
+}

@@ -1,22 +1,21 @@
 {
   pkgs,
   llvmPackages,
-  projectPackages,
+  toolPackages,
 }:
 let
   mkClangShell =
     {
       name,
-      inputsFrom,
       packages ? [ ],
     }:
     pkgs.mkShell.override { stdenv = llvmPackages.stdenv; } {
-      inherit name inputsFrom;
+      inherit name;
+      NIX_NO_SELF_RPATH = 1;
       buildInputs = [ pkgs.stdenv.cc.cc.lib ];
       packages = [
-        llvmPackages.lld
+        toolPackages.toolchain
         pkgs.git
-        pkgs.python3
       ]
       ++ packages;
       shellHook = ''
@@ -24,35 +23,48 @@ let
         export CC=clang
         export CXX=clang++
         export LDFLAGS="''${LDFLAGS:+$LDFLAGS }-fuse-ld=lld"
-        export NIX_LDFLAGS="''${NIX_LDFLAGS:+$NIX_LDFLAGS }-rpath ${pkgs.stdenv.cc.cc.lib}/lib"
-        if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-          git config core.hooksPath .githooks
-        fi
+        export LD_LIBRARY_PATH="${toolPackages.toolchain}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
       '';
     };
 in
 {
   default = mkClangShell {
-    name = "metaflux-core";
-    inputsFrom = [
-      projectPackages.daemon
-      projectPackages.provider
-      projectPackages.runtime
-    ];
+    name = "metaflux-core-tools";
     packages = [
-      llvmPackages.clang-tools
       pkgs.ccache
       pkgs.gdb
+      pkgs.strace
     ];
   };
 
   provider = mkClangShell {
-    name = "metaflux-provider";
-    inputsFrom = [ projectPackages.provider ];
+    name = "metaflux-provider-tools";
+    packages = [
+      toolPackages.provider-headers
+      toolPackages.provider-sysroot
+    ];
   };
 
   runtime = mkClangShell {
-    name = "metaflux-runtime";
-    inputsFrom = [ projectPackages.runtime ];
+    name = "metaflux-runtime-tools";
+  };
+
+  release = mkClangShell {
+    name = "metaflux-release-tools";
+    packages = [
+      toolPackages.generic-llvm-toolchain
+      toolPackages.nvidia-stock-tools
+      toolPackages.provider-headers
+      toolPackages."ubuntu-20.04-target-sdk"
+      pkgs.binutils
+      pkgs.dpkg
+      pkgs.file
+      pkgs.gnutar
+      pkgs.gzip
+      pkgs.jq
+      pkgs.patchelf
+      pkgs.podman
+      pkgs.rpm
+    ];
   };
 }

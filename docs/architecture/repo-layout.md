@@ -30,8 +30,8 @@ Dependency points from volatile to stable. Contracts have no dependencies.
 ```text
 contracts (client protocol, backend plugin API)
    ^                      ^
-runtime client fastpath   backend runtimes (CPU, later Vulkan)
-(C, app closure)          (C++20, behind mf_backend_api_v1)
+runtime client fastpath   backend compilers and runtimes (CPU, later Vulkan)
+(C, app closure)          (C++20, compiler core or mf_backend_api_v1)
    ^                          ^
 compat providers            services/metafluxd (also <- runtime core,
 (libcuda.so.1,                compiler core, transport workers)
@@ -41,9 +41,8 @@ compat providers            services/metafluxd (also <- runtime core,
 Machine checks: every boundary target registers with the component graph
 (`cmake/MetaFluxComponentGraph.cmake`), and `tools/check-component-graph.py`
 fails the build on any edge outside the role whitelist, any C-to-CXX link, or
-any client-side link into the daemon. The same boundaries are re-expressed by
-the Nix package filesets in `nix/lib/source.nix` and by the provider ELF gates
-in `tests/`.
+any client-side link into the daemon. Provider ELF gates and cross-component
+qualification remain under `tests/`; Nix only provides their fixed tools.
 
 ## Where to put things
 

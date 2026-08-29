@@ -1,0 +1,12 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.entry unsupported(.param .u32 value)
+{
+  .reg .pred %p;
+  .reg .b32 %r;
+  ld.param.u32 %r, [value];
+  setp.eq.u32 %p, %r, %r;
+  @%p bar.sync 0;
+  ret;
+}

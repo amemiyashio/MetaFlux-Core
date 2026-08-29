@@ -26,6 +26,7 @@ pkgs.buildEnv {
     (lib.getDev pkgs.zlib)
     pkgs.cmake
     pkgs.ninja
+    pkgs.nixfmt
     pkgs.pkg-config
     pkgs.python3
     gccRuntime
@@ -38,13 +39,6 @@ pkgs.buildEnv {
     "/share"
   ];
   ignoreCollisions = false;
-  nativeBuildInputs = [ pkgs.makeWrapper ];
-  postBuild = ''
-    wrapProgram "$out/bin/clang" \
-      --prefix NIX_LDFLAGS " " "-rpath ${gccRuntime}/lib"
-    wrapProgram "$out/bin/clang++" \
-      --prefix NIX_LDFLAGS " " "-rpath ${gccRuntime}/lib"
-  '';
   passthru = {
     compilerEpoch = epoch;
   };

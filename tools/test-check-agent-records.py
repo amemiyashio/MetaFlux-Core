@@ -3,7 +3,7 @@
 
 Builds a minimal valid agent/ tree in a temporary directory and asserts the
 validator's behavior on it, then mutates one aspect per case to pin every rule:
-required session fields, contiguous event sequence numbers, distillation,
+required session fields, contiguous event sequence numbers, cleanup, distillation,
 index completeness (both directions), Codex skill-package compatibility and
 discovery, open-decision identity, decision-index references, staleness warnings,
 markdown link existence, checkpoint id/path agreement, current-progress
@@ -295,6 +295,33 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
             f"{SESSION_DIR}/session.json",
             '"started_at": "2026-08-28"',
             '"started_at": "2026-08-27"',
+        ),
+        False,
+        False,
+    ),
+    (
+        "cleanup section required from cutoff",
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/session.json",
+            '"started_at": "2026-08-28"',
+            '"started_at": "2026-08-29"',
+        ),
+        True,
+        False,
+    ),
+    (
+        "cleanup section accepted from cutoff",
+        replace(
+            replace(
+                BASE_FILES,
+                f"{SESSION_DIR}/session.json",
+                '"started_at": "2026-08-28"',
+                '"started_at": "2026-08-29"',
+            ),
+            f"{SESSION_DIR}/summary.md",
+            "## Distillation",
+            "## Cleanup\n\n- Removed: none.\n- Retained: none.\n\n## Distillation",
         ),
         False,
         False,

@@ -16,7 +16,7 @@ Instance path: `agent/sessions/YYYY/MM/SYYYYMMDD-NNN-slug/summary.md`.
 
 State the project objective and resulting repository state.
 
-## Changed paths
+## Durable changes
 
 - `path`: concise reason.
 
@@ -25,6 +25,16 @@ State the project objective and resulting repository state.
 | Command/gate | Result |
 | --- | --- |
 | Command | Count or signal |
+
+## Cleanup
+
+List the session-owned disposable work inspected at handoff. Remove failed
+routes, duplicate source snapshots, build trees, temporary downloads, and logs;
+state `none` when inspection finds nothing. Name any retained non-Git artifact
+and why it is still required.
+
+- Removed: `path` - reason | none.
+- Retained: `path` - owner and reason | none.
 
 ## Decisions and experience
 
@@ -48,8 +58,7 @@ this section for sessions from 2026-08-28 onward.
 Give the next agent a concrete first command and the minimum files to read. Link
 the current progress record or checkpoint when the session changes durable state.
 
-The summary belongs inside a MetaFlux project work record containing objectives,
-decisions, tool calls/results, commands, outputs, and notes. It must not contain
-conversation transcripts, personal context, or work from another repository.
-Promote only validated, reusable project knowledge to `memory/` or
-`experience/`.
+The summary is a curated outcome and resume point. It does not mirror Git,
+archive a build directory, preserve routine command output, or retain failed
+routes without a reusable lesson. Promote only validated, reusable project
+knowledge to `memory/` or `experience/`.

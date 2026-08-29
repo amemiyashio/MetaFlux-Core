@@ -15,7 +15,7 @@ session metadata and JSONL events, stable record IDs, numbered output hashes,
 credential redaction, safe references, and relative Markdown links, plus the
 machine-enforced record-loop rules — index completeness for sessions, plans,
 experience, decisions, and skills; plan/ledger open-decision identity; mandatory
-session distillation; staleness and status-drift warnings; current-progress
+session cleanup and distillation; staleness and status-drift warnings; current-progress
 freshness; exact skill catalog rows; domain section order; and the repository's
 restricted `agents/openai.yaml` interface schema.
 
@@ -23,9 +23,8 @@ restricted `agents/openai.yaml` interface schema.
 python3 tools/check-agent-records.py .
 ```
 
-The same command runs as the independent Nix check
-`checks.x86_64-linux.agent-records`. Agent records are deliberately excluded
-from the runtime, provider, daemon, and toolchain package source sets.
+The same command runs from CTest and repository hooks. Nix only provides the
+fixed Python tool used to execute it.
 
 Domain skill metadata currently permits exactly the quoted `interface` fields
 `display_name`, `short_description`, and `default_prompt`; the prompt must name
@@ -49,7 +48,7 @@ python3 -B tools/check-skill-routing.py . --observed ROUTING_RESULTS.json
 python3 -B tools/test-check-skill-routing.py
 ```
 
-The corpus and its self-test run in CTest and the Nix Agent-record check. CI does
+The corpus and its self-test run in CTest. CI does
 not invoke a remote model: a static pass proves corpus integrity, while only a
 filled observation file proves routing behavior for its recorded environment.
 
@@ -62,7 +61,8 @@ component to a CXX component, or any client-side link into the daemon, so the
 application-side closure cannot silently grow a C++ runtime.
 
 ```sh
-python3 tools/check-component-graph.py build/dev/metaflux-component-graph.json
+python3 tools/check-component-graph.py \
+  ../.metaflux-build/MetaFlux-Core/dev/metaflux-component-graph.json
 ```
 
 The same check runs as the CTest `metaflux.architecture.component-graph` in

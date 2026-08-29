@@ -1,10 +1,10 @@
 ---
 id: M0001-W02
 milestone: M0001
-status: Queued
+status: Active
 area: contracts-runtime
 depends_on: [M0001-W01]
-updated: 2026-08-28
+updated: 2026-08-29
 ---
 
 # Contracts and Runtime Fast Path
@@ -485,7 +485,7 @@ through their C entrypoint/function table.
 
 ## Work
 
-- [ ] Implement fixed-layout C types and generated C/C++ size/alignment/offset
+- [x] Implement fixed-layout C types and generated C/C++ size/alignment/offset
   assertions.
 - [ ] Implement registry and dynamic latch pages, generation-bound handles, and
   stale-handle errors; bracket handle/admission/telemetry reads with control
@@ -496,7 +496,7 @@ through their C entrypoint/function table.
   terminal publication against lease commit and snapshot fallback, and prove no
   torn fence/bank or changed/closing/terminal view returns stale `ONLINE` liveness
   or late work.
-- [ ] Implement per-context rings, timeline completion, doorbell, and blocking
+- [x] Implement per-context rings, timeline completion, doorbell, and blocking
   futex/eventfd fallback.
 - [ ] Stress process death, generation replacement, shortened identity/generation
   and epoch exhaustion with no wrap or alias, shortened lifecycle-sequence FIFO

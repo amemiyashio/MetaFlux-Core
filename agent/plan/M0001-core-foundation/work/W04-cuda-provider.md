@@ -1,10 +1,10 @@
 ---
 id: M0001-W04
 milestone: M0001
-status: Queued
+status: Active
 area: compat.cuda.driver
 depends_on: [M0001-W02, M0001-W03]
-updated: 2026-08-27
+updated: 2026-08-29
 ---
 
 # CUDA Driver Provider
@@ -25,16 +25,16 @@ stubs and explicit CUDA errors.
 
 ## Work
 
-- [ ] Generate export map, aliases, stubs, and `cuGetProcAddress` table from a
+- [x] Generate export map, aliases, stubs, and `cuGetProcAddress` table from a
   checked-in ABI manifest.
-- [ ] Use hidden visibility and prove the exact symbol/version set and simultaneous
+- [x] Use hidden visibility and prove the exact symbol/version set and simultaneous
   CUDA/NVML loading.
-- [ ] Implement lazy reentrant initialization without constructors, threads,
+- [x] Implement lazy reentrant initialization without constructors, threads,
   sockets, or allocation before the first real API call.
-- [ ] Implement device/context/module/function/memory/stream/event object tables.
+- [x] Implement device/context/module/function/memory/stream/event object tables.
 - [ ] Route launch, copy, event, and synchronization through the shared fast path.
-- [ ] Implement `CUDA_VISIBLE_DEVICES` filtering/reordering and stable errors.
-- [ ] Run the acceptance application against interpreter, cold/warm JIT, and AOT.
+- [x] Implement `CUDA_VISIBLE_DEVICES` filtering/reordering and stable errors.
+- [x] Run the acceptance application against interpreter, cold/warm JIT, and AOT.
 
 ## Exit Gate
 

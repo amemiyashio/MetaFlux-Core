@@ -1,0 +1,8 @@
+libcuda.so.1 {
+  global:
+    cuInit;
+    cuDriverGetVersion;
+    cuGetProcAddress;
+  local:
+    *;
+};

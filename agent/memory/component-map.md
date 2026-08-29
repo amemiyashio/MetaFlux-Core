@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-08-28
+updated: 2026-08-29
 ---
 
 # Component Map
@@ -18,6 +18,7 @@ boundary.
 | Services | Registry/policy authority, compiler isolation, leased workers | [services](../../services/README.md) |
 | Transports | Negotiation and generation-bound data movement | [transports](../../transports/README.md) |
 | Kernel | cdev, mappings, waits, PCI binding, lifecycle reference safety | [kernel](../../kernel/README.md) |
+| Toolchains | Tool versions, immutable inputs, patches, provisioning boundary, and acquisition routing | [toolchains](../../toolchains/README.md) |
 | Packaging | NixOS and generic release integration | [packaging](../../packaging/README.md) |
 | Cross-component tests | ABI, integration, compatibility, fault, qualification | [tests](../../tests/README.md) |
 | Repository layout | Directory taxonomy, dependency direction, navigation | [repo layout](../../docs/architecture/repo-layout.md) |
@@ -26,4 +27,3 @@ Dependency direction is contracts outward. Compatibility plugins and execution
 backends meet through runtime contracts, never through direct ecosystem-to-target
 dependencies. Control/data-plane authority is tracked in the
 [proposed architecture record](../../docs/architecture/control-and-data-plane.md).
-

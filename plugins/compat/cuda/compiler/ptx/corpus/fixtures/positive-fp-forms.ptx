@@ -1,0 +1,36 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.entry fp_forms(
+  .param .u64 out_add,
+  .param .u64 out_sub,
+  .param .u64 out_mul,
+  .param .u64 out_mad,
+  .param .u64 out_fma,
+  .param .f32 a,
+  .param .f32 b,
+  .param .f32 c
+)
+{
+  .reg .b64 %rd<5>;
+  .reg .f32 %f<8>;
+  ld.param.u64 %rd0, [out_add];
+  ld.param.u64 %rd1, [out_sub];
+  ld.param.u64 %rd2, [out_mul];
+  ld.param.u64 %rd3, [out_mad];
+  ld.param.u64 %rd4, [out_fma];
+  ld.param.f32 %f0, [a];
+  ld.param.f32 %f1, [b];
+  ld.param.f32 %f2, [c];
+  add.rn.f32 %f3, %f0, %f1;
+  sub.rn.f32 %f4, %f0, %f1;
+  mul.rn.f32 %f5, %f0, %f1;
+  mad.rn.f32 %f6, %f0, %f1, %f2;
+  fma.rn.f32 %f7, %f0, %f1, %f2;
+  st.global.f32 [%rd0], %f3;
+  st.global.f32 [%rd1], %f4;
+  st.global.f32 [%rd2], %f5;
+  st.global.f32 [%rd3], %f6;
+  st.global.f32 [%rd4], %f7;
+  ret;
+}

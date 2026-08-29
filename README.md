@@ -9,15 +9,15 @@ Agents start at [`AGENTS.md`](AGENTS.md) before making any change.
 
 ## Bootstrap
 
-The authoritative development environment is Nix. CMake describes project
-targets, Ninja executes the build graph, and Clang/LLD compile and link userspace
-code.
+Nix pins and materializes repository tools. CMake owns the project build graph,
+Ninja executes it, CTest owns test execution, and Clang/LLD compile and link
+userspace code. Invoke each owning command directly through the development
+shell:
 
 ```sh
-nix develop path:.
-cmake --preset dev
-cmake --build --preset dev
-ctest --preset dev
+nix develop . --command cmake --preset dev
+nix develop . --command cmake --build --preset dev
+nix develop . --command ctest --preset dev
 ```
 
 The Linux kernel modules introduced in v0.2 are built separately by the target

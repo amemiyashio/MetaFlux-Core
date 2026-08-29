@@ -1,0 +1,11 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.entry unsupported(.param .u64 output)
+{
+  .reg .b32 %r;
+  .reg .b64 %rd;
+  ld.param.u64 %rd, [output];
+  atom.global.add.u32 %r, [%rd], 1;
+  ret;
+}

@@ -35,6 +35,6 @@ through the encoded contracts (`contracts/protocol/`, `contracts/shared/`) and,
 for cdev, the kernel UAPI in `contracts/uapi/linux/`. This single-directory
 two-image split mirrors how Wine keeps a DLL's PE side and its `unix/` side
 together while compiling them into separate load images, and it lets
-`nix/lib/source.nix` grant the provider package only the `client/` halves.
-Component roles are enforced by `tools/check-component-graph.py`; the transport
-role rows freeze the rules the first implementation must satisfy.
+CMake select only the required half for each load image. Component roles are
+enforced by `tools/check-component-graph.py`; the transport role rows freeze the
+rules the first implementation must satisfy.

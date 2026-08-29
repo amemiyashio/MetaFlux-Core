@@ -18,6 +18,7 @@ int main() {
       0,
       nullptr,
   };
-  const mf_backend_api_v1 api{header};
+  mf_backend_api_v1 api{};
+  api.header = header;
   return api.header.abi_version == MF_BACKEND_ABI_VERSION_1 ? 0 : 1;
 }

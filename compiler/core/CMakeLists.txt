@@ -1,4 +1,11 @@
-add_library(metaflux_compiler_core STATIC src/compiler.cpp)
+add_library(
+  metaflux_compiler_core STATIC
+  src/cache.cpp
+  src/artifact_cache.cpp
+  src/compiler.cpp
+  src/kernel_ir.cpp
+  src/reference.cpp
+)
 add_library(MetaFlux::CompilerCore ALIAS metaflux_compiler_core)
 
 target_include_directories(
@@ -18,3 +25,7 @@ metaflux_register_component_graph_entry(
   compiler-core
   CXX
 )
+
+if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
+  add_subdirectory(tests)
+endif()

@@ -1,0 +1,4 @@
+d /var/cache/metaflux 0750 metaflux metaflux -
+d /var/cache/metaflux/compiler/users 0750 metaflux metaflux -
+d /var/lib/metaflux 0750 metaflux metaflux -
+d /var/lib/metaflux/aot 0755 root root -

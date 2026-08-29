@@ -4,7 +4,7 @@ milestone: M0003
 status: Queued
 area: kernel.vroot
 depends_on: [M0003-W03]
-updated: 2026-08-28
+updated: 2026-08-29
 ---
 
 # Experimental Bare-Metal vPCI Presentation
@@ -68,12 +68,12 @@ node, or changes a vendor-owned node.
 - [ ] Fuzz config offset, width, writable masks, and init-failure cleanup.
 - [ ] Run 1,000 add/remove and load/unload cycles under concurrent `lspci`,
   rescan, open, mmap, and submit on Linux 6.12 and 6.18.
-- [ ] Produce `packages.x86_64-linux.metaflux-vroot-dkms`,
-  `packages.x86_64-linux.metaflux-vroot-launcher`, and
-  `checks.x86_64-linux.baremetal-vpci`; qualify signing, install/upgrade,
-  namespace isolation, coexistence, and uninstall for this separate package. The
-  launcher and check depend on the vroot package, never the M0002 base
-  `metaflux-vpci-dkms` output.
+- [ ] Produce packaging-owned `metaflux-vroot-dkms` and
+  `metaflux-vroot-launcher` artifacts plus the tests-owned `baremetal-vpci`
+  qualification gate; qualify signing, install/upgrade, namespace isolation,
+  coexistence, and uninstall for this separate package. The launcher and gate
+  depend on the vroot package, never the M0002 base `metaflux-vpci-dkms`
+  artifact.
 - [ ] Measure vroot/config/sysfs/`lspci` and 1 Hz `nvidia-smi` overhead separately
   from lifecycle core, including proof that launch never enters
   `metaflux_vroot.ko`.
@@ -87,4 +87,5 @@ scan-visible unbound function never owns nodes or registry `ONLINE`, and failed
 MetaFlux probe is removed without fallthrough. This promotes only the separate
 experimental package and never delays the lifecycle core. Vroot throughput loss
 is at most 0.5%, 1 Hz `nvidia-smi` remains inside the M0001 compute-impact budget,
-and the three named package/check outputs pass their release gates.
+and the two named packages plus the tests-owned qualification gate pass their
+release criteria.

@@ -4,7 +4,7 @@ milestone: M0004
 status: Queued
 area: release.vulkan
 depends_on: [M0003-W03, M0004-W02, M0004-W04, M0004-W05]
-updated: 2026-08-27
+updated: 2026-08-29
 ---
 
 # Vulkan Performance, Fault, and Release
@@ -14,18 +14,17 @@ updated: 2026-08-27
 Qualify latency, throughput, memory tiers, device loss, packaging, and coexistence
 with raw device/driver/compiler/transport/topology fingerprints.
 
-Required outputs or equivalent checks are:
+Required packaging artifact and tests-owned qualification gates are:
 
 ```text
-packages.x86_64-linux.metaflux-backend-vulkan
-checks.x86_64-linux.vulkan
-checks.x86_64-linux.vulkan-cache
-checks.x86_64-linux.vulkan-local-transport
-checks.x86_64-linux.vulkan-guest-transport
+packaging: metaflux-backend-vulkan
+qualification: vulkan, vulkan-cache, vulkan-local-transport, vulkan-guest-transport
 ```
 
-Nix pins Vulkan headers/loader, MLIR inputs, SPIRV-Tools, validation layers, and
-CI driver images. Generic artifacts require no `/nix/store` runtime path.
+Toolchain manifests pin Vulkan headers/loader, MLIR inputs, SPIRV-Tools, and
+validation-layer versions; Nix exposes those fixed tools. The owning test
+harness provides CI driver images and executes qualification. Generic artifacts
+require no `/nix/store` runtime path.
 
 When Vulkan reports device loss, the backend rejects new work and reports
 `LOST`; M0003 publishes `DEVICE_LOST` within its deadline. Old allocations,

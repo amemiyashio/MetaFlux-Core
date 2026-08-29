@@ -10,7 +10,7 @@
       "name": "base",
       "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/${presetName}",
+      "binaryDir": "${sourceParentDir}/.metaflux-build/${sourceDirName}/${presetName}",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
         "METAFLUX_ENABLE_WERROR": "ON",
@@ -80,6 +80,7 @@
         "METAFLUX_BUILD_CUDA_PTX_FRONTEND": "OFF",
         "METAFLUX_BUILD_DAEMON": "OFF",
         "METAFLUX_BUILD_COMPILER": "OFF",
+        "METAFLUX_BUILD_CPU_BACKEND_COMPILER": "OFF",
         "METAFLUX_BUILD_CPU_BACKEND_RUNTIME": "OFF",
         "METAFLUX_ENABLE_LTO": "ON"
       }

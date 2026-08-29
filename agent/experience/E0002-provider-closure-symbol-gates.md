@@ -20,11 +20,11 @@ and a combined test condition can leave single-provider builds unqualified.
 - Test bootstrap version, exact SONAME, exact `DT_NEEDED`, and exact versioned
   MetaFlux exports independently for each provider.
 - Keep the simultaneous CUDA/NVML `dlopen` test as a separate dual-provider gate.
-- Check the installed Nix closure as well as build-tree ELF metadata.
+- Check the installed package payload as well as build-tree ELF metadata.
 
 The implementation lives in the [provider targets](../../plugins/compat/cuda/),
-[ABI test registration](../../tests/CMakeLists.txt), and
-[release closure check](../../nix/checks/default.nix).
+[ABI test registration](../../tests/CMakeLists.txt), and repository-owned
+[release package matrices](../../tests/release/README.md).
 
 ## Evidence and revalidation
 
@@ -35,8 +35,9 @@ At checkpoint
 - CUDA-only and NVML-only: 5/5 tests passed independently.
 - Installed providers exposed their intended versioned bootstrap fixture and
   depended only on `libc.so.6`.
-- `nix flake check path:.` passed the provider release-closure gate.
+- The then-current broad Nix check reported a passing provider release-closure
+  gate. This is preserved as a historical result, not current qualification
+  evidence; the owning CTest and release-package harnesses must revalidate it.
 
 Revalidate whenever a provider manifest, link dependency, compiler flags,
 sysroot, or fast-path implementation changes.
-

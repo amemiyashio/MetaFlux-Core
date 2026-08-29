@@ -1,10 +1,10 @@
 ---
 id: M0001-W05
 milestone: M0001
-status: Queued
+status: Active
 area: compat.cuda.nvml
 depends_on: [M0001-W02, M0001-W04]
-updated: 2026-08-28
+updated: 2026-08-29
 ---
 
 # NVML Provider and stock nvidia-smi
@@ -31,15 +31,15 @@ control fence.
 
 ## Work
 
-- [ ] Generate manifests and structure assertions for selected R535, R550, R570,
+- [x] Generate manifests and structure assertions for selected R535, R550, R570,
   R580, and R610 headers.
-- [ ] Implement the required function families, direct shared-page getters, and
+- [x] Implement the required function families, direct shared-page getters, and
   socket-based setters.
-- [ ] Validate zero/one/multiple devices; require default unfiltered CUDA/NVML
+- [x] Validate zero/one/multiple devices; require default unfiltered CUDA/NVML
   count/order parity for the same initial revision, then map a filtered/reordered
   CUDA view to unchanged NVML rows by `(UUID, generation)` rather than ordinal or
   BDF alone.
-- [ ] Test stock `nvidia-smi -L`, summary, CSV, `compute-apps`, and required
+- [x] Test stock `nvidia-smi -L`, summary, CSV, `compute-apps`, and required
   `-q/-x` combinations for every target version.
 
 ## Exit Gate

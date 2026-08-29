@@ -1,0 +1,16 @@
+{
+  "project_version": "@PROJECT_VERSION@",
+  "compiler_epoch": @METAFLUX_COMPILER_EPOCH_JSON_INLINE@,
+  "compiler_epoch_descriptor_sha256": "@METAFLUX_COMPILER_EPOCH_SHA256@",
+  "c_compiler": "@CMAKE_C_COMPILER_ID@ @CMAKE_C_COMPILER_VERSION@",
+  "cxx_compiler": "@CMAKE_CXX_COMPILER_ID@ @CMAKE_CXX_COMPILER_VERSION@",
+  "cpu_toolchain_fingerprint": "@METAFLUX_CPU_TOOLCHAIN_FINGERPRINT@",
+  "provider_epoch_descriptor_sha256": "@METAFLUX_PROVIDER_EPOCH_SHA256@",
+  "linker_selection": "@METAFLUX_LINKER_SELECTION@",
+  "lto": "@METAFLUX_ENABLE_LTO@",
+  "pgo_mode": "@METAFLUX_PGO_MODE@",
+  "pgo_profile_id": "@METAFLUX_PGO_PROFILE_ID@",
+  "pgo_profile_origin": "@METAFLUX_PGO_PROFILE_ORIGIN@",
+  "pgo_profile_sha256": "@METAFLUX_PGO_PROFILE_SHA256@",
+  "build_type": "@CMAKE_BUILD_TYPE@"
+}

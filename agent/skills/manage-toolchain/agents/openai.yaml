@@ -1,0 +1,4 @@
+interface:
+  display_name: "Toolchain Governance"
+  short_description: "Pin tools without moving project workflows into Nix"
+  default_prompt: "Use $manage-toolchain to update or review this repository tool version while preserving the Nix responsibility boundary."

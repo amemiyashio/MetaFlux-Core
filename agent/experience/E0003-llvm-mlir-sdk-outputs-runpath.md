@@ -25,9 +25,10 @@ need an explicit runtime search path outside a Nix development shell.
 - Qualify `LLVMConfig.cmake`, `MLIRConfig.cmake`, headers, required LLVM targets,
   an MLIR consumer link/run, the resulting RUNPATH, and a plain C compiler probe.
 
-The implementation and executable qualification are in
-[`nix/toolchains/default.nix`](../../nix/toolchains/default.nix) and the
-[`toolchain-sdk` check](../../nix/checks/default.nix).
+The tool materialization implementation is in
+[`nix/toolchains/default.nix`](../../nix/toolchains/default.nix). Executable
+qualification belongs to the toolchain's version and standalone SDK-consumer
+probes, not a project build or release check.
 
 ## Boundary
 
@@ -38,8 +39,10 @@ artifacts have no required Nix store RUNPATH. See
 
 ## Evidence and revalidation
 
-`nix flake check path:.` passed and the `toolchain`, `runtime`, `provider`, and
-`daemon` packages built at checkpoint
+The then-current broad Nix check passed and the toolchain plus three product
+packages built at checkpoint
 [P20260827-001](../progress/checkpoints/2026/P20260827-001-engineering-bootstrap-baseline.md).
-Revalidate on every compiler epoch or Nix output-layout change.
-
+The product-package portion is historical context and is not current product
+build or release evidence. Revalidate the toolchain itself with version probes
+and the LLVM/MLIR consumer check on every compiler epoch or Nix output-layout
+change; revalidate products through their CMake, CTest, and packaging owners.

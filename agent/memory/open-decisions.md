@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-08-28
+updated: 2026-08-29
 ---
 
 # Open Decisions
@@ -16,14 +16,6 @@ fail.
 
 | Milestone | Decision | Blocks | Closure condition |
 | --- | --- | --- | --- |
-| M0001 | Release distribution matrix (glibc baseline closed by D0009) | Generic packaging | Before W06 release qualification |
-| M0001 | Exact LLVM 22 correctness patchset and derivation hash | Toolchain reproducibility | Before W03 compiler work |
-| M0001 | Exact PTX corpus and instruction/capability manifest | Interpreter and JIT correctness | Before W03 oracle freeze |
-| M0001 | CUDA/NVML header acquisition and manifest update procedure | W04 provider ABI generation | Before W04 symbol manifest |
-| M0001 | Vendor library discovery rules per supported distribution | W06 passthrough | Before W06 coexistence tests |
-| M0001 | Cache root, ownership, quota, eviction, and multi-user isolation | W03 cache | Before W03 cache freeze |
-| M0001 | CPU worker topology, NUMA placement, and CTA stealing policy | W03 execution | Before W03 execution freeze |
-| M0001 | Private shared LLVM versus static compiler closure for the generic daemon, decided from cold-start and RSS measurements | Daemon packaging | From cold-start and RSS measurements |
 | M0002 | Exact base data-plane UAPI v1 and extension namespace | Transport freeze | Only after M0002-W04 evidence |
 | M0002 | Exact Linux, QEMU, and libvfio-user support matrix | Kernel and guest qualification | Before W02/W03 kernels are pinned |
 | M0002 | QEMU shared-memory command line and deployment ownership | Guest fixture | Before W03 guest slice |

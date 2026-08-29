@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "manifest_epoch": 1,
+  "required_driver_families": ["R535", "R550", "R570", "R580", "R610"],
+  "manifests": [
+    {
+      "driver_family": "R535",
+      "path": "toolchains/nvidia-headers/r535.json",
+      "sha256": "89cc923b72e0c36b3caed3a9ee08c96add3dd6acf8188cf2c3f03241248e5525"
+    },
+    {
+      "driver_family": "R550",
+      "path": "toolchains/nvidia-headers/r550.json",
+      "sha256": "b523d45fdea80ea60f685c0664f77aafdead2dcff06c8671fbbce1cc4519e32c"
+    },
+    {
+      "driver_family": "R570",
+      "path": "toolchains/nvidia-headers/r570.json",
+      "sha256": "aa7c82170d56b15748278dc08b262e721163db504ca4f45ec4bd16fd7e1c8042"
+    },
+    {
+      "driver_family": "R580",
+      "path": "toolchains/nvidia-headers/r580.json",
+      "sha256": "59e4ee512c957aa33bbab56439a573fcab156931d85d9fb580dc4f999ad4fa56"
+    },
+    {
+      "driver_family": "R610",
+      "path": "toolchains/nvidia-headers/r610.json",
+      "sha256": "964c6f363927d21389c7de6467205a03d45d8d51179f4772197896f7c9a712fa"
+    }
+  ],
+  "update_policy": {
+    "selector": "exact-package-version-and-filename",
+    "repository_metadata": "signed-inrelease-and-packages-snapshot",
+    "bump": "explicit-manifest-epoch-only",
+    "stock_tool_evidence": "separate-binary-build-id-hash-and-run-output"
+  }
+}

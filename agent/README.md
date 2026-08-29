@@ -3,8 +3,8 @@
 ## Before changing anything
 
 1. If a task matches an [expert skill](skills/README.md), follow it verbatim.
-2. Scaffold a session first: `python3 tools/new-session.py <slug>` — the
-   pre-commit hook blocks non-`agent/` changes without an in-progress session.
+2. Scaffold a session first for durable work: `python3 tools/new-session.py
+   <slug>`. A session is a curated ledger and cleanup boundary, not a snapshot.
 3. Never relax a durable constraint in [`memory/constraints.md`](memory/constraints.md)
    without a recorded decision.
 
@@ -41,7 +41,7 @@ contract. Agent records link to canonical material instead of copying it.
 | `experience/` | Reusable procedures supported by evidence | Validate before relying on them; supersede instead of silently rewriting conclusions |
 | `progress/current.md` | Replaceable resume point | Refresh after material state changes |
 | `progress/checkpoints/` | Immutable historical snapshots | Append corrections; never rewrite history |
-| `sessions/` | MetaFlux task objectives, technical decisions, commands, results, outputs, notes, and summaries | Keep repository-scoped; do not capture conversations or unrelated context |
+| `sessions/` | Curated task objective, material decisions/results, cleanup, and resume summary | Keep compact; Git owns source history, and disposable failed-route artifacts are removed at handoff |
 | `skills/` | Codex skill packages for repository-specific work | Load on demand; keep `SKILL.md` standard-compatible and verify repository-changing procedures proportionately |
 | `templates/` | Required record shapes | Keep fields and status vocabularies stable |
 
@@ -81,7 +81,8 @@ performance budget is `provisional` until the measurement harness it names
 exists and a baseline is archived; provisional budgets guide design but do not
 fail acceptance. Session summaries recorded from 2026-08-28 onward require a
 `Distillation` section stating what was promoted into durable records (`none`
-is valid); unresolved decisions are aggregated in
+is valid). Sessions from 2026-08-29 onward also require a `Cleanup` section
+naming removed and intentionally retained session-owned artifacts. Unresolved decisions are aggregated in
 [`memory/open-decisions.md`](memory/open-decisions.md) and scaffold new sessions
 with `tools/new-session.py`.
 

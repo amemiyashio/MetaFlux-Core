@@ -1,0 +1,8 @@
+libnvidia-ml.so.1 {
+  global:
+    nvmlInit_v2;
+    nvmlShutdown;
+    nvmlSystemGetDriverVersion;
+  local:
+    *;
+};

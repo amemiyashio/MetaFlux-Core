@@ -4,9 +4,31 @@ if(NOT EXISTS "${METAFLUX_COMPILER_EPOCH_FILE}")
 endif()
 
 file(READ "${METAFLUX_COMPILER_EPOCH_FILE}" METAFLUX_COMPILER_EPOCH_JSON)
+file(SHA256 "${METAFLUX_COMPILER_EPOCH_FILE}" METAFLUX_COMPILER_EPOCH_SHA256)
 string(REGEX REPLACE "[\r\n]+" "" METAFLUX_COMPILER_EPOCH_JSON_INLINE "${METAFLUX_COMPILER_EPOCH_JSON}")
 string(JSON METAFLUX_COMPILER_EPOCH GET "${METAFLUX_COMPILER_EPOCH_JSON}" epoch)
 string(JSON METAFLUX_LLVM_EPOCH_VERSION GET "${METAFLUX_COMPILER_EPOCH_JSON}" llvm_version)
+string(JSON METAFLUX_LLVM_SOURCE_REVISION GET "${METAFLUX_COMPILER_EPOCH_JSON}" llvm_source_revision)
+string(
+  JSON METAFLUX_DOWNSTREAM_PATCH_ID
+  GET "${METAFLUX_COMPILER_EPOCH_JSON}"
+  downstream_patches 0 id
+)
+string(
+  JSON METAFLUX_DOWNSTREAM_PATCH_SHA256
+  GET "${METAFLUX_COMPILER_EPOCH_JSON}"
+  downstream_patches 0 sha256
+)
+string(
+  JSON METAFLUX_DOWNSTREAM_PATCH_UPSTREAM_COMMIT
+  GET "${METAFLUX_COMPILER_EPOCH_JSON}"
+  downstream_patches 0 upstream_commit
+)
+string(
+  JSON METAFLUX_DOWNSTREAM_PATCH_UPSTREAM_SHA256
+  GET "${METAFLUX_COMPILER_EPOCH_JSON}"
+  downstream_patches 0 upstream_patch_sha256
+)
 
 if(NOT CMAKE_C_COMPILER_ID STREQUAL "Clang")
   message(FATAL_ERROR "Compiler epoch ${METAFLUX_COMPILER_EPOCH} requires Clang")
@@ -36,21 +58,62 @@ else()
   set(METAFLUX_LINKER_SELECTION "compiler-default")
 endif()
 
+set(
+  METAFLUX_CPU_TOOLCHAIN_FINGERPRINT
+  "epoch=${METAFLUX_COMPILER_EPOCH};llvm=${METAFLUX_LLVM_EPOCH_VERSION};source=${METAFLUX_LLVM_SOURCE_REVISION};patch-sha256=${METAFLUX_DOWNSTREAM_PATCH_SHA256}"
+)
+set(METAFLUX_PGO_PROFILE_SHA256 "none")
+set(METAFLUX_PGO_PROFILE_ID "none")
+set(METAFLUX_PGO_PROFILE_ORIGIN "none")
+if(METAFLUX_PGO_MODE STREQUAL "USE")
+  file(SHA256 "${METAFLUX_PGO_PROFILE}" METAFLUX_PGO_PROFILE_SHA256)
+  set(METAFLUX_PGO_PROFILE_ID "sha256-${METAFLUX_PGO_PROFILE_SHA256}")
+  set(METAFLUX_PGO_PROFILE_ORIGIN "input")
+endif()
+
+set(
+  METAFLUX_PROVIDER_EPOCH_DESCRIPTOR
+  "${CMAKE_CURRENT_BINARY_DIR}/metaflux-provider-compiler-epoch-1.json"
+)
+configure_file(
+  "${CMAKE_CURRENT_LIST_DIR}/metaflux-provider-compiler-epoch.json.in"
+  "${METAFLUX_PROVIDER_EPOCH_DESCRIPTOR}"
+  @ONLY
+)
+file(SHA256 "${METAFLUX_PROVIDER_EPOCH_DESCRIPTOR}" METAFLUX_PROVIDER_EPOCH_SHA256)
+
 configure_file(
   "${CMAKE_CURRENT_LIST_DIR}/metaflux-build-manifest.json.in"
   "${CMAKE_CURRENT_BINARY_DIR}/metaflux-build-manifest.json"
   @ONLY
 )
+configure_file(
+  "${CMAKE_CURRENT_LIST_DIR}/metaflux-compiler-build-manifest.json.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/metaflux-compiler-build-manifest.json"
+  @ONLY
+)
 
-foreach(component IN ITEMS Runtime Provider Daemon)
+foreach(component IN ITEMS Runtime Provider)
   install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/metaflux-build-manifest.json"
     DESTINATION "${CMAKE_INSTALL_DATADIR}/metaflux"
     COMPONENT ${component}
   )
-  install(
-    FILES "${METAFLUX_COMPILER_EPOCH_FILE}"
-    DESTINATION "${CMAKE_INSTALL_DATADIR}/metaflux/toolchains"
-    COMPONENT ${component}
-  )
 endforeach()
+
+install(
+  FILES "${CMAKE_CURRENT_BINARY_DIR}/metaflux-compiler-build-manifest.json"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/metaflux"
+  RENAME metaflux-build-manifest.json
+  COMPONENT Daemon
+)
+install(
+  FILES "${METAFLUX_PROVIDER_EPOCH_DESCRIPTOR}"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/metaflux/toolchains"
+  COMPONENT Provider
+)
+install(
+  FILES "${METAFLUX_COMPILER_EPOCH_FILE}"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/metaflux/toolchains"
+  COMPONENT Daemon
+)

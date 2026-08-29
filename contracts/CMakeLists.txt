@@ -1,5 +1,16 @@
 set(metaflux_runtime_contract_targets)
 
+set(METAFLUX_BUILD_SHARED_DEVICE_LAYOUT ON)
+metaflux_add_component(
+  ID contract.shared-device-layout
+  ROLE shared-device-layout
+  OPTION METAFLUX_BUILD_SHARED_DEVICE_LAYOUT
+  DIRECTORY shared/device/v1
+  TARGET metaflux_shared_device_layout
+  LANGUAGE C
+)
+list(APPEND metaflux_runtime_contract_targets metaflux_shared_device_layout)
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/plugin/backend/v1/include/metaflux/backend/api.h")
   add_library(metaflux_backend_plugin_api INTERFACE)
   add_library(MetaFlux::BackendPluginApi ALIAS metaflux_backend_plugin_api)
@@ -51,13 +62,20 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/protocol/client/v1/include/metaflux/clien
   )
 endif()
 
-if(TARGET metaflux_backend_plugin_api AND TARGET metaflux_client_protocol)
+if(
+  TARGET metaflux_backend_plugin_api
+  AND TARGET metaflux_client_protocol
+  AND TARGET metaflux_shared_device_layout
+)
   add_library(metaflux_contracts INTERFACE)
   add_library(MetaFlux::Contracts ALIAS metaflux_contracts)
   set_target_properties(metaflux_contracts PROPERTIES EXPORT_NAME Contracts)
   target_link_libraries(
     metaflux_contracts
-    INTERFACE MetaFlux::BackendPluginApi MetaFlux::ClientProtocol
+    INTERFACE
+      MetaFlux::BackendPluginApi
+      MetaFlux::ClientProtocol
+      MetaFlux::SharedDeviceLayout
   )
   list(APPEND metaflux_runtime_contract_targets metaflux_contracts)
 endif()
@@ -68,4 +86,10 @@ if(metaflux_runtime_contract_targets)
     EXPORT MetaFluxRuntimeTargets
     COMPONENT Runtime
   )
+endif()
+
+if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
+  add_subdirectory(shared/device/v1/tests)
+  add_subdirectory(protocol/client/v1/tests)
+  add_subdirectory(plugin/backend/v1/tests)
 endif()
