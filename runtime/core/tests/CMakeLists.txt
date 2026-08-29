@@ -60,6 +60,21 @@ set_tests_properties(
   PROPERTIES LABELS "abi;integration;recovery" TIMEOUT 60
 )
 
+add_executable(metaflux_runtime_multiprocess_stress_test multiprocess_stress.cpp)
+target_link_libraries(
+  metaflux_runtime_multiprocess_stress_test
+  PRIVATE MetaFlux::RuntimeCore
+)
+metaflux_configure_target(metaflux_runtime_multiprocess_stress_test CXX)
+add_test(
+  NAME metaflux.stress.runtime-multiprocess-recovery
+  COMMAND metaflux_runtime_multiprocess_stress_test
+)
+set_tests_properties(
+  metaflux.stress.runtime-multiprocess-recovery
+  PROPERTIES LABELS "abi;stress;recovery" TIMEOUT 120
+)
+
 add_executable(metaflux_runtime_fastpath_registry_test fastpath_registry.cpp)
 target_link_libraries(
   metaflux_runtime_fastpath_registry_test
