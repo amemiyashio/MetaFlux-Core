@@ -67,6 +67,7 @@ PGO_TRAINING_TESTS = (
     "metaflux.performance.fastpath-smoke",
     "metaflux.performance.m0001-ring-smoke",
     "metaflux.stress.daemon-million-noop",
+    "metaflux.unit.client-fastpath-ring",
 )
 
 PROVIDER_VARIANT_TESTS = (
