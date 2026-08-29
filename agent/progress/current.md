@@ -2,30 +2,67 @@
 status: Active
 updated: 2026-08-29
 milestone: M0001
-workstream: M0001-W01
-checkpoint: P20260829-005
+workstream: M0001-W06
+checkpoint: P20260829-006
 ---
 
 # Current Progress
 
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
-[M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260829-005](checkpoints/2026/P20260829-005-stage-breakthrough-commit-policy.md).
+[M0001-W06](../plan/M0001-core-foundation/work/W06-modes-release.md). Latest checkpoint:
+[P20260829-006](checkpoints/2026/P20260829-006-cgroup-cpuset-fix-and-implementation-audit.md).
 
 ## Current state
 
 Session
 [S20260828-013](../sessions/2026/08/S20260828-013-m0001-foundation/summary.md)
-is implementing the M0001 registry/fast path, PTX and Kernel IR path, CPU
-backend, compiler worker, and CUDA/NVML compatibility surfaces. Those paths are
-still in progress; implementation presence does not close their workstream exit
-gates or release qualification.
+is implementing the M0001 vertical slice. Revision `694272a` fixes cgroup cpuset
+fallback for scopes without cpuset controller and confirms W02/W03/W04 are fully
+implemented. The active session is now a 14-event curated ledger.
 
-That active session is now a 13-event curated ledger. It records no end time
-until closure, resumes from current main rather than its implementation evidence
-revision, and directs each continuation to reload the expert skill matching the
-selected work item.
+## Verified implementation audit
+
+The full audit of unchecked M0001 work items confirms:
+
+- **W02**: Registry, dynamic latch pages, generation-bound handles, and
+  stale-handle errors are implemented in `runtime/core/src/registry_recovery.cpp`
+  (2294 lines) and `runtime.cpp`. Stress evidence: recovery50/50 ordinary +
+  20/20 ASan zero failures; million-noop daemon stress30 iterations in progress.
+- **W03**: Daemon control lifecycle, SO_PEERCRED credentials, Unix socket
+  activation, and isolated compiler workers are implemented in
+  `services/metafluxd/server.cpp` and `compiler_worker_process.cpp` with no
+  `libsystemd` dependency. Cache deterministic keys, atomic publication,
+  corruption recovery, quota/eviction, epoch isolation, and AOT prewarm manifests
+  are implemented in `compiler/core/src/artifact_cache.cpp` (1394 lines).
+- **W04**: Launch, copy, event, and synchronization route through the shared
+  fast path in `plugins/compat/cuda/abi/driver/src/dispatch.c` via
+  `runtime/client/fastpath/src/fastpath.c`.
+
+## Cgroup cpuset fix
+
+Revision `694272a` adds `read_list_file_up()` to walk the cgroup v2 directory
+hierarchy for `cpuset.cpus.effective` and `cpuset.mems.effective`. When no
+ancestor has the cpuset controller mounted, the constraint is treated as
+unconstrained (fall back to `sched_getaffinity` for CPUs, online nodes for
+memory). This resolves14 test failures in environments where the process cgroup
+scope does not have the cpuset controller delegated.
+
+## Verified test evidence
+
+| Gate | Result |
+| --- | --- |
+| Dev CTest |59/59 pass |
+| ASan CTest |59/59 pass |
+| Recovery stress (ordinary) |50/50 pass, zero failures |
+| Recovery stress (ASan) |20/20 pass, zero failures |
+| Daemon integration (cross-process, execution-modes, compiler-worker, process-snapshot, pre-negotiation-admission) |5/5 pass |
+| Fastpath + provider (18 tests) |18/18 pass |
+| Provider co-load (coexistence) | Pass |
+| CPU Add/Copy differential | Pass |
+| check-agent-records | ok |
+| Optimization runner self-test |12/12 pass |
+| Measurement runner self-test |12/12 pass |
 
 [D0022](../memory/decisions-index.md) supersedes D0021 and restores the tool
 boundary:
