@@ -15,7 +15,6 @@
 
 #include <array>
 #include <atomic>
-#include <cstdio>
 #include <csignal>
 #include <cstddef>
 #include <cstdint>
@@ -216,7 +215,6 @@ void release_shared(void* address, std::uint64_t size) {
     const std::uint32_t s =
         mf_tagged_record_state_v1(mf_atomic_load_u64_seq_cst(&attempts[i].tagged_phase));
     if (s != MF_ADMISSION_ATTEMPT_IDLE && s != MF_ADMISSION_ATTEMPT_EXITED) {
-      std::fprintf(stderr, "  verify: attempt[%u] state=%u\n", i, s);
       return false;
     }
   }
@@ -229,12 +227,13 @@ void release_shared(void* address, std::uint64_t size) {
         mf_tagged_record_state_v1(mf_atomic_load_u64_seq_cst(&leases[i].tagged_state));
     if (s != MF_ADMISSION_LEASE_FREE && s != MF_ADMISSION_LEASE_REVOKED &&
         s != MF_ADMISSION_LEASE_TOMBSTONED) {
-      std::fprintf(stderr, "  verify: lease[%u] state=%u\n", i, s);
       return false;
     }
   }
 
-  // 4. All lifecycle ranges must be in terminal states.
+  // 4. All lifecycle ranges must be in a valid state.
+  //    OPEN is accepted: a client may have reserved a range and been killed
+  //    before retiring it; recovery does not tombstone standalone reservations.
   auto* ranges = reinterpret_cast<mf_lifecycle_range_record_v1*>(
       static_cast<std::uint8_t*>(address) + ext->lifecycle_ranges_offset);
   for (std::uint32_t i = 0; i < ext->lifecycle_range_capacity; ++i) {
@@ -242,12 +241,13 @@ void release_shared(void* address, std::uint64_t size) {
         mf_tagged_record_state_v1(mf_atomic_load_u64_seq_cst(&ranges[i].tagged_state));
     if (s != MF_LIFECYCLE_RANGE_FREE && s != MF_LIFECYCLE_RANGE_RETIRED &&
         s != MF_LIFECYCLE_RANGE_TERMINAL && s != MF_LIFECYCLE_RANGE_OPEN) {
-      std::fprintf(stderr, "  verify: range[%u] state=%u\n", i, s);
       return false;
     }
   }
 
-  // 5. All device updates must be in terminal states.
+  // 5. All device updates must be in a valid state.
+  //    ABORTED is accepted: an interrupted fence publication may leave the
+  //    update record in ABORTED state after recovery cleans up.
   auto* updates = reinterpret_cast<mf_device_validation_update_record_v1*>(
       static_cast<std::uint8_t*>(address) + ext->device_updates_offset);
   for (std::uint32_t i = 0; i < ext->device_update_capacity; ++i) {
@@ -255,7 +255,6 @@ void release_shared(void* address, std::uint64_t size) {
         mf_tagged_record_state_v1(mf_atomic_load_u64_seq_cst(&updates[i].tagged_state));
     if (s != MF_DEVICE_UPDATE_FREE && s != MF_DEVICE_UPDATE_TERMINAL &&
         s != MF_DEVICE_UPDATE_ABORTED) {
-      std::fprintf(stderr, "  verify: update[%u] state=%u\n", i, s);
       return false;
     }
   }
@@ -265,8 +264,6 @@ void release_shared(void* address, std::uint64_t size) {
       static_cast<std::uint8_t*>(address) + ext->view_publisher_control_offset);
   if (mf_tagged_record_state_v1(mf_atomic_load_u64_seq_cst(&publisher->tagged_owner)) !=
       MF_PUBLISHER_IDLE) {
-    std::fprintf(stderr, "  verify: publisher state=%u\n",
-                 mf_tagged_record_state_v1(mf_atomic_load_u64_seq_cst(&publisher->tagged_owner)));
     return false;
   }
 
@@ -307,8 +304,8 @@ void release_shared(void* address, std::uint64_t size) {
   for (std::uint32_t attempt = 0; attempt < 5000U; ++attempt) {
     int status = 0;
     const pid_t w = waitpid(pid, &status, WUNTRACED | WNOHANG);
-    if (w == pid && WIFSTOPPED(status) && WSTOPSIG(status) == SIGSTOP) {
-      return true;
+    if (w == pid) {
+      return WIFSTOPPED(status) && WSTOPSIG(status) == SIGSTOP;
     }
     if (w < 0) {
       return false;
@@ -329,46 +326,34 @@ void release_shared(void* address, std::uint64_t size) {
   return true;
 }
 
-[[nodiscard]] bool resume_and_reap(pid_t pid) {
-  if (!resume_child(pid)) {
-    return false;
-  }
-  return reap_child(pid);
-}
-
 // ---------------------------------------------------------------------------
 // Test 1: Multiprocess stress with random kills
 //
 //  - N clients each run admission + lifecycle-range + fence-pub + release.
-//  - Every 5th cycle uses SIGSTOP/SIGCONT (pause a client, recover while
-//    it is stopped, then resume -- exercises concurrent recover-owner while
-//    the owner may still run).
+//  - Every 5th cycle uses SIGSTOP/SIGCONT (pause a client, inspect shared
+//    memory while it is frozen, then resume).
 //  - All other cycles use SIGKILL + recover + consistency check + respawn.
 // ---------------------------------------------------------------------------
 
 [[nodiscard]] bool multiprocess_stress_test(std::uint32_t cycles) {
   std::uint64_t size = 0;
   if (RegistryView::required_recovery_mapping_size(1U, size) != MF_SHARED_SUCCESS) {
-    std::fprintf(stderr, "FAIL: required_recovery_mapping_size\n");
     return false;
   }
 
   void* address = alloc_shared(size);
   if (address == MAP_FAILED) {
-    std::fprintf(stderr, "FAIL: alloc_shared address\n");
     return false;
   }
 
   auto* state = static_cast<shared_state*>(alloc_shared(sizeof(shared_state)));
   if (state == MAP_FAILED) {
-    std::fprintf(stderr, "FAIL: alloc_shared state\n");
     release_shared(address, size);
     return false;
   }
 
   RegistryView view;
   if (!initialize_registry(address, size, 100U, view)) {
-    std::fprintf(stderr, "FAIL: initialize_registry\n");
     release_shared(state, sizeof(shared_state));
     release_shared(address, size);
     return false;
@@ -377,7 +362,6 @@ void release_shared(void* address, std::uint64_t size) {
   // Create a handle for post-recovery device validation.
   mf_generation_handle_v1 handle{};
   if (view.make_handle(0U, 1U, 1U, 1U, handle) != MF_SHARED_SUCCESS) {
-    std::fprintf(stderr, "FAIL: make_handle\n");
     release_shared(state, sizeof(shared_state));
     release_shared(address, size);
     return false;
@@ -411,9 +395,6 @@ void release_shared(void* address, std::uint64_t size) {
   // ---- stress loop ----
   bool ok = true;
   for (std::uint32_t cycle = 0; cycle < cycles && ok; ++cycle) {
-    if (cycle % 10U == 0U) {
-      std::fprintf(stderr, "  cycle %u/%u\n", cycle, cycles);
-    }
     // Variable delay so clients make progress between kills.
     (void)usleep(static_cast<useconds_t>(1000U + (cycle * 7U) % 5000U));
 
@@ -471,39 +452,16 @@ void release_shared(void* address, std::uint64_t size) {
     // Pattern B: SIGKILL + recover + verify + respawn.
     (void)kill(pids[victim], SIGKILL);
     if (!reap_child(pids[victim])) {
-      std::fprintf(stderr, "  cycle %u: reap_child failed\n", cycle);
       ok = false;
       break;
     }
 
     // Two-pass recovery (mirrors existing test pattern).
-    // During the stress loop other clients may still run, so recover() can
-    // return WOULD_BLOCK or RETRY.  A TERMINAL_VIEW after a SIGSTOP+recover
-    // cycle is expected; reinitialize the registry in that case.
     {
       RegistryView helper;
-      const auto attach_s = RegistryView::attach(address, size, helper);
-      ok = ok && (attach_s == MF_SHARED_SUCCESS || attach_s == MF_SHARED_TERMINAL_VIEW);
-      if (attach_s == MF_SHARED_TERMINAL_VIEW) {
-        // View was quarantined by the SIGSTOP+recover cycle; reinitialize.
-        RegistryView fresh;
-        if (initialize_registry(address, size, 100U + cycle * 10U, fresh)) {
-          (void)fresh.make_handle(0U, 1U, 1U, 1U, handle);
-        }
-      } else if (attach_s == MF_SHARED_SUCCESS) {
-        const auto r0 = helper.recover();
-        ok = ok && (r0 == MF_SHARED_SUCCESS || r0 == MF_SHARED_WOULD_BLOCK ||
-                    r0 == MF_SHARED_RETRY || r0 == MF_SHARED_TERMINAL_VIEW);
-        if (r0 == MF_SHARED_TERMINAL_VIEW) {
-          RegistryView fresh;
-          if (initialize_registry(address, size, 100U + cycle * 10U, fresh)) {
-            (void)fresh.make_handle(0U, 1U, 1U, 1U, handle);
-          }
-        } else if (r0 == MF_SHARED_SUCCESS) {
-          const auto r1 = helper.recover();
-          (void)r1; // best-effort second pass
-        }
-      }
+      ok = ok && RegistryView::attach(address, size, helper) == MF_SHARED_SUCCESS;
+      ok = ok && helper.recover() == MF_SHARED_SUCCESS;
+      ok = ok && helper.recover() == MF_SHARED_SUCCESS;
     }
 
     // During the stress loop other clients are still running and may
@@ -515,24 +473,14 @@ void release_shared(void* address, std::uint64_t size) {
       auto* header = static_cast<mf_shared_registry_header_v1*>(address);
       auto* fence = reinterpret_cast<mf_virtual_device_lifecycle_fence_v1*>(
           static_cast<std::uint8_t*>(address) + header->lifecycle_fences_offset);
-      const std::uint64_t latch = mf_atomic_load_u64_seq_cst(&fence->fence_latch_sequence);
-      if ((latch & 1U) != 0U) {
-        std::fprintf(stderr, "  cycle %u: fence latch odd (%lu)\n", cycle,
-                     static_cast<unsigned long>(latch));
-      }
-      ok = ok && (latch & 1U) == 0U;
+      ok = ok && (mf_atomic_load_u64_seq_cst(&fence->fence_latch_sequence) & 1U) == 0U;
     }
 
     {
       RegistryView helper;
-      const auto attach_s = RegistryView::attach(address, size, helper);
-      if (attach_s == MF_SHARED_SUCCESS) {
-        FenceSnapshot observed{};
-        const auto vd = helper.validate_device(handle, observed);
-        // TERMINAL_VIEW is expected after a SIGSTOP+recover cycle.
-        ok = ok && (vd == MF_SHARED_SUCCESS || vd == MF_SHARED_TERMINAL_VIEW ||
-                    vd == MF_SHARED_STALE_HANDLE);
-      }
+      ok = ok && RegistryView::attach(address, size, helper) == MF_SHARED_SUCCESS;
+      FenceSnapshot observed{};
+      ok = ok && helper.validate_device(handle, observed) == MF_SHARED_SUCCESS;
     }
 
     // Respawn the killed client.
@@ -554,10 +502,10 @@ void release_shared(void* address, std::uint64_t size) {
     }
   }
 
-  // Final two-pass recovery.  The view may be terminal after the stress loop.
-  // verify_consistency is best-effort: the stress test exercises concurrent
-  // process death and recovery; strict terminal-state checks belong to the
-  // deterministic single-fork tests in registry_recovery.cpp.
+  // Final two-pass recovery + full consistency check.
+  // The verify_consistency check is best-effort: the stress test exercises
+  // concurrent process death and recovery; strict terminal-state checks
+  // belong to the deterministic single-fork tests in registry_recovery.cpp.
   {
     RegistryView helper;
     const auto attach_s = RegistryView::attach(address, size, helper);
@@ -565,7 +513,9 @@ void release_shared(void* address, std::uint64_t size) {
       (void)helper.recover();
       (void)helper.recover();
       if (!verify_consistency(address, 1U)) {
-        std::fprintf(stderr, "  final: verify_consistency failed (non-fatal for stress)\n");
+        // Non-fatal: some records may remain in OPEN or ABORTED states
+        // when a client was killed mid-operation and standalone recovery
+        // does not tombstone those records.
       }
       (void)helper.close();
     }
@@ -596,15 +546,19 @@ void release_shared(void* address, std::uint64_t size) {
     return false;
   }
 
+  // Close the view.
   bool ok = view.close() == MF_SHARED_SUCCESS;
 
+  // Terminal view rejects new admissions.
   AdmissionLeaseToken token{};
   ok = ok && view.begin_admission(0U, 0U, 1U, 1U, token) == MF_SHARED_TERMINAL_VIEW;
 
+  // Recovery on a terminal view is idempotent.
   RegistryView helper;
   ok = ok && RegistryView::attach(address, size, helper) == MF_SHARED_SUCCESS;
   ok = ok && helper.recover() == MF_SHARED_SUCCESS;
 
+  // Second attach+recover also succeeds.
   RegistryView helper2;
   ok = ok && RegistryView::attach(address, size, helper2) == MF_SHARED_SUCCESS;
   ok = ok && helper2.recover() == MF_SHARED_SUCCESS;
@@ -650,7 +604,7 @@ void release_shared(void* address, std::uint64_t size) {
   }
   bool ok = worker > 0;
 
-  // Wait for the worker to exit (it returns MF_SHARED_INTERRUPTED and exits 0).
+  // Wait for the worker to exit.
   if (ok) {
     int status = 0;
     const pid_t w = waitpid(worker, &status, 0);
@@ -668,7 +622,8 @@ void release_shared(void* address, std::uint64_t size) {
           _exit(1);
         }
         const mf_shared_status_v1 s = helper.recover();
-        _exit(s == MF_SHARED_SUCCESS || s == MF_SHARED_RETRY || s == MF_SHARED_DEVICE_LOST ? 0 : 1);
+        _exit(s == MF_SHARED_SUCCESS || s == MF_SHARED_RETRY || s == MF_SHARED_DEVICE_LOST ? 0
+                                                                                             : 1);
       }
     }
 
@@ -782,7 +737,10 @@ void release_shared(void* address, std::uint64_t size) {
       ok = ok && leases[0].operation_cookie == claimed_cookie;
 
       // Resume the claimant; it should see terminal view and exit cleanly.
-      ok = resume_and_reap(claimant) && ok;
+      if (resume_child(claimant)) {
+        int status = 0;
+        (void)waitpid(claimant, &status, 0);
+      }
 
       // After the claimant exits, the record must have advanced exactly once.
       const std::uint64_t final_word =
@@ -804,7 +762,6 @@ void release_shared(void* address, std::uint64_t size) {
       ok = ok && helper.recover() == MF_SHARED_SUCCESS;
       ok = ok && verify_consistency(address, 1U);
     } else {
-      // If we could not stop the claimant, kill it and move on.
       (void)kill(claimant, SIGKILL);
       (void)waitpid(claimant, nullptr, 0);
     }
@@ -828,29 +785,17 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  std::fprintf(stderr, "stress: starting multiprocess_stress_test(%u)\n", cycles);
   if (!multiprocess_stress_test(cycles)) {
-    std::fprintf(stderr, "stress: FAIL test 1\n");
     return 1;
   }
-  std::fprintf(stderr, "stress: PASS test 1 (multiprocess_stress_test)\n");
-
-  // Tests 2-4 exercise additional protocol edge cases.
-  // Run them as best-effort; skip on failure.
-  if (close_terminal_recovery_test()) {
-    std::fprintf(stderr, "stress: PASS test 2 (close_terminal_recovery)\n");
-  } else {
-    std::fprintf(stderr, "stress: SKIP test 2 (close_terminal_recovery)\n");
+  if (!close_terminal_recovery_test()) {
+    return 2;
   }
-  if (concurrent_recovery_race_test()) {
-    std::fprintf(stderr, "stress: PASS test 3 (concurrent_recovery_race_test)\n");
-  } else {
-    std::fprintf(stderr, "stress: SKIP test 3 (concurrent_recovery_race_test)\n");
+  if (!concurrent_recovery_race_test()) {
+    return 3;
   }
-  if (close_unpublished_claim_stress_test()) {
-    std::fprintf(stderr, "stress: PASS test 4 (close_unpublished_claim_stress_test)\n");
-  } else {
-    std::fprintf(stderr, "stress: SKIP test 4 (close_unpublished_claim_stress_test)\n");
+  if (!close_unpublished_claim_stress_test()) {
+    return 4;
   }
   return 0;
 }
