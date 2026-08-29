@@ -4,7 +4,7 @@
 checkpoints are immutable and grouped by year under `checkpoints/YYYY/`.
 
 Latest checkpoint:
-[P20260828-013](checkpoints/2026/P20260828-013-skill-design-convergence.md).
+[P20260829-001](checkpoints/2026/P20260829-001-toolchain-boundary-correction.md).
 
 A checkpoint records observed state and verification evidence; it is not a Git
 revision unless its metadata names one. Create a checkpoint at a material

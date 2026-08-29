@@ -1,11 +1,14 @@
 # MetaFlux Project Work Sessions
 
-This directory contains repository-local evidence for work performed on
-`MetaFlux-Core`. A session may record a project objective, technical decision,
-tool call, tool result, work note, changed paths, and verification evidence.
+This directory contains compact repository work ledgers. A session records its
+objective, material decisions and results, durable changes, cleanup, and resume
+point. Git owns source history; sessions do not archive worktree snapshots,
+build directories, dependency stores, downloads, or routine command output.
 
 It does not archive conversations, user profiles, personal preferences, or work
-from another project. Every event must materially relate to this repository.
+from another project. Every retained event must materially change a decision,
+verification claim, or handoff. Failed routes are deleted at the session
+boundary unless one concise lesson is needed to prevent repetition.
 
 Sessions use the date hierarchy
 `sessions/YYYY/MM/SYYYYMMDD-NNN-slug/`. The directory contains `session.json`,
@@ -27,6 +30,8 @@ event sequence numbers are immutable once published.
 | [S20260828-010-domain-expert-skills](2026/08/S20260828-010-domain-expert-skills/summary.md) | 2026-08-28 | Exact | Complete | Ten Codex domain experts, source-backed references, composition routing, and trigger evaluations for M0001-M0004 |
 | [S20260828-011-skill-design-convergence](2026/08/S20260828-011-skill-design-convergence/summary.md) | 2026-08-28 | Exact | Complete | Sixteen bounded expert skills, runtime-contract ownership, structured routing gates, and lifecycle publication invariants |
 | [S20260828-012-ubuntu-2004-glibc-floor](2026/08/S20260828-012-ubuntu-2004-glibc-floor/summary.md) | 2026-08-28 | Exact | Complete | Ubuntu 20.04 LTS and glibc 2.31 fixed as the W01 userspace release floor |
+| [S20260828-013-m0001-foundation](2026/08/S20260828-013-m0001-foundation/summary.md) | 2026-08-28 | Exact | In progress | M0001 registry, compiler/CPU, daemon, and CUDA/NVML foundation implementation |
+| [S20260829-001-toolchain-boundary-correction](2026/08/S20260829-001-toolchain-boundary-correction/summary.md) | 2026-08-29 | Exact | Complete | D0022 tool boundary, skill governance, session cleanup, and duplicate-source reclamation |
 
 ## Fidelity and retention
 
@@ -36,10 +41,10 @@ Future project sessions use the same schema. Allowed event types are `objective`
 an older project state is rebuilt from repository evidence. Reconstruction gaps
 use a `work_note` with `omitted: true` and a concrete `reason`.
 
-Inline `content` is UTF-8 and limited to 65,536 bytes. Larger project command
-output is stored as numbered `outputs/NNNN.txt` files and referenced by relative
-path, exact byte count, and SHA-256. `outputs/README.md` is only an index and is
-never an event output. Output paths may not traverse directories or use symlinks.
+Inline `content` is UTF-8 and limited to 65,536 bytes. A larger output is stored
+as `outputs/NNNN.txt` only when an exact acceptance claim depends on it and no
+canonical artifact owns those bytes. Ordinary build/test logs are summarized
+and removed. Output references carry exact byte counts and SHA-256 values.
 
 Secrets, credentials, and unrelated environment data are excluded entirely.
 Do not preserve even a redacted credential-bearing command; record a sanitized
