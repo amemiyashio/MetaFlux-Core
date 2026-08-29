@@ -1,0 +1,1 @@
+{"schema_version": 1, "seq": 1, "timestamp": "2026-08-29", "type": "objective", "actor": "A001", "content": "Bring the active M0001 implementation session up to the current distilled-session standard, remove superseded transcript-like detail, and make active-session end-state semantics explicit in the session tooling."}

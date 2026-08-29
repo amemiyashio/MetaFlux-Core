@@ -1,65 +1,74 @@
-# Summary
+# Session Summary
 
-M0001 implementation remains active. Content revision `7b86b35` establishes a
-working registry and fast path, PTX/Kernel IR and CPU execution path, compiler
-worker, CUDA/NVML compatibility surfaces, performance runners, packaging
-metadata, and release harness foundation. The current dev preset passes all 58
-tests, but the remaining release and reference-host gates prevent a completion
-claim.
+## Objective and outcome
 
-## Changed paths
+M0001 implementation remains active. Revision `7b86b35` is the implementation
+provenance checkpoint for a working registry and fast path, PTX/Kernel IR and
+CPU execution path, compiler worker, CUDA/NVML compatibility surfaces,
+performance runners, packaging metadata, and release-harness foundation. Its
+development suite passed, but remaining release and reference-host gates prevent
+a completion claim.
+
+## Durable changes
 
 - `contracts/`, `runtime/`, and `services/metafluxd/`: protocol, shared layout,
-  registry, recovery, fast path, compiler worker, and daemon execution modes.
+  registry recovery, fast path, compiler worker, and daemon execution modes.
 - `compiler/` and `plugins/backend/cpu/`: Kernel IR, caches, interpreter,
   compiled kernels, placement, MLIR/LLVM pipeline, and differential tests.
 - `plugins/compat/cuda/`: CUDA Driver and NVML ABI surfaces, PTX frontend, and
   validated passthrough discovery.
-- `tests/`, `packaging/`, and `toolchains/`: compatibility/performance/release
-  harnesses, package integration, and fixed external inputs.
+- `tests/`, `packaging/`, and `toolchains/`: compatibility, performance, and
+  release harnesses, package integration, and fixed external inputs.
 
 ## Verification
 
 | Command/gate | Result |
 | --- | --- |
-| External dev CMake configure and build | Passed at content revision `7b86b35` |
+| External dev CMake configure/build at `7b86b35` | Passed |
 | Dev CTest preset | 58/58 passed |
-| M0001 optimization and measurement runner self-tests | 12/12 and 12/12 passed |
-| Agent records and routing gates included by CTest | Passed |
-
-## Decisions and experience
-
-- D0016-D0020 fix provider inputs, PTX semantics, compiler epoch, static
-  compiler closure, and timezone-relative mirror routing.
-- D0022, recorded by S20260829-001, supersedes the earlier broad Nix workflow
-  wording without changing M0001 product acceptance requirements.
+| Optimization and measurement runner self-tests | 12/12 each passed |
+| Registry recovery stress | 300 ordinary + 100 sanitizer cycles; independent 20 + 10 repeat passed |
+| NVML policy setters | 7/7 ordinary + 5/5 sanitizer tests passed |
+| Full release matrix | Previous pass invalidated; qualification remains open |
 
 ## Cleanup
 
-- Repository-local and session-owned external build trees were removed after
-  verification. Continuation recreates only the exact external preset it needs.
-- No source copy, dependency store, raw log, or failed-route artifact is retained
-  in this session.
+- Removed after verification: repository-local and session-owned external build
+  trees.
+- Removed from the active ledger: routine command chatter, local store
+  identities, duplicate mirror wording, superseded D0021 routing, and the
+  invalid release-pass claim.
+- Retained outside Git: none. The session contains no copied source, build tree,
+  dependency store, download, raw log, or output attachment.
+
+## Decisions and experience
+
+- D0012-D0020 own the release matrix, vendor-pair loading, cache and placement,
+  ABI inputs, PTX semantics, compiler epoch, static closure, and timezone-based
+  mirror routing.
+- D0022 supersedes D0021 and defines the current tool/workflow/session boundary.
+- Event 9 retains the one failed-route lesson needed for the release-matrix
+  rerun; no separate experience record was created.
 
 ## Distillation
 
-- Distilled stable contracts into owner-local headers, manifests, tests, and
-  component graph entries rather than duplicating them in the session.
-- Distilled tool ownership into `toolchains/README.md` and `manage-toolchain`;
-  this session retains only the implementation handoff.
+- Stable product requirements and decision outcomes live in the M0001 plan,
+  work items, durable constraints, and decision index.
+- Tool identity and provisioning guidance lives in `toolchains/README.md` and
+  `manage-toolchain`; this session retains only implementation and handoff facts.
 
 ## Unresolved items
 
-- W01 still needs Intel/AMD reference-host and full D0012 release-matrix
-  qualification.
-- W03/W06 still need complete optimized-lowering, fault, quota, soak, and
-  release performance evidence.
-- W04/W05 still need stock-tool and packaged compatibility qualification across
-  the declared header/distribution matrix.
+- W01 needs Intel/AMD reference-host and full D0012 release-matrix qualification.
+- W03/W06 need complete optimized-lowering, fault, quota, soak, and release
+  performance evidence.
+- W04/W05 need stock-tool and packaged compatibility qualification across the
+  declared header and distribution matrix.
 
 ## Handoff
 
-Read current progress, M0001 and its six active work items, then resume the
-smallest unclosed vertical-slice gate. Enter fixed tools with `nix develop .`,
-run CMake/CTest/packaging through their owners, and keep generated work outside
-the repository.
+Continue from current main, not by checking out `7b86b35`. Read current progress,
+M0001, its six active work items, and the expert skill matching the selected
+work item, then take the smallest unclosed vertical slice. Use
+`manage-toolchain` only for tool identity or provisioning changes; run owned
+build, test, packaging, and evidence workflows in external work directories.

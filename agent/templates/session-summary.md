@@ -8,6 +8,9 @@ base_revision: commit or null
 final_revision: commit or null
 ---
 
+An active session uses `status: in_progress` and `ended_at: null`. Set the end
+date only when recording a terminal status.
+
 # Session Summary
 
 Instance path: `agent/sessions/YYYY/MM/SYYYYMMDD-NNN-slug/summary.md`.

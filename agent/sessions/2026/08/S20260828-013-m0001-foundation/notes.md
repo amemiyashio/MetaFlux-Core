@@ -1,5 +1,6 @@
 # Notes
 
-S20260829-001 corrected the prior tool and session route. Resume from content
-revision `7b86b35`; do not restore raw-path flake evaluation, Nix project checks,
-repository-local builds, per-file source snapshots, or project GC policy.
+Revision `7b86b35` is an implementation provenance checkpoint, not the resume
+branch. Continue from current main and current progress; do not restore raw-path
+flake evaluation, Nix-owned project workflows, repository-local builds,
+per-file source snapshots, or project GC policy.
