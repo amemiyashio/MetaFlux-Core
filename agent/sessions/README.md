@@ -40,6 +40,8 @@ sessions record the date or timestamp when work stopped.
 | [S20260829-002-cleanup-stale-routes](2026/08/S20260829-002-cleanup-stale-routes/summary.md) | 2026-08-29 | Exact | Complete | Remaining D0022 residue corrected; exact temporary and dead-store routes removed |
 | [S20260829-003-timezone-mirror-priority](2026/08/S20260829-003-timezone-mirror-priority/summary.md) | 2026-08-29 | Exact | Complete | Explicit current-timezone mirror priority in manage-toolchain routing |
 | [S20260829-004-implementation-session-current-standard](2026/08/S20260829-004-implementation-session-current-standard/summary.md) | 2026-08-29 | Exact | Complete | Distilled S013 ledger and enforced active/terminal session lifecycle semantics |
+| [S20260829-005-m0001-vertical-slice](2026/08/S20260829-005-m0001-vertical-slice/summary.md) | 2026-08-29 | Exact | Complete | M0001 CPU-backed vertical slice and Ubuntu 20.04/glibc 2.31 package enforcement |
+| [S20260829-006-stage-breakthrough-commits](2026/08/S20260829-006-stage-breakthrough-commits/summary.md) | 2026-08-29 | Exact | Complete | Verified stage-breakthrough trigger with separate content and record commits |
 
 ## Fidelity and retention
 

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "id": "S20260829-005-m0001-vertical-slice",
+  "repository": "MetaFlux-Core",
+  "started_at": "2026-08-29",
+  "ended_at": "2026-08-29",
+  "time_precision": "date",
+  "status": "complete",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "primary repository agent"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0001",
+      "title": "Core Foundation",
+      "status": "active",
+      "event_seqs": [1, 2, 3, 4, 5, 6, 7, 8]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "M0001-W01",
+      "milestone_id": "M0001",
+      "title": "Build, Toolchain, and Reproducible Environment",
+      "status": "active"
+    }
+  ],
+  "base_revision": "f604fbea7f3bc2eaffb4c4448ef89607cd7ed697",
+  "final_revision": "f604fbea7f3bc2eaffb4c4448ef89607cd7ed697",
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
