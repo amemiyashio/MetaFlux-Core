@@ -711,6 +711,7 @@ def reject_out_of_date_pgo_profile(
             tools["clang"],
             "-O2",
             *PGO_USE_DIAGNOSTIC_FLAGS,
+            "-Werror=profile-instr-out-of-date",
             f"-fprofile-instr-use={profile.resolve()}",
             source,
             "-o",
