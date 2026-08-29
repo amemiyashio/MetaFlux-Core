@@ -24,6 +24,9 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 - Nix owns only locked input resolution, exact tool materialization, and the
   development shell that exposes those tools. It does not wrap or duplicate the
   owners above, archive evidence, snapshot project source, or configure host GC.
+- When downloading any declared tool or immutable input, prefer a mirror selected
+  for the current execution environment's configured timezone before trying an
+  adjacent-timezone mirror or canonical upstream.
 - Route compiler semantics, provider ABI, runtime behavior, and target tuning to
   their domain skills. A tool version change does not transfer those decisions
   to this skill.
