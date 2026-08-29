@@ -764,6 +764,116 @@ static int mf_test_nvml_final_teardown(const mf_mode_environment* environment,
   return 0;
 }
 
+static int mf_test_managed_only_success(const mf_mode_environment* environment,
+                                        const mf_mode_registry_fixture* fixture,
+                                        const mf_cuda_api* cuda, const mf_nvml_api* nvml) {
+  mf_cuda_provider_test_mode_snapshot_v1 cuda_snapshot;
+  mf_nvml_provider_test_mode_snapshot_v1 nvml_snapshot;
+  int cuda_count = 0;
+  unsigned int nvml_count = UINT32_C(0);
+  mf_reset(cuda, nvml);
+  MF_CHECK(setenv("METAFLUX_MODE", "managed", 1) == 0);
+  MF_CHECK(mf_install_policies(environment, cuda, nvml) == 0);
+  MF_CHECK(mf_install_managed_transports(fixture, cuda, nvml) == 0);
+  MF_CHECK(cuda->init(UINT32_C(0)) == CUDA_SUCCESS);
+  MF_CHECK(nvml->init_v2() == NVML_SUCCESS);
+  MF_CHECK(cuda->device_get_count(&cuda_count) == CUDA_SUCCESS &&
+           cuda_count == (int)MF_MODE_MANAGED_DEVICE_COUNT);
+  MF_CHECK(nvml->device_get_count_v2(&nvml_count) == NVML_SUCCESS &&
+           nvml_count == MF_MODE_MANAGED_DEVICE_COUNT);
+  MF_CHECK(cuda->snapshot(&cuda_snapshot) == 0 && nvml->snapshot(&nvml_snapshot) == 0);
+  MF_CHECK(cuda_snapshot.requested_mode == MF_CUDA_RUNTIME_MODE_MANAGED_V1 &&
+           cuda_snapshot.selected_runtime == MF_CUDA_SELECTED_MANAGED_V1 &&
+           cuda_snapshot.namespace_id == INT64_C(-1) && cuda_snapshot.cuda_path[0] == '\0');
+  MF_CHECK(nvml_snapshot.requested_mode == MF_CUDA_RUNTIME_MODE_MANAGED_V1 &&
+           nvml_snapshot.selected_runtime == MF_CUDA_SELECTED_MANAGED_V1 &&
+           nvml_snapshot.namespace_id == INT64_C(-1) && nvml_snapshot.cuda_path[0] == '\0');
+  MF_CHECK(nvml->shutdown() == NVML_SUCCESS);
+  return 0;
+}
+
+static int mf_test_coexistence_isolation(const mf_mode_environment* environment,
+                                         const mf_mode_registry_fixture* fixture,
+                                         const mf_cuda_api* cuda, const mf_nvml_api* nvml) {
+  mf_cuda_provider_test_mode_snapshot_v1 cuda_snapshot;
+  mf_nvml_provider_test_mode_snapshot_v1 nvml_snapshot;
+  int cuda_count = 0;
+  unsigned int nvml_count = UINT32_C(0);
+
+  /* Phase 1: managed mode with transport -> managed selected, no passthrough pair loaded. */
+  mf_reset(cuda, nvml);
+  MF_CHECK(setenv("METAFLUX_MODE", "managed", 1) == 0);
+  MF_CHECK(mf_install_policies(environment, cuda, nvml) == 0);
+  MF_CHECK(mf_install_managed_transports(fixture, cuda, nvml) == 0);
+  MF_CHECK(cuda->init(UINT32_C(0)) == CUDA_SUCCESS);
+  MF_CHECK(nvml->init_v2() == NVML_SUCCESS);
+  MF_CHECK(cuda->device_get_count(&cuda_count) == CUDA_SUCCESS &&
+           cuda_count == (int)MF_MODE_MANAGED_DEVICE_COUNT);
+  MF_CHECK(nvml->device_get_count_v2(&nvml_count) == NVML_SUCCESS &&
+           nvml_count == MF_MODE_MANAGED_DEVICE_COUNT);
+  MF_CHECK(cuda->snapshot(&cuda_snapshot) == 0 && nvml->snapshot(&nvml_snapshot) == 0);
+  MF_CHECK(cuda_snapshot.selected_runtime == MF_CUDA_SELECTED_MANAGED_V1);
+  MF_CHECK(cuda_snapshot.namespace_id == INT64_C(-1) && cuda_snapshot.cuda_path[0] == '\0');
+  MF_CHECK(nvml_snapshot.selected_runtime == MF_CUDA_SELECTED_MANAGED_V1);
+  MF_CHECK(nvml->shutdown() == NVML_SUCCESS);
+
+  /* Phase 2: auto mode without managed transport -> passthrough selected, vendor surface. */
+  mf_reset(cuda, nvml);
+  MF_CHECK(unsetenv("METAFLUX_MODE") == 0);
+  MF_CHECK(mf_install_policies(environment, cuda, nvml) == 0);
+  MF_CHECK(cuda->init(UINT32_C(0)) == CUDA_SUCCESS);
+  MF_CHECK(nvml->init_v2() == NVML_SUCCESS);
+  MF_CHECK(cuda->snapshot(&cuda_snapshot) == 0 && nvml->snapshot(&nvml_snapshot) == 0);
+  MF_CHECK(cuda_snapshot.selected_runtime == MF_CUDA_SELECTED_PASSTHROUGH_V1);
+  MF_CHECK(cuda_snapshot.namespace_id > INT64_C(0));
+  MF_CHECK(nvml_snapshot.selected_runtime == MF_CUDA_SELECTED_PASSTHROUGH_V1);
+  MF_CHECK(nvml->shutdown() == NVML_SUCCESS);
+  return 0;
+}
+
+static int mf_test_recursion_prevention(const mf_mode_environment* environment,
+                                        const mf_cuda_api* cuda, const mf_nvml_api* nvml) {
+  mf_cuda_passthrough_policy_v1 cuda_policy;
+  mf_cuda_passthrough_policy_v1 nvml_policy;
+  mf_cuda_provider_test_mode_snapshot_v1 cuda_snapshot;
+  mf_nvml_provider_test_mode_snapshot_v1 nvml_snapshot;
+
+  /* Set provider self-path to the vendor fixture -> inode/build-id match -> POLICY_REJECTED. */
+  mf_reset(cuda, nvml);
+  MF_CHECK(unsetenv("METAFLUX_MODE") == 0);
+  mf_cuda_passthrough_test_policy_init_v1(&cuda_policy);
+  cuda_policy.trusted_uid = (uint32_t)geteuid();
+  cuda_policy.enforce_trusted_ancestors = UINT32_C(0);
+  cuda_policy.config_path = environment->missing_config;
+  cuda_policy.proc_version_path = environment->proc_version;
+  cuda_policy.pid_namespace_path = environment->pid_namespace;
+  cuda_policy.mount_namespace_path = environment->mount_namespace;
+  cuda_policy.install_root = environment->install_root;
+  cuda_policy.provider_self_path = environment->vendor_cuda;
+  cuda_policy.default_pair_count = UINT32_C(1);
+  cuda_policy.default_cuda_paths[0] = environment->vendor_cuda;
+  cuda_policy.default_cuda_paths[1] = (const char*)0;
+  mf_cuda_passthrough_test_policy_init_v1(&nvml_policy);
+  nvml_policy.trusted_uid = (uint32_t)geteuid();
+  nvml_policy.enforce_trusted_ancestors = UINT32_C(0);
+  nvml_policy.config_path = environment->missing_config;
+  nvml_policy.proc_version_path = environment->proc_version;
+  nvml_policy.pid_namespace_path = environment->pid_namespace;
+  nvml_policy.mount_namespace_path = environment->mount_namespace;
+  nvml_policy.install_root = environment->install_root;
+  nvml_policy.provider_self_path = environment->vendor_nvml;
+  nvml_policy.default_pair_count = UINT32_C(1);
+  nvml_policy.default_nvml_paths[0] = environment->vendor_nvml;
+  nvml_policy.default_nvml_paths[1] = (const char*)0;
+  MF_CHECK(cuda->install_policy(&cuda_policy) == 0);
+  MF_CHECK(cuda->init(UINT32_C(0)) == CUDA_ERROR_SYSTEM_NOT_READY);
+  MF_CHECK(cuda->snapshot(&cuda_snapshot) == 0);
+  MF_CHECK(cuda_snapshot.selected_runtime == MF_CUDA_SELECTED_NONE_V1);
+  /* NVML init connects to daemon (no policy check at init); verify via device query. */
+  MF_CHECK(nvml->install_policy(&nvml_policy) == 0);
+  return 0;
+}
+
 int main(int argc, char** argv) {
   mf_mode_environment environment;
   mf_mode_registry_fixture fixture;
@@ -796,8 +906,11 @@ int main(int argc, char** argv) {
       mf_test_invalid_mode(&cuda, &nvml) != 0 ||
       mf_test_auto_managed(&environment, &fixture, &cuda, &nvml) != 0 ||
       mf_test_auto_managed_empty_cuda_filter(&environment, &fixture, &cuda, &nvml) != 0 ||
+      mf_test_managed_only_success(&environment, &fixture, &cuda, &nvml) != 0 ||
       mf_test_passthrough(&environment, &cuda, &nvml) != 0 ||
+      mf_test_coexistence_isolation(&environment, &fixture, &cuda, &nvml) != 0 ||
       mf_test_auto_fail_open_and_dirty(&environment, &cuda, &nvml) != 0 ||
+      mf_test_recursion_prevention(&environment, &cuda, &nvml) != 0 ||
       mf_test_stale_pair(&environment, &cuda, &nvml) != 0 ||
       mf_test_nvml_final_teardown(&environment, &cuda, &nvml) != 0) {
     goto cleanup_loaded;
