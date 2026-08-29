@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-30
 milestone: M0001
 workstream: M0001-W06
-checkpoint: P20260830-001
+checkpoint: P20260830-002
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260830-001
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W06](../plan/M0001-core-foundation/work/W06-modes-release.md). Latest checkpoint:
-P20260830-001.
+P20260830-002.
 
 ## Current state
 
@@ -60,7 +60,7 @@ The full audit of unchecked M0001 work items confirms:
 
 | Gate | Result |
 | --- | --- |
-| Dev CTest | 62/62 pass |
+| Dev CTest | 63/63 pass |
 | ASan CTest | 59/59 pass (ASan preset not including new tests) |
 | Recovery stress (ordinary) | 50/50 pass, zero failures |
 | Recovery stress (ASan) | 20/20 pass, zero failures |
@@ -145,6 +145,22 @@ than duplicating repository-wide workflow semantics.
   1,294-path dead Nix closure; Nix reported another 26.1 GiB freed without a
   broad garbage collection. Final scans found no old product/source route or
   project GC root, while 104 legitimate tool materializations remain.
+
+## Session-local expert guidance
+
+Revision `6ddd907` adds the repository-local `session-guidance` skill. A
+specialist may publish bounded direction or an advisory patch to one active
+session; the session owner validates it against current evidence and the owning
+domain skill, records only a compact material disposition, and removes the raw
+packet. The loop scans only at explicit control boundaries and does not add a
+background watcher, source snapshot, or advice archive.
+
+Active guidance content is excluded from durable-record scans and is rejected
+if staged in Git, including rename and type-change routes. Terminal sessions
+must have an empty inbox. Atomic creation, exact recovery, full event validation,
+and path containment are covered by 16 CLI cases; the record/pre-commit behavior
+is covered by the 81-case validator suite. This changes collaboration governance
+only and does not alter product, build, release, or Nix ownership.
 
 ## Active M0001 evidence
 

@@ -20,6 +20,28 @@ retains its earlier forms.
 An `in_progress` session has `ended_at: null`. Complete, blocked, and abandoned
 sessions record the date or timestamp when work stopped.
 
+## Temporary guidance inbox
+
+An active session may also contain a temporary `guidance/` inbox. A specialist
+publishes bounded direction as `GNNN-<slug>.ready.md` (optionally with a
+candidate `.patch` attachment) and does not directly edit product source while
+acting in that role. The session owner follows
+[`session-guidance`](../skills/session-guidance/SKILL.md), validates the proposal,
+and records a material `adopted`, `adapted`, `rejected`, or `deferred`
+disposition using the existing event types. Exactly one disposition event
+carries both `guidance_id` and `disposition`; `deferred` also carries
+`deferred_to`. A duplicate or obsolete packet is resolved as no-material
+without an event.
+
+Guidance packets move through `draft`, `ready`, and `processing` only while the
+target session is `in_progress`. They are transient coordination inputs, not
+session evidence: remove the packet and attachments after resolution, and
+retain only a compact result or an independently justified durable record.
+Do not stage a raw inbox file; the pre-commit gate rejects added, modified,
+copied, renamed, or type-changed `guidance/` paths while allowing their staged
+deletion. Terminal sessions must contain no file or symbolic link under
+`guidance/`.
+
 | Session | Date | Fidelity | Status | Summary |
 | --- | --- | --- | --- | --- |
 | [S20260827-001-metaflux-bootstrap](2026/08/S20260827-001-metaflux-bootstrap/summary.md) | 2026-08-27 | Reconstructed | Complete | MetaFlux planning, bootstrap, architecture review, and build hardening |
@@ -45,6 +67,7 @@ sessions record the date or timestamp when work stopped.
 | [S20260829-007-pytorch-cuda-test-tool](2026/08/S20260829-007-pytorch-cuda-test-tool/summary.md) | 2026-08-29 | Exact | Complete | Isolated PyTorch cu126 baseline, cu132 frontier, and staged CUDA gap probe |
 | [S20260830-001-m0001-completion-sprint](2026/08/S20260830-001-m0001-completion-sprint/summary.md) | 2026-08-30 | Exact | In progress | TODO: one-line summary |
 | [S20260830-002-ubuntu-target-sdk-guide](2026/08/S20260830-002-ubuntu-target-sdk-guide/summary.md) | 2026-08-30 | Exact | Complete | Explicit Ubuntu 20.04 target SDK construction, consumption, and release-gap guide |
+| [S20260830-003-session-guidance-loop](2026/08/S20260830-003-session-guidance-loop/summary.md) | 2026-08-30 | Exact | Complete | Session-local specialist guidance with validated disposition and transient cleanup |
 
 ## Fidelity and retention
 

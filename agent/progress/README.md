@@ -4,7 +4,7 @@
 checkpoints are immutable and grouped by year under `checkpoints/YYYY/`.
 
 Latest checkpoint:
-[P20260829-007](checkpoints/2026/P20260829-007-pytorch-cuda-client-profiles.md).
+[P20260830-002](checkpoints/2026/P20260830-002-session-guidance-loop.md).
 
 A checkpoint records observed state and verification evidence; it is not a Git
 revision unless its metadata names one. Create a checkpoint at a material
