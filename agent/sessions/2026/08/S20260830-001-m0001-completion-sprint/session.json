@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "id": "S20260830-001-m0001-completion-sprint",
+  "repository": "MetaFlux-Core",
+  "started_at": "2026-08-30",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "TODO: agent role"
+    }
+  ],
+  "milestones": [],
+  "work_items": [],
+  "base_revision": "4c00411e2cebaa0f608475a1b454d33f5f8e1bc1",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
