@@ -5,6 +5,43 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
+# Guidance is session-local coordination input, never durable Git history.
+# Deletions remain stageable so an accidentally tracked artifact can be cleaned.
+is_guidance_path() {
+  [[ "$1" =~ ^agent/sessions/[^/]+/[^/]+/[^/]+/guidance/ ]]
+}
+
+while IFS= read -r -d '' staged_status; do
+  if ! IFS= read -r -d '' staged_path; then
+    echo "error: malformed staged-change stream after status $staged_status" >&2
+    exit 1
+  fi
+  staged_paths=("$staged_path")
+  case "${staged_status:0:1}" in
+    R|C)
+      if ! IFS= read -r -d '' staged_path; then
+        echo "error: malformed staged rename/copy record: $staged_status" >&2
+        exit 1
+      fi
+      staged_paths+=("$staged_path")
+      ;;
+    A|M|T) ;;
+    *)
+      echo "error: unsupported staged-change status: $staged_status" >&2
+      exit 1
+      ;;
+  esac
+  for staged_path in "${staged_paths[@]}"; do
+    if is_guidance_path "$staged_path"; then
+      echo "error: session guidance artifacts must not be committed: $staged_path" >&2
+      exit 1
+    fi
+  done
+done < <(
+  git diff --cached --name-status -z --find-renames --find-copies \
+    --diff-filter=ACMRT
+)
+
 # Records must stay valid: indexes, ledger counts, distillation, freshness.
 python3 tools/check-agent-records.py .
 

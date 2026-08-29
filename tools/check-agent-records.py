@@ -39,6 +39,7 @@ ALLOWED_EVENT_TYPES = {
     "tool_result",
     "work_note",
 }
+GUIDANCE_DISPOSITIONS = {"adopted", "adapted", "rejected", "deferred"}
 ALLOWED_STATUSES = {"in_progress", "complete", "blocked", "abandoned"}
 ALLOWED_RECORD_STATUSES = ALLOWED_STATUSES | {"active", "queued"}
 ALLOWED_FIDELITY = {"exact", "reconstructed"}
@@ -64,6 +65,7 @@ WORK_ITEM_ID_RE = re.compile(r"^M\d{4}-W\d{2}$")
 EXPERIENCE_ID_RE = re.compile(r"^E\d{4}$")
 DECISION_ID_RE = re.compile(r"^D\d{4}$")
 DECISION_ID_SEARCH_RE = re.compile(r"\bD\d{4}\b")
+GUIDANCE_ID_RE = re.compile(r"^G\d{3}$")
 CHECKPOINT_ID_RE = re.compile(r"^P\d{8}-\d{3}$")
 STABLE_AGENT_ID_RE = re.compile(
     r"^(?:M\d{4}(?:-W\d{2})?|E\d{4}|P\d{8}-\d{3})$"
@@ -178,6 +180,15 @@ class Validator:
     @staticmethod
     def nonempty_string(value: object) -> bool:
         return isinstance(value, str) and bool(value.strip())
+
+    def is_guidance_inbox_path(self, path: Path) -> bool:
+        """Return whether path is transient input below a session guidance inbox."""
+        try:
+            relative = path.relative_to(self.sessions_root)
+        except ValueError:
+            return False
+        parts = relative.parts
+        return len(parts) >= 5 and parts[3] == "guidance"
 
     def load_json(self, path: Path) -> object | None:
         try:
@@ -400,6 +411,7 @@ class Validator:
         self.validate_relative_file(session_dir, session.get("notes"), "notes")
         self.validate_distillation(summary_path, session)
         self.validate_cleanup(summary_path, session)
+        self.validate_terminal_guidance_cleanup(session_dir, status)
 
         events = self.validate_events(session_dir, event_log_path, schema_version)
         valid_event_seqs = {event["seq"] for event in events if self.is_int(event.get("seq"))}
@@ -421,6 +433,25 @@ class Validator:
         self.scan_session_credentials(session_dir)
         self.session_count += 1
 
+    def validate_terminal_guidance_cleanup(self, session_dir: Path, status: object) -> None:
+        if status == "in_progress" or status not in ALLOWED_STATUSES:
+            return
+
+        guidance_dir = session_dir / "guidance"
+        if guidance_dir.is_symlink():
+            self.add_error(guidance_dir, "terminal sessions must not retain a guidance symlink")
+            return
+        if guidance_dir.exists() and not guidance_dir.is_dir():
+            self.add_error(guidance_dir, "terminal session guidance path must be an empty directory")
+            return
+        if not guidance_dir.is_dir():
+            return
+
+        for path in sorted(guidance_dir.rglob("*")):
+            if not (path.is_file() or path.is_symlink()):
+                continue
+            self.add_error(path, "terminal sessions must have an empty guidance inbox")
+
     def validate_events(
         self, session_dir: Path, event_log_path: Path | None, schema_version: object
     ) -> list[dict[str, object]]:
@@ -433,6 +464,7 @@ class Validator:
             return []
 
         events: list[dict[str, object]] = []
+        guidance_disposition_lines: dict[str, int] = {}
         expected_seq = 1
         for line_number, line in enumerate(lines, start=1):
             if not line.strip():
@@ -475,6 +507,67 @@ class Validator:
                 self.add_error(event_log_path, f"line {line_number}: unsupported event type")
             if not self.nonempty_string(event.get("actor")):
                 self.add_error(event_log_path, f"line {line_number}: actor must be a non-empty string")
+
+            has_guidance_id = "guidance_id" in event
+            has_disposition = "disposition" in event
+            has_deferred_to = "deferred_to" in event
+            guidance_id_valid = False
+            if has_guidance_id != has_disposition:
+                self.add_error(
+                    event_log_path,
+                    f"line {line_number}: guidance_id and disposition must appear together",
+                )
+            if has_guidance_id:
+                guidance_id = event.get("guidance_id")
+                if not self.nonempty_string(guidance_id) or not GUIDANCE_ID_RE.fullmatch(guidance_id):
+                    self.add_error(
+                        event_log_path,
+                        f"line {line_number}: guidance_id must match GNNN",
+                    )
+                else:
+                    guidance_id_valid = True
+            if has_disposition:
+                disposition = event.get("disposition")
+                if not isinstance(disposition, str) or disposition not in GUIDANCE_DISPOSITIONS:
+                    self.add_error(
+                        event_log_path,
+                        f"line {line_number}: disposition has an unsupported value",
+                    )
+                if disposition == "deferred":
+                    if not self.nonempty_string(event.get("deferred_to")):
+                        self.add_error(
+                            event_log_path,
+                            f"line {line_number}: deferred guidance requires a non-empty deferred_to",
+                        )
+                elif has_deferred_to:
+                    self.add_error(
+                        event_log_path,
+                        f"line {line_number}: deferred_to is only valid for deferred guidance",
+                    )
+            elif has_deferred_to:
+                self.add_error(
+                    event_log_path,
+                    f"line {line_number}: deferred_to is only valid for deferred guidance",
+                )
+            if (has_guidance_id or has_disposition or has_deferred_to) and event.get("type") not in {
+                "work_note",
+                "decision",
+            }:
+                self.add_error(
+                    event_log_path,
+                    f"line {line_number}: guidance fields are only valid on work_note or decision events",
+                )
+            if guidance_id_valid and has_disposition:
+                guidance_id = str(event["guidance_id"])
+                previous_line = guidance_disposition_lines.get(guidance_id)
+                if previous_line is not None:
+                    self.add_error(
+                        event_log_path,
+                        f"line {line_number}: duplicate disposition for {guidance_id}; "
+                        f"first recorded on line {previous_line}",
+                    )
+                else:
+                    guidance_disposition_lines[guidance_id] = line_number
 
             has_content = "content" in event
             has_output_ref = "output_ref" in event
@@ -566,6 +659,8 @@ class Validator:
 
     def scan_session_credentials(self, session_dir: Path) -> None:
         for path in sorted(session_dir.rglob("*")):
+            if self.is_guidance_inbox_path(path):
+                continue
             if not path.is_file() or path.is_symlink() or path.suffix.lower() not in TEXT_SUFFIXES:
                 continue
             try:
@@ -835,7 +930,7 @@ class Validator:
         references: dict[str, set[Path]] = {}
         if self.agent_root.is_dir():
             for path in sorted(self.agent_root.rglob("*.md")):
-                if path == index_path:
+                if path == index_path or self.is_guidance_inbox_path(path):
                     continue
                 try:
                     text = path.read_text(encoding="utf-8")
@@ -845,6 +940,8 @@ class Validator:
                     references.setdefault(decision_id, set()).add(path)
 
             for events_path in sorted(self.sessions_root.rglob("events.jsonl")):
+                if self.is_guidance_inbox_path(events_path):
+                    continue
                 try:
                     event_lines = events_path.read_text(encoding="utf-8").splitlines()
                 except (OSError, UnicodeDecodeError):
@@ -1024,7 +1121,11 @@ class Validator:
         """
         latest: tuple[str, str, Path] | None = None
         for session_file in sorted(self.sessions_root.rglob("session.json")):
-            if session_file.is_symlink() or not session_file.is_file():
+            if (
+                self.is_guidance_inbox_path(session_file)
+                or session_file.is_symlink()
+                or not session_file.is_file()
+            ):
                 continue
             try:
                 document = json.loads(session_file.read_text(encoding="utf-8"))
@@ -1601,6 +1702,8 @@ class Validator:
             return
 
         for markdown_path in sorted(self.agent_root.rglob("*.md")):
+            if self.is_guidance_inbox_path(markdown_path):
+                continue
             self.markdown_count += 1
             try:
                 text = markdown_path.read_text(encoding="utf-8")
@@ -1704,6 +1807,8 @@ class Validator:
 
         expected_paths: dict[Path, str] = {}
         for path in sorted(self.agent_root.rglob("*.md")):
+            if self.is_guidance_inbox_path(path):
+                continue
             relative = path.relative_to(self.agent_root)
             if "templates" in relative.parts:
                 continue
@@ -1712,6 +1817,8 @@ class Validator:
                 expected_paths[path] = expected_id
 
         for path in sorted(self.agent_root.rglob("*.md")):
+            if self.is_guidance_inbox_path(path):
+                continue
             relative = path.relative_to(self.agent_root)
             if "templates" in relative.parts:
                 continue
@@ -1757,7 +1864,11 @@ class Validator:
             self.add_error(self.sessions_root, "agent sessions directory is missing")
         else:
             session_files = sorted(
-                path for path in self.sessions_root.rglob("session.json") if path.is_file() and not path.is_symlink()
+                path
+                for path in self.sessions_root.rglob("session.json")
+                if not self.is_guidance_inbox_path(path)
+                and path.is_file()
+                and not path.is_symlink()
             )
             if not session_files:
                 self.add_error(self.sessions_root, "no session directories found")

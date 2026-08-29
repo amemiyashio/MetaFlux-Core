@@ -4,11 +4,11 @@
 Builds a minimal valid agent/ tree in a temporary directory and asserts the
 validator's behavior on it, then mutates one aspect per case to pin every rule:
 required session fields, session lifecycle timestamps, contiguous event sequence
-numbers, cleanup, distillation,
+numbers, guidance dispositions, transient-inbox isolation and cleanup, distillation,
 index completeness (both directions), Codex skill-package compatibility and
 discovery, open-decision identity, decision-index references, staleness warnings,
 markdown link existence, checkpoint id/path agreement, current-progress
-freshness, and latest-session status consistency.
+freshness, latest-session status consistency, and the staged-guidance gate.
 
 Run from anywhere:
 
@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -33,6 +34,7 @@ sys.dont_write_bytecode = True
 TOOLS_DIR = Path(__file__).resolve().parent
 VALIDATOR_PATH = TOOLS_DIR / "check-agent-records.py"
 NEW_SESSION_PATH = TOOLS_DIR / "new-session.py"
+PRE_COMMIT_PATH = TOOLS_DIR.parent / ".githooks/pre-commit"
 
 spec = importlib.util.spec_from_file_location("check_agent_records", VALIDATOR_PATH)
 assert spec is not None and spec.loader is not None
@@ -167,6 +169,76 @@ def replace(files: dict[str, str], path: str, old: str, new: str) -> dict[str, s
     return mutated
 
 
+def with_guidance_event(
+    files: dict[str, str],
+    *,
+    event_type: str = "work_note",
+    guidance_id: str | None = "G001",
+    disposition: str | None = "adopted",
+    deferred_to: str | None = None,
+) -> dict[str, str]:
+    mutated = dict(files)
+    event_path = f"{SESSION_DIR}/events.jsonl"
+    event = json.loads(mutated[event_path])
+    event["type"] = event_type
+    if guidance_id is not None:
+        event["guidance_id"] = guidance_id
+    if disposition is not None:
+        event["disposition"] = disposition
+    if deferred_to is not None:
+        event["deferred_to"] = deferred_to
+    mutated[event_path] = json.dumps(event, sort_keys=True) + "\n"
+    return mutated
+
+
+def with_duplicate_guidance_disposition(files: dict[str, str]) -> dict[str, str]:
+    mutated = with_guidance_event(files)
+    event_path = f"{SESSION_DIR}/events.jsonl"
+    first = json.loads(mutated[event_path])
+    second = dict(first)
+    second["seq"] = 2
+    second["content"] = "duplicate disposition"
+    mutated[event_path] = (
+        json.dumps(first, sort_keys=True) + "\n" + json.dumps(second, sort_keys=True) + "\n"
+    )
+    return mutated
+
+
+def with_in_progress_session(files: dict[str, str]) -> dict[str, str]:
+    mutated = dict(files)
+    session_path = f"{SESSION_DIR}/session.json"
+    session = json.loads(mutated[session_path])
+    session["status"] = "in_progress"
+    session["ended_at"] = None
+    mutated[session_path] = json.dumps(session, indent=2) + "\n"
+    return mutated
+
+
+def with_guidance_artifacts(files: dict[str, str], *filenames: str) -> dict[str, str]:
+    mutated = dict(files)
+    for filename in filenames:
+        mutated[f"{SESSION_DIR}/guidance/{filename}"] = "fixture guidance\n"
+    return mutated
+
+
+def with_guidance_isolation_probe(files: dict[str, str]) -> dict[str, str]:
+    mutated = dict(files)
+    guidance_dir = f"{SESSION_DIR}/guidance"
+    mutated[f"{guidance_dir}/G001-isolation.ready.md"] = (
+        "---\n"
+        "id: P99999999-999\n"
+        "---\n\n"
+        "# Transient guidance\n\n"
+        "Unknown decision D9999 with [broken](./missing.md).\n\n"
+        "password: transient-fixture-secret\n"
+    )
+    mutated[f"{guidance_dir}/events.jsonl"] = (
+        '{"type":"decision","content":"unknown D9998"}\n'
+    )
+    mutated[f"{guidance_dir}/session.json"] = "{}\n"
+    return mutated
+
+
 def check_new_session_skeleton(root: Path) -> list[str]:
     write_tree(root, BASE_FILES)
     sessions_root = root / "agent/sessions"
@@ -215,6 +287,284 @@ def check_new_session_skeleton(root: Path) -> list[str]:
             f"generated skeleton failed validation: code={code} "
             f"errors={errors} warnings={warnings}"
         )
+    return problems
+
+
+def check_guidance_inbox_isolation(root: Path) -> list[str]:
+    problems: list[str] = []
+
+    def validate(files: dict[str, str]) -> Validator:
+        if root.exists():
+            shutil.rmtree(root)
+        root.mkdir(parents=True)
+        write_tree(root, files)
+        validator = Validator(root)
+        validator.run()
+        return validator
+
+    baseline = validate(BASE_FILES)
+    if baseline.errors or baseline.warnings:
+        problems.append(
+            f"baseline fixture is invalid: errors={baseline.errors} warnings={baseline.warnings}"
+        )
+        return problems
+
+    active = validate(
+        with_guidance_isolation_probe(with_in_progress_session(BASE_FILES))
+    )
+    if active.errors or active.warnings:
+        problems.append(
+            "active guidance affected durable records: "
+            f"errors={active.errors} warnings={active.warnings}"
+        )
+    if active.markdown_count != baseline.markdown_count:
+        problems.append(
+            "active guidance changed the durable Markdown count: "
+            f"baseline={baseline.markdown_count} active={active.markdown_count}"
+        )
+
+    terminal = validate(with_guidance_isolation_probe(BASE_FILES))
+    if not terminal.errors:
+        problems.append("terminal guidance inbox did not fail validation")
+    unexpected = [
+        error
+        for error in terminal.errors
+        if "terminal sessions must have an empty guidance inbox" not in error
+    ]
+    if unexpected:
+        problems.append(f"terminal guidance reached durable scanners: {unexpected}")
+
+    return problems
+
+
+def check_pre_commit_guidance_gate(root: Path) -> list[str]:
+    problems: list[str] = []
+
+    def prepare_repository() -> dict[str, str]:
+        if root.exists():
+            shutil.rmtree(root)
+        root.mkdir(parents=True)
+        subprocess.run(
+            ["git", "init", "-q"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        fake_bin = root / "fake-bin"
+        fake_bin.mkdir()
+        fake_python = fake_bin / "python3"
+        fake_python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        fake_python.chmod(0o755)
+        environment = os.environ.copy()
+        environment["PATH"] = f"{fake_bin}{os.pathsep}{environment.get('PATH', '')}"
+        return environment
+
+    guidance_path = Path(
+        "agent/sessions/2026/08/S20260828-001-selftest/guidance/G001-fixture.ready.md"
+    )
+
+    def prepare_tracked_path(tracked_path: Path) -> dict[str, str]:
+        environment = prepare_repository()
+        write_fixture_entry(root, tracked_path.as_posix(), "tracked fixture\n")
+        subprocess.run(
+            ["git", "add", "--", tracked_path.as_posix()],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=MetaFlux Self-Test",
+                "-c",
+                "user.email=selftest@invalid",
+                "commit",
+                "--no-verify",
+                "-qm",
+                "fixture",
+            ],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return environment
+
+    def prepare_tracked_guidance() -> dict[str, str]:
+        return prepare_tracked_path(guidance_path)
+
+    environment = prepare_repository()
+    write_fixture_entry(root, guidance_path.as_posix(), "fixture guidance\n")
+    subprocess.run(
+        ["git", "add", "--", guidance_path.as_posix()],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    result = subprocess.run(
+        [str(PRE_COMMIT_PATH)],
+        cwd=root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0 or "guidance" not in result.stderr:
+        problems.append(
+            "staged guidance was not rejected: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_repository()
+    write_fixture_entry(root, "agent/README.md", "# Agent fixture\n")
+    write_fixture_entry(root, guidance_path.as_posix(), "untracked guidance\n")
+    subprocess.run(
+        ["git", "add", "--", "agent/README.md"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    result = subprocess.run(
+        [str(PRE_COMMIT_PATH)],
+        cwd=root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        problems.append(
+            "untracked guidance blocked an unrelated Agent commit: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    renamed_out_path = Path("agent/renamed-guidance.md")
+    environment = prepare_tracked_guidance()
+    subprocess.run(
+        ["git", "mv", "--", guidance_path.as_posix(), renamed_out_path.as_posix()],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    rename_out = subprocess.run(
+        ["git", "diff", "--cached", "--name-status", "--find-renames", "--diff-filter=R"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    if not rename_out.stdout.startswith("R"):
+        problems.append(f"guidance rename-out fixture was not status R: {rename_out.stdout!r}")
+    result = subprocess.run(
+        [str(PRE_COMMIT_PATH)],
+        cwd=root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0 or guidance_path.as_posix() not in result.stderr:
+        problems.append(
+            "staged guidance rename-out was not rejected by its source path: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    renamed_in_path = Path("agent/incoming-guidance.md")
+    environment = prepare_tracked_path(renamed_in_path)
+    (root / guidance_path).parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["git", "mv", "--", renamed_in_path.as_posix(), guidance_path.as_posix()],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    rename_in = subprocess.run(
+        ["git", "diff", "--cached", "--name-status", "--find-renames", "--diff-filter=R"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    if not rename_in.stdout.startswith("R"):
+        problems.append(f"guidance rename-in fixture was not status R: {rename_in.stdout!r}")
+    result = subprocess.run(
+        [str(PRE_COMMIT_PATH)],
+        cwd=root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0 or guidance_path.as_posix() not in result.stderr:
+        problems.append(
+            "staged guidance rename-in was not rejected by its destination path: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_tracked_guidance()
+    tracked_guidance = root / guidance_path
+    tracked_guidance.unlink()
+    tracked_guidance.symlink_to("missing-guidance-target")
+    subprocess.run(
+        ["git", "add", "--", guidance_path.as_posix()],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    type_change = subprocess.run(
+        ["git", "diff", "--cached", "--name-status", "--diff-filter=T"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    if not type_change.stdout.startswith("T\t"):
+        problems.append(f"guidance type-change fixture was not status T: {type_change.stdout!r}")
+    result = subprocess.run(
+        [str(PRE_COMMIT_PATH)],
+        cwd=root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0 or "guidance" not in result.stderr:
+        problems.append(
+            "staged guidance type change was not rejected: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_tracked_guidance()
+    (root / guidance_path).unlink()
+    subprocess.run(
+        ["git", "add", "-u", "--", guidance_path.as_posix()],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    result = subprocess.run(
+        [str(PRE_COMMIT_PATH)],
+        cwd=root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        problems.append(
+            "guidance deletion was not stageable for cleanup: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
     return problems
 
 
@@ -372,6 +722,163 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
     (
         "event sequence gap",
         replace(BASE_FILES, f"{SESSION_DIR}/events.jsonl", '"seq": 1', '"seq": 2'),
+        True,
+        False,
+    ),
+    (
+        "adopted guidance work note",
+        with_guidance_event(BASE_FILES, disposition="adopted"),
+        False,
+        False,
+    ),
+    (
+        "adapted guidance decision",
+        with_guidance_event(
+            BASE_FILES,
+            event_type="decision",
+            disposition="adapted",
+        ),
+        False,
+        False,
+    ),
+    (
+        "rejected guidance work note",
+        with_guidance_event(BASE_FILES, disposition="rejected"),
+        False,
+        False,
+    ),
+    (
+        "deferred guidance decision",
+        with_guidance_event(
+            BASE_FILES,
+            event_type="decision",
+            disposition="deferred",
+            deferred_to="agent/memory/open-decisions.md",
+        ),
+        False,
+        False,
+    ),
+    (
+        "guidance id without disposition",
+        with_guidance_event(BASE_FILES, disposition=None),
+        True,
+        False,
+    ),
+    (
+        "guidance disposition without id",
+        with_guidance_event(BASE_FILES, guidance_id=None),
+        True,
+        False,
+    ),
+    (
+        "invalid guidance id",
+        with_guidance_event(BASE_FILES, guidance_id="G01"),
+        True,
+        False,
+    ),
+    (
+        "invalid guidance disposition",
+        with_guidance_event(BASE_FILES, disposition="accepted"),
+        True,
+        False,
+    ),
+    (
+        "deferred guidance without target",
+        with_guidance_event(BASE_FILES, disposition="deferred"),
+        True,
+        False,
+    ),
+    (
+        "deferred guidance with empty target",
+        with_guidance_event(
+            BASE_FILES,
+            disposition="deferred",
+            deferred_to="",
+        ),
+        True,
+        False,
+    ),
+    (
+        "non-deferred guidance with target",
+        with_guidance_event(
+            BASE_FILES,
+            disposition="adopted",
+            deferred_to="agent/memory/open-decisions.md",
+        ),
+        True,
+        False,
+    ),
+    (
+        "guidance target without disposition",
+        with_guidance_event(
+            BASE_FILES,
+            guidance_id=None,
+            disposition=None,
+            deferred_to="agent/memory/open-decisions.md",
+        ),
+        True,
+        False,
+    ),
+    (
+        "guidance fields on objective event",
+        with_guidance_event(BASE_FILES, event_type="objective"),
+        True,
+        False,
+    ),
+    (
+        "duplicate guidance disposition",
+        with_duplicate_guidance_disposition(BASE_FILES),
+        True,
+        False,
+    ),
+    (
+        "active session permits transient guidance",
+        with_guidance_artifacts(
+            with_in_progress_session(BASE_FILES),
+            "G001-fixture.draft.md",
+            "G002-fixture.ready.md",
+            "G003-fixture.processing.md",
+            "G004-fixture.patch",
+        ),
+        False,
+        False,
+    ),
+    (
+        "terminal session rejects draft guidance",
+        with_guidance_artifacts(BASE_FILES, "G001-fixture.draft.md"),
+        True,
+        False,
+    ),
+    (
+        "terminal session rejects ready guidance",
+        with_guidance_artifacts(BASE_FILES, "G001-fixture.ready.md"),
+        True,
+        False,
+    ),
+    (
+        "terminal session rejects processing guidance",
+        with_guidance_artifacts(BASE_FILES, "G001-fixture.processing.md"),
+        True,
+        False,
+    ),
+    (
+        "terminal session rejects guidance patch",
+        with_guidance_artifacts(BASE_FILES, "G001-fixture.patch"),
+        True,
+        False,
+    ),
+    (
+        "terminal session rejects arbitrary guidance file",
+        with_guidance_artifacts(BASE_FILES, "leftover.txt"),
+        True,
+        False,
+    ),
+    (
+        "terminal session rejects guidance symlink",
+        {
+            **BASE_FILES,
+            f"{SESSION_DIR}/guidance/leftover": f"{SYMLINK_PREFIX}../notes.md",
+        },
         True,
         False,
     ),
@@ -935,10 +1442,26 @@ def main() -> int:
                 print(f"  {problem}", file=sys.stderr)
         else:
             print("ok: new-session lifecycle skeleton")
+        isolation_problems = check_guidance_inbox_isolation(root)
+        if isolation_problems:
+            failures += 1
+            print("FAIL: guidance inbox isolation", file=sys.stderr)
+            for problem in isolation_problems:
+                print(f"  {problem}", file=sys.stderr)
+        else:
+            print("ok: guidance inbox isolation")
+        pre_commit_problems = check_pre_commit_guidance_gate(root)
+        if pre_commit_problems:
+            failures += 1
+            print("FAIL: pre-commit guidance gate", file=sys.stderr)
+            for problem in pre_commit_problems:
+                print(f"  {problem}", file=sys.stderr)
+        else:
+            print("ok: pre-commit guidance gate")
     if failures:
         print(f"{failures} case(s) failed", file=sys.stderr)
         return 1
-    print(f"agent-records self-test: {len(CASES) + 1} case(s) passed")
+    print(f"agent-records self-test: {len(CASES) + 3} case(s) passed")
     return 0
 
 

@@ -62,6 +62,7 @@ for history.
 | [add-component](add-component/SKILL.md) | Active | Adding any new boundary target to the build |
 | [close-decision](close-decision/SKILL.md) | Active | Resolving a row of the open-decisions ledger |
 | [record-session](record-session/SKILL.md) | Active | Committing a verified stage breakthrough or closing a work session |
+| [session-guidance](session-guidance/SKILL.md) | Active | Publishing or processing specialist guidance for an active session |
 | [implementation-readiness](implementation-readiness/SKILL.md) | Active | Assessing whether architecture or a workstream is ready for implementation |
 | [runtime-contracts-registry](runtime-contracts-registry/SKILL.md) | Active | Defining neutral registry, client protocol, shared layouts, backend ABI, and schema ownership |
 | [cuda-driver-abi-compatibility](cuda-driver-abi-compatibility/SKILL.md) | Active | Implementing or reviewing CUDA Driver ABI, objects, and errors |
@@ -84,6 +85,7 @@ separate even when one vertical slice needs all of them.
 
 | Request shape | Skills to compose | Ownership order |
 | --- | --- | --- |
+| Specialist direction or candidate patch for active work | `$session-guidance` + matching domain skill where needed | Session guidance owns the temporary handoff and disposition; the domain skill retains technical ownership, and the session owner alone applies source changes |
 | Tool version, compiler epoch, SDK/header input, development shell, or Nix-scope change | `$manage-toolchain` | Toolchain governance owns portable version identity and provisioning only; Git, CMake, CTest, packaging, tests, and sessions retain their workflows |
 | Registry, client protocol, shared queue, or backend C ABI change | `$runtime-contracts-registry` | Runtime/contracts owns the neutral schema, versioning, generated layouts, and registry-view semantics |
 | PTX form interpreted, lowered, and optimized for CPU | `$ptx-simt-semantics` + `$mlir-compiler-engineering` + `$cpu-backend-performance` | PTX owns meaning/oracle; MLIR owns conversion mechanics; CPU owns interpreter implementation, target lowering, and measurement |

@@ -43,29 +43,38 @@ honor an explicit user request to keep work uncommitted.
    build directory, dependency store, downloaded packages, or ordinary logs
    into the session. Store a compact output only when an acceptance claim
    genuinely depends on its exact bytes and no canonical artifact owns it.
-4. At a breakthrough trigger, stop expanding scope. Inspect `git status` and
+4. Before checkpoint or close, inspect the active session for ready guidance.
+   Load [`session-guidance`](../session-guidance/SKILL.md) only when a packet
+   exists or processing was explicitly requested. The session owner claims it,
+   validates the proposal against current source and evidence, records any
+   material disposition, and removes the raw packet and attachments. Persist a
+   deferred item in the existing unresolved work or open-decision flow and
+   record that target before removing its packet.
+5. At a breakthrough trigger, stop expanding scope. Inspect `git status` and
    the diff, identify the exact files owned by the breakthrough, and run its
    focused verification. Stage only that coherent content and create an
    outcome-named Git commit. The pre-commit hook validates the attempt; it does
    not decide when a breakthrough exists or invoke `git commit` itself.
-5. After the content commit, append its revision and verification result to the
+6. After the content commit, append its revision and verification result to the
    active session. Refresh `progress/current.md` and add a compact checkpoint
    only when the commit is also a material handoff boundary. Commit these
    session/checkpoint records separately from content. If work continues, keep
    `status: in_progress`, `ended_at: null`, and `final_revision: null`.
-6. Before close or handoff, enumerate paths created by this session and classify them:
+7. Before close or handoff, enumerate paths created by this session and classify them:
    durable Git content; promoted canonical evidence; or disposable work.
    Remove disposable build trees, duplicate source snapshots, failed-route
-   files, temporary downloads, profiles, and logs. Preserve user changes and
-   artifacts owned by other sessions or concurrent work.
-7. If an abandoned route contains a reusable lesson, retain one concise
+   files, processed guidance packets, temporary downloads, profiles, and logs.
+   Preserve user changes and artifacts owned by other sessions or concurrent
+   work. A terminal session's guidance inbox must contain no file or symbolic
+   link.
+8. If an abandoned route contains a reusable lesson, retain one concise
    `work_note` or promote a validated experience. Otherwise remove the route
    and omit its noise. Never rewrite completed historical sessions or
    checkpoints to make the old route appear successful.
-8. In close mode, fill `summary.md`. `## Cleanup` names removed and intentionally retained
+9. In close mode, fill `summary.md`. `## Cleanup` names removed and intentionally retained
    artifacts (`none` is valid after inspection). `## Distillation` names the
    durable records that received reusable knowledge (`none` is valid).
-9. Fill `session.json` from current facts: agents, honest milestone/work-item
+10. Fill `session.json` from current facts: agents, honest milestone/work-item
    statuses, the final content revision, end time, and terminal status. Update
    the sessions index with a one-line outcome, validate the records, and create
    the separate closing record commit.

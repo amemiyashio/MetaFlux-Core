@@ -17,16 +17,25 @@ enforced by repository checks.
    The pre-commit hook rejects non-`agent/` changes while no session is in
    progress. The session closes by cleaning its disposable work, not by
    archiving a copy of the worktree.
-3. **Never relax a durable constraint silently.** Record the replacement and
+3. **Process session guidance at control boundaries.** On session resume, a
+   specialist-completion notice, before the next coherent work unit, and before
+   checkpoint or close, check the active session for a ready guidance packet.
+   Load [`session-guidance`](agent/skills/session-guidance/SKILL.md) only when
+   one exists or guidance is explicitly requested. While acting as guidance
+   author, a specialist proposes direction or a candidate patch without editing
+   product source; the session owner validates it, records any material
+   disposition, and removes the transient packet. Duplicate or obsolete input
+   is removed as no-material without adding a session event.
+4. **Never relax a durable constraint silently.** Record the replacement and
    keep the decision index resolvable; use `close-decision` when an open ledger
    row is being resolved.
-4. **Verify before committing.** `python3 tools/check-agent-records.py .` must
+5. **Verify before committing.** `python3 tools/check-agent-records.py .` must
    pass; run the relevant CTest preset for build-affecting changes. Content
    and records are committed separately.
-5. **Keep tool ownership narrow.** Follow `manage-toolchain` for versions,
+6. **Keep tool ownership narrow.** Follow `manage-toolchain` for versions,
    manifests, shells, and Nix. Nix pins and provides tools only; Git, CMake,
    CTest, packaging, tests, and sessions keep their own semantics.
-6. **Record outcomes and clean work.** Distill promoted knowledge, record
+7. **Record outcomes and clean work.** Distill promoted knowledge, record
    session-owned cleanup (`## Cleanup`), refresh `progress/current.md`, and
    checkpoint material handoffs (`record-session` skill).
 

@@ -15,7 +15,8 @@ session metadata and JSONL events, stable record IDs, numbered output hashes,
 credential redaction, safe references, and relative Markdown links, plus the
 machine-enforced record-loop rules — index completeness for sessions, plans,
 experience, decisions, and skills; plan/ledger open-decision identity; mandatory
-session cleanup and distillation; staleness and status-drift warnings; current-progress
+session cleanup and distillation; structured guidance dispositions and terminal
+guidance cleanup; staleness and status-drift warnings; current-progress
 freshness; exact skill catalog rows; domain section order; and the repository's
 restricted `agents/openai.yaml` interface schema.
 
@@ -86,11 +87,12 @@ immediately after creation.
 ## Validator self-test
 
 `test-check-agent-records.py` pins the validator itself against a synthetic
-golden tree. Its 58 cases cover required session fields, lifecycle timestamps,
-event sequencing, distillation, index completeness, decision identity and
-references, skill catalog/metadata rules, staleness and status drift, Markdown
-links, checkpoint identity, and current-progress freshness. It builds fixtures in a temporary
-directory and loads the validator by path without writing bytecode.
+golden tree. Its cases cover required session fields, lifecycle timestamps,
+event sequencing, guidance disposition and terminal cleanup, distillation,
+index completeness, decision identity and references, skill catalog/metadata
+rules, staleness and status drift, Markdown links, checkpoint identity, and
+current-progress freshness. It builds fixtures in a temporary directory and
+loads the validator by path without writing bytecode.
 
 ```sh
 python3 tools/test-check-agent-records.py

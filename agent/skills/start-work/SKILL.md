@@ -32,12 +32,22 @@ cover the complete change.
    ```
 
    For a read-only task, do not create an empty session.
-5. Make the change and monitor the breakthrough trigger in `record-session`.
+5. When resuming an active session, inspect only whether its `guidance/` inbox
+   contains a ready packet. Do not load guidance as routine session context. If
+   one exists, or the user explicitly requests guidance publication or
+   processing, load and follow
+   [`session-guidance`](../session-guidance/SKILL.md) before the next coherent
+   work unit. The session owner validates the packet and assigns its
+   disposition; a specialist acting as its author does not edit product source.
+6. Make the change and monitor both the breakthrough trigger in `record-session`
+   and the guidance control boundary. Recheck for ready guidance after a
+   specialist or colleague completion notice and before beginning the next
+   coherent work unit; do not interrupt a long-running command solely to poll.
    When a coherent independently valuable stage passes its focused gates,
    checkpoint it before entering the next risk or scope phase; do not wait for
    the entire task to finish. The semantic trigger belongs to the agent, while
    the pre-commit hook only validates an attempted commit.
-6. Verify with `python3 tools/check-agent-records.py .` and the relevant CTest
+7. Verify with `python3 tools/check-agent-records.py .` and the relevant CTest
    preset for build-affecting files. Use `record-session` in checkpoint mode for
    separate content/record commits and in close mode for distillation, cleanup,
    progress refresh, and final handoff. A read-only task reports its evidence

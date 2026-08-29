@@ -101,6 +101,16 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "architecture"
   )
   add_test(
+    NAME metaflux.architecture.session-guidance-selftest
+    COMMAND
+      Python3::Interpreter -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/session-guidance/scripts/test_guidance.py"
+  )
+  set_tests_properties(
+    metaflux.architecture.session-guidance-selftest
+    PROPERTIES LABELS "architecture"
+  )
+  add_test(
     NAME metaflux.architecture.skill-routing
     COMMAND
       Python3::Interpreter -B
