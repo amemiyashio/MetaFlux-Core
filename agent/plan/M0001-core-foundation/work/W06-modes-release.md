@@ -43,15 +43,15 @@ explicit administrator override.
 
 ## Optimization and Durability Qualification
 
-The source-frozen qualification runner is
+The clean-Git qualification runner is
 [`tests/performance/run_m0001_optimization.py`](../../../../tests/performance/run_m0001_optimization.py).
 It produces evidence only from commands it actually executes:
 
 - PGO training uses explicit provider, compiler-worker, interpreter, cold-JIT,
   warm-JIT, AOT, and managed-performance tests. A fresh `%m`/PID-partitioned raw
   directory is mandatory; `llvm-profdata` validates the merged candidate, and
-  the same workloads must pass after the `USE` rebuild. The sidecar binds source,
-  build-manifest, corpus, raw-set, profile, and tool hashes.
+  the same workloads must pass after the `USE` rebuild. The sidecar binds the Git
+  revision and tree, build manifest, corpus, raw set, profile, and tool hashes.
 - The provider comparison holds Release+ThinLTO constant, changes only `-O2`
   versus `-O3`, requires exact export parity, records all executable ELF section
   sizes, and alternates repeated runtime regressions on one CPU. No unstated
@@ -65,8 +65,8 @@ Binding host-Copy evidence uses separate schema-v2 native H2D and D2H raw
 sample sets with direction, API, completion boundary, workload size, placement,
 and host fingerprints. The binding identity also fixes pageable host allocation,
 physical device UUID/model/BDF/PCIe/NUMA path, driver hash, native CUDA library
-build ID and hash, and the Nix-owned benchmark binary, command, sample count, and
-stopping rule. The full command vector and CUDA device/provider-loading
+build ID and hash, and the CMake/Ninja-built benchmark binary, command, sample
+count, and stopping rule. The full command vector and CUDA device/provider-loading
 environment are exact schema fields, not free-form provenance. An unavailable
 physical field leaves the gate incomplete. A D2D baseline is an independent
 observation and cannot satisfy either host direction. Daemon direct-path
@@ -75,9 +75,10 @@ every warm-up and measured sample in each direction, while all staged-host
 counters remain zero.
 
 The harness and its self-test are implemented, but the PGO, optimization, and
-release checklist rows remain open until a no-drift source-freeze run is
-archived and the selected profile identity is deliberately promoted into the
-compiler epoch.
+release checklist rows remain open until a clean Git revision/tree run is
+archived and the selected profile identity is recorded by the performance and
+packaging workflows that consume it. A project PGO profile does not enter the
+compiler epoch or `toolchains/`.
 
 ## Work
 
@@ -87,7 +88,7 @@ compiler epoch.
   transfer without modifying vendor files or real `/dev/nvidia*` nodes.
 - [ ] Test real-only, managed-only, and coexistence namespaces.
 - [ ] Train provider/compiler-service PGO profiles from representative workloads
-  and record hashes in the compiler epoch.
+  and record hashes in owning performance evidence and packaging inputs.
 - [ ] Compare provider `-O2`/`-O3`, monitor instruction-cache growth, apply project
   ThinLTO, and defer custom PGO LLVM until the corpus is stable.
 - [ ] Audit allocations, syscalls, locks, cache lines, NUMA, generated assembly,

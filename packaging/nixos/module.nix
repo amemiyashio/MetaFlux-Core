@@ -1,8 +1,6 @@
-{ self }:
 {
   config,
   lib,
-  pkgs,
   ...
 }:
 let
@@ -14,9 +12,7 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = self.packages.${pkgs.system}.daemon;
-      defaultText = lib.literalExpression "self.packages.\${pkgs.system}.daemon";
-      description = "MetaFlux daemon package.";
+      description = "MetaFlux daemon package supplied by the packaging integration.";
     };
 
     socketPath = lib.mkOption {

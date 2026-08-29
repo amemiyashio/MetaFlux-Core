@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# MetaFlux pre-commit gate (installed via `git config core.hooksPath .githooks`
-# by the Nix devshell). Keeps agents that skipped AGENTS.md from committing.
+# MetaFlux pre-commit gate, enabled per worktree with
+# `git config core.hooksPath .githooks`. Keeps agents that skipped AGENTS.md
+# from committing.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 

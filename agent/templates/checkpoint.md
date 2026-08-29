@@ -12,7 +12,7 @@ workspace: clean/dirty summary
 
 Instance path: `agent/progress/checkpoints/YYYY/PYYYYMMDD-NNN-slug.md`.
 
-## Snapshot
+## Engineering state
 
 Describe the recoverable engineering state and distinguish fixtures from
 functional implementation.

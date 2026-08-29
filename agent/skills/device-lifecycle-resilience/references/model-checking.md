@@ -44,7 +44,7 @@ python3 tools/check-lifecycle-model.py \
   --manifest contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/manifest.json \
   --model contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/model.json \
   --bounds tests/lifecycle/model-bounds.json \
-  --output build/evidence/lifecycle/model-check.json
+  --output ../.metaflux-evidence/MetaFlux-Core/lifecycle/model-check.json
 ```
 
 `model-bounds.json` pins device/request counts, generation and epoch bounds,
@@ -56,7 +56,7 @@ Random sampling is supplemental and never substitutes for this command.
 
 ## Evidence artifact
 
-`build/evidence/lifecycle/model-check.json` records:
+`../.metaflux-evidence/MetaFlux-Core/lifecycle/model-check.json` records:
 
 - checker version and hashes of the base manifest, extension manifest, model, and
   bounds;

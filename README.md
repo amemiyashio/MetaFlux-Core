@@ -9,6 +9,12 @@ Agents start at [`AGENTS.md`](AGENTS.md) before making any change.
 
 ## Bootstrap
 
+Enable the repository-local Git gate once per worktree:
+
+```sh
+git config core.hooksPath .githooks
+```
+
 Nix pins and materializes repository tools. CMake owns the project build graph,
 Ninja executes it, CTest owns test execution, and Clang/LLD compile and link
 userspace code. Invoke each owning command directly through the development

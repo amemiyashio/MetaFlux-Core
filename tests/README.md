@@ -11,15 +11,16 @@ gate (`tools/check-component-graph.py`), which runs as
 The suite verifies consistent device identity across visible interfaces,
 provider-only and core-only build boundaries, deterministic AOT/JIT/interpreter
 results, transport teardown, and the published latency and throughput budgets.
-Performance smoke tests may run in Nix CI; strict latency gates run on controlled
+Performance smoke tests may run in CI; strict latency gates run on controlled
 bare-metal workers.
 
 Provider ABI qualification checks exact exported symbols and symbol versions,
 forbidden `DT_NEEDED` entries, and SONAMEs independently for CUDA and NVML. A
 separate test loads both providers simultaneously in one process. Backend
 fixtures are exercised only through their C function table. CTest labels remain
-stable so Nix may build the test graph once and report ABI, unit, integration,
-and performance-smoke results independently as the suite grows.
+stable so CTest and CI drivers may build the test graph once and report ABI,
+unit, integration, and performance-smoke results independently as the suite
+grows.
 
 `cuda_add_copy.c` is the application-side milestone fixture: it includes only a
 frozen official `cuda.h` and uses ordinary CUDA Driver calls. The separate Python

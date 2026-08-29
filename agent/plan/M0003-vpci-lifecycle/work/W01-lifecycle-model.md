@@ -101,7 +101,7 @@ python3 tools/check-lifecycle-model.py \
   --manifest contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/manifest.json \
   --model contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/model.json \
   --bounds tests/lifecycle/model-bounds.json \
-  --output build/evidence/lifecycle/model-check.json
+  --output ../.metaflux-evidence/MetaFlux-Core/lifecycle/model-check.json
 ```
 
 The bounds file pins object/request counts, sequence depth, fault points, and a
@@ -173,11 +173,12 @@ or first-visibility rule change composes `$runtime-contracts-registry`.
 
 ## Exit Gate
 
-`build/evidence/lifecycle/model-check.json` demonstrates within the pinned bounds
-that no explored legal event sequence publishes two live owners, reuses an
-accepted generation candidate, advances epoch before retirement, commits a
-retirement without `epoch_after == epoch_before + 1`, accepts or publishes an
-intermediate state at generation/epoch exhaustion, changes identity for a
+`../.metaflux-evidence/MetaFlux-Core/lifecycle/model-check.json` demonstrates
+within the pinned bounds that no explored legal event sequence publishes two
+live owners, reuses an accepted generation candidate, advances epoch before
+retirement, commits a retirement without
+`epoch_after == epoch_before + 1`, accepts or publishes an intermediate state at
+generation/epoch exhaustion, changes identity for a
 duplicate, separates old retirement from replacement installation, changes a provider's
 captured membership/order before its permitted reinitialization, adds a CUDA
 ordinal, prevents the required loss-state update, confuses two generations with

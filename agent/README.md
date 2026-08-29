@@ -40,7 +40,7 @@ contract. Agent records link to canonical material instead of copying it.
 | `memory/` | Stable project, constraints, ownership, terminology, and decision index | Change only when canonical sources change |
 | `experience/` | Reusable procedures supported by evidence | Validate before relying on them; supersede instead of silently rewriting conclusions |
 | `progress/current.md` | Replaceable resume point | Refresh after material state changes |
-| `progress/checkpoints/` | Immutable historical snapshots | Append corrections; never rewrite history |
+| `progress/checkpoints/` | Immutable historical handoffs | Append corrections; never rewrite history |
 | `sessions/` | Curated task objective, material decisions/results, cleanup, and resume summary | Keep compact; Git owns source history, and disposable failed-route artifacts are removed at handoff |
 | `skills/` | Codex skill packages for repository-specific work | Load on demand; keep `SKILL.md` standard-compatible and verify repository-changing procedures proportionately |
 | `templates/` | Required record shapes | Keep fields and status vocabularies stable |

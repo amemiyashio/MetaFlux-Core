@@ -8,8 +8,8 @@ Blocks the edit tools before a rule-skipping change lands:
 - any edit outside agent/ requires an in-progress session record.
 
 Fails open on any parse or environment error: this guard is a convenience
-bridge, and the pre-commit hook plus the Nix checks remain the hard gates for
-every contributor regardless of tooling.
+bridge, and the pre-commit hook plus repository validators and owner-specific
+tests remain the hard gates for every contributor regardless of tooling.
 """
 
 from __future__ import annotations

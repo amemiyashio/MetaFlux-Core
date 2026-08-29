@@ -20,8 +20,8 @@ Compiler epoch 1 must carry minimized regressions for any relied-on LLVM 22
 behavior, including the repository's loop-vectorizer correctness concerns.
 Record exact revision/patchset, command line, target/features, pre-pass IR,
 observed wrong or missed behavior, expected result, and upstream issue where
-applicable. Run each reproducer in Nix epoch qualification before promoting an
-artifact.
+applicable. Run each reproducer through its owning verifier with the declared
+epoch tools before promoting an artifact; Nix only materializes those tools.
 
 ## Evidence set
 
