@@ -32,7 +32,7 @@ stubs and explicit CUDA errors.
 - [x] Implement lazy reentrant initialization without constructors, threads,
   sockets, or allocation before the first real API call.
 - [x] Implement device/context/module/function/memory/stream/event object tables.
-- [ ] Route launch, copy, event, and synchronization through the shared fast path.
+- [x] Route launch, copy, event, and synchronization through the shared fast path.
 - [x] Implement `CUDA_VISIBLE_DEVICES` filtering/reordering and stable errors.
 - [x] Run the acceptance application against interpreter, cold/warm JIT, and AOT.
 

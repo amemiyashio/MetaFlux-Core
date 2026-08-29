@@ -233,6 +233,27 @@ read_list_file(const std::filesystem::path& path, std::string& diagnostic) {
   return values;
 }
 
+[[nodiscard]] std::optional<std::vector<std::uint32_t>>
+read_list_file_up(const std::filesystem::path& start, const std::filesystem::path& filename,
+                  const std::filesystem::path& stop_root) {
+  for (auto directory = start; !directory.empty() && directory != stop_root;
+       directory = directory.parent_path()) {
+    const auto path = directory / filename;
+    if (auto text = read_text(path); text.has_value()) {
+      if (auto values = parse_list(*text); values.has_value()) {
+        return values;
+      }
+    }
+  }
+  const auto path = stop_root / filename;
+  if (auto text = read_text(path); text.has_value()) {
+    if (auto values = parse_list(*text); values.has_value()) {
+      return values;
+    }
+  }
+  return std::nullopt;
+}
+
 [[nodiscard]] std::optional<std::uint32_t> read_id_file(const std::filesystem::path& path,
                                                         std::string& diagnostic) {
   const auto text = read_text(path);
@@ -369,13 +390,15 @@ PlacementResult discover_cpu_placement(const PlacementPaths& paths, const Placem
   if (!cgroup_directory.has_value()) {
     return failure(PlacementError::System, std::move(diagnostic));
   }
-  const auto cpuset_cpus = read_list_file(*cgroup_directory / "cpuset.cpus.effective", diagnostic);
+  const auto cgroup2_mount = [&]() -> std::filesystem::path {
+    if (paths.cgroup_directory.has_value()) {
+      return *paths.cgroup_directory;
+    }
+    return std::filesystem::path("/");
+  }();
+  auto cpuset_cpus = read_list_file_up(*cgroup_directory, "cpuset.cpus.effective", cgroup2_mount);
   if (!cpuset_cpus.has_value()) {
-    return failure(PlacementError::System, std::move(diagnostic));
-  }
-  const auto cpuset_mems = read_list_file(*cgroup_directory / "cpuset.mems.effective", diagnostic);
-  if (!cpuset_mems.has_value()) {
-    return failure(PlacementError::System, std::move(diagnostic));
+    cpuset_cpus = *affinity;
   }
 
   auto effective_cpus = set_intersection(*affinity, *online_cpus);
@@ -401,6 +424,10 @@ PlacementResult discover_cpu_placement(const PlacementPaths& paths, const Placem
     online_mems = *parsed;
   } else {
     online_mems = {0U};
+  }
+  auto cpuset_mems = read_list_file_up(*cgroup_directory, "cpuset.mems.effective", cgroup2_mount);
+  if (!cpuset_mems.has_value()) {
+    cpuset_mems = online_mems;
   }
   const auto effective_mems = set_intersection(online_mems, *cpuset_mems);
   if (effective_mems.empty()) {

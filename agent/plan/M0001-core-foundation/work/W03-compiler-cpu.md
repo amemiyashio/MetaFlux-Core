@@ -121,11 +121,11 @@ together.
 - [x] Implement CPU memory, CTA scheduling, special registers, required barriers,
   deterministic shutdown, scalar Add/Copy reference, and randomized differential
   tests.
-- [ ] Implement daemon control lifecycle, credentials, Unix socket activation,
+- [x] Implement daemon control lifecycle, credentials, Unix socket activation,
   and isolated compiler workers without a provider `libsystemd` dependency.
 - [x] Implement Kernel IR to MLIR, SIMT-to-loop/SIMD lowering, LLVM IR, PIC ELF,
   helper ABI, cancellation, and resource limits.
-- [ ] Implement deterministic keys, atomic cache publication, corruption recovery,
+- [x] Implement deterministic keys, atomic cache publication, corruption recovery,
   quota/eviction, epoch isolation, and AOT prewarm manifests.
 - [x] Add LLVM vectorizer reproducers and interpreter/JIT differential tests to
   epoch qualification.

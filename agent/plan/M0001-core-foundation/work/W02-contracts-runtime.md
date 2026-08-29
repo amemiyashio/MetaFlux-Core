@@ -487,7 +487,7 @@ through their C entrypoint/function table.
 
 - [x] Implement fixed-layout C types and generated C/C++ size/alignment/offset
   assertions.
-- [ ] Implement registry and dynamic latch pages, generation-bound handles, and
+- [x] Implement registry and dynamic latch pages, generation-bound handles, and
   stale-handle errors; bracket handle/admission/telemetry reads with control
   acquire/recheck, use an odd/even latch for whole-fence snapshots, bind stateful
   admission to one helper-recoverable shared lease record, use helper-recoverable
