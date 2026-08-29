@@ -68,6 +68,16 @@ PGO_TRAINING_TESTS = (
     "metaflux.performance.m0001-ring-smoke",
     "metaflux.stress.daemon-million-noop",
     "metaflux.unit.client-fastpath-ring",
+    "metaflux.abi.provider.cuda-ptds-exports",
+    "metaflux.abi.provider.cuda-ptds-header",
+    "metaflux.unit.provider.cuda-install-layout",
+    "metaflux.unit.provider.nvml-install-layout",
+    "metaflux.unit.ptx-manifest",
+    "metaflux.unit.runtime",
+    "metaflux.unit.runtime-registry",
+    "metaflux.qualification.cpu-pic-elf-readelf",
+    "metaflux.qualification.cpu-simd-objdump",
+    "metaflux.release.matrix-assertions",
 )
 
 PROVIDER_VARIANT_TESTS = (
