@@ -48,6 +48,14 @@ let
   };
   providerHeaders = import ./toolchains/nvidia-headers.nix { inherit pkgs; };
   providerTools = import ./toolchains/nvidia-tools.nix { inherit pkgs; };
+  pytorchBaseline = import ./toolchains/pytorch-cuda-client.nix {
+    inherit lib pkgs;
+    profileName = "baseline";
+  };
+  pytorchFrontier = import ./toolchains/pytorch-cuda-client.nix {
+    inherit lib pkgs;
+    profileName = "frontier";
+  };
   toolPackages = {
     inherit toolchain;
     generic-llvm-toolchain = genericLlvmToolchain;
@@ -55,6 +63,8 @@ let
     provider-sysroot = providerSysroot;
     "ubuntu-20.04-target-sdk" = targetSdk;
     nvidia-stock-tools = providerTools;
+    pytorch-baseline = pytorchBaseline;
+    pytorch-frontier = pytorchFrontier;
   };
   projectShells = import ./shells {
     inherit

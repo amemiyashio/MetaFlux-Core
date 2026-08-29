@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "epoch": 1,
+  "python": {
+    "implementation": "CPython",
+    "version": "3.13.15",
+    "abi": "cp313",
+    "platform": "x86_64-linux"
+  },
+  "profiles": {
+    "baseline": {
+      "role": "sm70-regression-probe",
+      "torch_version": "2.11.0+cu126",
+      "cuda_version": "12.6",
+      "cuda_toolkit_version": "12.6.3",
+      "wheel_lock": "toolchains/pytorch-cuda-clients/baseline-wheels.json"
+    },
+    "frontier": {
+      "role": "future-sm80-gap-probe",
+      "torch_version": "2.13.0+cu132",
+      "cuda_version": "13.2",
+      "cuda_toolkit_version": "13.2.1",
+      "wheel_lock": "toolchains/pytorch-cuda-clients/frontier-wheels.json"
+    }
+  }
+}

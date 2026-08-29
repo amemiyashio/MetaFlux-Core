@@ -91,6 +91,43 @@ the owning build/tests, and running stock tools against MetaFlux belongs to the
 compatibility harness. Changing an existing family requires a new manifest
 epoch rather than editing the meaning of an existing one.
 
+## PyTorch CUDA Client Epoch 1
+
+[`pytorch-cuda-clients-1.json`](pytorch-cuda-clients-1.json) declares two
+isolated, on-demand client environments for compatibility probing. The
+`baseline` profile fixes CPython 3.13.15, PyTorch `2.11.0+cu126`, the
+torch-visible CUDA identity `12.6`, and the exact `cuda-toolkit` 12.6.3 wheel
+closure. The `frontier` profile fixes the same Python, PyTorch `2.13.0+cu132`,
+the torch-visible CUDA identity `13.2`, and the exact `cuda-toolkit` 13.2.1
+wheel closure. Their locks under [`pytorch-cuda-clients/`](pytorch-cuda-clients/)
+pin every transitively required wheel by filename, byte size, and SHA-256. Each
+lock also carries mirror-first candidate URLs ordered for the configured timezone
+where that lock was generated or refreshed, with canonical upstream last. A
+different execution timezone may reorder only those transport candidates while
+preserving the filenames, sizes, and hashes that define profile identity.
+
+Nix exposes these declarations only as `pytorch-baseline` and
+`pytorch-frontier` tool packages and development shells. They are absent from
+the default, provider, runtime, and release shells, so normal development does
+not fetch their multi-gigabyte closures. Enter one explicitly when its owning
+probe requires it:
+
+```sh
+nix develop .#pytorch-baseline
+nix develop .#pytorch-frontier
+nix shell .#pytorch-baseline --command python -c 'import torch; print(torch.__version__)'
+```
+
+These clients do not define product capability, framework qualification, test
+selection, or release acceptance. The baseline is a current gap/regression
+probe and the frontier is a future-target probe; success in either environment
+does not change the PTX capability manifest or the CUDA-visible virtual compute
+capability. The static lock gate is:
+
+```sh
+python3 toolchains/tests/verify_pytorch_cuda_clients.py
+```
+
 ## Artifact Download Routing (D0020)
 
 Downloads first try a mirror in the current execution environment's configured
@@ -114,6 +151,7 @@ frozen hash.
 | `reproducers/` | Focused correctness reproducers for declared patches |
 | `nvidia-headers-1.json`, `nvidia-headers/` | CUDA Driver/NVML ABI input manifests |
 | `nvidia-tools-1.json`, `nvidia-tools/` | Stock compatibility-tool manifests |
+| `pytorch-cuda-clients-1.json`, `pytorch-cuda-clients/` | On-demand PyTorch CUDA client profiles and complete wheel locks |
 | `ubuntu-20.04-target-sdk-provenance.json` | Generic Linux target SDK input provenance |
 | `tests/` | Verification helpers for the declared inputs |
 

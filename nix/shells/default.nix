@@ -7,23 +7,28 @@ let
   mkClangShell =
     {
       name,
+      prependPackages ? [ ],
       packages ? [ ],
+      extraShellHook ? "",
     }:
     pkgs.mkShell.override { stdenv = llvmPackages.stdenv; } {
       inherit name;
       NIX_NO_SELF_RPATH = 1;
       buildInputs = [ pkgs.stdenv.cc.cc.lib ];
-      packages = [
-        toolPackages.toolchain
-        pkgs.git
-      ]
-      ++ packages;
+      packages =
+        prependPackages
+        ++ [
+          toolPackages.toolchain
+          pkgs.git
+        ]
+        ++ packages;
       shellHook = ''
         export CMAKE_GENERATOR=Ninja
         export CC=clang
         export CXX=clang++
         export LDFLAGS="''${LDFLAGS:+$LDFLAGS }-fuse-ld=lld"
         export LD_LIBRARY_PATH="${toolPackages.toolchain}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        ${extraShellHook}
       '';
     };
 in
@@ -66,5 +71,27 @@ in
       pkgs.podman
       pkgs.rpm
     ];
+  };
+
+  pytorch-baseline = mkClangShell {
+    name = "metaflux-pytorch-baseline-tools";
+    prependPackages = [ toolPackages.pytorch-baseline ];
+    extraShellHook = ''
+      export PYTHONNOUSERSITE=1
+      unset PYTHONHOME
+      unset PYTHONPATH
+      export LD_LIBRARY_PATH="${toolPackages.toolchain}/lib"
+    '';
+  };
+
+  pytorch-frontier = mkClangShell {
+    name = "metaflux-pytorch-frontier-tools";
+    prependPackages = [ toolPackages.pytorch-frontier ];
+    extraShellHook = ''
+      export PYTHONNOUSERSITE=1
+      unset PYTHONHOME
+      unset PYTHONPATH
+      export LD_LIBRARY_PATH="${toolPackages.toolchain}/lib"
+    '';
   };
 }

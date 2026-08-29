@@ -11,6 +11,9 @@ does not rename a milestone or invalidate links.
 | [M0003](M0003-vpci-lifecycle/plan.md) | v0.2.2 | Queued | Lifecycle and experimental vPCI presentation |
 | [M0004](M0004-vulkan-backend/plan.md) | v0.2.3 | Queued | Vulkan execution backend |
 
+Cross-release research: [PyTorch compatibility](pytorch-compatibility-roadmap.md)
+tracks optional baseline and frontier client probes without changing a milestone.
+
 Each milestone owns one `plan.md` and a `work/` directory. The plan defines the
 release outcome, scope, dependencies, global acceptance criteria, unresolved
 decisions, and Definition of Done. Work documents define independently

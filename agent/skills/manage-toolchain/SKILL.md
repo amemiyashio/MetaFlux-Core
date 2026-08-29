@@ -31,6 +31,11 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 - When downloading any declared tool or immutable input, prefer a mirror selected
   for the current execution environment's configured timezone before trying an
   adjacent-timezone mirror or canonical upstream.
+- Materialize framework clients as exact, named, on-demand profiles. Keep each
+  profile's Python, framework wheel, CUDA user-space closure, and immutable
+  digests internally consistent; never mix dependencies across profiles or add
+  them to the default, provider, runtime, or release shell. A framework profile
+  is a test client, not evidence for product capability or generic Linux ABI.
 - Route compiler semantics, provider ABI, runtime behavior, and target tuning to
   their domain skills. A tool version change does not transfer those decisions
   to this skill.
