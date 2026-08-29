@@ -75,6 +75,8 @@ The full audit of unchecked M0001 work items confirms:
 | O2/O3 variant comparison | 28 commands, status=pass |
 | ASan/UBSan hardening | 121 commands, status=pass |
 | Coexistence namespace tests | 3 new sub-tests (managed-only, isolation, recursion prevention) |
+| Generic release build (Ubuntu 20.04) | metafluxd GLIBC_2.29, providers GLIBC_2.17/2.14, no Nix paths, no RPATH |
+| Package validation (DEB + tar) | Pass (36 MB DEB, 52 MB tar) |
 
 [D0022](../memory/decisions-index.md) supersedes D0021 and restores the tool
 boundary:
@@ -188,10 +190,18 @@ only and does not alter product, build, release, or Nix ownership.
 
 ## Next boundary
 
-1. Encode the documented Ubuntu 20.04 target tuple in a checked-in CMake-owned
-   toolchain/preset or build driver and require a fresh build tree.
+1. ~~Encode the documented Ubuntu 20.04 target tuple in a checked-in CMake-owned
+   toolchain/preset or build driver and require a fresh build tree.~~ **Done.**
+   `cmake/toolchains/ubuntu-20.04-generic.cmake` and
+   `tools/build-generic-release.sh` encode the complete tuple. Verified:
+   metafluxd at GLIBC_2.29, providers at GLIBC_2.17/2.14, DEB and tar packages
+   clean (no Nix store paths, no RPATH, correct interpreter).
 2. Build and package complete and provider artifacts from one clean Git
    revision, then run the digest-pinned release matrix twice.
+   **Partial:** packages built and Ubuntu 20.04 row manually verified. Full
+   offline matrix (all 4 distro rows × 2 formats) requires rpmbuild and
+   container runtime fix.
 3. Wire the complete signed Ubuntu provenance verifier input set into its
-   qualification owner.
-4. Keep Intel host qualification deferred to M0002 until a host is available.
+   qualification owner. **Not started.**
+4. ~~Keep Intel host qualification deferred to M0002 until a host is available.~~
+   **Done.**
