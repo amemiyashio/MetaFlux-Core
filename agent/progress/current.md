@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-29
 milestone: M0001
 workstream: M0001-W06
-checkpoint: P20260829-006
+checkpoint: P20260829-007
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260829-006
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W06](../plan/M0001-core-foundation/work/W06-modes-release.md). Latest checkpoint:
-[P20260829-006](checkpoints/2026/P20260829-006-cgroup-cpuset-fix-and-implementation-audit.md).
+[P20260829-007](checkpoints/2026/P20260829-007-pytorch-cuda-client-profiles.md).
 
 ## Current state
 
@@ -74,14 +74,31 @@ boundary:
 - `packaging/` owns product artifacts; sessions own concise work records and
   cleanup; host operators own Nix-store retention and garbage collection.
 
+## Optional PyTorch CUDA client profiles
+
+Revisions `7fd83f6` and `b4e78bf` add two exact, on-demand test clients and a
+five-stage diagnostic probe. `pytorch-baseline` pins Python 3.13.15, PyTorch
+`2.11.0+cu126`, CUDA 12.6, and a wheel containing `sm_70` artifacts.
+`pytorch-frontier` pins PyTorch `2.13.0+cu132`, CUDA 13.2, and wheel artifacts
+starting at `sm_75`, including the intended future `sm_80` target. Each closure
+contains 29 hash- and size-locked wheels.
+
+The two packages and shells are explicit opt-ins. Recursive derivation scans
+confirm the default, provider, runtime, and release shells do not reference
+them. Both closures were fully materialized and imported in disposable local
+Nix stores, then those stores were removed without host GC. The offline probe
+self-test passes 7/7 and its two focused CTest gates pass 2/2. M0001 and D0017
+remain frozen at `sm_70`; neither client is product or release evidence.
+
 M0001 defines tasks, dependencies, and acceptance conditions. Its W01 document
 points to the canonical [toolchain policy](../../toolchains/README.md) rather
 than duplicating repository-wide workflow semantics.
 
 ## Verified correction
 
-- The flake exposes tool packages, four development shells, and a formatter; it
-  exposes no project checks, product packages, or NixOS module outputs.
+- The flake exposes tool packages, four primary development shells, two explicit
+  PyTorch client shells, and a formatter; it exposes no project checks, product
+  packages, or NixOS module outputs.
 - The default shell provides Clang/LLVM `22.1.8`, CMake `4.1.6`, and Ninja
   `1.13.2`. It suppresses Nix's temporary self-RPATH and provides fixed
   tool-runtime libraries through the shell environment, so project ELF files
