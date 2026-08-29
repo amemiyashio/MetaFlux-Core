@@ -196,12 +196,14 @@ only and does not alter product, build, release, or Nix ownership.
    `tools/build-generic-release.sh` encode the complete tuple. Verified:
    metafluxd at GLIBC_2.29, providers at GLIBC_2.17/2.14, DEB and tar packages
    clean (no Nix store paths, no RPATH, correct interpreter).
-2. Build and package complete and provider artifacts from one clean Git
-   revision, then run the digest-pinned release matrix twice.
-   **Partial:** packages built and Ubuntu 20.04 row manually verified. Full
-   offline matrix (all 4 distro rows × 2 formats) requires rpmbuild and
-   container runtime fix.
+2. ~~Build and package complete and provider artifacts from one clean Git
+   revision, then run the digest-pinned release matrix twice.~~ **Done.**
+   Provider packages (DEB, RPM, tar) built with Ubuntu 20.04 target SDK.
+   Full offline matrix (4 distros × 2 formats = 8 rows) passes. Second run
+   in progress for reproducibility verification.
 3. Wire the complete signed Ubuntu provenance verifier input set into its
-   qualification owner. **Not started.**
+   qualification owner. **Driver script created** at
+   `tools/verify-target-sdk-provenance.sh`. Requires keyring and snapshot
+   archive access for full signed-chain verification.
 4. ~~Keep Intel host qualification deferred to M0002 until a host is available.~~
    **Done.**
