@@ -33,6 +33,13 @@ PGO_TRAINING_TESTS = (
     "metaflux.integration.cuda-add-copy-managed.warm-jit",
     "metaflux.integration.cuda-add-copy-managed.aot",
     "metaflux.performance.m0001-managed-smoke",
+    "metaflux.contract.shared-device-layout.c",
+    "metaflux.contract.shared-device-layout.cpp",
+    "metaflux.contract.backend-plugin-api.v1",
+    "metaflux.contract.client-protocol.v1",
+    "metaflux.abi.c",
+    "metaflux.abi.cpp",
+    "metaflux.abi.backend-cpu",
 )
 
 PROVIDER_VARIANT_TESTS = (
