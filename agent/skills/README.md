@@ -61,7 +61,7 @@ for history.
 | [manage-toolchain](manage-toolchain/SKILL.md) | Active | Pinning tools, changing manifests or shells, or reviewing Nix responsibility |
 | [add-component](add-component/SKILL.md) | Active | Adding any new boundary target to the build |
 | [close-decision](close-decision/SKILL.md) | Active | Resolving a row of the open-decisions ledger |
-| [record-session](record-session/SKILL.md) | Active | Recording any work session from start to checkpoint |
+| [record-session](record-session/SKILL.md) | Active | Committing a verified stage breakthrough or closing a work session |
 | [implementation-readiness](implementation-readiness/SKILL.md) | Active | Assessing whether architecture or a workstream is ready for implementation |
 | [runtime-contracts-registry](runtime-contracts-registry/SKILL.md) | Active | Defining neutral registry, client protocol, shared layouts, backend ABI, and schema ownership |
 | [cuda-driver-abi-compatibility](cuda-driver-abi-compatibility/SKILL.md) | Active | Implementing or reviewing CUDA Driver ABI, objects, and errors |

@@ -32,12 +32,16 @@ cover the complete change.
    ```
 
    For a read-only task, do not create an empty session.
-5. Make the change; verify with `python3 tools/check-agent-records.py .` and
-   the relevant CTest preset for build-affecting files. The pre-commit hook
-   enforces both records validity and session coverage.
-6. For a durable change, finish through the `record-session` skill:
-   distillation, decision closure, progress refresh, checkpoint, and separate
-   content/record commits. A read-only task reports its evidence directly.
+5. Make the change and monitor the breakthrough trigger in `record-session`.
+   When a coherent independently valuable stage passes its focused gates,
+   checkpoint it before entering the next risk or scope phase; do not wait for
+   the entire task to finish. The semantic trigger belongs to the agent, while
+   the pre-commit hook only validates an attempted commit.
+6. Verify with `python3 tools/check-agent-records.py .` and the relevant CTest
+   preset for build-affecting files. Use `record-session` in checkpoint mode for
+   separate content/record commits and in close mode for distillation, cleanup,
+   progress refresh, and final handoff. A read-only task reports its evidence
+   directly.
 
 ## Verification
 
