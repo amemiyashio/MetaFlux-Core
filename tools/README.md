@@ -78,16 +78,18 @@ to `agent/sessions/README.md` so the index-completeness rule stays green:
 python3 tools/new-session.py my-session-slug
 ```
 
-Fill the TODO fields as the session progresses; the skeleton passes
-`check-agent-records.py` immediately after creation.
+Fill the TODO fields as the session progresses. New sessions have
+`status: in_progress` and `ended_at: null`; closing the session records the end
+date and a terminal status. The skeleton passes `check-agent-records.py`
+immediately after creation.
 
 ## Validator self-test
 
 `test-check-agent-records.py` pins the validator itself against a synthetic
-golden tree. Its 52 cases cover required session fields, event sequencing,
-distillation, index completeness, decision identity and references, skill
-catalog/metadata rules, staleness and status drift, Markdown links, checkpoint
-identity, and current-progress freshness. It builds fixtures in a temporary
+golden tree. Its 58 cases cover required session fields, lifecycle timestamps,
+event sequencing, distillation, index completeness, decision identity and
+references, skill catalog/metadata rules, staleness and status drift, Markdown
+links, checkpoint identity, and current-progress freshness. It builds fixtures in a temporary
 directory and loads the validator by path without writing bytecode.
 
 ```sh

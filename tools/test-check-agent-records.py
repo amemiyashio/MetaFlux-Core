@@ -3,7 +3,8 @@
 
 Builds a minimal valid agent/ tree in a temporary directory and asserts the
 validator's behavior on it, then mutates one aspect per case to pin every rule:
-required session fields, contiguous event sequence numbers, cleanup, distillation,
+required session fields, session lifecycle timestamps, contiguous event sequence
+numbers, cleanup, distillation,
 index completeness (both directions), Codex skill-package compatibility and
 discovery, open-decision identity, decision-index references, staleness warnings,
 markdown link existence, checkpoint id/path agreement, current-progress
@@ -20,7 +21,9 @@ hyphenated filename is not a problem.
 from __future__ import annotations
 
 import importlib.util
+import json
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -29,6 +32,7 @@ sys.dont_write_bytecode = True
 
 TOOLS_DIR = Path(__file__).resolve().parent
 VALIDATOR_PATH = TOOLS_DIR / "check-agent-records.py"
+NEW_SESSION_PATH = TOOLS_DIR / "new-session.py"
 
 spec = importlib.util.spec_from_file_location("check_agent_records", VALIDATOR_PATH)
 assert spec is not None and spec.loader is not None
@@ -163,6 +167,57 @@ def replace(files: dict[str, str], path: str, old: str, new: str) -> dict[str, s
     return mutated
 
 
+def check_new_session_skeleton(root: Path) -> list[str]:
+    write_tree(root, BASE_FILES)
+    sessions_root = root / "agent/sessions"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            str(NEW_SESSION_PATH),
+            "lifecycle-fixture",
+            "--repo-root",
+            str(root),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    problems: list[str] = []
+    if result.returncode != 0:
+        problems.append(f"scaffolder exited {result.returncode}: {result.stderr.strip()}")
+        return problems
+
+    generated = list(sessions_root.glob("*/*/S*-lifecycle-fixture"))
+    if len(generated) != 1:
+        problems.append(f"expected one generated session, found {len(generated)}")
+        return problems
+
+    session_dir = generated[0]
+    try:
+        session = json.loads((session_dir / "session.json").read_text(encoding="utf-8"))
+        summary = (session_dir / "summary.md").read_text(encoding="utf-8")
+    except (OSError, json.JSONDecodeError) as exc:
+        problems.append(f"generated skeleton is unreadable: {exc}")
+        return problems
+
+    if session.get("status") != "in_progress":
+        problems.append("generated session status is not in_progress")
+    if session.get("ended_at") is not None:
+        problems.append("generated in-progress session has a non-null ended_at")
+    if not summary.startswith("# Session Summary\n\n## Objective and outcome\n"):
+        problems.append("generated summary does not use the current section shape")
+
+    code, errors, warnings = run_validator(root)
+    if code != 0 or errors or warnings:
+        problems.append(
+            f"generated skeleton failed validation: code={code} "
+            f"errors={errors} warnings={warnings}"
+        )
+    return problems
+
+
 SKILLS_README = (
     "# Skills\n\n## Index\n\n"
     "| Skill | Status | Use when |\n"
@@ -273,6 +328,44 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
     (
         "session missing required field",
         replace(BASE_FILES, f"{SESSION_DIR}/session.json", '"time_precision": "date",\n', ""),
+        True,
+        False,
+    ),
+    (
+        "in-progress session without end time",
+        replace(
+            replace(
+                BASE_FILES,
+                f"{SESSION_DIR}/session.json",
+                '"status": "complete"',
+                '"status": "in_progress"',
+            ),
+            f"{SESSION_DIR}/session.json",
+            '"ended_at": "2026-08-28"',
+            '"ended_at": null',
+        ),
+        False,
+        False,
+    ),
+    (
+        "in-progress session with end time",
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/session.json",
+            '"status": "complete"',
+            '"status": "in_progress"',
+        ),
+        True,
+        False,
+    ),
+    (
+        "terminal session without end time",
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/session.json",
+            '"ended_at": "2026-08-28"',
+            '"ended_at": null',
+        ),
         True,
         False,
     ),
@@ -831,10 +924,21 @@ def main() -> int:
                 print(f"  exit={code} errors={errors} warnings={warnings}", file=sys.stderr)
             else:
                 print(f"ok: {name}")
+        if root.exists():
+            shutil.rmtree(root)
+        root.mkdir(parents=True)
+        scaffold_problems = check_new_session_skeleton(root)
+        if scaffold_problems:
+            failures += 1
+            print("FAIL: new-session lifecycle skeleton", file=sys.stderr)
+            for problem in scaffold_problems:
+                print(f"  {problem}", file=sys.stderr)
+        else:
+            print("ok: new-session lifecycle skeleton")
     if failures:
         print(f"{failures} case(s) failed", file=sys.stderr)
         return 1
-    print(f"agent-records self-test: {len(CASES)} case(s) passed")
+    print(f"agent-records self-test: {len(CASES) + 1} case(s) passed")
     return 0
 
 

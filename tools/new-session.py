@@ -93,7 +93,7 @@ def main() -> int:
         "id": session_id,
         "repository": arguments.repository,
         "started_at": f"{today:%Y-%m-%d}",
-        "ended_at": f"{today:%Y-%m-%d}",
+        "ended_at": None,
         "time_precision": "date",
         "status": "in_progress",
         "fidelity": "exact",
@@ -123,7 +123,8 @@ def main() -> int:
     )
 
     (session_dir / "summary.md").write_text(
-        f"# Summary\n\n"
+        f"# Session Summary\n\n"
+        f"## Objective and outcome\n\n"
         f"TODO: objective and resulting repository state for {session_id}.\n\n"
         f"## Durable changes\n\n"
         f"- `path`: TODO.\n\n"

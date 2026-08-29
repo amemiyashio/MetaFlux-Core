@@ -326,8 +326,13 @@ class Validator:
 
         if session.get("time_precision") not in ALLOWED_TIME_PRECISION:
             self.add_error(session_file, "time_precision has an unsupported value")
-        if session.get("status") not in ALLOWED_STATUSES:
+        status = session.get("status")
+        if status not in ALLOWED_STATUSES:
             self.add_error(session_file, "status has an unsupported value")
+        elif status == "in_progress" and session.get("ended_at") is not None:
+            self.add_error(session_file, "in_progress sessions must have ended_at set to null")
+        elif status != "in_progress" and session.get("ended_at") is None:
+            self.add_error(session_file, "terminal sessions must record ended_at")
         if session.get("fidelity") not in ALLOWED_FIDELITY:
             self.add_error(session_file, "fidelity has an unsupported value")
 
