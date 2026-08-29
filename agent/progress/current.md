@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-29
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260829-002
+checkpoint: P20260829-003
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260829-002
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260829-002](checkpoints/2026/P20260829-002-stale-route-cleanup.md).
+[P20260829-003](checkpoints/2026/P20260829-003-session-lifecycle-normalization.md).
 
 ## Current state
 
@@ -21,6 +21,11 @@ is implementing the M0001 registry/fast path, PTX and Kernel IR path, CPU
 backend, compiler worker, and CUDA/NVML compatibility surfaces. Those paths are
 still in progress; implementation presence does not close their workstream exit
 gates or release qualification.
+
+That active session is now a 13-event curated ledger. It records no end time
+until closure, resumes from current main rather than its implementation evidence
+revision, and directs each continuation to reload the expert skill matching the
+selected work item.
 
 [D0022](../memory/decisions-index.md) supersedes D0021 and restores the tool
 boundary:
@@ -50,7 +55,8 @@ than duplicating repository-wide workflow semantics.
 - Session governance now treats records as curated work ledgers. Failed-route
   artifacts, temporary downloads, generated trees, duplicate source copies,
   and routine logs are removed at the session boundary; Git remains the source
-  history.
+  history. Active sessions use `ended_at: null` and may be distilled before
+  closure; terminal sessions record an end time and remain immutable.
 - [P20260829-001](checkpoints/2026/P20260829-001-toolchain-boundary-correction.md)
   records the first duplicate-source cleanup. Follow-up
   [S20260829-002](../sessions/2026/08/S20260829-002-cleanup-stale-routes/summary.md)

@@ -39,7 +39,7 @@ sessions record the date or timestamp when work stopped.
 | [S20260829-001-toolchain-boundary-correction](2026/08/S20260829-001-toolchain-boundary-correction/summary.md) | 2026-08-29 | Exact | Complete | D0022 tool boundary, skill governance, session cleanup, and duplicate-source reclamation |
 | [S20260829-002-cleanup-stale-routes](2026/08/S20260829-002-cleanup-stale-routes/summary.md) | 2026-08-29 | Exact | Complete | Remaining D0022 residue corrected; exact temporary and dead-store routes removed |
 | [S20260829-003-timezone-mirror-priority](2026/08/S20260829-003-timezone-mirror-priority/summary.md) | 2026-08-29 | Exact | Complete | Explicit current-timezone mirror priority in manage-toolchain routing |
-| [S20260829-004-implementation-session-current-standard](2026/08/S20260829-004-implementation-session-current-standard/summary.md) | 2026-08-29 | Exact | In progress | Normalize the active M0001 session and active-session end-state semantics |
+| [S20260829-004-implementation-session-current-standard](2026/08/S20260829-004-implementation-session-current-standard/summary.md) | 2026-08-29 | Exact | Complete | Distilled S013 ledger and enforced active/terminal session lifecycle semantics |
 
 ## Fidelity and retention
 
