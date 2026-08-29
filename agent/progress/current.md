@@ -16,9 +16,27 @@ P20260830-001.
 ## Current state
 
 M0001 vertical slice acceptance is near completion. All core workstreams (W02,
-W03, W04) are fully implemented and verified. The remaining closure work is
-release matrix evidence for D0012, session outcome recording, and Intel host
-qualification (deferred to M0002).
+W03, W04) are fully implemented and verified. W01 remains open for the generic
+release path: the target SDK exists, but the checked-in product release build
+does not yet select it. Remaining closure also includes current-revision release
+evidence and Intel host qualification (deferred to M0002).
+
+## Generic release SDK status
+
+The Ubuntu 20.04/glibc 2.31 target SDK and matching generic LLVM/MLIR/LLD
+closure are already materialized. The current `release` preset selects Release
+and LTO only, so an ordinary `cmake --preset release` remains a host build; the
+observed host artifact reference to `GLIBC_2.34` is a CMake target-consumption
+gap, not a missing-SDK problem.
+
+The [target SDK guide](../skills/manage-toolchain/references/ubuntu-20.04-target-sdk.md)
+records the construction, explicit target tuple, packaging, qualification, and
+diagnostic rules. A disposable build using that tuple produced CUDA/NVML
+providers capped at `GLIBC_2.17`/`GLIBC_2.14` and `metafluxd` capped at
+`GLIBC_2.29`, with the system loader, allowed system DSO closure, no RPATH or
+RUNPATH, and no Nix store string. This validates the tuple shape only. A
+checked-in CMake-owned entry point, full package construction, and two clean
+same-revision matrix runs remain required for a reproducible release claim.
 
 ## Verified implementation audit
 
@@ -144,6 +162,9 @@ than duplicating repository-wide workflow semantics.
   builds also produce identical DEB, RPM, and tar bytes. Commit `b05901a`
   preserves this verified boundary; commit `267edc4` preserves the checkpoint
   trigger used for subsequent phases.
+- Those recorded results apply to their cited revision and explicit build
+  route. They do not make the current host-oriented `release` preset target
+  aware or close the current-HEAD single-revision release entry-point gap.
 - PGO training + USE build, O2/O3 variant comparison, ASan/UBSan hardening,
   and coexistence namespace tests all pass with full evidence.
 - Release, fault, quota, and native NixOS qualification remain open.
@@ -151,9 +172,10 @@ than duplicating repository-wide workflow semantics.
 
 ## Next boundary
 
-1. Execute D0012 release matrix evidence (provider packages built, container
-   images pinned, matrix pending).
-2. Close D0012 decision with archived matrix evidence.
-3. Record session S20260830-001 outcomes and create checkpoint P20260830-001.
-4. Remaining W01 Intel host qualification deferred to M0002 (no Intel host
-   available).
+1. Encode the documented Ubuntu 20.04 target tuple in a checked-in CMake-owned
+   toolchain/preset or build driver and require a fresh build tree.
+2. Build and package complete and provider artifacts from one clean Git
+   revision, then run the digest-pinned release matrix twice.
+3. Wire the complete signed Ubuntu provenance verifier input set into its
+   qualification owner.
+4. Keep Intel host qualification deferred to M0002 until a host is available.
