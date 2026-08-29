@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-29
 milestone: M0001
 workstream: M0001-W01
-checkpoint: P20260829-001
+checkpoint: P20260829-002
 ---
 
 # Current Progress
@@ -11,7 +11,7 @@ checkpoint: P20260829-001
 Active milestone: [M0001](../plan/M0001-core-foundation/plan.md). Active
 workstream:
 [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md). Latest checkpoint:
-[P20260829-001](checkpoints/2026/P20260829-001-toolchain-boundary-correction.md).
+[P20260829-002](checkpoints/2026/P20260829-002-stale-route-cleanup.md).
 
 ## Current state
 
@@ -51,9 +51,13 @@ than duplicating repository-wide workflow semantics.
   artifacts, temporary downloads, generated trees, duplicate source copies,
   and routine logs are removed at the session boundary; Git remains the source
   history.
-- Cleanup removed 5.7 GiB from the old in-repository `build/` tree and 164 dead
-  MetaFlux Nix source copies containing that tree. The targeted store deletion
-  freed 564.1 GiB without running a broad garbage collection.
+- [P20260829-001](checkpoints/2026/P20260829-001-toolchain-boundary-correction.md)
+  records the first duplicate-source cleanup. Follow-up
+  [S20260829-002](../sessions/2026/08/S20260829-002-cleanup-stale-routes/summary.md)
+  removed the remaining 2.56 GiB of exact temporary/repository residue and a
+  1,294-path dead Nix closure; Nix reported another 26.1 GiB freed without a
+  broad garbage collection. Final scans found no old product/source route or
+  project GC root, while 104 legitimate tool materializations remain.
 
 ## Active M0001 evidence
 
@@ -78,6 +82,6 @@ than duplicating repository-wide workflow semantics.
    administrator AOT against the D0017 oracle.
 3. Qualify the provider/header matrix with stock tools and build generic
    artifacts through `packaging/` and `tests/release/`.
-4. Remove session-owned external build/evidence trees when their compact
+4. Remove session-owned external build and evidence trees when their compact
    verification result has been recorded; preserve concurrent or user-owned
    work.

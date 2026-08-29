@@ -32,6 +32,7 @@ event sequence numbers are immutable once published.
 | [S20260828-012-ubuntu-2004-glibc-floor](2026/08/S20260828-012-ubuntu-2004-glibc-floor/summary.md) | 2026-08-28 | Exact | Complete | Ubuntu 20.04 LTS and glibc 2.31 fixed as the W01 userspace release floor |
 | [S20260828-013-m0001-foundation](2026/08/S20260828-013-m0001-foundation/summary.md) | 2026-08-28 | Exact | In progress | M0001 registry, compiler/CPU, daemon, and CUDA/NVML foundation implementation |
 | [S20260829-001-toolchain-boundary-correction](2026/08/S20260829-001-toolchain-boundary-correction/summary.md) | 2026-08-29 | Exact | Complete | D0022 tool boundary, skill governance, session cleanup, and duplicate-source reclamation |
+| [S20260829-002-cleanup-stale-routes](2026/08/S20260829-002-cleanup-stale-routes/summary.md) | 2026-08-29 | Exact | Complete | Remaining D0022 residue corrected; exact temporary and dead-store routes removed |
 
 ## Fidelity and retention
 
