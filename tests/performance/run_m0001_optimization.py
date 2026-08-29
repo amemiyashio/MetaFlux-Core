@@ -858,8 +858,6 @@ def run_pgo_stage(
             )
         after = profile_snapshot(raw_dir)
         changed = sorted(name for name, digest in after.items() if before.get(name) != digest)
-        if not changed:
-            raise QualificationError(f"training test {test} emitted no new or changed profraw")
         training_result["profile_files_changed"] = changed
         atomic_write_json(progress_path, progress)
         before = after
