@@ -70,9 +70,12 @@ prewarm, and execution from the read-only AOT tree.
 
 The acceptance output directory also contains `metaflux-activation-launcher`,
 a glibc-2.31-floor C fixture, and `metaflux-add-u32.ptx`, the exact AOT prewarm
-input. The matrix locates both next to the path supplied by
-`--cuda-acceptance`, copies all three artifacts, and uses the launcher as root
-to bind a real `SOCK_SEQPACKET` listener at fd 3,
+input. Before creating any container, the matrix validates both ELF fixtures
+with the release-shell `readelf`: they must use the system loader, contain no
+RPATH/RUNPATH or Nix store path, stay within the system dependency closure, and
+reference no glibc symbol newer than `GLIBC_2.31`. The matrix locates both next
+to the path supplied by `--cuda-acceptance`, copies all three artifacts, and
+uses the launcher as root to bind a real `SOCK_SEQPACKET` listener at fd 3,
 set `LISTEN_PID`/`LISTEN_FDS`, set socket ownership and mode, drop to the
 packaged `metaflux` UID/GID, and exec `metafluxd`. CUDA Add/Copy itself runs as
 that account. The matrix does not treat the bound path as readiness: it waits

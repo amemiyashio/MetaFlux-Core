@@ -10,6 +10,10 @@ if(TARGET metaflux_cuda_ptx_frontend AND TARGET metaflux_cpu_backend_runtime)
       MetaFlux::CpuBackendRuntime
       MetaFlux::CudaPtxFrontend
   )
+  target_compile_definitions(
+    metaflux_cpu_compiler_pipeline_test
+    PRIVATE METAFLUX_TEST_LLD_PATH="${METAFLUX_LLD_EXECUTABLE}"
+  )
   metaflux_configure_target(metaflux_cpu_compiler_pipeline_test CXX)
 
   add_executable(metaflux_cpu_compiled_corpus_test compiled_corpus_test.cpp)

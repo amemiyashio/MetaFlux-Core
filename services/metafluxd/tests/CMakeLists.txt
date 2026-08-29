@@ -11,6 +11,19 @@ set_tests_properties(
   PROPERTIES LABELS "integration;runtime;daemon" TIMEOUT 60
 )
 
+add_executable(metafluxd_noop_stress_test noop_stress.c)
+target_link_libraries(metafluxd_noop_stress_test PRIVATE MetaFlux::ClientFastpath)
+metaflux_configure_target(metafluxd_noop_stress_test C)
+
+add_test(
+  NAME metaflux.stress.daemon-million-noop
+  COMMAND metafluxd_noop_stress_test $<TARGET_FILE:metafluxd>
+)
+set_tests_properties(
+  metaflux.stress.daemon-million-noop
+  PROPERTIES LABELS "stress;integration;runtime;daemon" TIMEOUT 180
+)
+
 add_executable(metafluxd_process_snapshot_test process_snapshot.c)
 target_link_libraries(metafluxd_process_snapshot_test PRIVATE MetaFlux::ClientFastpath)
 metaflux_configure_target(metafluxd_process_snapshot_test C)

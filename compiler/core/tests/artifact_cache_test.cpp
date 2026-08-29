@@ -885,6 +885,30 @@ bool test_aot_miss_does_not_initialize_mutable_state() {
                 "an AOT-only lookup miss must not initialize mutable cache state");
 }
 
+bool test_aot_publication_is_independent_of_mutable_state() {
+  TemporaryDirectory temporary;
+  std::uint64_t clock = 0;
+  auto config = config_for(temporary, clock);
+  const auto mutable_root = config.mutable_root;
+  std::ofstream blocker(mutable_root, std::ios::binary);
+  blocker.put('X');
+  blocker.close();
+
+  metaflux::compiler::PersistentArtifactCache cache(std::move(config));
+  const std::array artifact{std::byte{0x7f}, std::byte{'E'}, std::byte{'L'}, std::byte{'F'}};
+  const auto key = key_for("independent-administrator-aot");
+  const auto installed = cache.install_aot(key, bytes(artifact), descriptor());
+  const auto lookup = cache.lookup(23U, key);
+  return expect(installed == metaflux::compiler::PersistentCacheError::None,
+                "administrator AOT publication must not use mutable cache state") &&
+         expect(std::filesystem::is_regular_file(mutable_root),
+                "administrator AOT publication must leave the mutable root untouched") &&
+         expect(lookup.hit() &&
+                    lookup.entry->tier ==
+                        metaflux::compiler::PersistentCacheTier::AdministratorAot,
+                "independently published administrator AOT must be readable");
+}
+
 bool test_aot_precedence_and_read_only_mode() {
   TemporaryDirectory temporary;
   std::uint64_t clock = 0;
@@ -959,6 +983,7 @@ int main() {
                  test_cross_instance_reservations_and_pins() && test_forked_quota_reservations() &&
                  test_forked_pin_protection() && test_forked_live_holder_timeout_and_recovery() &&
                  test_aot_miss_does_not_initialize_mutable_state() &&
+                 test_aot_publication_is_independent_of_mutable_state() &&
                  test_aot_precedence_and_read_only_mode()
              ? 0
              : 1;

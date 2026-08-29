@@ -471,10 +471,6 @@ AotPrewarmResult prewarm_aot_file(const CpuExecutionConfiguration& configuration
     }
 
     compiler::PersistentArtifactCache cache(configuration.cache);
-    const auto reconciled = cache.reconcile();
-    if (reconciled != compiler::PersistentCacheError::None) {
-      return prewarm_failure(std::string(compiler::persistent_cache_error_name(reconciled)));
-    }
     bool compiled = false;
     auto artifact = backend::cpu::compiler::prewarm_aot(cache, *parsed.kernel, {}, [&] {
       compiled = true;

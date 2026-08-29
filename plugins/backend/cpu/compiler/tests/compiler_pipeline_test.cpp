@@ -141,6 +141,22 @@ bool write_hanging_linker(const std::filesystem::path& path,
   return output.good() && chmod(path.c_str(), 0700) == 0;
 }
 
+bool write_thread_checking_linker(const std::filesystem::path& path,
+                                  const std::filesystem::path& checked_marker) {
+  std::ofstream output(path, std::ios::trunc);
+  output << "#!/bin/sh\n"
+         << "thread_arguments=0\n"
+         << "for argument in \"$@\"; do\n"
+         << "  test \"$argument\" = --threads=1 && "
+            "thread_arguments=$((thread_arguments + 1))\n"
+         << "done\n"
+         << "test \"$thread_arguments\" -eq 1 || exit 65\n"
+         << ": > '" << checked_marker.string() << "'\n"
+         << "exec '" << METAFLUX_TEST_LLD_PATH << "' \"$@\"\n";
+  output.close();
+  return output.good() && chmod(path.c_str(), 0700) == 0;
+}
+
 std::optional<metaflux::backend::cpu::CompiledKernelSignature>
 signature_for(std::span<const metaflux::compiler::ParameterKind> parameters, bool uses_fp) {
   metaflux::backend::cpu::CompiledKernelSignature signature;
@@ -276,6 +292,20 @@ int main(int argc, char** argv) {
   linker_limited_options.limits.maximum_artifact_bytes = 1U;
   const auto linker_limited =
       metaflux::backend::cpu::compiler::compile_kernel(*parsed.kernel, linker_limited_options);
+  TemporaryDirectory linker_thread_temporary;
+  const auto thread_checking_linker = linker_thread_temporary.path() / "thread-checking-linker";
+  const auto thread_checked = linker_thread_temporary.path() / "thread-checked";
+  metaflux::backend::cpu::compiler::CompileOptions linker_thread_options;
+  linker_thread_options.linker_path = thread_checking_linker;
+  linker_thread_options.temporary_root = linker_thread_temporary.path() / "work";
+  const bool thread_checking_linker_ready =
+      linker_thread_temporary.valid() &&
+      write_thread_checking_linker(thread_checking_linker, thread_checked);
+  const auto linker_thread_limited =
+      thread_checking_linker_ready
+          ? metaflux::backend::cpu::compiler::compile_kernel(*parsed.kernel,
+                                                             linker_thread_options)
+          : metaflux::backend::cpu::compiler::CompileResult{};
   TemporaryDirectory cancellation_temporary;
   const auto hanging_linker = cancellation_temporary.path() / "hanging-linker";
   const auto linker_entered = cancellation_temporary.path() / "linker-entered";
@@ -311,6 +341,9 @@ int main(int argc, char** argv) {
                   linker_limited.diagnostic->error ==
                       metaflux::backend::cpu::compiler::CompileError::LinkerFailed,
               "linker file-size limit must reject artifact publication") ||
+      !expect(thread_checking_linker_ready && std::filesystem::exists(thread_checked) &&
+                  linker_thread_limited.ok(),
+              "runtime LLD must receive exactly one single-thread resource limit") ||
       !expect(hanging_linker_ready && std::filesystem::exists(linker_entered) &&
                   !linking_cancelled.ok() && linking_cancelled.diagnostic.has_value() &&
                   linking_cancelled.diagnostic->error ==

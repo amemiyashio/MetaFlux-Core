@@ -46,3 +46,25 @@ that way. Package removal deliberately retains the system account,
 `/var/lib/metaflux`, and `/var/cache/metaflux`; this prevents service-UID reuse
 and preserves compiler state. An administrator may archive and remove those
 three retained resources explicitly when permanent data deletion is intended.
+
+## Build entry point
+
+[`build.py`](build.py) consumes an already configured and built CMake tree. It
+does not configure or compile the product. The release shell provides the
+`cmake`, `dpkg-deb`, and `rpmbuild` tools; the package script owns staging and
+artifact construction:
+
+```sh
+nix develop .#release --command python3 packaging/build.py \
+  --build-dir /path/to/m0001-generic-release \
+  --output-dir /path/to/release-artifacts \
+  --kind complete \
+  --target-sdk /nix/store/...-metaflux-ubuntu-20.04-target-sdk \
+  --generic-toolchain /nix/store/...-metaflux-generic-llvm-toolchain-22.1.8
+```
+
+The default emits one DEB, RPM, and deterministic gzip-compressed tar archive.
+Use repeated `--format deb`, `--format rpm`, or `--format tar` for a subset.
+The provider-only package uses `--kind provider` and does not require the
+generic target inputs. Set `SOURCE_DATE_EPOCH` or `--source-date-epoch` to
+rebuild byte-identical artifacts.

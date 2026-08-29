@@ -28,3 +28,7 @@ On a running systemd host, fresh install applies the socket preset and starts
 it. Upgrade records active/enabled state before stopping the old units and
 restores only those recorded bits after daemon-reload, preserving an inactive
 or disabled administrator choice.
+
+The canonical builder is [`packaging/build.py`](../build.py). It stages the
+already-installed CMake tree into an explicit RPM spec and invokes the pinned
+`rpmbuild` supplied by `nix develop .#release`.

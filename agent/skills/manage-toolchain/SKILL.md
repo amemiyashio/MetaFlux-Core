@@ -24,6 +24,10 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 - Nix owns only locked input resolution, exact tool materialization, and the
   development shell that exposes those tools. It does not wrap or duplicate the
   owners above, archive evidence, snapshot project source, or configure host GC.
+- D0009 is a hard compatibility floor for generic Linux artifacts: materialize
+  and expose the Ubuntu 20.04 target SDK with glibc 2.31. The host distribution,
+  host glibc, and a development-shell compiler wrapper must never raise or
+  redefine that floor.
 - When downloading any declared tool or immutable input, prefer a mirror selected
   for the current execution environment's configured timezone before trying an
   adjacent-timezone mirror or canonical upstream.
@@ -40,16 +44,31 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 2. Update `flake.lock` or the narrow Nix tool derivation only as needed to
    materialize the declared version. Keep project packages, CMake option maps,
    CTest invocations, packaging, and evidence generation out of Nix.
-3. For network acquisition, try a mirror in the environment's configured
+3. For a generic Linux compile or link, expose and use the pinned unwrapped
+   Clang, its matching resource directory, the Ubuntu 20.04 sysroot, the target
+   SDK GCC layout, and the target `ld.lld`. Require the target triple,
+   `--sysroot`, and external GCC-toolchain selection explicitly. Reject a
+   command when a host wrapper injects host startup objects, headers, libraries,
+   loader paths, or a newer glibc symbol version.
+4. Apply that same target tuple to release-side executables that make a generic
+   compatibility claim, including activation launchers and acceptance fixtures.
+   A host-built helper does not qualify a glibc-2.31 package even when the
+   package payload itself is clean.
+5. For network acquisition, try a mirror in the environment's configured
    timezone and then an adjacent timezone. Verify the canonical signature or
    frozen digest; the mirror is a transfer route, not dependency identity.
-4. Use the Git flake entry point (`nix develop .` or a tool output under `.`).
+6. Use the Git flake entry point (`nix develop .` or a tool output under `.`).
    Never use `path:.`; it ignores Git's source boundary and can copy generated
    trees into the Nix store before evaluation.
-5. Run a version probe inside the development shell. Run project configure,
+7. Run a version probe inside the development shell. Run project configure,
    build, tests, packaging, or qualification directly through their owning
    tools after leaving Nix orchestration out of the command.
-6. Remove task-owned temporary downloads and failed materialization work at the
+8. Before accepting a generic artifact or release fixture, have its owning
+   workflow verify the system loader, absence of RPATH/RUNPATH and Nix store
+   strings, allowed `DT_NEEDED` closure, and a highest referenced glibc symbol
+   no newer than `GLIBC_2.31`. Execute it in the frozen Ubuntu 20.04 row; a
+   successful build or a host-only run is not compatibility evidence.
+9. Remove task-owned temporary downloads and failed materialization work at the
    session boundary. Host Nix-store retention and GC remain operator concerns;
    do not add project GC roots, timers, thresholds, or store paths as identity.
 
@@ -57,6 +76,8 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 
 - A small, portable manifest and matching locked materialization.
 - A development shell or named tool output exposing the requested exact tools.
+- An explicit Ubuntu 20.04/glibc 2.31 target tuple for every generic Linux
+  consumer, without implicit host compiler-wrapper inputs.
 - Concise links from Agent memory or tasks to the canonical toolchain record.
 - No product derivation, duplicated build graph, source snapshot, qualification
   archive, task-specific mirror output, or GC policy.
@@ -68,9 +89,12 @@ nix flake show .
 nix develop . --command clang --version
 nix develop . --command cmake --version
 nix develop . --command ninja --version
+nix develop .#release --command rpmbuild --version
 python3 tools/check-agent-records.py .
 ```
 
 Then run the narrow CMake/CTest or other owner-specific gate affected by the
-tool change. Version probes prove provisioning only; they do not prove product
-behavior.
+tool change. For a generic Linux artifact, additionally inspect its interpreter,
+`DT_NEEDED`, RPATH/RUNPATH, embedded paths, and glibc symbol ceiling, then run
+the Ubuntu 20.04 release row. Version probes prove provisioning only; they do
+not prove product behavior or glibc-floor compatibility.

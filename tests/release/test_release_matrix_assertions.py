@@ -117,6 +117,45 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="metaflux-release-assertions-") as temporary:
         root = Path(temporary)
+        fake_readelf = root / "readelf"
+        fake_readelf.write_text(
+            "#!/bin/sh\n"
+            "case \"$1\" in\n"
+            "  -l) printf '%s\\n' 'Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]' ;;\n"
+            "  -d) printf '%s\\n' '(NEEDED) [libcuda.so.1]' '(NEEDED) [libc.so.6]' ;;\n"
+            "  --version-info) printf '%s\\n' 'Name: GLIBC_2.31' ;;\n"
+            "  *) exit 2 ;;\n"
+            "esac\n",
+            encoding="ascii",
+        )
+        fake_readelf.chmod(0o755)
+        valid_elf = root / "cuda-acceptance"
+        valid_elf.write_bytes(b"\x7fELF fixture")
+        fixture_abi = release_matrix.validate_release_fixture(
+            valid_elf, str(fake_readelf), needs_cuda=True
+        )
+        if fixture_abi != {
+            "interpreter": "/lib64/ld-linux-x86-64.so.2",
+            "needed": ["libc.so.6", "libcuda.so.1"],
+            "highest_glibc": "2.31",
+        }:
+            raise AssertionError(f"valid release fixture ABI evidence changed: {fixture_abi}")
+
+        newer_readelf = root / "readelf-newer"
+        newer_readelf.write_text(
+            fake_readelf.read_text(encoding="ascii").replace("GLIBC_2.31", "GLIBC_2.32"),
+            encoding="ascii",
+        )
+        newer_readelf.chmod(0o755)
+        try:
+            release_matrix.validate_release_fixture(
+                valid_elf, str(newer_readelf), needs_cuda=True
+            )
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("release fixture with GLIBC_2.32 passed the floor gate")
+
         fixture = root / "fixture.log"
         fixture.write_text("allowed\nFORBIDDEN value\n", encoding="ascii")
         probes = (

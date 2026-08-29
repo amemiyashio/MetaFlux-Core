@@ -1208,12 +1208,13 @@ LinkResult link_shared_object(const CompileOptions& options, const std::filesyst
     const std::string linker_text = linker.string();
     const std::string object_text = object.string();
     const std::string output_text = output.string();
-    std::array<char*, 12> arguments{
+    std::array<char*, 13> arguments{
         const_cast<char*>(linker_text.c_str()),
         const_cast<char*>("--shared"),
         const_cast<char*>("--build-id=none"),
         const_cast<char*>("--no-undefined"),
         const_cast<char*>("--fatal-warnings"),
+        const_cast<char*>("--threads=1"),
         const_cast<char*>("--hash-style=sysv"),
         const_cast<char*>("-z"),
         const_cast<char*>("noexecstack"),

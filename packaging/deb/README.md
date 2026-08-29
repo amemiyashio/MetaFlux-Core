@@ -25,3 +25,7 @@ state, using `deb-systemd-helper` when available; it does not activate a
 previously inactive or disabled socket. The hooks do not require systemd on
 minimal images. Both remove and purge retain the service account,
 `/var/lib/metaflux`, and `/var/cache/metaflux` by policy.
+
+The canonical builder is [`packaging/build.py`](../build.py). It invokes
+`cmake --install --component Provider` for this package family and then calls
+`dpkg-deb` with `SOURCE_DATE_EPOCH`; no Debian build system is duplicated here.

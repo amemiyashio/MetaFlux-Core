@@ -20,3 +20,8 @@ daemon. The offline release matrix exercises this explicit fallback, starts the
 daemon through a real fd-3 `SOCK_SEQPACKET` activation listener, and then removes
 only archive-owned payload. Account, state, and cache cleanup remains an
 explicit administrator action.
+
+The canonical builder is [`packaging/build.py`](../build.py). It writes sorted
+GNU tar members with uid/gid zero, a fixed `SOURCE_DATE_EPOCH`, and a gzip
+header without a host filename, so repeated builds from the same install tree
+have identical bytes.

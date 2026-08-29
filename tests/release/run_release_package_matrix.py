@@ -8,7 +8,9 @@ import datetime as dt
 import json
 import os
 from pathlib import Path
+import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -29,6 +31,20 @@ from run_provider_package_matrix import (
 )
 
 
+TARGET_INTERPRETER = "/lib64/ld-linux-x86-64.so.2"
+GLIBC_FLOOR = (2, 31)
+FIXTURE_DYNAMIC_LIBRARIES = {
+    "ld-linux-x86-64.so.2",
+    "libc.so.6",
+    "libcuda.so.1",
+    "libdl.so.2",
+    "libm.so.6",
+    "libpthread.so.0",
+    "librt.so.1",
+}
+GLIBC_SYMBOL_PATTERN = re.compile(r"\bGLIBC_(\d+)\.(\d+)\b")
+
+
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--deb", required=True, type=Path)
@@ -45,7 +61,70 @@ def parse_arguments() -> argparse.Namespace:
         "--rpmbuild",
         help="rpmbuild used to create the old-version upgrade fixture (defaults to PATH)",
     )
+    parser.add_argument("--readelf", default="readelf")
     return parser.parse_args()
+
+
+def readelf_output(readelf: str, arguments: list[str], path: Path) -> str:
+    result = subprocess.run(
+        [readelf, *arguments, str(path)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise ValueError(
+            f"readelf failed for release fixture {path}: "
+            f"{result.stderr.strip() or result.stdout.strip()}"
+        )
+    return result.stdout
+
+
+def validate_release_fixture(path: Path, readelf: str, *, needs_cuda: bool) -> dict[str, Any]:
+    with path.open("rb") as source:
+        if source.read(4) != b"\x7fELF":
+            raise ValueError(f"release fixture is not an ELF executable: {path}")
+        source.seek(0)
+        if b"/nix/store/" in source.read():
+            raise ValueError(f"release fixture embeds a Nix store path: {path}")
+
+    program_headers = readelf_output(readelf, ["-l", "-W"], path)
+    interpreters = re.findall(r"Requesting program interpreter: ([^]]+)", program_headers)
+    if interpreters != [TARGET_INTERPRETER]:
+        raise ValueError(
+            f"release fixture must use {TARGET_INTERPRETER}: {path} ({interpreters})"
+        )
+
+    dynamic = readelf_output(readelf, ["-d", "-W"], path)
+    if "(RPATH)" in dynamic or "(RUNPATH)" in dynamic:
+        raise ValueError(f"release fixture has RPATH/RUNPATH: {path}")
+    dependencies = sorted(set(re.findall(r"\(NEEDED\).*?\[([^]]+)\]", dynamic)))
+    unexpected = sorted(set(dependencies) - FIXTURE_DYNAMIC_LIBRARIES)
+    if unexpected:
+        raise ValueError(
+            f"release fixture has non-system dynamic dependencies {unexpected}: {path}"
+        )
+    if needs_cuda and "libcuda.so.1" not in dependencies:
+        raise ValueError(f"CUDA acceptance fixture does not link libcuda.so.1: {path}")
+    if not needs_cuda and "libcuda.so.1" in dependencies:
+        raise ValueError(f"activation launcher unexpectedly links libcuda.so.1: {path}")
+
+    versions = [
+        (int(major), int(minor))
+        for major, minor in GLIBC_SYMBOL_PATTERN.findall(
+            readelf_output(readelf, ["--version-info", "-W"], path)
+        )
+    ]
+    highest = max(versions) if versions else None
+    if highest is not None and highest > GLIBC_FLOOR:
+        raise ValueError(
+            f"release fixture requires GLIBC_{highest[0]}.{highest[1]} above 2.31: {path}"
+        )
+    return {
+        "interpreter": interpreters[0],
+        "needed": dependencies,
+        "highest_glibc": None if highest is None else f"{highest[0]}.{highest[1]}",
+    }
 
 
 def build_prior_rpm(rpmbuild: str, workspace: Path) -> tuple[Path, dict[str, Any]]:
@@ -507,7 +586,7 @@ apply_tar_lifecycle_metadata() {
   fi
   install -d -m 0755 -o root -g metaflux /run/metaflux
   install -d -m 0750 -o metaflux -g metaflux /var/cache/metaflux
-  install -d -m 0750 -o metaflux -g metaflux \
+  install -d -m 0700 -o metaflux -g metaflux \
     /var/cache/metaflux/compiler/users
   install -d -m 0750 -o metaflux -g metaflux /var/lib/metaflux
   install -d -m 0755 -o root -g root /var/lib/metaflux/aot
@@ -523,7 +602,7 @@ verify_lifecycle_state() {
   test "$(stat -c %a:%u:%g /var/cache/metaflux)" = \
     "750:$service_uid:$service_gid"
   test "$(stat -c %a:%u:%g /var/cache/metaflux/compiler/users)" = \
-    "750:$service_uid:$service_gid"
+    "700:$service_uid:$service_gid"
   test "$(stat -c %a:%u:%g /var/lib/metaflux)" = \
     "750:$service_uid:$service_gid"
   test "$(stat -c %a:%u:%g /var/lib/metaflux/aot)" = 755:0:0
@@ -899,6 +978,14 @@ def main() -> int:
             cuda_acceptance.with_name("metaflux-add-u32.ptx"),
             "Add PTX fixture next to the CUDA acceptance binary",
         )
+        fixture_abi = {
+            "cuda_acceptance": validate_release_fixture(
+                cuda_acceptance, arguments.readelf, needs_cuda=True
+            ),
+            "activation_launcher": validate_release_fixture(
+                activation_launcher, arguments.readelf, needs_cuda=False
+            ),
+        }
         images = [getattr(arguments, field) for _, field, _, _ in UBUNTU_CASES]
         images.append(getattr(arguments, ROCKY_CASE[1]))
         require_digest_pinned_images(images)
@@ -977,6 +1064,7 @@ def main() -> int:
                         "path": str(activation_launcher),
                         "sha256": sha256(activation_launcher),
                     },
+                    "fixture_abi": fixture_abi,
                     "add_u32_ptx": {
                         "path": str(add_u32_ptx),
                         "sha256": sha256(add_u32_ptx),

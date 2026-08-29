@@ -34,6 +34,7 @@ namespace {
 constexpr std::uint32_t kMetadataFormatVersion = 1;
 constexpr std::size_t kMaximumMetadataBytes = 16U * 1024U;
 constexpr std::size_t kMaximumReservationBytes = 1024U;
+std::atomic<std::uint64_t> next_aot_publication_token{1U};
 
 class UniqueFileDescriptor {
 public:
@@ -1367,11 +1368,10 @@ PersistentCacheError PersistentArtifactCache::install_aot(std::string_view cache
     return PersistentCacheError::ArtifactTooLarge;
   }
   std::scoped_lock lock(state_->mutex);
-  auto global_lock = acquire_global_lock(state_->config);
-  if (!global_lock.has_value()) {
-    return PersistentCacheError::Io;
+  auto token = next_aot_publication_token.fetch_add(1U, std::memory_order_relaxed);
+  if (token == 0U) {
+    token = next_aot_publication_token.fetch_add(1U, std::memory_order_relaxed);
   }
-  const auto token = state_->next_token++;
   return publish_entry(*state_,
                        epoch_directory(state_->config.aot_root, state_->config.compiler_epoch),
                        cache_key, artifact, descriptor, token, true);

@@ -61,6 +61,22 @@ Project PGO profiles are release optimization inputs, not compiler-tool
 versions. Their generation, selection, evidence, and retention belong to the
 performance and packaging workflows that consume them.
 
+## Generic Linux ABI Floor (D0009)
+
+Ubuntu 20.04 and glibc 2.31 are the mandatory minimum userspace compatibility
+target for generic Linux artifacts. The fixed Ubuntu 20.04 target SDK supplies
+the headers, startup objects, system libraries, loader contract, and GCC layout
+used by the pinned unwrapped Clang and target LLD. A host distribution or a
+development-shell compiler wrapper is never an ABI input for these artifacts.
+
+The same target tuple applies to every executable used to make a generic
+release claim, including package payloads, activation launchers, and acceptance
+fixtures. The owning build or qualification workflow must reject a
+`GLIBC_2.32` or newer reference, a non-system interpreter, an injected Nix store
+path, or a host-only helper. Running the complete package and its fixtures in
+the frozen Ubuntu 20.04 row is required evidence that the declared floor is
+real; tool materialization alone is not that evidence.
+
 ## CUDA/NVML ABI Inputs (D0016)
 
 [`nvidia-headers-1.json`](nvidia-headers-1.json) indexes the exact R535, R550,

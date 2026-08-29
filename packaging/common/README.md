@@ -13,8 +13,9 @@ search directory.
 The complete package lifecycle prefers `systemd-sysusers` and
 `systemd-tmpfiles`. Hosts without those tools use the packaged scripts' shadow
 utilities fallback and the same exact directory modes: `0750` for the service
-cache, per-user compiler-cache parent, and state root; `0755` for the root-owned
-AOT directory and runtime socket directory. The socket itself is owned by
+cache and state root, `0700` for the private compiler-cache users tree, and
+`0755` for the root-owned AOT directory and runtime socket directory. The
+socket itself is owned by
 `metaflux:metaflux` with mode `0660`.
 
 Removal drops package payload and stops activation, but keeps the `metaflux`
