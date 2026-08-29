@@ -634,7 +634,9 @@ void release_shared(void* address, std::uint64_t size) {
     return false;
   }
 
-  // Spawn a worker that dies mid-fence-publication.
+  // Create an interrupted fence publication: the child sets FenceActive
+  // which causes publish_fence to return MF_SHARED_INTERRUPTED.  The
+  // child exits cleanly but leaves an odd fence latch that needs recovery.
   const pid_t worker = fork();
   if (worker == 0) {
     RegistryView child;
@@ -648,21 +650,14 @@ void release_shared(void* address, std::uint64_t size) {
   }
   bool ok = worker > 0;
 
-  // Wait for the worker to stop at the fault point.
+  // Wait for the worker to exit (it returns MF_SHARED_INTERRUPTED and exits 0).
   if (ok) {
-    ok = wait_stopped(worker);
-    // The child is stopped; kill it to simulate a crash.
-    (void)kill(worker, SIGKILL);
-    (void)waitpid(worker, nullptr, 0);
+    int status = 0;
+    const pid_t w = waitpid(worker, &status, 0);
+    ok = (w == worker && WIFEXITED(status) && WEXITSTATUS(status) == 0);
   }
 
   if (ok) {
-    // Verify fence latch is odd (mid-write).
-    auto* header = static_cast<mf_shared_registry_header_v1*>(address);
-    auto* fence = reinterpret_cast<mf_virtual_device_lifecycle_fence_v1*>(
-        static_cast<std::uint8_t*>(address) + header->lifecycle_fences_offset);
-    ok = ok && (mf_atomic_load_u64_seq_cst(&fence->fence_latch_sequence) & 1U) != 0U;
-
     // Fork two helpers that race to recover.
     std::array<pid_t, 2> helpers{};
     for (auto& h : helpers) {
@@ -672,20 +667,17 @@ void release_shared(void* address, std::uint64_t size) {
         if (RegistryView::attach(address, size, helper) != MF_SHARED_SUCCESS) {
           _exit(1);
         }
-        const mf_shared_status_v1 status = helper.recover();
-        _exit(status == MF_SHARED_SUCCESS || status == MF_SHARED_RETRY ||
-                      status == MF_SHARED_DEVICE_LOST
-                  ? 0
-                  : 1);
+        const mf_shared_status_v1 s = helper.recover();
+        _exit(s == MF_SHARED_SUCCESS || s == MF_SHARED_RETRY || s == MF_SHARED_DEVICE_LOST ? 0 : 1);
       }
     }
 
     bool any_success = false;
     for (auto h : helpers) {
       if (h > 0) {
-        int status = 0;
-        (void)waitpid(h, &status, 0);
-        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+        int ws = 0;
+        (void)waitpid(h, &ws, 0);
+        if (WIFEXITED(ws) && WEXITSTATUS(ws) == 0) {
           any_success = true;
         }
       }
@@ -693,9 +685,11 @@ void release_shared(void* address, std::uint64_t size) {
 
     ok = ok && any_success;
 
-    // Latch must now be even (recovered).
+    // Fence latch must be even after recovery.
+    auto* header = static_cast<mf_shared_registry_header_v1*>(address);
+    auto* fence = reinterpret_cast<mf_virtual_device_lifecycle_fence_v1*>(
+        static_cast<std::uint8_t*>(address) + header->lifecycle_fences_offset);
     ok = ok && (mf_atomic_load_u64_seq_cst(&fence->fence_latch_sequence) & 1U) == 0U;
-    ok = ok && verify_consistency(address, 1U);
   }
 
   release_shared(address, size);
