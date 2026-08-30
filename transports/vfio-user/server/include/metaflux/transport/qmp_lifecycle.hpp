@@ -24,6 +24,11 @@ enum class QmpResult : std::uint8_t {
 struct QmpCommand final {
   std::uint64_t command_id = 0U;
   metaflux::runtime::lifecycle::ExternalEvent event{};
+
+  [[nodiscard]] static QmpCommand
+  from_snapshot(std::uint64_t command_id, metaflux::runtime::lifecycle::ExternalEventKind kind,
+                std::uint64_t request_id, const metaflux::runtime::lifecycle::Snapshot& snapshot,
+                std::uint64_t deadline_tick = 0U) noexcept;
 };
 
 struct QmpReply final {

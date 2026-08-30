@@ -112,7 +112,11 @@ bool submits_qmp_completion_through_ingress() {
                                  .epoch_terminal = 32U});
   QmpLifecycleAdapter adapter;
   const auto add = event(ExternalEventKind::QmpAdd, 61U, 0U, 0U, 1U);
-  REQUIRE(adapter.begin({.command_id = 300U, .event = add}) == QmpResult::Accepted);
+  const auto add_command =
+      QmpCommand::from_snapshot(300U, ExternalEventKind::QmpAdd, 61U, coordinator.snapshot());
+  REQUIRE(add_command.event.logical_device_id == add.logical_device_id &&
+          add_command.event.expected_epoch == add.expected_epoch);
+  REQUIRE(adapter.begin(add_command) == QmpResult::Accepted);
   ResultDetails details{};
   REQUIRE(adapter.complete_and_submit({.command_id = 300U, .kind = QmpReplyKind::DeviceAdded},
                                       coordinator, details) == QmpResult::Accepted);
@@ -134,11 +138,44 @@ bool submits_qmp_completion_through_ingress() {
   return true;
 }
 
+bool preserves_captured_tuple_when_authority_advances() {
+  Coordinator coordinator(Config{.logical_device_id = 7U,
+                                 .daemon_incarnation = 11U,
+                                 .initial_identity_record_id = 1U,
+                                 .initial_generation = 1U,
+                                 .initial_epoch = 1U,
+                                 .initial_state = State::Online,
+                                 .identity_record_terminal = 32U,
+                                 .generation_terminal = 32U,
+                                 .epoch_terminal = 32U});
+  QmpLifecycleAdapter adapter;
+  const auto command =
+      QmpCommand::from_snapshot(400U, ExternalEventKind::QmpRemove, 81U, coordinator.snapshot());
+  REQUIRE(adapter.begin(command) == QmpResult::Accepted);
+  const Request reset{
+      .request_id = 82U,
+      .logical_device_id = 7U,
+      .daemon_incarnation = 11U,
+      .expected_identity_record_id = 1U,
+      .expected_generation = 1U,
+      .expected_epoch = 1U,
+      .source = Source::Admin,
+      .operation = Operation::Reset,
+  };
+  REQUIRE(coordinator.apply(reset) == Result::Accepted);
+  ResultDetails details{};
+  REQUIRE(adapter.complete_and_submit({.command_id = 400U, .kind = QmpReplyKind::DeviceDeleted},
+                                      coordinator, details) == QmpResult::Accepted);
+  REQUIRE(details.result == Result::Stale && details.snapshot.generation == 2U);
+  return true;
+}
+
 } // namespace
 
 int main() {
   return correlates_qmp_add_and_remove() && maps_remove_failure_and_rejects_add_failure() &&
-                 submits_qmp_completion_through_ingress()
+                 submits_qmp_completion_through_ingress() &&
+                 preserves_captured_tuple_when_authority_advances()
              ? 0
              : 1;
 }

@@ -4,18 +4,20 @@
 #include <cstdint>
 #include <iostream>
 
+using metaflux::runtime::lifecycle::capture_external_event;
 using metaflux::runtime::lifecycle::ExternalEvent;
 using metaflux::runtime::lifecycle::ExternalEventKind;
 using metaflux::runtime::lifecycle::NormalizationResult;
 using metaflux::runtime::lifecycle::Operation;
 using metaflux::runtime::lifecycle::Request;
 using metaflux::runtime::lifecycle::RequestNormalizer;
+using metaflux::runtime::lifecycle::Snapshot;
 using metaflux::runtime::lifecycle::Source;
 
 #define REQUIRE(condition)                                                                         \
   do {                                                                                             \
     if (!(condition)) {                                                                            \
-      std::cerr << __func__ << ':' << __LINE__ << ": " #condition "\n";                         \
+      std::cerr << __func__ << ':' << __LINE__ << ": " #condition "\n";                            \
       return false;                                                                                \
     }                                                                                              \
   } while (false)
@@ -100,6 +102,43 @@ bool rejects_malformed_and_unknown_events() {
   return true;
 }
 
+bool captures_authority_tuple_at_event_observation() {
+  const Snapshot online{
+      .state = metaflux::runtime::lifecycle::State::Online,
+      .logical_device_id = 7U,
+      .identity_record_id = 3U,
+      .generation = 3U,
+      .epoch = 2U,
+      .daemon_incarnation = 11U,
+  };
+  const ExternalEvent remove =
+      capture_external_event(ExternalEventKind::QmpRemove, 71U, online, 99U);
+  REQUIRE(remove.request_id == 71U && remove.logical_device_id == 7U &&
+          remove.daemon_incarnation == 11U && remove.expected_identity_record_id == 3U &&
+          remove.expected_generation == 3U && remove.expected_epoch == 2U &&
+          remove.deadline_tick == 99U);
+  Request request{};
+  REQUIRE(RequestNormalizer::normalize(remove, request) == NormalizationResult::Accepted);
+
+  const Snapshot absent{
+      .state = metaflux::runtime::lifecycle::State::Absent,
+      .logical_device_id = 7U,
+      .identity_record_id = 0U,
+      .generation = 0U,
+      .epoch = 3U,
+      .daemon_incarnation = 11U,
+  };
+  const ExternalEvent add = capture_external_event(ExternalEventKind::QmpAdd, 72U, absent);
+  REQUIRE(add.expected_identity_record_id == 0U && add.expected_generation == 0U);
+  REQUIRE(RequestNormalizer::normalize(add, request) == NormalizationResult::Accepted);
+  return true;
+}
+
 } // namespace
 
-int main() { return maps_fixed_external_events() && rejects_malformed_and_unknown_events() ? 0 : 1; }
+int main() {
+  return maps_fixed_external_events() && rejects_malformed_and_unknown_events() &&
+                 captures_authority_tuple_at_event_observation()
+             ? 0
+             : 1;
+}

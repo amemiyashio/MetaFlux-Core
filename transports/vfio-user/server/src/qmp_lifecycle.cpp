@@ -8,6 +8,17 @@ using metaflux::runtime::lifecycle::ExternalEventKind;
 using metaflux::runtime::lifecycle::NormalizationResult;
 using metaflux::runtime::lifecycle::RequestNormalizer;
 
+QmpCommand QmpCommand::from_snapshot(std::uint64_t command_id, ExternalEventKind kind,
+                                     std::uint64_t request_id,
+                                     const metaflux::runtime::lifecycle::Snapshot& snapshot,
+                                     std::uint64_t deadline_tick) noexcept {
+  return QmpCommand{
+      .command_id = command_id,
+      .event = metaflux::runtime::lifecycle::capture_external_event(kind, request_id, snapshot,
+                                                                    deadline_tick),
+  };
+}
+
 void QmpLifecycleAdapter::clear_pending() noexcept {
   pending_ = false;
   pending_command_id_ = 0U;

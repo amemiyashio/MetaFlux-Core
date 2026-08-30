@@ -211,19 +211,10 @@ int main() {
     close(memfd);
     return 1;
   }
-  const metaflux::runtime::lifecycle::ExternalEvent disconnect{
-      .request_id = 9U,
-      .logical_device_id = 7U,
-      .daemon_incarnation = 11U,
-      .expected_identity_record_id = 2U,
-      .expected_generation = 2U,
-      .expected_epoch = 2U,
-      .kind = metaflux::runtime::lifecycle::ExternalEventKind::Disconnect,
-  };
   metaflux::runtime::lifecycle::ResultDetails disconnect_details{};
   close(sockets[0]);
   sockets[0] = -1;
-  if (server.process_once(coordinator, disconnect, disconnect_details) !=
+  if (server.process_once(coordinator, 9U, 0U, disconnect_details) !=
           metaflux::transport::vfio_user::ServerResult::Closed ||
       server.state() != metaflux::transport::vfio_user::ServerState::Lost ||
       disconnect_details.result != metaflux::runtime::lifecycle::Result::Accepted ||

@@ -44,18 +44,34 @@ bool mapping_for(ExternalEventKind kind, Mapping& out) noexcept {
 
 } // namespace
 
-NormalizationResult RequestNormalizer::normalize(const ExternalEvent& event, Request& out) noexcept {
+ExternalEvent capture_external_event(ExternalEventKind kind, std::uint64_t request_id,
+                                     const Snapshot& snapshot,
+                                     std::uint64_t deadline_tick) noexcept {
+  return ExternalEvent{
+      .request_id = request_id,
+      .logical_device_id = snapshot.logical_device_id,
+      .daemon_incarnation = snapshot.daemon_incarnation,
+      .expected_identity_record_id = snapshot.identity_record_id,
+      .expected_generation = snapshot.generation,
+      .expected_epoch = snapshot.epoch,
+      .deadline_tick = deadline_tick,
+      .kind = kind,
+  };
+}
+
+NormalizationResult RequestNormalizer::normalize(const ExternalEvent& event,
+                                                 Request& out) noexcept {
   out = Request{};
   Mapping mapping{};
   if (!mapping_for(event.kind, mapping)) {
     return NormalizationResult::Unsupported;
   }
-  if (event.request_id == 0U || event.logical_device_id == 0U ||
-      event.daemon_incarnation == 0U || event.expected_epoch == 0U ||
-      (mapping.add && (event.expected_identity_record_id != 0U ||
-                       event.expected_generation != 0U)) ||
-      (!mapping.add && (event.expected_identity_record_id == 0U ||
-                        event.expected_generation == 0U))) {
+  if (event.request_id == 0U || event.logical_device_id == 0U || event.daemon_incarnation == 0U ||
+      event.expected_epoch == 0U ||
+      (mapping.add &&
+       (event.expected_identity_record_id != 0U || event.expected_generation != 0U)) ||
+      (!mapping.add &&
+       (event.expected_identity_record_id == 0U || event.expected_generation == 0U))) {
     return NormalizationResult::Invalid;
   }
 

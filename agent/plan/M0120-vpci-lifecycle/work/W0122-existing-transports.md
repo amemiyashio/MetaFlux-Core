@@ -82,6 +82,10 @@ only.
 - [x] Bind the vfio-user `process_once` EOF/error result to that handoff through
   an overload that leaves ordinary message results unchanged; live QMP command
   transport and restart producer wiring remain open.
+- [x] Bind source metadata capture to an authority snapshot helper. QMP commands
+  and vfio-user `process_once` can now capture logical device, daemon incarnation,
+  identity record, generation, epoch, and deadline at observation time; the
+  explicit event overload remains for callers that already own a captured tuple.
 - [ ] Integrate every reset/disconnect/restart source and inject failure at each
   staging, commit, DMA, completion, and teardown step.
 - [ ] Verify provider enumeration freeze before, during, and after replacement.

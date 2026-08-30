@@ -36,10 +36,15 @@ struct ExternalEvent final {
   ExternalEventKind kind = ExternalEventKind::AdminAdd;
 };
 
+// Capture the authority tuple at the point an external producer observes an event.
+[[nodiscard]] ExternalEvent capture_external_event(ExternalEventKind kind, std::uint64_t request_id,
+                                                   const Snapshot& snapshot,
+                                                   std::uint64_t deadline_tick = 0U) noexcept;
+
 class RequestNormalizer final {
 public:
   [[nodiscard]] static NormalizationResult normalize(const ExternalEvent& event,
-                                                      Request& out) noexcept;
+                                                     Request& out) noexcept;
 };
 
 } // namespace metaflux::runtime::lifecycle

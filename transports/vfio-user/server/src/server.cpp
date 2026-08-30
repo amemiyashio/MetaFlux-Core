@@ -372,6 +372,21 @@ VfioUserServer::process_once(metaflux::runtime::lifecycle::Coordinator& coordina
   return mark_lost_and_submit(disconnect_event, coordinator, out);
 }
 
+ServerResult
+VfioUserServer::process_once(metaflux::runtime::lifecycle::Coordinator& coordinator,
+                             std::uint64_t request_id, std::uint64_t deadline_tick,
+                             metaflux::runtime::lifecycle::ResultDetails& out) noexcept {
+  out = metaflux::runtime::lifecycle::ResultDetails{};
+  const ServerResult result = process_once();
+  if (result != ServerResult::Closed) {
+    return result;
+  }
+  const auto disconnect_event = metaflux::runtime::lifecycle::capture_external_event(
+      metaflux::runtime::lifecycle::ExternalEventKind::Disconnect, request_id,
+      coordinator.snapshot(), deadline_tick);
+  return mark_lost_and_submit(disconnect_event, coordinator, out);
+}
+
 bool VfioUserServer::drain_lifecycle() noexcept { return mappings_.empty(); }
 
 bool VfioUserServer::lifecycle_prepare(
