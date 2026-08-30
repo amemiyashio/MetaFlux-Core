@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-30
 milestone: M0100
 workstream: W0106
-checkpoint: P20260830-008
+checkpoint: P20260830-009
 ---
 
 # Current Progress
@@ -32,6 +32,12 @@ support qualification plus physical NVIDIA binding-performance promotion to
 M1000 / `v1.0.0`. Native NixOS VM/package qualification remains in the
 unallocated `v0.2.0` line. G003/G005 were adopted once by their target owners
 and their transient packets were removed.
+
+Agent-created Git commits now use the active harness as both Author and
+Committer through the `start-work` helper. Revision `ded1dad` proves the Codex
+path end to end while leaving the repository-local human identity unchanged;
+`record-session` routes content, checkpoint, and closing-record commits through
+the same command-local mechanism.
 
 ## Current Boundary
 
@@ -74,6 +80,7 @@ performance targets provisional and uses AMD x86_64 as its reference host.
 | D0025 migration verification | Architecture CTest 6/6; Agent records 136/136; semantic edits 21/21; guidance 17/17; routing 81 cases and 34/34 self-tests; two workflow skills valid |
 | D0026 migration verification | Architecture CTest 6/6; Agent records 163/163 plus repository 27 sessions/210 events/205 Markdown; semantic edits 21/21; guidance 20/20; routing 82 cases and 34/34 self-tests; roast package and independent A-E forward review passed |
 | D0027 migration verification | Architecture CTest 6/6; Agent validator 163/163 plus repository 28 sessions/215 events/213 Markdown at record closure; semantic edits 21/21; guidance 20/20; protected evidence and residual scans passed |
+| Agent harness commit identity | Isolated forward test 7/7; both workflow skills valid; real content commit `ded1dad` records Codex as Author and Committer while local Git configuration remains `amamiya` |
 
 The generic release entry point is checked in at
 `tools/build-generic-release.sh` with the CMake-owned Ubuntu 20.04 target tuple.
@@ -99,6 +106,8 @@ Linux 9.8.
 ## Tool Boundary
 
 Nix fixes and exposes declared tool versions only. Git owns source identity;
-CMake/Ninja own builds; CTest and repository harnesses own validation;
-`packaging/` owns artifacts; sessions own compact work records and exact cleanup;
-host operators own Nix-store retention and garbage collection (D0022).
+agent-run commits use command-local harness identity through `start-work`, while
+human Git configuration remains untouched. CMake/Ninja own builds; CTest and
+repository harnesses own validation; `packaging/` owns artifacts; sessions own
+compact work records and exact cleanup; host operators own Nix-store retention
+and garbage collection (D0022).
