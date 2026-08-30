@@ -5,9 +5,10 @@
 Implement W0122's runtime-owned lifecycle transaction boundary for existing
 memfd, cdev, and guest vfio-user adapters. The coordinator and concrete C++
 transport mirror stages are verified below; the session remains active while
-production memfd wiring, QMP/vPCI integration, and qualification gates are
-completed. The typed external-event normalizer is also recorded as a boundary
-fixture; producer call-site integration remains open.
+production memfd wiring, live QMP/vPCI integration, and qualification gates
+remain open. The typed external-event normalizer and QMP command/event
+correlation fixture are recorded as boundary fixtures; producer call-site
+integration remains open.
 
 ## Durable changes
 
@@ -24,6 +25,9 @@ fixture; producer call-site integration remains open.
 - `runtime/core/include/metaflux/runtime/lifecycle_normalizer.hpp` and
   `runtime/core/src/lifecycle_normalizer.cpp`: stateless external-event to
   `Request` mapping with malformed/unknown rejection.
+- `transports/vfio-user/server/include/metaflux/transport/qmp_lifecycle.hpp`
+  and its implementation/test: one-pending-command QMP event correlation with
+  failed-remove loss mapping and failed-add rejection.
 - `transports/cdev/README.md` and `transports/vfio-user/README.md`: adapter
   ownership and protocol-boundary notes.
 - `agent/plan/M0120-vpci-lifecycle/work/W0122-existing-transports.md`: active
@@ -35,8 +39,8 @@ fixture; producer call-site integration remains open.
 | --- | --- |
 | `metaflux.transport.cdev-worker` and `metaflux.transport.vfio-user-server` | Passed: 2/2 |
 | `metaflux.transport.memfd-worker` | Passed |
-| `metaflux.unit.runtime-lifecycle` and `metaflux.unit.runtime-lifecycle-normalizer` | Passed: 2/2 |
-| `ctest --preset dev` | Passed: 77/77 |
+| `metaflux.unit.runtime-lifecycle`, normalizer, and vfio-user QMP | Passed: 3/3 |
+| `ctest --preset dev` | Passed: 78/78 |
 | `python3 tools/check-component-graph.py <configured graph>` | Passed: 19 components / 22 edges |
 | `python3 tools/validate-transport-schema.py --root .` | Passed: 5 definitions / 15 records |
 | `python3 tools/check-skill-routing.py .` | Passed: 89 cases |
@@ -67,6 +71,9 @@ fixture; producer call-site integration remains open.
   (memfd transport regression; content revision `1dbc571`)
 - Fixed external-event normalization -> `runtime/core/include/metaflux/runtime/lifecycle_normalizer.hpp`
   (normalizer regression; content revision `71956ff`)
+- QMP command/event correlation -> `transports/vfio-user/server/include/metaflux/transport/qmp_lifecycle.hpp`
+  (focused QMP regression; content revision `5e1c3bc`, full development CTest
+  78/78)
 - W0122 implementation boundary and remaining gates ->
   `agent/plan/M0120-vpci-lifecycle/work/W0122-existing-transports.md`
   (full dev CTest 77/77)
@@ -86,12 +93,12 @@ fixture; producer call-site integration remains open.
 ## Unresolved items
 
 - W0122 remains Active. Next: wire producer call sites through the normalizer,
-  correlate QMP commands/events, wire the production memfd worker path, and add
-  provider-freeze plus fault/qualification evidence.
+  implement live QMP/socket integration, wire the production memfd worker path,
+  and add provider-freeze plus fault/qualification evidence.
 
 ## Handoff
 
-Resume from checkpoint `P20260831-023`; run
-`metaflux.unit.runtime-lifecycle`, the normalizer test, and
+Resume from checkpoint `P20260831-024`; run
+`metaflux.unit.runtime-lifecycle`, the normalizer and QMP tests, and
 `metaflux.transport.memfd-worker` before changing an adapter, then preserve the
 M0110 descriptor/UAPI/BAR boundary.

@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0120
 workstream: W0122
-checkpoint: P20260831-023
+checkpoint: P20260831-024
 ---
 
 # Current Progress
@@ -37,6 +37,8 @@ W0122's memfd worker lifecycle mirror stage is recorded at
 [P20260831-022](checkpoints/2026/P20260831-022-m0120-memfd-lifecycle-mirror.md).
 W0122's typed external-event normalizer stage is recorded at
 [P20260831-023](checkpoints/2026/P20260831-023-m0120-lifecycle-normalizer.md).
+W0122's QMP command/event correlation fixture is recorded at
+[P20260831-024](checkpoints/2026/P20260831-024-m0120-qmp-lifecycle-correlation.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -139,7 +141,7 @@ Linux 9.8.
 | W0113 current boundary | Guest `metaflux_pci.ko`, pinned QEMU/libvfio-user, BAR doorbell/MSI-X steady state, Add/Copy path, drain/tombstone faults, and package qualification remain open |
 | W0121 lifecycle model | Extension manifest imports the frozen M0110 root by hash; bounded checker passed 949 states/4,012 transitions/326 complete sequences and 13 direct boundary checks |
 | W0121 lifecycle regression | Lifecycle CTest and tampered-manifest self-test passed 2/2; full dev CTest passed 74/74 |
-| W0121 current boundary | Concrete memfd/cdev/vfio-user mirror stages and typed source mapping are recorded; producer call-site integration, QMP/vPCI integration, 1,000-cycle fault qualification, provider-view integration, and lifecycle ABI freeze remain open |
+| W0121 current boundary | Concrete memfd/cdev/vfio-user mirror stages, typed source mapping, and the QMP correlation fixture are recorded; producer call-site integration, live QMP/vPCI integration, 1,000-cycle fault qualification, provider-view integration, and lifecycle ABI freeze remain open |
 
 ## Recorded M0120 W0122 Evidence
 
@@ -151,7 +153,8 @@ Linux 9.8.
 | W0122 coordinator and transport mirrors | `f5cdee3`; cdev and vfio-user C++ mirrors consume coordinator reset/loss events and reject retired generation/epoch work; focused transport tests 2/2 and full dev CTest 75/75 |
 | W0122 memfd lifecycle mirror | `1dbc571`; existing C17 fast path is registered as the client half and a C++ worker mirror stages coordinator-issued identity/generation/epoch, drains in-flight work, and rejects stale submissions; focused test passed and full dev CTest 76/76 |
 | W0122 request normalizer | `71956ff`; typed admin/VFIO-user/QMP/disconnect/restart events map to existing lifecycle requests with malformed/unknown rejection; focused normalizer test and full dev CTest 77/77 passed |
-| W0122 current boundary | Producer call-site wiring, production memfd worker wiring, QMP command/event correlation, provider freeze, fault injection, and qualification remain open |
+| W0122 QMP command/event correlation | `5e1c3bc`; one-pending-command vfio-user fixture requires matching add/delete events, maps failed removal to QMP transport loss, and rejects failed addition; focused QMP/lifecycle regression 3/3 and full dev CTest 78/78 passed |
+| W0122 current boundary | Producer call-site wiring, live QMP/socket integration, production memfd worker wiring, provider freeze, fault injection, and qualification remain open |
 
 ## Versioned Next Work
 
@@ -172,11 +175,11 @@ Linux 9.8.
 5. Schedule Intel x86_64 support and physical NVIDIA binding performance under
    M1000 / `v1.0.0`; keep native NixOS VM/package qualification in the
    unallocated `v0.2.0` expansion. Do not reopen M0100 for any of them.
-6. M0120/W0122 is Active. The coordinator, memfd/cdev/vfio-user mirrors, and
-   typed request normalizer are recorded, but they do not satisfy the lifecycle
-   Definition of Done; continue with producer wiring, QMP correlation,
-   production memfd integration, provider freeze, and qualification while
-   preserving the M0110 root.
+6. M0120/W0122 is Active. The coordinator, memfd/cdev/vfio-user mirrors, typed
+   request normalizer, and QMP correlation fixture are recorded, but they do not
+   satisfy the lifecycle Definition of Done; continue with producer wiring,
+   live QMP/socket integration, production memfd integration, provider freeze,
+   and qualification while preserving the M0110 root.
 7. M0110/W0112 remains Active after the payload/eventfd stage at
    [P20260831-021](checkpoints/2026/P20260831-021-m0110-cdev-payload-eventfd.md).
    Continue with registered-memory pinning, backend ABI wiring, replacement
