@@ -45,3 +45,10 @@ the coordinator can use `complete_and_submit` to complete the correlation and
 submit the captured event through the stateless lifecycle ingress in one step;
 the `QmpResult` reports correlation status while `ResultDetails` reports the
 coordinator's authoritative outcome.
+
+The W0114 bounded fault matrix covers short and flag-invalid packets, payload
+size mismatches, stale exact unmaps, DMA address overflow, duplicate ranges,
+and a valid message after malformed input. These faults retain the configuring
+state or return a stable shared status; they do not reuse a retired mapping.
+Socket disconnect, live backend-reference draining, MSI-X behavior, and the
+native/compat protocol matrix remain open qualification gates.

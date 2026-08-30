@@ -59,3 +59,11 @@ or unsupported bound API returns `MF_SHARED_NOT_SUPPORTED` rather than silently
 falling back. With no binding, the fixture keeps its local `memmove` path. The
 binding is synchronous at this stage; backend memory import, DMA mapping,
 in-flight reference draining, and CPU Add/Copy production wiring remain open.
+
+The W0114 bounded fault matrix now treats unknown COPY flags as malformed,
+known direct-host flags as unsupported on this worker, and zero-length COPY as
+invalid. A full completion ring returns backpressure without consuming the
+submission; once a slot is released the request completes in FIFO order.
+Malformed worker views, stale generations, and offline workers remain bounded
+by a completion status. Kernel ioctl fuzzing, live DMA references, owner-death
+injection, and native/compat qualification remain open exit-gate work.

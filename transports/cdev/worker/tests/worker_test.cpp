@@ -159,6 +159,151 @@ int main() {
     return 1;
   }
 
+  request.request_id = 46U;
+  request.flags = UINT32_C(0x80000000);
+  request.arguments[2] = 32U;
+  request.arguments[3] = 0U;
+  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_MALFORMED)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+
+  request.request_id = 47U;
+  request.flags = MF_RING_COPY_FLAG_DIRECT_HOST_SOURCE_V1;
+  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_NOT_SUPPORTED)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+
+  request.request_id = 48U;
+  request.flags = 0U;
+  request.arguments[2] = 0U;
+  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_INVALID_ARGUMENT)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+
+  request.request_id = 49U;
+  request.arguments[2] = 32U;
+  request.arguments[3] = payload.size() + 1U;
+  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_NOT_SUPPORTED)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+
+  metaflux::transport::cdev::CdevWorker malformed_worker({
+      .submission = nullptr,
+      .completion = completion.header,
+      .payload = payload.data(),
+      .payload_size = payload.size(),
+      .generation = 4U,
+  });
+  if (malformed_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Malformed) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+
+  mf_client_ring_v1 pressure_submission{};
+  mf_client_ring_v1 pressure_completion{};
+  if (mf_client_ring_create_v1(2U, view, 3U, 4U, &pressure_submission) != MF_SHARED_SUCCESS ||
+      mf_client_ring_create_v1(2U, view, 4U, 4U, &pressure_completion) != MF_SHARED_SUCCESS) {
+    mf_client_ring_close_v1(&pressure_submission);
+    mf_client_ring_close_v1(&pressure_completion);
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  mf_ring_descriptor_v1 filler{};
+  filler.opcode = MF_RING_OPCODE_NOOP;
+  filler.target_id = 4U;
+  filler.request_id = 100U;
+  if (mf_client_ring_try_submit_v1(&pressure_completion, &filler) != MF_SHARED_SUCCESS) {
+    mf_client_ring_close_v1(&pressure_submission);
+    mf_client_ring_close_v1(&pressure_completion);
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  filler.request_id = 101U;
+  if (mf_client_ring_try_submit_v1(&pressure_completion, &filler) != MF_SHARED_SUCCESS) {
+    mf_client_ring_close_v1(&pressure_submission);
+    mf_client_ring_close_v1(&pressure_completion);
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  metaflux::transport::cdev::CdevWorker pressure_worker({
+      .submission = pressure_submission.header,
+      .completion = pressure_completion.header,
+      .payload = payload.data(),
+      .payload_size = payload.size(),
+      .generation = 4U,
+  });
+  request.request_id = 50U;
+  request.flags = 0U;
+  request.opcode = MF_RING_OPCODE_NOOP;
+  request.target_id = 4U;
+  if (mf_client_ring_try_submit_v1(&pressure_submission, &request) != MF_SHARED_SUCCESS) {
+    mf_client_ring_close_v1(&pressure_submission);
+    mf_client_ring_close_v1(&pressure_completion);
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  const auto pressure_result = pressure_worker.consume_once();
+  if (pressure_result != metaflux::transport::cdev::WorkerResult::Backpressure) {
+    mf_client_ring_close_v1(&pressure_submission);
+    mf_client_ring_close_v1(&pressure_completion);
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  if (mf_client_ring_try_consume_v1(&pressure_completion, &result) != MF_SHARED_SUCCESS) {
+    mf_client_ring_close_v1(&pressure_submission);
+    mf_client_ring_close_v1(&pressure_completion);
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  if (pressure_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed) {
+    mf_client_ring_close_v1(&pressure_submission);
+    mf_client_ring_close_v1(&pressure_completion);
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  if (mf_client_ring_try_consume_v1(&pressure_completion, &result) != MF_SHARED_SUCCESS ||
+      result.request_id != 101U ||
+      mf_client_ring_try_consume_v1(&pressure_completion, &result) != MF_SHARED_SUCCESS ||
+      result.request_id != 50U ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
+    mf_client_ring_close_v1(&pressure_submission);
+    mf_client_ring_close_v1(&pressure_completion);
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  mf_client_ring_close_v1(&pressure_submission);
+  mf_client_ring_close_v1(&pressure_completion);
+  request.opcode = MF_RING_OPCODE_COPY;
+
 #if defined(METAFLUX_CPU_BACKEND)
   const auto* cpu_api = mf_cpu_backend_get_api_v1();
   mf_backend_instance_v1 cpu_instance = 0U;

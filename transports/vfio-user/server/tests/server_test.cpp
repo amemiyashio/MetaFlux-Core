@@ -171,6 +171,69 @@ int main() {
     return 1;
   }
 
+  if (mf_vfio_user_guest_encode_dma_unmap_v0(8U, &unmap, UINT16_C(0), packet.data(), packet.size(),
+                                             &packet_size) != MF_SHARED_SUCCESS ||
+      !send_packet(sockets[0], packet.data(), packet_size) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+      !receive_completion(sockets[0], 8U, MF_VFIO_USER_MESSAGE_DMA_UNMAP_V0,
+                          MF_SHARED_STALE_HANDLE)) {
+    close(memfd);
+    return 1;
+  }
+
+  const std::uint8_t short_packet = 0U;
+  if (!send_packet(sockets[0], &short_packet, sizeof(short_packet)) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Malformed ||
+      server.state() != metaflux::transport::vfio_user::ServerState::Configuring) {
+    close(memfd);
+    return 1;
+  }
+
+  mf_transport_message_header_v0 malformed_header{};
+  malformed_header.message_id = 9U;
+  malformed_header.message_type = MF_VFIO_USER_MESSAGE_GET_INFO_V0;
+  malformed_header.flags = UINT16_C(0x8000);
+  if (!send_packet(sockets[0], reinterpret_cast<const std::uint8_t*>(&malformed_header),
+                   sizeof(malformed_header)) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Malformed) {
+    close(memfd);
+    return 1;
+  }
+  malformed_header.flags = 0U;
+  malformed_header.message_id = 10U;
+  malformed_header.payload_size = 1U;
+  if (!send_packet(sockets[0], reinterpret_cast<const std::uint8_t*>(&malformed_header),
+                   sizeof(malformed_header)) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Malformed) {
+    close(memfd);
+    return 1;
+  }
+
+  malformed_header.payload_size = 0U;
+  if (!send_packet(sockets[0], reinterpret_cast<const std::uint8_t*>(&malformed_header),
+                   sizeof(malformed_header)) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+      !receive_info(sockets[0], 10U, &info)) {
+    close(memfd);
+    return 1;
+  }
+
+  mf_vfio_user_dma_map_v0 overflow_map = map;
+  overflow_map.iova = UINT64_MAX - UINT64_C(0x0fff);
+  overflow_map.size = UINT64_C(0x1000);
+  overflow_map.mapping_epoch = 1U;
+  overflow_map.device_generation = 1U;
+  if (mf_vfio_user_guest_encode_dma_map_v0(11U, &overflow_map, packet.data(), packet.size(),
+                                           &packet_size) != MF_SHARED_SUCCESS ||
+      !send_packet(sockets[0], packet.data(), packet_size, memfd) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+      !receive_completion(sockets[0], 11U, MF_VFIO_USER_MESSAGE_DMA_MAP_V0,
+                          MF_SHARED_INVALID_ARGUMENT) ||
+      server.mapping_count() != 0U) {
+    close(memfd);
+    return 1;
+  }
+
   metaflux::runtime::lifecycle::Config lifecycle_config{};
   lifecycle_config.logical_device_id = 7U;
   lifecycle_config.daemon_incarnation = 11U;

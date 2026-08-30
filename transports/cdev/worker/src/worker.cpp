@@ -180,10 +180,19 @@ WorkerResult CdevWorker::consume_once() noexcept {
   if (request.opcode != MF_RING_OPCODE_COPY || request.arguments[3] > view_.payload_size) {
     return complete(request, MF_SHARED_NOT_SUPPORTED);
   }
+  if ((request.flags & ~MF_RING_COPY_KNOWN_FLAGS_V1) != 0U) {
+    return complete(request, MF_SHARED_MALFORMED);
+  }
+  if (request.flags != 0U) {
+    return complete(request, MF_SHARED_NOT_SUPPORTED);
+  }
   const auto base = request.arguments[3];
   const auto destination = request.arguments[0];
   const auto source = request.arguments[1];
   const auto byte_count = request.arguments[2];
+  if (byte_count == 0U) {
+    return complete(request, MF_SHARED_INVALID_ARGUMENT);
+  }
   if (destination > view_.payload_size - base || source > view_.payload_size - base ||
       byte_count > view_.payload_size - base - destination ||
       byte_count > view_.payload_size - base - source) {
