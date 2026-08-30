@@ -4,7 +4,7 @@
 checkpoints are protected and grouped by year under `checkpoints/YYYY/`.
 
 Latest checkpoint:
-[P20260831-040](checkpoints/2026/P20260831-040-m0110-static-guest-pci.md).
+[P20260831-041](checkpoints/2026/P20260831-041-m0130-vulkan-capability.md).
 
 A checkpoint records observed state and verification evidence; it is not a Git
 revision unless its metadata names one. Create a checkpoint at a material

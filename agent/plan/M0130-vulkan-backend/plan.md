@@ -2,10 +2,10 @@
 id: M0130
 delivery: 0.1.3.0
 release: v0.1.3
-status: Queued
+status: Active
 depends_on: [M0110, M0120]
 areas: [backend.vulkan, compiler.spirv]
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 
 # M0130: Vulkan Execution Backend

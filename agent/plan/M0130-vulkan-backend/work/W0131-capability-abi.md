@@ -2,10 +2,10 @@
 id: W0131
 delivery: 0.1.3.1
 milestone: M0130
-status: Queued
+status: Active
 area: backend.vulkan.contract
 depends_on: [M0110]
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 
 # Vulkan Capability and ABI 0.x
@@ -33,6 +33,18 @@ merely API version.
 Subgroup size is never assumed to be 32.
 
 ## Work
+
+Implemented stage:
+
+- [x] Declare the M0130 capability ABI 0.x record with fixed-width API,
+  queue, subgroup, memory-tier, UUID, and target-environment fields.
+- [x] Add an optional C++20 Vulkan probe that requires Vulkan 1.3 compute, a
+  compute queue, timeline semaphores, Synchronization2, and buffer device
+  address; it serializes the queried profile and hashes it with SHA-256.
+- [x] Materialize Vulkan headers, loader, `vulkaninfo`, `glslangValidator`, and
+  `spirv-val` in the named Nix `vulkan-tools` output and `.#vulkan` shell.
+- [x] Add C ABI layout and host capability regression tests; an unavailable or
+  incompatible host is reported as a skipped local probe.
 
 - [ ] Select the exact feature/limit baseline, minimum versions, and two
   independent Vulkan driver families.

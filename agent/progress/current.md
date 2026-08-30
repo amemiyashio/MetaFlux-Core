@@ -1,9 +1,9 @@
 ---
 status: Active
 updated: 2026-08-31
-milestone: M0110
-workstream: W0113
-checkpoint: P20260831-040
+milestone: M0130
+workstream: W0131
+checkpoint: P20260831-041
 ---
 
 # Current Progress
@@ -57,6 +57,9 @@ W0112's payload root/owner/VMA/active-allocation-operation kref graph is
 recorded at [P20260831-039](checkpoints/2026/P20260831-039-m0110-payload-krefs.md).
 W0113's compile-checked static guest PCI resource binder is recorded at
 [P20260831-040](checkpoints/2026/P20260831-040-m0110-static-guest-pci.md).
+M0130 is now Active; W0131's Vulkan capability ABI, opt-in tool epoch, and
+truthful host probe are recorded at
+[P20260831-041](checkpoints/2026/P20260831-041-m0130-vulkan-capability.md).
 W0122's QMP completion-to-ingress helper is recorded at
 [P20260831-028](checkpoints/2026/P20260831-028-m0120-qmp-ingress.md).
 W0122's vfio-user disconnect handoff is recorded at
@@ -120,6 +123,7 @@ The following items are not `v0.1.0` blockers:
 - Physical NVIDIA H2D/D2H and passthrough evidence that promotes provisional
   performance budgets to binding.
 - Native NixOS VM/package qualification.
+- Vulkan driver-family qualification and the remaining M0130 execution path.
 
 Intel x86_64 support qualification and physical NVIDIA binding-performance
 promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
@@ -200,6 +204,16 @@ Linux 9.8.
 | W0122 snapshot-bound event metadata | QMP command factory and vfio-user `process_once` capture logical device, daemon, identity, generation, epoch, and deadline from the authority snapshot; stale completion remains `Stale`; focused normalizer/QMP/server tests passed 3/3 |
 | W0122 current boundary | Live QMP/socket command transport, reset/restart producer metadata binding, production memfd worker wiring, provider freeze, fault injection, and qualification remain open; QMP and vfio-user disconnect capture are covered by the snapshot-bound helper |
 
+## Recorded M0130 W0131 Evidence
+
+| Gate | Recorded result |
+| --- | --- |
+| Vulkan capability ABI | `837619a`; fixed-width C profile with status, API/driver/device identity, queue, subgroup, memory-tier, UUID, target-environment, and digest fields; C layout test passed |
+| Vulkan host probe | Optional C++20 probe requires Vulkan 1.3 compute, timeline semaphores, Synchronization2, buffer device address, and a compute queue; unavailable host reports `no-device` without qualification |
+| Vulkan tool epoch | `toolchains/vulkan-1.json` and `.#vulkan` expose Vulkan headers/loader/tools, glslang, and SPIR-V Tools at the locked nixpkgs versions |
+| Vulkan CTest | Full `vulkan` preset passed 81/81, including ABI and capability regressions |
+| W0131 current boundary | Exact feature/limit minimums, two driver families, packed BDA/external-memory fixtures, lowering, execution, caches, and lifecycle integration remain open |
+
 ## Versioned Next Work
 
 1. M0100, its foundation session, and its completion session are terminal; the
@@ -249,6 +263,11 @@ Linux 9.8.
    Add/launch, backend references, replacement generations, and lifecycle/fault
    qualification. Do not claim the cdev exit gate from the mapped COPY fixture
    alone.
+9. M0130/W0131 is Active after the capability ABI stage at
+   [P20260831-041](checkpoints/2026/P20260831-041-m0130-vulkan-capability.md).
+   Continue with the exact target baseline and packed BDA/external-memory
+   fixtures, then W0132/W0133, without claiming physical driver-family support
+   from the current host's `no-device` probe.
 
 ## Tool Boundary
 
