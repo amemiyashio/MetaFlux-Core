@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-031
+checkpoint: P20260831-032
 ---
 
 # Current Progress
@@ -53,6 +53,8 @@ W0122's automatic vfio-user EOF handoff is recorded at
 [P20260831-030](checkpoints/2026/P20260831-030-m0120-vfio-process-ingress.md).
 W0121's provider-view invariant hardening is recorded at
 [P20260831-031](checkpoints/2026/P20260831-031-m0120-provider-view-invariants.md).
+W0121's bounded loss-fence and telemetry-bank publication race model is recorded
+at [P20260831-032](checkpoints/2026/P20260831-032-m0120-fence-telemetry-races.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -156,8 +158,9 @@ Linux 9.8.
 | W0113 static vfio-user control fixture | Generated GET_INFO reply, static BAR0/BAR2/BAR4 profile, generation/epoch DMA map ledger, overlap and reset rejection, and `No_reply` unmap passed |
 | W0113 current boundary | Guest `metaflux_pci.ko`, pinned QEMU/libvfio-user, BAR doorbell/MSI-X steady state, Add/Copy path, drain/tombstone faults, and package qualification remain open |
 | W0121 lifecycle model | Extension manifest imports the frozen M0110 root by hash; bounded checker passed 949 states/4,012 transitions/326 complete sequences and 15 direct boundary checks, including CUDA/NVML membership, loss, and reinitialization invariants |
+| W0121 fence/telemetry publication model | Separate bounded branch passed 337 states/565 transitions and 6 direct checks for loss-fence precedence, even-latch bank publication, stale `ONLINE` rejection, and bounded reader retry |
 | W0121 lifecycle regression | Lifecycle CTest and tampered-manifest self-test passed 2/2; full dev CTest passed 74/74 |
-| W0121 current boundary | Concrete memfd/cdev/vfio-user mirror stages, typed source mapping, QMP correlation, runtime ingress, and provider-view model invariants are recorded; source producer call-site integration, live QMP/vPCI integration, 1,000-cycle fault qualification, provider runtime integration, and lifecycle ABI freeze remain open |
+| W0121 current boundary | Concrete memfd/cdev/vfio-user mirror stages, typed source mapping, QMP correlation, runtime ingress, provider-view invariants, and the bounded fence/telemetry publication model are recorded; source producer call-site integration, live QMP/vPCI integration, 1,000-cycle fault qualification, provider runtime integration, and lifecycle ABI freeze remain open |
 
 ## Recorded M0120 W0122 Evidence
 
@@ -205,8 +208,10 @@ Linux 9.8.
    [P20260831-030](checkpoints/2026/P20260831-030-m0120-vfio-process-ingress.md).
 7. M0120/W0121's bounded model remains Active. Provider-view invariants and
    CUDA/NVML reinitialization checks are recorded at
-   [P20260831-031](checkpoints/2026/P20260831-031-m0120-provider-view-invariants.md);
-   continue with runtime provider integration, fence publication races, and
+   [P20260831-031](checkpoints/2026/P20260831-031-m0120-provider-view-invariants.md),
+   and the loss-fence/telemetry publication race model is recorded at
+   [P20260831-032](checkpoints/2026/P20260831-032-m0120-fence-telemetry-races.md);
+   continue with runtime provider integration, fence publication wiring, and
    lifecycle qualification.
 8. M0110/W0112 remains Active after the bounded registered-memory stage at
    [P20260831-026](checkpoints/2026/P20260831-026-m0110-registered-memory.md) and
