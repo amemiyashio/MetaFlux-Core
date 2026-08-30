@@ -127,10 +127,11 @@ ordinary corrections append, while exact semantic synchronization requires a
 committed Active SC under D0025. A numeric performance budget is `provisional`
 until the measurement harness it names exists and a baseline is archived;
 provisional budgets guide design but do not fail acceptance. Session summaries
-recorded from 2026-08-28 onward require a
-`Distillation` section mapping promoted claims to their unique durable owners
-and naming any intentionally session-only claim (`none` is valid after
-classification). Sessions from 2026-08-29 onward also require a `Cleanup` section
+recorded from 2026-08-28 onward require one lowercase `roast` section with
+ordered `light roasts`, `medium roasts`, and `dark roasts` buckets for
+materially promoted claims, followed by an independent lowercase `session-only`
+section (`none` is valid after classification). Sessions from 2026-08-29 onward
+also require a `Cleanup` section
 naming removed and intentionally retained session-owned artifacts. Unresolved decisions are aggregated in
 [`memory/open-decisions.md`](memory/open-decisions.md) and scaffold new sessions
 with `tools/new-session.py`.

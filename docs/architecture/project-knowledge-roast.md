@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Proposed |
+| Status | Verified |
 | Decision | D0026 |
 | Applies to | Durable project-knowledge promotion, session summaries, and checkpoint handoff |
 
@@ -67,7 +67,9 @@ such a change is duplicate omission, not a light roast row.
 `session-only` retains a material claim only when it has current-session resume
 or explanatory value and no durable promotion is justified. It records that
 reason without a roast label and cannot carry an unapproved governance
-conclusion. Every material outcome is either promoted into exactly one roast
+conclusion. It does not authorize a local artifact to survive cleanup: when the
+claim depends on a retained file, `record-session` also records that path, owner,
+and retention reason under `## Cleanup`. Every material outcome is either promoted into exactly one roast
 bucket, retained only under `session-only`, or routed as an unresolved choice to
 its canonical plan/open-decision owner. It cannot appear in more than one of
 those destinations. Disposable experiments, routine commands, raw logs,
@@ -116,7 +118,7 @@ terminal summaries may not.
 - <claim> - reason: <retention reason>
 ```
 
-D0026 replaces the former Distillation promotion model and requires a complete
+D0026 replaces the pre-D0026 promotion model and requires a complete
 D0025-governed semantic migration. Git and inventoried raw evidence retain the
 earlier wording; no compatibility skill, alias, duplicate schema, or archive
 remains on the current interface.

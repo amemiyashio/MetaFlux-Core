@@ -1,0 +1,6 @@
+interface:
+  display_name: "roast"
+  short_description: "Classify durable knowledge by semantic roast depth"
+  default_prompt: "Use $roast to classify and promote these project outcomes."
+policy:
+  allow_implicit_invocation: false

@@ -1,7 +1,7 @@
 # Expert Skill Trigger Evaluations
 
 The machine-readable source is [trigger-evals.json](trigger-evals.json). It
-contains 81 cases for 13 routed skills: 11 domain skills and two workflow
+contains 82 cases for 13 routed skills: 11 domain skills and two workflow
 skills. Every routed skill has two English positives, one English near-miss, one
 Chinese positive, and one Chinese near-miss; 16 additional cases exercise
 cross-boundary composition. Each workflow skill appears in at least one English
@@ -34,8 +34,10 @@ python3 -B tools/check-skill-routing.py . --emit-template --repetitions 3 \
   > /tmp/metaflux-skill-routing.json
 ```
 
-Run each prompt from the repository root with implicit skill discovery enabled.
-The template binds every run both to the canonical corpus SHA-256 and to a routing
+Run each prompt from the repository root with normal discovery enabled. Roast
+positive and composition cases contain the explicit `$roast` invocation; plain
+English uses of "roast" remain near misses. The template binds every run both
+to the canonical corpus SHA-256 and to a routing
 input SHA-256 covering the catalog plus every routed `SKILL.md` and
 `agents/openai.yaml`. Record `Codex` as the product and the exact model,
 host/version, date, iteration, and selected skill slugs. Then score it:
@@ -51,7 +53,7 @@ it. Both digests must still match, runner metadata cannot retain template
 placeholders or name another product, and every case must have exactly the
 recorded repetition count.
 The checked workflow roster is intentionally limited to
-`$govern-semantic-change` and `$distill-project-knowledge`. Other workflow
+`$govern-semantic-change` and explicit-only `$roast`. Other workflow
 skills such as `$start-work`, `$session-guidance`, and `$record-session` remain
 outside this scorer and may load without changing a case result.
 
@@ -68,8 +70,8 @@ The corpus includes:
   generations, and provider revisions captured at different initialization times;
 - PTX semantics, MLIR conversion mechanics, and CPU/Vulkan target ownership;
 - Linux UAPI, vfio-user wire/DMA, PCI presentation, and lifecycle composition;
-- approved semantic replacements, protected-history migration, evidence-aware
-  project-knowledge promotion, and their domain compositions;
+- approved semantic replacements, protected-history migration, explicit
+  project-knowledge roast, and their domain compositions;
 - English and Chinese near-miss prompts that mention neighboring terminology.
 
 Add a case whenever a description boundary, ownership route, or supported prompt

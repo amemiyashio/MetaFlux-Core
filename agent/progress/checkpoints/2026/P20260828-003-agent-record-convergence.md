@@ -25,7 +25,7 @@ machine-enforced and the ceremony cost is tooled:
 | --- | --- |
 | Index completeness | sessions/plan/experience README tables must exactly match disk, both directions |
 | Open decisions visible in one place | [open-decisions ledger](../../../memory/open-decisions.md) with 29 rows; per-milestone counts checked against each plan's Decisions-to-Close |
-| Knowledge leaves cold storage | Distillation section required in summaries from 2026-08-28 onward (`none` valid); S0100-20260828-001-spec-consistency and S0100-20260828-002-layout-convergence backfilled |
+| Knowledge leaves cold storage | The then-current knowledge-summary section was required from 2026-08-28 onward (`none` valid); S0100-20260828-001-spec-consistency and S0100-20260828-002-layout-convergence were backfilled, and SC0002 now represents those outcomes through terminal `## roast` and `## session-only` sections |
 | Stale Active records surface | warning when an Active plan record is >14 days older than the latest checkpoint |
 | Session ceremony cost | `tools/new-session.py` scaffolds a validator-clean session with id allocation and index row; dogfooded for S0100-20260828-003-agent-record-convergence |
 
@@ -47,9 +47,9 @@ No product code, contract, or build semantic changed in this round.
    [open decisions](../../../memory/open-decisions.md) and
    [current progress](../../current.md).
 2. New sessions start with `python3 tools/new-session.py
-   <MAJOR.MINOR.PATCH.WORK> <slug>`; close the
-   Distillation section honestly and move any closed decision's row out of the
-   ledger.
+   <MAJOR.MINOR.PATCH.WORK> <slug>`; close the terminal `## roast` and
+   `## session-only` sections honestly and move any closed decision's row out
+   of the ledger.
 3. The next material boundary remains W0101: sysroot, CUDA/NVML header
    acquisition, LLVM 22 patchset, and provisional AMD reference evidence;
    `v0.2.0` owns physical NVIDIA binding promotion.

@@ -28,7 +28,7 @@ record gate now checks its own consistency and is itself tested:
 | Validator self-test | Gate | `tools/test-check-agent-records.py`, fifteen golden-tree mutation cases, CTest `metaflux.architecture.agent-records-selftest` |
 
 Deferred by decision: experience revalidation triggers, parallel-writer
-protocol, distillation cutoff redesign — workflow preferences that scale has
+protocol, knowledge-summary cutoff redesign — workflow preferences that scale has
 not yet demanded.
 
 ## Verification evidence

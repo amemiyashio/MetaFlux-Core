@@ -11,31 +11,53 @@ includes CUDA Add/Copy acceptance on all four distributions. Signed SDK
 provenance verified. v0.1.0 boundary confirmed; Intel/NVIDIA/NixOS deferred
 to v0.2.0 per D0024.
 
-## Promoted claim-to-owner rows
+## roast
 
-| Claim | Owner evidence |
-|---|---|
-| PGO training + USE build pass | `run_m0001_optimization.py` 135 commands, `/tmp/metaflux-pgo-evidence-10/` |
-| O2/O3 variant comparison pass | `run_m0001_optimization.py` 28 commands |
-| ASan/UBSan hardening pass | `run_m0001_optimization.py` 121 commands |
-| W0102 stress coverage complete | `recovery_model.cpp`, `registry_recovery.cpp`, `multiprocess_stress.cpp`, `ring.c`, `noop_stress.c` — all 15 sub-items covered |
-| W0106 coexistence tests | `provider_mode_test.c` — managed-only, isolation, recursion prevention |
-| Generic release build | `tools/build-generic-release.sh` — GLIBC_2.29 ≤ 2.31 |
-| CMake target toolchain | `cmake/toolchains/ubuntu-20.04-generic.cmake` |
-| Provider release matrix 8/8 | `run_provider_package_matrix.py` — 4 distros × 2 formats |
-| Complete release matrix 8/8 × 2 | `run_release_package_matrix.py` — CUDA Add/Copy acceptance |
-| Signed provenance verification | `tools/verify-target-sdk-provenance.sh` — 2 releases, 10 packages |
-| D0023 Intel deferral | `decisions-index.md` — v0.2.0 scope |
-| D0024/D0025 migration | Semantic identity and governance applied |
+### light roasts
 
-## Session-only retention reasons
+- PGO training and USE build pass -> `tests/performance/run_m0100_optimization.py`
+  and `/tmp/metaflux-pgo-evidence-10/` (135 commands, status=pass)
+- O2/O3 variant comparison pass ->
+  `tests/performance/run_m0100_optimization.py` (28 commands, status=pass)
+- ASan/UBSan hardening pass ->
+  `tests/performance/run_m0100_optimization.py` (121 commands, status=pass)
+- W0102 stress coverage complete -> `recovery_model.cpp`,
+  `registry_recovery.cpp`, `multiprocess_stress.cpp`, `ring.c`, and
+  `noop_stress.c` (all 15 sub-items covered)
+- W0106 coexistence coverage -> `provider_mode_test.c` (managed-only,
+  isolation, and recursion prevention)
+- Generic release build -> `tools/build-generic-release.sh` (`metafluxd`
+  GLIBC_2.29, within the GLIBC_2.31 ceiling)
+- Ubuntu 20.04 target toolchain ->
+  `cmake/toolchains/ubuntu-20.04-generic.cmake` (canonical CMake target
+  toolchain)
+- Provider release matrix -> `tests/release/run_provider_package_matrix.py`
+  (8/8 pass across four distributions and two formats)
+- Complete release matrix -> `tests/release/run_release_package_matrix.py`
+  (8/8 pass in each of two runs, including CUDA Add/Copy acceptance)
+- Signed provenance verification ->
+  `tools/verify-target-sdk-provenance.sh` (two releases and ten packages
+  verified)
+### medium roasts
 
-- PGO evidence directories (`/tmp/metaflux-pgo-evidence-*`): retained for
-  audit but not committed; superseded by latest run.
-- Package build artifacts (`/tmp/metaflux-*-packages`): retained for matrix
-  reproducibility but not committed.
-- Acceptance build tree (`.metaflux-build/MetaFlux-Core/generic-acceptance`):
-  retained for fixture reuse but not committed.
+- M0100 v0.1.0 acceptance closure -> `agent/progress/current.md` (PGO,
+  hardening, release-matrix, provenance, AMD reference-host, and D0024 release
+  boundary evidence)
+
+### dark roasts
+
+- Intel host qualification deferral -> `agent/memory/decisions-index.md`
+  (v0.2.0 release boundary; authority: D0023, SC not required; recorded
+  pre-D0025 boundary)
+
+## session-only
+
+- PGO evidence directories (`/tmp/metaflux-pgo-evidence-*`) - reason: retained
+  for audit but not committed; superseded by latest run.
+- Package build artifacts (`/tmp/metaflux-*-packages`) - reason: retained for
+  matrix reproducibility but not committed.
+- Acceptance build tree (`.metaflux-build/MetaFlux-Core/generic-acceptance`) -
+  reason: retained for fixture reuse but not committed.
 
 ## Verification
 
@@ -53,6 +75,7 @@ to v0.2.0 per D0024.
 | G001 guidance disposition | adopted |
 | G002 guidance disposition | adopted |
 | G003 guidance disposition | adopted |
+| G004 guidance disposition | adopted |
 
 ## Cleanup
 
@@ -67,12 +90,8 @@ to v0.2.0 per D0024.
 - G001 (previous session): adopted — distinguished provider vs complete matrix.
 - G002: adopted — v0.1.0 boundary confirmed, deferred work names v0.2.0.
 - G003: adopted — D0025 format applied to this summary.
-
-## Distillation
-
-- Promoted: PGO, release matrix, provenance verification, and v0.1.0 boundary
-  evidence into progress/current.md Recorded M0100 Evidence table.
-- Promoted: D0023 Intel deferral into decisions-index.md.
+- G004: adopted — D0026 roast classification replaced G003's live summary
+  shape and kept `session-only` independent.
 
 ## Unresolved items
 

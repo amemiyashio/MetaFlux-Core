@@ -2,7 +2,7 @@
 
 ## Objective and outcome
 
-Replace project-knowledge Distillation semantics with the explicit-only
+Replace the pre-D0026 project-knowledge promotion model with the explicit-only
 `$roast` skill, three semantic-transformation depths, and an independent
 `session-only` disposition through D0026 and an SC0002-governed semantic
 migration. D0026 is proposed; implementation and migration remain in progress.
@@ -11,6 +11,8 @@ migration. D0026 is proposed; implementation and migration remain in progress.
 
 - `docs/architecture/project-knowledge-roast.md`: D0026 canonical replacement design.
 - `agent/memory/decisions-index.md`: resolvable D0026 authority.
+- `agent/skills/session-guidance/`: durable SC handoff ID reservation with 20/20 tests.
+- `agent/semantic-changes/SC0002-project-knowledge-roast.md`: 68-surface Active migration authorization.
 
 ## Verification
 
@@ -28,10 +30,23 @@ migration. D0026 is proposed; implementation and migration remain in progress.
 
 - D0026 defines roast depth, the independent session-only disposition, and explicit invocation.
 
-## Distillation
+## roast
 
-- Promoted: TODO at session end (or none).
-- Session-only: TODO at session end (or none).
+### light roasts
+
+- none.
+
+### medium roasts
+
+- SC handoff references now reserve cleaned guidance IDs -> agent/skills/session-guidance (a2df763; 20/20 guidance tests)
+
+### dark roasts
+
+- D0026 project-knowledge roast contract -> docs/architecture/project-knowledge-roast.md (21f1d47 and 5b9e0d3; authority: D0026, SC0002)
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

@@ -37,5 +37,5 @@ carry no evidence section: their proof is the gate they name.
 Candidates for the next skills, written when their procedures stabilize:
 `run-qualification-matrix` (full preset + nix flake check evidence pattern),
 `close-milestone` (DoD audit), and `promote-budgets` (provisional → binding
-with archived baselines). None is written yet: a skill should distill a
+with archived baselines). None is written yet: a skill should encode a
 procedure already practiced, not prescribe one still being invented.

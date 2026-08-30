@@ -17,6 +17,5 @@ The directory taxonomy and dependency-direction map are recorded in
 [`repo-layout.md`](repo-layout.md) (Verified). Decision-authorized breaking
 repository migrations follow the verified
 [`semantic-change-governance.md`](semantic-change-governance.md) contract
-(D0025). Durable project-knowledge promotion follows the proposed
-[`project-knowledge-roast.md`](project-knowledge-roast.md) contract (D0026)
-while its decision-authorized migration is in progress.
+(D0025). Durable project-knowledge promotion follows the verified
+[`project-knowledge-roast.md`](project-knowledge-roast.md) contract (D0026).

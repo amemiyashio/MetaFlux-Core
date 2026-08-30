@@ -40,12 +40,25 @@ glibc/package boundary and commit `267edc4` preserves the Skill policy itself.
 - No experience record was needed because the reusable behavior is directly
   enforced by the two workflow skills.
 
-## Distillation
+## roast
 
-- Promoted: stage-breakthrough commit policy -> `record-session`, `start-work`,
-  the Skill catalog, current progress, and checkpoint P20260829-005 (session
-  verification above).
-- Session-only: none.
+### light roasts
+
+- Work-start breakthrough monitoring -> `agent/skills/start-work/SKILL.md`
+  (commit `267edc4`; both changed skills passed quick validation)
+
+### medium roasts
+
+- Stage-breakthrough checkpoint policy -> `agent/skills/record-session/SKILL.md`
+  (commits `b05901a` and `267edc4`; routing 68 cases and self-test 23/23)
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

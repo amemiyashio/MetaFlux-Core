@@ -54,9 +54,10 @@ ALLOWED_TIME_PRECISION = {
     "microsecond",
 }
 MAX_INLINE_TEXT_BYTES = 65_536
-# Session summaries recorded from this date onward must carry a Distillation
-# section; earlier sessions are grandfathered.
-DISTILLATION_REQUIRED_FROM = "2026-08-28"
+# Session summaries recorded from this date onward must carry the D0026 roast
+# and session-only sections; earlier sessions are grandfathered when neither
+# section is present.
+ROAST_REQUIRED_FROM = "2026-08-28"
 CLEANUP_REQUIRED_FROM = "2026-08-29"
 STALENESS_WARNING_DAYS = 14
 SESSION_ID_RE = re.compile(
@@ -186,17 +187,35 @@ DOMAIN_SKILL_SLUGS = {
     "vulkan-spirv-compute",
 }
 WORKFLOW_SKILL_SLUGS = {
-    "distill-project-knowledge",
     "govern-semantic-change",
+    "roast",
 }
+FORBIDDEN_SKILL_SLUGS = {"distill-project-knowledge"}
 DOMAIN_SKILL_SECTIONS = ("Inputs", "Routing", "Workflow", "Output", "Verification")
 OPENAI_INTERFACE_FIELDS = {"display_name", "short_description", "default_prompt"}
+OPENAI_POLICY_FIELDS = {"allow_implicit_invocation"}
 MIN_OPENAI_SHORT_DESCRIPTION_LENGTH = 25
 MAX_OPENAI_SHORT_DESCRIPTION_LENGTH = 64
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 FULL_GIT_REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".txt", ".yaml", ".yml"}
+ROAST_BUCKETS = ("light roasts", "medium roasts", "dark roasts")
+ROAST_ENTRY_RE = re.compile(
+    r"^(?P<claim>.+?) -> (?P<owner>.+?) \((?P<evidence>.+)\)$"
+)
+SESSION_ONLY_ENTRY_RE = re.compile(
+    r"^(?P<claim>.+?) - reason: (?P<reason>.+)$"
+)
+ROAST_DARK_AUTHORITY_RE = re.compile(
+    r"(?:^|;\s*)authority:\s*D\d{4},\s*(?:SC\d{4}|SC not required)(?:$|;\s*)"
+)
+LEGACY_KNOWLEDGE_SCHEMA_RE = re.compile(
+    r"(?m)^(?:## Distillation|- (?:Promoted|Session-only|Distilled):)"
+)
+OPENAI_SKILL_TOKEN_RE = re.compile(
+    r"(?<![$A-Za-z0-9_-])\$[a-z0-9]+(?:-[a-z0-9]+)*(?![A-Za-z0-9_-])"
+)
 
 CREDENTIAL_ASSIGNMENT_RE = re.compile(
     r"(?ix)\b(?:password|passwd|pwd|api[_-]?key|access[_-]?token|auth[_-]?token|"
@@ -523,7 +542,7 @@ class Validator:
             session_dir, session.get("summary"), "summary"
         )
         self.validate_relative_file(session_dir, session.get("notes"), "notes")
-        self.validate_distillation(summary_path, session)
+        self.validate_roast(summary_path, session)
         self.validate_cleanup(summary_path, session)
         self.validate_terminal_guidance_cleanup(session_dir, status)
 
@@ -1121,54 +1140,209 @@ class Validator:
                             "use the canonical full session ID",
                         )
 
-    def validate_distillation(self, summary_path: Path | None, session: dict) -> None:
-        started_at = session.get("started_at")
-        if not isinstance(started_at, str) or started_at < DISTILLATION_REQUIRED_FROM:
-            return
+    def parse_summary_entries(
+        self,
+        summary_path: Path,
+        label: str,
+        lines: list[str],
+        *,
+        active: bool,
+        session_only: bool = False,
+        dark: bool = False,
+    ) -> list[str]:
+        """Validate one roast bucket or session-only disposition."""
+
+        entries: list[str] = []
+        current: str | None = None
+        for line in lines:
+            if not line.strip():
+                continue
+            if line.startswith("- "):
+                if current is not None:
+                    entries.append(current)
+                current = line[2:].strip()
+                continue
+            if current is not None and line.startswith(("  ", "\t")):
+                current += " " + line.strip()
+                continue
+            self.add_error(
+                summary_path,
+                f"{label} must contain only Markdown list entries",
+            )
+            return []
+        if current is not None:
+            entries.append(current)
+
+        if not entries or any(not entry for entry in entries):
+            self.add_error(summary_path, f"{label} must contain at least one non-empty entry")
+            return []
+        if entries == ["TODO."]:
+            if not active:
+                self.add_error(summary_path, f"terminal {label} must not contain TODO")
+            return []
+        if "TODO." in entries:
+            self.add_error(summary_path, f"{label} must use '- TODO.' as its sole placeholder")
+            return []
+        if entries == ["none."]:
+            return []
+        if "none." in entries:
+            self.add_error(summary_path, f"{label} must use '- none.' as its sole empty value")
+            return []
+        if any(re.search(r"\bTODO\b", entry, re.IGNORECASE) for entry in entries):
+            self.add_error(
+                summary_path,
+                f"{label} may use TODO only as the active sole value '- TODO.'",
+            )
+            return []
+
+        claims: list[str] = []
+        entry_pattern = SESSION_ONLY_ENTRY_RE if session_only else ROAST_ENTRY_RE
+        for entry in entries:
+            match = entry_pattern.fullmatch(entry)
+            if match is None:
+                shape = (
+                    "'<claim> - reason: <retention reason>'"
+                    if session_only
+                    else "'<claim> -> <canonical owner> (<evidence>)'"
+                )
+                self.add_error(summary_path, f"{label} entry must use {shape}: {entry!r}")
+                continue
+            claim = match.group("claim").strip()
+            if not claim:
+                self.add_error(summary_path, f"{label} entry has an empty claim")
+                continue
+            if session_only:
+                if not match.group("reason").strip():
+                    self.add_error(summary_path, f"{label} entry has an empty retention reason")
+                    continue
+            else:
+                if not match.group("owner").strip() or not match.group("evidence").strip():
+                    self.add_error(summary_path, f"{label} entry has an empty owner or evidence")
+                    continue
+                if dark and ROAST_DARK_AUTHORITY_RE.search(match.group("evidence")) is None:
+                    self.add_error(
+                        summary_path,
+                        "dark roasts require 'authority: DNNNN, SCNNNN' or "
+                        "'authority: DNNNN, SC not required' evidence",
+                    )
+            claims.append(" ".join(claim.casefold().split()))
+        return claims
+
+    def validate_roast(self, summary_path: Path | None, session: dict) -> None:
         if summary_path is None:
             return
         try:
             text = summary_path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
-            self.add_error(summary_path, "cannot read session summary for distillation")
+            self.add_error(summary_path, "cannot read session summary for roast validation")
             return
-        parts = text.split("## Distillation", 1)
-        if len(parts) != 2:
+
+        legacy = LEGACY_KNOWLEDGE_SCHEMA_RE.search(text)
+        if legacy is not None:
             self.add_error(
                 summary_path,
-                "sessions from "
-                f"{DISTILLATION_REQUIRED_FROM} onward require a '## Distillation' "
-                "section (use 'none' when nothing was promoted)",
-            )
-            return
-        body = parts[1].split("\n## ", 1)[0].strip()
-        if not body:
-            self.add_error(summary_path, "Distillation section is empty")
-            return
-        if "none" not in body.lower() and "- " not in body:
-            self.add_error(
-                summary_path,
-                "Distillation section must state 'none' or contain labeled rows",
+                f"legacy knowledge-summary schema is not accepted: {legacy.group(0)!r}",
             )
 
-        status = session.get("status")
-        if status == "in_progress" or status not in ALLOWED_STATUSES:
+        lines = text.splitlines()
+        roast_positions = [index for index, line in enumerate(lines) if line == "## roast"]
+        session_only_positions = [
+            index for index, line in enumerate(lines) if line == "## session-only"
+        ]
+        started_at = session.get("started_at")
+        post_policy = isinstance(started_at, str) and started_at >= ROAST_REQUIRED_FROM
+        if not post_policy and not roast_positions and not session_only_positions:
             return
-        if re.search(r"(?m)^- Distilled(?:\b|:)", body):
+
+        if len(roast_positions) != 1:
             self.add_error(
                 summary_path,
-                "terminal Distillation sections must not use the legacy '- Distilled' row",
+                "sessions using the D0026 contract require exactly one lowercase '## roast' section",
             )
-        if not re.search(r"(?m)^- Promoted:[ \t]+\S", body):
+        if len(session_only_positions) != 1:
             self.add_error(
                 summary_path,
-                "terminal Distillation sections require a '- Promoted:' row",
+                "sessions using the D0026 contract require exactly one lowercase "
+                "'## session-only' section",
             )
-        if not re.search(r"(?m)^- Session-only:[ \t]+\S", body):
+        if len(roast_positions) != 1 or len(session_only_positions) != 1:
+            return
+
+        roast_index = roast_positions[0]
+        session_only_index = session_only_positions[0]
+        h2_positions = [
+            index
+            for index, line in enumerate(lines)
+            if re.fullmatch(r"##[ \t]+\S.*", line)
+        ]
+        roast_end = next(
+            (index for index in h2_positions if index > roast_index),
+            len(lines),
+        )
+        if roast_end != session_only_index:
             self.add_error(
                 summary_path,
-                "terminal Distillation sections require a '- Session-only:' row",
+                "'## session-only' must immediately follow the complete '## roast' section",
             )
+            return
+        session_only_end = next(
+            (index for index in h2_positions if index > session_only_index),
+            len(lines),
+        )
+
+        roast_lines = lines[roast_index + 1 : roast_end]
+        bucket_positions = [
+            (index, line.removeprefix("### "))
+            for index, line in enumerate(roast_lines)
+            if line.startswith("### ")
+        ]
+        observed_buckets = [name for _, name in bucket_positions]
+        if observed_buckets != list(ROAST_BUCKETS):
+            expected = " -> ".join(f"### {bucket}" for bucket in ROAST_BUCKETS)
+            self.add_error(
+                summary_path,
+                f"roast buckets must appear exactly once and in order: {expected}",
+            )
+            return
+        if any(line.strip() for line in roast_lines[: bucket_positions[0][0]]):
+            self.add_error(summary_path, "'## roast' must not contain prose before its buckets")
+
+        active = session.get("status") == "in_progress"
+        all_claims: list[tuple[str, str]] = []
+        for bucket_number, (start, bucket) in enumerate(bucket_positions):
+            end = (
+                bucket_positions[bucket_number + 1][0]
+                if bucket_number + 1 < len(bucket_positions)
+                else len(roast_lines)
+            )
+            claims = self.parse_summary_entries(
+                summary_path,
+                bucket,
+                roast_lines[start + 1 : end],
+                active=active,
+                dark=bucket == "dark roasts",
+            )
+            all_claims.extend((claim, bucket) for claim in claims)
+
+        session_claims = self.parse_summary_entries(
+            summary_path,
+            "session-only",
+            lines[session_only_index + 1 : session_only_end],
+            active=active,
+            session_only=True,
+        )
+        all_claims.extend((claim, "session-only") for claim in session_claims)
+
+        seen_claims: dict[str, str] = {}
+        for claim, destination in all_claims:
+            previous = seen_claims.get(claim)
+            if previous is not None:
+                self.add_error(
+                    summary_path,
+                    f"claim {claim!r} appears in both {previous} and {destination}",
+                )
+            else:
+                seen_claims[claim] = destination
 
     def validate_cleanup(self, summary_path: Path | None, session: dict) -> None:
         started_at = session.get("started_at")
@@ -1912,10 +2086,12 @@ class Validator:
 
     def parse_openai_yaml(
         self, path: Path, text: str, slug: str
-    ) -> dict[str, str] | None:
+    ) -> tuple[dict[str, str], dict[str, bool]] | None:
         """Parse the repository's deliberately small agents/openai.yaml subset."""
         interface: dict[str, str] = {}
-        saw_interface = False
+        policy: dict[str, bool] = {}
+        current_mapping: str | None = None
+        seen_mappings: set[str] = set()
         for line_number, line in enumerate(text.splitlines(), start=1):
             if not line.strip() or line.lstrip().startswith("#"):
                 continue
@@ -1925,22 +2101,26 @@ class Validator:
 
             indentation = len(line) - len(line.lstrip(" "))
             if indentation == 0:
-                if line != "interface:":
+                mapping_match = re.fullmatch(r"([a-z][a-z0-9_-]*):", line)
+                mapping = mapping_match.group(1) if mapping_match is not None else ""
+                if mapping not in {"interface", "policy"}:
                     self.add_error(
                         path,
-                        f"line {line_number}: only the top-level 'interface:' mapping is supported",
+                        f"line {line_number}: only top-level 'interface:' and "
+                        "'policy:' mappings are supported",
                     )
                     return None
-                if saw_interface:
-                    self.add_error(path, "agents/openai.yaml repeats 'interface'")
+                if mapping in seen_mappings:
+                    self.add_error(path, f"agents/openai.yaml repeats {mapping!r}")
                     return None
-                saw_interface = True
+                seen_mappings.add(mapping)
+                current_mapping = mapping
                 continue
 
-            if indentation != 2 or not saw_interface:
+            if indentation != 2 or current_mapping is None:
                 self.add_error(
                     path,
-                    f"line {line_number}: expected a two-space-indented interface field",
+                    f"line {line_number}: expected a two-space-indented mapping field",
                 )
                 return None
             field_match = re.fullmatch(r"  ([a-z][a-z0-9_-]*):[ ]+(.+)", line)
@@ -1948,29 +2128,45 @@ class Validator:
                 self.add_error(path, f"line {line_number}: invalid interface field syntax")
                 return None
             field, raw_value = field_match.groups()
-            if field not in OPENAI_INTERFACE_FIELDS:
-                self.add_error(path, f"line {line_number}: unsupported interface field {field!r}")
+            if current_mapping == "interface":
+                if field not in OPENAI_INTERFACE_FIELDS:
+                    self.add_error(path, f"line {line_number}: unsupported interface field {field!r}")
+                    return None
+                if field in interface:
+                    self.add_error(path, f"agents/openai.yaml repeats interface field {field!r}")
+                    return None
+                if not raw_value.startswith('"'):
+                    self.add_error(path, f"line {line_number}: interface strings must be double-quoted")
+                    return None
+                try:
+                    value = json.loads(raw_value)
+                except json.JSONDecodeError as exc:
+                    self.add_error(
+                        path,
+                        f"line {line_number}: invalid quoted string: {exc.msg}",
+                    )
+                    return None
+                if not isinstance(value, str):
+                    self.add_error(path, f"line {line_number}: interface value must be a string")
+                    return None
+                interface[field] = value
+                continue
+
+            if field not in OPENAI_POLICY_FIELDS:
+                self.add_error(path, f"line {line_number}: unsupported policy field {field!r}")
                 return None
-            if field in interface:
-                self.add_error(path, f"agents/openai.yaml repeats interface field {field!r}")
+            if field in policy:
+                self.add_error(path, f"agents/openai.yaml repeats policy field {field!r}")
                 return None
-            if not raw_value.startswith('"'):
-                self.add_error(path, f"line {line_number}: interface strings must be double-quoted")
-                return None
-            try:
-                value = json.loads(raw_value)
-            except json.JSONDecodeError as exc:
+            if raw_value not in {"true", "false"}:
                 self.add_error(
                     path,
-                    f"line {line_number}: invalid quoted string: {exc.msg}",
+                    f"line {line_number}: policy values must be unquoted booleans",
                 )
                 return None
-            if not isinstance(value, str):
-                self.add_error(path, f"line {line_number}: interface value must be a string")
-                return None
-            interface[field] = value
+            policy[field] = raw_value == "true"
 
-        if not saw_interface:
+        if "interface" not in seen_mappings:
             self.add_error(path, "agents/openai.yaml requires an 'interface' mapping")
             return None
         missing = OPENAI_INTERFACE_FIELDS - interface.keys()
@@ -1996,15 +2192,22 @@ class Validator:
             )
         default_prompt = interface["default_prompt"].strip()
         skill_token = f"${slug}"
-        token_pattern = re.compile(
-            rf"(?<![$A-Za-z0-9_-]){re.escape(skill_token)}(?![A-Za-z0-9_-])"
-        )
-        if len(token_pattern.findall(default_prompt)) != 1:
+        prompt_tokens = OPENAI_SKILL_TOKEN_RE.findall(default_prompt)
+        if prompt_tokens != [skill_token]:
             self.add_error(
                 path,
-                f"interface.default_prompt must mention exact token {skill_token!r} once",
+                f"interface.default_prompt must contain only exact token {skill_token!r} once",
             )
-        return interface
+        if "policy" in seen_mappings:
+            missing_policy = OPENAI_POLICY_FIELDS - policy.keys()
+            if missing_policy:
+                self.add_error(
+                    path,
+                    "agents/openai.yaml policy is missing field(s): "
+                    + ", ".join(sorted(missing_policy)),
+                )
+                return None
+        return interface, policy
 
     def parse_skill_frontmatter(self, path: Path, text: str) -> dict[str, str] | None:
         """Parse the top-level scalar fields needed by the Codex skill contract.
@@ -2171,10 +2374,11 @@ class Validator:
             self.validate_domain_skill_sections(skill_file, text)
 
         openai_yaml = skill_dir / "agents" / "openai.yaml"
-        if slug in DOMAIN_SKILL_SLUGS and not openai_yaml.is_file():
+        routed_skill = slug in DOMAIN_SKILL_SLUGS | WORKFLOW_SKILL_SLUGS
+        if routed_skill and not openai_yaml.is_file():
             self.add_error(
                 openai_yaml,
-                "domain skill package requires agents/openai.yaml",
+                "routed skill package requires agents/openai.yaml",
             )
         if openai_yaml.exists():
             if not openai_yaml.is_file():
@@ -2185,7 +2389,14 @@ class Validator:
                 except UnicodeDecodeError as exc:
                     self.add_error(openai_yaml, f"is not valid UTF-8: {exc}")
                 else:
-                    self.parse_openai_yaml(openai_yaml, openai_text, slug)
+                    parsed_openai = self.parse_openai_yaml(openai_yaml, openai_text, slug)
+                    if parsed_openai is not None and slug == "roast":
+                        _, policy = parsed_openai
+                        if policy.get("allow_implicit_invocation") is not False:
+                            self.add_error(
+                                openai_yaml,
+                                "roast requires policy.allow_implicit_invocation: false",
+                            )
 
     def validate_skills(self) -> None:
         """Enforce Codex-compatible packages and the repository catalog."""
@@ -2228,6 +2439,13 @@ class Validator:
                     entry,
                     "skill directory name must be a lowercase-hyphenated slug",
                 )
+
+        forbidden = actual & FORBIDDEN_SKILL_SLUGS
+        for slug in sorted(forbidden):
+            self.add_error(
+                skills_root / slug,
+                f"obsolete callable skill slug is forbidden: {slug}",
+            )
 
         index_path = skills_root / "README.md"
         if not index_path.is_file():

@@ -50,11 +50,24 @@ commit then ran the hook for real.
 - No new DNNNN decisions: workflow enforcement recorded in AGENTS.md and the
   hook itself.
 
-## Distillation
+## roast
 
-- Promoted: three-layer guidance model -> AGENTS.md and the start-work skill
-  (session verification above).
-- Session-only: none; no separate experience claim was created.
+### light roasts
+
+- none.
+
+### medium roasts
+
+- Three-layer entry-point, on-ramp, and machine-gate guidance model -> AGENTS.md
+  and the start-work skill (session verification above)
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

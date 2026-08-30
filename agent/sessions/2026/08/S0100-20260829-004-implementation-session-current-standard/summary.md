@@ -11,11 +11,11 @@ for terminal records, and generates the current summary structure.
 
 ## Durable changes
 
-- `agent/sessions/2026/08/S0100-20260828-013-m0100-foundation/`: distilled 25
+- `agent/sessions/2026/08/S0100-20260828-013-m0100-foundation/`: curated 25
   transcript-like events into 13 material facts and corrected its lifecycle,
   title, cleanup, and handoff state.
 - `agent/sessions/README.md` and `agent/templates/session-summary.md`: define
-  active-ledger distillation, terminal protection, and end-time semantics.
+  active-ledger curation, terminal protection, and end-time semantics.
 - `tools/new-session.py` and `tools/check-agent-records.py`: generate and enforce
   coherent active and terminal session states.
 - `tools/test-check-agent-records.py`: covers three lifecycle combinations and
@@ -50,14 +50,26 @@ for terminal records, and generates the current summary structure.
   event 9 retains the single concise
   assertion lesson required for its future release-matrix rerun.
 
-## Distillation
+## roast
 
-- Promoted: session lifecycle semantics -> session policy, template, generator,
-  validator, and regression suite (session verification above).
-- Promoted: curated M0100 active ledger ->
+### light roasts
+
+- Curated 25-to-13 M0100 active ledger ->
   S0100-20260828-013-m0100-foundation while Git retains earlier forms (session
-  verification above).
-- Session-only: none.
+  verification above)
+
+### medium roasts
+
+- Session lifecycle semantics -> session policy, template, generator,
+  validator, and regression suite (session verification above)
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

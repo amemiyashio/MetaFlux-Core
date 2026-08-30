@@ -62,15 +62,26 @@ canonical `toolchains/` policy.
   final CTest and static verification. No session-owned build or evidence tree
   remains.
 
-## Distillation
+## roast
 
-- Promoted: tool owner boundary -> `toolchains/README.md`, D0022,
-  `manage-toolchain`, and durable Agent constraints (session verification above).
-- Promoted: session cleanup semantics -> `record-session`, session template,
-  scaffolder, and validator self-tests (session verification above).
-- Promoted: concise historical lessons -> E0001-E0003 (recorded evidence), with
-  failed-route build trees and raw logs excluded.
-- Session-only: none.
+### light roasts
+
+- none.
+
+### medium roasts
+
+- Curated session cleanup semantics -> `agent/skills/record-session/SKILL.md` (54/54 validator cases; no source snapshots)
+- Nix untracked-worktree lesson -> `agent/experience/E0001-nix-untracked-flake.md` (recorded evidence; failed-route build trees and raw logs excluded)
+- Provider closure and symbol-gate lesson -> `agent/experience/E0002-provider-closure-symbol-gates.md` (recorded evidence; failed-route build trees and raw logs excluded)
+- LLVM/MLIR SDK output and RUNPATH lesson -> `agent/experience/E0003-llvm-mlir-sdk-outputs-runpath.md` (recorded evidence; failed-route build trees and raw logs excluded)
+
+### dark roasts
+
+- Tool ownership boundary -> `toolchains/README.md` (fixed tool identity and materialization gates verified above; authority: D0022, SC not required)
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

@@ -44,15 +44,28 @@ index was written as part of this change.
 - No new DNNNN decisions: the skills layer is agent-workflow governance
   recorded in `agent/README.md` and `agent/skills/README.md`.
 
-## Distillation
+## roast
 
-- Promoted: skills-vs-experience-vs-templates boundary and three seeded
-  procedures -> `agent/skills/README.md` and the skill packages (outcomes from
-  S0100-20260828-001-spec-consistency,
+### light roasts
+
+- Three practiced procedures encoded as seeded skills -> the skill packages
+  (outcomes from S0100-20260828-001-spec-consistency,
   S0100-20260828-002-layout-convergence,
   S0100-20260828-003-agent-record-convergence, and
-  S0100-20260828-004-record-gate-hardening).
-- Session-only: none.
+  S0100-20260828-004-record-gate-hardening)
+
+### medium roasts
+
+- Skills-vs-experience-vs-templates boundary -> agent/skills/README.md (session
+  verification above)
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

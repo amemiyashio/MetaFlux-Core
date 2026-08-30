@@ -9,5 +9,6 @@ that judgment; `.githooks/pre-commit` remains a validator and never invokes
 Checkpoint mode leaves the session at `status: in_progress`, with
 `ended_at: null` and `final_revision: null`, after the content revision and its
 verification are appended and committed as records. Close mode performs final
-cleanup/distillation and records the last content revision before the separate
-closing record commit.
+cleanup, explicit `$roast` promotion classification, and independent
+`session-only` disposition, then records the last content revision before the
+separate closing record commit.

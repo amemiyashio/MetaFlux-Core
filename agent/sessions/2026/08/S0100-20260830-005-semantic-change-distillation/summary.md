@@ -2,8 +2,8 @@
 
 ## Objective and outcome
 
-Implement the approved semantic-change governance and project-knowledge
-distillation workflows. Governance revision
+Implement the approved semantic-change governance and its predecessor
+project-knowledge promotion workflow. Governance revision
 `1ecdfb01497610c5042e12bda4a16839d2b9c734` established the skill packages,
 D0025/SC contract, protected-history gate, staged-tree validation, and routing
 v2. Migration revision `90c45eda2815c59617fffea581522b7ed6bff1c0`
@@ -15,7 +15,8 @@ revision binding.
 
 - `docs/architecture/semantic-change-governance.md`: D0025 policy and evidence boundary.
 - `agent/skills/govern-semantic-change/`: breaking semantic migration workflow.
-- `agent/skills/distill-project-knowledge/`: evidence-aware claim routing workflow.
+- Stable historical skill ID `agent/skills/distill-project-knowledge/`:
+  predecessor evidence-aware claim routing workflow, later superseded by D0026.
 - `tools/check-agent-records.py`: SC schema, lifecycle, staged-tree, and record checks.
 - `tools/check-semantic-change-edits.py`: committed-HEAD historical edit authority.
 - `agent/skills/trigger-evals.json`: 13 routed skills and 81 bilingual cases.
@@ -47,12 +48,30 @@ revision binding.
 
 - D0025 is indexed in `agent/memory/decisions-index.md`; no experience claim was promoted without reproduced evidence.
 
-## Distillation
+## roast
 
-- Promoted: semantic-change governance -> D0025 and `docs/architecture/semantic-change-governance.md` (`1ecdfb01497610c5042e12bda4a16839d2b9c734`).
-- Promoted: reusable governance procedures -> the two new workflow skill packages (package and forward-test evidence above).
-- Promoted: exact current/tooling/history migration inventory and outcome -> SC0001 (75 exact paths, `90c45ed`, and G001/G003 handoffs).
-- Session-only: none.
+### light roasts
+
+- Exact current/tooling/history migration inventory and outcome ->
+  `agent/semantic-changes/SC0001-semantic-change-distillation.md` (75 exact
+  paths, 31 authorized historical files, four retained evidence blobs,
+  revision `90c45ed`, and G001/G003 handoffs)
+
+### medium roasts
+
+- Reusable semantic-migration procedure ->
+  `agent/skills/govern-semantic-change/SKILL.md` (package validation,
+  independent forward test, and 21/21 edit-gate self-tests)
+
+### dark roasts
+
+- Decision-authorized semantic-change governance ->
+  `docs/architecture/semantic-change-governance.md`
+  (`1ecdfb01497610c5042e12bda4a16839d2b9c734`; authority: D0025, SC0001)
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

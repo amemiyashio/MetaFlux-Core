@@ -55,16 +55,29 @@ that queued product work is complete.
 - No experience record was promoted; routing observations remain model/host-
   specific evidence and have not completed the full corpus run.
 
-## Distillation
+## roast
 
-- Promoted: neutral runtime/contracts owner and single-owner composition matrix
-  -> skill catalog (session verification above).
-- Promoted: lifecycle publication invariants -> lifecycle skill and its atomic
-  view, FIFO, admission, telemetry, recovery, and quarantine rules (session
-  verification above).
-- Promoted: package and routing requirements -> structured bilingual corpus,
-  self-tested validators, CTest, and Nix checks (session verification above).
-- Session-only: none.
+### light roasts
+
+- none.
+
+### medium roasts
+
+- Neutral runtime/contracts owner and single-owner composition matrix -> skill
+  catalog (session verification above)
+- Lifecycle publication invariants -> lifecycle skill and its atomic view,
+  FIFO, admission, telemetry, recovery, and quarantine rules (session
+  verification above)
+- Package and routing requirements -> structured bilingual corpus, self-tested
+  validators, CTest, and Nix checks (session verification above)
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

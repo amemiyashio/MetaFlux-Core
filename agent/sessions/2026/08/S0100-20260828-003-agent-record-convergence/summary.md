@@ -8,7 +8,8 @@ The validator now requires index completeness (sessions, plan, and experience
 README tables must exactly match disk), checks the new
 `agent/memory/open-decisions.md` ledger (29 unresolved decisions across
 M0100-M0130, per-milestone counts must match each plan's Decisions-to-Close),
-requires a Distillation section in session summaries from 2026-08-28 onward,
+requires a terminal knowledge-summary section in session summaries from
+2026-08-28 onward,
 and warns when an Active plan record is more than 14 days stale against the
 latest checkpoint. `tools/new-session.py` scaffolds a validator-clean session
 with automatic id allocation and index registration; it was dogfooded to create
@@ -24,10 +25,10 @@ group) were caught and fixed by those self-tests.
 - `tools/check-agent-records.py`: four new rules plus warnings output.
 - `agent/memory/open-decisions.md`: new aggregated open-decisions ledger.
 - `agent/memory/README.md`: ledger added to the memory index.
-- `agent/templates/session-summary.md`: Distillation section.
+- `agent/templates/session-summary.md`: terminal knowledge-summary section.
 - `agent/sessions/2026/08/S0100-20260828-001-spec-consistency/summary.md`
   and `agent/sessions/2026/08/S0100-20260828-002-layout-convergence/summary.md`:
-  backfilled Distillation sections.
+  backfilled terminal knowledge-summary sections.
 - `tools/new-session.py`: new session scaffolder.
 - `tools/README.md`, `agent/README.md`: documentation of the new rules.
 
@@ -46,12 +47,26 @@ group) were caught and fixed by those self-tests.
 - No new DNNNN decisions: these are agent-workflow rules recorded in
   agent/README.md and enforced by the validator, not product decisions.
 
-## Distillation
+## roast
 
-- Promoted: open-decision, distillation, staleness, and scaffolding rules ->
-  memory, agent/README.md, and tools/README.md (session verification above).
-- Session-only: none; these are repository-local governance rules rather than
-  reusable engineering experience.
+### light roasts
+
+- Validator-clean session scaffolding with automatic ID allocation and index
+  registration -> tools/new-session.py and tools/README.md (session
+  verification above)
+
+### medium roasts
+
+- Open-decision visibility, terminal knowledge-summary, and staleness rules ->
+  memory, agent/README.md, and tools/README.md (session verification above)
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

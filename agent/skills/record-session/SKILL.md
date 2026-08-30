@@ -61,10 +61,12 @@ honor an explicit user request to keep work uncommitted.
    only when the commit is also a material handoff boundary. Commit these
    session/checkpoint records separately from content. If work continues, keep
    `status: in_progress`, `ended_at: null`, and `final_revision: null`.
-7. Before close or handoff, follow `distill-project-knowledge`: split material
-   outcomes into independent claims, promote each to one canonical owner or
-   mark it session-only with a reason, and keep only links/evidence identities
-   in the session. Then enumerate paths created by this session and classify them:
+7. Before close or handoff, invoke `$roast` explicitly: split material outcomes
+   into independent claims; route unresolved choices to their canonical owner;
+   retain bounded local material under the independent `session-only`
+   disposition; and classify each materially promoted claim under one canonical
+   owner and roast depth. Keep only links and evidence identities in the
+   session. Then enumerate paths created by this session and classify them:
    durable Git content; promoted canonical evidence; or disposable work.
    Remove disposable build trees, duplicate source snapshots, failed-route
    files, processed guidance packets, temporary downloads, profiles, and logs.
@@ -78,11 +80,12 @@ honor an explicit user request to keep work uncommitted.
    semantic synchronization follows `govern-semantic-change`, preserves factual
    evidence, and requires its exact protected paths in an Active SC already in
    `HEAD`.
-9. In close mode, fill `summary.md`. `## Cleanup` names removed and intentionally retained
-   artifacts (`none` is valid after inspection). `## Distillation` maps
-   promoted claims to their durable owners and names any intentionally
-   session-only claim (`none` is valid after classification); it does not copy
-   the promoted content.
+9. In close mode, fill `summary.md`. `## Cleanup` names removed and intentionally
+   retained artifacts (`none` is valid after inspection). Lowercase `## roast`
+   contains the ordered `light roasts`, `medium roasts`, and `dark roasts`
+   promotion maps; the following lowercase `## session-only` contains only
+   bounded local-retention reasons. `none` is valid after classification, and
+   neither section copies canonical content.
 10. Fill `session.json` from current facts: agents, honest milestone/work-item
    statuses, the final content revision, end time, and terminal status. Update
    the sessions index with a one-line outcome, validate the records, and create
@@ -106,7 +109,7 @@ honor an explicit user request to keep work uncommitted.
 python3 tools/check-agent-records.py .
 ```
 
-The gate checks index completeness, cleanup and distillation sections,
+The gate checks index completeness, cleanup, roast and session-only sections,
 checkpoint freshness, and status consistency. Inspect `git status` and the
 task-owned work directories separately to prove cleanup actually happened. A
 checkpoint is complete only when the content commit exists and its active

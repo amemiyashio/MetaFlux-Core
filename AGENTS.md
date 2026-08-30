@@ -39,10 +39,11 @@ enforced by repository checks.
 6. **Keep tool ownership narrow.** Follow `manage-toolchain` for versions,
    manifests, shells, and Nix. Nix pins and provides tools only; Git, CMake,
    CTest, packaging, tests, and sessions keep their own semantics.
-7. **Record outcomes and clean work.** Use `distill-project-knowledge` to route
-   valuable claims to one durable owner, record session-owned cleanup (`##
-   Cleanup`), refresh `progress/current.md`, and checkpoint material handoffs
-   with `record-session`.
+7. **Record outcomes and clean work.** Invoke `$roast` explicitly to route each
+   materially promoted claim to one durable owner and semantic-transformation
+   depth; keep `session-only` as an independent disposition. Record
+   session-owned cleanup (`## Cleanup`), refresh `progress/current.md`, and
+   checkpoint material handoffs with `record-session`.
 
 Product boundaries live in `contracts/README.md` and
 `docs/architecture/repo-layout.md`; the language wall and dependency

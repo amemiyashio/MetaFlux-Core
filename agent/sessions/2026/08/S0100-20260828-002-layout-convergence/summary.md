@@ -24,10 +24,25 @@ Verification: dev/release/asan 15/15, provider 10/10, cuda-only and nvml-only
 67aa3975e37bfff5812a32b97490a1eec1c3b11b, final
 cca908221cb5b265ae0944a3e87598b1f5a70956.
 
-## Distillation
+## roast
 
-- Promoted: D0010/D0011, repository layout, and component-map navigation ->
+### light roasts
+
+- none.
+
+### medium roasts
+
+- none.
+
+### dark roasts
+
+- D0010 transport two-halves convention and repository placement ->
+  decisions-index and docs/architecture/repo-layout.md (session verification
+  above; authority: D0010, SC not required)
+- D0011 machine-checked dependency graph and component-map navigation ->
   decisions-index, docs/architecture/repo-layout.md, and the component map
-  (session verification above).
-- Session-only: none; the graph-check pattern remains documented in
-  tools/README.md rather than duplicated as experience.
+  (session verification above; authority: D0011, SC not required)
+
+## session-only
+
+- none.

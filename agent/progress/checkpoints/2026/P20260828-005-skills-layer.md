@@ -44,7 +44,8 @@ procedural playbooks, machine-enforced like the rest.
    [open decisions](../../../memory/open-decisions.md) and
    [current progress](../../current.md).
 2. Write a new skill only for a procedure already practiced at least once;
-   the three seeds distill sessions S0100-20260828-001-spec-consistency through
+   the three seeds encode procedures practiced in sessions
+   S0100-20260828-001-spec-consistency through
    S0100-20260828-004-record-gate-hardening.
 3. The next material boundary remains W0101: sysroot, CUDA/NVML header
    acquisition, the LLVM 22 patchset, and provisional AMD reference evidence;

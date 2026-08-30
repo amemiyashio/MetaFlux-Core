@@ -50,11 +50,24 @@ Historical records remain intact, and fixed tool materializations remain usable.
 - Historical Nix observations remain in E0001-E0003 and completed records; they
   are not active workflow entry points.
 
-## Distillation
+## roast
 
-- Promoted: remaining ownership corrections -> active owner documents and the
-  checkpoint template (session verification above).
-- Session-only: none; failed-route artifacts were not promoted.
+### light roasts
+
+- Remaining D0022 ownership corrections -> active owner documents and the
+  checkpoint template (session verification above)
+
+### medium roasts
+
+- none.
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

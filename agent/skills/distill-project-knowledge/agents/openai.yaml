@@ -1,4 +1,0 @@
-interface:
-  display_name: "Distill Project Knowledge"
-  short_description: "Route valuable project knowledge to durable owners"
-  default_prompt: "Use $distill-project-knowledge to promote these outcomes to their durable owners."

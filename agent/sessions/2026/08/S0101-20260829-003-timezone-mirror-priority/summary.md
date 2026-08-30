@@ -29,11 +29,23 @@ Clarify the existing D0020 timezone-relative mirror priority directly in the
   canonical upstream, with immutable upstream identity authoritative.
 - No new experience record was needed.
 
-## Distillation
+## roast
 
-- Promoted: existing D0020 timezone mirror priority -> `manage-toolchain`
-  Routing section (session verification above).
-- Session-only: none.
+### light roasts
+
+- Existing D0020 timezone mirror priority -> `agent/skills/manage-toolchain/SKILL.md` (current configured timezone, adjacent timezone, then canonical upstream; 68 routing cases and 23/23 self-tests)
+
+### medium roasts
+
+- none.
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

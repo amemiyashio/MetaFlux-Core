@@ -47,13 +47,26 @@ input at a defined control boundary.
 - No architecture decision or experience record was required because the
   workflow preserves existing technical ownership and durable record types.
 
-## Distillation
+## roast
 
-- Promoted: session-guidance lifecycle and ownership -> `AGENTS.md`,
-  `agent/README.md`, the skills/session indexes, `start-work`, `record-session`,
-  `progress/current.md`, and checkpoint `P20260830-002` (session verification
-  above).
-- Session-only: none.
+### light roasts
+
+- Guidance control-boundary scanning -> `AGENTS.md` (resume, collaborator
+  completion, next-work-unit, checkpoint, and close boundaries)
+
+### medium roasts
+
+- Session-guidance lifecycle and ownership ->
+  `agent/skills/session-guidance/SKILL.md` (16/16 CLI tests, 81/81 validator
+  tests, full dev CTest 63/63, and independent forward review)
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

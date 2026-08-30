@@ -54,13 +54,30 @@ rerun after that refresh.
 - No new architecture decision or experience ID was needed. Reusable behavior
   was placed directly in the toolchain skill, static gate, and probe tests.
 
-## Distillation
+## roast
 
-- Promoted: PyTorch/CUDA client profile design -> `manage-toolchain`, the
-  cross-release roadmap, exact manifests, static lock verifier, probe
-  self-tests, current progress, and checkpoint P20260829-007 (session
-  verification above).
-- Session-only: none.
+### light roasts
+
+- Exact baseline and frontier PyTorch/CUDA client identities ->
+  `toolchains/pytorch-cuda-clients-1.json` (Python 3.13.15, torch
+  2.11.0+cu126/CUDA 12.6 and 2.13.0+cu132/CUDA 13.2, 29 wheels per profile,
+  and 58/58 route checks)
+- Staged compatibility probe -> `tests/compatibility/pytorch_cuda_probe.py`
+  (7/7 unit cases and 2/2 focused CTest cases)
+
+### medium roasts
+
+- Isolated on-demand framework-client workflow ->
+  `agent/skills/manage-toolchain/SKILL.md` (exact locks, cross-release roadmap,
+  dry-runs, and no default/provider/runtime/release shell leakage)
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

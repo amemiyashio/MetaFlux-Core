@@ -36,12 +36,23 @@ ordinary files invoked by `python3` through `.claude/settings.json`.
 - No new DNNNN decision or ENNNN experience record. This change enforces
   existing repository workflow boundaries and does not alter product scope.
 
-## Distillation
+## roast
 
-- Promoted: repository-specific Codex entry guarantee -> Nix check and session
-  checkpoint (session verification above).
-- Session-only: Codex native `AGENTS.md` behavior - external tool documentation
-  that is not duplicated into durable project memory.
+### light roasts
+
+- Repository-specific Codex entry guarantee -> `nix/checks/default.nix` (`nix build path:.#checks.x86_64-linux.entry-points -L`, 23/23 Agent cases, 16/16 CTest, and full flake check)
+
+### medium roasts
+
+- none.
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- Codex native `AGENTS.md` behavior - reason: external tool documentation that is not duplicated into durable project memory.
 
 ## Unresolved items
 

@@ -50,11 +50,25 @@ committing, including the deny-then-scaffold-then-allow sequence.
 - No new DNNNN decisions: the bridge is workflow tooling documented in its own
   README and enforced by the existing validator.
 
-## Distillation
+## roast
 
-- Promoted: @-import single-source pattern and fail-open guard design ->
-  `.claude/README.md` (session verification above).
-- Session-only: none; no separate experience claim was created.
+### light roasts
+
+- @-import single-source pattern -> .claude/README.md (session verification above)
+- Fail-open project guard with tool-agnostic backstops -> .claude/README.md
+  (session verification above)
+
+### medium roasts
+
+- none.
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

@@ -41,12 +41,27 @@ Intel/physical-NVIDIA/native-NixOS gates are assigned to `v0.2.0`.
 - D0024 is canonical in `docs/release-versioning.md`; D0012 and D0023 now state
   the exact `v0.1.0`/`v0.2.0` qualification boundary.
 
-## Distillation
+## roast
 
-- Promoted: product/delivery identity -> release policy, durable memory, plan
-  index, templates, validators, and entry-point instructions (session
-  verification above).
-- Session-only: none.
+### light roasts
+
+- Single product-version source -> `VERSION` (`0.1.0` consumed by CMake,
+  packaging, and daemon version output)
+
+### medium roasts
+
+- none.
+
+### dark roasts
+
+- Product SemVer and delivery-coordinate identity ->
+  `docs/release-versioning.md` (63/63 CTest, 111/111 Agent cases, 17/17
+  guidance cases, complete 25-directory inventory, and first pre-D0025
+  semantic migration; authority: D0024, SC not required)
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

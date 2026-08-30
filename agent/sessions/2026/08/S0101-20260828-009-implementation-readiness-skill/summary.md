@@ -44,14 +44,23 @@ so a strong scaffold is not mistaken for a finished product.
   repository tooling with Codex's package contract and adds task guidance; it
   does not alter product architecture or acceptance scope.
 
-## Distillation
+## roast
 
-- Promoted: Codex package shape and native discovery boundary ->
-  `agent/skills/README.md`, validator, and Nix entry-point check (session
-  verification above).
-- Promoted: implementation-readiness method -> new skill and its reference
-  (research evidence recorded by the session).
-- Session-only: none; the method was not duplicated into product memory.
+### light roasts
+
+- Codex package shape and native discovery boundary -> `agent/skills/README.md` (5/5 skills, 29/29 Agent cases, 16/16 CTest, and isolated Nix checks)
+
+### medium roasts
+
+- Implementation-readiness separation method -> `agent/skills/implementation-readiness/SKILL.md` (research evidence recorded by the session; architecture, activation, implementation maturity, and release readiness remain distinct)
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

@@ -22,10 +22,27 @@ Agent record validation passed after the amendments. M0100 remains the active
 milestone with W0101 active; its performance budgets are now explicitly
 provisional pending the W0101 reference-host harness.
 
-## Distillation
+## roast
 
-- Promoted: D0008/D0009 and their constraint consequences -> decisions-index,
-  memory/constraints.md, memory/project.md, agent/README.md, the milestone
-  template, and the control-and-data-plane record (session verification above).
-- Session-only: none; the wording practices were repository-specific rather
-  than reusable experience.
+### light roasts
+
+- Memfd wake-budget, performance-budget status, and managed-domain scoping
+  amendments -> the milestone template and the control-and-data-plane record
+  (session verification above)
+
+### medium roasts
+
+- none.
+
+### dark roasts
+
+- D0008 synthetic NVIDIA presentation identity and release-review constraint ->
+  decisions-index, memory/constraints.md, memory/project.md, and agent/README.md
+  (session verification above; authority: D0008, SC not required)
+- D0009 Ubuntu 20.04/glibc 2.31 floor and restricted provider dependency
+  universe -> decisions-index, memory/constraints.md, memory/project.md, and
+  agent/README.md (session verification above; authority: D0009, SC not required)
+
+## session-only
+
+- none.

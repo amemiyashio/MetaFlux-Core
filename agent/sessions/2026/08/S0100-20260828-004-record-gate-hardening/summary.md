@@ -12,15 +12,15 @@ legitimately ahead and older sessions legitimately reflect their own time.
 
 The validator gained its own gate: `tools/test-check-agent-records.py` builds
 a synthetic golden `agent/` tree in a temporary directory and pins fifteen
-mutation cases — required session fields, event sequencing, distillation with
-pre-cutoff grandfathering, index completeness in both directions, ledger
+mutation cases — required session fields, event sequencing, knowledge-summary
+applicability across the policy cutoff, index completeness in both directions, ledger
 counts, staleness and status-drift warnings, markdown links, checkpoint
 id/path agreement, and current-progress freshness. It runs as CTest
 `metaflux.architecture.agent-records-selftest` (architecture label) in every
 test preset.
 
 The three deferred small items (experience revalidation triggers, parallel
-writer protocol, distillation cutoff redesign) remain deliberately untouched
+writer protocol, knowledge-summary cutoff redesign) remain deliberately untouched
 until scale demands them.
 
 ## Changed paths
@@ -45,12 +45,24 @@ until scale demands them.
 - No new DNNNN decisions (agent-workflow rules, recorded in tools/README.md
   and enforced by the validator).
 
-## Distillation
+## roast
 
-- Promoted: two-grade consistency design -> tools/README.md (session
-  verification above).
-- Session-only: golden-tree pattern - generic practice already embodied by the
-  suite, so it was not duplicated as experience.
+### light roasts
+
+- none.
+
+### medium roasts
+
+- Two-grade consistency design -> tools/README.md (session verification above)
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- Golden-tree pattern - reason: generic practice already embodied by the suite,
+  so it was not duplicated as experience.
 
 ## Unresolved items
 

@@ -15,10 +15,11 @@ session metadata and JSONL events, stable record IDs, numbered output hashes,
 credential redaction, safe references, and relative Markdown links, plus the
 machine-enforced record-loop rules — index completeness for sessions, plans,
 experience, decisions, and skills; plan/ledger open-decision identity; mandatory
-session cleanup and distillation; structured guidance dispositions and terminal
-guidance cleanup; staleness and status-drift warnings; current-progress
-freshness; exact skill catalog rows; domain section order; and the repository's
-restricted `agents/openai.yaml` interface schema.
+session cleanup plus the ordered roast and independent session-only contract;
+structured guidance dispositions and terminal guidance cleanup; staleness and
+status-drift warnings; current-progress freshness; exact skill catalog rows;
+domain section order; and the repository's restricted `agents/openai.yaml`
+interface and invocation-policy schema.
 
 ```sh
 python3 tools/check-agent-records.py .
@@ -40,10 +41,14 @@ remain ordinary record writes. Its focused regression suite is:
 python3 tools/test-semantic-change-edits.py
 ```
 
-Domain skill metadata currently permits exactly the quoted `interface` fields
-`display_name`, `short_description`, and `default_prompt`; the prompt must name
-its exact `$skill-slug`. Adding icons, policy, or dependencies requires extending
-the repository validator and adding the corresponding checked resources first.
+Routed domain and workflow skills require `agents/openai.yaml`. Metadata permits
+the quoted `interface` fields `display_name`, `short_description`, and
+`default_prompt`, plus the optional `policy.allow_implicit_invocation` Boolean.
+The prompt contains only its exact `$skill-slug` once. `$roast` additionally
+requires `allow_implicit_invocation: false`, so ordinary uses of the word do not
+load the project-knowledge workflow. Adding icons or dependencies requires
+extending the repository validator and adding the corresponding checked
+resources first.
 
 ## Skill routing
 
@@ -106,11 +111,12 @@ immediately after creation.
 
 `test-check-agent-records.py` pins the validator itself against a synthetic
 golden tree. Its cases cover required session fields, lifecycle timestamps,
-event sequencing, guidance disposition and terminal cleanup, distillation,
-index completeness, decision identity and references, skill catalog/metadata
-rules, staleness and status drift, Markdown links, checkpoint identity, and
-current-progress freshness. It builds fixtures in a temporary directory and
-loads the validator by path without writing bytecode.
+event sequencing, guidance disposition and terminal cleanup, roast depth and
+session-only structure, index completeness, decision identity and references,
+skill catalog/interface/policy rules, staleness and status drift, Markdown
+links, checkpoint identity, and current-progress freshness. It builds fixtures
+in a temporary directory and loads the validator by path without writing
+bytecode.
 
 ```sh
 python3 tools/test-check-agent-records.py

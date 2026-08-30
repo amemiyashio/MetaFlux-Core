@@ -12,8 +12,8 @@
   against ledger rows whose first column is the milestone id. This catches
   both forgotten rows and stale rows after a closure, without brittle text
   matching.
-- **Distillation grandfathering**: sessions before 2026-08-28 are exempt
-  (`DISTILLATION_REQUIRED_FROM`);
+- **Knowledge-summary applicability**: sessions before 2026-08-28 are exempt
+  from the post-policy terminal summary contract;
   S0100-20260827-001-metaflux-bootstrap is reconstructed history and remains
   protected evidence. Ordinary corrections append; only a committed Active SC
   with an exact `Historical + Pending` row under D0025 may synchronize semantic

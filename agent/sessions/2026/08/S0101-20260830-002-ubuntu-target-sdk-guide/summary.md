@@ -53,17 +53,24 @@ matrix evidence.
 - No experience record was promoted; the durable project-specific rules live
   in the skill reference.
 
-## Distillation
+## roast
 
-- Promoted: SDK existence, product consumption, package validation, and
-  distribution qualification separation -> target SDK guide and owning
-  workflows (session verification above).
-- Promoted: release shell provisioning boundary -> target SDK guide and
-  `manage-toolchain` (`nix develop .#release` evidence above).
-- Promoted: target-side `GLIBC_2.32` or newer diagnosis -> CMake consumer
-  boundary guidance before SDK or package-gate changes (session verification
-  above).
-- Session-only: none.
+### light roasts
+
+- Release shell provisioning boundary -> `agent/skills/manage-toolchain/references/ubuntu-20.04-target-sdk.md` (D0022; `nix develop .#release` evidence above)
+
+### medium roasts
+
+- SDK existence, product consumption, package validation, and distribution qualification separation -> `agent/skills/manage-toolchain/references/ubuntu-20.04-target-sdk.md` (target SDK and generic LLVM materializations resolved; disposable target-tuple probe passed)
+- Target-side `GLIBC_2.32` or newer diagnosis -> `agent/skills/manage-toolchain/references/ubuntu-20.04-target-sdk.md` (CUDA provider at most `GLIBC_2.17`; NVML provider at most `GLIBC_2.14`; `metafluxd` at most `GLIBC_2.29`, with no RPATH/RUNPATH or `/nix/store` string)
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

@@ -15,7 +15,7 @@
   ],
   "workflow_skills": [
     "govern-semantic-change",
-    "distill-project-knowledge"
+    "roast"
   ],
   "coverage": {
     "required_locales": ["en", "zh-CN"],
@@ -516,44 +516,52 @@
       "forbidden_skills": ["govern-semantic-change"]
     },
     {
-      "id": "DISTILL-P1",
+      "id": "ROAST-P1",
       "kind": "single",
       "locale": "en",
-      "prompt": "At a material handoff, classify reusable methods, observed facts, decisions, failures, and open questions into one authoritative durable owner with evidence-aware status.",
-      "expected_skills": ["distill-project-knowledge"],
+      "prompt": "Use $roast at this material handoff to split the outcomes, choose disposition, and classify each materially promoted claim by semantic transformation depth and canonical owner.",
+      "expected_skills": ["roast"],
       "forbidden_skills": []
     },
     {
-      "id": "DISTILL-P2",
+      "id": "ROAST-P2",
       "kind": "single",
       "locale": "en",
-      "prompt": "A verified stage breakthrough is ready for checkpointing; deduplicate its valuable conclusions and promote each claim to the correct canonical project record first.",
-      "expected_skills": ["distill-project-knowledge"],
+      "prompt": "Use $roast before checkpointing this verified breakthrough; separate session-only material and promote each durable claim to one owner as light, medium, or authorized dark.",
+      "expected_skills": ["roast"],
       "forbidden_skills": []
     },
     {
-      "id": "DISTILL-N1",
+      "id": "ROAST-N1",
       "kind": "near-miss",
       "locale": "en",
       "prompt": "Send an unreviewed, session-scoped expert suggestion to an active collaborator for evaluation, without promoting it as project knowledge.",
       "expected_skills": [],
-      "forbidden_skills": ["distill-project-knowledge"]
+      "forbidden_skills": ["roast"]
     },
     {
-      "id": "DISTILL-ZH-P1",
+      "id": "ROAST-N2",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Roast my code and give me a blunt review of the naming and error handling.",
+      "expected_skills": [],
+      "forbidden_skills": ["roast"]
+    },
+    {
+      "id": "ROAST-ZH-P1",
       "kind": "single",
       "locale": "zh-CN",
-      "prompt": "在阶段性交接时，把可复用方法、事实、决策、失败教训和未决问题拆分并萃取到唯一权威载体，按证据标注状态。",
-      "expected_skills": ["distill-project-knowledge"],
+      "prompt": "在阶段性交接时显式使用 $roast，先区分持久晋升、session-only 和未决去向，再为每个晋升 claim 选择唯一 owner 与语义加工深度。",
+      "expected_skills": ["roast"],
       "forbidden_skills": []
     },
     {
-      "id": "DISTILL-ZH-N1",
+      "id": "ROAST-ZH-N1",
       "kind": "near-miss",
       "locale": "zh-CN",
       "prompt": "把尚未评审的会话级专家建议临时发给活动协作者参考，不把它固化为项目知识。",
       "expected_skills": [],
-      "forbidden_skills": ["distill-project-knowledge"]
+      "forbidden_skills": ["roast"]
     },
 
     {
@@ -669,19 +677,19 @@
       "forbidden_skills": []
     },
     {
-      "id": "COMBO-GOV-DISTILL",
+      "id": "COMBO-GOV-ROAST",
       "kind": "composition",
       "locale": "zh-CN",
-      "prompt": "完成已批准的仓库级权威语义替换和历史迁移，同时把迁移中经验证的可复用方法萃取到唯一规范载体。",
-      "expected_skills": ["govern-semantic-change", "distill-project-knowledge"],
+      "prompt": "完成已批准的仓库级权威语义替换和历史迁移，同时显式使用 $roast 把迁移中实际晋升的持久 claim 分类到唯一规范载体。",
+      "expected_skills": ["govern-semantic-change", "roast"],
       "forbidden_skills": []
     },
     {
-      "id": "COMBO-DISTILL-CPU",
+      "id": "COMBO-ROAST-CPU",
       "kind": "composition",
       "locale": "en",
-      "prompt": "Review a measured x86 backend breakthrough, determine whether its reusable method is Candidate or Validated from the reproducer, and promote each durable CPU finding to one authoritative owner before checkpointing.",
-      "expected_skills": ["cpu-backend-performance", "distill-project-knowledge"],
+      "prompt": "Use $roast on a measured x86 backend breakthrough: apply the CPU performance expert, keep Candidate or Validated evidence status separate, and classify each materially promoted finding before checkpointing.",
+      "expected_skills": ["cpu-backend-performance", "roast"],
       "forbidden_skills": []
     }
   ]

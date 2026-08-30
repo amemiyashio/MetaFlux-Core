@@ -45,7 +45,7 @@ drift before the offline matrix runs.
   `/tmp/metaflux-provider-artifacts.Z45tmJ`, `/tmp/metaflux-release-inputs.8LPiUv`,
   final/repeated matrix directories, reproducibility staging directories, and
   external `m0100-integration`/`m0100-generic-release` build trees after their
-  results were distilled here.
+  results were summarized here.
 - Retained: none; package and matrix outputs are reproducible disposable work,
   not session archives.
 
@@ -56,14 +56,27 @@ drift before the offline matrix runs.
 - No experience record was needed; the reusable enforcement belongs in the
   packaging and release harnesses.
 
-## Distillation
+## roast
 
-- Promoted: glibc floor -> toolchain skill, toolchain/packaging documentation,
-  package-builder ELF gates, manifest identity checks, and release-fixture
-  validation (session verification above).
-- Promoted: cache/AOT and LLD regression outcomes -> owning source tests
-  (session verification above).
-- Session-only: none.
+### light roasts
+
+- D0009 glibc floor enforcement -> toolchain skill, toolchain/packaging
+  documentation, package-builder ELF gates, manifest identity checks, and
+  release-fixture validation (session verification above)
+- Cache/AOT and LLD regression outcomes -> owning source tests (session
+  verification above)
+
+### medium roasts
+
+- none.
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

@@ -8,7 +8,7 @@ git_revision: 90c45eda2815c59617fffea581522b7ed6bff1c0
 workspace: SC0001 applied and S0100-20260830-005-semantic-change-distillation closed; G001/G002/G003 remain transient under their active target-session owners
 ---
 
-# Semantic change and distillation applied
+# Semantic change and predecessor promotion model applied
 
 ## Engineering state
 
@@ -16,7 +16,7 @@ Revision `90c45eda2815c59617fffea581522b7ed6bff1c0` completes SC0001's
 evidence-preserving migration. All 75 inventoried surfaces are resolved: 71 are
 Migrated and four whole-file historical surfaces remain explicit Retained
 evidence. The 31 authorized protected files use current D0025 interpretation,
-terminal post-cutoff summaries require `Promoted` and `Session-only` rows, and
+the then-current terminal promotion model was later superseded by D0026, and
 the Applied SC no longer authorizes history edits.
 
 ## Verification evidence
@@ -37,8 +37,9 @@ the Applied SC no longer authorizes history edits.
   breaking replacements; each replacement needs a new independent SC.
 - SC0001 binds its result to `90c45ed`; Git retains all prior wording without a
   repository snapshot archive.
-- Terminal summaries now separate promoted claims from intentionally
-  session-only material, while reusable unverified methods remain Candidate.
+- D0026 now classifies only promoted durable claims by roast depth and keeps the
+  independent `session-only` disposition; reusable unverified methods remain
+  Candidate.
 
 ## Open work and risks
 

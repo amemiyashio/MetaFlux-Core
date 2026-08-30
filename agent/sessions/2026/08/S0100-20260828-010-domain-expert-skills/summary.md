@@ -46,14 +46,26 @@ Active skills through `.agents/skills`.
   feature, target, and support versions remain governed by active milestone
   plans, compiler epoch 1, pinned headers, and the existing open-decision ledger.
 
-## Distillation
+## roast
 
-- Promoted: ten-expert ownership, composition routing, trigger corpus, and
-  source-backed checklists -> `agent/skills/` (session verification above).
-- Promoted: Von Neumann and Harvard terminology -> CPU memory-architecture
-  reference and its address-space, cache, coherence, NUMA, ordering, MMIO, and
-  DMA checks (session verification above).
-- Session-only: none; the terminology did not become a duplicate standalone skill.
+### light roasts
+
+- Von Neumann and Harvard terminology -> CPU memory-architecture reference and
+  its address-space, cache, coherence, NUMA, ordering, MMIO, and DMA checks
+  (session verification above)
+
+### medium roasts
+
+- Ten-expert ownership, composition routing, trigger corpus, and source-backed
+  checklists -> agent/skills/ (session verification above)
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

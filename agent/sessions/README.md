@@ -20,7 +20,7 @@ first repository-wide migration from the earlier date-only IDs. A later
 decision-authorized synchronization follows D0025 and lists each terminal
 session surface in an `Active` SC already committed to `HEAD`; factual evidence
 remains locked. Outside that workflow, append a correction instead of changing
-a terminal ledger. While work is in progress, the ledger may be distilled and
+a terminal ledger. While work is in progress, the ledger may be curated and
 resequenced; Git retains its earlier forms.
 
 An `in_progress` session has `ended_at: null`. Complete, blocked, and abandoned
@@ -48,16 +48,18 @@ copied, renamed, or type-changed `guidance/` paths while allowing their staged
 deletion. Terminal sessions must contain no file or symbolic link under
 `guidance/`.
 
-At checkpoint or close, follow `distill-project-knowledge`. The summary keeps a
-promotion map (`claim -> canonical owner`) and a reason for any intentionally
-session-only claim; it does not copy promoted content.
+At checkpoint or close, invoke `$roast` explicitly. The summary classifies each
+materially promoted claim into one semantic-transformation depth and keeps a
+compact `claim -> canonical owner (evidence)` row. The independent
+`session-only` section records bounded local-retention reasons; neither section
+copies canonical content.
 
 | Session | Date | Fidelity | Status | Summary |
 | --- | --- | --- | --- | --- |
 | [S0100-20260827-001-metaflux-bootstrap](2026/08/S0100-20260827-001-metaflux-bootstrap/summary.md) | 2026-08-27 | Reconstructed | Complete | MetaFlux planning, bootstrap, architecture review, and build hardening |
 | [S0100-20260828-001-spec-consistency](2026/08/S0100-20260828-001-spec-consistency/summary.md) | 2026-08-28 | Exact | Complete | Five specification self-review amendments, D0008/D0009, first commits |
 | [S0100-20260828-002-layout-convergence](2026/08/S0100-20260828-002-layout-convergence/summary.md) | 2026-08-28 | Exact | Complete | Mesa/Wine-patterned layout convergence, D0010/D0011, component graph gate |
-| [S0100-20260828-003-agent-record-convergence](2026/08/S0100-20260828-003-agent-record-convergence/summary.md) | 2026-08-28 | Exact | Complete | Machine-enforced record-loop rules: index completeness, open-decisions ledger, distillation, staleness warnings, session scaffolder |
+| [S0100-20260828-003-agent-record-convergence](2026/08/S0100-20260828-003-agent-record-convergence/summary.md) | 2026-08-28 | Exact | Complete | Machine-enforced record-loop rules: index completeness, open-decisions ledger, knowledge-summary gate, staleness warnings, session scaffolder |
 | [S0100-20260828-004-record-gate-hardening](2026/08/S0100-20260828-004-record-gate-hardening/summary.md) | 2026-08-28 | Exact | Complete | Record gate hardening: current-progress freshness, status-drift warnings, and the fifteen-case validator self-test |
 | [S0100-20260828-005-skills-layer](2026/08/S0100-20260828-005-skills-layer/summary.md) | 2026-08-28 | Exact | Complete | Expert-skills layer under agent/skills with three seeds and validator-enforced form |
 | [S0100-20260828-006-agent-guidance-hardening](2026/08/S0100-20260828-006-agent-guidance-hardening/summary.md) | 2026-08-28 | Exact | Complete | Guidance hardening: root AGENTS.md, start-work skill, pre-commit session-coverage gate |
@@ -71,7 +73,7 @@ session-only claim; it does not copy promoted content.
 | [S0101-20260829-001-toolchain-boundary-correction](2026/08/S0101-20260829-001-toolchain-boundary-correction/summary.md) | 2026-08-29 | Exact | Complete | D0022 tool boundary, skill governance, session cleanup, and duplicate-source reclamation |
 | [S0100-20260829-002-cleanup-stale-routes](2026/08/S0100-20260829-002-cleanup-stale-routes/summary.md) | 2026-08-29 | Exact | Complete | Remaining D0022 residue corrected; exact temporary and dead-store routes removed |
 | [S0101-20260829-003-timezone-mirror-priority](2026/08/S0101-20260829-003-timezone-mirror-priority/summary.md) | 2026-08-29 | Exact | Complete | Explicit current-timezone mirror priority in manage-toolchain routing |
-| [S0100-20260829-004-implementation-session-current-standard](2026/08/S0100-20260829-004-implementation-session-current-standard/summary.md) | 2026-08-29 | Exact | Complete | Distilled S0100-20260828-013-m0100-foundation ledger and enforced active/terminal session lifecycle semantics |
+| [S0100-20260829-004-implementation-session-current-standard](2026/08/S0100-20260829-004-implementation-session-current-standard/summary.md) | 2026-08-29 | Exact | Complete | Curated S0100-20260828-013-m0100-foundation ledger and enforced active/terminal session lifecycle semantics |
 | [S0100-20260829-005-m0100-vertical-slice](2026/08/S0100-20260829-005-m0100-vertical-slice/summary.md) | 2026-08-29 | Exact | Complete | M0100 CPU-backed vertical slice and Ubuntu 20.04/glibc 2.31 package enforcement |
 | [S0100-20260829-006-stage-breakthrough-commits](2026/08/S0100-20260829-006-stage-breakthrough-commits/summary.md) | 2026-08-29 | Exact | Complete | Verified stage-breakthrough trigger with separate content and record commits |
 | [S0100-20260829-007-pytorch-cuda-test-tool](2026/08/S0100-20260829-007-pytorch-cuda-test-tool/summary.md) | 2026-08-29 | Exact | Complete | Isolated PyTorch cu126 baseline, cu132 frontier, and staged CUDA gap probe |
@@ -79,8 +81,8 @@ session-only claim; it does not copy promoted content.
 | [S0101-20260830-002-ubuntu-target-sdk-guide](2026/08/S0101-20260830-002-ubuntu-target-sdk-guide/summary.md) | 2026-08-30 | Exact | Complete | Explicit Ubuntu 20.04 target SDK construction, consumption, and release-gap guide |
 | [S0100-20260830-003-session-guidance-loop](2026/08/S0100-20260830-003-session-guidance-loop/summary.md) | 2026-08-30 | Exact | Complete | Session-local specialist guidance with validated disposition and transient cleanup |
 | [S0100-20260830-004-semantic-version-line](2026/08/S0100-20260830-004-semantic-version-line/summary.md) | 2026-08-30 | Exact | Complete | Product SemVer, derived M/W/S identities, 25-session migration, and v0.2.0 qualification boundary |
-| [S0100-20260830-005-semantic-change-distillation](2026/08/S0100-20260830-005-semantic-change-distillation/summary.md) | 2026-08-30 | Exact | Complete | D0025 governance, two workflow skills, and SC0001 evidence-preserving migration applied |
-| [S0100-20260830-006-project-knowledge-roast](2026/08/S0100-20260830-006-project-knowledge-roast/summary.md) | 2026-08-30 | Exact | In progress | Decision-authorized migration from Distillation to explicit project-knowledge roast semantics |
+| [S0100-20260830-005-semantic-change-distillation](2026/08/S0100-20260830-005-semantic-change-distillation/summary.md) | 2026-08-30 | Exact | Complete | D0025 governance and SC0001 evidence-preserving prior promotion-model migration applied |
+| [S0100-20260830-006-project-knowledge-roast](2026/08/S0100-20260830-006-project-knowledge-roast/summary.md) | 2026-08-30 | Exact | In progress | D0026/SC0002 migration to explicit project-knowledge roast semantics |
 
 ## Fidelity and retention
 

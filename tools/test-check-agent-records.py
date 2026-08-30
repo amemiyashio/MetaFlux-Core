@@ -5,7 +5,7 @@ Builds a minimal valid agent/ tree in a temporary directory and asserts the
 validator's behavior on it, then mutates one aspect per case to pin every rule:
 required session fields, delivery-scoped session ids, lifecycle timestamps,
 contiguous event sequence numbers, guidance dispositions, transient-inbox isolation
-and cleanup, distillation, index completeness (both directions), milestone
+and cleanup, roast/session-only classification, index completeness (both directions), milestone
 release/index consistency, M/W ownership, session-to-plan resolution, Codex
 skill-package compatibility and
 discovery, open-decision identity, decision-index references, staleness warnings,
@@ -46,7 +46,42 @@ Validator = check_agent_records.Validator
 
 SESSION_ID = "S0100-20260828-001-selftest"
 SESSION_DIR = f"agent/sessions/2026/08/{SESSION_ID}"
+SUMMARY_PATH = f"{SESSION_DIR}/summary.md"
 SYMLINK_PREFIX = "SYMLINK->"
+ROAST_BLOCK = (
+    "## roast\n\n"
+    "### light roasts\n\n"
+    "- none.\n\n"
+    "### medium roasts\n\n"
+    "- none.\n\n"
+    "### dark roasts\n\n"
+    "- none.\n\n"
+    "## session-only\n\n"
+    "- none.\n"
+)
+POPULATED_ROAST_BLOCK = (
+    "## roast\n\n"
+    "### light roasts\n\n"
+    "- normalized fixture -> agent/memory/project.md (fixture revision)\n\n"
+    "### medium roasts\n\n"
+    "- bounded fixture synthesis -> E0001 Candidate (fixture evidence gap)\n\n"
+    "### dark roasts\n\n"
+    "- governed fixture replacement -> docs/architecture/fixture.md "
+    "(fixture decision; authority: D0001, SC not required)\n\n"
+    "## session-only\n\n"
+    "- fixture resume detail - reason: needed only to resume this session\n"
+)
+ACTIVE_ROAST_BLOCK = (
+    "## roast\n\n"
+    "### light roasts\n\n"
+    "- TODO.\n\n"
+    "### medium roasts\n\n"
+    "- TODO.\n\n"
+    "### dark roasts\n\n"
+    "- TODO.\n\n"
+    "## session-only\n\n"
+    "- TODO.\n"
+)
 
 BASE_FILES: dict[str, str] = {
     "agent/plan/M0100-fixture/plan.md": (
@@ -129,11 +164,7 @@ BASE_FILES: dict[str, str] = {
         '{"schema_version": 1, "seq": 1, "timestamp": "2026-08-28", '
         '"type": "objective", "actor": "A001", "content": "fixture objective"}\n'
     ),
-    f"{SESSION_DIR}/summary.md": (
-        "# Summary\n\nFixture.\n\n## Distillation\n\n"
-        "- Promoted: none\n"
-        "- Session-only: none\n"
-    ),
+    SUMMARY_PATH: "# Summary\n\nFixture.\n\n" + ROAST_BLOCK,
     f"{SESSION_DIR}/notes.md": "# Notes\n\nFixture decision D0001.\n",
     "agent/progress/current.md": (
         "---\n"
@@ -307,10 +338,19 @@ def check_new_session_skeleton(root: Path) -> list[str]:
         problems.append("generated session does not retain its delivery coordinate")
     if not summary.startswith("# Session Summary\n\n## Objective and outcome\n"):
         problems.append("generated summary does not use the current section shape")
-    if "- Promoted: TODO at session end (or none).\n" not in summary:
-        problems.append("generated summary is missing the Promoted distillation row")
-    if "- Session-only: TODO at session end (or none).\n" not in summary:
-        problems.append("generated summary is missing the Session-only distillation row")
+    roast_skeleton = (
+        "## roast\n\n"
+        "### light roasts\n\n"
+        "- TODO.\n\n"
+        "### medium roasts\n\n"
+        "- TODO.\n\n"
+        "### dark roasts\n\n"
+        "- TODO.\n\n"
+        "## session-only\n\n"
+        "- TODO.\n"
+    )
+    if roast_skeleton not in summary:
+        problems.append("generated summary is missing the exact active roast contract")
 
     code, errors, warnings = run_validator(root)
     if code != 0 or errors or warnings:
@@ -752,6 +792,28 @@ DOMAIN_OPENAI_YAML = (
     '  short_description: "Review runtime contract registry boundaries"\n'
     '  default_prompt: "Use $runtime-contracts-registry to review this runtime contract fixture."\n'
 )
+WORKFLOW_SKILL_SLUG = "roast"
+WORKFLOW_SKILLS_README = (
+    "# Skills\n\n## Index\n\n"
+    "| Skill | Status | Use when |\n"
+    "| --- | --- | --- |\n"
+    "| [roast](roast/SKILL.md) | Active | Classifying durable project knowledge |\n"
+)
+WORKFLOW_SKILL_FILE = (
+    "---\n"
+    "name: roast\n"
+    "description: Classify promoted project knowledge by semantic transformation depth.\n"
+    "---\n\n"
+    "# Roast\n\nClassify and route material claims.\n"
+)
+WORKFLOW_OPENAI_YAML = (
+    "interface:\n"
+    '  display_name: "Roast Project Knowledge"\n'
+    '  short_description: "Classify durable knowledge by transformation depth"\n'
+    '  default_prompt: "Use $roast to classify and route these durable project claims."\n'
+    "policy:\n"
+    "  allow_implicit_invocation: false\n"
+)
 
 
 def with_skills(
@@ -794,6 +856,21 @@ def with_domain_skill(
     mutated[f"agent/skills/{DOMAIN_SKILL_SLUG}/SKILL.md"] = skill_file
     if openai_yaml is not None:
         mutated[f"agent/skills/{DOMAIN_SKILL_SLUG}/agents/openai.yaml"] = openai_yaml
+    mutated[".agents/skills"] = f"{SYMLINK_PREFIX}../agent/skills"
+    return mutated
+
+
+def with_workflow_skill(
+    files: dict[str, str],
+    *,
+    skill_file: str = WORKFLOW_SKILL_FILE,
+    openai_yaml: str | None = WORKFLOW_OPENAI_YAML,
+) -> dict[str, str]:
+    mutated = dict(files)
+    mutated["agent/skills/README.md"] = WORKFLOW_SKILLS_README
+    mutated[f"agent/skills/{WORKFLOW_SKILL_SLUG}/SKILL.md"] = skill_file
+    if openai_yaml is not None:
+        mutated[f"agent/skills/{WORKFLOW_SKILL_SLUG}/agents/openai.yaml"] = openai_yaml
     mutated[".agents/skills"] = f"{SYMLINK_PREFIX}../agent/skills"
     return mutated
 
@@ -1521,71 +1598,222 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         False,
     ),
     (
-        "distillation section missing",
+        "valid populated roast and session-only contract",
+        {**BASE_FILES, SUMMARY_PATH: "# Summary\n\nFixture.\n\n" + POPULATED_ROAST_BLOCK},
+        False,
+        False,
+    ),
+    (
+        "active roast permits standalone TODO containers",
+        with_in_progress_session(
+            {**BASE_FILES, SUMMARY_PATH: "# Summary\n\nFixture.\n\n" + ACTIVE_ROAST_BLOCK}
+        ),
+        False,
+        False,
+    ),
+    (
+        "post-policy roast section missing",
+        {**BASE_FILES, SUMMARY_PATH: "# Summary\n\nFixture.\n"},
+        True,
+        False,
+    ),
+    (
+        "roast heading is exactly lowercase",
+        replace(BASE_FILES, SUMMARY_PATH, "## roast", "## Roast"),
+        True,
+        False,
+    ),
+    (
+        "duplicate roast section rejected",
+        {**BASE_FILES, SUMMARY_PATH: BASE_FILES[SUMMARY_PATH] + "\n" + ROAST_BLOCK},
+        True,
+        False,
+    ),
+    (
+        "roast bucket missing",
         replace(
             BASE_FILES,
-            f"{SESSION_DIR}/summary.md",
-            "\n## Distillation\n\n- Promoted: none\n- Session-only: none\n",
+            SUMMARY_PATH,
+            "### medium roasts\n\n- none.\n\n",
             "",
         ),
         True,
         False,
     ),
     (
-        "terminal distillation requires Promoted row",
+        "roast buckets out of order",
         replace(
             BASE_FILES,
-            f"{SESSION_DIR}/summary.md",
-            "- Promoted: none\n",
-            "",
+            SUMMARY_PATH,
+            "### light roasts\n\n- none.\n\n### medium roasts\n\n- none.",
+            "### medium roasts\n\n- none.\n\n### light roasts\n\n- none.",
         ),
         True,
         False,
     ),
     (
-        "terminal distillation requires Session-only row",
+        "roast bucket wrong case",
+        replace(BASE_FILES, SUMMARY_PATH, "### light roasts", "### Light roasts"),
+        True,
+        False,
+    ),
+    (
+        "roast prose before buckets rejected",
+        replace(BASE_FILES, SUMMARY_PATH, "## roast\n\n", "## roast\n\nProse.\n\n"),
+        True,
+        False,
+    ),
+    (
+        "session-only section missing",
+        replace(BASE_FILES, SUMMARY_PATH, "\n## session-only\n\n- none.\n", "\n"),
+        True,
+        False,
+    ),
+    (
+        "session-only must immediately follow roast",
         replace(
             BASE_FILES,
-            f"{SESSION_DIR}/summary.md",
-            "- Session-only: none\n",
-            "",
+            SUMMARY_PATH,
+            "## session-only",
+            "## intervening\n\nnone.\n\n## session-only",
         ),
         True,
         False,
     ),
     (
-        "terminal distillation rejects legacy Distilled row",
+        "none must be sole bucket value",
         replace(
             BASE_FILES,
-            f"{SESSION_DIR}/summary.md",
-            "- Promoted: none\n",
-            "- Distilled: none\n- Promoted: none\n",
+            SUMMARY_PATH,
+            "### light roasts\n\n- none.",
+            "### light roasts\n\n- none.\n- claim -> owner (evidence)",
         ),
         True,
         False,
     ),
     (
-        "active distillation temporarily accepts legacy Distilled row",
+        "terminal roast rejects TODO",
+        replace(BASE_FILES, SUMMARY_PATH, "### light roasts\n\n- none.", "### light roasts\n\n- TODO."),
+        True,
+        False,
+    ),
+    (
+        "terminal roast rejects embedded TODO",
+        replace(
+            BASE_FILES,
+            SUMMARY_PATH,
+            "### light roasts\n\n- none.",
+            "### light roasts\n\n- fixture claim -> owner (TODO evidence)",
+        ),
+        True,
+        False,
+    ),
+    (
+        "TODO must be sole active bucket value",
         with_in_progress_session(
             replace(
                 BASE_FILES,
-                f"{SESSION_DIR}/summary.md",
-                "- Promoted: none\n- Session-only: none\n",
-                "- Distilled: none\n",
+                SUMMARY_PATH,
+                "### light roasts\n\n- none.",
+                "### light roasts\n\n- TODO.\n- claim -> owner (evidence)",
             )
         ),
-        False,
+        True,
         False,
     ),
     (
-        "pre-cutoff session without distillation is grandfathered",
+        "roast entry shape required",
+        replace(BASE_FILES, SUMMARY_PATH, "### light roasts\n\n- none.", "### light roasts\n\n- unlabeled claim"),
+        True,
+        False,
+    ),
+    (
+        "session-only reason required",
+        replace(BASE_FILES, SUMMARY_PATH, "## session-only\n\n- none.", "## session-only\n\n- local detail"),
+        True,
+        False,
+    ),
+    (
+        "dark roast authority required",
         replace(
             BASE_FILES,
+            SUMMARY_PATH,
+            "### dark roasts\n\n- none.",
+            "### dark roasts\n\n- governed claim -> canonical owner (evidence only)",
+        ),
+        True,
+        False,
+    ),
+    (
+        "claim cannot appear in two destinations",
+        {
+            **BASE_FILES,
+            SUMMARY_PATH: "# Summary\n\nFixture.\n\n"
+            + POPULATED_ROAST_BLOCK.replace(
+                "fixture resume detail - reason: needed only to resume this session",
+                "normalized fixture - reason: duplicate destination probe",
+            ),
+        },
+        True,
+        False,
+    ),
+    (
+        "terminal legacy knowledge schema rejected",
+        {
+            **BASE_FILES,
+            SUMMARY_PATH: "# Summary\n\nFixture.\n\n"
+            "## Distillation\n\n- Promoted: none\n- Session-only: none\n",
+        },
+        True,
+        False,
+    ),
+    (
+        "active legacy knowledge schema rejected without compatibility",
+        with_in_progress_session(
+            {
+                **BASE_FILES,
+                SUMMARY_PATH: "# Summary\n\nFixture.\n\n"
+                "## Distillation\n\n- Distilled: none\n",
+            }
+        ),
+        True,
+        False,
+    ),
+    (
+        "legacy and roast schemas cannot coexist",
+        {
+            **BASE_FILES,
+            SUMMARY_PATH: BASE_FILES[SUMMARY_PATH]
+            + "\n## Distillation\n\n- Promoted: none\n",
+        },
+        True,
+        False,
+    ),
+    (
+        "pre-cutoff session without roast is grandfathered",
+        replace(
+            {**BASE_FILES, SUMMARY_PATH: "# Summary\n\nFixture.\n"},
             f"{SESSION_DIR}/session.json",
             '"started_at": "2026-08-28"',
             '"started_at": "2026-08-27"',
         ),
         False,
+        False,
+    ),
+    (
+        "pre-cutoff present roast still validates",
+        replace(
+            replace(
+                BASE_FILES,
+                f"{SESSION_DIR}/session.json",
+                '"started_at": "2026-08-28"',
+                '"started_at": "2026-08-27"',
+            ),
+            SUMMARY_PATH,
+            "### medium roasts",
+            "### invalid medium",
+        ),
+        True,
         False,
     ),
     (
@@ -1608,9 +1836,9 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
                 '"started_at": "2026-08-28"',
                 '"started_at": "2026-08-29"',
             ),
-            f"{SESSION_DIR}/summary.md",
-            "## Distillation",
-            "## Cleanup\n\n- Removed: none.\n- Retained: none.\n\n## Distillation",
+            SUMMARY_PATH,
+            "## roast",
+            "## Cleanup\n\n- Removed: none.\n- Retained: none.\n\n## roast",
         ),
         False,
         False,
@@ -1839,6 +2067,84 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         "valid domain skill package",
         with_domain_skill(BASE_FILES),
         False,
+        False,
+    ),
+    (
+        "valid explicit-only workflow skill package",
+        with_workflow_skill(BASE_FILES),
+        False,
+        False,
+    ),
+    (
+        "routed workflow skill requires openai YAML",
+        with_workflow_skill(BASE_FILES, openai_yaml=None),
+        True,
+        False,
+    ),
+    (
+        "roast requires explicit invocation policy",
+        with_workflow_skill(
+            BASE_FILES,
+            openai_yaml=WORKFLOW_OPENAI_YAML.replace(
+                "policy:\n  allow_implicit_invocation: false\n",
+                "",
+            ),
+        ),
+        True,
+        False,
+    ),
+    (
+        "roast rejects implicit invocation policy",
+        with_workflow_skill(
+            BASE_FILES,
+            openai_yaml=WORKFLOW_OPENAI_YAML.replace(
+                "allow_implicit_invocation: false",
+                "allow_implicit_invocation: true",
+            ),
+        ),
+        True,
+        False,
+    ),
+    (
+        "openai policy value must be an unquoted boolean",
+        with_workflow_skill(
+            BASE_FILES,
+            openai_yaml=WORKFLOW_OPENAI_YAML.replace(
+                "allow_implicit_invocation: false",
+                'allow_implicit_invocation: "false"',
+            ),
+        ),
+        True,
+        False,
+    ),
+    (
+        "roast default prompt rejects an additional skill token",
+        with_workflow_skill(
+            BASE_FILES,
+            openai_yaml=WORKFLOW_OPENAI_YAML.replace(
+                "to classify and route",
+                "with $distill-project-knowledge to classify and route",
+            ),
+        ),
+        True,
+        False,
+    ),
+    (
+        "obsolete callable skill slug is forbidden",
+        {
+            **with_skills(BASE_FILES),
+            "agent/skills/README.md": SKILLS_README.replace(
+                "| [fixture-skill](fixture-skill/SKILL.md) | Active | Testing fixture skills |",
+                "| [fixture-skill](fixture-skill/SKILL.md) | Active | Testing fixture skills |\n"
+                "| [distill-project-knowledge](distill-project-knowledge/SKILL.md) | "
+                "Retired | Obsolete fixture |",
+            ),
+            "agent/skills/distill-project-knowledge/SKILL.md": (
+                "---\nname: distill-project-knowledge\n"
+                "description: Obsolete fixture skill.\n---\n\n# Obsolete\n"
+            ),
+        },
+        True,
         False,
     ),
     (

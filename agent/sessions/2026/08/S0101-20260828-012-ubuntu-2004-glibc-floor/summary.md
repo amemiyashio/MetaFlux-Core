@@ -33,12 +33,23 @@ evidence that the release sysroot or generic packages have been implemented.
   decision. No new decision ID or ledger-row closure was needed.
 - No experience record was created; this is a project-specific baseline.
 
-## Distillation
+## roast
 
-- Promoted: corrected glibc-floor consequence -> W0101 release-sysroot wording
-  under existing D0009 and `memory/constraints.md` authority (session
-  verification above).
-- Session-only: none; no duplicate durable constraint was added.
+### light roasts
+
+- Corrected glibc-floor consequence -> `agent/plan/M0100-core-foundation/work/W0101-build-toolchain.md` (existing D0009 and `agent/memory/constraints.md` authority; Ubuntu 20.04/glibc 2.31; 13 sessions, 102 events, and 147 Markdown files)
+
+### medium roasts
+
+- none.
+
+### dark roasts
+
+- none.
+
+## session-only
+
+- none.
 
 ## Unresolved items
 

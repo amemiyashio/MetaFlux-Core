@@ -50,12 +50,49 @@ a completion claim.
 - Event 9 retains the one failed-route lesson needed for the release-matrix
   rerun; no separate experience record was created.
 
-## Distillation
+## roast
 
-- Stable product requirements and decision outcomes live in the M0100 plan,
-  work items, durable constraints, and decision index.
-- Tool identity and provisioning guidance lives in `toolchains/README.md` and
-  `manage-toolchain`; this session retains only implementation and handoff facts.
+### light roasts
+
+- Cgroup cpuset fallback for scopes without the cpuset controller ->
+  `plugins/backend/cpu/runtime/src/placement.cpp` (revision `694272a`; event 14
+  records dev and ASan CTest plus recovery-stress evidence)
+
+### medium roasts
+
+- Cross-subsystem implementation provenance for the registry, PTX/Kernel IR,
+  CPU execution, compiler worker, CUDA/NVML surfaces, performance runners,
+  packaging, and release harness -> M0100 plan (revision `7b86b35`; event 12
+  records dev configure/build, 58/58 CTest, and 12/12 runner self-tests)
+
+### dark roasts
+
+- Four-distribution release-matrix policy -> W0101 release qualification
+  matrix (event 3; authority: D0012, SC not required)
+- Same-build absolute-path CUDA/NVML vendor-pair policy -> W0106 vendor library
+  discovery (event 3; authority: D0013, SC not required)
+- Per-UID compiler-cache isolation and publication policy -> W0103
+  compiler/CPU work item (event 3; authority: D0014, SC not required)
+- Effective-core and NUMA-local placement policy -> W0103 compiler/CPU work
+  item (event 3; authority: D0015, SC not required)
+- PTX 9.0/`sm_70` capability and semantic-oracle policy -> W0103 compiler/CPU
+  work item (event 5; authority: D0017, SC not required)
+- Frozen CUDA/NVML ABI-input policy -> `toolchains/README.md` (event 4;
+  authority: D0016, SC not required)
+- LLVM compiler-epoch policy -> `toolchains/README.md` (event 6; authority:
+  D0018, SC not required)
+- Timezone-relative mirror-routing policy -> `toolchains/README.md` (event 8;
+  authority: D0020, SC not required)
+- Static MLIR/LLVM component-closure policy -> M0100 compiler link closure
+  (event 7; authority: D0019, SC not required)
+- Git/tool/session ownership boundary -> `toolchains/README.md` (event 13;
+  authority: D0022, SC not required; recorded pre-D0025 boundary)
+
+## session-only
+
+- The invalid offline release-pass assertion and its `! grep` failure lesson -
+  reason: event 9 preserves the minimum rerun warning without creating a
+  separate experience record.
 
 ## Unresolved items
 

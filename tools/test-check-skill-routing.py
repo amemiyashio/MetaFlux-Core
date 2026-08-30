@@ -149,12 +149,12 @@ def main() -> int:
     passed += 1
 
     reduced_workflow_roster = copy.deepcopy(corpus)
-    reduced_workflow_roster["workflow_skills"].remove("distill-project-knowledge")
+    reduced_workflow_roster["workflow_skills"].remove("roast")
     reduced_workflow_roster["cases"] = [
         case
         for case in reduced_workflow_roster["cases"]
-        if "distill-project-knowledge" not in case["expected_skills"]
-        and "distill-project-knowledge" not in case["forbidden_skills"]
+        if "roast" not in case["expected_skills"]
+        and "roast" not in case["forbidden_skills"]
     ]
     expect_error(
         "self-reduced workflow roster",
@@ -198,12 +198,12 @@ def main() -> int:
     missing_workflow_composition["cases"] = [
         case
         for case in missing_workflow_composition["cases"]
-        if case["id"] != "COMBO-DISTILL-CPU"
+        if case["id"] != "COMBO-ROAST-CPU"
     ]
     expect_error(
         "missing workflow composition coverage",
         check_skill_routing.validate_corpus(ROOT, missing_workflow_composition),
-        "distill-project-knowledge has 0 en composition",
+        "roast has 0 en composition",
     )
     passed += 1
 
@@ -414,7 +414,7 @@ def main() -> int:
     run = next(
         item
         for item in ignored_unscored_workflow["runs"]
-        if item["case_id"] == "DISTILL-N1"
+        if item["case_id"] == "ROAST-N1"
     )
     run["selected_skills"].append("session-guidance")
     errors = check_skill_routing.validate_observations(

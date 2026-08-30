@@ -51,8 +51,9 @@ cover the complete change.
    checkpoint it before entering the next risk or scope phase; do not wait for
    the entire task to finish. The semantic trigger belongs to the agent, while
    the pre-commit hook only validates an attempted commit.
-7. Before checkpoint or close, use `distill-project-knowledge` to route each
-   valuable claim to one canonical owner or mark it session-only with a reason.
+7. Before checkpoint or close, invoke `$roast` explicitly. Route each material
+   outcome to a canonical unresolved owner, the independent `session-only`
+   disposition, or one materially updated canonical owner and roast depth.
    Verify with `python3 tools/check-agent-records.py .` and the relevant CTest
    preset for build-affecting files. Use `record-session` in checkpoint mode for
    separate content/record commits and in close mode for cleanup, progress

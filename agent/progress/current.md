@@ -24,7 +24,7 @@ historical files, completed the terminal summary gate, and preserved the four
 whole-file evidence surfaces. Its history-edit authority is now closed.
 
 [D0026](../memory/decisions-index.md) now defines the proposed replacement of
-the former Distillation promotion model: only durable promotions receive one
+the pre-D0026 promotion model: only durable promotions receive one
 light, medium, or dark semantic-transformation depth, while `session-only`
 remains an independent disposition and `$roast` is explicit-only. Revision
 `21f1d47cd0522682e4047542fc53627bff2967fe` establishes the decision only.

@@ -45,15 +45,31 @@ and why it is still required.
 - Canonical decision links.
 - New or updated experience IDs.
 
-## Distillation
+## roast
 
-Map each promoted claim to its single durable owner, then name any material
-claim intentionally retained only in this session. `none` is valid after the
-classification; the validator requires this section for sessions from
-2026-08-28 onward.
+Classify only materially promoted claims by semantic transformation depth. Each
+bucket contains one or more `claim -> owner (evidence)` entries or the sole
+value `- none.`. Active sessions may temporarily use the sole value `- TODO.`.
 
-- Promoted: <outcome> -> <canonical path or ID> (<evidence>) | none.
-- Session-only: <material fact> - <reason it is not promotable> | none.
+### light roasts
+
+- <claim> -> <canonical path or ID> (<evidence>)
+
+### medium roasts
+
+- <claim> -> <canonical path or ID> (<evidence>)
+
+### dark roasts
+
+- <claim> -> <canonical path or ID> (<evidence>; authority: DNNNN, SCNNNN | SC not required)
+
+## session-only
+
+Record material resume or explanatory context that is intentionally not
+promoted. Use one or more entries with a retention reason or the sole value
+`- none.`. Active sessions may temporarily use the sole value `- TODO.`.
+
+- <material fact> - reason: <why durable promotion is not justified>
 
 ## Unresolved items
 
@@ -68,4 +84,5 @@ The summary is a curated outcome and resume point. It does not mirror Git,
 archive a build directory, preserve routine command output, or retain failed
 routes without a reusable lesson. Promote claims to their owning source,
 contract, decision, memory, experience, plan, progress, or semantic-change
-record. Keep only the promotion map here.
+record. Keep only the classified compact promotion map and justified
+session-only residue here.

@@ -8,13 +8,14 @@ git_revision: 1ecdfb01497610c5042e12bda4a16839d2b9c734
 workspace: governance content committed; S0100-20260830-005-semantic-change-distillation remains active; SC0001 not yet activated; existing guidance remains untracked
 ---
 
-# Semantic change and distillation governance
+# Semantic-change governance and project-knowledge promotion
 
 ## Engineering state
 
 Revision `1ecdfb01497610c5042e12bda4a16839d2b9c734` establishes D0025, independent
-`SCNNNN` records, and the `govern-semantic-change` and
-`distill-project-knowledge` workflows. The protected-history gate reads only
+`SCNNNN` records, semantic-change governance, and the then-current predecessor
+promotion workflow. The latter is superseded by D0026; the revision and gates
+below remain historical evidence. The protected-history gate reads only
 complete Active SC authorization already in `HEAD`; the record gate separately
 validates the exact staged tree. No historical record has been edited under the
 new policy yet, and SC0001 remains the next phase.
