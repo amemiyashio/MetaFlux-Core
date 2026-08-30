@@ -4,7 +4,7 @@
 checkpoints are protected and grouped by year under `checkpoints/YYYY/`.
 
 Latest checkpoint:
-[P20260830-013](checkpoints/2026/P20260830-013-m0100-closure-consistency.md).
+[P20260831-035](checkpoints/2026/P20260831-035-m0110-cpu-backend-copy.md).
 
 A checkpoint records observed state and verification evidence; it is not a Git
 revision unless its metadata names one. Create a checkpoint at a material

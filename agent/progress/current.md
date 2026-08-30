@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-034
+checkpoint: P20260831-035
 ---
 
 # Current Progress
@@ -45,6 +45,8 @@ W0112's bounded registered-memory pin/SG stage is recorded at
 [P20260831-026](checkpoints/2026/P20260831-026-m0110-registered-memory.md).
 W0112's checked worker-side backend COPY dispatch seam is recorded at
 [P20260831-027](checkpoints/2026/P20260831-027-m0110-cdev-backend-dispatch.md).
+The CPU backend transport-facing COPY subset and mapped-payload integration are
+recorded at [P20260831-035](checkpoints/2026/P20260831-035-m0110-cpu-backend-copy.md).
 W0122's QMP completion-to-ingress helper is recorded at
 [P20260831-028](checkpoints/2026/P20260831-028-m0120-qmp-ingress.md).
 W0122's vfio-user disconnect handoff is recorded at
@@ -228,9 +230,11 @@ Linux 9.8.
    [P20260831-026](checkpoints/2026/P20260831-026-m0110-registered-memory.md) and
    the backend dispatch seam at
    [P20260831-027](checkpoints/2026/P20260831-027-m0110-cdev-backend-dispatch.md).
-   Continue with backend memory import/DMA mapping and production CPU Add/Copy,
-   queue krefs, replacement generations, and lifecycle/fault qualification; do
-   not claim the cdev exit gate from the mapped fixture alone.
+   The CPU backend's synchronous COPY subset now consumes an imported mapped
+   payload; continue with generation-bound registered-memory/DMA mapping,
+   production CPU Add/launch, queue krefs, replacement generations, and
+   lifecycle/fault qualification. Do not claim the cdev exit gate from the
+   mapped COPY fixture alone.
 
 ## Tool Boundary
 

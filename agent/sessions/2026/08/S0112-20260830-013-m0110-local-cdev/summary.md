@@ -33,6 +33,10 @@ remains Active until full ownership, backend, and fault gates close.
   `mf_backend_api_v1` COPY callback receives one standard copy record with
   base-relative offsets, while backend statuses map to the shared status
   vocabulary and malformed bindings never fall back silently.
+- `plugins/backend/cpu/runtime/` now exposes the transport-facing CPU backend
+  subset: one enumerated CPU device, instance/context/queue handles,
+  caller-owned host-memory import, and synchronous overlap-safe COPY with
+  strict handle, size, range, and completion-event validation.
 - `CMakeLists.txt` and `cmake/MetaFluxOptions.cmake` expose the cdev halves as
   an opt-out build component.
 
@@ -42,6 +46,7 @@ remains Active until full ownership, backend, and fault gates close.
 | --- | --- |
 | Transport schema, component graph, and focused CTest | Passed: schema validator (5 definitions / 15 records), component graph, and cdev/lifecycle tests 4/4 |
 | Backend dispatch seam | Passed: cdev worker fake backend covers ABI size/capability/handle validation, COPY translation, success/timeout mapping, and unsupported-capability rejection |
+| CPU backend COPY binding | Passed: backend ABI smoke covers lifecycle, enumeration, imported ranges, COPY bytes, invalid event, and out-of-range rejection; cdev worker uses the real API against mapped payload |
 | Full development CTest | Passed: 79/79 |
 | Target Kbuild (Linux 6.18.42, GCC) | Passed: `metaflux_core.ko` built and modpost completed after registered-memory changes |
 | Target Kbuild with `LLVM=1` | Not qualified: target config rejects GCC-specific flags before source compile |
@@ -61,6 +66,11 @@ remains Active until full ownership, backend, and fault gates close.
   choice: valid bindings call only the versioned backend table, and invalid
   bindings complete with `MF_SHARED_NOT_SUPPORTED` instead of silently using
   the local copy path.
+- The CPU backend keeps imported host ranges caller-owned and uses process-local
+  opaque IDs for instance/context/queue/memory handles. Its synchronous COPY
+  operation is the first production backend path consumed by the cdev worker;
+  launch/Add, asynchronous events, backend DMA mapping, and policy/metrics stay
+  outside this increment.
 - Registered memory is removed from live lookup while holding the cdev lock;
   SG teardown, dirty-unpin, memlock release, and `mmput` run after unlock so
   concurrent unregister, owner close, and module exit cannot double-release it.
@@ -86,6 +96,9 @@ remains Active until full ownership, backend, and fault gates close.
   revision `9dc324d`; cdev worker regression and full CTest 79/79)
 - COPY dispatch implementation -> `transports/cdev/worker/src/worker.cpp`
   (content revision `9dc324d`; cdev worker regression and full CTest 79/79)
+- CPU backend COPY subset and mapped-payload integration ->
+  `plugins/backend/cpu/runtime/src/backend.cpp` (content revision `cc24af0`;
+  backend ABI and cdev worker regressions, full CTest 79/79)
 
 ### medium roasts
 
@@ -103,18 +116,20 @@ remains Active until full ownership, backend, and fault gates close.
 ## Unresolved items
 
 - W0112 / local cdev: complete queue kref/tombstone ownership and daemon
-  generation replacement, add backend memory import/`dma_map_sg` and in-flight
-  reference draining, connect production CPU Add/Copy to the bound worker, and
-  add KUnit/KASAN/KCSAN, lockdep/kmemleak, teardown, stale-generation, and
-  owner-death evidence. The current registration fixture intentionally remains a
-  single range with no backend mapping.
+  generation replacement, wire generation-bound registered memory to backend
+  `dma_map_sg` and in-flight device reference draining, extend the production
+  CPU binding to unmodified Add/launch, and add KUnit/KASAN/KCSAN,
+  lockdep/kmemleak, teardown, stale-generation, and owner-death evidence. The
+  current registration fixture intentionally remains a single range with no
+  backend mapping.
 
 ## Handoff
 
 Read W0112, the W0111 transport schema, and the generated UAPI projection. The
 registered-memory fixture is one generation-bound range with no backend DMA map
-or in-flight device reference. The worker now has a checked
-`mf_backend_api_v1` COPY seam, but production CPU memory import/Add/Copy wiring,
-queue krefs, and daemon replacement remain open. Run the focused cdev CTest and
-target Kbuild before changing the broker; keep the cdev client and worker halves
-in separate load images.
+or in-flight device reference. The CPU backend now provides a real synchronous
+COPY table and the cdev worker regression consumes an imported mapped payload;
+production Add/launch, backend DMA mapping, queue krefs, and daemon replacement
+remain open. Run the focused cdev and backend ABI CTests and target Kbuild before
+changing the broker; keep the cdev client and worker halves in separate load
+images.

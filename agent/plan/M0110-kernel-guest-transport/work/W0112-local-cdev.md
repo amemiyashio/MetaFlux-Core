@@ -64,6 +64,10 @@ and arithmetic operation is validated.
   retains the local fixture copy path; a malformed bound API returns
   `MF_SHARED_NOT_SUPPORTED` without fallback. Backend memory import and the
   production CPU Add/Copy wiring remain open.
+- [x] Expose the CPU backend's transport-facing COPY subset (instance, context,
+  queue, and caller-owned host-memory import) and exercise it through the cdev
+  worker's mapped payload, including invalid event and range rejection. The
+  backend remains synchronous and advertises no launch, event, or DMA feature.
 
 ## Remaining work
 
@@ -71,8 +75,10 @@ and arithmetic operation is validated.
   daemon-controlled generation replacement. The payload arena VMA tombstone,
   eventfd references, and bounded registered-memory lifetime are implemented for
   the current fixture.
-- [ ] Connect the leased worker to `mf_backend_api_v1` and prove unmodified CPU
-  Add/Copy end to end through the mapped payload arena.
+- [ ] Extend the leased worker/backend binding from the verified COPY subset to
+  the unmodified CPU Add/launch path and prove Add/Copy end to end through the
+  mapped payload arena. Production registered-memory import and DMA mapping
+  remain separate prerequisites.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak.
 
