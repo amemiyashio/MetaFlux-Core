@@ -1,7 +1,7 @@
 # Transports
 
 Transports connect providers, services, kernel components, guests, and execution
-backends without owning compute semantics. Planned implementations include local
+backends without owning compute semantics. Implemented stages include local
 memfd, character-device, and vfio-user paths.
 
 Control-plane negotiation and lifecycle are separated from steady-state command,
@@ -29,6 +29,10 @@ shared one (D0010):
   `transport-client`, and therefore subject to the C-only directory rule.
 - `worker/`: the leased-worker half. C++20, linked into the daemon or worker
   process, registered with the component role `transport-worker`.
+
+The vfio-user pair uses `guest/` for its C17 message encoder and `server/` for
+the C++20 host adapter. Its socket carries negotiation and DMA lifecycle only;
+shared guest memory and BAR notification are the intended steady-state path.
 
 The two halves never include each other's headers. They communicate only
 through the encoded contracts (`contracts/protocol/`, `contracts/shared/`) and,

@@ -19,6 +19,7 @@ add_custom_command(
     "${PROJECT_SOURCE_DIR}/contracts/protocol/device/v1/schema/descriptor.json"
     "${PROJECT_SOURCE_DIR}/contracts/shared/device/v1/schema/ring.json"
     "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/negotiation.json"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/vfio_user.json"
     "${PROJECT_SOURCE_DIR}/contracts/uapi/linux/v1/schema/uapi.json"
   VERBATIM
 )

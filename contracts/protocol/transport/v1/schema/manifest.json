@@ -23,6 +23,12 @@
       "sha256": "9e202479c116cc34b5078935f99be2d0034ee7d3063060cbff67bf7d0e633f55"
     },
     {
+      "id": "transport.vfio-user.v0",
+      "version": "0.1",
+      "path": "contracts/protocol/transport/v1/schema/vfio_user.json",
+      "sha256": "83fc4f92cf48da63e937787a225cdb3bbea6d21885252b50eefbb73654a5a3fe"
+    },
+    {
       "id": "linux.uapi.v0",
       "version": "0.1",
       "path": "contracts/uapi/linux/v1/schema/uapi.json",

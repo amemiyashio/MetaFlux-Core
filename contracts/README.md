@@ -15,7 +15,7 @@ Ownership is split by where bytes and objects cross a boundary:
 
 M0110 W0111 owns the candidate transport envelope at
 [`protocol/transport/v1/schema/manifest.json`](protocol/transport/v1/schema/manifest.json).
-The manifest's four hashed definitions are the only base records; C and C++
+The manifest's five hashed definitions are the only base records; C and C++
 projections are generated during CMake configuration and checked by the
 `metaflux.contract.transport-schema-*` tests. The envelope is ABI `0.x` until
 W0114 qualification freezes it as `v1`.

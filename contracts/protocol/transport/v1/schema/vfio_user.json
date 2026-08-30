@@ -1,0 +1,68 @@
+{
+  "id": "transport.vfio-user.v0",
+  "version": "0.1",
+  "zone": "protocol/transport/v1",
+  "kind": "encoded-layout",
+  "records": [
+    {
+      "name": "mf_vfio_user_dma_map_v0",
+      "size": 128,
+      "alignment": 8,
+      "fields": [
+        {"name": "struct_size", "offset": 0, "width": 4, "type": "u32"},
+        {"name": "flags", "offset": 4, "width": 4, "type": "u32"},
+        {"name": "iova", "offset": 8, "width": 8, "type": "u64"},
+        {"name": "size", "offset": 16, "width": 8, "type": "u64"},
+        {"name": "file_offset", "offset": 24, "width": 8, "type": "u64"},
+        {"name": "mapping_epoch", "offset": 32, "width": 8, "type": "u64"},
+        {"name": "device_generation", "offset": 40, "width": 8, "type": "u64"},
+        {"name": "permissions", "offset": 48, "width": 4, "type": "u32"},
+        {"name": "fd_index", "offset": 52, "width": 4, "type": "s32"},
+        {"name": "reserved", "offset": 56, "width": 72, "type": "bytes[72]", "reserved": true}
+      ]
+    },
+    {
+      "name": "mf_vfio_user_dma_unmap_v0",
+      "size": 96,
+      "alignment": 8,
+      "fields": [
+        {"name": "struct_size", "offset": 0, "width": 4, "type": "u32"},
+        {"name": "flags", "offset": 4, "width": 4, "type": "u32"},
+        {"name": "iova", "offset": 8, "width": 8, "type": "u64"},
+        {"name": "size", "offset": 16, "width": 8, "type": "u64"},
+        {"name": "mapping_epoch", "offset": 24, "width": 8, "type": "u64"},
+        {"name": "device_generation", "offset": 32, "width": 8, "type": "u64"},
+        {"name": "reserved", "offset": 40, "width": 56, "type": "bytes[56]", "reserved": true}
+      ]
+    },
+    {
+      "name": "mf_vfio_user_get_info_reply_v0",
+      "size": 96,
+      "alignment": 8,
+      "fields": [
+        {"name": "status", "offset": 0, "width": 4, "type": "u32"},
+        {"name": "flags", "offset": 4, "width": 4, "type": "u32"},
+        {"name": "device_generation", "offset": 8, "width": 8, "type": "u64"},
+        {"name": "bar0_offset", "offset": 16, "width": 8, "type": "u64"},
+        {"name": "bar0_size", "offset": 24, "width": 8, "type": "u64"},
+        {"name": "bar2_offset", "offset": 32, "width": 8, "type": "u64"},
+        {"name": "bar2_size", "offset": 40, "width": 8, "type": "u64"},
+        {"name": "bar4_offset", "offset": 48, "width": 8, "type": "u64"},
+        {"name": "bar4_size", "offset": 56, "width": 8, "type": "u64"},
+        {"name": "msix_vectors", "offset": 64, "width": 4, "type": "u32"},
+        {"name": "doorbell_width", "offset": 68, "width": 4, "type": "u32"},
+        {"name": "reserved", "offset": 72, "width": 24, "type": "bytes[24]", "reserved": true}
+      ]
+    }
+  ],
+  "constants": {
+    "MF_VFIO_USER_MESSAGE_GET_INFO_V0": 1,
+    "MF_VFIO_USER_MESSAGE_DMA_MAP_V0": 2,
+    "MF_VFIO_USER_MESSAGE_DMA_UNMAP_V0": 3,
+    "MF_VFIO_USER_MESSAGE_RESET_V0": 4,
+    "MF_VFIO_USER_MESSAGE_DOORBELL_V0": 5,
+    "MF_VFIO_USER_DMA_READ_V0": "1 << 0",
+    "MF_VFIO_USER_DMA_WRITE_V0": "1 << 1",
+    "MF_VFIO_USER_DMA_KNOWN_FLAGS_V0": "(1 << 0) | (1 << 1)"
+  }
+}

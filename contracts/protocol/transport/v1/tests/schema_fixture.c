@@ -13,7 +13,10 @@ int main(void) {
   if (MF_SCHEMA_MF_RING_DESCRIPTOR_V1_SIZE != sizeof(mf_ring_descriptor_v1) ||
       MF_SCHEMA_MF_RING_DESCRIPTOR_V1_OFFSET_arguments != 32u ||
       MF_SCHEMA_MF_TRANSPORT_NEGOTIATE_V0_SIZE != sizeof(mf_transport_negotiate_v0) ||
-      MF_SCHEMA_MF_UAPI_QUEUE_V0_SIZE != sizeof(mf_uapi_queue_v0)) {
+      MF_SCHEMA_MF_UAPI_QUEUE_V0_SIZE != sizeof(mf_uapi_queue_v0) ||
+      MF_SCHEMA_MF_VFIO_USER_DMA_MAP_V0_SIZE != sizeof(mf_vfio_user_dma_map_v0) ||
+      MF_SCHEMA_MF_VFIO_USER_DMA_UNMAP_V0_SIZE != sizeof(mf_vfio_user_dma_unmap_v0) ||
+      MF_SCHEMA_MF_VFIO_USER_GET_INFO_REPLY_V0_SIZE != sizeof(mf_vfio_user_get_info_reply_v0)) {
     return 1;
   }
   memset(&negotiation, 0, sizeof(negotiation));

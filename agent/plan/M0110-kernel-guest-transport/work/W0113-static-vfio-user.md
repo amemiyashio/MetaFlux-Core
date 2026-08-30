@@ -2,7 +2,7 @@
 id: W0113
 delivery: 0.1.1.3
 milestone: M0110
-status: Queued
+status: Active
 area: transport.vfio-user
 depends_on: [W0111]
 updated: 2026-08-30
@@ -78,6 +78,19 @@ needs a fresh static instance. M0120 may advertise coordinated reset only after
 its lifecycle handler is present, without moving the v1 BAR regions.
 
 ## Work
+
+Implemented stage:
+
+- [x] Generate the vfio-user DMA map/unmap and GET_INFO reply records from the
+  extension manifest, including generation/epoch and static BAR fields.
+- [x] Provide the C17 guest packet encoder/decoder and C++20 server control
+  fixture with bounded framing, sender-owned message IDs, and `No_reply`
+  handling.
+- [x] Validate page-aligned shared-file mappings, overlap, width, fd range,
+  generation, epoch, permissions, and zero-reference unmap in the server
+  mapping ledger.
+- [x] Verify the static BAR0/BAR2/BAR4 profile and unsupported reset/doorbell
+  result with focused schema, guest, and server tests.
 
 - [ ] Implement static guest `metaflux_pci.ko`, BAR0/BAR2/BAR4, and MSI-X with
   pinned libvfio-user.
