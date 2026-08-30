@@ -50,14 +50,46 @@ Active skills through `.agents/skills`.
 
 ### light roasts
 
-- Von Neumann and Harvard terminology -> CPU memory-architecture reference and
-  its address-space, cache, coherence, NUMA, ordering, MMIO, and DMA checks
-  (session verification above)
+- Von Neumann and Harvard memory-architecture terminology ->
+  agent/skills/cpu-backend-performance/references/cpu-memory-architecture.md
+  (bundled quick validation passed for all 15 skill packages)
 
 ### medium roasts
 
-- Ten-expert ownership, composition routing, trigger corpus, and source-backed
-  checklists -> agent/skills/ (session verification above)
+- Ten-domain-skill ownership and composition routing -> agent/skills/README.md
+  (15 unique Active packages and seven composition routes were recorded)
+- Thirty single-skill and five composition routing cases ->
+  agent/skills/trigger-evals.md (static trigger assertions passed for 30 single
+  and 5 composition cases)
+- CUDA Driver ABI review procedure ->
+  agent/skills/cuda-driver-abi-compatibility/SKILL.md (bundled quick validation
+  passed for all 15 skill packages)
+- NVML telemetry compatibility review procedure ->
+  agent/skills/nvml-telemetry-compatibility/SKILL.md (bundled quick validation
+  passed for all 15 skill packages)
+- PTX/SIMT semantics review procedure -> agent/skills/ptx-simt-semantics/SKILL.md
+  (bundled quick validation passed for all 15 skill packages)
+- MLIR compiler-engineering review procedure ->
+  agent/skills/mlir-compiler-engineering/SKILL.md (bundled quick validation
+  passed for all 15 skill packages)
+- CPU backend performance review procedure ->
+  agent/skills/cpu-backend-performance/SKILL.md (bundled quick validation passed
+  for all 15 skill packages)
+- Linux device UAPI review procedure ->
+  agent/skills/linux-device-driver-uapi/SKILL.md (bundled quick validation passed
+  for all 15 skill packages)
+- vfio-user GPU virtualization review procedure ->
+  agent/skills/gpu-virtualization-vfio-user/SKILL.md (bundled quick validation
+  passed for all 15 skill packages)
+- PCIe/vPCI device-model review procedure ->
+  agent/skills/pcie-vpci-device-model/SKILL.md (bundled quick validation passed
+  for all 15 skill packages)
+- Cross-layer lifecycle-resilience review procedure ->
+  agent/skills/device-lifecycle-resilience/SKILL.md (bundled quick validation
+  passed for all 15 skill packages)
+- Vulkan/SPIR-V compute review procedure ->
+  agent/skills/vulkan-spirv-compute/SKILL.md (bundled quick validation passed for
+  all 15 skill packages)
 
 ### dark roasts
 

@@ -58,8 +58,12 @@ commit then ran the hook for real.
 
 ### medium roasts
 
-- Three-layer entry-point, on-ramp, and machine-gate guidance model -> AGENTS.md
-  and the start-work skill (session verification above)
+- Repository read/scaffold/verify/record entry rules -> AGENTS.md (hook with
+  staged non-agent changes and no session was rejected with exit 1)
+- Cold-start task on-ramp -> agent/skills/start-work/SKILL.md (hook passed after
+  session scaffolding)
+- No-session staged-change gate -> .githooks/pre-commit (deny, scaffold, and
+  allow paths passed; implementation commit ran the hook and passed)
 
 ### dark roasts
 

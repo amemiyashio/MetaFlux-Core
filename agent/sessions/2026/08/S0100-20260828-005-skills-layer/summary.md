@@ -48,16 +48,21 @@ index was written as part of this change.
 
 ### light roasts
 
-- Three practiced procedures encoded as seeded skills -> the skill packages
-  (outcomes from S0100-20260828-001-spec-consistency,
-  S0100-20260828-002-layout-convergence,
-  S0100-20260828-003-agent-record-convergence, and
-  S0100-20260828-004-record-gate-hardening)
+- Practiced component-registration procedure ->
+  agent/skills/add-component/SKILL.md (outcomes from
+  S0100-20260828-002-layout-convergence; validator self-test passed 20/20)
+- Practiced decision-closure procedure ->
+  agent/skills/close-decision/SKILL.md (outcomes from
+  S0100-20260828-001-spec-consistency; validator self-test passed 20/20)
+- Practiced session-record procedure ->
+  agent/skills/record-session/SKILL.md (outcomes from
+  S0100-20260828-003-agent-record-convergence and
+  S0100-20260828-004-record-gate-hardening; validator self-test passed 20/20)
 
 ### medium roasts
 
-- Skills-vs-experience-vs-templates boundary -> agent/skills/README.md (session
-  verification above)
+- Skills-vs-experience-vs-templates boundary -> agent/skills/README.md
+  (validator self-test passed 20/20; dev preset passed 16/16)
 
 ### dark roasts
 

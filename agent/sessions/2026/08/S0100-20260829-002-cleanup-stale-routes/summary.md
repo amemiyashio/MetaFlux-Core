@@ -54,8 +54,29 @@ Historical records remain intact, and fixed tool materializations remain usable.
 
 ### light roasts
 
-- Remaining D0022 ownership corrections -> active owner documents and the
-  checkpoint template (session verification above)
+- NixOS module requires an explicitly injected product package ->
+  packaging/nixos/module.nix (module evaluation accepted an explicit package
+  and rejected a missing package)
+- Cross-component qualification belongs to CTest and owner-specific runners ->
+  tests/README.md (independent residue and diff review found no active D0022
+  conflict)
+- M0100 PGO and release evidence stays with performance and packaging workflows
+  -> agent/plan/M0100-core-foundation/work/W0106-modes-release.md (independent
+  residue and diff review passed)
+- LLVM reproducers run through their owning verifier while Nix supplies tools ->
+  agent/skills/cpu-backend-performance/references/llvm-vectorization.md
+  (development-shell probes reported Clang 22.1.8, CMake 4.1.6, and Ninja
+  1.13.2)
+- M0120 lifecycle-model evidence uses the repository-adjacent evidence hierarchy
+  -> agent/plan/M0120-vpci-lifecycle/work/W0121-lifecycle-model.md (skill routing
+  corpus passed 68 cases and its self-test passed 23/23)
+- Per-worktree Git-hook activation is independent of Nix -> README.md (Agent
+  records and all 54 validator self-test cases passed)
+- Claude bridge backstops are repository validators and owner-specific tests ->
+  .claude/README.md (independent residue and diff review passed)
+- Checkpoints are compact engineering handoffs rather than source snapshots ->
+  agent/templates/checkpoint.md (Agent records and all 54 validator self-test
+  cases passed)
 
 ### medium roasts
 

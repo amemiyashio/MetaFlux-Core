@@ -63,13 +63,23 @@ that queued product work is complete.
 
 ### medium roasts
 
-- Neutral runtime/contracts owner and single-owner composition matrix -> skill
-  catalog (session verification above)
-- Lifecycle publication invariants -> lifecycle skill and its atomic view,
-  FIFO, admission, telemetry, recovery, and quarantine rules (session
-  verification above)
-- Package and routing requirements -> structured bilingual corpus, self-tested
-  validators, CTest, and Nix checks (session verification above)
+- Neutral runtime/contracts owner and single-owner composition matrix ->
+  agent/skills/README.md (all 16 skill packages passed bundled quick validation;
+  68 routing cases passed)
+- Runtime-global FIFO publication and atomic view/telemetry invariants ->
+  runtime/README.md (runtime and lifecycle planning synchronized; architecture
+  CTest passed 18/18)
+- M0120 admission, recovery, and quarantine requirements ->
+  agent/plan/M0120-vpci-lifecycle/work/W0121-lifecycle-model.md (record validator
+  passed for 13 sessions, 105 events, and 148 Markdown files)
+- Skill package and catalog integrity requirements -> tools/check-agent-records.py
+  (validator self-test passed 52 cases)
+- Structured bilingual routing corpus -> agent/skills/trigger-evals.json
+  (11 domain skills and 68 cases passed routing validation)
+- Static corpus and digest-bound observation validation ->
+  tools/check-skill-routing.py (routing self-test passed 23/23)
+- Routing validators are wired into CTest -> tests/CMakeLists.txt (development
+  preset CTest passed 18/18)
 
 ### dark roasts
 

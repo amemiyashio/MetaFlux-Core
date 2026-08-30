@@ -26,9 +26,18 @@ provisional pending the W0101 reference-host harness.
 
 ### light roasts
 
-- Memfd wake-budget, performance-budget status, and managed-domain scoping
-  amendments -> the milestone template and the control-and-data-plane record
-  (session verification above)
+- M0100 memfd active-dispatch wake-budget contract ->
+  docs/architecture/control-and-data-plane.md (revision
+  5360d51a09234f9753f260f218dc5a87e52c7eef; agent-record validation passed)
+- Numeric performance-budget provisional/binding semantics ->
+  agent/templates/milestone.md (revision
+  5360d51a09234f9753f260f218dc5a87e52c7eef; agent-record validation passed)
+- M0100 performance budgets remain provisional pending W0101 ->
+  agent/plan/M0100-core-foundation/plan.md (revision
+  5360d51a09234f9753f260f218dc5a87e52c7eef; agent-record validation passed)
+- Authoritative logical-device view is scoped per managed domain ->
+  agent/memory/project.md (revision
+  5360d51a09234f9753f260f218dc5a87e52c7eef; agent-record validation passed)
 
 ### medium roasts
 
@@ -37,11 +46,13 @@ provisional pending the W0101 reference-host harness.
 ### dark roasts
 
 - D0008 synthetic NVIDIA presentation identity and release-review constraint ->
-  decisions-index, memory/constraints.md, memory/project.md, and agent/README.md
-  (session verification above; authority: D0008, SC not required)
+  agent/plan/M0120-vpci-lifecycle/plan.md (revision
+  5360d51a09234f9753f260f218dc5a87e52c7eef; agent-record validation passed;
+  authority: D0008, SC not required)
 - D0009 Ubuntu 20.04/glibc 2.31 floor and restricted provider dependency
-  universe -> decisions-index, memory/constraints.md, memory/project.md, and
-  agent/README.md (session verification above; authority: D0009, SC not required)
+  universe -> agent/plan/M0100-core-foundation/plan.md (revision
+  5360d51a09234f9753f260f218dc5a87e52c7eef; agent-record validation passed;
+  authority: D0009, SC not required)
 
 ## session-only
 

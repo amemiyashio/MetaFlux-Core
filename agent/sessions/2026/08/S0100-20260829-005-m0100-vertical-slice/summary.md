@@ -60,11 +60,27 @@ drift before the offline matrix runs.
 
 ### light roasts
 
-- D0009 glibc floor enforcement -> toolchain skill, toolchain/packaging
-  documentation, package-builder ELF gates, manifest identity checks, and
-  release-fixture validation (session verification above)
-- Cache/AOT and LLD regression outcomes -> owning source tests (session
-  verification above)
+- D0009 target-build rules and Ubuntu 20.04/glibc 2.31 boundary ->
+  toolchains/README.md (`test_release_matrix_assertions.py` passed including
+  GLIBC_2.32 rejection)
+- Tool materialization procedure applies private-cache and current-timezone
+  mirror routing at the D0009 floor -> agent/skills/manage-toolchain/SKILL.md
+  (Nix flake show and tool probes passed)
+- Deterministic DEB/RPM/tar construction rejects manifest and system ELF/glibc
+  drift -> packaging/build.py (DEB, RPM, and tar SHA-256 matched across two
+  staging roots)
+- Complete and provider release fixtures apply loader, dependency, path, and
+  glibc ceiling checks -> tests/release/run_release_package_matrix.py (complete
+  and provider offline matrices each passed 8/8)
+- Administrator AOT cache publication no longer depends on mutable-cache global
+  state -> compiler/core/src/artifact_cache.cpp (M0100 integration CTest passed
+  65/65)
+- Daemon AOT prewarm remains on the administrator tier ->
+  services/metafluxd/execution.cpp (million-noop daemon stress ran in the M0100
+  integration CTest that passed 65/65)
+- Runtime LLD receives an explicit single-thread resource limit ->
+  plugins/backend/cpu/compiler/src/compiler.cpp (M0100 integration CTest passed
+  65/65)
 
 ### medium roasts
 

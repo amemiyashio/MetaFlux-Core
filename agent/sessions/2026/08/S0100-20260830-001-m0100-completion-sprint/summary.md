@@ -16,16 +16,17 @@ to v0.2.0 per D0024.
 ### light roasts
 
 - PGO training and USE build pass -> `tests/performance/run_m0100_optimization.py`
-  and `/tmp/metaflux-pgo-evidence-10/` (135 commands, status=pass)
+  (135 commands, status=pass; evidence: `/tmp/metaflux-pgo-evidence-10/`)
 - O2/O3 variant comparison pass ->
   `tests/performance/run_m0100_optimization.py` (28 commands, status=pass)
 - ASan/UBSan hardening pass ->
   `tests/performance/run_m0100_optimization.py` (121 commands, status=pass)
-- W0102 stress coverage complete -> `recovery_model.cpp`,
-  `registry_recovery.cpp`, `multiprocess_stress.cpp`, `ring.c`, and
-  `noop_stress.c` (all 15 sub-items covered)
-- W0106 coexistence coverage -> `provider_mode_test.c` (managed-only,
-  isolation, and recursion prevention)
+- W0102 stress-coverage audit result ->
+  `agent/progress/checkpoints/2026/P20260830-001-m0100-completion-sprint.md`
+  (all 15 sub-items mapped to existing tests)
+- W0106 coexistence coverage ->
+  `plugins/compat/cuda/management/nvml/tests/provider_mode_test.c`
+  (managed-only, isolation, and recursion prevention)
 - Generic release build -> `tools/build-generic-release.sh` (`metafluxd`
   GLIBC_2.29, within the GLIBC_2.31 ceiling)
 - Ubuntu 20.04 target toolchain ->
@@ -40,15 +41,16 @@ to v0.2.0 per D0024.
   verified)
 ### medium roasts
 
-- M0100 v0.1.0 acceptance closure -> `agent/progress/current.md` (PGO,
-  hardening, release-matrix, provenance, AMD reference-host, and D0024 release
-  boundary evidence)
+- Recorded M0100 v0.1.0 acceptance evidence -> `agent/progress/current.md`
+  (PGO, hardening, release-matrix, provenance, AMD reference-host, and D0024
+  release-boundary evidence)
 
 ### dark roasts
 
-- Intel host qualification deferral -> `agent/memory/decisions-index.md`
-  (v0.2.0 release boundary; authority: D0023, SC not required; recorded
-  pre-D0025 boundary)
+- Intel host qualification deferral ->
+  `agent/plan/M0100-core-foundation/work/W0101-build-toolchain.md` (v0.2.0
+  release boundary; authority: D0023, SC not required; recorded pre-D0025
+  boundary)
 
 ## session-only
 

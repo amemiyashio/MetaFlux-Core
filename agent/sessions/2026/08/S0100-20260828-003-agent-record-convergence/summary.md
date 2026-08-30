@@ -52,13 +52,20 @@ group) were caught and fixed by those self-tests.
 ### light roasts
 
 - Validator-clean session scaffolding with automatic ID allocation and index
-  registration -> tools/new-session.py and tools/README.md (session
-  verification above)
+  registration -> tools/new-session.py (scaffold skeleton passed validation for
+  4 sessions and 37 events)
 
 ### medium roasts
 
-- Open-decision visibility, terminal knowledge-summary, and staleness rules ->
-  memory, agent/README.md, and tools/README.md (session verification above)
+- Aggregated open-decision visibility -> agent/memory/open-decisions.md
+  (29 unresolved decisions reconciled across M0100-M0130; removed ledger row
+  failed validation with 2 errors)
+- Terminal session-summary record contract -> agent/templates/session-summary.md
+  (`python3 tools/check-agent-records.py .` passed for 4 sessions, 37 events,
+  and 59 Markdown files)
+- Open-decision parity and active-plan staleness validation ->
+  tools/check-agent-records.py (removed ledger row failed with 2 errors; stale
+  Active date emitted a warning with exit 0)
 
 ### dark roasts
 

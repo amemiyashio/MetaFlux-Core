@@ -40,7 +40,9 @@ ordinary files invoked by `python3` through `.claude/settings.json`.
 
 ### light roasts
 
-- Repository-specific Codex entry guarantee -> `nix/checks/default.nix` (`nix build path:.#checks.x86_64-linux.entry-points -L`, 23/23 Agent cases, 16/16 CTest, and full flake check)
+- Repository-specific Codex entry guarantee -> `AGENTS.md` (`nix build
+  path:.#checks.x86_64-linux.entry-points -L`, 23/23 Agent cases, 16/16 CTest,
+  and full flake check; the former Nix check owner was removed by D0022)
 
 ### medium roasts
 

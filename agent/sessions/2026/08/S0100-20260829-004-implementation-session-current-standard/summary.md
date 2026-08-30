@@ -55,13 +55,15 @@ for terminal records, and generates the current summary structure.
 ### light roasts
 
 - Curated 25-to-13 M0100 active ledger ->
-  S0100-20260828-013-m0100-foundation while Git retains earlier forms (session
-  verification above)
+  agent/sessions/2026/08/S0100-20260828-013-m0100-foundation/events.jsonl
+  (earlier forms remain in Git; record validation passed for 18 sessions and
+  145 events)
 
 ### medium roasts
 
-- Session lifecycle semantics -> session policy, template, generator,
-  validator, and regression suite (session verification above)
+- Active and terminal session lifecycle semantics -> agent/sessions/README.md
+  (validator self-test passed 58/58 including three lifecycle combinations and
+  the end-to-end scaffolder)
 
 ### dark roasts
 

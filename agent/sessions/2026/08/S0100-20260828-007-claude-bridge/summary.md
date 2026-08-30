@@ -54,9 +54,11 @@ committing, including the deny-then-scaffold-then-allow sequence.
 
 ### light roasts
 
-- @-import single-source pattern -> .claude/README.md (session verification above)
+- @-import single-source pattern -> .claude/README.md (validator self-test passed
+  23/23; malformed bridge configuration is covered)
 - Fail-open project guard with tool-agnostic backstops -> .claude/README.md
-  (session verification above)
+  (checkpoint and no-session edits were denied; agent edits and malformed input
+  were allowed; dev preset passed 16/16)
 
 ### medium roasts
 

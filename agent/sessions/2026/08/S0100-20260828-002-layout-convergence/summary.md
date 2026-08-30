@@ -32,16 +32,18 @@ cca908221cb5b265ae0944a3e87598b1f5a70956.
 
 ### medium roasts
 
-- none.
+- Repository taxonomy and navigation map -> docs/architecture/repo-layout.md
+  (revision cca908221cb5b265ae0944a3e87598b1f5a70956; record status Verified;
+  dev, release, and asan presets passed 15/15)
 
 ### dark roasts
 
 - D0010 transport two-halves convention and repository placement ->
-  decisions-index and docs/architecture/repo-layout.md (session verification
-  above; authority: D0010, SC not required)
-- D0011 machine-checked dependency graph and component-map navigation ->
-  decisions-index, docs/architecture/repo-layout.md, and the component map
-  (session verification above; authority: D0011, SC not required)
+  transports/README.md (revision cca908221cb5b265ae0944a3e87598b1f5a70956;
+  all listed presets passed; authority: D0010, SC not required)
+- D0011 machine-checked dependency graph -> tools/README.md (revision
+  cca908221cb5b265ae0944a3e87598b1f5a70956; illegal-edge failure path and all
+  listed presets passed; authority: D0011, SC not required)
 
 ## session-only
 

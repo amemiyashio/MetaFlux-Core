@@ -53,7 +53,8 @@ until scale demands them.
 
 ### medium roasts
 
-- Two-grade consistency design -> tools/README.md (session verification above)
+- Two-grade consistency design -> tools/README.md (validator self-test passed
+  15/15 cases; dev preset passed 16/16 including both architecture tests)
 
 ### dark roasts
 

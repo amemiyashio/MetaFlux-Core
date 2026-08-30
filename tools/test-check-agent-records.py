@@ -64,7 +64,7 @@ POPULATED_ROAST_BLOCK = (
     "### light roasts\n\n"
     "- normalized fixture -> agent/memory/project.md (fixture revision)\n\n"
     "### medium roasts\n\n"
-    "- bounded fixture synthesis -> E0001 Candidate (fixture evidence gap)\n\n"
+    "- bounded fixture synthesis -> E0001 (Candidate; fixture evidence gap)\n\n"
     "### dark roasts\n\n"
     "- governed fixture replacement -> docs/architecture/fixture.md "
     "(fixture decision; authority: D0001, SC not required)\n\n"
@@ -126,6 +126,8 @@ BASE_FILES: dict[str, str] = {
         "[M0100](../plan/M0100-fixture/plan.md) | Active plan |\n"
     ),
     "agent/experience/README.md": "# Experience\n\nNo records yet.\n",
+    "agent/memory/project.md": "# Project Memory\n\nFixture owner.\n",
+    "docs/architecture/fixture.md": "# Fixture Architecture\n",
     "agent/semantic-changes/README.md": (
         "# Semantic Changes\n\n"
         "## Index\n\n"
@@ -1728,6 +1730,28 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         False,
     ),
     (
+        "roast requires one canonical owner",
+        replace(
+            BASE_FILES,
+            SUMMARY_PATH,
+            "### light roasts\n\n- none.",
+            "### light roasts\n\n- fixture claim -> agent/memory/project.md and tools/README.md (evidence)",
+        ),
+        True,
+        False,
+    ),
+    (
+        "roast owner path must resolve",
+        replace(
+            BASE_FILES,
+            SUMMARY_PATH,
+            "### light roasts\n\n- none.",
+            "### light roasts\n\n- fixture claim -> missing/owner.md (evidence)",
+        ),
+        True,
+        False,
+    ),
+    (
         "session-only reason required",
         replace(BASE_FILES, SUMMARY_PATH, "## session-only\n\n- none.", "## session-only\n\n- local detail"),
         True,
@@ -1739,7 +1763,7 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
             BASE_FILES,
             SUMMARY_PATH,
             "### dark roasts\n\n- none.",
-            "### dark roasts\n\n- governed claim -> canonical owner (evidence only)",
+            "### dark roasts\n\n- governed claim -> docs/architecture/fixture.md (evidence only)",
         ),
         True,
         False,

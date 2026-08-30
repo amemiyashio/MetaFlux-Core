@@ -1216,9 +1216,46 @@ class Validator:
                     self.add_error(summary_path, f"{label} entry has an empty retention reason")
                     continue
             else:
-                if not match.group("owner").strip() or not match.group("evidence").strip():
+                owner = match.group("owner").strip()
+                if not owner or not match.group("evidence").strip():
                     self.add_error(summary_path, f"{label} entry has an empty owner or evidence")
                     continue
+                normalized_owner = owner
+                if owner.startswith("`") and owner.endswith("`") and len(owner) > 2:
+                    normalized_owner = owner[1:-1]
+                if "`" in normalized_owner or any(
+                    character.isspace() for character in normalized_owner
+                ):
+                    self.add_error(
+                        summary_path,
+                        f"{label} entry must name exactly one canonical owner: {owner!r}",
+                    )
+                    continue
+                if not (
+                    DECISION_ID_RE.fullmatch(normalized_owner)
+                    or STABLE_AGENT_ID_RE.fullmatch(normalized_owner)
+                    or SESSION_ID_RE.fullmatch(normalized_owner)
+                ):
+                    pure_owner = PurePosixPath(normalized_owner)
+                    if (
+                        not normalized_owner
+                        or "\\" in normalized_owner
+                        or pure_owner.is_absolute()
+                        or normalized_owner in {".", ".."}
+                        or ".." in pure_owner.parts
+                    ):
+                        self.add_error(
+                            summary_path,
+                            f"{label} entry has an unsafe canonical owner path: {owner!r}",
+                        )
+                        continue
+                    owner_path = self.repo_root.joinpath(*pure_owner.parts)
+                    if not owner_path.exists() or owner_path.is_symlink():
+                        self.add_error(
+                            summary_path,
+                            f"{label} canonical owner does not resolve to one repository path: {owner!r}",
+                        )
+                        continue
                 if dark and ROAST_DARK_AUTHORITY_RE.search(match.group("evidence")) is None:
                     self.add_error(
                         summary_path,
