@@ -10,7 +10,8 @@ remain open. The typed external-event normalizer and QMP command/event
 correlation fixture are recorded as boundary fixtures; the QMP fixture now also
 has a direct completion-to-ingress helper and the vfio-user server has an EOF
 disconnect handoff, while live command transport and remaining producer
-call-site integration remain open.
+call-site integration remain open. The coordinator-aware server loop now binds
+`Closed` results to that handoff without changing ordinary message results.
 
 ## Durable changes
 
@@ -34,7 +35,7 @@ call-site integration remain open.
 - `transports/vfio-user/server/include/metaflux/transport/vfio_user_server.hpp`
   and its implementation/test: a disconnect handoff that marks local EOF/error
   loss and submits a caller-captured `Disconnect` event through lifecycle
-  ingress.
+  ingress, plus a coordinator-aware `process_once` overload for `Closed` paths.
 - `runtime/core/include/metaflux/runtime/lifecycle_dispatch.hpp` and its
   implementation/test: one stateless ingress that normalizes external events
   before submitting accepted requests to the Coordinator.
@@ -52,6 +53,7 @@ call-site integration remain open.
 | `metaflux.unit.runtime-lifecycle`, normalizer, and vfio-user QMP | Passed: 3/3 |
 | QMP completion-to-ingress regression | Passed: QMP and lifecycle-dispatch selection 2/2 |
 | vfio-user disconnect-to-ingress regression | Passed: server and lifecycle-dispatch selection 2/2 |
+| vfio-user process-to-ingress regression | Passed: coordinator-aware server/dispatch selection 2/2 |
 | `metaflux.unit.runtime-lifecycle-dispatch` | Passed |
 | `ctest --preset dev` | Passed: 79/79 |
 | `python3 tools/check-component-graph.py <configured graph>` | Passed: 19 components / 22 edges |
@@ -79,6 +81,10 @@ call-site integration remain open.
   supply the logical device, daemon incarnation, identity, generation, epoch,
   and request ID, and can inspect local `ServerResult` separately from
   `ResultDetails`.
+- The coordinator-aware `process_once` overload submits only after the receive
+  path returns `Closed`; normal replies, no-reply operations, idle reads, and
+  malformed packets retain their transport result and do not create lifecycle
+  events.
 
 ## roast
 
@@ -103,6 +109,9 @@ call-site integration remain open.
 - vfio-user disconnect-to-ingress wiring -> `transports/vfio-user/server/src/server.cpp`
   (focused server/lifecycle dispatch regression; content revision `ee0ecab`,
   full development CTest 79/79)
+- vfio-user process-to-ingress binding -> `transports/vfio-user/server/src/server.cpp`
+  (focused server/lifecycle dispatch regression; content revision `699cff8`,
+  full development CTest 79/79)
 - Runtime external-event ingress -> `runtime/core/include/metaflux/runtime/lifecycle_dispatch.hpp`
   (focused dispatch regression; content revision `04ecf81`, full development
   CTest 79/79)
@@ -124,14 +133,14 @@ call-site integration remain open.
 
 ## Unresolved items
 
-- W0122 remains Active. Next: bind the real EOF owner to the disconnect helper,
-  implement live QMP/socket command transport, wire remaining reset/restart
-  producer call sites and the production memfd worker path, and add
-  provider-freeze plus fault/qualification evidence.
+- W0122 remains Active. Next: bind real lifecycle metadata capture at the
+  vfio-user owner, implement live QMP/socket command transport, wire remaining
+  reset/restart producer call sites and the production memfd worker path, and
+  add provider-freeze plus fault/qualification evidence.
 
 ## Handoff
 
-Resume from checkpoint `P20260831-029`; run
+Resume from checkpoint `P20260831-030`; run
 `metaflux.unit.runtime-lifecycle`, the normalizer, dispatch, and QMP tests, and
 `metaflux.transport.memfd-worker` before changing an adapter, then preserve the
 M0110 descriptor/UAPI/BAR boundary.

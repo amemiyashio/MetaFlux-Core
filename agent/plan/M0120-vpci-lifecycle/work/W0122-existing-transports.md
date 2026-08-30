@@ -79,6 +79,9 @@ only.
 - [x] Provide a vfio-user EOF/error handoff that marks the local server lost and
   submits a captured `Disconnect` event through `submit_external_event`; the
   caller still owns lifecycle tuple capture and event-request allocation.
+- [x] Bind the vfio-user `process_once` EOF/error result to that handoff through
+  an overload that leaves ordinary message results unchanged; live QMP command
+  transport and restart producer wiring remain open.
 - [ ] Integrate every reset/disconnect/restart source and inject failure at each
   staging, commit, DMA, completion, and teardown step.
 - [ ] Verify provider enumeration freeze before, during, and after replacement.

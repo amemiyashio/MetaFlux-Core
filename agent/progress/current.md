@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-029
+checkpoint: P20260831-030
 ---
 
 # Current Progress
@@ -49,6 +49,8 @@ W0122's QMP completion-to-ingress helper is recorded at
 [P20260831-028](checkpoints/2026/P20260831-028-m0120-qmp-ingress.md).
 W0122's vfio-user disconnect handoff is recorded at
 [P20260831-029](checkpoints/2026/P20260831-029-m0120-vfio-disconnect-ingress.md).
+W0122's automatic vfio-user EOF handoff is recorded at
+[P20260831-030](checkpoints/2026/P20260831-030-m0120-vfio-process-ingress.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -169,7 +171,8 @@ Linux 9.8.
 | W0122 runtime event ingress | `04ecf81`; one stateless runtime entry normalizes external events and submits only accepted requests to Coordinator; malformed/unsupported events leave authority state unchanged; focused dispatch regression and full dev CTest 79/79 passed |
 | W0122 QMP producer ingress | `b37e8ba`; QMP completion snapshots the correlated event, maps failed remove to `QmpFailure`, and submits through the stateless ingress; focused QMP/lifecycle dispatch 2/2 and full dev CTest 79/79 passed |
 | W0122 vfio-user disconnect ingress | `ee0ecab`; EOF/error handoff marks the local server lost and submits a captured `Disconnect` event through the stateless ingress; focused server/dispatch 2/2 and full dev CTest 79/79 passed |
-| W0122 current boundary | Live QMP/socket command transport, event-metadata binding for remaining reset/restart producers, production memfd worker wiring, provider freeze, fault injection, and qualification remain open |
+| W0122 vfio-user process ingress | `699cff8`; `process_once` overload invokes the disconnect handoff only for `Closed`, preserving ordinary message results; focused server/dispatch 2/2 and full dev CTest 79/79 passed |
+| W0122 current boundary | Live QMP/socket command transport, event-metadata binding for reset/restart producers, production memfd worker wiring, provider freeze, fault injection, and qualification remain open |
 
 ## Versioned Next Work
 
@@ -192,12 +195,12 @@ Linux 9.8.
    unallocated `v0.2.0` expansion. Do not reopen M0100 for any of them.
 6. M0120/W0122 is Active. The coordinator, memfd/cdev/vfio-user mirrors, typed
    request normalizer, QMP completion ingress helper, vfio-user disconnect
-   handoff, and runtime ingress are recorded, but they do not satisfy the
-   lifecycle Definition of Done; continue with live QMP/socket command
-   transport, remaining reset/restart producer metadata binding, production
-   memfd integration, provider freeze, and qualification while preserving the
-   M0110 root. Resume from
-   [P20260831-029](checkpoints/2026/P20260831-029-m0120-vfio-disconnect-ingress.md).
+   handoff, automatic process ingress, and runtime ingress are recorded, but
+   they do not satisfy the lifecycle Definition of Done; continue with live
+   QMP/socket command transport, reset/restart producer metadata binding,
+   production memfd integration, provider freeze, and qualification while
+   preserving the M0110 root. Resume from
+   [P20260831-030](checkpoints/2026/P20260831-030-m0120-vfio-process-ingress.md).
 7. M0110/W0112 remains Active after the bounded registered-memory stage at
    [P20260831-026](checkpoints/2026/P20260831-026-m0110-registered-memory.md) and
    the backend dispatch seam at
