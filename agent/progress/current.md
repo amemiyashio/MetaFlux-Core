@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-30
 milestone: M0100
 workstream: W0106
-checkpoint: P20260830-005
+checkpoint: P20260830-006
 ---
 
 # Current Progress
@@ -22,6 +22,15 @@ tooling, and historical surfaces plus G001/G003 handoffs. Content revision
 `90c45eda2815c59617fffea581522b7ed6bff1c0` synchronized all 31 authorized
 historical files, completed the terminal summary gate, and preserved the four
 whole-file evidence surfaces. Its history-edit authority is now closed.
+
+[D0026](../memory/decisions-index.md) now defines the proposed replacement of
+the former Distillation promotion model: only durable promotions receive one
+light, medium, or dark semantic-transformation depth, while `session-only`
+remains an independent disposition and `$roast` is explicit-only. Revision
+`21f1d47cd0522682e4047542fc53627bff2967fe` establishes the decision only.
+S0100-20260830-006-project-knowledge-roast owns the pending SC0002
+authorization, implementation, active handoffs, and complete
+evidence-preserving migration.
 
 ## Current Boundary
 
