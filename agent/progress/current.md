@@ -32,6 +32,10 @@ S0100-20260830-006-project-knowledge-roast owns the pending SC0002
 authorization, implementation, active handoffs, and complete
 evidence-preserving migration.
 
+SC0002 is now Active with 68 exact affected surfaces. Guidance G002 and G004
+are published to the two other active owners; protected historical edits remain
+pending until this authorization is committed to `HEAD`.
+
 ## Current Boundary
 
 The M0100 core implementation and its generic release route have recorded

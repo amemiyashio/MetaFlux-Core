@@ -17,3 +17,4 @@ committed to `HEAD`, bound to an in-progress session, can authorize exact
 | ID | Status | Decision | Scope | Updated |
 | --- | --- | --- | --- | --- |
 | [SC0001](SC0001-semantic-change-distillation.md) | Applied | D0025 | semantic-change-distillation | 2026-08-30 |
+| [SC0002](SC0002-project-knowledge-roast.md) | Active | D0026 | project-knowledge-roast | 2026-08-30 |
