@@ -45,3 +45,9 @@ the queried profile, required feature bits, target digest, workgroup limits,
 address-space flags, and subgroup assumptions. It produces stable diagnostics
 for mismatches and unsupported semantics; it does not yet perform MLIR
 conversion or SPIR-V validation.
+
+The runtime also contains a host-independent stream graph planner. It assigns
+monotonic timeline values, preserves same-stream FIFO, requires cross-stream
+waits to be explicit, and validates transfer/compute stage-access masks before
+future `vkQueueSubmit2` submission. It does not claim queue submission,
+pipeline execution, or device timing.

@@ -3,6 +3,7 @@ add_library(
   src/capability.cpp
   src/memory.cpp
   src/target.cpp
+  src/streams.cpp
 )
 add_library(MetaFlux::VulkanBackend ALIAS metaflux_vulkan_backend)
 
@@ -43,5 +44,14 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   set_tests_properties(
     metaflux.backend.vulkan-target-preflight
     PROPERTIES LABELS "backend;vulkan;compiler"
+  )
+
+  add_executable(metaflux_vulkan_streams_test tests/streams_test.cpp)
+  target_link_libraries(metaflux_vulkan_streams_test PRIVATE MetaFlux::VulkanBackend)
+  metaflux_configure_target(metaflux_vulkan_streams_test CXX)
+  add_test(NAME metaflux.backend.vulkan-stream-graph COMMAND metaflux_vulkan_streams_test)
+  set_tests_properties(
+    metaflux.backend.vulkan-stream-graph
+    PROPERTIES LABELS "backend;vulkan;execution"
   )
 endif()
