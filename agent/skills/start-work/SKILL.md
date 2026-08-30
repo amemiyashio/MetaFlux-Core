@@ -59,9 +59,45 @@ cover the complete change.
    separate content/record commits and in close mode for cleanup, progress
    refresh, and final handoff. A read-only task reports its evidence directly.
 
+## Agent Commit Identity
+
+When an agent creates a Git commit, both Git Author and Committer identify the
+active agent harness, not the human identity stored in `.git/config`. This
+applies to content, checkpoint, and closing-record commits. Human-created
+commits outside an agent run are unaffected.
+
+Use the package helper instead of invoking `git commit` directly:
+
+```sh
+python3 agent/skills/start-work/scripts/commit_as_harness.py -- -m "Commit subject"
+```
+
+The helper detects Codex or Claude Code from harness-owned environment signals,
+sets command-local Author and Committer values, and leaves local and global Git
+configuration unchanged. If automatic detection is unavailable, pass the
+actual harness explicitly with `--harness codex` or `--harness claude-code`.
+The stable mappings are `Codex <codex@localhost>` and `Claude Code
+<claude-code@localhost>`.
+Never fall back to a repository user's name or email for an agent-created
+commit. The helper rejects `--author`, `--amend`, and commit-message reuse
+options that could carry another commit's authorship into the new commit.
+
+When an agent operation would normally create a merge, revert, or cherry-pick
+commit, first prepare the result without committing (`git merge --no-commit
+--no-ff`, `git revert --no-commit`, or `git cherry-pick --no-commit`), then
+create the commit through this helper. A fast-forward creates no new commit and
+therefore retains the existing commit's original identity.
+
+After each commit, verify the recorded identity before reporting its revision:
+
+```sh
+git show -s --format='Author: %an <%ae>%nCommitter: %cn <%ce>' HEAD
+```
+
 ## Verification
 
 ```sh
+python3 agent/skills/start-work/scripts/test_commit_as_harness.py
 python3 tools/check-agent-records.py .
 ```
 

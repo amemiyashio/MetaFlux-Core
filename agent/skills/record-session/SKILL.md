@@ -56,6 +56,9 @@ honor an explicit user request to keep work uncommitted.
    focused verification. Stage only that coherent content and create an
    outcome-named Git commit. The pre-commit hook validates the attempt; it does
    not decide when a breakthrough exists or invoke `git commit` itself.
+   In an agent-run session, create every content, checkpoint, and closing-record
+   commit through the [`start-work`](../start-work/SKILL.md) harness-identity
+   helper; human-created commits retain the user's normal Git identity.
 6. After the content commit, append its revision and verification result to the
    active session. Refresh `progress/current.md` and add a compact checkpoint
    only when the commit is also a material handoff boundary. Commit these
