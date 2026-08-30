@@ -26,7 +26,11 @@ retired pair return `MF_SHARED_STALE_HANDLE`; work after a lifecycle loss
 returns `MF_SHARED_DEVICE_LOST`. Socket disconnects mark the local server lost;
 the owning coordinator remains responsible for submitting the normalized loss
 request. The mirror does not add a reset wire message or alter the generated
-vfio-user profile.
+vfio-user profile. After an EOF or socket error, a caller that owns the
+coordinator can use `mark_lost_and_submit` with a captured `Disconnect` event;
+the server marks its local state lost first, then routes the event through the
+stateless ingress. The caller still supplies the logical device, daemon
+incarnation, identity, generation, epoch, and request ID.
 
 `server/qmp_lifecycle.hpp` provides the cold-control QMP command/event
 correlation fixture. It permits one pending command, requires the matching

@@ -66,6 +66,24 @@ void VfioUserServer::mark_lost() noexcept {
   lifecycle_accepting_ = false;
 }
 
+ServerResult
+VfioUserServer::mark_lost_and_submit(const metaflux::runtime::lifecycle::ExternalEvent& event,
+                                     metaflux::runtime::lifecycle::Coordinator& coordinator,
+                                     metaflux::runtime::lifecycle::ResultDetails& out) noexcept {
+  mark_lost();
+  if (event.kind != metaflux::runtime::lifecycle::ExternalEventKind::Disconnect) {
+    out = metaflux::runtime::lifecycle::ResultDetails{};
+    out.result = metaflux::runtime::lifecycle::Result::Invalid;
+    out.snapshot = coordinator.snapshot();
+    return ServerResult::Malformed;
+  }
+  const auto normalized =
+      metaflux::runtime::lifecycle::submit_external_event(coordinator, event, out);
+  return normalized == metaflux::runtime::lifecycle::NormalizationResult::Accepted
+             ? ServerResult::Closed
+             : ServerResult::Malformed;
+}
+
 bool VfioUserServer::dma_lookup(std::uint64_t iova, std::uint64_t size,
                                 std::uint32_t permission) const noexcept {
   if (!lifecycle_online_ || !lifecycle_accepting_ || range_overflows(iova, size)) {

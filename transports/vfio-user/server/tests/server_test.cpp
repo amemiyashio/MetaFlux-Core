@@ -8,7 +8,6 @@
 #include <cstring>
 #include <fcntl.h>
 #include <linux/memfd.h>
-#include <poll.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -212,10 +211,32 @@ int main() {
     close(memfd);
     return 1;
   }
-  struct pollfd probe{sockets[0], POLLIN, 0};
-  const int ready = poll(&probe, 1, 0);
-  close(memfd);
+  const metaflux::runtime::lifecycle::ExternalEvent disconnect{
+      .request_id = 9U,
+      .logical_device_id = 7U,
+      .daemon_incarnation = 11U,
+      .expected_identity_record_id = 2U,
+      .expected_generation = 2U,
+      .expected_epoch = 2U,
+      .kind = metaflux::runtime::lifecycle::ExternalEventKind::Disconnect,
+  };
+  metaflux::runtime::lifecycle::ResultDetails disconnect_details{};
   close(sockets[0]);
+  sockets[0] = -1;
+  if (server.process_once() != metaflux::transport::vfio_user::ServerResult::Closed ||
+      server.state() != metaflux::transport::vfio_user::ServerState::Lost ||
+      server.mark_lost_and_submit(disconnect, coordinator, disconnect_details) !=
+          metaflux::transport::vfio_user::ServerResult::Closed ||
+      disconnect_details.result != metaflux::runtime::lifecycle::Result::Accepted ||
+      disconnect_details.snapshot.state != metaflux::runtime::lifecycle::State::Lost) {
+    close(memfd);
+    close(sockets[1]);
+    return 1;
+  }
+  close(memfd);
+  if (sockets[0] >= 0) {
+    close(sockets[0]);
+  }
   close(sockets[1]);
-  return ready == 0 ? 0 : 1;
+  return 0;
 }

@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <vector>
 
-#include <metaflux/runtime/lifecycle.hpp>
+#include <metaflux/runtime/lifecycle_dispatch.hpp>
 #include <metaflux/transport/generated.h>
 
 namespace metaflux::transport::vfio_user {
@@ -57,6 +57,10 @@ public:
   bool dma_lookup(std::uint64_t iova, std::uint64_t size, std::uint32_t permission) const noexcept;
   [[nodiscard]] bool
   attach_lifecycle(metaflux::runtime::lifecycle::Coordinator& coordinator) noexcept;
+  [[nodiscard]] ServerResult
+  mark_lost_and_submit(const metaflux::runtime::lifecycle::ExternalEvent& event,
+                       metaflux::runtime::lifecycle::Coordinator& coordinator,
+                       metaflux::runtime::lifecycle::ResultDetails& out) noexcept;
   [[nodiscard]] metaflux::runtime::lifecycle::Mirror lifecycle_mirror() noexcept;
   [[nodiscard]] bool lifecycle_online() const noexcept { return lifecycle_online_; }
   [[nodiscard]] std::uint64_t device_generation() const noexcept {
