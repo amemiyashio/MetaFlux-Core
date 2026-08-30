@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0114-20260831-007-transport-fault-qualification",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.1.4",
+  "started_at": "2026-08-31",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0110 transport fault-qualification implementer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0110",
+      "title": "Kernel and Guest Transport",
+      "status": "active",
+      "event_seqs": [1, 2, 3]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0114",
+      "milestone_id": "M0110",
+      "title": "Fault qualification and data-plane v1 freeze",
+      "status": "active"
+    }
+  ],
+  "base_revision": "9fa8344204cd805f6529e8373f262ad9e2e110ea",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

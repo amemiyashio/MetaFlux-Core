@@ -2,16 +2,21 @@
 id: W0114
 delivery: 0.1.1.4
 milestone: M0110
-status: Queued
+status: Active
 area: transport.qualification
 depends_on: [W0112, W0113]
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 
 # Fault Qualification and Data-Plane v1 Freeze
 
 ## Work
 
+- [x] Add a bounded cdev/vfio-user fault matrix for malformed descriptors and
+  worker views, unsupported COPY flags, zero-length COPY, completion
+  backpressure/FIFO retry, malformed packets, stale exact unmap, and DMA
+  address overflow. Keep malformed input recoverable and prevent retired
+  mapping reuse.
 - [ ] Fuzz ioctl, BAR, descriptor, DMA map/unmap, arithmetic, BAR probe/sizing,
   and config-space writable masks.
 - [ ] Verify MSI-X mask/unmask, arm state, coalescing, fd/injection failure, and

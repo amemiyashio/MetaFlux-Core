@@ -1,9 +1,9 @@
 ---
 status: Active
 updated: 2026-08-31
-milestone: M0130
-workstream: W0135
-checkpoint: P20260831-046
+milestone: M0110
+workstream: W0114
+checkpoint: P20260831-047
 ---
 
 # Current Progress
@@ -190,6 +190,8 @@ Linux 9.8.
 | W0113 static vfio-user control fixture | Generated GET_INFO reply, static BAR0/BAR2/BAR4 profile, generation/epoch DMA map ledger, overlap and reset rejection, and `No_reply` unmap passed |
 | W0113 static guest PCI binder | `cb118f1`; Linux 6.18.42 GCC Kbuild built `metaflux_pci.ko`, validating CI VID/DID/class and BAR0/BAR2/BAR4 sizes, mapping BAR0/BAR2, reserving two MSI-X vectors, and reversing teardown |
 | W0113 current boundary | The static PCI resource binder is recorded; pinned QEMU/libvfio-user, BAR doorbell/MSI-X steady state, guest rings/DMA lifetime, Add/Copy path, drain/tombstone faults, and package qualification remain open |
+| W0114 bounded transport fault matrix | `700b7c8`; cdev COPY disposition checks and completion backpressure/FIFO retry, plus vfio-user malformed framing, stale unmap, duplicate-range, and DMA-overflow regressions; focused transport tests 2/2 and full dev CTest 82/82 |
+| W0114 current boundary | Malformed and recoverable userspace/socketpair faults are recorded; kernel ioctl/BAR fuzzing, MSI-X, live DMA/backend references, ownership-death injection, native/compat negotiation, and the base ABI freeze remain open |
 | W0121 lifecycle model | Extension manifest imports the frozen M0110 root by hash; bounded checker passed 949 states/4,012 transitions/326 complete sequences and 15 direct boundary checks, including CUDA/NVML membership, loss, and reinitialization invariants |
 | W0121 fence/telemetry publication model | Separate bounded branch passed 337 states/565 transitions and 6 direct checks for loss-fence precedence, even-latch bank publication, stale `ONLINE` rejection, and bounded reader retry |
 | W0121 lifecycle regression | Lifecycle CTest and tampered-manifest self-test passed 2/2; full dev CTest passed 79/79 |
@@ -332,6 +334,11 @@ Linux 9.8.
     [P20260831-046](checkpoints/2026/P20260831-046-m0130-vulkan-cache-model.md).
     Continue with filesystem/pipeline integration only after preserving the
     deterministic key and live-reference ownership rules.
+14. M0110/W0114 is Active after the bounded transport fault stage at
+    [P20260831-047](checkpoints/2026/P20260831-047-m0110-transport-fault-matrix.md).
+    Continue with kernel/BAR/DMA ownership injection and native/compat
+    qualification; do not claim the transport ABI freeze from userspace
+    socketpair coverage alone.
 
 ## Tool Boundary
 
