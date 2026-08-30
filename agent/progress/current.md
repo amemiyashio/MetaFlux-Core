@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-30
 milestone: M0100
 workstream: W0106
-checkpoint: P20260830-006
+checkpoint: P20260830-007
 ---
 
 # Current Progress
@@ -14,27 +14,18 @@ Active milestone: [M0100](../plan/M0100-core-foundation/plan.md), delivery
 delivery identities follow [D0024](../memory/decisions-index.md).
 
 Repository-wide replacements of established meaning follow
-[D0025](../memory/decisions-index.md). Governance revision
-`1ecdfb01497610c5042e12bda4a16839d2b9c734` adds independent SC records,
-evidence-preserving history synchronization, transient active-session handoff,
-and staged/HEAD machine gates. Applied SC0001 enumerates 75 exact current,
-tooling, and historical surfaces plus G001/G003 handoffs. Content revision
-`90c45eda2815c59617fffea581522b7ed6bff1c0` synchronized all 31 authorized
-historical files, completed the terminal summary gate, and preserved the four
-whole-file evidence surfaces. Its history-edit authority is now closed.
+[D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
+migration; SC0002 replaces only its pre-D0026 promotion-model consequence.
+Neither record is an active history-edit permit.
 
-[D0026](../memory/decisions-index.md) now defines the proposed replacement of
-the pre-D0026 promotion model: only durable promotions receive one
-light, medium, or dark semantic-transformation depth, while `session-only`
-remains an independent disposition and `$roast` is explicit-only. Revision
-`21f1d47cd0522682e4047542fc53627bff2967fe` establishes the decision only.
-S0100-20260830-006-project-knowledge-roast owns the pending SC0002
-authorization, implementation, active handoffs, and complete
-evidence-preserving migration.
-
-SC0002 is now Active with 68 exact affected surfaces. Guidance G002 and G004
-are published to the two other active owners; protected historical edits remain
-pending until this authorization is committed to `HEAD`.
+[D0026](../memory/decisions-index.md) defines the Verified replacement: only
+materially promoted durable claims receive one light, medium, or dark semantic
+transformation depth, while `session-only` remains an independent disposition
+and `$roast` is explicit-only. Applied SC0002 binds the 68-surface migration to
+content revision `991e5327c8a3b1f5d05112f895011f8d83f0bff0`: 58 surfaces were
+migrated, three obsolete skill-package paths were removed, and seven evidence
+files were retained byte-for-byte. Guidance G002/G004 were adopted by their
+target-session owners and both inboxes are empty.
 
 ## Current Boundary
 
@@ -72,6 +63,7 @@ performance targets provisional and uses AMD x86_64 as its reference host.
 | Signed target SDK provenance | Passed for snapshot `20260820T000000Z`, two signed releases, three indexes, and ten packages |
 | D0024 migration verification | Dev build and CTest 63/63; Agent records 111/111; guidance 17/17; routing 68 cases and 23/23 self-tests; 18 skills valid |
 | D0025 migration verification | Architecture CTest 6/6; Agent records 136/136; semantic edits 21/21; guidance 17/17; routing 81 cases and 34/34 self-tests; two workflow skills valid |
+| D0026 migration verification | Architecture CTest 6/6; Agent records 163/163 plus repository 27 sessions/210 events/205 Markdown; semantic edits 21/21; guidance 20/20; routing 82 cases and 34/34 self-tests; roast package and independent A-E forward review passed |
 
 The generic release entry point is checked in at
 `tools/build-generic-release.sh` with the CMake-owned Ubuntu 20.04 target tuple.
@@ -83,11 +75,11 @@ Linux 9.8.
 
 ## Versioned Next Work
 
-1. The foundation owner processes G001 at its next control boundary. The M0100
-   completion owner processes G002 before G003, then reconciles its compact
-   session record with D0024/D0025.
+1. The foundation and completion sessions now use the D0026 terminal-summary
+   contract and have empty guidance inboxes; their owners can complete their own
+   final cleanup and lifecycle closure.
 2. Close `v0.1.0` only from a verified Git revision after the remaining active
-   session records and transient guidance are resolved by their owners.
+   session records are closed by their owners.
 3. New work uses an explicit four-part delivery coordinate and the derived
    M/W/S identity; no pre-D0024 alias is accepted.
 4. Schedule Intel host, physical NVIDIA binding performance, and native NixOS

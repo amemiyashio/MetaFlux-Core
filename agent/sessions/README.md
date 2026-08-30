@@ -82,7 +82,7 @@ copies canonical content.
 | [S0100-20260830-003-session-guidance-loop](2026/08/S0100-20260830-003-session-guidance-loop/summary.md) | 2026-08-30 | Exact | Complete | Session-local specialist guidance with validated disposition and transient cleanup |
 | [S0100-20260830-004-semantic-version-line](2026/08/S0100-20260830-004-semantic-version-line/summary.md) | 2026-08-30 | Exact | Complete | Product SemVer, derived M/W/S identities, 25-session migration, and v0.2.0 qualification boundary |
 | [S0100-20260830-005-semantic-change-distillation](2026/08/S0100-20260830-005-semantic-change-distillation/summary.md) | 2026-08-30 | Exact | Complete | D0025 governance and SC0001 evidence-preserving prior promotion-model migration applied |
-| [S0100-20260830-006-project-knowledge-roast](2026/08/S0100-20260830-006-project-knowledge-roast/summary.md) | 2026-08-30 | Exact | In progress | D0026/SC0002 migration to explicit project-knowledge roast semantics |
+| [S0100-20260830-006-project-knowledge-roast](2026/08/S0100-20260830-006-project-knowledge-roast/summary.md) | 2026-08-30 | Exact | Complete | D0026/SC0002 migration to explicit-only roast semantics and independent session-only disposition |
 
 ## Fidelity and retention
 
