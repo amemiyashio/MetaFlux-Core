@@ -4,6 +4,7 @@ option(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER "Build the CUDA Driver ABI provider f
 option(METAFLUX_BUILD_NVML_PROVIDER "Build the NVML provider fixture" ON)
 option(METAFLUX_BUILD_CUDA_PTX_FRONTEND "Build the CUDA PTX compiler frontend fixture" ON)
 option(METAFLUX_BUILD_DAEMON "Build the MetaFlux daemon fixture" ON)
+option(METAFLUX_BUILD_MEMFD_TRANSPORT "Build the local memfd transport halves" ON)
 option(METAFLUX_BUILD_CDEV_TRANSPORT "Build the local cdev transport halves" ON)
 option(METAFLUX_BUILD_VFIO_USER_TRANSPORT "Build the static vfio-user transport halves" ON)
 option(METAFLUX_BUILD_COMPILER "Build the compiler core fixture" ON)
@@ -84,6 +85,10 @@ set(
 )
 if(METAFLUX_BUILD_DAEMON AND NOT METAFLUX_BUILD_RUNTIME_CORE)
   message(FATAL_ERROR "METAFLUX_BUILD_DAEMON requires METAFLUX_BUILD_RUNTIME_CORE")
+endif()
+
+if(METAFLUX_BUILD_MEMFD_TRANSPORT AND NOT METAFLUX_BUILD_CLIENT_FASTPATH)
+  message(FATAL_ERROR "METAFLUX_BUILD_MEMFD_TRANSPORT requires METAFLUX_BUILD_CLIENT_FASTPATH")
 endif()
 
 if(METAFLUX_BUILD_DAEMON AND NOT METAFLUX_BUILD_COMPILER)

@@ -60,6 +60,10 @@ only.
   coordinator. Their steady-state protocol records remain unchanged; cdev
   drains published descriptors and rejects retired generations, while vfio-user
   gates DMA work and rejects stale generation/epoch pairs.
+- [x] Connect the memfd fallback worker mirror to the coordinator. The existing
+  C17 fast path remains the client half; the C++ adapter rejects stale
+  generations, blocks submissions while quiescing, drains in-flight work, and
+  retains a local lost/absent tombstone without allocating replacement identity.
 - [ ] Integrate every reset/disconnect/restart source and inject failure at each
   staging, commit, DMA, completion, and teardown step.
 - [ ] Verify provider enumeration freeze before, during, and after replacement.
@@ -89,10 +93,13 @@ The focused unit gate is
 `metaflux.unit.runtime-lifecycle`. It covers all three mirror registrations,
 duplicate/conflicting request IDs, stale generations, pre-commit candidate
 consumption, transport-loss recovery, partial commit, remove/add, and checked
-generation/epoch exhaustion. This stage is a preparation for the real adapter
-and qualification work below; it does not claim those gates complete. The cdev
-and vfio-user transport tests additionally exercise reset/loss callbacks and
-retired-generation rejection at their protocol boundaries.
+generation/epoch exhaustion. The memfd worker gate
+`metaflux.transport.memfd-worker` adds failed-drain recovery, stale-generation
+submission rejection, transport-loss recovery, and remove/add tombstone checks.
+This stage is a preparation for the real adapter and qualification work below;
+it does not claim those gates complete. The cdev and vfio-user transport tests
+additionally exercise reset/loss callbacks and retired-generation rejection at
+their protocol boundaries.
 
 ## Exit Gate
 
