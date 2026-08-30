@@ -144,6 +144,9 @@ Implemented stage:
 - [x] Define a vfio-user QMP command/event correlation fixture. It emits a
   normalized add/remove request only after the matching event and maps a failed
   remove to QMP transport loss; live QMP socket integration remains open.
+- [x] Provide one runtime ingress for external events. It normalizes and submits
+  only accepted requests to the Coordinator, preserving the captured identity
+  tuple and leaving source-specific producer capture to the adapters.
 - [ ] Implement the canonical model, versioned bounds, deterministic checker, and
   machine-readable evidence contract; run the exact root command above.
 - [ ] Model provider removal/re-add with one `registry_view_id`, initialized CUDA,

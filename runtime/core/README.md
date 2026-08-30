@@ -13,8 +13,11 @@ admin add/remove/reset, VFIO-user reset, QMP add/remove, disconnect, and daemon
 restart to the existing `Request` source/operation pair. It validates the
 request envelope and returns an unsupported result for unknown event kinds. The
 normalizer has no state and does not reserve candidates, advance epochs, or
-publish lifecycle state; callers still submit the resulting request to the
-Coordinator.
+publish lifecycle state. `lifecycle_dispatch.hpp` provides the single ingress
+function that normalizes an event and submits only the resulting request to the
+Coordinator; malformed or unknown events stop before authority state is
+changed. Source-specific producers still own capture of the request,
+identity, generation, epoch, daemon, and deadline tuple.
 
 Transport implementations register at most one bounded `Mirror` for each of
 `memfd`, `cdev`, and `vfio-user`. The coordinator invokes all registered mirrors

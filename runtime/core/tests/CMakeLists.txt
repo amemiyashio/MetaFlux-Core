@@ -129,6 +129,21 @@ set_tests_properties(
   PROPERTIES LABELS "abi;lifecycle;unit" TIMEOUT 60
 )
 
+add_executable(metaflux_runtime_lifecycle_dispatch_test lifecycle_dispatch.cpp)
+target_link_libraries(
+  metaflux_runtime_lifecycle_dispatch_test
+  PRIVATE MetaFlux::RuntimeCore
+)
+metaflux_configure_target(metaflux_runtime_lifecycle_dispatch_test CXX)
+add_test(
+  NAME metaflux.unit.runtime-lifecycle-dispatch
+  COMMAND metaflux_runtime_lifecycle_dispatch_test
+)
+set_tests_properties(
+  metaflux.unit.runtime-lifecycle-dispatch
+  PROPERTIES LABELS "abi;lifecycle;unit" TIMEOUT 60
+)
+
 add_executable(metaflux_runtime_host_fixture_test host_fixture_test.cpp)
 target_link_libraries(
   metaflux_runtime_host_fixture_test
