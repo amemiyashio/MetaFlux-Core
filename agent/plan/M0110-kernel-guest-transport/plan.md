@@ -2,7 +2,7 @@
 id: M0110
 delivery: 0.1.1.0
 release: v0.1.1
-status: Queued
+status: Active
 depends_on: [M0100]
 areas: [kernel.core, kernel.pci, transport.cdev, transport.vfio-user]
 updated: 2026-08-30

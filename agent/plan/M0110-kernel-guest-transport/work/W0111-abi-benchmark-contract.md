@@ -2,7 +2,7 @@
 id: W0111
 delivery: 0.1.1.1
 milestone: M0110
-status: Queued
+status: Active
 area: transport.contracts
 depends_on: [M0100]
 updated: 2026-08-30
