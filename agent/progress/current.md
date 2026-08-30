@@ -3,7 +3,7 @@ status: Complete
 updated: 2026-08-30
 milestone: M0100
 workstream: W0106
-checkpoint: P20260830-012
+checkpoint: P20260830-013
 ---
 
 # Current Progress
@@ -16,7 +16,8 @@ Both foundation and completion sessions are terminal.
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
 migration; SC0002 replaces only its pre-D0026 promotion-model consequence.
-Neither record is an active history-edit permit.
+SC0005 is Applied for the M0100 closure-record correction. None is an active
+history-edit permit.
 
 [D0026](../memory/decisions-index.md) defines the Verified replacement: only
 materially promoted durable claims receive one light, medium, or dark semantic
@@ -39,8 +40,8 @@ path end to end while leaving the repository-local human identity unchanged;
 `record-session` routes content, checkpoint, and closing-record commits through
 the same command-local mechanism. Five later M0100 closure commits intended the
 `zcode` harness subject but their immutable Git objects record
-`amamiya <amamiya@localhost>` for both roles. SC0005 preserves the intended and
-actual identities separately instead of rewriting history.
+`amamiya <amamiya@localhost>` for both roles. Applied SC0005 and P013 preserve
+the intended and actual identities separately instead of rewriting history.
 
 ## Current Boundary
 
@@ -88,6 +89,7 @@ performance targets provisional and uses AMD x86_64 as its reference host.
 | D0026 migration verification | Architecture CTest 6/6; Agent records 163/163 plus repository 27 sessions/210 events/205 Markdown; semantic edits 21/21; guidance 20/20; routing 82 cases and 34/34 self-tests; roast package and independent A-E forward review passed |
 | D0027 migration verification | Architecture CTest 6/6; Agent validator 163/163 plus repository 28 sessions/215 events/213 Markdown at record closure; semantic edits 21/21; guidance 20/20; protected evidence and residual scans passed |
 | Agent harness commit identity | Isolated forward test 7/7; both workflow skills valid; real content commit `ded1dad` records Codex as Author and Committer while local Git configuration remains `amamiya` |
+| M0100 closure consistency | Record correction `1812617`; candidate-index gates `4d1ff2b` / `9586b45`; Agent records 31 sessions / 242 events / 226 Markdown; self-test 169/169; architecture 6/6; semantic edits 21/21 |
 
 The generic release entry point is checked in at
 `tools/build-generic-release.sh` with the CMake-owned Ubuntu 20.04 target tuple.
@@ -100,7 +102,7 @@ Linux 9.8.
 ## Versioned Next Work
 
 1. M0100, its foundation session, and its completion session are terminal; the
-   additive SC0005 record correction does not reopen product scope or lifecycle.
+   Applied SC0005 record correction does not reopen product scope or lifecycle.
 2. Start new product implementation only under its allocated delivery and
    milestone. M0100 has no remaining closure action.
 3. New work uses an explicit four-part delivery coordinate and the derived
