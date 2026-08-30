@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "S1000-20260830-007-v100-qualification-boundary",
+  "repository": "MetaFlux-Core",
+  "delivery": "1.0.0.0",
+  "started_at": "2026-08-30",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "v1.0 qualification-boundary semantic migration owner"
+    }
+  ],
+  "milestones": [],
+  "work_items": [],
+  "base_revision": "9bb01ded11b8625df44f372ff899634e12bd7870",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
