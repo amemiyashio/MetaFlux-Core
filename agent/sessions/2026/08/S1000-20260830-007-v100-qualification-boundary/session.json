@@ -4,9 +4,9 @@
   "repository": "MetaFlux-Core",
   "delivery": "1.0.0.0",
   "started_at": "2026-08-30",
-  "ended_at": null,
+  "ended_at": "2026-08-30",
   "time_precision": "date",
-  "status": "in_progress",
+  "status": "complete",
   "fidelity": "exact",
   "agents": [
     {
@@ -19,7 +19,7 @@
       "id": "M1000",
       "title": "Stable Host and Binding Qualification",
       "status": "queued",
-      "event_seqs": [1, 2]
+      "event_seqs": [1, 2, 3]
     }
   ],
   "work_items": [
@@ -43,7 +43,7 @@
     }
   ],
   "base_revision": "9bb01ded11b8625df44f372ff899634e12bd7870",
-  "final_revision": null,
+  "final_revision": "d9c67e47eff7ae17a4b6404412c946c81544afe2",
   "event_log": "events.jsonl",
   "summary": "summary.md",
   "notes": "notes.md"

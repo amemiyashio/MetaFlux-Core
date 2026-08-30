@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-30
 milestone: M0100
 workstream: W0106
-checkpoint: P20260830-007
+checkpoint: P20260830-008
 ---
 
 # Current Progress
@@ -26,6 +26,12 @@ content revision `991e5327c8a3b1f5d05112f895011f8d83f0bff0`: 58 surfaces were
 migrated, three obsolete skill-package paths were removed, and seven evidence
 files were retained byte-for-byte. Guidance G002/G004 were adopted by their
 target-session owners and both inboxes are empty.
+
+[D0027](../memory/decisions-index.md) and Applied SC0003 now bind Intel x86_64
+support qualification plus physical NVIDIA binding-performance promotion to
+M1000 / `v1.0.0`. Native NixOS VM/package qualification remains in the
+unallocated `v0.2.0` line. G003/G005 were adopted once by their target owners
+and their transient packets were removed.
 
 ## Current Boundary
 
@@ -67,6 +73,7 @@ performance targets provisional and uses AMD x86_64 as its reference host.
 | D0024 migration verification | Dev build and CTest 63/63; Agent records 111/111; guidance 17/17; routing 68 cases and 23/23 self-tests; 18 skills valid |
 | D0025 migration verification | Architecture CTest 6/6; Agent records 136/136; semantic edits 21/21; guidance 17/17; routing 81 cases and 34/34 self-tests; two workflow skills valid |
 | D0026 migration verification | Architecture CTest 6/6; Agent records 163/163 plus repository 27 sessions/210 events/205 Markdown; semantic edits 21/21; guidance 20/20; routing 82 cases and 34/34 self-tests; roast package and independent A-E forward review passed |
+| D0027 migration verification | Architecture CTest 6/6; Agent validator 163/163 plus repository 28 sessions/215 events/213 Markdown at record closure; semantic edits 21/21; guidance 20/20; protected evidence and residual scans passed |
 
 The generic release entry point is checked in at
 `tools/build-generic-release.sh` with the CMake-owned Ubuntu 20.04 target tuple.

@@ -83,7 +83,7 @@ copies canonical content.
 | [S0100-20260830-004-semantic-version-line](2026/08/S0100-20260830-004-semantic-version-line/summary.md) | 2026-08-30 | Exact | Complete | Product SemVer, derived M/W/S identities, 25-session migration, and its capture-time v0.2.0 qualification boundary later split by D0027/SC0003 |
 | [S0100-20260830-005-semantic-change-distillation](2026/08/S0100-20260830-005-semantic-change-distillation/summary.md) | 2026-08-30 | Exact | Complete | D0025 governance and SC0001 evidence-preserving prior promotion-model migration applied |
 | [S0100-20260830-006-project-knowledge-roast](2026/08/S0100-20260830-006-project-knowledge-roast/summary.md) | 2026-08-30 | Exact | Complete | D0026/SC0002 migration to explicit-only roast semantics and independent session-only disposition |
-| [S1000-20260830-007-v100-qualification-boundary](2026/08/S1000-20260830-007-v100-qualification-boundary/summary.md) | 2026-08-30 | Exact | In progress | Move Intel and physical NVIDIA binding qualification to the explicit v1.0.0 boundary |
+| [S1000-20260830-007-v100-qualification-boundary](2026/08/S1000-20260830-007-v100-qualification-boundary/summary.md) | 2026-08-30 | Exact | Complete | Applied D0027/SC0003 and moved Intel plus physical NVIDIA binding qualification to v1.0.0 |
 
 ## Fidelity and retention
 

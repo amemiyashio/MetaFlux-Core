@@ -4,7 +4,7 @@
 checkpoints are protected and grouped by year under `checkpoints/YYYY/`.
 
 Latest checkpoint:
-[P20260830-007](checkpoints/2026/P20260830-007-project-knowledge-roast-applied.md).
+[P20260830-008](checkpoints/2026/P20260830-008-v100-qualification-boundary-applied.md).
 
 A checkpoint records observed state and verification evidence; it is not a Git
 revision unless its metadata names one. Create a checkpoint at a material
