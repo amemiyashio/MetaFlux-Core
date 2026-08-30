@@ -71,7 +71,7 @@ unallocated `v0.2.0` expansion. No missing hardware evidence became a pass.
 | Command/gate | Result |
 |---|---|
 | Dev CTest | 64/64 pass |
-| Agent records | ok (26 sessions, 201 events) |
+| Agent records | ok (30 sessions, 236 events) |
 | PGO training + USE build | 135 commands, status=pass |
 | O2/O3 variant | 28 commands, status=pass |
 | ASan/UBSan hardening | 121 commands, status=pass |
@@ -84,12 +84,21 @@ unallocated `v0.2.0` expansion. No missing hardware evidence became a pass.
 | G003 guidance disposition | adopted |
 | G004 guidance disposition | adopted |
 | G005 guidance disposition | adopted |
+| G006 guidance disposition | adopted (final revision qualification) |
+| G007 guidance disposition | adapted (superseded by G008) |
+| G008 guidance disposition | adopted (D0028 self-declared harness) |
+| G009 guidance disposition | adopted (premature closure, superseded by G010) |
+| G010 guidance disposition | adopted (corrected closure, P012, SC sync) |
 
 ## Cleanup
 
-- Removed: G001-G005 guidance packets (resolved),
-  `/tmp/metaflux-pgo-evidence-1` through `-9` (superseded).
-- Retained: latest PGO evidence, package artifacts, acceptance build tree.
+- Removed: G001-G010 guidance packets (resolved), `/tmp/metaflux-pgo-evidence-1`
+  through `-9` (superseded).
+- Retained: `/tmp/metaflux-g006-packages/` (DEB, RPM, tar), release matrix
+  evidence at `/tmp/metaflux-g006-matrix/`, provenance evidence at
+  `/tmp/metaflux-provenance-evidence/`, acceptance build tree at
+  `.metaflux-build/MetaFlux-Core/g006-acceptance/`.
+- P010 and P011 preserved as historical evidence; P012 is the additive correction.
 
 ## Decisions and experience
 
@@ -108,6 +117,15 @@ unallocated `v0.2.0` expansion. No missing hardware evidence became a pass.
   shape and kept `session-only` independent.
 - G005: adopted — D0027 supersedes only G002's future Intel/physical-NVIDIA
   destination; G002's historical disposition and all recorded results remain.
+- G006: adopted — final revision qualification; Git identity in manifests, two
+  independent rebuilds byte-for-byte identical, W0102 stress item checked,
+  complete D0012 matrix 8/8 pass on new revision.
+- G007: adapted — superseded by G008 per its supersedes field.
+- G008: adopted — D0028 self-declared harness identity.
+- G009: adopted — premature M0100 closure corrected; superseded by G010.
+- G010: adopted — M0100 surfaces synchronized, P012 appended, sessions terminal,
+  SC0001/SC0004 handoff rows Resolved. Closure order note: SC handoff was updated
+  after session close due to SC immutability constraint; final state is correct.
 
 ## Unresolved items
 

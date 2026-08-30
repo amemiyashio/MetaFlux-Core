@@ -7,7 +7,7 @@ arbitrary serials.
 
 | Milestone | Delivery | Release | Status | Goal |
 | --- | --- | --- | --- | --- |
-| [M0100](M0100-core-foundation/plan.md) | 0.1.0.0 | v0.1.0 | Active | CPU-backed CUDA/NVML core foundation |
+| [M0100](M0100-core-foundation/plan.md) | 0.1.0.0 | v0.1.0 | Complete | CPU-backed CUDA/NVML core foundation |
 | [M0110](M0110-kernel-guest-transport/plan.md) | 0.1.1.0 | v0.1.1 | Queued | Local cdev and static guest transport |
 | [M0120](M0120-vpci-lifecycle/plan.md) | 0.1.2.0 | v0.1.2 | Queued | Lifecycle and experimental vPCI presentation |
 | [M0130](M0130-vulkan-backend/plan.md) | 0.1.3.0 | v0.1.3 | Queued | Vulkan execution backend |

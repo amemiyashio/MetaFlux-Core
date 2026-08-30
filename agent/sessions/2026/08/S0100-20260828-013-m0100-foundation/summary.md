@@ -113,8 +113,9 @@ implementation checkpoint. G006 supersedes the missing G001/G005 handoffs.
 ## Unresolved items
 
 - Current M0100 gate and lifecycle state is owned by `agent/progress/current.md`
-  and the active completion session; this implementation checkpoint remains
-  evidence for its named revision rather than release certification.
+  and the now-terminal completion session `S0100-20260830-001`; this
+  implementation checkpoint remains evidence for its named revision rather than
+  release certification.
 - Intel x86_64 support and physical NVIDIA binding-performance qualification
   are queued under M1000 / `v1.0.0`; native NixOS VM/package qualification
   remains the unallocated `v0.2.0` expansion. None reopens M0100.

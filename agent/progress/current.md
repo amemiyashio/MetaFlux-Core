@@ -8,10 +8,10 @@ checkpoint: P20260830-012
 
 # Current Progress
 
-Active milestone: [M0100](../plan/M0100-core-foundation/plan.md), delivery
-`0.1.0.0`, product release `v0.1.0`. Active workstream:
-[W0106](../plan/M0100-core-foundation/work/W0106-modes-release.md). Product and
-delivery identities follow [D0024](../memory/decisions-index.md).
+Completed milestone: [M0100](../plan/M0100-core-foundation/plan.md), delivery
+`0.1.0.0`, product release `v0.1.0`. All workstreams W0101-W0106 are Complete.
+Product and delivery identities follow [D0024](../memory/decisions-index.md).
+Both foundation and completion sessions are terminal.
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
