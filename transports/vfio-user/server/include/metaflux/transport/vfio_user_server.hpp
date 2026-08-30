@@ -52,6 +52,10 @@ public:
   VfioUserServer& operator=(const VfioUserServer&) = delete;
 
   ServerResult process_once() noexcept;
+  [[nodiscard]] ServerResult
+  process_once(metaflux::runtime::lifecycle::Coordinator& coordinator,
+               const metaflux::runtime::lifecycle::ExternalEvent& disconnect_event,
+               metaflux::runtime::lifecycle::ResultDetails& out) noexcept;
   ServerState state() const noexcept { return state_; }
   std::size_t mapping_count() const noexcept { return mappings_.size(); }
   bool dma_lookup(std::uint64_t iova, std::uint64_t size, std::uint32_t permission) const noexcept;

@@ -223,10 +223,9 @@ int main() {
   metaflux::runtime::lifecycle::ResultDetails disconnect_details{};
   close(sockets[0]);
   sockets[0] = -1;
-  if (server.process_once() != metaflux::transport::vfio_user::ServerResult::Closed ||
-      server.state() != metaflux::transport::vfio_user::ServerState::Lost ||
-      server.mark_lost_and_submit(disconnect, coordinator, disconnect_details) !=
+  if (server.process_once(coordinator, disconnect, disconnect_details) !=
           metaflux::transport::vfio_user::ServerResult::Closed ||
+      server.state() != metaflux::transport::vfio_user::ServerState::Lost ||
       disconnect_details.result != metaflux::runtime::lifecycle::Result::Accepted ||
       disconnect_details.snapshot.state != metaflux::runtime::lifecycle::State::Lost) {
     close(memfd);

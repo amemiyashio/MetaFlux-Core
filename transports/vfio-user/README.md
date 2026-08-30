@@ -30,7 +30,9 @@ vfio-user profile. After an EOF or socket error, a caller that owns the
 coordinator can use `mark_lost_and_submit` with a captured `Disconnect` event;
 the server marks its local state lost first, then routes the event through the
 stateless ingress. The caller still supplies the logical device, daemon
-incarnation, identity, generation, epoch, and request ID.
+incarnation, identity, generation, epoch, and request ID. The three-argument
+`process_once` overload combines EOF/error detection with that handoff; normal
+messages retain the original `ServerResult` and do not submit a lifecycle event.
 
 `server/qmp_lifecycle.hpp` provides the cold-control QMP command/event
 correlation fixture. It permits one pending command, requires the matching

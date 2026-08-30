@@ -360,6 +360,18 @@ ServerResult VfioUserServer::process_once() noexcept {
                         (header.flags & MF_TRANSPORT_FLAG_NO_REPLY_V0) != 0U);
 }
 
+ServerResult
+VfioUserServer::process_once(metaflux::runtime::lifecycle::Coordinator& coordinator,
+                             const metaflux::runtime::lifecycle::ExternalEvent& disconnect_event,
+                             metaflux::runtime::lifecycle::ResultDetails& out) noexcept {
+  out = metaflux::runtime::lifecycle::ResultDetails{};
+  const ServerResult result = process_once();
+  if (result != ServerResult::Closed) {
+    return result;
+  }
+  return mark_lost_and_submit(disconnect_event, coordinator, out);
+}
+
 bool VfioUserServer::drain_lifecycle() noexcept { return mappings_.empty(); }
 
 bool VfioUserServer::lifecycle_prepare(
