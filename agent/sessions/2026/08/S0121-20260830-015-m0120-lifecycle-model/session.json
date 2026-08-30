@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0121-20260830-015-m0120-lifecycle-model",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.2.1",
+  "started_at": "2026-08-30",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0120 W0121 lifecycle model implementer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0120",
+      "title": "Lifecycle and vPCI Presentation",
+      "status": "active",
+      "event_seqs": [1, 2, 3, 4]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0121",
+      "milestone_id": "M0120",
+      "title": "Lifecycle model and ABI 0.x",
+      "status": "active"
+    }
+  ],
+  "base_revision": "41ec44d144bd136d21b73a3e89721dc719cbaa05",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

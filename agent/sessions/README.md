@@ -91,6 +91,7 @@ copies canonical content.
 | [S0111-20260830-012-m0110-abi-contract](2026/08/S0111-20260830-012-m0110-abi-contract/summary.md) | 2026-08-30 | Exact | Complete | W0111 candidate transport ABI schema and deterministic C/C++ projections |
 | [S0112-20260830-013-m0110-local-cdev](2026/08/S0112-20260830-013-m0110-local-cdev/summary.md) | 2026-08-30 | Exact | In progress | W0112 cdev client/worker and GCC Kbuild broker stage; ownership and fault gates remain |
 | [S0113-20260830-014-m0110-static-vfio-user](2026/08/S0113-20260830-014-m0110-static-vfio-user/summary.md) | 2026-08-30 | Exact | In progress | W0113 generated vfio-user control plane, static BAR profile, and generation/epoch DMA mapping fixture; data-plane gates remain |
+| [S0121-20260830-015-m0120-lifecycle-model](2026/08/S0121-20260830-015-m0120-lifecycle-model/summary.md) | 2026-08-30 | Exact | In progress | W0121 lifecycle extension, deterministic generation/epoch model checker, and 74/74 dev regression; lifecycle adapters remain |
 
 ## Fidelity and retention
 

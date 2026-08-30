@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-30
 milestone: M0110
-workstream: W0113
-checkpoint: P20260830-017
+workstream: W0121
+checkpoint: P20260830-018
 ---
 
 # Current Progress
@@ -25,6 +25,8 @@ local/guest negotiation slices. W0112 is Active with its first local cdev stage
 recorded at [P20260830-016](checkpoints/2026/P20260830-016-m0110-local-cdev.md).
 W0113 is Active with its static vfio-user control-plane stage recorded at
 [P20260830-017](checkpoints/2026/P20260830-017-m0110-static-vfio-user.md).
+M0120 is now Active for its lifecycle model preparation; W0121's model stage is
+recorded at [P20260830-018](checkpoints/2026/P20260830-018-m0120-lifecycle-model.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -125,6 +127,9 @@ Linux 9.8.
 | W0113 focused transport tests | Schema, cdev, guest, and server tests passed 7/7; full dev CTest passed 72/72 |
 | W0113 static vfio-user control fixture | Generated GET_INFO reply, static BAR0/BAR2/BAR4 profile, generation/epoch DMA map ledger, overlap and reset rejection, and `No_reply` unmap passed |
 | W0113 current boundary | Guest `metaflux_pci.ko`, pinned QEMU/libvfio-user, BAR doorbell/MSI-X steady state, Add/Copy path, drain/tombstone faults, and package qualification remain open |
+| W0121 lifecycle model | Extension manifest imports the frozen M0110 root by hash; bounded checker passed 949 states/4,012 transitions/326 complete sequences and 13 direct boundary checks |
+| W0121 lifecycle regression | Lifecycle CTest and tampered-manifest self-test passed 2/2; full dev CTest passed 74/74 |
+| W0121 current boundary | Existing transport lifecycle adapters, QMP/vPCI integration, 1,000-cycle fault qualification, provider-view integration, and lifecycle ABI freeze remain open |
 
 ## Versioned Next Work
 
@@ -145,6 +150,9 @@ Linux 9.8.
 5. Schedule Intel x86_64 support and physical NVIDIA binding performance under
    M1000 / `v1.0.0`; keep native NixOS VM/package qualification in the
    unallocated `v0.2.0` expansion. Do not reopen M0100 for any of them.
+6. M0120/W0121 model preparation is Active but does not satisfy the M0110
+   dependency or lifecycle Definition of Done; continue through W0122 only
+   after its adapters consume the canonical model and preserve the M0110 root.
 
 ## Tool Boundary
 
