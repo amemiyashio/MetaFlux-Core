@@ -499,7 +499,7 @@ through their C entrypoint/function table.
   or late work.
 - [x] Implement per-context rings, timeline completion, doorbell, and blocking
   futex/eventfd fallback.
-- [ ] Stress process death, generation replacement, shortened identity/generation
+- [x] Stress process death, generation replacement, shortened identity/generation
   and epoch exhaustion with no wrap or alias, shortened lifecycle-sequence FIFO
   reservations, head blocking, loss-triggered close, suffix retirement, abort
   compensation, owner/lease-holder death at every lease state, half-publication
