@@ -377,15 +377,32 @@ def assert_snapshot(snapshot: Snapshot, bounds: dict[str, Any]) -> None:
         raise ModelError("retired generation lost its tombstone")
     if snapshot.state == "LOST" and snapshot.generation not in snapshot.tombstones:
         raise ModelError("lost generation did not retain a tombstone")
-    if snapshot.cuda_initialized and snapshot.generation > 0 and snapshot.generation not in snapshot.cuda_membership:
-        if snapshot.generation in snapshot.cuda_membership:
-            raise ModelError("unreachable CUDA membership check")
-    if snapshot.cuda_initialized and snapshot.generation in snapshot.cuda_membership and snapshot.state == "LOST":
-        if snapshot.generation not in snapshot.cuda_lost:
-            raise ModelError("CUDA loss did not update the frozen entry")
-    if snapshot.nvml_initialized and snapshot.generation in snapshot.nvml_membership and snapshot.state == "LOST":
-        if snapshot.generation not in snapshot.nvml_lost:
-            raise ModelError("NVML loss did not update the frozen entry")
+    if not snapshot.cuda_initialized:
+        if snapshot.cuda_membership or snapshot.cuda_lost:
+            raise ModelError("CUDA view has state before initialization")
+    else:
+        if not set(snapshot.cuda_membership).issubset(set(snapshot.committed)):
+            raise ModelError("CUDA membership references an uncommitted generation")
+        for generation in snapshot.cuda_membership:
+            if generation in snapshot.retired or (
+                generation == snapshot.generation and snapshot.state == "LOST"
+            ):
+                if generation not in snapshot.cuda_lost:
+                    raise ModelError("CUDA loss did not update the frozen entry")
+    if not snapshot.nvml_initialized:
+        if snapshot.nvml_membership or snapshot.nvml_lost or snapshot.nvml_init_epoch != 0:
+            raise ModelError("NVML view has state before initialization")
+    else:
+        if snapshot.nvml_init_epoch <= 0:
+            raise ModelError("initialized NVML view has no initialization epoch")
+        if not set(snapshot.nvml_membership).issubset(set(snapshot.committed)):
+            raise ModelError("NVML membership references an uncommitted generation")
+        for generation in snapshot.nvml_membership:
+            if generation in snapshot.retired or (
+                generation == snapshot.generation and snapshot.state == "LOST"
+            ):
+                if generation not in snapshot.nvml_lost:
+                    raise ModelError("NVML loss did not update the frozen entry")
     if set(snapshot.cuda_lost).difference(snapshot.cuda_membership):
         raise ModelError("CUDA loss references a non-member")
     if set(snapshot.nvml_lost).difference(snapshot.nvml_membership):
@@ -488,9 +505,16 @@ def direct_scenarios(bounds: dict[str, Any]) -> int:
     frozen = apply_view(replaced, "capture_cuda")
     if frozen.cuda_membership != (1,) or 1 not in frozen.cuda_lost:
         raise ModelError("initialized CUDA view admitted a replacement or missed loss")
+    if frozen.nvml_membership != (1,) or 1 not in frozen.nvml_lost:
+        raise ModelError("initialized NVML view admitted a replacement before reinit")
+    if apply_view(frozen, "capture_cuda").cuda_membership != frozen.cuda_membership:
+        raise ModelError("initialized CUDA view changed on a repeated capture")
+    checks += 2
     reinitialized = apply_view(frozen, "nvml_reinit")
     if reinitialized.nvml_membership != (2,):
         raise ModelError("NVML zero-to-one reinitialization did not see the replacement")
+    if reinitialized.nvml_lost or reinitialized.nvml_init_epoch != frozen.nvml_init_epoch + 1:
+        raise ModelError("NVML reinitialization did not reset loss or advance its epoch")
     checks += 2
 
     exhausted_generation = replace(base, high_water=int(bounds["limits"]["generation_terminal"]) - 1,
