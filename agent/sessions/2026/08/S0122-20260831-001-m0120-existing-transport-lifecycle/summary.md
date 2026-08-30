@@ -28,6 +28,9 @@ integration remains open.
 - `transports/vfio-user/server/include/metaflux/transport/qmp_lifecycle.hpp`
   and its implementation/test: one-pending-command QMP event correlation with
   failed-remove loss mapping and failed-add rejection.
+- `runtime/core/include/metaflux/runtime/lifecycle_dispatch.hpp` and its
+  implementation/test: one stateless ingress that normalizes external events
+  before submitting accepted requests to the Coordinator.
 - `transports/cdev/README.md` and `transports/vfio-user/README.md`: adapter
   ownership and protocol-boundary notes.
 - `agent/plan/M0120-vpci-lifecycle/work/W0122-existing-transports.md`: active
@@ -40,7 +43,8 @@ integration remains open.
 | `metaflux.transport.cdev-worker` and `metaflux.transport.vfio-user-server` | Passed: 2/2 |
 | `metaflux.transport.memfd-worker` | Passed |
 | `metaflux.unit.runtime-lifecycle`, normalizer, and vfio-user QMP | Passed: 3/3 |
-| `ctest --preset dev` | Passed: 78/78 |
+| `metaflux.unit.runtime-lifecycle-dispatch` | Passed |
+| `ctest --preset dev` | Passed: 79/79 |
 | `python3 tools/check-component-graph.py <configured graph>` | Passed: 19 components / 22 edges |
 | `python3 tools/validate-transport-schema.py --root .` | Passed: 5 definitions / 15 records |
 | `python3 tools/check-skill-routing.py .` | Passed: 89 cases |
@@ -74,6 +78,9 @@ integration remains open.
 - QMP command/event correlation -> `transports/vfio-user/server/include/metaflux/transport/qmp_lifecycle.hpp`
   (focused QMP regression; content revision `5e1c3bc`, full development CTest
   78/78)
+- Runtime external-event ingress -> `runtime/core/include/metaflux/runtime/lifecycle_dispatch.hpp`
+  (focused dispatch regression; content revision `04ecf81`, full development
+  CTest 79/79)
 - W0122 implementation boundary and remaining gates ->
   `agent/plan/M0120-vpci-lifecycle/work/W0122-existing-transports.md`
   (full dev CTest 77/77)
@@ -92,13 +99,13 @@ integration remains open.
 
 ## Unresolved items
 
-- W0122 remains Active. Next: wire producer call sites through the normalizer,
-  implement live QMP/socket integration, wire the production memfd worker path,
-  and add provider-freeze plus fault/qualification evidence.
+- W0122 remains Active. Next: wire source producer call sites through the
+  stateless ingress, implement live QMP/socket integration, wire the production
+  memfd worker path, and add provider-freeze plus fault/qualification evidence.
 
 ## Handoff
 
-Resume from checkpoint `P20260831-024`; run
-`metaflux.unit.runtime-lifecycle`, the normalizer and QMP tests, and
+Resume from checkpoint `P20260831-025`; run
+`metaflux.unit.runtime-lifecycle`, the normalizer, dispatch, and QMP tests, and
 `metaflux.transport.memfd-worker` before changing an adapter, then preserve the
 M0110 descriptor/UAPI/BAR boundary.
