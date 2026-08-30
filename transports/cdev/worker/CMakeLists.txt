@@ -10,7 +10,7 @@ target_include_directories(
 )
 target_link_libraries(
   metaflux_transport_cdev_worker
-  PUBLIC MetaFlux::TransportSchema MetaFlux::RuntimeCore
+  PUBLIC MetaFlux::TransportSchema MetaFlux::RuntimeCore MetaFlux::BackendPluginApi
 )
 metaflux_configure_target(metaflux_transport_cdev_worker CXX)
 metaflux_register_component_graph_entry(

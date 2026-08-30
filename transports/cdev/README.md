@@ -39,3 +39,14 @@ is the sole value accepted by the worker. Requests observed while the mirror is
 `LOST` complete with `MF_SHARED_DEVICE_LOST`; descriptors for a retired
 generation complete with `MF_SHARED_STALE_HANDLE`. This mirror changes no ring,
 ioctl, mmap, or BAR record.
+
+The worker also exposes an explicit `CdevBackendBinding` for the worker-side
+`mf_backend_api_v1` copy call. A bound API must advertise `MF_BACKEND_CAP_COPY`,
+provide a table large enough to contain `copy`, and carry nonzero instance,
+queue, and payload-memory handles. A payload COPY is translated to one
+`mf_backend_copy_v1` record with the same memory handle at checked base-relative
+offsets; backend status is mapped to the shared status vocabulary. An invalid
+or unsupported bound API returns `MF_SHARED_NOT_SUPPORTED` rather than silently
+falling back. With no binding, the fixture keeps its local `memmove` path. The
+binding is synchronous at this stage; backend memory import, DMA mapping,
+in-flight reference draining, and CPU Add/Copy production wiring remain open.

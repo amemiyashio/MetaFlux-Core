@@ -61,7 +61,7 @@ ALLOWED_DEPENDENCIES: dict[str, set[str]] = {
     # Transport halves (D0010). No transport code exists yet; the rows freeze
     # the rules the first implementation must satisfy.
     "transport-client": {"client-protocol", "client-fastpath"},
-    "transport-worker": {"runtime-core", "compiler-core"},
+    "transport-worker": {"runtime-core", "compiler-core", "backend-plugin-api"},
 }
 
 CLIENT_SIDE_ROLES = {

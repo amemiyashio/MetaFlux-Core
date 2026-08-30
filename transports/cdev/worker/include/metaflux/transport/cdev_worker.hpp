@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "metaflux/backend/api.h"
 #include "metaflux/runtime/lifecycle.hpp"
 #include "metaflux/shared/device.h"
 
@@ -17,6 +18,15 @@ struct WorkerQueueView final {
   std::uint64_t generation = 0U;
 };
 
+/* The worker borrows these backend-owned handles for synchronous COPY calls. */
+struct CdevBackendBinding final {
+  const mf_backend_api_v1* api = nullptr;
+  mf_backend_instance_v1 instance = 0U;
+  mf_backend_queue_v1 queue = 0U;
+  mf_backend_memory_v1 memory = 0U;
+  mf_backend_event_v1 completion_event = 0U;
+};
+
 enum class WorkerResult : std::uint32_t {
   Idle = 0U,
   Completed = 1U,
@@ -27,6 +37,11 @@ enum class WorkerResult : std::uint32_t {
 class CdevWorker final {
 public:
   explicit CdevWorker(WorkerQueueView view) noexcept : view_(view) {}
+  CdevWorker(WorkerQueueView view, CdevBackendBinding backend) noexcept
+      : view_(view), backend_(backend) {}
+
+  void bind_backend(CdevBackendBinding backend) noexcept { backend_ = backend; }
+  [[nodiscard]] bool backend_bound() const noexcept;
 
   WorkerResult consume_once() noexcept;
   std::uint32_t drain(std::uint32_t maximum) noexcept;
@@ -55,6 +70,11 @@ private:
                               const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept;
   static void lifecycle_lost(void* context,
                              const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept;
+  static bool valid_backend(const CdevBackendBinding& backend) noexcept;
+  static std::int32_t map_backend_status(mf_backend_status_v1 status) noexcept;
+  [[nodiscard]] mf_backend_status_v1 dispatch_copy(std::uint64_t base, std::uint64_t destination,
+                                                   std::uint64_t source,
+                                                   std::uint64_t byte_count) const noexcept;
   bool drain_lifecycle() noexcept;
   WorkerResult complete(const mf_ring_descriptor_v1& request, std::int32_t status) noexcept;
 
@@ -62,6 +82,7 @@ private:
   std::uint64_t timeline_ = 0U;
   bool lifecycle_online_ = true;
   bool lifecycle_accepting_ = true;
+  CdevBackendBinding backend_{};
 };
 
 } // namespace metaflux::transport::cdev

@@ -8,6 +8,8 @@ namespace metaflux::transport::cdev {
 namespace {
 
 constexpr std::uint32_t kCompletionOpcode = MF_RING_OPCODE_COMPLETION;
+constexpr std::uint32_t kBackendCopyRequiredSize = static_cast<std::uint32_t>(
+    offsetof(mf_backend_api_v1, copy) + sizeof(((mf_backend_api_v1*)nullptr)->copy));
 
 bool valid_queue(const mf_ring_header_v1* header) noexcept {
   if (header == nullptr) {
@@ -35,6 +37,53 @@ const mf_ring_descriptor_v1* descriptor_at(const mf_ring_header_v1* header,
 }
 
 } // namespace
+
+bool CdevWorker::valid_backend(const CdevBackendBinding& backend) noexcept {
+  return backend.api != nullptr && backend.instance != 0U && backend.queue != 0U &&
+         backend.memory != 0U &&
+         mf_backend_api_validate_v1(backend.api, kBackendCopyRequiredSize, MF_BACKEND_CAP_COPY) ==
+             MF_BACKEND_SUCCESS &&
+         backend.api->copy != nullptr;
+}
+
+bool CdevWorker::backend_bound() const noexcept { return valid_backend(backend_); }
+
+std::int32_t CdevWorker::map_backend_status(mf_backend_status_v1 status) noexcept {
+  switch (status) {
+  case MF_BACKEND_SUCCESS:
+    return MF_SHARED_SUCCESS;
+  case MF_BACKEND_INVALID_ARGUMENT:
+    return MF_SHARED_INVALID_ARGUMENT;
+  case MF_BACKEND_UNSUPPORTED:
+    return MF_SHARED_NOT_SUPPORTED;
+  case MF_BACKEND_OUT_OF_MEMORY:
+    return MF_SHARED_RESOURCE_EXHAUSTED;
+  case MF_BACKEND_DEVICE_LOST:
+    return MF_SHARED_DEVICE_LOST;
+  case MF_BACKEND_TIMEOUT:
+    return MF_SHARED_TIMEOUT;
+  case MF_BACKEND_BUSY:
+    return MF_SHARED_WOULD_BLOCK;
+  default:
+    return MF_SHARED_SYSTEM_ERROR;
+  }
+}
+
+mf_backend_status_v1 CdevWorker::dispatch_copy(std::uint64_t base, std::uint64_t destination,
+                                               std::uint64_t source,
+                                               std::uint64_t byte_count) const noexcept {
+  if (!valid_backend(backend_) || base > UINT64_MAX - destination || base > UINT64_MAX - source) {
+    return MF_BACKEND_UNSUPPORTED;
+  }
+  mf_backend_copy_v1 copy{};
+  copy.struct_size = sizeof(copy);
+  copy.destination = backend_.memory;
+  copy.destination_offset = base + destination;
+  copy.source = backend_.memory;
+  copy.source_offset = base + source;
+  copy.byte_count = byte_count;
+  return backend_.api->copy(backend_.instance, backend_.queue, &copy, backend_.completion_event);
+}
 
 bool CdevWorker::queue_readable(const mf_ring_header_v1* header) noexcept {
   if (!valid_queue(header)) {
@@ -139,6 +188,13 @@ WorkerResult CdevWorker::consume_once() noexcept {
       byte_count > view_.payload_size - base - destination ||
       byte_count > view_.payload_size - base - source) {
     return complete(request, MF_SHARED_INVALID_ARGUMENT);
+  }
+  if (backend_.api != nullptr) {
+    if (request.flags != 0U || !valid_backend(backend_)) {
+      return complete(request, MF_SHARED_NOT_SUPPORTED);
+    }
+    return complete(request,
+                    map_backend_status(dispatch_copy(base, destination, source, byte_count)));
   }
   std::memmove(view_.payload + base + destination, view_.payload + base + source,
                static_cast<std::size_t>(byte_count));

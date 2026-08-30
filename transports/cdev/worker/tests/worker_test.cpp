@@ -6,6 +6,37 @@
 #include <cstdint>
 #include <cstring>
 
+namespace {
+
+struct BackendFixture final {
+  std::uint32_t calls = 0U;
+  mf_backend_copy_v1 last{};
+  mf_backend_status_v1 result = MF_BACKEND_SUCCESS;
+};
+
+mf_backend_status_v1 fixture_copy(mf_backend_instance_v1 instance, mf_backend_queue_v1 queue,
+                                  const mf_backend_copy_v1* copy,
+                                  mf_backend_event_v1 completion_event) {
+  auto* fixture = reinterpret_cast<BackendFixture*>(static_cast<std::uintptr_t>(instance));
+  if (fixture == nullptr || queue != 17U || completion_event != 0U || copy == nullptr) {
+    return MF_BACKEND_INVALID_ARGUMENT;
+  }
+  ++fixture->calls;
+  fixture->last = *copy;
+  return fixture->result;
+}
+
+mf_backend_api_v1 make_fixture_api() {
+  mf_backend_api_v1 api{};
+  api.header.abi_version = MF_BACKEND_ABI_VERSION_1;
+  api.header.struct_size = sizeof(api);
+  api.header.capabilities = MF_BACKEND_CAP_COPY;
+  api.copy = fixture_copy;
+  return api;
+}
+
+} // namespace
+
 int main() {
   mf_registry_view_id_v1 view{.daemon_incarnation = 7U, .view_serial = 9U};
   mf_client_ring_v1 submission{};
@@ -51,6 +82,74 @@ int main() {
       result.opcode != MF_RING_OPCODE_COMPLETION || result.request_id != 41U ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS) ||
       result.arguments[1] != 1U) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+
+  BackendFixture backend_fixture{};
+  const auto backend_api = make_fixture_api();
+  metaflux::transport::cdev::CdevWorker backend_worker(
+      {.submission = submission.header,
+       .completion = completion.header,
+       .payload = payload.data(),
+       .payload_size = payload.size(),
+       .generation = 4U},
+      {.api = &backend_api,
+       .instance =
+           static_cast<mf_backend_instance_v1>(reinterpret_cast<std::uintptr_t>(&backend_fixture)),
+       .queue = 17U,
+       .memory = 23U,
+       .completion_event = 0U});
+  request.request_id = 42U;
+  request.arguments[0] = 320U;
+  request.arguments[1] = 128U;
+  request.arguments[2] = 32U;
+  request.arguments[3] = 16U;
+  if (!backend_worker.backend_bound() ||
+      mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      backend_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      backend_fixture.calls != 1U ||
+      backend_fixture.last.struct_size != sizeof(mf_backend_copy_v1) ||
+      backend_fixture.last.destination != 23U || backend_fixture.last.source != 23U ||
+      backend_fixture.last.destination_offset != 336U ||
+      backend_fixture.last.source_offset != 144U || backend_fixture.last.byte_count != 32U ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  backend_fixture.result = MF_BACKEND_TIMEOUT;
+  request.request_id = 43U;
+  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      backend_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_TIMEOUT)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+
+  auto unsupported_api = backend_api;
+  unsupported_api.header.capabilities = 0U;
+  metaflux::transport::cdev::CdevWorker unsupported_worker(
+      {.submission = submission.header,
+       .completion = completion.header,
+       .payload = payload.data(),
+       .payload_size = payload.size(),
+       .generation = 4U},
+      {.api = &unsupported_api,
+       .instance =
+           static_cast<mf_backend_instance_v1>(reinterpret_cast<std::uintptr_t>(&backend_fixture)),
+       .queue = 17U,
+       .memory = 23U,
+       .completion_event = 0U});
+  request.request_id = 44U;
+  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      unsupported_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_NOT_SUPPORTED)) {
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
     return 1;
