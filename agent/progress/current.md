@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0120
 workstream: W0122
-checkpoint: P20260831-021
+checkpoint: P20260831-022
 ---
 
 # Current Progress
@@ -33,6 +33,8 @@ The concrete C++ cdev worker and vfio-user server mirrors are now wired to the
 coordinator and recorded at [P20260831-020](checkpoints/2026/P20260831-020-m0120-existing-transport-mirrors.md).
 W0112's generation-bound payload arena and eventfd ownership stage is recorded
 at [P20260831-021](checkpoints/2026/P20260831-021-m0110-cdev-payload-eventfd.md).
+W0122's memfd worker lifecycle mirror stage is recorded at
+[P20260831-022](checkpoints/2026/P20260831-022-m0120-memfd-lifecycle-mirror.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -135,7 +137,7 @@ Linux 9.8.
 | W0113 current boundary | Guest `metaflux_pci.ko`, pinned QEMU/libvfio-user, BAR doorbell/MSI-X steady state, Add/Copy path, drain/tombstone faults, and package qualification remain open |
 | W0121 lifecycle model | Extension manifest imports the frozen M0110 root by hash; bounded checker passed 949 states/4,012 transitions/326 complete sequences and 13 direct boundary checks |
 | W0121 lifecycle regression | Lifecycle CTest and tampered-manifest self-test passed 2/2; full dev CTest passed 74/74 |
-| W0121 current boundary | Concrete cdev/vfio-user mirror stages are recorded; memfd integration, QMP/vPCI integration, 1,000-cycle fault qualification, provider-view integration, and lifecycle ABI freeze remain open |
+| W0121 current boundary | Concrete memfd/cdev/vfio-user mirror stages are recorded; QMP/vPCI integration, 1,000-cycle fault qualification, provider-view integration, and lifecycle ABI freeze remain open |
 
 ## Recorded M0120 W0122 Evidence
 
@@ -145,7 +147,8 @@ Linux 9.8.
 | Lifecycle focused test | `metaflux.unit.runtime-lifecycle` passed |
 | Full development CTest | 75/75 passed |
 | W0122 coordinator and transport mirrors | `f5cdee3`; cdev and vfio-user C++ mirrors consume coordinator reset/loss events and reject retired generation/epoch work; focused transport tests 2/2 and full dev CTest 75/75 |
-| W0122 current boundary | Memfd integration, QMP/disconnect/restart normalization, provider freeze, fault injection, and qualification remain open |
+| W0122 memfd lifecycle mirror | `1dbc571`; existing C17 fast path is registered as the client half and a C++ worker mirror stages coordinator-issued identity/generation/epoch, drains in-flight work, and rejects stale submissions; focused test passed and full dev CTest 76/76 |
+| W0122 current boundary | Production memfd worker wiring, QMP/disconnect/restart normalization, provider freeze, fault injection, and qualification remain open |
 
 ## Versioned Next Work
 
@@ -166,10 +169,10 @@ Linux 9.8.
 5. Schedule Intel x86_64 support and physical NVIDIA binding performance under
    M1000 / `v1.0.0`; keep native NixOS VM/package qualification in the
    unallocated `v0.2.0` expansion. Do not reopen M0100 for any of them.
-6. M0120/W0122 is Active. The coordinator plus cdev/vfio-user mirror stage is
-   recorded, but it does not satisfy the lifecycle Definition of Done; continue
-   with memfd integration, source normalization, provider freeze, and
-   qualification while preserving the M0110 root.
+6. M0120/W0122 is Active. The coordinator plus memfd/cdev/vfio-user mirror stage
+   is recorded, but it does not satisfy the lifecycle Definition of Done;
+   continue with production memfd wiring, source normalization, provider freeze,
+   and qualification while preserving the M0110 root.
 7. M0110/W0112 remains Active after the payload/eventfd stage at
    [P20260831-021](checkpoints/2026/P20260831-021-m0110-cdev-payload-eventfd.md).
    Continue with registered-memory pinning, backend ABI wiring, replacement
