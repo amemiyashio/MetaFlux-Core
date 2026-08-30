@@ -93,6 +93,17 @@
     },
     "matching": "UUID_and_generation"
   },
+  "publication_model": {
+    "fence_states": ["ONLINE", "LOST"],
+    "telemetry_states": ["READY", "WRITING", "REJECTED"],
+    "loss_wins_over_telemetry": true,
+    "stale_online_forbidden": true,
+    "reader": {
+      "requires_even_telemetry_latch": true,
+      "final_fence_recheck": true,
+      "bounded_retry": true
+    }
+  },
   "side_effects": [
     "reserve_generation_candidate",
     "persist_generation_high_water",

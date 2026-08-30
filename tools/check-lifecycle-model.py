@@ -151,6 +151,65 @@ def validate_inputs(base_path: Path, extension_path: Path, model_path: Path,
     if event_order != expected_order:
         raise ModelError(f"{bounds_path}: event_order is not canonical")
 
+    publication_model = model.get("publication_model")
+    if not isinstance(publication_model, dict):
+        raise ModelError(f"{model_path}: publication_model is required")
+    if publication_model.get("fence_states") != ["ONLINE", "LOST"]:
+        raise ModelError(f"{model_path}: fence publication states are incomplete or reordered")
+    if publication_model.get("telemetry_states") != ["READY", "WRITING", "REJECTED"]:
+        raise ModelError(f"{model_path}: telemetry publication states are incomplete or reordered")
+    if publication_model.get("loss_wins_over_telemetry") is not True:
+        raise ModelError(f"{model_path}: loss fence must win telemetry publication races")
+    if publication_model.get("stale_online_forbidden") is not True:
+        raise ModelError(f"{model_path}: stale ONLINE telemetry must be forbidden")
+    reader_model = publication_model.get("reader")
+    if (not isinstance(reader_model, dict) or
+            reader_model.get("requires_even_telemetry_latch") is not True or
+            reader_model.get("final_fence_recheck") is not True or
+            reader_model.get("bounded_retry") is not True):
+        raise ModelError(f"{model_path}: telemetry reader publication rules are incomplete")
+
+    fence_telemetry = bounds.get("fence_telemetry")
+    if not isinstance(fence_telemetry, dict):
+        raise ModelError(f"{bounds_path}: fence_telemetry bounds are required")
+    publication_initial = fence_telemetry.get("initial")
+    publication_limits = fence_telemetry.get("limits")
+    publication_order = fence_telemetry.get("event_order")
+    required_publication_initial = {
+        "lifecycle_state", "generation", "epoch", "fence_sequence", "fence_latch",
+        "telemetry_latch", "telemetry_snapshot_sequence", "telemetry_active_bank",
+        "telemetry_observed_fence", "telemetry_generation", "telemetry_online",
+    }
+    if (not isinstance(publication_initial, dict) or
+            not required_publication_initial.issubset(publication_initial) or
+            not isinstance(publication_limits, dict) or not isinstance(publication_order, list)):
+        raise ModelError(f"{bounds_path}: fence_telemetry initial state is incomplete")
+    if publication_initial.get("lifecycle_state") != "ONLINE" or not publication_initial.get("telemetry_online"):
+        raise ModelError(f"{bounds_path}: fence_telemetry must start ONLINE with ready telemetry")
+    for key in ("fence_sequence_terminal", "telemetry_sequence_terminal", "max_reader_retries",
+                "max_depth", "max_states"):
+        if not isinstance(publication_limits.get(key), int) or publication_limits[key] <= 0:
+            raise ModelError(f"{bounds_path}: fence_telemetry {key} must be a positive integer")
+    if publication_limits["fence_sequence_terminal"] <= int(publication_initial["fence_sequence"]):
+        raise ModelError(f"{bounds_path}: fence sequence terminal bound must exceed the initial value")
+    if publication_limits["telemetry_sequence_terminal"] <= int(publication_initial["telemetry_snapshot_sequence"]):
+        raise ModelError(f"{bounds_path}: telemetry sequence terminal bound must exceed the initial value")
+    if (int(publication_initial["fence_latch"]) <= 0 or
+            (int(publication_initial["fence_latch"]) & 1) != 0 or
+            int(publication_initial["telemetry_latch"]) <= 0 or
+            (int(publication_initial["telemetry_latch"]) & 1) != 0 or
+            int(publication_initial["telemetry_active_bank"]) not in {0, 1} or
+            int(publication_initial["telemetry_observed_fence"]) != int(publication_initial["fence_sequence"]) or
+            int(publication_initial["telemetry_generation"]) != int(publication_initial["generation"])):
+        raise ModelError(f"{bounds_path}: fence_telemetry initial latches or telemetry identity are invalid")
+    expected_publication_order = [
+        "begin_loss_fence", "commit_loss_fence", "abort_loss_fence", "begin_telemetry",
+        "stage_telemetry", "commit_telemetry", "begin_read", "read_bank", "finish_read",
+        "reset_reader",
+    ]
+    if publication_order != expected_publication_order:
+        raise ModelError(f"{bounds_path}: fence_telemetry event_order is not canonical")
+
     hashes = {
         "base_manifest": base_hash,
         "extension_manifest": sha256(extension_path),
@@ -180,6 +239,34 @@ class Snapshot:
     nvml_init_epoch: int
 
 
+@dataclass(frozen=True)
+class FenceTelemetrySnapshot:
+    lifecycle_state: str
+    generation: int
+    epoch: int
+    fence_sequence: int
+    fence_latch: int
+    telemetry_latch: int
+    telemetry_snapshot_sequence: int
+    telemetry_active_bank: int
+    telemetry_observed_fence: int
+    telemetry_generation: int
+    telemetry_online: bool
+    fence_writer_active: bool
+    telemetry_writer_active: bool
+    telemetry_writer_fence: int
+    telemetry_writer_generation: int
+    telemetry_writer_staged: bool
+    reader_phase: str
+    reader_fence_sequence: int
+    reader_generation: int
+    reader_telemetry_latch: int
+    reader_observed_fence: int
+    reader_observed_generation: int
+    reader_result: str
+    reader_retries: int
+
+
 def ordered(values: Iterable[int]) -> tuple[int, ...]:
     return tuple(sorted(set(values)))
 
@@ -204,6 +291,36 @@ def initial_snapshot(bounds: dict[str, Any]) -> Snapshot:
         nvml_membership=(),
         nvml_lost=(),
         nvml_init_epoch=0,
+    )
+
+
+def initial_fence_telemetry_snapshot(bounds: dict[str, Any]) -> FenceTelemetrySnapshot:
+    initial = bounds["fence_telemetry"]["initial"]
+    return FenceTelemetrySnapshot(
+        lifecycle_state=str(initial["lifecycle_state"]),
+        generation=int(initial["generation"]),
+        epoch=int(initial["epoch"]),
+        fence_sequence=int(initial["fence_sequence"]),
+        fence_latch=int(initial["fence_latch"]),
+        telemetry_latch=int(initial["telemetry_latch"]),
+        telemetry_snapshot_sequence=int(initial["telemetry_snapshot_sequence"]),
+        telemetry_active_bank=int(initial["telemetry_active_bank"]),
+        telemetry_observed_fence=int(initial["telemetry_observed_fence"]),
+        telemetry_generation=int(initial["telemetry_generation"]),
+        telemetry_online=bool(initial["telemetry_online"]),
+        fence_writer_active=False,
+        telemetry_writer_active=False,
+        telemetry_writer_fence=0,
+        telemetry_writer_generation=0,
+        telemetry_writer_staged=False,
+        reader_phase="IDLE",
+        reader_fence_sequence=0,
+        reader_generation=0,
+        reader_telemetry_latch=0,
+        reader_observed_fence=0,
+        reader_observed_generation=0,
+        reader_result="NONE",
+        reader_retries=0,
     )
 
 
@@ -347,6 +464,387 @@ def apply_view(snapshot: Snapshot, event: str) -> Snapshot:
         return replace(snapshot, nvml_initialized=True, nvml_membership=membership,
                        nvml_lost=(), nvml_init_epoch=snapshot.nvml_init_epoch + 1)
     raise ModelError(f"unknown view event {event}")
+
+
+def assert_fence_telemetry_snapshot(snapshot: FenceTelemetrySnapshot,
+                                    bounds: dict[str, Any]) -> None:
+    limits = bounds["fence_telemetry"]["limits"]
+    if snapshot.lifecycle_state not in {"ONLINE", "LOST"}:
+        raise ModelError(f"unknown publication lifecycle state {snapshot.lifecycle_state}")
+    if snapshot.generation <= 0 or snapshot.epoch <= 0 or snapshot.fence_sequence <= 0:
+        raise ModelError("publication identity or fence sequence is not initialized")
+    if snapshot.fence_sequence >= int(limits["fence_sequence_terminal"]):
+        raise ModelError("publication fence sequence crossed its terminal bound")
+    if snapshot.telemetry_snapshot_sequence >= int(limits["telemetry_sequence_terminal"]):
+        raise ModelError("telemetry snapshot sequence crossed its terminal bound")
+    if snapshot.fence_latch <= 0 or snapshot.telemetry_latch <= 0:
+        raise ModelError("publication latch is not initialized")
+    if (snapshot.fence_latch & 1) != int(snapshot.fence_writer_active):
+        raise ModelError("fence latch parity disagrees with writer ownership")
+    if (snapshot.telemetry_latch & 1) != int(snapshot.telemetry_writer_active):
+        raise ModelError("telemetry latch parity disagrees with writer ownership")
+    if snapshot.telemetry_active_bank not in {0, 1}:
+        raise ModelError("telemetry selected an invalid bank")
+    if snapshot.telemetry_observed_fence > snapshot.fence_sequence:
+        raise ModelError("telemetry observed a future lifecycle fence")
+    if snapshot.telemetry_generation != snapshot.generation:
+        raise ModelError("telemetry generation diverged from the live identity")
+    if snapshot.telemetry_online:
+        if snapshot.lifecycle_state != "ONLINE" or snapshot.telemetry_observed_fence != snapshot.fence_sequence:
+            raise ModelError("telemetry exposes ONLINE after a newer loss fence")
+    elif snapshot.lifecycle_state != "LOST":
+        raise ModelError("telemetry lost readiness without a loss fence")
+    if snapshot.telemetry_writer_active:
+        if snapshot.telemetry_writer_fence <= 0 or snapshot.telemetry_writer_generation <= 0:
+            raise ModelError("telemetry writer has no captured identity")
+    elif snapshot.telemetry_writer_fence != 0 or snapshot.telemetry_writer_generation != 0 or snapshot.telemetry_writer_staged:
+        raise ModelError("inactive telemetry writer retained mutable staging state")
+    if snapshot.reader_phase not in {"IDLE", "CAPTURED", "BANK_READ", "DONE"}:
+        raise ModelError(f"unknown telemetry reader phase {snapshot.reader_phase}")
+    if snapshot.reader_result not in {"NONE", "ONLINE", "LOST", "RETRY"}:
+        raise ModelError(f"unknown telemetry reader result {snapshot.reader_result}")
+    if snapshot.reader_retries < 0 or snapshot.reader_retries > int(limits["max_reader_retries"]):
+        raise ModelError("telemetry reader exceeded its retry bound")
+    if snapshot.reader_phase == "CAPTURED":
+        if snapshot.reader_fence_sequence <= 0 or snapshot.reader_generation != snapshot.generation:
+            raise ModelError("captured reader has no current identity")
+    if snapshot.reader_phase == "BANK_READ" and (
+        snapshot.reader_telemetry_latch <= 0 or (snapshot.reader_telemetry_latch & 1) != 0
+    ):
+        raise ModelError("bank reader did not retain an even telemetry latch")
+    if snapshot.reader_phase == "DONE":
+        if snapshot.reader_result == "NONE":
+            raise ModelError("completed reader has no result")
+        if snapshot.reader_result == "ONLINE":
+            if snapshot.lifecycle_state != "ONLINE" or not snapshot.telemetry_online:
+                raise ModelError("reader returned ONLINE after loss")
+            if snapshot.reader_fence_sequence != snapshot.fence_sequence or snapshot.reader_generation != snapshot.generation:
+                raise ModelError("reader returned ONLINE for a stale fence")
+            if snapshot.reader_observed_generation != snapshot.generation or snapshot.reader_observed_fence < snapshot.fence_sequence:
+                raise ModelError("reader returned ONLINE for stale telemetry")
+        if snapshot.reader_result == "LOST" and snapshot.lifecycle_state != "LOST":
+            raise ModelError("reader returned LOST without an observed loss fence")
+
+
+def apply_fence_telemetry(snapshot: FenceTelemetrySnapshot, event: str,
+                          bounds: dict[str, Any]) -> FenceTelemetrySnapshot:
+    limits = bounds["fence_telemetry"]["limits"]
+    if event == "begin_loss_fence":
+        if (snapshot.lifecycle_state != "ONLINE" or snapshot.fence_writer_active or
+                (snapshot.fence_latch & 1) != 0):
+            return snapshot
+        return replace(snapshot, fence_latch=snapshot.fence_latch + 1, fence_writer_active=True)
+
+    if event == "commit_loss_fence":
+        if (not snapshot.fence_writer_active or (snapshot.fence_latch & 1) == 0 or
+                snapshot.fence_sequence + 1 >= int(limits["fence_sequence_terminal"])):
+            return snapshot
+        completed_online_read = snapshot.reader_phase == "DONE" and snapshot.reader_result == "ONLINE"
+        return replace(
+            snapshot,
+            lifecycle_state="LOST",
+            fence_sequence=snapshot.fence_sequence + 1,
+            fence_latch=snapshot.fence_latch + 1,
+            telemetry_online=False,
+            fence_writer_active=False,
+            reader_phase="IDLE" if completed_online_read else snapshot.reader_phase,
+            reader_fence_sequence=0 if completed_online_read else snapshot.reader_fence_sequence,
+            reader_generation=0 if completed_online_read else snapshot.reader_generation,
+            reader_telemetry_latch=0 if completed_online_read else snapshot.reader_telemetry_latch,
+            reader_observed_fence=0 if completed_online_read else snapshot.reader_observed_fence,
+            reader_observed_generation=0 if completed_online_read else snapshot.reader_observed_generation,
+            reader_result="NONE" if completed_online_read else snapshot.reader_result,
+        )
+
+    if event == "abort_loss_fence":
+        if not snapshot.fence_writer_active or (snapshot.fence_latch & 1) == 0:
+            return snapshot
+        return replace(snapshot, fence_latch=snapshot.fence_latch + 1, fence_writer_active=False)
+
+    if event == "begin_telemetry":
+        if (snapshot.lifecycle_state != "ONLINE" or snapshot.fence_writer_active or
+                snapshot.telemetry_writer_active or (snapshot.fence_latch & 1) != 0 or
+                (snapshot.telemetry_latch & 1) != 0):
+            return snapshot
+        return replace(
+            snapshot,
+            telemetry_latch=snapshot.telemetry_latch + 1,
+            telemetry_writer_active=True,
+            telemetry_writer_fence=snapshot.fence_sequence,
+            telemetry_writer_generation=snapshot.generation,
+            telemetry_writer_staged=False,
+        )
+
+    if event == "stage_telemetry":
+        if not snapshot.telemetry_writer_active or snapshot.telemetry_writer_staged:
+            return snapshot
+        return replace(snapshot, telemetry_writer_staged=True)
+
+    if event == "commit_telemetry":
+        if not snapshot.telemetry_writer_active or not snapshot.telemetry_writer_staged:
+            return snapshot
+        fresh = (
+            snapshot.lifecycle_state == "ONLINE" and
+            not snapshot.fence_writer_active and
+            (snapshot.fence_latch & 1) == 0 and
+            snapshot.telemetry_writer_fence == snapshot.fence_sequence and
+            snapshot.telemetry_writer_generation == snapshot.generation
+        )
+        if fresh:
+            if snapshot.telemetry_snapshot_sequence + 1 >= int(limits["telemetry_sequence_terminal"]):
+                return snapshot
+            return replace(
+                snapshot,
+                telemetry_latch=snapshot.telemetry_latch + 1,
+                telemetry_snapshot_sequence=snapshot.telemetry_snapshot_sequence + 1,
+                telemetry_active_bank=snapshot.telemetry_active_bank ^ 1,
+                telemetry_observed_fence=snapshot.telemetry_writer_fence,
+                telemetry_generation=snapshot.telemetry_writer_generation,
+                telemetry_online=True,
+                telemetry_writer_active=False,
+                telemetry_writer_fence=0,
+                telemetry_writer_generation=0,
+                telemetry_writer_staged=False,
+            )
+        return replace(
+            snapshot,
+            telemetry_latch=snapshot.telemetry_latch + 1,
+            telemetry_online=False if snapshot.lifecycle_state == "LOST" else snapshot.telemetry_online,
+            telemetry_writer_active=False,
+            telemetry_writer_fence=0,
+            telemetry_writer_generation=0,
+            telemetry_writer_staged=False,
+        )
+
+    if event == "begin_read":
+        if snapshot.reader_phase != "IDLE":
+            return snapshot
+        if snapshot.lifecycle_state == "LOST":
+            return replace(snapshot, reader_phase="DONE", reader_result="LOST")
+        if snapshot.fence_writer_active or (snapshot.fence_latch & 1) != 0:
+            return snapshot
+        return replace(
+            snapshot,
+            reader_phase="CAPTURED",
+            reader_fence_sequence=snapshot.fence_sequence,
+            reader_generation=snapshot.generation,
+            reader_telemetry_latch=0,
+            reader_observed_fence=0,
+            reader_observed_generation=0,
+            reader_result="NONE",
+        )
+
+    if event == "read_bank":
+        if snapshot.reader_phase != "CAPTURED":
+            return snapshot
+        if (snapshot.telemetry_latch & 1) != 0:
+            retries = snapshot.reader_retries + 1
+            return replace(
+                snapshot,
+                reader_phase="DONE" if retries >= int(limits["max_reader_retries"]) else "IDLE",
+                reader_result="RETRY",
+                reader_retries=retries,
+                reader_fence_sequence=0 if retries < int(limits["max_reader_retries"]) else snapshot.reader_fence_sequence,
+                reader_generation=0 if retries < int(limits["max_reader_retries"]) else snapshot.reader_generation,
+            )
+        return replace(
+            snapshot,
+            reader_phase="BANK_READ",
+            reader_telemetry_latch=snapshot.telemetry_latch,
+            reader_observed_fence=snapshot.telemetry_observed_fence,
+            reader_observed_generation=snapshot.telemetry_generation,
+        )
+
+    if event == "finish_read":
+        if snapshot.reader_phase != "BANK_READ":
+            return snapshot
+        if snapshot.telemetry_latch != snapshot.reader_telemetry_latch or (snapshot.telemetry_latch & 1) != 0:
+            retries = snapshot.reader_retries + 1
+            return replace(
+                snapshot,
+                reader_phase="DONE" if retries >= int(limits["max_reader_retries"]) else "IDLE",
+                reader_result="RETRY",
+                reader_retries=retries,
+                reader_fence_sequence=0 if retries < int(limits["max_reader_retries"]) else snapshot.reader_fence_sequence,
+                reader_generation=0 if retries < int(limits["max_reader_retries"]) else snapshot.reader_generation,
+                reader_telemetry_latch=0,
+            )
+        if snapshot.lifecycle_state == "LOST":
+            return replace(snapshot, reader_phase="DONE", reader_result="LOST", reader_telemetry_latch=0)
+        if (not snapshot.telemetry_online or snapshot.reader_fence_sequence != snapshot.fence_sequence or
+                snapshot.reader_generation != snapshot.generation):
+            retries = snapshot.reader_retries + 1
+            return replace(
+                snapshot,
+                reader_phase="DONE" if retries >= int(limits["max_reader_retries"]) else "IDLE",
+                reader_result="RETRY",
+                reader_retries=retries,
+                reader_fence_sequence=0 if retries < int(limits["max_reader_retries"]) else snapshot.reader_fence_sequence,
+                reader_generation=0 if retries < int(limits["max_reader_retries"]) else snapshot.reader_generation,
+                reader_telemetry_latch=0,
+            )
+        if (snapshot.reader_observed_generation != snapshot.generation or
+                snapshot.reader_observed_fence < snapshot.fence_sequence):
+            retries = snapshot.reader_retries + 1
+            return replace(
+                snapshot,
+                reader_phase="DONE" if retries >= int(limits["max_reader_retries"]) else "IDLE",
+                reader_result="RETRY",
+                reader_retries=retries,
+                reader_fence_sequence=0 if retries < int(limits["max_reader_retries"]) else snapshot.reader_fence_sequence,
+                reader_generation=0 if retries < int(limits["max_reader_retries"]) else snapshot.reader_generation,
+                reader_telemetry_latch=0,
+            )
+        return replace(snapshot, reader_phase="DONE", reader_result="ONLINE", reader_telemetry_latch=0)
+
+    if event == "reset_reader":
+        if snapshot.reader_phase != "DONE" or snapshot.reader_result != "RETRY" or \
+                snapshot.reader_retries >= int(limits["max_reader_retries"]):
+            return snapshot
+        return replace(
+            snapshot,
+            reader_phase="IDLE",
+            reader_fence_sequence=0,
+            reader_generation=0,
+            reader_telemetry_latch=0,
+            reader_observed_fence=0,
+            reader_observed_generation=0,
+            reader_result="NONE",
+        )
+
+    raise ModelError(f"unknown fence/telemetry event {event}")
+
+
+def publication_valid_actions(snapshot: FenceTelemetrySnapshot,
+                              bounds: dict[str, Any]) -> list[str]:
+    limits = bounds["fence_telemetry"]["limits"]
+    actions: list[str] = []
+    if (snapshot.lifecycle_state == "ONLINE" and not snapshot.fence_writer_active and
+            (snapshot.fence_latch & 1) == 0):
+        actions.append("begin_loss_fence")
+    if snapshot.fence_writer_active:
+        if snapshot.fence_sequence + 1 < int(limits["fence_sequence_terminal"]):
+            actions.append("commit_loss_fence")
+        actions.append("abort_loss_fence")
+    if (snapshot.lifecycle_state == "ONLINE" and not snapshot.fence_writer_active and
+            not snapshot.telemetry_writer_active and (snapshot.fence_latch & 1) == 0 and
+            (snapshot.telemetry_latch & 1) == 0):
+        actions.append("begin_telemetry")
+    if snapshot.telemetry_writer_active and not snapshot.telemetry_writer_staged:
+        actions.append("stage_telemetry")
+    if snapshot.telemetry_writer_active and snapshot.telemetry_writer_staged:
+        if snapshot.lifecycle_state == "LOST" or snapshot.fence_writer_active or \
+                snapshot.telemetry_writer_fence != snapshot.fence_sequence:
+            actions.append("commit_telemetry")
+        elif snapshot.telemetry_snapshot_sequence + 1 < int(limits["telemetry_sequence_terminal"]):
+            actions.append("commit_telemetry")
+    if snapshot.reader_phase == "IDLE":
+        if snapshot.lifecycle_state == "LOST" or (not snapshot.fence_writer_active and (snapshot.fence_latch & 1) == 0):
+            actions.append("begin_read")
+    elif snapshot.reader_phase == "CAPTURED":
+        actions.append("read_bank")
+    elif snapshot.reader_phase == "BANK_READ":
+        actions.append("finish_read")
+    elif snapshot.reader_phase == "DONE" and snapshot.reader_result == "RETRY" and \
+            snapshot.reader_retries < int(limits["max_reader_retries"]):
+        actions.append("reset_reader")
+    return [event for event in bounds["fence_telemetry"]["event_order"] if event in actions]
+
+
+def publication_direct_scenarios(bounds: dict[str, Any]) -> int:
+    checks = 0
+    base = initial_fence_telemetry_snapshot(bounds)
+    assert_fence_telemetry_snapshot(base, bounds)
+
+    fresh = apply_fence_telemetry(base, "begin_telemetry", bounds)
+    fresh = apply_fence_telemetry(fresh, "stage_telemetry", bounds)
+    fresh = apply_fence_telemetry(fresh, "commit_telemetry", bounds)
+    assert_fence_telemetry_snapshot(fresh, bounds)
+    if fresh.telemetry_snapshot_sequence != base.telemetry_snapshot_sequence + 1 or not fresh.telemetry_online:
+        raise ModelError("fresh telemetry publication did not commit a ready bank")
+    checks += 1
+
+    race = apply_fence_telemetry(base, "begin_telemetry", bounds)
+    race = apply_fence_telemetry(race, "stage_telemetry", bounds)
+    race = apply_fence_telemetry(race, "begin_loss_fence", bounds)
+    race = apply_fence_telemetry(race, "commit_loss_fence", bounds)
+    race = apply_fence_telemetry(race, "commit_telemetry", bounds)
+    assert_fence_telemetry_snapshot(race, bounds)
+    if race.lifecycle_state != "LOST" or race.telemetry_online or race.telemetry_observed_fence >= race.fence_sequence:
+        raise ModelError("stale telemetry publication restored ONLINE after a loss fence")
+    checks += 1
+
+    reader_race = apply_fence_telemetry(base, "begin_read", bounds)
+    reader_race = apply_fence_telemetry(reader_race, "begin_loss_fence", bounds)
+    reader_race = apply_fence_telemetry(reader_race, "commit_loss_fence", bounds)
+    reader_race = apply_fence_telemetry(reader_race, "read_bank", bounds)
+    reader_race = apply_fence_telemetry(reader_race, "finish_read", bounds)
+    assert_fence_telemetry_snapshot(reader_race, bounds)
+    if reader_race.reader_result == "ONLINE":
+        raise ModelError("reader accepted ONLINE across a loss-fence race")
+    checks += 1
+
+    aborted = apply_fence_telemetry(base, "begin_loss_fence", bounds)
+    aborted = apply_fence_telemetry(aborted, "abort_loss_fence", bounds)
+    assert_fence_telemetry_snapshot(aborted, bounds)
+    if (aborted.fence_latch <= base.fence_latch or (aborted.fence_latch & 1) != 0 or
+            aborted.lifecycle_state != "ONLINE"):
+        raise ModelError("aborted loss fence did not restore an even open latch")
+    checks += 1
+
+    retry = apply_fence_telemetry(base, "begin_read", bounds)
+    retry = apply_fence_telemetry(retry, "begin_telemetry", bounds)
+    retry = apply_fence_telemetry(retry, "stage_telemetry", bounds)
+    retry = apply_fence_telemetry(retry, "read_bank", bounds)
+    if retry.reader_result != "RETRY" or retry.reader_retries != 1:
+        raise ModelError("reader did not consume a bounded retry when telemetry latch was odd")
+    checks += 1
+    retry = apply_fence_telemetry(retry, "commit_telemetry", bounds)
+    retry = apply_fence_telemetry(retry, "reset_reader", bounds)
+    retry = apply_fence_telemetry(retry, "begin_read", bounds)
+    retry = apply_fence_telemetry(retry, "read_bank", bounds)
+    retry = apply_fence_telemetry(retry, "finish_read", bounds)
+    assert_fence_telemetry_snapshot(retry, bounds)
+    if retry.reader_result != "ONLINE":
+        raise ModelError("reader did not recover after a bounded telemetry retry")
+    checks += 1
+    return checks
+
+
+def explore_fence_telemetry(bounds: dict[str, Any]) -> dict[str, int]:
+    limits = bounds["fence_telemetry"]["limits"]
+    max_depth = int(limits["max_depth"])
+    max_states = int(limits["max_states"])
+    root = initial_fence_telemetry_snapshot(bounds)
+    seen: set[FenceTelemetrySnapshot] = {root}
+    stack: list[tuple[FenceTelemetrySnapshot, int]] = [(root, 0)]
+    transitions = 0
+    complete_sequences = 0
+    maximum_depth = 0
+    while stack:
+        snapshot, depth = stack.pop()
+        assert_fence_telemetry_snapshot(snapshot, bounds)
+        maximum_depth = max(maximum_depth, depth)
+        actions = publication_valid_actions(snapshot, bounds)
+        if depth >= max_depth or not actions:
+            complete_sequences += 1
+            continue
+        for event in reversed(actions):
+            next_snapshot = apply_fence_telemetry(snapshot, event, bounds)
+            transitions += 1
+            assert_fence_telemetry_snapshot(next_snapshot, bounds)
+            if next_snapshot not in seen:
+                seen.add(next_snapshot)
+                if len(seen) > max_states:
+                    raise ModelError(f"bounded publication exploration exceeded max_states={max_states}")
+                stack.append((next_snapshot, depth + 1))
+    return {
+        "state_count": len(seen),
+        "transition_count": transitions,
+        "complete_sequence_count": complete_sequences,
+        "maximum_depth": maximum_depth,
+        "initial_action_count": len(publication_valid_actions(root, bounds)),
+    }
 
 
 def assert_snapshot(snapshot: Snapshot, bounds: dict[str, Any]) -> None:
@@ -570,6 +1068,8 @@ def run(base_path: Path, extension_path: Path, model_path: Path, bounds_path: Pa
     )
     scenario_checks = direct_scenarios(bounds)
     states, transitions, complete_sequences, maximum_depth, initial_actions = explore(bounds)
+    publication_checks = publication_direct_scenarios(bounds)
+    publication_exploration = explore_fence_telemetry(bounds)
     transition_names = {entry["event"] for entry in model["transitions"]}
     covered = sorted(transition_names.intersection(set(LIFECYCLE_EVENTS)))
     if covered != sorted(LIFECYCLE_EVENTS):
@@ -597,6 +1097,16 @@ def run(base_path: Path, extension_path: Path, model_path: Path, bounds_path: Pa
             "covered_transitions": covered,
         },
         "scenario_checks": scenario_checks,
+        "publication": {
+            "scenario_checks": publication_checks,
+            "exploration": publication_exploration,
+            "invariants": [
+                "loss_fence_wins_telemetry_publication",
+                "stale_online_is_unreadable",
+                "telemetry_reader_retries_are_bounded",
+                "even_latch_required_for_accepted_bank",
+            ],
+        },
         "invariants": [{"id": name, "status": "pass"} for name in invariant_names],
         "counterexamples": [],
     }
@@ -627,7 +1137,10 @@ def main() -> int:
         "lifecycle model: ok "
         f"({evidence['exploration']['state_count']} states, "
         f"{evidence['exploration']['transition_count']} transitions, "
-        f"{evidence['scenario_checks']} direct checks)"
+        f"{evidence['scenario_checks']} direct checks; "
+        f"publication {evidence['publication']['exploration']['state_count']} states, "
+        f"{evidence['publication']['exploration']['transition_count']} transitions, "
+        f"{evidence['publication']['scenario_checks']} direct checks)"
     )
     return 0
 

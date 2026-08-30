@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import subprocess
 import sys
 import tempfile
@@ -18,7 +19,7 @@ MODEL = ROOT / "contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/m
 BOUNDS = ROOT / "tests/lifecycle/model-bounds.json"
 
 
-def command(extension: Path, output: Path) -> list[str]:
+def command(extension: Path, output: Path, model: Path = MODEL, bounds: Path = BOUNDS) -> list[str]:
     return [
         sys.executable,
         str(CHECKER),
@@ -27,16 +28,16 @@ def command(extension: Path, output: Path) -> list[str]:
         "--manifest",
         str(extension),
         "--model",
-        str(MODEL),
+        str(model),
         "--bounds",
-        str(BOUNDS),
+        str(bounds),
         "--output",
         str(output),
     ]
 
 
 def main() -> int:
-    with tempfile.TemporaryDirectory(prefix="metaflux-lifecycle-check-") as directory:
+    with tempfile.TemporaryDirectory(prefix="metaflux-lifecycle-check-", dir=ROOT) as directory:
         temporary = Path(directory)
         valid_output = temporary / "valid.json"
         valid = subprocess.run(command(EXTENSION, valid_output), cwd=ROOT, text=True,
@@ -46,7 +47,37 @@ def main() -> int:
             print(valid.stderr, end="", file=sys.stderr)
             return 1
         evidence = json.loads(valid_output.read_text(encoding="utf-8"))
-        if evidence.get("status") != "pass" or evidence.get("counterexamples") != []:
+        publication = evidence.get("publication", {})
+        if (evidence.get("status") != "pass" or evidence.get("counterexamples") != [] or
+                publication.get("scenario_checks") != 6 or
+                publication.get("exploration", {}).get("state_count", 0) <= 0):
+            return 1
+
+        tampered_model = temporary / "tampered-publication-model.json"
+        model_document = json.loads(MODEL.read_text(encoding="utf-8"))
+        model_document["publication_model"]["stale_online_forbidden"] = False
+        tampered_model.write_text(json.dumps(model_document), encoding="utf-8")
+        tampered_extension = temporary / "tampered-publication-extension.json"
+        extension_document = json.loads(EXTENSION.read_text(encoding="utf-8"))
+        extension_document["model"]["path"] = tampered_model.relative_to(ROOT).as_posix()
+        extension_document["model"]["sha256"] = hashlib.sha256(tampered_model.read_bytes()).hexdigest()
+        tampered_extension.write_text(json.dumps(extension_document), encoding="utf-8")
+        invalid_model = subprocess.run(
+            command(tampered_extension, temporary / "invalid-publication-model.json", model=tampered_model),
+            cwd=ROOT, text=True, capture_output=True, check=False
+        )
+        if invalid_model.returncode == 0 or "stale ONLINE" not in invalid_model.stderr:
+            return 1
+
+        tampered_bounds = temporary / "tampered-publication-bounds.json"
+        bounds_document = json.loads(BOUNDS.read_text(encoding="utf-8"))
+        bounds_document["fence_telemetry"]["initial"]["telemetry_latch"] = 3
+        tampered_bounds.write_text(json.dumps(bounds_document), encoding="utf-8")
+        invalid_bounds = subprocess.run(
+            command(EXTENSION, temporary / "invalid-publication-bounds.json", bounds=tampered_bounds),
+            cwd=ROOT, text=True, capture_output=True, check=False
+        )
+        if invalid_bounds.returncode == 0 or "initial latches" not in invalid_bounds.stderr:
             return 1
 
         tampered = temporary / "tampered-manifest.json"
@@ -57,7 +88,7 @@ def main() -> int:
                                  text=True, capture_output=True, check=False)
         if invalid.returncode == 0 or "hash mismatch" not in invalid.stderr:
             return 1
-    print("lifecycle model checker self-test: 2/2 passed")
+    print("lifecycle model checker self-test: 5/5 passed")
     return 0
 
 

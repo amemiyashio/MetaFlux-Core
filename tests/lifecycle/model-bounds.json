@@ -28,5 +28,39 @@
     "nvml_reinit",
     "replay",
     "conflict"
-  ]
+  ],
+  "fence_telemetry": {
+    "initial": {
+      "lifecycle_state": "ONLINE",
+      "generation": 1,
+      "epoch": 1,
+      "fence_sequence": 1,
+      "fence_latch": 2,
+      "telemetry_latch": 2,
+      "telemetry_snapshot_sequence": 1,
+      "telemetry_active_bank": 0,
+      "telemetry_observed_fence": 1,
+      "telemetry_generation": 1,
+      "telemetry_online": true
+    },
+    "limits": {
+      "fence_sequence_terminal": 8,
+      "telemetry_sequence_terminal": 8,
+      "max_reader_retries": 2,
+      "max_depth": 8,
+      "max_states": 100000
+    },
+    "event_order": [
+      "begin_loss_fence",
+      "commit_loss_fence",
+      "abort_loss_fence",
+      "begin_telemetry",
+      "stage_telemetry",
+      "commit_telemetry",
+      "begin_read",
+      "read_bank",
+      "finish_read",
+      "reset_reader"
+    ]
+  }
 }
