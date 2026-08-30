@@ -28,13 +28,13 @@ mf_ring_descriptor_v1* descriptor_at(mf_ring_header_v1* header, std::uint64_t po
 }
 
 const mf_ring_descriptor_v1* descriptor_at(const mf_ring_header_v1* header,
-                                            std::uint64_t position) noexcept {
+                                           std::uint64_t position) noexcept {
   const auto* bytes = reinterpret_cast<const std::uint8_t*>(header);
   return reinterpret_cast<const mf_ring_descriptor_v1*>(bytes + sizeof(mf_ring_header_v1)) +
          (position & static_cast<std::uint64_t>(header->metadata.capacity - 1U));
 }
 
-}  // namespace
+} // namespace
 
 bool CdevWorker::queue_readable(const mf_ring_header_v1* header) noexcept {
   if (!valid_queue(header)) {
@@ -88,14 +88,30 @@ WorkerResult CdevWorker::complete(const mf_ring_descriptor_v1& request,
   completion.target_id = request.target_id;
   completion.arguments[0] = static_cast<std::uint64_t>(static_cast<std::uint32_t>(status));
   completion.arguments[1] = ++timeline_;
-  return produce(view_.completion, completion) ? WorkerResult::Completed : WorkerResult::Backpressure;
+  return produce(view_.completion, completion) ? WorkerResult::Completed
+                                               : WorkerResult::Backpressure;
 }
 
 WorkerResult CdevWorker::consume_once() noexcept {
   mf_ring_descriptor_v1 request{};
-  if (!valid_queue(view_.submission) || !valid_queue(view_.completion) || view_.payload == nullptr ||
-      view_.payload_size == 0U || view_.generation == 0U) {
+  if (!valid_queue(view_.submission) || !valid_queue(view_.completion) ||
+      view_.payload == nullptr || view_.payload_size == 0U) {
     return WorkerResult::Malformed;
+  }
+  if (!lifecycle_online_) {
+    if (!queue_readable(view_.submission)) {
+      return WorkerResult::Idle;
+    }
+    if (!queue_writable(view_.completion) || !consume(view_.submission, &request)) {
+      return WorkerResult::Backpressure;
+    }
+    return complete(request, MF_SHARED_DEVICE_LOST);
+  }
+  if (view_.generation == 0U) {
+    return WorkerResult::Malformed;
+  }
+  if (!lifecycle_accepting_) {
+    return WorkerResult::Idle;
   }
   if (!queue_readable(view_.submission)) {
     return WorkerResult::Idle;
@@ -137,4 +153,113 @@ std::uint32_t CdevWorker::drain(std::uint32_t maximum) noexcept {
   return completed;
 }
 
-}  // namespace metaflux::transport::cdev
+bool CdevWorker::drain_lifecycle() noexcept {
+  if (!valid_queue(view_.submission) || !valid_queue(view_.completion)) {
+    return false;
+  }
+  const bool accepting = lifecycle_accepting_;
+  lifecycle_accepting_ = true;
+  const std::uint32_t capacity = view_.submission->metadata.capacity;
+  for (std::uint32_t count = 0U; count < capacity; ++count) {
+    if (!queue_readable(view_.submission)) {
+      lifecycle_accepting_ = accepting;
+      return true;
+    }
+    if (consume_once() != WorkerResult::Completed) {
+      lifecycle_accepting_ = accepting;
+      return false;
+    }
+  }
+  const bool drained = !queue_readable(view_.submission);
+  lifecycle_accepting_ = accepting;
+  return drained;
+}
+
+bool CdevWorker::lifecycle_prepare(
+    void* context, const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept {
+  auto* worker = static_cast<CdevWorker*>(context);
+  if (worker == nullptr || !valid_queue(worker->view_.submission) ||
+      !valid_queue(worker->view_.completion) || worker->view_.payload == nullptr ||
+      worker->view_.payload_size == 0U) {
+    return false;
+  }
+  if (event.request.operation != metaflux::runtime::lifecycle::Operation::Add &&
+      event.candidate.generation == 0U) {
+    return event.request.operation == metaflux::runtime::lifecycle::Operation::Remove;
+  }
+  return true;
+}
+
+bool CdevWorker::lifecycle_quiesce(
+    void* context, const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept {
+  auto* worker = static_cast<CdevWorker*>(context);
+  if (worker == nullptr ||
+      (event.request.operation == metaflux::runtime::lifecycle::Operation::Reset &&
+       !worker->lifecycle_online_)) {
+    return false;
+  }
+  worker->lifecycle_accepting_ = false;
+  return true;
+}
+
+bool CdevWorker::lifecycle_drain(void* context,
+                                 const metaflux::runtime::lifecycle::MirrorEvent&) noexcept {
+  auto* worker = static_cast<CdevWorker*>(context);
+  return worker != nullptr && worker->drain_lifecycle();
+}
+
+bool CdevWorker::lifecycle_commit(void* context,
+                                  const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept {
+  auto* worker = static_cast<CdevWorker*>(context);
+  if (worker == nullptr) {
+    return false;
+  }
+  if (event.candidate.generation != 0U) {
+    worker->view_.generation = event.candidate.generation;
+  } else if (event.state_after == metaflux::runtime::lifecycle::State::Absent) {
+    worker->view_.generation = 0U;
+  }
+  worker->lifecycle_online_ = event.state_after == metaflux::runtime::lifecycle::State::Online;
+  worker->lifecycle_accepting_ = worker->lifecycle_online_;
+  return true;
+}
+
+bool CdevWorker::lifecycle_abort(void* context,
+                                 const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept {
+  auto* worker = static_cast<CdevWorker*>(context);
+  if (worker == nullptr) {
+    return false;
+  }
+  worker->lifecycle_online_ = event.state_before == metaflux::runtime::lifecycle::State::Online;
+  worker->lifecycle_accepting_ = worker->lifecycle_online_;
+  return true;
+}
+
+void CdevWorker::lifecycle_lost(void* context,
+                                const metaflux::runtime::lifecycle::MirrorEvent&) noexcept {
+  auto* worker = static_cast<CdevWorker*>(context);
+  if (worker != nullptr) {
+    worker->lifecycle_online_ = false;
+    worker->lifecycle_accepting_ = false;
+  }
+}
+
+bool CdevWorker::attach_lifecycle(metaflux::runtime::lifecycle::Coordinator& coordinator) noexcept {
+  return coordinator.register_mirror(lifecycle_mirror());
+}
+
+metaflux::runtime::lifecycle::Mirror CdevWorker::lifecycle_mirror() noexcept {
+  return metaflux::runtime::lifecycle::Mirror{
+      .kind = metaflux::runtime::lifecycle::MirrorKind::Cdev,
+      .name = "cdev",
+      .context = this,
+      .prepare = lifecycle_prepare,
+      .quiesce = lifecycle_quiesce,
+      .drain = lifecycle_drain,
+      .commit = lifecycle_commit,
+      .abort = lifecycle_abort,
+      .publish_lost = lifecycle_lost,
+  };
+}
+
+} // namespace metaflux::transport::cdev

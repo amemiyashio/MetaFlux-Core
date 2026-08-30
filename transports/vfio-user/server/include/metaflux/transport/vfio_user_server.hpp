@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <vector>
 
+#include <metaflux/runtime/lifecycle.hpp>
 #include <metaflux/transport/generated.h>
 
 namespace metaflux::transport::vfio_user {
@@ -54,18 +55,39 @@ public:
   ServerState state() const noexcept { return state_; }
   std::size_t mapping_count() const noexcept { return mappings_.size(); }
   bool dma_lookup(std::uint64_t iova, std::uint64_t size, std::uint32_t permission) const noexcept;
+  [[nodiscard]] bool
+  attach_lifecycle(metaflux::runtime::lifecycle::Coordinator& coordinator) noexcept;
+  [[nodiscard]] metaflux::runtime::lifecycle::Mirror lifecycle_mirror() noexcept;
+  [[nodiscard]] bool lifecycle_online() const noexcept { return lifecycle_online_; }
+  [[nodiscard]] std::uint64_t device_generation() const noexcept {
+    return config_.device_generation;
+  }
+  [[nodiscard]] std::uint64_t mapping_epoch() const noexcept { return config_.mapping_epoch; }
 
 private:
+  static bool lifecycle_prepare(void* context,
+                                const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept;
+  static bool lifecycle_quiesce(void* context,
+                                const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept;
+  static bool lifecycle_drain(void* context,
+                              const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept;
+  static bool lifecycle_commit(void* context,
+                               const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept;
+  static bool lifecycle_abort(void* context,
+                              const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept;
+  static void lifecycle_lost(void* context,
+                             const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept;
+  void mark_lost() noexcept;
+  bool drain_lifecycle() noexcept;
   ServerResult reply_payload(std::uint64_t message_id, std::uint16_t request_type,
-                             const void* payload, std::size_t payload_size,
-                             bool no_reply) noexcept;
-  ServerResult reply(std::uint64_t message_id, std::uint16_t request_type,
-                     std::int32_t status, const void* result, std::size_t result_size,
-                     bool no_reply) noexcept;
+                             const void* payload, std::size_t payload_size, bool no_reply) noexcept;
+  ServerResult reply(std::uint64_t message_id, std::uint16_t request_type, std::int32_t status,
+                     const void* result, std::size_t result_size, bool no_reply) noexcept;
   ServerResult handle_message(const mf_transport_message_header_v0& header,
-                              const std::uint8_t* payload, std::size_t payload_size, int received_fd,
-                              bool no_reply) noexcept;
-  ServerResult handle_get_info(const mf_transport_message_header_v0& header, bool no_reply) noexcept;
+                              const std::uint8_t* payload, std::size_t payload_size,
+                              int received_fd, bool no_reply) noexcept;
+  ServerResult handle_get_info(const mf_transport_message_header_v0& header,
+                               bool no_reply) noexcept;
   ServerResult handle_dma_map(const mf_transport_message_header_v0& header,
                               const std::uint8_t* payload, std::size_t payload_size,
                               int received_fd, bool no_reply) noexcept;
@@ -77,8 +99,10 @@ private:
   ServerConfig config_{};
   ServerState state_ = ServerState::Negotiating;
   std::vector<DmaMapping> mappings_{};
+  bool lifecycle_online_ = true;
+  bool lifecycle_accepting_ = true;
 };
 
-}  // namespace metaflux::transport::vfio_user
+} // namespace metaflux::transport::vfio_user
 
 #endif

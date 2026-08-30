@@ -1,5 +1,5 @@
-#include <metaflux/transport/vfio_user_server.hpp>
 #include <metaflux/transport/vfio_user_guest.h>
+#include <metaflux/transport/vfio_user_server.hpp>
 
 #include <array>
 #include <cerrno>
@@ -16,8 +16,8 @@
 namespace {
 
 bool send_packet(int fd, const std::uint8_t* bytes, std::uint32_t size, int passed_fd = -1) {
-  struct iovec vector {const_cast<std::uint8_t*>(bytes), size};
-  struct msghdr message {};
+  struct iovec vector{const_cast<std::uint8_t*>(bytes), size};
+  struct msghdr message{};
   std::array<std::uint8_t, CMSG_SPACE(sizeof(int))> control{};
   message.msg_iov = &vector;
   message.msg_iovlen = 1;
@@ -35,14 +35,15 @@ bool send_packet(int fd, const std::uint8_t* bytes, std::uint32_t size, int pass
 
 bool receive_completion(int fd, std::uint64_t message_id, std::uint16_t request_type,
                         std::int32_t expected_status, mf_transport_completion_v0* out = nullptr) {
-  std::array<std::uint8_t, sizeof(mf_transport_message_header_v0) +
-                               sizeof(mf_transport_completion_v0)> packet{};
+  std::array<std::uint8_t,
+             sizeof(mf_transport_message_header_v0) + sizeof(mf_transport_completion_v0)>
+      packet{};
   const ssize_t received = ::recv(fd, packet.data(), packet.size(), 0);
   mf_transport_completion_v0 completion{};
   if (received != static_cast<ssize_t>(packet.size()) ||
       mf_vfio_user_guest_decode_completion_v0(packet.data(), static_cast<std::uint32_t>(received),
-                                              message_id, request_type, &completion) !=
-          MF_SHARED_SUCCESS ||
+                                              message_id, request_type,
+                                              &completion) != MF_SHARED_SUCCESS ||
       completion.status != static_cast<std::uint32_t>(expected_status)) {
     return false;
   }
@@ -53,8 +54,9 @@ bool receive_completion(int fd, std::uint64_t message_id, std::uint16_t request_
 }
 
 bool receive_info(int fd, std::uint64_t message_id, mf_vfio_user_get_info_reply_v0* out) {
-  std::array<std::uint8_t, sizeof(mf_transport_message_header_v0) +
-                               sizeof(mf_vfio_user_get_info_reply_v0)> packet{};
+  std::array<std::uint8_t,
+             sizeof(mf_transport_message_header_v0) + sizeof(mf_vfio_user_get_info_reply_v0)>
+      packet{};
   const ssize_t received = ::recv(fd, packet.data(), packet.size(), 0);
   mf_vfio_user_get_info_reply_v0 info{};
   if (received != static_cast<ssize_t>(packet.size()) ||
@@ -80,7 +82,7 @@ int make_memfd() {
   return static_cast<int>(fd);
 }
 
-}  // namespace
+} // namespace
 
 int main() {
   int sockets[2] = {-1, -1};
@@ -131,8 +133,7 @@ int main() {
   }
 
   const int duplicate_fd = fcntl(memfd, F_DUPFD_CLOEXEC, 0);
-  if (duplicate_fd < 0 ||
-      !send_packet(sockets[0], packet.data(), packet_size, duplicate_fd) ||
+  if (duplicate_fd < 0 || !send_packet(sockets[0], packet.data(), packet_size, duplicate_fd) ||
       server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
       !receive_completion(sockets[0], 7U, MF_VFIO_USER_MESSAGE_DMA_MAP_V0,
                           MF_SHARED_INVALID_ARGUMENT)) {
@@ -150,8 +151,7 @@ int main() {
   reset.payload_size = 0U;
   if (!send_packet(sockets[0], reinterpret_cast<const std::uint8_t*>(&reset), sizeof(reset)) ||
       server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
-      !receive_completion(sockets[0], 7U, MF_VFIO_USER_MESSAGE_RESET_V0,
-                          MF_SHARED_NOT_SUPPORTED)) {
+      !receive_completion(sockets[0], 7U, MF_VFIO_USER_MESSAGE_RESET_V0, MF_SHARED_NOT_SUPPORTED)) {
     close(memfd);
     return 1;
   }
@@ -163,15 +163,56 @@ int main() {
   unmap.mapping_epoch = map.mapping_epoch;
   unmap.device_generation = map.device_generation;
   if (mf_vfio_user_guest_encode_dma_unmap_v0(7U, &unmap, MF_TRANSPORT_FLAG_NO_REPLY_V0,
-                                             packet.data(), packet.size(), &packet_size) !=
-          MF_SHARED_SUCCESS ||
+                                             packet.data(), packet.size(),
+                                             &packet_size) != MF_SHARED_SUCCESS ||
       !send_packet(sockets[0], packet.data(), packet_size) ||
       server.process_once() != metaflux::transport::vfio_user::ServerResult::NoReply ||
       server.mapping_count() != 0U) {
     close(memfd);
     return 1;
   }
-  struct pollfd probe {sockets[0], POLLIN, 0};
+
+  metaflux::runtime::lifecycle::Config lifecycle_config{};
+  lifecycle_config.logical_device_id = 7U;
+  lifecycle_config.daemon_incarnation = 11U;
+  lifecycle_config.initial_identity_record_id = 1U;
+  lifecycle_config.initial_generation = 1U;
+  lifecycle_config.initial_epoch = 1U;
+  lifecycle_config.generation_terminal = 32U;
+  lifecycle_config.identity_record_terminal = 32U;
+  lifecycle_config.epoch_terminal = 32U;
+  metaflux::runtime::lifecycle::Coordinator coordinator(lifecycle_config);
+  const metaflux::runtime::lifecycle::Request reset_request{
+      .request_id = 8U,
+      .logical_device_id = 7U,
+      .daemon_incarnation = 11U,
+      .expected_identity_record_id = 1U,
+      .expected_generation = 1U,
+      .expected_epoch = 1U,
+      .source = metaflux::runtime::lifecycle::Source::VfioUser,
+      .operation = metaflux::runtime::lifecycle::Operation::Reset,
+  };
+  if (!server.attach_lifecycle(coordinator) ||
+      coordinator.apply(reset_request) != metaflux::runtime::lifecycle::Result::Accepted ||
+      server.device_generation() != 2U || server.mapping_epoch() != 2U ||
+      !server.lifecycle_online() ||
+      server.state() != metaflux::transport::vfio_user::ServerState::Configuring) {
+    close(memfd);
+    return 1;
+  }
+
+  map.device_generation = 1U;
+  map.mapping_epoch = 1U;
+  if (mf_vfio_user_guest_encode_dma_map_v0(8U, &map, packet.data(), packet.size(), &packet_size) !=
+          MF_SHARED_SUCCESS ||
+      !send_packet(sockets[0], packet.data(), packet_size, memfd) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+      !receive_completion(sockets[0], 8U, MF_VFIO_USER_MESSAGE_DMA_MAP_V0,
+                          MF_SHARED_STALE_HANDLE)) {
+    close(memfd);
+    return 1;
+  }
+  struct pollfd probe{sockets[0], POLLIN, 0};
   const int ready = poll(&probe, 1, 0);
   close(memfd);
   close(sockets[0]);

@@ -8,7 +8,10 @@ target_include_directories(
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/contracts/shared/device/v1/include>"
 )
-target_link_libraries(metaflux_transport_cdev_worker PUBLIC MetaFlux::TransportSchema)
+target_link_libraries(
+  metaflux_transport_cdev_worker
+  PUBLIC MetaFlux::TransportSchema MetaFlux::RuntimeCore
+)
 metaflux_configure_target(metaflux_transport_cdev_worker CXX)
 metaflux_register_component_graph_entry(
   metaflux_transport_cdev_worker

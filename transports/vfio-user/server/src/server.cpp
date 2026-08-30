@@ -38,12 +38,14 @@ bool bytes_zero(const std::uint8_t* bytes, std::size_t count) noexcept {
   return true;
 }
 
-}  // namespace
+} // namespace
 
 VfioUserServer::VfioUserServer(int fd, ServerConfig config) noexcept : fd_(fd), config_(config) {
   if (fd_ < 0 || config_.device_generation == 0U || config_.mapping_epoch == 0U ||
       config_.max_mappings == 0U || config_.address_width == 0U || config_.address_width > 63U) {
     state_ = ServerState::Lost;
+    lifecycle_online_ = false;
+    lifecycle_accepting_ = false;
   }
   if (state_ != ServerState::Lost) {
     mappings_.reserve(config_.max_mappings);
@@ -58,9 +60,15 @@ VfioUserServer::~VfioUserServer() {
   }
 }
 
+void VfioUserServer::mark_lost() noexcept {
+  state_ = ServerState::Lost;
+  lifecycle_online_ = false;
+  lifecycle_accepting_ = false;
+}
+
 bool VfioUserServer::dma_lookup(std::uint64_t iova, std::uint64_t size,
                                 std::uint32_t permission) const noexcept {
-  if (range_overflows(iova, size)) {
+  if (!lifecycle_online_ || !lifecycle_accepting_ || range_overflows(iova, size)) {
     return false;
   }
   for (const DmaMapping& mapping : mappings_) {
@@ -83,7 +91,7 @@ ServerResult VfioUserServer::reply_payload(std::uint64_t message_id, std::uint16
   }
   if (fd_ < 0 || payload_size > kMaximumPacketSize - sizeof(mf_transport_message_header_v0) ||
       (payload_size != 0U && payload == nullptr)) {
-    state_ = ServerState::Lost;
+    mark_lost();
     return ServerResult::Closed;
   }
   mf_transport_message_header_v0 header{};
@@ -97,7 +105,7 @@ ServerResult VfioUserServer::reply_payload(std::uint64_t message_id, std::uint16
   }
   const ssize_t sent = ::send(fd_, packet.data(), sizeof(header) + payload_size, MSG_NOSIGNAL);
   if (sent != static_cast<ssize_t>(sizeof(header) + payload_size)) {
-    state_ = ServerState::Lost;
+    mark_lost();
     return ServerResult::Closed;
   }
   return ServerResult::Replied;
@@ -107,9 +115,8 @@ ServerResult VfioUserServer::reply(std::uint64_t message_id, std::uint16_t reque
                                    std::int32_t status, const void* result, std::size_t result_size,
                                    bool no_reply) noexcept {
   mf_transport_completion_v0 completion{};
-  if (result_size > sizeof(completion.result) ||
-      (result_size != 0U && result == nullptr)) {
-    state_ = ServerState::Lost;
+  if (result_size > sizeof(completion.result) || (result_size != 0U && result == nullptr)) {
+    mark_lost();
     return ServerResult::Closed;
   }
   completion.status = status_code(status);
@@ -122,8 +129,9 @@ ServerResult VfioUserServer::reply(std::uint64_t message_id, std::uint16_t reque
 
 ServerResult VfioUserServer::handle_get_info(const mf_transport_message_header_v0& header,
                                              bool no_reply) noexcept {
-  if (state_ != ServerState::Negotiating && state_ != ServerState::Configuring &&
-      state_ != ServerState::Running) {
+  if (!lifecycle_online_ || !lifecycle_accepting_ ||
+      (state_ != ServerState::Negotiating && state_ != ServerState::Configuring &&
+       state_ != ServerState::Running)) {
     return reply(header.message_id, header.message_type, MF_SHARED_DEVICE_LOST, nullptr, 0U,
                  no_reply);
   }
@@ -146,7 +154,7 @@ ServerResult VfioUserServer::handle_dma_map(const mf_transport_message_header_v0
                                             const std::uint8_t* payload, std::size_t payload_size,
                                             int received_fd, bool no_reply) noexcept {
   mf_vfio_user_dma_map_v0 request{};
-  struct stat file_stat {};
+  struct stat file_stat{};
   int duplicate_fd = -1;
   const auto fail = [&](std::int32_t status) noexcept {
     if (received_fd >= 0) {
@@ -155,6 +163,10 @@ ServerResult VfioUserServer::handle_dma_map(const mf_transport_message_header_v0
     return reply(header.message_id, header.message_type, status, nullptr, 0U, no_reply);
   };
 
+  if (!lifecycle_online_ || !lifecycle_accepting_ || state_ == ServerState::Lost ||
+      state_ == ServerState::Closed) {
+    return fail(MF_SHARED_DEVICE_LOST);
+  }
   if ((state_ != ServerState::Configuring && state_ != ServerState::Running) ||
       payload == nullptr || payload_size != sizeof(request) || received_fd < 0) {
     return fail(MF_SHARED_INVALID_ARGUMENT);
@@ -162,22 +174,25 @@ ServerResult VfioUserServer::handle_dma_map(const mf_transport_message_header_v0
   std::memcpy(&request, payload, sizeof(request));
   if (request.struct_size != sizeof(request) ||
       (request.flags & static_cast<std::uint32_t>(~MF_VFIO_USER_DMA_KNOWN_FLAGS_V0)) != 0U ||
-      request.flags == 0U ||
-      request.fd_index != 0 || request.mapping_epoch != config_.mapping_epoch ||
-      request.device_generation != config_.device_generation ||
-      range_overflows(request.iova, request.size) || !aligned(request.iova) ||
+      request.flags == 0U || request.fd_index != 0 ||
+      !bytes_zero(request.reserved, sizeof(request.reserved))) {
+    return fail(MF_SHARED_INVALID_ARGUMENT);
+  }
+  if (request.mapping_epoch != config_.mapping_epoch ||
+      request.device_generation != config_.device_generation) {
+    return fail(MF_SHARED_STALE_HANDLE);
+  }
+  if (range_overflows(request.iova, request.size) || !aligned(request.iova) ||
       !aligned(request.size) || !aligned(request.file_offset) ||
       request.iova + request.size > (UINT64_C(1) << config_.address_width) ||
-      mappings_.size() >= config_.max_mappings ||
-      !bytes_zero(request.reserved, sizeof(request.reserved)) ||
-      ::fstat(received_fd, &file_stat) != 0 || file_stat.st_size < 0 ||
+      mappings_.size() >= config_.max_mappings || ::fstat(received_fd, &file_stat) != 0 ||
+      file_stat.st_size < 0 ||
       request.file_offset > static_cast<std::uint64_t>(file_stat.st_size) ||
       request.size > static_cast<std::uint64_t>(file_stat.st_size) - request.file_offset) {
     return fail(MF_SHARED_INVALID_ARGUMENT);
   }
   for (const DmaMapping& mapping : mappings_) {
-    if (request.iova < mapping.iova + mapping.size &&
-        mapping.iova < request.iova + request.size) {
+    if (request.iova < mapping.iova + mapping.size && mapping.iova < request.iova + request.size) {
       return fail(MF_SHARED_INVALID_ARGUMENT);
     }
   }
@@ -197,6 +212,11 @@ ServerResult VfioUserServer::handle_dma_unmap(const mf_transport_message_header_
                                               const std::uint8_t* payload, std::size_t payload_size,
                                               bool no_reply) noexcept {
   mf_vfio_user_dma_unmap_v0 request{};
+  if (!lifecycle_online_ || !lifecycle_accepting_ || state_ == ServerState::Lost ||
+      state_ == ServerState::Closed) {
+    return reply(header.message_id, header.message_type, MF_SHARED_DEVICE_LOST, nullptr, 0U,
+                 no_reply);
+  }
   if ((state_ != ServerState::Configuring && state_ != ServerState::Running) ||
       payload == nullptr || payload_size != sizeof(request)) {
     return reply(header.message_id, header.message_type, MF_SHARED_INVALID_ARGUMENT, nullptr, 0U,
@@ -204,9 +224,16 @@ ServerResult VfioUserServer::handle_dma_unmap(const mf_transport_message_header_
   }
   std::memcpy(&request, payload, sizeof(request));
   if (request.struct_size != sizeof(request) || request.flags != 0U ||
-      request.mapping_epoch != config_.mapping_epoch ||
-      request.device_generation != config_.device_generation || range_overflows(request.iova, request.size) ||
       !bytes_zero(request.reserved, sizeof(request.reserved))) {
+    return reply(header.message_id, header.message_type, MF_SHARED_INVALID_ARGUMENT, nullptr, 0U,
+                 no_reply);
+  }
+  if (request.mapping_epoch != config_.mapping_epoch ||
+      request.device_generation != config_.device_generation) {
+    return reply(header.message_id, header.message_type, MF_SHARED_STALE_HANDLE, nullptr, 0U,
+                 no_reply);
+  }
+  if (range_overflows(request.iova, request.size)) {
     return reply(header.message_id, header.message_type, MF_SHARED_INVALID_ARGUMENT, nullptr, 0U,
                  no_reply);
   }
@@ -251,30 +278,32 @@ ServerResult VfioUserServer::handle_message(const mf_transport_message_header_v0
     if (received_fd >= 0) {
       (void)::close(received_fd);
     }
-    return reply(header.message_id, header.message_type, MF_SHARED_NOT_SUPPORTED, nullptr, 0U,
-                 no_reply);
+    return reply(header.message_id, header.message_type,
+                 lifecycle_online_ && lifecycle_accepting_ ? MF_SHARED_NOT_SUPPORTED
+                                                           : MF_SHARED_DEVICE_LOST,
+                 nullptr, 0U, no_reply);
   }
 }
 
 ServerResult VfioUserServer::process_once() noexcept {
   std::array<std::uint8_t, kMaximumPacketSize> packet{};
   std::array<std::uint8_t, CMSG_SPACE(sizeof(int))> control{};
-  struct iovec vector {packet.data(), packet.size()};
-  struct msghdr message {};
+  struct iovec vector{packet.data(), packet.size()};
+  struct msghdr message{};
   message.msg_iov = &vector;
   message.msg_iovlen = 1;
   message.msg_control = control.data();
   message.msg_controllen = control.size();
   const ssize_t received = ::recvmsg(fd_, &message, MSG_CMSG_CLOEXEC);
   if (received == 0) {
-    state_ = ServerState::Lost;
+    mark_lost();
     return ServerResult::Closed;
   }
   if (received < 0) {
     if (errno == EINTR || errno == EAGAIN) {
       return ServerResult::Idle;
     }
-    state_ = ServerState::Lost;
+    mark_lost();
     return ServerResult::Closed;
   }
   int received_fd = -1;
@@ -285,7 +314,7 @@ ServerResult VfioUserServer::process_once() noexcept {
       if (received_fd >= 0) {
         (void)::close(received_fd);
       }
-      state_ = ServerState::Lost;
+      mark_lost();
       return ServerResult::Malformed;
     }
     std::memcpy(&received_fd, CMSG_DATA(header), sizeof(received_fd));
@@ -313,4 +342,109 @@ ServerResult VfioUserServer::process_once() noexcept {
                         (header.flags & MF_TRANSPORT_FLAG_NO_REPLY_V0) != 0U);
 }
 
-}  // namespace metaflux::transport::vfio_user
+bool VfioUserServer::drain_lifecycle() noexcept { return mappings_.empty(); }
+
+bool VfioUserServer::lifecycle_prepare(
+    void* context, const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept {
+  auto* server = static_cast<VfioUserServer*>(context);
+  if (server == nullptr || server->fd_ < 0 || server->state_ == ServerState::Closed) {
+    return false;
+  }
+  return event.request.operation != metaflux::runtime::lifecycle::Operation::Add ||
+         server->state_ != ServerState::Lost;
+}
+
+bool VfioUserServer::lifecycle_quiesce(
+    void* context, const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept {
+  auto* server = static_cast<VfioUserServer*>(context);
+  if (server == nullptr ||
+      (event.request.operation == metaflux::runtime::lifecycle::Operation::Reset &&
+       !server->lifecycle_online_)) {
+    return false;
+  }
+  server->lifecycle_accepting_ = false;
+  return true;
+}
+
+bool VfioUserServer::lifecycle_drain(void* context,
+                                     const metaflux::runtime::lifecycle::MirrorEvent&) noexcept {
+  auto* server = static_cast<VfioUserServer*>(context);
+  return server != nullptr && server->drain_lifecycle();
+}
+
+bool VfioUserServer::lifecycle_commit(
+    void* context, const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept {
+  auto* server = static_cast<VfioUserServer*>(context);
+  if (server == nullptr) {
+    return false;
+  }
+  if (event.state_after == metaflux::runtime::lifecycle::State::Absent) {
+    server->state_ = ServerState::Closed;
+    server->lifecycle_online_ = false;
+    server->lifecycle_accepting_ = false;
+    if (server->fd_ >= 0) {
+      (void)::close(server->fd_);
+      server->fd_ = -1;
+    }
+    return true;
+  }
+  if (event.candidate.generation != 0U) {
+    server->config_.device_generation = event.candidate.generation;
+  }
+  if (event.candidate.epoch != 0U) {
+    server->config_.mapping_epoch = event.candidate.epoch;
+  }
+  server->state_ = ServerState::Configuring;
+  server->lifecycle_online_ = true;
+  server->lifecycle_accepting_ = true;
+  return true;
+}
+
+bool VfioUserServer::lifecycle_abort(
+    void* context, const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept {
+  auto* server = static_cast<VfioUserServer*>(context);
+  if (server == nullptr) {
+    return false;
+  }
+  if (event.state_before == metaflux::runtime::lifecycle::State::Lost) {
+    server->mark_lost();
+  } else if (event.state_before == metaflux::runtime::lifecycle::State::Online) {
+    server->state_ = server->mappings_.empty() ? ServerState::Configuring : ServerState::Running;
+    server->lifecycle_online_ = true;
+    server->lifecycle_accepting_ = true;
+  } else {
+    server->state_ = ServerState::Negotiating;
+    server->lifecycle_online_ = false;
+    server->lifecycle_accepting_ = false;
+  }
+  return true;
+}
+
+void VfioUserServer::lifecycle_lost(void* context,
+                                    const metaflux::runtime::lifecycle::MirrorEvent&) noexcept {
+  auto* server = static_cast<VfioUserServer*>(context);
+  if (server != nullptr) {
+    server->mark_lost();
+  }
+}
+
+bool VfioUserServer::attach_lifecycle(
+    metaflux::runtime::lifecycle::Coordinator& coordinator) noexcept {
+  return coordinator.register_mirror(lifecycle_mirror());
+}
+
+metaflux::runtime::lifecycle::Mirror VfioUserServer::lifecycle_mirror() noexcept {
+  return metaflux::runtime::lifecycle::Mirror{
+      .kind = metaflux::runtime::lifecycle::MirrorKind::VfioUser,
+      .name = "vfio-user",
+      .context = this,
+      .prepare = lifecycle_prepare,
+      .quiesce = lifecycle_quiesce,
+      .drain = lifecycle_drain,
+      .commit = lifecycle_commit,
+      .abort = lifecycle_abort,
+      .publish_lost = lifecycle_lost,
+  };
+}
+
+} // namespace metaflux::transport::vfio_user

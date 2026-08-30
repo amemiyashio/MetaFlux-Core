@@ -17,3 +17,13 @@ M0110 deliberately advertises neither reset nor migration. A reset or doorbell
 message received on the control socket returns `MF_SHARED_NOT_SUPPORTED`; the
 steady-state doorbell/ring path and `metaflux_pci.ko` remain the next W0113
 implementation stage.
+
+The C++ server can register its `metaflux::runtime::lifecycle::Mirror` with the
+M0120 coordinator. Lifecycle quiesce rejects new control work, reset commits
+only after the DMA mapping ledger is empty, and commit advances the server's
+device generation and mapping epoch together. Map and unmap requests carrying a
+retired pair return `MF_SHARED_STALE_HANDLE`; work after a lifecycle loss
+returns `MF_SHARED_DEVICE_LOST`. Socket disconnects mark the local server lost;
+the owning coordinator remains responsible for submitting the normalized loss
+request. The mirror does not add a reset wire message or alter the generated
+vfio-user profile.

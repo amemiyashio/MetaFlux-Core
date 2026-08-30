@@ -56,6 +56,10 @@ only.
 - [x] Exercise identical prepare, quiesce, drain, commit, abort, tombstone,
   `LOST`, and `ABSENT` paths with the memfd, cdev, and guest vfio-user mirror
   fixture registrations.
+- [x] Connect the concrete C++ cdev worker and vfio-user server mirrors to the
+  coordinator. Their steady-state protocol records remain unchanged; cdev
+  drains published descriptors and rejects retired generations, while vfio-user
+  gates DMA work and rejects stale generation/epoch pairs.
 - [ ] Integrate every reset/disconnect/restart source and inject failure at each
   staging, commit, DMA, completion, and teardown step.
 - [ ] Verify provider enumeration freeze before, during, and after replacement.
@@ -86,7 +90,9 @@ The focused unit gate is
 duplicate/conflicting request IDs, stale generations, pre-commit candidate
 consumption, transport-loss recovery, partial commit, remove/add, and checked
 generation/epoch exhaustion. This stage is a preparation for the real adapter
-and qualification work below; it does not claim those gates complete.
+and qualification work below; it does not claim those gates complete. The cdev
+and vfio-user transport tests additionally exercise reset/loss callbacks and
+retired-generation rejection at their protocol boundaries.
 
 ## Exit Gate
 
