@@ -1,6 +1,7 @@
 add_library(
   metaflux_vulkan_backend STATIC
   src/capability.cpp
+  src/memory.cpp
 )
 add_library(MetaFlux::VulkanBackend ALIAS metaflux_vulkan_backend)
 
@@ -23,5 +24,14 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   set_tests_properties(
     metaflux.backend.vulkan-capability
     PROPERTIES LABELS "backend;vulkan;capability"
+  )
+
+  add_executable(metaflux_vulkan_memory_test tests/memory_test.cpp)
+  target_link_libraries(metaflux_vulkan_memory_test PRIVATE MetaFlux::VulkanBackend)
+  metaflux_configure_target(metaflux_vulkan_memory_test CXX)
+  add_test(NAME metaflux.backend.vulkan-memory COMMAND metaflux_vulkan_memory_test)
+  set_tests_properties(
+    metaflux.backend.vulkan-memory
+    PROPERTIES LABELS "backend;vulkan;memory"
   )
 endif()
