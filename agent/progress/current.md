@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0120
 workstream: W0122
-checkpoint: P20260831-020
+checkpoint: P20260831-021
 ---
 
 # Current Progress
@@ -31,6 +31,8 @@ W0122's runtime-owned coordinator and bounded transport mirror stage is recorded
 at [P20260831-019](checkpoints/2026/P20260831-019-m0120-lifecycle-coordinator.md).
 The concrete C++ cdev worker and vfio-user server mirrors are now wired to the
 coordinator and recorded at [P20260831-020](checkpoints/2026/P20260831-020-m0120-existing-transport-mirrors.md).
+W0112's generation-bound payload arena and eventfd ownership stage is recorded
+at [P20260831-021](checkpoints/2026/P20260831-021-m0110-cdev-payload-eventfd.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -126,7 +128,7 @@ Linux 9.8.
 | W0112 transport schema and component graph | Schema validator passed 4 definitions/12 records; graph passed 15 components/18 edges |
 | W0112 focused transport tests | C17/C++20 schema fixtures and cdev client/worker tests passed 5/5 |
 | W0112 kernel compile | Linux 6.18.42 default GCC built `metaflux_core.ko` with modpost success |
-| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, and exclusive lease are implemented; eventfd, memory pinning, backend payload, daemon replacement, and fault qualification remain open |
+| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, and eventfd ownership are implemented; FOLL_PIN/SG registration, backend payload wiring, daemon replacement, queue krefs, and fault qualification remain open |
 | W0113 transport schema and component graph | Schema validator passed 5 definitions/15 records; graph passed 17 components/18 edges |
 | W0113 focused transport tests | Schema, cdev, guest, and server tests passed 7/7; full dev CTest passed 72/72 |
 | W0113 static vfio-user control fixture | Generated GET_INFO reply, static BAR0/BAR2/BAR4 profile, generation/epoch DMA map ledger, overlap and reset rejection, and `No_reply` unmap passed |
@@ -168,6 +170,11 @@ Linux 9.8.
    recorded, but it does not satisfy the lifecycle Definition of Done; continue
    with memfd integration, source normalization, provider freeze, and
    qualification while preserving the M0110 root.
+7. M0110/W0112 remains Active after the payload/eventfd stage at
+   [P20260831-021](checkpoints/2026/P20260831-021-m0110-cdev-payload-eventfd.md).
+   Continue with registered-memory pinning, backend ABI wiring, replacement
+   generations, and lifecycle/fault qualification; do not claim the cdev exit
+   gate from the mapped fixture alone.
 
 ## Tool Boundary
 
