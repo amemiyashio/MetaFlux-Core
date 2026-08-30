@@ -3,9 +3,9 @@
 ## Objective and outcome
 
 W0112 is implementing the local character-device transport against the
-generated M0110 envelope. The userspace client and worker halves now have a
-reviewable ring path; the kernel cdev broker and its compile gate remain the
-next coherent stage before this work item can close.
+generated M0110 envelope. The userspace client and worker halves plus a
+compile-checked kernel cdev broker now form a reviewable stage; the work item
+remains Active until ownership, eventfd, payload, and fault gates close.
 
 ## Durable changes
 
@@ -20,13 +20,16 @@ next coherent stage before this work item can close.
 
 | Command/gate | Result |
 | --- | --- |
-| CMake and focused CTest | Pending first build after this session scaffold |
-| Kernel Kbuild module | Pending; source is the next stage |
+| Transport schema, component graph, and focused CTest | Passed: schema validator and 5/5 focused tests |
+| Target Kbuild (Linux 6.18.42, GCC) | Passed: `metaflux_core.ko` built and modpost completed |
+| Target Kbuild with `LLVM=1` | Not qualified: target config rejects GCC-specific flags before source compile |
 
 ## Cleanup
 
-- Removed: TODO or none.
-- Retained: TODO or none.
+- Removed: Kbuild objects, module output, and generated header under the
+  session-owned `kernel/core/` build paths.
+- Retained: only durable source, schema projection logic, and compact records
+  in Git.
 
 ## Decisions and experience
 
@@ -40,6 +43,7 @@ next coherent stage before this work item can close.
 ### light roasts
 
 - Userspace cdev halves -> `transports/cdev/` (focused C/C++ tests)
+- Kernel cdev broker -> `kernel/core/` (Linux 6.18.42 GCC Kbuild)
 
 ### medium roasts
 
@@ -51,15 +55,17 @@ next coherent stage before this work item can close.
 
 ## session-only
 
-- none.
+- LLVM qualification on this host - reason: the target Kbuild flags reject LLVM
+  before module compilation; no repository-wide conclusion is promoted.
 
 ## Unresolved items
 
-- W0112 / local cdev: add `metaflux_core.ko`, validate the Kbuild projection,
-  and connect the worker lease and wait/error paths to the same generation.
+- W0112 / local cdev: complete eventfd and registered-memory ownership, connect
+  the worker lease to the backend payload arena, and add KUnit/KASAN/KCSAN,
+  teardown, stale-generation, and owner-death evidence.
 
 ## Handoff
 
 Read W0112, the W0111 transport schema, and the generated UAPI projection. Run
-the focused cdev CTest before changing the kernel broker; keep the cdev client
-and worker halves in separate load images.
+the focused cdev CTest and target Kbuild before changing the broker; keep the
+cdev client and worker halves in separate load images.

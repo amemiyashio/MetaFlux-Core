@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-30
 milestone: M0110
 workstream: W0112
-checkpoint: P20260830-015
+checkpoint: P20260830-016
 ---
 
 # Current Progress
@@ -21,7 +21,8 @@ session through transient guidance, and routes breaking replacements through
 semantic-change governance. It creates no snapshot or review archive. This
 governance addition initially left product work queued. M0110 is now Active;
 W0111 has an implemented candidate contract and remains Active pending the
-local/guest negotiation slices, while W0112 is the next workstream.
+local/guest negotiation slices. W0112 is Active with its first local cdev stage
+recorded at [P20260830-016](checkpoints/2026/P20260830-016-m0110-local-cdev.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -109,6 +110,15 @@ and absence of `/nix/store`, RPATH, and RUNPATH references. The offline D0012
 matrix owns fresh install, real upgrade, removal, coexistence, and packaged
 Add/Copy evidence for Ubuntu 20.04.6, Ubuntu 22.04.5, Ubuntu 24.04.4, and Rocky
 Linux 9.8.
+
+## Recorded M0110 Stage Evidence
+
+| Gate | Recorded result |
+| --- | --- |
+| W0112 transport schema and component graph | Schema validator passed 4 definitions/12 records; graph passed 15 components/18 edges |
+| W0112 focused transport tests | C17/C++20 schema fixtures and cdev client/worker tests passed 5/5 |
+| W0112 kernel compile | Linux 6.18.42 default GCC built `metaflux_core.ko` with modpost success |
+| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, and exclusive lease are implemented; eventfd, memory pinning, backend payload, daemon replacement, and fault qualification remain open |
 
 ## Versioned Next Work
 
