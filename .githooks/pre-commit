@@ -11,6 +11,18 @@ is_guidance_path() {
   [[ "$1" =~ ^agent/sessions/[^/]+/[^/]+/[^/]+/guidance/ ]]
 }
 
+is_closing_record_path() {
+  [[ "$1" == agent/sessions/README.md \
+    || "$1" =~ ^agent/sessions/[^/]+/[^/]+/[^/]+/ \
+    || "$1" == agent/progress/README.md \
+    || "$1" == agent/progress/current.md \
+    || "$1" =~ ^agent/progress/checkpoints/[^/]+/[^/]+$ \
+    || "$1" == agent/semantic-changes/README.md \
+    || "$1" =~ ^agent/semantic-changes/SC[0-9]{4}-.+\.md$ ]]
+}
+
+has_staged_changes=false
+staged_changes_are_closing_records=true
 while IFS= read -r -d '' staged_status; do
   if ! IFS= read -r -d '' staged_path; then
     echo "error: malformed staged-change stream after status $staged_status" >&2
@@ -25,38 +37,105 @@ while IFS= read -r -d '' staged_status; do
       fi
       staged_paths+=("$staged_path")
       ;;
-    A|M|T) ;;
+    A|D|M|T) ;;
     *)
       echo "error: unsupported staged-change status: $staged_status" >&2
       exit 1
       ;;
   esac
   for staged_path in "${staged_paths[@]}"; do
-    if is_guidance_path "$staged_path"; then
+    has_staged_changes=true
+    if ! is_closing_record_path "$staged_path"; then
+      staged_changes_are_closing_records=false
+    fi
+    if [[ "${staged_status:0:1}" != D ]] && is_guidance_path "$staged_path"; then
       echo "error: session guidance artifacts must not be committed: $staged_path" >&2
       exit 1
     fi
   done
 done < <(
   git diff --cached --name-status -z --find-renames --find-copies \
-    --diff-filter=ACMRT
+    --diff-filter=ACDMRT
 )
 
-# Protected history changes require a committed, exact Active SC permit.
-python3 tools/check-semantic-change-edits.py . --cached
+# Execute the candidate versions of the gates against the exact candidate tree.
+# This prevents a partially staged gate edit from validating different code
+# than the code being committed.
+candidate_root="$(mktemp -d)"
+cleanup_candidate_root() {
+  rm -rf -- "$candidate_root"
+}
+trap cleanup_candidate_root EXIT
+git checkout-index --all --prefix="$candidate_root/"
 
-# Records must stay valid in the exact candidate tree, even when the working
-# tree differs from the staged index.
-python3 tools/check-agent-records.py . --cached
+# Protected history changes require a committed, exact Active SC permit.
+python3 "$candidate_root/tools/check-semantic-change-edits.py" . --cached
+
+# Records must stay valid in the exact candidate tree.
+python3 "$candidate_root/tools/check-agent-records.py" "$candidate_root"
 
 # The record gate itself must stay proven.
-python3 tools/test-check-agent-records.py > /dev/null 2>&1
+python3 "$candidate_root/tools/test-check-agent-records.py" > /dev/null 2>&1
 
-# Durable changes require an in-progress session (AGENTS.md rule 2).
-if git diff --cached --name-only | grep -qv '^agent/'; then
-  if ! grep -rql '"status": "in_progress"' agent/sessions/*/*/*/session.json 2>/dev/null; then
-    echo "error: staged changes outside agent/ require an in-progress session." >&2
-    echo "       scaffold one: python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>   (see AGENTS.md)" >&2
-    exit 1
+# Durable changes require an in-progress session in the candidate index. The
+# sole exception is a closing-record-only commit that closes a session which is
+# still in progress in HEAD; all other content belongs in an earlier commit.
+session_json_has_status() {
+  local treeish="$1"
+  local session_path="$2"
+  local expected_status="$3"
+  local object_spec
+  if [[ "$treeish" == index ]]; then
+    object_spec=":$session_path"
+  else
+    object_spec="$treeish:$session_path"
   fi
+  git show "$object_spec" 2>/dev/null | python3 -c '
+import json
+import sys
+
+try:
+    session = json.load(sys.stdin)
+except (json.JSONDecodeError, OSError):
+    raise SystemExit(1)
+raise SystemExit(0 if session.get("status") == sys.argv[1] else 1)
+' "$expected_status"
+}
+
+candidate_has_in_progress_session=false
+while IFS= read -r -d '' session_path; do
+  if session_json_has_status index "$session_path" in_progress; then
+    candidate_has_in_progress_session=true
+    break
+  fi
+done < <(
+  git ls-files --cached -z -- \
+    ':(glob)agent/sessions/*/*/*/session.json'
+)
+
+closes_head_session=false
+if [[ "$has_staged_changes" == true \
+      && "$candidate_has_in_progress_session" == false \
+      && "$staged_changes_are_closing_records" == true ]]; then
+  while IFS= read -r -d '' session_path; do
+    if session_json_has_status HEAD "$session_path" in_progress \
+      && { session_json_has_status index "$session_path" complete \
+        || session_json_has_status index "$session_path" blocked \
+        || session_json_has_status index "$session_path" abandoned; }; then
+      closes_head_session=true
+      break
+    fi
+  done < <(
+    git diff --cached --name-only -z --diff-filter=M -- \
+      ':(glob)agent/sessions/*/*/*/session.json'
+  )
+fi
+
+if [[ "$has_staged_changes" == true \
+      && "$candidate_has_in_progress_session" == false \
+      && "$closes_head_session" == false ]]; then
+  echo "error: staged durable changes require an in-progress session in the candidate Git index." >&2
+  echo "       scaffold one: python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>   (see AGENTS.md)" >&2
+  echo "       only a closing-record-only commit may transition the last HEAD session to terminal." >&2
+  exit 1
 fi

@@ -14,9 +14,12 @@ enforced by repository checks.
    python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>
    ```
 
-   The pre-commit hook rejects non-`agent/` changes while no session is in
-   progress. The session closes by cleaning its disposable work, not by
-   archiving a copy of the worktree.
+   The pre-commit hook rejects every durable change unless the candidate index
+   contains an in-progress session. The narrow exception is a commit limited to
+   session, progress, checkpoint, and semantic-change closing records that
+   terminally closes a session which is in progress at `HEAD`. The session
+   closes by cleaning its disposable work, not by archiving a copy of the
+   worktree.
    Product and delivery identities follow
    [`docs/release-versioning.md`](docs/release-versioning.md).
 3. **Process session guidance at control boundaries.** On session resume, a

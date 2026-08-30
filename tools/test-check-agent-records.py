@@ -3,14 +3,16 @@
 
 Builds a minimal valid agent/ tree in a temporary directory and asserts the
 validator's behavior on it, then mutates one aspect per case to pin every rule:
-required session fields, delivery-scoped session ids, lifecycle timestamps,
-contiguous event sequence numbers, guidance dispositions, transient-inbox isolation
-and cleanup, roast/session-only classification, index completeness (both directions), milestone
-release/index consistency, M/W ownership, session-to-plan resolution, Codex
+required session fields, delivery-scoped session ids and references, lifecycle timestamps,
+terminal-note cleanup, contiguous event sequence numbers, guidance dispositions and milestone
+mapping, transient-inbox isolation and cleanup, roast/session-only classification, index
+completeness (both directions), milestone release/index consistency, M/W ownership,
+session-to-plan resolution, Codex
 skill-package compatibility and
 discovery, open-decision identity, decision-index references, staleness warnings,
 markdown link existence, checkpoint id/path agreement, current-progress freshness,
-latest-session status consistency, and the staged-guidance gate.
+latest-session status consistency, the staged-guidance gate, and candidate-index session
+coverage at pre-commit.
 
 Run from anywhere:
 
@@ -25,6 +27,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -261,6 +264,30 @@ def with_duplicate_guidance_disposition(files: dict[str, str]) -> dict[str, str]
     return mutated
 
 
+def with_terminal_guidance_event(
+    files: dict[str, str], *, mapped: bool
+) -> dict[str, str]:
+    mutated = dict(files)
+    event_path = f"{SESSION_DIR}/events.jsonl"
+    guidance_event = {
+        "schema_version": 1,
+        "seq": 2,
+        "timestamp": "2026-08-28",
+        "type": "work_note",
+        "actor": "A001",
+        "content": "fixture guidance disposition",
+        "guidance_id": "G001",
+        "disposition": "adopted",
+    }
+    mutated[event_path] += json.dumps(guidance_event, sort_keys=True) + "\n"
+    if mapped:
+        session_path = f"{SESSION_DIR}/session.json"
+        session = json.loads(mutated[session_path])
+        session["milestones"][0]["event_seqs"].append(2)
+        mutated[session_path] = json.dumps(session, indent=2) + "\n"
+    return mutated
+
+
 def with_in_progress_session(files: dict[str, str]) -> dict[str, str]:
     mutated = dict(files)
     session_path = f"{SESSION_DIR}/session.json"
@@ -450,7 +477,12 @@ def check_pre_commit_guidance_gate(root: Path) -> list[str]:
         fake_bin = root / "fake-bin"
         fake_bin.mkdir()
         fake_python = fake_bin / "python3"
-        fake_python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        fake_python.write_text(
+            "#!/bin/sh\n"
+            f"if [ \"$1\" = \"-c\" ]; then exec {shlex.quote(sys.executable)} \"$@\"; fi\n"
+            "exit 0\n",
+            encoding="utf-8",
+        )
         fake_python.chmod(0o755)
         environment = os.environ.copy()
         environment["PATH"] = f"{fake_bin}{os.pathsep}{environment.get('PATH', '')}"
@@ -459,6 +491,23 @@ def check_pre_commit_guidance_gate(root: Path) -> list[str]:
     guidance_path = Path(
         "agent/sessions/2026/08/S0100-20260828-001-selftest/guidance/G001-fixture.ready.md"
     )
+    active_session_path = Path(
+        "agent/sessions/2026/08/S0100-20260828-001-selftest/session.json"
+    )
+
+    def stage_active_session() -> None:
+        write_fixture_entry(
+            root,
+            active_session_path.as_posix(),
+            '{"status":"in_progress"}\n',
+        )
+        subprocess.run(
+            ["git", "add", "--", active_session_path.as_posix()],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
     def prepare_tracked_path(tracked_path: Path) -> dict[str, str]:
         environment = prepare_repository()
@@ -518,6 +567,7 @@ def check_pre_commit_guidance_gate(root: Path) -> list[str]:
     environment = prepare_repository()
     write_fixture_entry(root, "agent/README.md", "# Agent fixture\n")
     write_fixture_entry(root, guidance_path.as_posix(), "untracked guidance\n")
+    stage_active_session()
     subprocess.run(
         ["git", "add", "--", "agent/README.md"],
         cwd=root,
@@ -640,6 +690,7 @@ def check_pre_commit_guidance_gate(root: Path) -> list[str]:
 
     environment = prepare_tracked_guidance()
     (root / guidance_path).unlink()
+    stage_active_session()
     subprocess.run(
         ["git", "add", "-u", "--", guidance_path.as_posix()],
         cwd=root,
@@ -659,6 +710,205 @@ def check_pre_commit_guidance_gate(root: Path) -> list[str]:
         problems.append(
             "guidance deletion was not stageable for cleanup: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    return problems
+
+
+def check_pre_commit_session_gate(root: Path) -> list[str]:
+    problems: list[str] = []
+    session_path = Path(
+        "agent/sessions/2026/08/S0100-20260828-001-selftest/session.json"
+    )
+    agent_path = Path("agent/README.md")
+    product_path = Path("src/fixture.txt")
+    active_session = '{"status":"in_progress"}\n'
+    complete_session = '{"status":"complete"}\n'
+
+    def prepare_repository(*, bypass_python_gates: bool = True) -> dict[str, str]:
+        if root.exists():
+            shutil.rmtree(root)
+        root.mkdir(parents=True)
+        subprocess.run(
+            ["git", "init", "-q"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        environment = os.environ.copy()
+        if bypass_python_gates:
+            fake_bin = root / "fake-bin"
+            fake_bin.mkdir()
+            fake_python = fake_bin / "python3"
+            fake_python.write_text(
+                "#!/bin/sh\n"
+                f"if [ \"$1\" = \"-c\" ]; then exec {shlex.quote(sys.executable)} \"$@\"; fi\n"
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            fake_python.chmod(0o755)
+            environment["PATH"] = (
+                f"{fake_bin}{os.pathsep}{environment.get('PATH', '')}"
+            )
+        return environment
+
+    def stage(path: Path, content: str) -> None:
+        write_fixture_entry(root, path.as_posix(), content)
+        subprocess.run(
+            ["git", "add", "--", path.as_posix()],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+    def run_hook(environment: dict[str, str]) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [str(PRE_COMMIT_PATH)],
+            cwd=root,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def prepare_active_head() -> dict[str, str]:
+        environment = prepare_repository()
+        stage(session_path, active_session)
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "user.name=MetaFlux Self-Test",
+                "-c",
+                "user.email=selftest@invalid",
+                "commit",
+                "--no-verify",
+                "-qm",
+                "active session fixture",
+            ],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return environment
+
+    environment = prepare_repository()
+    stage(agent_path, "# Agent fixture\n")
+    result = run_hook(environment)
+    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+        problems.append(
+            "agent-only durable change without an active session was not rejected: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_repository()
+    stage(product_path, "product fixture\n")
+    write_fixture_entry(root, session_path.as_posix(), active_session)
+    result = run_hook(environment)
+    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+        problems.append(
+            "unstaged active session incorrectly covered a product commit: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_repository()
+    stage(session_path, active_session)
+    result = run_hook(environment)
+    if result.returncode != 0:
+        problems.append(
+            "first staged active-session scaffold was rejected: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_active_head()
+    stage(product_path, "product fixture\n")
+    result = run_hook(environment)
+    if result.returncode != 0:
+        problems.append(
+            "product commit covered by the active candidate session was rejected: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_active_head()
+    stage(session_path, complete_session)
+    stage(Path("agent/sessions/README.md"), "# Closing record fixture\n")
+    result = run_hook(environment)
+    if result.returncode != 0:
+        problems.append(
+            "record-only final session close was rejected: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_active_head()
+    stage(session_path, complete_session)
+    stage(product_path, "product fixture\n")
+    result = run_hook(environment)
+    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+        problems.append(
+            "product content piggybacked on a final session close: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_active_head()
+    stage(session_path, complete_session)
+    stage(Path("agent/skills/fixture/SKILL.md"), "# Skill fixture\n")
+    result = run_hook(environment)
+    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+        problems.append(
+            "agent skill content piggybacked on a final session close: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_repository()
+    stage(
+        session_path,
+        '{"status":"complete","milestones":[{"status":"in_progress"}]}\n',
+    )
+    result = run_hook(environment)
+    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+        problems.append(
+            "nested in-progress status incorrectly covered a newly added terminal session: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_repository(bypass_python_gates=False)
+    strong_validator = "# STRONG\nraise SystemExit(0)\n"
+    weak_validator = "# WEAK\nraise SystemExit(0)\n"
+    candidate_probe = (
+        "from pathlib import Path\n"
+        "validator = Path(__file__).with_name('check-agent-records.py')\n"
+        "raise SystemExit(0 if '# STRONG' in validator.read_text() else 1)\n"
+    )
+    stage(Path("tools/check-semantic-change-edits.py"), "raise SystemExit(0)\n")
+    stage(Path("tools/check-agent-records.py"), strong_validator)
+    stage(Path("tools/test-check-agent-records.py"), candidate_probe)
+    stage(session_path, active_session)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=MetaFlux Self-Test",
+            "-c",
+            "user.email=selftest@invalid",
+            "commit",
+            "--no-verify",
+            "-qm",
+            "candidate gate fixture",
+        ],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    stage(Path("tools/check-agent-records.py"), weak_validator)
+    write_fixture_entry(root, "tools/check-agent-records.py", strong_validator)
+    result = run_hook(environment)
+    if result.returncode == 0:
+        problems.append(
+            "partially staged validator executed the stronger working-tree code"
         )
 
     return problems
@@ -1155,6 +1405,17 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         False,
     ),
     (
+        "unresolved full scoped session references are rejected",
+        mutate(
+            {
+                f"{SESSION_DIR}/notes.md": BASE_FILES[f"{SESSION_DIR}/notes.md"]
+                + "\nUnknown reference S0100-20260828-999-missing is invalid.\n"
+            }
+        ),
+        True,
+        False,
+    ),
+    (
         "legacy session references in event logs are rejected",
         replace(
             BASE_FILES,
@@ -1437,6 +1698,30 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         False,
     ),
     (
+        "terminal session notes reject TODO",
+        mutate(
+            {
+                f"{SESSION_DIR}/notes.md": BASE_FILES[f"{SESSION_DIR}/notes.md"]
+                + "\nTODO: unresolved closure work.\n"
+            }
+        ),
+        True,
+        False,
+    ),
+    (
+        "active session notes permit TODO",
+        with_in_progress_session(
+            mutate(
+                {
+                    f"{SESSION_DIR}/notes.md": BASE_FILES[f"{SESSION_DIR}/notes.md"]
+                    + "\nTODO: active follow-up.\n"
+                }
+            )
+        ),
+        False,
+        False,
+    ),
+    (
         "event sequence gap",
         replace(BASE_FILES, f"{SESSION_DIR}/events.jsonl", '"seq": 1', '"seq": 2'),
         True,
@@ -1445,6 +1730,18 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
     (
         "adopted guidance work note",
         with_guidance_event(BASE_FILES, disposition="adopted"),
+        False,
+        False,
+    ),
+    (
+        "terminal guidance event must map to a milestone",
+        with_terminal_guidance_event(BASE_FILES, mapped=False),
+        True,
+        False,
+    ),
+    (
+        "terminal guidance event mapped to a milestone",
+        with_terminal_guidance_event(BASE_FILES, mapped=True),
         False,
         False,
     ),
@@ -2696,6 +2993,14 @@ def main() -> int:
                 print(f"  {problem}", file=sys.stderr)
         else:
             print("ok: pre-commit guidance gate")
+        session_gate_problems = check_pre_commit_session_gate(root)
+        if session_gate_problems:
+            failures += 1
+            print("FAIL: pre-commit session coverage gate", file=sys.stderr)
+            for problem in session_gate_problems:
+                print(f"  {problem}", file=sys.stderr)
+        else:
+            print("ok: pre-commit session coverage gate")
         cached_problems = check_cached_tree_validation(root)
         if cached_problems:
             failures += 1
@@ -2709,7 +3014,7 @@ def main() -> int:
         return 1
     print(
         "agent-records self-test: "
-        f"{len(CASES) + len(SC_CASES) + 4} case(s) passed"
+        f"{len(CASES) + len(SC_CASES) + 5} case(s) passed"
     )
     return 0
 

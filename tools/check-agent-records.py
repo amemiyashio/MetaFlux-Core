@@ -541,13 +541,17 @@ class Validator:
         summary_path = self.validate_relative_file(
             session_dir, session.get("summary"), "summary"
         )
-        self.validate_relative_file(session_dir, session.get("notes"), "notes")
+        notes_path = self.validate_relative_file(
+            session_dir, session.get("notes"), "notes"
+        )
         self.validate_roast(summary_path, session)
         self.validate_cleanup(summary_path, session)
+        self.validate_terminal_notes(notes_path, status)
         self.validate_terminal_guidance_cleanup(session_dir, status)
 
         events = self.validate_events(session_dir, event_log_path, schema_version)
         valid_event_seqs = {event["seq"] for event in events if self.is_int(event.get("seq"))}
+        mapped_event_seqs: set[int] = set()
         for milestone_id, milestone in milestones.items():
             event_seqs = milestone.get("event_seqs")
             if not isinstance(event_seqs, list) or not event_seqs:
@@ -561,10 +565,40 @@ class Validator:
                     self.add_error(session_file, f"milestone {milestone_id} repeats event seq {event_seq}")
                 elif event_seq not in valid_event_seqs:
                     self.add_error(session_file, f"milestone {milestone_id} references missing event seq {event_seq}")
+                else:
+                    mapped_event_seqs.add(event_seq)
                 seen.add(event_seq)
+
+        if status in ALLOWED_STATUSES - {"in_progress"}:
+            for event in events:
+                event_seq = event.get("seq")
+                if (
+                    self.is_int(event_seq)
+                    and "guidance_id" in event
+                    and "disposition" in event
+                    and event_seq not in mapped_event_seqs
+                ):
+                    self.add_error(
+                        session_file,
+                        f"terminal guidance event seq {event_seq} is not mapped by any milestone",
+                    )
 
         self.scan_session_credentials(session_dir)
         self.session_count += 1
+
+    def validate_terminal_notes(self, notes_path: Path | None, status: object) -> None:
+        if status == "in_progress" or status not in ALLOWED_STATUSES or notes_path is None:
+            return
+        try:
+            lines = notes_path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError):
+            return
+        for line_number, line in enumerate(lines, start=1):
+            if re.search(r"\bTODO\b", line, re.IGNORECASE):
+                self.add_error(
+                    notes_path,
+                    f"line {line_number}: terminal session notes must not contain TODO",
+                )
 
     def validate_terminal_guidance_cleanup(self, session_dir: Path, status: object) -> None:
         if status == "in_progress" or status not in ALLOWED_STATUSES:
@@ -1110,7 +1144,7 @@ class Validator:
             )
 
     def validate_session_reference_forms(self) -> None:
-        """Reject pre-D0024 and incomplete session references in durable records."""
+        """Reject malformed or unresolved session references in durable records."""
 
         patterns = (
             ("legacy dated session reference", LEGACY_DATED_SESSION_REF_RE),
@@ -1138,6 +1172,14 @@ class Validator:
                             path,
                             f"line {line_no}: {label} {match.group(0)!r}; "
                             "use the canonical full session ID",
+                        )
+                for match in SESSION_ID_SEARCH_RE.finditer(line):
+                    session_id = match.group(0)
+                    if session_id not in self.session_ids:
+                        self.add_error(
+                            path,
+                            f"line {line_no}: full session reference "
+                            f"{session_id!r} does not resolve",
                         )
 
     def parse_summary_entries(

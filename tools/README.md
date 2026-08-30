@@ -18,9 +18,10 @@ experience, decisions, and skills; plan/ledger open-decision identity; mandatory
 session cleanup plus the ordered roast, one resolvable owner per promoted claim,
 and independent session-only contract;
 structured guidance dispositions and terminal guidance cleanup; staleness and
-status-drift warnings; current-progress freshness; exact skill catalog rows;
-domain section order; and the repository's restricted `agents/openai.yaml`
-interface and invocation-policy schema.
+milestone mapping for terminal guidance dispositions; terminal-note cleanup;
+resolvable full session references; status-drift warnings; current-progress
+freshness; exact skill catalog rows; domain section order; and the repository's
+restricted `agents/openai.yaml` interface and invocation-policy schema.
 
 ```sh
 python3 tools/check-agent-records.py .
@@ -30,7 +31,18 @@ python3 tools/check-agent-records.py . --cached
 The ordinary command validates the checkout; `--cached` materializes and checks
 the exact Git index tree. CTest uses the checkout mode and the pre-commit hook
 uses the staged mode. Nix only provides the fixed Python tool used to execute
-it.
+it. The hook also parses each candidate-index `session.json` and derives
+coverage from its top-level status rather than the working tree or a nested
+status string: every non-empty durable commit requires an `in_progress` session
+in the candidate tree. The hook materializes that tree and executes its staged
+semantic-change gate, record validator, and validator self-test, so partially
+staged gate edits cannot validate different code. The narrow final-close
+exception accepts only session, progress, checkpoint, and semantic-change
+records whose staged `session.json` changes a session from `in_progress` in
+`HEAD` to `complete`, `blocked`, or `abandoned`; it never authorizes product,
+plan, memory, template, or skill content in the closing commit. This lets the
+first session scaffold establish coverage and lets the last record commit close
+it without leaving a synthetic activity record behind.
 
 `check-semantic-change-edits.py` is the staged-diff hard gate for D0025. It
 reads only `Active` SC permits already committed to `HEAD`, requires their bound
