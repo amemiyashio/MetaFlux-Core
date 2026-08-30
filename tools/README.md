@@ -106,6 +106,23 @@ python3 tools/check-component-graph.py \
 The same check runs as the CTest `metaflux.architecture.component-graph` in
 every preset that enables tests.
 
+## Lifecycle model
+
+`check-lifecycle-model.py` validates the M0120 lifecycle extension's one-way
+base-manifest import, model and bounds hashes, then exhaustively explores the
+bounded generation/epoch state machine. It emits only a compact machine-readable
+evidence record containing input hashes, traversal counts, invariant results,
+and counterexamples; the output belongs in the external build evidence tree.
+
+```sh
+python3 tools/check-lifecycle-model.py \
+  --base-manifest contracts/protocol/transport/v1/schema/manifest.json \
+  --manifest contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/manifest.json \
+  --model contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/model.json \
+  --bounds tests/lifecycle/model-bounds.json \
+  --output ../.metaflux-evidence/MetaFlux-Core/lifecycle/model-check.json
+```
+
 ## Session scaffolding
 
 `new-session.py` accepts an explicit four-part delivery scope, allocates the

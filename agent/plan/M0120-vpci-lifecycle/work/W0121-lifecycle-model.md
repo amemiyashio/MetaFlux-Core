@@ -2,7 +2,7 @@
 id: W0121
 delivery: 0.1.2.1
 milestone: M0120
-status: Queued
+status: Active
 area: lifecycle.contract
 depends_on: [M0110]
 updated: 2026-08-30
@@ -120,6 +120,16 @@ relative to the identity transaction. Any membership, ordering, freeze-revision,
 or first-visibility rule change composes `$runtime-contracts-registry`.
 
 ## Work
+
+Implemented stage:
+
+- [x] Define the one-way lifecycle extension manifest importing the frozen M0110
+  root by content hash and a canonical generation/epoch transition model.
+- [x] Add deterministic exploration bounds and the repository model checker with
+  explicit candidate exhaustion, retirement, tombstone, replay, provider-freeze,
+  and loss/recovery checks.
+- [x] Add positive and tampered-manifest checker fixtures and register the exact
+  bounded command in CTest.
 
 - [ ] Specify guards, owner, commit points, deadlines, terminal errors, and
   high-water persistence for every transition.

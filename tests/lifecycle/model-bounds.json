@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "checker_version": "1.0",
+  "initial": {
+    "state": "ONLINE",
+    "generation": 1,
+    "epoch": 1,
+    "generation_high_water": 1,
+    "daemon_incarnation_id": "00112233445566778899aabbccddeeff",
+    "registry_view_id": "view-1"
+  },
+  "limits": {
+    "generation_terminal": 5,
+    "epoch_terminal": 5,
+    "max_depth": 5,
+    "max_states": 50000
+  },
+  "request_ids": [1, 2],
+  "fault_points": ["none", "pre_commit", "post_commit"],
+  "event_order": [
+    "add",
+    "remove",
+    "reset",
+    "transport_loss",
+    "recover",
+    "capture_cuda",
+    "capture_nvml",
+    "nvml_reinit",
+    "replay",
+    "conflict"
+  ]
+}

@@ -2,7 +2,7 @@
 id: M0120
 delivery: 0.1.2.0
 release: v0.1.2
-status: Queued
+status: Active
 depends_on: [M0110]
 areas: [lifecycle, kernel.vroot, presentation.vpci]
 kernel_validation: [Linux 6.12 LTS, Linux 6.18 LTS]

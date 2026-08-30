@@ -91,6 +91,36 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "architecture"
   )
   add_test(
+    NAME metaflux.lifecycle.model-check
+    COMMAND
+      Python3::Interpreter
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/check-lifecycle-model.py"
+      --base-manifest
+      "${CMAKE_CURRENT_SOURCE_DIR}/../contracts/protocol/transport/v1/schema/manifest.json"
+      --manifest
+      "${CMAKE_CURRENT_SOURCE_DIR}/../contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/manifest.json"
+      --model
+      "${CMAKE_CURRENT_SOURCE_DIR}/../contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/model.json"
+      --bounds
+      "${CMAKE_CURRENT_SOURCE_DIR}/lifecycle/model-bounds.json"
+      --output
+      "${CMAKE_BINARY_DIR}/metaflux-lifecycle-model-check.json"
+  )
+  set_tests_properties(
+    metaflux.lifecycle.model-check
+    PROPERTIES LABELS "lifecycle;model;architecture"
+  )
+  add_test(
+    NAME metaflux.lifecycle.model-check-selftest
+    COMMAND
+      Python3::Interpreter -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/lifecycle/test_model_checker.py"
+  )
+  set_tests_properties(
+    metaflux.lifecycle.model-check-selftest
+    PROPERTIES LABELS "lifecycle;model;unit"
+  )
+  add_test(
     NAME metaflux.architecture.agent-records-selftest
     COMMAND
       Python3::Interpreter

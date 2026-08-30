@@ -1,0 +1,136 @@
+{
+  "id": "lifecycle.model.v1",
+  "version": "1.0",
+  "kind": "state-machine",
+  "base_manifest": "contracts/protocol/transport/v1/schema/manifest.json",
+  "states": [
+    "ABSENT",
+    "PRESENT",
+    "ONLINE",
+    "QUIESCING",
+    "DRAINING",
+    "RESETTING",
+    "LOST"
+  ],
+  "request_identity": [
+    "request_id",
+    "source",
+    "operation",
+    "logical_device_uuid",
+    "expected_generation",
+    "expected_epoch",
+    "daemon_incarnation_id",
+    "deadline"
+  ],
+  "transitions": [
+    {
+      "event": "add",
+      "sources": ["ABSENT"],
+      "intermediate": ["PRESENT"],
+      "terminals": ["ONLINE", "LOST", "ABSENT"],
+      "generation_action": "reserve_candidate",
+      "epoch_action": "unchanged",
+      "commit": "install_candidate_without_retirement",
+      "replay": "recorded_outcome",
+      "failure_points": ["pre_commit", "post_commit"]
+    },
+    {
+      "event": "remove",
+      "sources": ["ONLINE", "LOST"],
+      "intermediate": ["QUIESCING", "DRAINING"],
+      "terminals": ["ABSENT"],
+      "generation_action": "none",
+      "epoch_action": "increment_at_retirement",
+      "commit": "retire_current",
+      "replay": "recorded_outcome",
+      "failure_points": ["pre_commit", "post_commit"]
+    },
+    {
+      "event": "reset",
+      "sources": ["ONLINE"],
+      "intermediate": ["QUIESCING", "DRAINING", "RESETTING"],
+      "terminals": ["ONLINE", "LOST"],
+      "generation_action": "reserve_candidate",
+      "epoch_action": "increment_at_retirement",
+      "commit": "retire_current_and_install_candidate_atomically",
+      "replay": "recorded_outcome",
+      "failure_points": ["pre_commit", "post_commit"]
+    },
+    {
+      "event": "transport_loss",
+      "sources": ["PRESENT", "ONLINE", "QUIESCING", "DRAINING", "RESETTING"],
+      "intermediate": [],
+      "terminals": ["LOST"],
+      "generation_action": "none",
+      "epoch_action": "unchanged",
+      "commit": "publish_lost_tombstone",
+      "replay": "recorded_outcome",
+      "failure_points": []
+    },
+    {
+      "event": "recover",
+      "sources": ["LOST"],
+      "intermediate": ["RESETTING"],
+      "terminals": ["ONLINE", "LOST"],
+      "generation_action": "reserve_candidate",
+      "epoch_action": "increment_at_retirement",
+      "commit": "retire_lost_and_install_candidate_atomically",
+      "replay": "recorded_outcome",
+      "failure_points": ["pre_commit", "post_commit"]
+    }
+  ],
+  "provider_views": {
+    "registry_view_id": "shared_per_process",
+    "cuda": {
+      "initialized_membership": "frozen",
+      "loss": "update_existing_entry",
+      "addition": "blocked_until_new_process_or_reinit"
+    },
+    "nvml": {
+      "initialized_membership": "frozen",
+      "loss": "update_existing_entry",
+      "addition": "visible_after_zero_to_one_init_epoch"
+    },
+    "matching": "UUID_and_generation"
+  },
+  "side_effects": [
+    "reserve_generation_candidate",
+    "persist_generation_high_water",
+    "stage_transport_and_worker_lease",
+    "publish_intermediate_state",
+    "drain_old_generation",
+    "retire_generation_and_advance_epoch",
+    "install_candidate",
+    "publish_provider_loss_or_addition",
+    "retain_generation_tombstone"
+  ],
+  "commit_points": [
+    "candidate_reservation",
+    "retirement_epoch_increment",
+    "candidate_installation",
+    "provider_view_publication"
+  ],
+  "terminal_errors": [
+    "MF_SHARED_SUCCESS",
+    "MF_SHARED_DEVICE_LOST",
+    "MF_SHARED_INVALID_ARGUMENT",
+    "MF_SHARED_OVERFLOW",
+    "MF_SHARED_RESOURCE_EXHAUSTED",
+    "MF_SHARED_TIMEOUT"
+  ],
+  "invariants": [
+    "single_live_generation_owner",
+    "generation_candidates_never_reused",
+    "epoch_changes_only_at_retirement",
+    "retirement_epoch_increment_is_exactly_one",
+    "duplicate_requests_are_idempotent",
+    "current_generation_is_not_retired",
+    "old_generation_tombstones_are_isolated",
+    "transport_loss_preserves_generation_and_epoch",
+    "cuda_membership_freezes_after_initialization",
+    "nvml_addition_waits_for_reinitialization",
+    "provider_loss_updates_existing_entries",
+    "daemon_incarnation_is_not_device_generation",
+    "terminal_state_is_complete"
+  ]
+}
