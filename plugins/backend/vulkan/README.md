@@ -32,3 +32,10 @@ local probe. A successful AMD-host probe is provisioning and single-driver
 evidence only; it does not close the W0131 dual-driver or M0130 release gates.
 No Vulkan execution, SPIR-V lowering, external-memory import, cache, or device
 loss behavior is claimed by this stage.
+
+The backend contract also includes a target-digest-bound packed argument block
+(`vulkan_arguments.h`) and an external-memory 0.x profile
+(`vulkan_memory.h`). The argument validator accepts only known scalar or
+generation-bound device-address entries. Tier 3 staging is the baseline; direct
+OPAQUE_FD or DMA-BUF import is advertised only when a future device probe proves
+the matching handle and synchronization capabilities.
