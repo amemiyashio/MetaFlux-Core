@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-026
+checkpoint: P20260831-027
 ---
 
 # Current Progress
@@ -43,6 +43,8 @@ W0122's stateless runtime event ingress is recorded at
 [P20260831-025](checkpoints/2026/P20260831-025-m0120-lifecycle-event-ingress.md).
 W0112's bounded registered-memory pin/SG stage is recorded at
 [P20260831-026](checkpoints/2026/P20260831-026-m0110-registered-memory.md).
+W0112's checked worker-side backend COPY dispatch seam is recorded at
+[P20260831-027](checkpoints/2026/P20260831-027-m0110-cdev-backend-dispatch.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -139,7 +141,8 @@ Linux 9.8.
 | W0112 focused transport tests | C17/C++20 schema fixtures and cdev client/worker tests passed 5/5 |
 | W0112 kernel compile | Linux 6.18.42 default GCC built `metaflux_core.ko` with modpost success |
 | W0112 registered-memory stage | `4465732`; one generation-bound range uses `FOLL_LONGTERM`/`FOLL_WRITE` pinning, memlock accounting, SG construction, partial unwind, dirty-unpin, explicit unregister, and owner-close revocation; focused cdev/lifecycle tests 4/4, full CTest 79/79, and Linux 6.18.42 GCC Kbuild passed |
-| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, eventfd ownership, and bounded registered-memory lifetime are implemented; backend payload wiring and DMA mapping, daemon replacement, queue krefs, and fault qualification remain open |
+| W0112 backend dispatch seam | Worker-side `CdevBackendBinding` validates `mf_backend_api_v1` size/capability/handles, translates payload COPY to `mf_backend_copy_v1`, maps backend statuses, and rejects malformed bound APIs without fallback; fake backend regression covers success, timeout, and unsupported capability. Production CPU memory import/Add/Copy wiring remains open |
+| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, eventfd ownership, bounded registered-memory lifetime, and the checked backend COPY dispatch seam are implemented; backend memory import/DMA mapping, production CPU Add/Copy, daemon replacement, queue krefs, and fault qualification remain open |
 | W0113 transport schema and component graph | Schema validator passed 5 definitions/15 records; graph passed 17 components/18 edges |
 | W0113 focused transport tests | Schema, cdev, guest, and server tests passed 7/7; full dev CTest passed 72/72 |
 | W0113 static vfio-user control fixture | Generated GET_INFO reply, static BAR0/BAR2/BAR4 profile, generation/epoch DMA map ledger, overlap and reset rejection, and `No_reply` unmap passed |
@@ -188,10 +191,12 @@ Linux 9.8.
    integration, provider freeze, and qualification while preserving the M0110
    root.
 7. M0110/W0112 remains Active after the bounded registered-memory stage at
-   [P20260831-026](checkpoints/2026/P20260831-026-m0110-registered-memory.md).
-   Continue with backend ABI wiring and DMA mapping, queue krefs, replacement
-   generations, and lifecycle/fault qualification; do not claim the cdev exit
-   gate from the mapped fixture alone.
+   [P20260831-026](checkpoints/2026/P20260831-026-m0110-registered-memory.md) and
+   the backend dispatch seam at
+   [P20260831-027](checkpoints/2026/P20260831-027-m0110-cdev-backend-dispatch.md).
+   Continue with backend memory import/DMA mapping and production CPU Add/Copy,
+   queue krefs, replacement generations, and lifecycle/fault qualification; do
+   not claim the cdev exit gate from the mapped fixture alone.
 
 ## Tool Boundary
 

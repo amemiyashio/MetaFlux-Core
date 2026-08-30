@@ -29,6 +29,10 @@ remains Active until full ownership, backend, and fault gates close.
 - `transports/cdev/client/` exposes `mf_cdev_memory_register_v0()` and a
   generation-aware close path; the original memory record field remains
   source-compatible through a `reserved` alias.
+- `transports/cdev/worker/` exposes a checked `CdevBackendBinding`: a bound
+  `mf_backend_api_v1` COPY callback receives one standard copy record with
+  base-relative offsets, while backend statuses map to the shared status
+  vocabulary and malformed bindings never fall back silently.
 - `CMakeLists.txt` and `cmake/MetaFluxOptions.cmake` expose the cdev halves as
   an opt-out build component.
 
@@ -37,6 +41,7 @@ remains Active until full ownership, backend, and fault gates close.
 | Command/gate | Result |
 | --- | --- |
 | Transport schema, component graph, and focused CTest | Passed: schema validator (5 definitions / 15 records), component graph, and cdev/lifecycle tests 4/4 |
+| Backend dispatch seam | Passed: cdev worker fake backend covers ABI size/capability/handle validation, COPY translation, success/timeout mapping, and unsupported-capability rejection |
 | Full development CTest | Passed: 79/79 |
 | Target Kbuild (Linux 6.18.42, GCC) | Passed: `metaflux_core.ko` built and modpost completed after registered-memory changes |
 | Target Kbuild with `LLVM=1` | Not qualified: target config rejects GCC-specific flags before source compile |
@@ -52,6 +57,10 @@ remains Active until full ownership, backend, and fault gates close.
 
 - The inherited 64-byte M0100 descriptor remains the only command record;
   transport-specific negotiation and queue records come from the W0111 schema.
+- The cdev worker treats a non-null backend binding as an explicit dispatch
+  choice: valid bindings call only the versioned backend table, and invalid
+  bindings complete with `MF_SHARED_NOT_SUPPORTED` instead of silently using
+  the local copy path.
 - Registered memory is removed from live lookup while holding the cdev lock;
   SG teardown, dirty-unpin, memlock release, and `mmput` run after unlock so
   concurrent unregister, owner close, and module exit cannot double-release it.
@@ -72,6 +81,11 @@ remains Active until full ownership, backend, and fault gates close.
 - Generation-aware client registration and unregister ->
   `transports/cdev/client/src/cdev.c` (content revision `4465732`, cdev client
   regression)
+- Worker backend binding and COPY status translation ->
+  `transports/cdev/worker/include/metaflux/transport/cdev_worker.hpp` (content
+  revision `9dc324d`; cdev worker regression and full CTest 79/79)
+- COPY dispatch implementation -> `transports/cdev/worker/src/worker.cpp`
+  (content revision `9dc324d`; cdev worker regression and full CTest 79/79)
 
 ### medium roasts
 
@@ -89,9 +103,9 @@ remains Active until full ownership, backend, and fault gates close.
 ## Unresolved items
 
 - W0112 / local cdev: complete queue kref/tombstone ownership and daemon
-  generation replacement, add backend `dma_map_sg` and in-flight reference
-  draining, connect the leased worker to `mf_backend_api_v1` for mapped Add/Copy,
-  and add KUnit/KASAN/KCSAN, lockdep/kmemleak, teardown, stale-generation, and
+  generation replacement, add backend memory import/`dma_map_sg` and in-flight
+  reference draining, connect production CPU Add/Copy to the bound worker, and
+  add KUnit/KASAN/KCSAN, lockdep/kmemleak, teardown, stale-generation, and
   owner-death evidence. The current registration fixture intentionally remains a
   single range with no backend mapping.
 
@@ -99,6 +113,8 @@ remains Active until full ownership, backend, and fault gates close.
 
 Read W0112, the W0111 transport schema, and the generated UAPI projection. The
 registered-memory fixture is one generation-bound range with no backend DMA map
-or in-flight device reference. Run the focused cdev CTest and target Kbuild
-before changing the broker; keep the cdev client and worker halves in separate
-load images.
+or in-flight device reference. The worker now has a checked
+`mf_backend_api_v1` COPY seam, but production CPU memory import/Add/Copy wiring,
+queue krefs, and daemon replacement remain open. Run the focused cdev CTest and
+target Kbuild before changing the broker; keep the cdev client and worker halves
+in separate load images.

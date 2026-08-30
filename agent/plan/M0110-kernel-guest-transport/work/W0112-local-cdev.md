@@ -59,6 +59,11 @@ and arithmetic operation is validated.
   pinning, normal memlock accounting, an SG table, partial-pin unwind, dirty
   unpin, and owner-close or explicit unregister revocation. Backend DMA mapping,
   multi-region quota, and in-flight device references remain open.
+- [x] Add a worker-side `mf_backend_api_v1` COPY dispatch seam with sized-table,
+  capability, handle, offset, and backend-status validation. An unbound worker
+  retains the local fixture copy path; a malformed bound API returns
+  `MF_SHARED_NOT_SUPPORTED` without fallback. Backend memory import and the
+  production CPU Add/Copy wiring remain open.
 
 ## Remaining work
 
