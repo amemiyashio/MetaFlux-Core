@@ -2,7 +2,7 @@
 id: W0103
 delivery: 0.1.0.3
 milestone: M0100
-status: Active
+status: Complete
 area: compiler-cpu
 depends_on: [W0101, W0102]
 updated: 2026-08-30

@@ -2,7 +2,7 @@
 id: W0102
 delivery: 0.1.0.2
 milestone: M0100
-status: Active
+status: Complete
 area: contracts-runtime
 depends_on: [W0101]
 updated: 2026-08-30

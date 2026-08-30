@@ -2,7 +2,7 @@
 id: M0100
 delivery: 0.1.0.0
 release: v0.1.0
-status: Active
+status: Complete
 budgets: provisional
 depends_on: []
 areas: [build, contracts, runtime, compiler, backend.cpu, compat.cuda]

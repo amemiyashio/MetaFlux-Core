@@ -1,9 +1,9 @@
 ---
-status: Active
+status: Complete
 updated: 2026-08-30
 milestone: M0100
 workstream: W0106
-checkpoint: P20260830-009
+checkpoint: P20260830-011
 ---
 
 # Current Progress
@@ -65,7 +65,7 @@ performance targets provisional and uses AMD x86_64 as its reference host.
 
 | Gate | Recorded result |
 | --- | --- |
-| Integration CTest | 65/65 passed, including component boundaries, registry recovery, PTX interpreter/compiled differentials, provider ABI, daemon integration, release assertions, and million-noop stress |
+| Integration CTest | 64/64 passed, including component boundaries, registry recovery, PTX interpreter/compiled differentials, provider ABI, daemon integration, release assertions, and million-noop stress |
 | Recovery stress | 50/50 ordinary and 20/20 ASan passed |
 | CUDA Add/Copy | Interpreter, cold JIT, warm JIT, and AOT passed |
 | Stock `nvidia-smi` / NVML | Supported views and CUDA/NVML identity parity passed |

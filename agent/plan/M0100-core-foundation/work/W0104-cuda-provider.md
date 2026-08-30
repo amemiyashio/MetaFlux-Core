@@ -2,7 +2,7 @@
 id: W0104
 delivery: 0.1.0.4
 milestone: M0100
-status: Active
+status: Complete
 area: compat.cuda.driver
 depends_on: [W0102, W0103]
 updated: 2026-08-30
