@@ -27,3 +27,11 @@ returns `MF_SHARED_DEVICE_LOST`. Socket disconnects mark the local server lost;
 the owning coordinator remains responsible for submitting the normalized loss
 request. The mirror does not add a reset wire message or alter the generated
 vfio-user profile.
+
+`server/qmp_lifecycle.hpp` provides the cold-control QMP command/event
+correlation fixture. It permits one pending command, requires the matching
+`device-added` or `device-deleted` event, and emits a normalized request only
+after that match. A failed remove emits the existing QMP transport-loss
+operation so the coordinator can publish `LOST`; a failed add emits no device
+request. The adapter owns no generation or epoch allocation and does not yet
+implement a QMP socket or production producer wiring.

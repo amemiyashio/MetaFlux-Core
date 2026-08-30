@@ -1,4 +1,4 @@
-add_library(metaflux_transport_vfio_user_server STATIC src/server.cpp)
+add_library(metaflux_transport_vfio_user_server STATIC src/server.cpp src/qmp_lifecycle.cpp)
 add_library(MetaFlux::TransportVfioUserServer ALIAS metaflux_transport_vfio_user_server)
 set_target_properties(metaflux_transport_vfio_user_server PROPERTIES EXPORT_NAME TransportVfioUserServer)
 target_include_directories(
@@ -43,4 +43,16 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   metaflux_configure_target(metaflux_transport_vfio_user_server_test CXX)
   add_test(NAME metaflux.transport.vfio-user-server COMMAND metaflux_transport_vfio_user_server_test)
   set_tests_properties(metaflux.transport.vfio-user-server PROPERTIES LABELS "transport;unit")
+
+  add_executable(metaflux_transport_vfio_user_qmp_test tests/qmp_lifecycle_test.cpp)
+  target_link_libraries(
+    metaflux_transport_vfio_user_qmp_test
+    PRIVATE MetaFlux::TransportVfioUserServer
+  )
+  metaflux_configure_target(metaflux_transport_vfio_user_qmp_test CXX)
+  add_test(NAME metaflux.transport.vfio-user-qmp COMMAND metaflux_transport_vfio_user_qmp_test)
+  set_tests_properties(
+    metaflux.transport.vfio-user-qmp
+    PROPERTIES LABELS "transport;lifecycle;unit"
+  )
 endif()

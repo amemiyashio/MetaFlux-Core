@@ -30,13 +30,14 @@ struct ExpectedMapping final {
 };
 
 bool maps_fixed_external_events() {
-  constexpr std::array<ExpectedMapping, 8> expected{{
+  constexpr std::array<ExpectedMapping, 9> expected{{
       {ExternalEventKind::AdminAdd, Source::Admin, Operation::Add, true},
       {ExternalEventKind::AdminRemove, Source::Admin, Operation::Remove, false},
       {ExternalEventKind::AdminReset, Source::Admin, Operation::Reset, false},
       {ExternalEventKind::VfioUserReset, Source::VfioUser, Operation::Reset, false},
       {ExternalEventKind::QmpAdd, Source::Qmp, Operation::Add, true},
       {ExternalEventKind::QmpRemove, Source::Qmp, Operation::Remove, false},
+      {ExternalEventKind::QmpFailure, Source::Qmp, Operation::TransportLoss, false},
       {ExternalEventKind::Disconnect, Source::Disconnect, Operation::TransportLoss, false},
       {ExternalEventKind::DaemonRestart, Source::Restart, Operation::Recover, false},
   }};

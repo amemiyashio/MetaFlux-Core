@@ -14,8 +14,9 @@ enum class ExternalEventKind : std::uint8_t {
   VfioUserReset = 4,
   QmpAdd = 5,
   QmpRemove = 6,
-  Disconnect = 7,
-  DaemonRestart = 8,
+  QmpFailure = 7,
+  Disconnect = 8,
+  DaemonRestart = 9,
 };
 
 enum class NormalizationResult : std::uint8_t {

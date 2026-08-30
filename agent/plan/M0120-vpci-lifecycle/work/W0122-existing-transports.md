@@ -66,8 +66,12 @@ only.
   retains a local lost/absent tombstone without allocating replacement identity.
 - [x] Add the fixed external-event request normalizer used by transport and
   control adapters. It maps admin, VFIO-user, QMP, disconnect, and restart
-  events to existing lifecycle requests; producer call-site integration and
-  command/event correlation remain open.
+  events to existing lifecycle requests; producer call-site integration remains
+  open.
+- [x] Add the vfio-user QMP command/event correlation fixture. It keeps one
+  pending command, requires a matching add/delete event, and emits QMP loss on
+  failed removal without changing the transport wire contract. Live QMP socket
+  integration remains open.
 - [ ] Integrate every reset/disconnect/restart source and inject failure at each
   staging, commit, DMA, completion, and teardown step.
 - [ ] Verify provider enumeration freeze before, during, and after replacement.

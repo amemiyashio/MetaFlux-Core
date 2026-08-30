@@ -141,6 +141,9 @@ Implemented stage:
 - [x] Define a typed normalizer for admin, vfio-user, QMP, disconnect, and
   restart sources. Runtime callers still need to wire each external event
   producer through this mapping before submitting the resulting request.
+- [x] Define a vfio-user QMP command/event correlation fixture. It emits a
+  normalized add/remove request only after the matching event and maps a failed
+  remove to QMP transport loss; live QMP socket integration remains open.
 - [ ] Implement the canonical model, versioned bounds, deterministic checker, and
   machine-readable evidence contract; run the exact root command above.
 - [ ] Model provider removal/re-add with one `registry_view_id`, initialized CUDA,

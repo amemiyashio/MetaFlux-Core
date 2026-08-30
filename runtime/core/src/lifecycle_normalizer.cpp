@@ -29,6 +29,9 @@ bool mapping_for(ExternalEventKind kind, Mapping& out) noexcept {
   case ExternalEventKind::QmpRemove:
     out = {Source::Qmp, Operation::Remove, false};
     return true;
+  case ExternalEventKind::QmpFailure:
+    out = {Source::Qmp, Operation::TransportLoss, false};
+    return true;
   case ExternalEventKind::Disconnect:
     out = {Source::Disconnect, Operation::TransportLoss, false};
     return true;
