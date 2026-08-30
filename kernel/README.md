@@ -15,8 +15,10 @@ binding between one published device generation and one data-plane worker. It
 validates credentials, lease identity, queue attachment, and revocation; registry
 policy and backend selection remain in `metafluxd`.
 
-Planned source ownership is `core/` for cdev and worker-broker objects, `pci/` for
-the common function driver, `vroot/` for the default-off software root, `compat/`
-for target-kernel API shims, and `tests/` for KUnit/kselftest support. Compatibility
-shims are selected by compile/API probes against the exact target kernel rather
-than broad version checks.
+Source ownership is `core/` for cdev and worker-broker objects, `pci/` for the
+common static guest function driver, `vroot/` for the default-off software root,
+`compat/` for target-kernel API shims, and `tests/` for KUnit/kselftest support.
+The first `pci/` stage validates and maps the M0110 BAR0/BAR2/BAR4 profile and
+reserves two MSI-X vectors; ring/DMA/interrupt-arm behavior remains in W0113.
+Compatibility shims are selected by compile/API probes against the exact target
+kernel rather than broad version checks.

@@ -91,6 +91,9 @@ Implemented stage:
   mapping ledger.
 - [x] Verify the static BAR0/BAR2/BAR4 profile and unsupported reset/doorbell
   result with focused schema, guest, and server tests.
+- [x] Add the compile-checked `metaflux_pci.ko` static guest resource binder:
+  validate CI VID/DID/class and exact BAR0/BAR2/BAR4 sizes, map BAR0/BAR2,
+  reserve two MSI-X vectors, and unwind remove or probe failure in reverse order.
 
 - [ ] Implement static guest `metaflux_pci.ko`, BAR0/BAR2/BAR4, and MSI-X with
   pinned libvfio-user.
