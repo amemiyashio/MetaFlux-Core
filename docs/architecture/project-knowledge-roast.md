@@ -26,32 +26,53 @@ Each promoted claim receives exactly one final depth in the current summary:
 
 | Depth | Semantic operation |
 | --- | --- |
-| `light roasts` | Faithful extraction, normalization, or deduplication of equivalent claims without adding scope, causality, normative force, or a new conceptual relation. |
-| `medium roasts` | Bounded comparison, synthesis, or generalization across non-equivalent claims while retaining existing terminology, ownership, constraints, and authority. The result states its boundary and evidence gap. |
-| `dark roasts` | Governance-level reconstruction that creates or reframes terminology, a normative rule, an authority relationship, a conceptual model, or a cross-scope consequence. |
+| `light roasts` | Faithful extraction, normalization, or merging of equivalent inputs into one newly created or materially updated canonical claim, without adding scope, causality, normative force, or a new conceptual relation. |
+| `medium roasts` | Bounded comparison, synthesis, or generalization across non-equivalent claims while retaining existing terminology, ownership, constraints, and authority. The result states its boundary and either its evidence gap or reproduced evidence. |
+| `dark roasts` | Authorized project-governance reconstruction whose acceptance changes canonical interpretation, terminology, a normative rule, ownership or authority, or behavior across canonical owners. Complexity alone never makes technical synthesis dark. |
 
 Every dark roast resolves to a `DNNNN` decision. When it replaces established
 meaning, it additionally follows D0025 through an Active `SCNNNN` before any
-protected history changes. `roast` classifies the result; it never authorizes a
-semantic replacement by itself.
+protected history changes. A prospective dark result is not promoted and does
+not enter a terminal dark bucket until that authority exists; before then, the
+underlying choice is routed to its plan and the open-decisions ledger.
 
-A later session may roast a claim again when new evidence or context changes
-the transformation. The newer result points to its canonical successor instead
-of duplicating the same claim across current buckets.
+D0025's trigger is independent of roast depth. Any change that replaces
+established meaning, an identifier, a record contract, a constraint, or an
+authority boundary requires its decision and SC even when the promoted claim is
+light or medium. Conversely, an additive dark decision does not create an SC
+when it replaces nothing. `roast` classifies the result; it never grants
+migration authority.
+
+A later work unit may classify the semantic transformation of its own new or
+updated promotion differently as context changes. Roast depth is not a durable
+owner status, identity, or successor chain; prior summaries remain historical
+evidence and no roast archive is created.
 
 ## Evidence And Ownership
 
 Evidence maturity remains independent. A light roast may be `Validated`; a
-medium or dark roast may remain `Candidate` or pending verification. Existing
+medium roast or an authorized dark roast may remain `Candidate` or pending
+verification. Existing
 source, contract, architecture, plan, memory, experience, progress, and
-semantic-change ownership rules choose the single durable owner. Sessions keep
-only the compact claim-to-owner and evidence identity.
+semantic-change ownership rules choose the single durable owner. Here durable
+means that the claim leaves transient conversation, guidance, and session-local
+disposition for the repository owner whose own lifecycle governs it; it does
+not mean permanent or immutable. Sessions keep only the compact claim-to-owner
+and evidence identity.
+
+Promotion requires the work unit to create or materially update canonical
+content, evidence, or status. Finding an already-owned equivalent claim without
+such a change is duplicate omission, not a light roast row.
 
 `session-only` retains a material claim only when it has current-session resume
 or explanatory value and no durable promotion is justified. It records that
-reason without a roast label. Disposable experiments, routine commands, raw
-logs, duplicate source, and conversation text are removed or omitted through
-the existing cleanup boundary.
+reason without a roast label and cannot carry an unapproved governance
+conclusion. Every material outcome is either promoted into exactly one roast
+bucket, retained only under `session-only`, or routed as an unresolved choice to
+its canonical plan/open-decision owner. It cannot appear in more than one of
+those destinations. Disposable experiments, routine commands, raw logs,
+duplicate source, and conversation text are removed or omitted through the
+existing cleanup boundary.
 
 ## Invocation And Composition
 
@@ -88,7 +109,7 @@ terminal summaries may not.
 
 ### dark roasts
 
-- none.
+- <claim> -> <canonical owner> (<evidence>; authority: DNNNN, SCNNNN | SC not required)
 
 ## session-only
 
