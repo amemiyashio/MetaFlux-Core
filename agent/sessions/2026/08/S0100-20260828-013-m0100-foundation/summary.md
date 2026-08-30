@@ -47,6 +47,12 @@ a completion claim.
   ABI inputs, PTX semantics, compiler epoch, static closure, and timezone-based
   mirror routing.
 - D0022 supersedes D0021 and defines the current tool/workflow/session boundary.
+- D0027 supersedes D0023 only for the future Intel destination and supersedes
+  D0024 only for the former assignment of Intel and physical NVIDIA gates to
+  `v0.2.0`: Intel x86_64 support and physical NVIDIA binding-performance
+  qualification belong to M1000 / `v1.0.0`; native NixOS VM/package
+  qualification remains `v0.2.0`. M0100 keeps its AMD x86_64 reference evidence
+  and provisional budgets (G003, event 16; migration authority: SC0003).
 - Event 9 retains the one failed-route lesson needed for the release-matrix
   rerun; no separate experience record was created.
 
@@ -104,16 +110,19 @@ a completion claim.
 
 ## Unresolved items
 
-- W0101 needs Intel/AMD reference-host and full D0012 release-matrix qualification.
-- W0103/W0106 need complete optimized-lowering, fault, quota, soak, and release
-  performance evidence.
-- W0104/W0105 need stock-tool and packaged compatibility qualification across the
-  declared header and distribution matrix.
+- Current M0100 gate and lifecycle state is owned by `agent/progress/current.md`
+  and the active completion session; this implementation checkpoint remains
+  evidence for its named revision rather than release certification.
+- Intel x86_64 support and physical NVIDIA binding-performance qualification
+  are queued under M1000 / `v1.0.0`; native NixOS VM/package qualification
+  remains the unallocated `v0.2.0` expansion. None reopens M0100.
 
 ## Handoff
 
-Continue from current main, not by checking out `7b86b35`. Read current progress,
-M0100, its six active work items, and the expert skill matching the selected
-work item, then take the smallest unclosed vertical slice. Use
-`manage-toolchain` only for tool identity or provisioning changes; run owned
-build, test, packaging, and evidence workflows in external work directories.
+Continue from current main, not by checking out `7b86b35`. Read current
+progress and M0100 for current foundation state; read M1000, D0027, and SC0003
+before scheduling Intel x86_64 support or physical NVIDIA binding-performance
+qualification. Keep native NixOS qualification under `v0.2.0`. Use the expert
+skill matching the selected work and use `manage-toolchain` only for tool
+identity or provisioning changes; run owned build, test, packaging, and
+evidence workflows in external work directories.

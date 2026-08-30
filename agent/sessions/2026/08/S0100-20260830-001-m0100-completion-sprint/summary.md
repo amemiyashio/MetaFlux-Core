@@ -4,12 +4,17 @@
 
 Complete M0100 Core Foundation: close W0101-W0106 acceptance gates, deliver
 runnable CPU-backed CUDA/NVML Add/Copy vertical slice with release evidence,
-process G001/G002/G003 guidance, and execute signed provenance verification.
+process G001-G005 guidance, and execute signed provenance verification.
 
 Outcome: all M0100 acceptance gates pass. Complete release matrix (8/8 × 2)
 includes CUDA Add/Copy acceptance on all four distributions. Signed SDK
-provenance verified. v0.1.0 boundary confirmed; Intel/NVIDIA/NixOS deferred
-to v0.2.0 per D0024.
+provenance verified. The M0100 / `v0.1.0` boundary remains confirmed against AMD
+reference evidence and provisional budgets. G002 recorded the capture-time
+D0024 assignment of Intel, physical NVIDIA, and native NixOS qualification to
+`v0.2.0`. D0027 and Active SC0003 later superseded only that future destination:
+Intel x86_64 support and physical NVIDIA binding-performance qualification now
+belong to M1000 / `v1.0.0`, while native NixOS remains assigned to the
+unallocated `v0.2.0` expansion. No missing hardware evidence became a pass.
 
 ## roast
 
@@ -42,15 +47,15 @@ to v0.2.0 per D0024.
 ### medium roasts
 
 - Recorded M0100 v0.1.0 acceptance evidence -> `agent/progress/current.md`
-  (PGO, hardening, release-matrix, provenance, AMD reference-host, and D0024
-  release-boundary evidence)
+  (PGO, hardening, release-matrix, provenance, and AMD reference-host evidence;
+  D0027 changes only future qualification ownership)
 
 ### dark roasts
 
-- Intel host qualification deferral ->
-  `agent/plan/M0100-core-foundation/work/W0101-build-toolchain.md` (v0.2.0
-  release boundary; authority: D0023, SC not required; recorded pre-D0025
-  boundary)
+- Intel and physical NVIDIA future qualification ownership ->
+  `agent/plan/M1000-stable-qualification/plan.md` (M1000 / `v1.0.0` assignment;
+  authority: D0027, SC0003; the D0023/G002 `v0.2.0` assignment remains
+  a recorded capture-time fact, and native NixOS remains `v0.2.0` scope)
 
 ## session-only
 
@@ -78,34 +83,46 @@ to v0.2.0 per D0024.
 | G002 guidance disposition | adopted |
 | G003 guidance disposition | adopted |
 | G004 guidance disposition | adopted |
+| G005 guidance disposition | adopted |
 
 ## Cleanup
 
-- Removed: G001 guidance packet (resolved), `/tmp/metaflux-pgo-evidence-1` through `-9` (superseded).
+- Removed: G001-G005 guidance packets (resolved),
+  `/tmp/metaflux-pgo-evidence-1` through `-9` (superseded).
 - Retained: latest PGO evidence, package artifacts, acceptance build tree.
 
 ## Decisions and experience
 
-- D0023: Intel host qualification deferred to v0.2.0.
-- D0024: Breaking semantic-identity migration (M0001→M0100).
+- D0023: at capture time, Intel host qualification was deferred to `v0.2.0`;
+  D0027 later superseded that future destination.
+- D0024: breaking semantic-identity migration (M0001→M0100); its capture-time
+  three-gate `v0.2.0` boundary was later partially superseded by D0027.
 - D0025: Semantic change governance.
+- D0027: Intel support and physical NVIDIA binding performance belong to M1000
+  / `v1.0.0`; native NixOS remains in the unallocated `v0.2.0` expansion.
 - G001 (previous session): adopted — distinguished provider vs complete matrix.
-- G002: adopted — v0.1.0 boundary confirmed, deferred work names v0.2.0.
+- G002: adopted at its capture-time boundary — M0100 / `v0.1.0` remained
+  AMD-qualified and the three deferred gates were then assigned to `v0.2.0`.
 - G003: adopted — D0025 format applied to this summary.
 - G004: adopted — D0026 roast classification replaced G003's live summary
   shape and kept `session-only` independent.
+- G005: adopted — D0027 supersedes only G002's future Intel/physical-NVIDIA
+  destination; G002's historical disposition and all recorded results remain.
 
 ## Unresolved items
 
-None for v0.1.0. The following are v0.2.0 scope per D0024:
-- Intel x86_64 host qualification (D0023).
-- Physical NVIDIA binding performance evidence.
-- Native NixOS VM/package qualification.
+None for M0100 / `v0.1.0`. Future qualification is split by D0027:
+
+- M1000 / `v1.0.0`: Intel x86_64 host support and physical NVIDIA binding-
+  performance evidence.
+- Unallocated `v0.2.0`: native NixOS VM/package qualification.
 
 ## Handoff
 
 M0100 v0.1.0 acceptance is complete. The generic release entry point is
 `tools/build-generic-release.sh`. The complete release matrix evidence is at
 `/tmp/metaflux-release-matrix-evidence-4/` and `-5/`. The provenance evidence
-is at `/tmp/metaflux-provenance-evidence/provenance.json`. All v0.2.0 work is
-tracked in the milestone plan.
+is at `/tmp/metaflux-provenance-evidence/provenance.json`. M1000/W1001-W1003
+track the Intel, physical NVIDIA, and stable-release gates; native NixOS remains
+in the unallocated `v0.2.0` expansion. These future gates do not alter the
+recorded M0100 evidence.
