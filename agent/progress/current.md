@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-038
+checkpoint: P20260831-039
 ---
 
 # Current Progress
@@ -53,6 +53,8 @@ W0112's owner-death generation tombstone transition is recorded at
 [P20260831-037](checkpoints/2026/P20260831-037-m0110-owner-death-tombstone.md).
 W0112's queue root/owner/lease/VMA/active-operation kref graph is recorded at
 [P20260831-038](checkpoints/2026/P20260831-038-m0110-queue-krefs.md).
+W0112's payload root/owner/VMA/active-allocation-operation kref graph is
+recorded at [P20260831-039](checkpoints/2026/P20260831-039-m0110-payload-krefs.md).
 W0122's QMP completion-to-ingress helper is recorded at
 [P20260831-028](checkpoints/2026/P20260831-028-m0120-qmp-ingress.md).
 W0122's vfio-user disconnect handoff is recorded at
@@ -166,7 +168,7 @@ Linux 9.8.
 | W0112 kernel compile | Linux 6.18.42 default GCC built `metaflux_core.ko` with modpost success |
 | W0112 registered-memory stage | `4465732`; one generation-bound range uses `FOLL_LONGTERM`/`FOLL_WRITE` pinning, memlock accounting, SG construction, partial unwind, dirty-unpin, explicit unregister, and owner-close revocation; focused cdev/lifecycle tests 4/4, full CTest 79/79, and Linux 6.18.42 GCC Kbuild passed |
 | W0112 backend dispatch seam | Worker-side `CdevBackendBinding` validates `mf_backend_api_v1` size/capability/handles, translates payload COPY to `mf_backend_copy_v1`, maps backend statuses, and rejects malformed bound APIs without fallback; fake backend regression covers success, timeout, and unsupported capability. Production CPU memory import/Add/Copy wiring remains open |
-| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, owner-death offline queue/payload VMA tombstone reaping, queue root/owner/lease/VMA/active-operation krefs, eventfd ownership, bounded registered-memory lifetime, and the checked backend COPY dispatch seam are implemented; backend memory import/DMA mapping, production CPU Add/Copy, daemon replacement, and fault qualification remain open |
+| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, owner-death offline queue/payload tombstones, queue root/owner/lease/VMA/active-operation krefs, payload root/owner/VMA/active-allocation-operation krefs, eventfd ownership, bounded registered-memory lifetime, and the checked backend COPY dispatch seam are implemented; backend memory import/DMA mapping, production CPU Add/Copy, daemon replacement, and fault qualification remain open |
 | W0113 transport schema and component graph | Schema validator passed 5 definitions/15 records; graph passed 17 components/18 edges |
 | W0113 focused transport tests | Schema, cdev, guest, and server tests passed 7/7; full dev CTest passed 72/72 |
 | W0113 static vfio-user control fixture | Generated GET_INFO reply, static BAR0/BAR2/BAR4 profile, generation/epoch DMA map ledger, overlap and reset rejection, and `No_reply` unmap passed |
@@ -237,10 +239,12 @@ Linux 9.8.
    the backend dispatch seam at
    [P20260831-027](checkpoints/2026/P20260831-027-m0110-cdev-backend-dispatch.md).
    The CPU backend's synchronous COPY subset now consumes an imported mapped
-   payload; continue with generation-bound registered-memory/DMA mapping,
-   production CPU Add/launch, backend references, replacement generations, and
-   lifecycle/fault qualification. Do not claim the cdev exit gate from the
-   mapped COPY fixture alone.
+   payload and the payload kref stage at
+   [P20260831-039](checkpoints/2026/P20260831-039-m0110-payload-krefs.md);
+   continue with generation-bound registered-memory/DMA mapping, production CPU
+   Add/launch, backend references, replacement generations, and lifecycle/fault
+   qualification. Do not claim the cdev exit gate from the mapped COPY fixture
+   alone.
 
 ## Tool Boundary
 
