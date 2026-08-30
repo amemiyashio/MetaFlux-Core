@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0113-20260830-014-m0110-static-vfio-user",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.1.3",
+  "started_at": "2026-08-30",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0110 static vfio-user transport implementer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0110",
+      "title": "Kernel and Guest Transport",
+      "status": "active",
+      "event_seqs": [1, 2, 3]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0113",
+      "milestone_id": "M0110",
+      "title": "Static vfio-user guest transport",
+      "status": "active"
+    }
+  ],
+  "base_revision": "db16b9c348ea5c1c4f95b1db44b0f52397133c2d",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

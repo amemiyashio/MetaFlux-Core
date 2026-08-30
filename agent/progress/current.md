@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-30
 milestone: M0110
-workstream: W0112
-checkpoint: P20260830-016
+workstream: W0113
+checkpoint: P20260830-017
 ---
 
 # Current Progress
@@ -23,6 +23,8 @@ governance addition initially left product work queued. M0110 is now Active;
 W0111 has an implemented candidate contract and remains Active pending the
 local/guest negotiation slices. W0112 is Active with its first local cdev stage
 recorded at [P20260830-016](checkpoints/2026/P20260830-016-m0110-local-cdev.md).
+W0113 is Active with its static vfio-user control-plane stage recorded at
+[P20260830-017](checkpoints/2026/P20260830-017-m0110-static-vfio-user.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -119,6 +121,10 @@ Linux 9.8.
 | W0112 focused transport tests | C17/C++20 schema fixtures and cdev client/worker tests passed 5/5 |
 | W0112 kernel compile | Linux 6.18.42 default GCC built `metaflux_core.ko` with modpost success |
 | W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, and exclusive lease are implemented; eventfd, memory pinning, backend payload, daemon replacement, and fault qualification remain open |
+| W0113 transport schema and component graph | Schema validator passed 5 definitions/15 records; graph passed 17 components/18 edges |
+| W0113 focused transport tests | Schema, cdev, guest, and server tests passed 7/7; full dev CTest passed 72/72 |
+| W0113 static vfio-user control fixture | Generated GET_INFO reply, static BAR0/BAR2/BAR4 profile, generation/epoch DMA map ledger, overlap and reset rejection, and `No_reply` unmap passed |
+| W0113 current boundary | Guest `metaflux_pci.ko`, pinned QEMU/libvfio-user, BAR doorbell/MSI-X steady state, Add/Copy path, drain/tombstone faults, and package qualification remain open |
 
 ## Versioned Next Work
 
@@ -126,7 +132,9 @@ Linux 9.8.
    Applied SC0005 record correction does not reopen product scope or lifecycle.
 2. M0110 is Active. W0111's schema stage is recorded in
    [S0111](../sessions/2026/08/S0111-20260830-012-m0110-abi-contract/summary.md),
-   and its remaining negotiation gate continues with W0112/W0113. Start each
+   and its remaining negotiation gate continues with W0112/W0113. W0113's
+   generated control-plane stage is recorded, while both transport workstreams
+   remain Active until their data-plane and fault gates pass. Start each
    transport workstream through its own active session and matching runtime,
    Linux UAPI, vfio-user, PCI, and performance skills.
 3. New work uses an explicit four-part delivery coordinate and the derived
