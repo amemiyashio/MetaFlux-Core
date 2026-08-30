@@ -867,6 +867,62 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         False,
     ),
     (
+        "ordinary prose around short session-like tokens is accepted",
+        mutate(
+            {
+                f"{SESSION_DIR}/notes.md": BASE_FILES[f"{SESSION_DIR}/notes.md"]
+                + "\nSession XS013 and S0130 are ordinary prose fixtures.\n"
+            }
+        ),
+        False,
+        False,
+    ),
+    (
+        "legacy dated session references are rejected",
+        mutate(
+            {
+                f"{SESSION_DIR}/notes.md": BASE_FILES[f"{SESSION_DIR}/notes.md"]
+                + "\nOld references S20260828-001 and "
+                "S20260828-001-selftest are invalid.\n"
+            }
+        ),
+        True,
+        False,
+    ),
+    (
+        "legacy short session references are rejected",
+        mutate(
+            {
+                f"{SESSION_DIR}/notes.md": BASE_FILES[f"{SESSION_DIR}/notes.md"]
+                + "\nOld reference S013 is invalid.\n"
+            }
+        ),
+        True,
+        False,
+    ),
+    (
+        "truncated scoped session references are rejected",
+        mutate(
+            {
+                f"{SESSION_DIR}/notes.md": BASE_FILES[f"{SESSION_DIR}/notes.md"]
+                + "\nIncomplete reference S0100-20260828-001 is invalid.\n"
+            }
+        ),
+        True,
+        False,
+    ),
+    (
+        "legacy session references in event logs are rejected",
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/events.jsonl",
+            "fixture objective",
+            "fixture objective referencing S20260828-001-selftest",
+        ),
+        True,
+        False,
+    ),
+    (
         "session delivery is required",
         replace(
             BASE_FILES,

@@ -89,6 +89,17 @@ OUTPUT_REF_PATH_RE = re.compile(r"^outputs/\d{4}\.txt$")
 SESSION_ID_SEARCH_RE = re.compile(
     r"\bS\d{4,}-\d{8}-\d{3}-[a-z0-9][a-z0-9-]*\b"
 )
+LEGACY_DATED_SESSION_REF_RE = re.compile(
+    r"(?<![A-Za-z0-9_])S\d{8}-\d{3}"
+    r"(?:-[a-z0-9][a-z0-9-]*)?(?![A-Za-z0-9_-])"
+)
+LEGACY_SHORT_SESSION_REF_RE = re.compile(
+    r"(?<![A-Za-z0-9_])S\d{3}(?![A-Za-z0-9_-])"
+)
+TRUNCATED_SESSION_REF_RE = re.compile(
+    r"(?<![A-Za-z0-9_])S\d{4,}-\d{8}-\d{3}"
+    r"(?!-[a-z0-9])(?=$|[^A-Za-z0-9])"
+)
 MILESTONE_ID_SEARCH_RE = re.compile(r"\bM\d{4,}\b")
 EXPERIENCE_ID_SEARCH_RE = re.compile(r"E\d{4}")
 SKILL_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -1041,6 +1052,37 @@ class Validator:
                 f"decision reference {decision_id} is absent from the index "
                 f"(referenced by {relative_paths})",
             )
+
+    def validate_session_reference_forms(self) -> None:
+        """Reject pre-D0024 and incomplete session references in durable records."""
+
+        patterns = (
+            ("legacy dated session reference", LEGACY_DATED_SESSION_REF_RE),
+            ("legacy short session reference", LEGACY_SHORT_SESSION_REF_RE),
+            ("truncated session reference", TRUNCATED_SESSION_REF_RE),
+        )
+        if not self.agent_root.is_dir():
+            return
+        for path in sorted(self.agent_root.rglob("*")):
+            if (
+                self.is_guidance_inbox_path(path)
+                or path.is_symlink()
+                or not path.is_file()
+                or path.suffix not in TEXT_SUFFIXES
+            ):
+                continue
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+            except (OSError, UnicodeDecodeError):
+                continue
+            for line_no, line in enumerate(lines, start=1):
+                for label, pattern in patterns:
+                    for match in pattern.finditer(line):
+                        self.add_error(
+                            path,
+                            f"line {line_no}: {label} {match.group(0)!r}; "
+                            "use the canonical full session ID",
+                        )
 
     def validate_distillation(self, summary_path: Path | None, session: dict) -> None:
         started_at = session.get("started_at")
@@ -2268,6 +2310,7 @@ class Validator:
         self.validate_index_completeness(actual_session_ids)
         self.validate_open_decisions()
         self.validate_decision_index()
+        self.validate_session_reference_forms()
         self.validate_progress_health()
         self.validate_current_progress()
         self.validate_status_consistency()
