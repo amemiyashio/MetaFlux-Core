@@ -112,7 +112,9 @@ every preset that enables tests.
 base-manifest import, model and bounds hashes, then exhaustively explores the
 bounded generation/epoch state machine. It emits only a compact machine-readable
 evidence record containing input hashes, traversal counts, invariant results,
-and counterexamples; the output belongs in the external build evidence tree.
+and counterexamples. The same record includes a bounded loss-fence and
+two-bank telemetry race exploration with reader retry/final-fence checks; the
+output belongs in the external build evidence tree.
 
 ```sh
 python3 tools/check-lifecycle-model.py \

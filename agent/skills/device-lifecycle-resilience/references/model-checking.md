@@ -54,6 +54,13 @@ nonzero on an invalid schema, uncovered transition, invariant failure, or
 incomplete search.
 Random sampling is supplemental and never substitutes for this command.
 
+The same bounds file contains a `fence_telemetry` branch. It exhaustively
+interleaves loss-fence latch acquisition/commit/abort, two-bank telemetry
+staging/commit, and reader capture/bank-read/final-recheck events. The branch
+requires an even latch for an accepted bank, makes a loss fence invalidate
+readiness before a stale writer can restore `ONLINE`, and limits reader retries
+to the configured bound.
+
 ## Evidence artifact
 
 `../.metaflux-evidence/MetaFlux-Core/lifecycle/model-check.json` records:
@@ -62,6 +69,9 @@ Random sampling is supplemental and never substitutes for this command.
   bounds;
 - the exact normalized command and deterministic traversal order;
 - state, transition, complete-sequence, and maximum-depth counts;
+- the separate `fence_telemetry` exploration counts and direct race checks for
+  loss-fence precedence, stale `ONLINE` rejection, even-latch bank acceptance,
+  and bounded reader retry;
 - pass/fail status for single live owner, generation non-reuse, duplicate
   idempotence, atomic retirement/replacement, current-generation continuity,
   exact `epoch_after == epoch_before + 1` at every committed retirement,

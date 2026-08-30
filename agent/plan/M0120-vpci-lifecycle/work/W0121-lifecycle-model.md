@@ -118,6 +118,10 @@ zero-to-one initialization epoch, loss of old entries, and first visibility of a
 addition. It defines only lifecycle loss/addition event payloads and their ordering
 relative to the identity transaction. Any membership, ordering, freeze-revision,
 or first-visibility rule change composes `$runtime-contracts-registry`.
+The publication branch also models an even/odd lifecycle fence latch, a two-bank
+telemetry writer, and a bounded reader retry/final-fence recheck. A loss fence
+invalidates telemetry readiness before a stale writer can publish an acceptable
+`ONLINE` result.
 
 ## Work
 
@@ -147,11 +151,11 @@ Implemented stage:
 - [x] Provide one runtime ingress for external events. It normalizes and submits
   only accepted requests to the Coordinator, preserving the captured identity
   tuple and leaving source-specific producer capture to the adapters.
-- [ ] Implement the canonical model, versioned bounds, deterministic checker, and
+- [x] Implement the canonical model, versioned bounds, deterministic checker, and
   machine-readable evidence contract; run the exact root command above.
 - [x] Model provider removal/re-add with one `registry_view_id`, initialized CUDA,
   current/later NVML init epochs, and a new process.
-- [ ] Model loss/removal fence publication racing telemetry-bank publication and
+- [x] Model loss/removal fence publication racing telemetry-bank publication and
   bounded reader retry/fallback; forbid stale `ONLINE` after the observed fence.
 - [ ] Compose the runtime view gate and enumerate reserve(A), reserve(B), A partial
   publish, B blocked publish, A complete/abort/compensate/suffix-skip, owner death,
