@@ -11,7 +11,8 @@ connected.
 `MF_UAPI_IOCTL_MEMORY_ALLOC` now creates one page-aligned payload arena (up to
 64 MiB) owned by the data-file descriptor. Its returned byte range is mapped at
 `MF_UAPI_MMAP_PAYLOAD_V0`; owner close transitions it to an offline tombstone and
-the backing is reclaimed only after the final VMA closes. `MEMORY_REGISTER` accepts
+the backing is reclaimed only after the root, owner, VMA, and active allocation
+references all drain. `MEMORY_REGISTER` accepts
 one caller-owned range up to the same bound, charges the current process's
 memlock quota, pins full pages with `pin_user_pages_fast()` using
 `FOLL_LONGTERM` and optional `FOLL_WRITE`, and builds an SG table. Unregister and
@@ -32,10 +33,12 @@ make -C /lib/modules/$(uname -r)/build M=$PWD/kernel/core modules
 The Kbuild rule regenerates the ignored header under `kernel/core/generated/`
 from the repository manifest before compiling. Queue and payload mapping lifetime
 is held by VMA callbacks. The queue backing has a root, owner, lease, VMA, and
-active wait/poll reference graph; an offline queue mapping is retained as a
-tombstone until the last reference closes, then its backing is reclaimed under
-the cdev lock. Worker leases are exclusive per generation, and closing either
-the queue owner or worker lease marks the generation offline and wakes waiters.
+active wait/poll reference graph; the payload backing has root, owner, VMA, and
+active allocation-operation references. Offline queue and payload mappings are
+retained as tombstones until their last references close, then their backing is
+reclaimed under the cdev lock. Worker leases are exclusive per generation, and
+closing either the queue owner or worker lease marks the generation offline and
+wakes waiters.
 Unknown ioctls return `-ENOTTY`, and malformed/short records are rejected before
 any allocation or reference acquisition.
 

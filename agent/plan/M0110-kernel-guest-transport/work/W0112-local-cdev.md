@@ -5,7 +5,7 @@ milestone: M0110
 status: Active
 area: transport.cdev
 depends_on: [W0111]
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 
 # Local cdev Vertical Slice
@@ -74,12 +74,15 @@ and arithmetic operation is validated.
   or worker lease closes, preventing new users from reusing that tombstone.
 - [x] Track queue backing with distinct root, owner, lease, VMA, and active
   wait/poll `kref` references so the final reference performs reclamation.
+- [x] Track payload backing with distinct root, owner, VMA, and active allocation
+  operation `kref` references so owner or module close cannot reclaim an arena
+  while `MEMORY_ALLOC` or an existing VMA still observes it.
 
 ## Remaining work
 
 - [ ] Complete daemon-controlled generation replacement and backend reference
-  drain beyond the queue kref/tombstone graph. The payload and queue VMA
-  tombstones, owner-death transition, eventfd references, and bounded
+  drain beyond the queue and payload kref/tombstone graphs. The payload and
+  queue VMA tombstones, owner-death transition, eventfd references, and bounded
   registered-memory lifetime are implemented for the current fixture.
 - [ ] Extend the leased worker/backend binding from the verified COPY subset to
   the unmodified CPU Add/launch path and prove Add/Copy end to end through the

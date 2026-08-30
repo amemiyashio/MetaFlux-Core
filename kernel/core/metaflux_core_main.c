@@ -71,7 +71,10 @@ struct mf_cdev_memory {
 	u64 handle;
 	u64 generation;
 	struct mf_cdev_file *owner;
+	struct kref refs;
 	atomic_t vma_refs;
+	bool root_ref_held;
+	bool owner_ref_held;
 	bool online;
 };
 
@@ -102,6 +105,20 @@ static void mf_cdev_queue_release(struct kref *reference)
 		vfree(queue->mapping);
 		queue->mapping = NULL;
 		queue->allocation_size = 0;
+	}
+}
+
+static void mf_cdev_payload_release(struct kref *reference)
+{
+	struct mf_cdev_memory *memory = container_of(reference, struct mf_cdev_memory, refs);
+
+	if (memory->mapping != NULL) {
+		vfree(memory->mapping);
+		memory->mapping = NULL;
+		memory->allocation_size = 0;
+		memory->byte_count = 0;
+		memory->handle = 0;
+		memory->generation = 0;
 	}
 }
 
@@ -166,16 +183,14 @@ static void mf_cdev_eventfd_put(struct eventfd_ctx **context)
 	}
 }
 
-static void mf_cdev_payload_reap_locked(void)
+static void mf_cdev_payload_mark_offline_locked(void)
 {
-	if (!mf_cdev_payload.online && atomic_read(&mf_cdev_payload.vma_refs) == 0 &&
-	    mf_cdev_payload.mapping != NULL) {
-		vfree(mf_cdev_payload.mapping);
-		mf_cdev_payload.mapping = NULL;
-		mf_cdev_payload.allocation_size = 0;
-		mf_cdev_payload.byte_count = 0;
-		mf_cdev_payload.handle = 0;
-		mf_cdev_payload.generation = 0;
+	if (mf_cdev_payload.online) {
+		mf_cdev_payload.online = false;
+		if (mf_cdev_payload.root_ref_held) {
+			mf_cdev_payload.root_ref_held = false;
+			kref_put(&mf_cdev_payload.refs, mf_cdev_payload_release);
+		}
 	}
 }
 
@@ -237,6 +252,7 @@ static int mf_cdev_memory_alloc(struct mf_cdev_file *file, void __user *argument
 	void *mapping;
 	size_t allocation_size;
 	int result;
+	bool operation_ref = false;
 
 	if (file == NULL || file->control || !file->negotiated)
 		return -EPERM;
@@ -274,6 +290,12 @@ static int mf_cdev_memory_alloc(struct mf_cdev_file *file, void __user *argument
 	mf_cdev_payload.handle = MF_CDEV_SUBMISSION_QUEUE_ID;
 	mf_cdev_payload.generation = mf_cdev_queue.generation;
 	mf_cdev_payload.owner = file;
+	kref_init(&mf_cdev_payload.refs);
+	mf_cdev_payload.root_ref_held = true;
+	kref_get(&mf_cdev_payload.refs);
+	mf_cdev_payload.owner_ref_held = true;
+	kref_get(&mf_cdev_payload.refs);
+	operation_ref = true;
 	atomic_set(&mf_cdev_payload.vma_refs, 0);
 	mf_cdev_payload.online = true;
 	file->memory_allocated = true;
@@ -290,13 +312,24 @@ static int mf_cdev_memory_alloc(struct mf_cdev_file *file, void __user *argument
 		mutex_lock(&mf_cdev_lock);
 		if (mf_cdev_payload.owner == file) {
 			mf_cdev_payload.owner = NULL;
-			mf_cdev_payload.online = false;
 			file->memory_allocated = false;
-			mf_cdev_payload_reap_locked();
+			mf_cdev_payload_mark_offline_locked();
+			if (mf_cdev_payload.owner_ref_held) {
+				mf_cdev_payload.owner_ref_held = false;
+				kref_put(&mf_cdev_payload.refs, mf_cdev_payload_release);
+			}
+		}
+		if (operation_ref) {
+			operation_ref = false;
+			kref_put(&mf_cdev_payload.refs, mf_cdev_payload_release);
 		}
 		mutex_unlock(&mf_cdev_lock);
 		return -EFAULT;
 	}
+	mutex_lock(&mf_cdev_lock);
+	operation_ref = false;
+	kref_put(&mf_cdev_payload.refs, mf_cdev_payload_release);
+	mutex_unlock(&mf_cdev_lock);
 	return 0;
 }
 
@@ -801,8 +834,12 @@ static void mf_cdev_memory_vma_open(struct vm_area_struct *vma)
 {
 	struct mf_cdev_memory *memory = vma->vm_private_data;
 
-	if (memory != NULL)
+	if (memory != NULL) {
+		mutex_lock(&mf_cdev_lock);
+		kref_get(&memory->refs);
 		atomic_inc(&memory->vma_refs);
+		mutex_unlock(&mf_cdev_lock);
+	}
 }
 
 static void mf_cdev_memory_vma_close(struct vm_area_struct *vma)
@@ -812,7 +849,7 @@ static void mf_cdev_memory_vma_close(struct vm_area_struct *vma)
 	if (memory != NULL) {
 		mutex_lock(&mf_cdev_lock);
 		atomic_dec(&memory->vma_refs);
-		mf_cdev_payload_reap_locked();
+		kref_put(&memory->refs, mf_cdev_payload_release);
 		mutex_unlock(&mf_cdev_lock);
 	}
 }
@@ -841,10 +878,13 @@ static int mf_cdev_mmap(struct file *file_pointer, struct vm_area_struct *vma)
 		vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
 		vma->vm_ops = &mf_cdev_memory_vm_ops;
 		vma->vm_private_data = &mf_cdev_payload;
+		kref_get(&mf_cdev_payload.refs);
 		atomic_inc(&mf_cdev_payload.vma_refs);
 		result = remap_vmalloc_range(vma, mf_cdev_payload.mapping, 0);
-		if (result != 0)
+		if (result != 0) {
 			atomic_dec(&mf_cdev_payload.vma_refs);
+			kref_put(&mf_cdev_payload.refs, mf_cdev_payload_release);
+		}
 		mutex_unlock(&mf_cdev_lock);
 		return result;
 	}
@@ -951,9 +991,12 @@ static int mf_cdev_release(struct inode *inode, struct file *file_pointer)
 	}
 	if (mf_cdev_payload.owner == file) {
 		mf_cdev_payload.owner = NULL;
-		mf_cdev_payload.online = false;
 		file->memory_allocated = false;
-		mf_cdev_payload_reap_locked();
+		mf_cdev_payload_mark_offline_locked();
+		if (mf_cdev_payload.owner_ref_held) {
+			mf_cdev_payload.owner_ref_held = false;
+			kref_put(&mf_cdev_payload.refs, mf_cdev_payload_release);
+		}
 	}
 	if (mf_cdev_registered.owner == file) {
 		reap_registered = mf_cdev_registered_memory_take_locked(file, 0U, &retired);
@@ -1074,14 +1117,20 @@ static void __exit mf_cdev_exit(void)
 	mf_cdev_queue.eventfd_owner = NULL;
 	mf_cdev_eventfd_put(&mf_cdev_queue.submission_eventfd);
 	mf_cdev_eventfd_put(&mf_cdev_queue.completion_eventfd);
-	mf_cdev_payload.online = false;
-	mf_cdev_payload.owner = NULL;
+	mf_cdev_payload_mark_offline_locked();
+	if (mf_cdev_payload.owner != NULL) {
+		mf_cdev_payload.owner->memory_allocated = false;
+		mf_cdev_payload.owner = NULL;
+		if (mf_cdev_payload.owner_ref_held) {
+			mf_cdev_payload.owner_ref_held = false;
+			kref_put(&mf_cdev_payload.refs, mf_cdev_payload_release);
+		}
+	}
 	reap_registered = mf_cdev_registered.pages != NULL;
 	if (reap_registered) {
 		retired = mf_cdev_registered;
 		memset(&mf_cdev_registered, 0, sizeof(mf_cdev_registered));
 	}
-	mf_cdev_payload_reap_locked();
 	mutex_unlock(&mf_cdev_lock);
 	if (reap_registered)
 		mf_cdev_registered_memory_destroy(&retired);

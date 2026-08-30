@@ -12,7 +12,8 @@ eventfd association, registered-memory, and the worker-broker bits.
 generation-bound, page-aligned driver payload arena per data-file owner; the
 returned `offset` is the `MF_UAPI_MMAP_PAYLOAD_V0` mapping offset and `fd` remains
 `-1` because the arena is driver-owned. Closing the owner marks the arena
-offline; existing VMAs retain a tombstone until their final VMA close.
+offline; existing VMAs and an in-flight allocation retain a tombstone until
+their final references close.
 
 `MEMORY_REGISTER` accepts one caller-owned range up to 64 MiB. The C17 client
 passes the virtual address in `offset`, the exact byte count in `byte_count`,
