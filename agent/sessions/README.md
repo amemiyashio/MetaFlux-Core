@@ -92,7 +92,7 @@ copies canonical content.
 | [S0112-20260830-013-m0110-local-cdev](2026/08/S0112-20260830-013-m0110-local-cdev/summary.md) | 2026-08-30 | Exact | In progress | W0112 cdev client/worker, payload arena, eventfd ownership, bounded registered-memory stage, checked backend COPY seam, and GCC Kbuild; production backend and fault gates remain |
 | [S0113-20260830-014-m0110-static-vfio-user](2026/08/S0113-20260830-014-m0110-static-vfio-user/summary.md) | 2026-08-30 | Exact | In progress | W0113 generated vfio-user control plane, static BAR profile, and generation/epoch DMA mapping fixture; data-plane gates remain |
 | [S0121-20260830-015-m0120-lifecycle-model](2026/08/S0121-20260830-015-m0120-lifecycle-model/summary.md) | 2026-08-30 | Exact | In progress | W0121 lifecycle extension, deterministic generation/epoch model checker, and 74/74 dev regression; lifecycle adapters remain |
-| [S0122-20260831-001-m0120-existing-transport-lifecycle](2026/08/S0122-20260831-001-m0120-existing-transport-lifecycle/summary.md) | 2026-08-31 | Exact | In progress | W0122 coordinator, memfd/cdev/vfio-user mirrors, typed normalizer, QMP correlation fixture, and runtime ingress; live producer/socket wiring, provider, and qualification gates remain |
+| [S0122-20260831-001-m0120-existing-transport-lifecycle](2026/08/S0122-20260831-001-m0120-existing-transport-lifecycle/summary.md) | 2026-08-31 | Exact | In progress | W0122 coordinator, memfd/cdev/vfio-user mirrors, typed normalizer, QMP correlation and completion-ingress fixtures, and runtime ingress; live producer/socket wiring, provider, and qualification gates remain |
 
 ## Fidelity and retention
 

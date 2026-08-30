@@ -7,8 +7,9 @@ memfd, cdev, and guest vfio-user adapters. The coordinator and concrete C++
 transport mirror stages are verified below; the session remains active while
 production memfd wiring, live QMP/vPCI integration, and qualification gates
 remain open. The typed external-event normalizer and QMP command/event
-correlation fixture are recorded as boundary fixtures; producer call-site
-integration remains open.
+correlation fixture are recorded as boundary fixtures; the QMP fixture now also
+has a direct completion-to-ingress helper, while live socket and remaining
+producer call-site integration remain open.
 
 ## Durable changes
 
@@ -27,7 +28,8 @@ integration remains open.
   `Request` mapping with malformed/unknown rejection.
 - `transports/vfio-user/server/include/metaflux/transport/qmp_lifecycle.hpp`
   and its implementation/test: one-pending-command QMP event correlation with
-  failed-remove loss mapping and failed-add rejection.
+  failed-remove loss mapping, failed-add rejection, and a completion-to-ingress
+  helper for callers that own the Coordinator.
 - `runtime/core/include/metaflux/runtime/lifecycle_dispatch.hpp` and its
   implementation/test: one stateless ingress that normalizes external events
   before submitting accepted requests to the Coordinator.
@@ -43,6 +45,7 @@ integration remains open.
 | `metaflux.transport.cdev-worker` and `metaflux.transport.vfio-user-server` | Passed: 2/2 |
 | `metaflux.transport.memfd-worker` | Passed |
 | `metaflux.unit.runtime-lifecycle`, normalizer, and vfio-user QMP | Passed: 3/3 |
+| QMP completion-to-ingress regression | Passed: QMP and lifecycle-dispatch selection 2/2 |
 | `metaflux.unit.runtime-lifecycle-dispatch` | Passed |
 | `ctest --preset dev` | Passed: 79/79 |
 | `python3 tools/check-component-graph.py <configured graph>` | Passed: 19 components / 22 edges |
@@ -60,6 +63,11 @@ integration remains open.
 
 - No new architecture decision. The coordinator follows the W0121 model and
   the runtime/lifecycle ownership rules in M0120.
+- The QMP completion helper keeps correlation status (`QmpResult`) separate from
+  authority outcome (`ResultDetails`), snapshots the pending event before
+  clearing correlation state, and routes the event through
+  `submit_external_event`. A failed remove therefore reaches the existing
+  `QmpFailure` lifecycle path without adding a QMP-specific authority API.
 
 ## roast
 
@@ -78,6 +86,9 @@ integration remains open.
 - QMP command/event correlation -> `transports/vfio-user/server/include/metaflux/transport/qmp_lifecycle.hpp`
   (focused QMP regression; content revision `5e1c3bc`, full development CTest
   78/78)
+- QMP completion-to-ingress wiring -> `transports/vfio-user/server/src/qmp_lifecycle.cpp`
+  (focused QMP/lifecycle dispatch regression; content revision `b37e8ba`, full
+  development CTest 79/79)
 - Runtime external-event ingress -> `runtime/core/include/metaflux/runtime/lifecycle_dispatch.hpp`
   (focused dispatch regression; content revision `04ecf81`, full development
   CTest 79/79)
@@ -99,13 +110,13 @@ integration remains open.
 
 ## Unresolved items
 
-- W0122 remains Active. Next: wire source producer call sites through the
-  stateless ingress, implement live QMP/socket integration, wire the production
-  memfd worker path, and add provider-freeze plus fault/qualification evidence.
+- W0122 remains Active. Next: implement live QMP/socket integration, wire the
+  remaining reset/disconnect/restart producer call sites and production memfd
+  worker path, and add provider-freeze plus fault/qualification evidence.
 
 ## Handoff
 
-Resume from checkpoint `P20260831-025`; run
+Resume from checkpoint `P20260831-028`; run
 `metaflux.unit.runtime-lifecycle`, the normalizer, dispatch, and QMP tests, and
 `metaflux.transport.memfd-worker` before changing an adapter, then preserve the
 M0110 descriptor/UAPI/BAR boundary.

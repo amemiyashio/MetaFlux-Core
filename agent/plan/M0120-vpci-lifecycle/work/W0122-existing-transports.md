@@ -72,6 +72,10 @@ only.
   pending command, requires a matching add/delete event, and emits QMP loss on
   failed removal without changing the transport wire contract. Live QMP socket
   integration remains open.
+- [x] Provide a QMP completion-to-ingress helper that snapshots the correlated
+  event, maps failed remove to `QmpFailure`, and calls
+  `submit_external_event`; live QMP socket and non-QMP producer wiring remain
+  open.
 - [ ] Integrate every reset/disconnect/restart source and inject failure at each
   staging, commit, DMA, completion, and teardown step.
 - [ ] Verify provider enumeration freeze before, during, and after replacement.

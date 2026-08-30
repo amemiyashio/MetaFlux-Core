@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-027
+checkpoint: P20260831-028
 ---
 
 # Current Progress
@@ -45,6 +45,8 @@ W0112's bounded registered-memory pin/SG stage is recorded at
 [P20260831-026](checkpoints/2026/P20260831-026-m0110-registered-memory.md).
 W0112's checked worker-side backend COPY dispatch seam is recorded at
 [P20260831-027](checkpoints/2026/P20260831-027-m0110-cdev-backend-dispatch.md).
+W0122's QMP completion-to-ingress helper is recorded at
+[P20260831-028](checkpoints/2026/P20260831-028-m0120-qmp-ingress.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -163,7 +165,8 @@ Linux 9.8.
 | W0122 request normalizer | `71956ff`; typed admin/VFIO-user/QMP/disconnect/restart events map to existing lifecycle requests with malformed/unknown rejection; focused normalizer test and full dev CTest 77/77 passed |
 | W0122 QMP command/event correlation | `5e1c3bc`; one-pending-command vfio-user fixture requires matching add/delete events, maps failed removal to QMP transport loss, and rejects failed addition; focused QMP/lifecycle regression 3/3 and full dev CTest 78/78 passed |
 | W0122 runtime event ingress | `04ecf81`; one stateless runtime entry normalizes external events and submits only accepted requests to Coordinator; malformed/unsupported events leave authority state unchanged; focused dispatch regression and full dev CTest 79/79 passed |
-| W0122 current boundary | Source producer call-site wiring, live QMP/socket integration, production memfd worker wiring, provider freeze, fault injection, and qualification remain open |
+| W0122 QMP producer ingress | `b37e8ba`; QMP completion snapshots the correlated event, maps failed remove to `QmpFailure`, and submits through the stateless ingress; focused QMP/lifecycle dispatch 2/2 and full dev CTest 79/79 passed |
+| W0122 current boundary | Live QMP/socket integration, remaining source producer call-site wiring, production memfd worker wiring, provider freeze, fault injection, and qualification remain open |
 
 ## Versioned Next Work
 
@@ -185,11 +188,12 @@ Linux 9.8.
    M1000 / `v1.0.0`; keep native NixOS VM/package qualification in the
    unallocated `v0.2.0` expansion. Do not reopen M0100 for any of them.
 6. M0120/W0122 is Active. The coordinator, memfd/cdev/vfio-user mirrors, typed
-   request normalizer, QMP correlation fixture, and runtime ingress are
-   recorded, but they do not satisfy the lifecycle Definition of Done; continue
-   with source producer wiring, live QMP/socket integration, production memfd
-   integration, provider freeze, and qualification while preserving the M0110
-   root.
+   request normalizer, QMP correlation fixture, QMP completion ingress helper,
+   and runtime ingress are recorded, but they do not satisfy the lifecycle
+   Definition of Done; continue with remaining source producer wiring, live
+   QMP/socket integration, production memfd integration, provider freeze, and
+   qualification while preserving the M0110 root. Resume from
+   [P20260831-028](checkpoints/2026/P20260831-028-m0120-qmp-ingress.md).
 7. M0110/W0112 remains Active after the bounded registered-memory stage at
    [P20260831-026](checkpoints/2026/P20260831-026-m0110-registered-memory.md) and
    the backend dispatch seam at
