@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0130
-workstream: W0134
-checkpoint: P20260831-045
+workstream: W0135
+checkpoint: P20260831-046
 ---
 
 # Current Progress
@@ -68,6 +68,8 @@ W0133's target profile/module preflight diagnostics are recorded at
 [P20260831-044](checkpoints/2026/P20260831-044-m0130-vulkan-target-preflight.md).
 W0134's stream/dependency planner is recorded at
 [P20260831-045](checkpoints/2026/P20260831-045-m0130-vulkan-stream-graph.md).
+W0135's deterministic cache identity and bounded catalog model are recorded at
+[P20260831-046](checkpoints/2026/P20260831-046-m0130-vulkan-cache-model.md).
 W0122's QMP completion-to-ingress helper is recorded at
 [P20260831-028](checkpoints/2026/P20260831-028-m0120-qmp-ingress.md).
 W0122's vfio-user disconnect handoff is recorded at
@@ -250,6 +252,15 @@ Linux 9.8.
 | W0134 CTest | Full `vulkan` preset passed 86/86, including `metaflux.backend.vulkan-stream-graph` |
 | W0134 current boundary | Command-resource recycling, `vkQueueSubmit2`, timeline completion, composed provider/runtime dependencies, validation, and driver-family execution remain open |
 
+## Recorded M0130 W0135 Evidence
+
+| Gate | Recorded result |
+| --- | --- |
+| W0135 cache identity | `073376d`; deterministic portable/device keys include compiler/lowering/tool epochs, target and specialization digests, ABI fields, and device/driver UUIDs |
+| W0135 catalog | `073376d`; bounded publication, hit/miss, corrupt unpinned removal, live-reference pinning, LRU eviction, and quota exhaustion are tested |
+| W0135 CTest | Full `vulkan` preset passed 87/87, including `metaflux.backend.vulkan-cache-model` |
+| W0135 current boundary | Atomic filesystem publication, opaque `VkPipelineCache`, pipeline creation, warm-launch no-compiler trace, and device invalidation remain open |
+
 ## Versioned Next Work
 
 1. M0100, its foundation session, and its completion session are terminal; the
@@ -317,6 +328,10 @@ Linux 9.8.
     [P20260831-045](checkpoints/2026/P20260831-045-m0130-vulkan-stream-graph.md).
     Continue with command resources and actual queue submission only after the
     stream planner remains the dependency admission boundary.
+13. M0130/W0135 is Active after the cache-model stage at
+    [P20260831-046](checkpoints/2026/P20260831-046-m0130-vulkan-cache-model.md).
+    Continue with filesystem/pipeline integration only after preserving the
+    deterministic key and live-reference ownership rules.
 
 ## Tool Boundary
 

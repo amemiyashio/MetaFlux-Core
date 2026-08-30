@@ -2,10 +2,10 @@
 id: W0135
 delivery: 0.1.3.5
 milestone: M0130
-status: Queued
+status: Active
 area: backend.vulkan.cache
 depends_on: [W0133, W0134]
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 
 # Vulkan Cache and Warm Path
@@ -30,6 +30,10 @@ where available; other platforms use traces and a separate p99 creation budget.
 
 ## Work
 
+- [x] Add deterministic portable/device cache identities and a bounded catalog
+  model. Key mutations miss, corrupt unpinned entries are removed for rebuild,
+  live references pin entries against LRU eviction, and a full pinned catalog
+  reports quota exhaustion.
 - [ ] Implement both caches, live-reference pinning, atomic publication,
   stampede control, quota/eviction, corruption recovery, and device/driver
   invalidation.
