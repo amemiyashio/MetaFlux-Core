@@ -27,14 +27,19 @@ The approved delivery line is:
 | [M0110](../agent/plan/M0110-kernel-guest-transport/plan.md) | `v0.1.1` | `0.1.1.0` | Local cdev and static guest transport |
 | [M0120](../agent/plan/M0120-vpci-lifecycle/plan.md) | `v0.1.2` | `0.1.2.0` | Lifecycle and experimental vPCI presentation |
 | [M0130](../agent/plan/M0130-vulkan-backend/plan.md) | `v0.1.3` | `0.1.3.0` | Vulkan execution backend |
+| [M1000](../agent/plan/M1000-stable-qualification/plan.md) | `v1.0.0` | `1.0.0.0` | Intel x86_64 support, physical NVIDIA binding performance, and stable compatibility qualification |
 
-`v0.2.0` is the next support and qualification expansion. Intel host
-qualification, physical NVIDIA binding-performance qualification, and native
-NixOS VM qualification belong there. They are not `v0.1.0` completion gates.
-No M record is allocated to `v0.2.0` until its plan is approved; its milestone
-scope would compact to `M0200`. `v1.0.0` remains unassigned and is reserved for
-an explicit stable public compatibility commitment, not as a synonym for
-unscheduled later work.
+`v0.2.0` remains an unallocated support-expansion line for native NixOS
+VM/package qualification. No M record is allocated until that plan is approved;
+its milestone scope would compact to `M0200`.
+
+D0027 assigns Intel x86_64 support qualification and physical NVIDIA
+binding-performance qualification to M1000 / `v1.0.0`, together with the
+explicit stable public compatibility commitment required by that major release.
+They remain outside M0100 / `v0.1.0`. D0027 supersedes D0023 only for the future
+Intel destination and supersedes D0024 only for the former `v0.2.0` assignment
+of Intel and physical NVIDIA qualification. D0024's SemVer and delivery-identity
+rules remain authoritative; D0012's native NixOS assignment remains unchanged.
 
 The `v0.1.x` releases form the initial-development line. A later milestone may
 add default-off or experimental capability while preserving the established

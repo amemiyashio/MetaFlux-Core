@@ -37,3 +37,6 @@ fail.
 | M0130 | Pipeline residency, disk quota, and driver-cache qualification | Cache warm path | Before W0135 cache work |
 | M0130 | Queue topology, batching thresholds, and polling/blocking defaults | Execution streams | Before W0134 execution |
 | M0130 | Device-loss worker isolation and resource deadline policy | Fault integration | Before W0136 release |
+| M1000 | Exact Intel x86_64 CPU generation, topology, firmware, and distribution support matrix | Intel support qualification | Before W1001 host rows are pinned |
+| M1000 | Exact physical NVIDIA GPU, driver, PCIe, and host-role binding reference matrix | Binding performance qualification | Before W1002 reference runs |
+| M1000 | Exact v1.0 stable public compatibility surface, upgrade window, and deprecation policy | Stable release contract | Before W1003 release qualification |

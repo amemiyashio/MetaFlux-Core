@@ -32,10 +32,11 @@ an index row does not promote `Proposed` material to `Verified`.
 | D0020 | Timezone-relative artifact mirror routing with canonical identity and verification | [Artifact download routing](../../toolchains/README.md#artifact-download-routing-d0020) | Repository tool-input policy; Asia/Shanghai route historically qualified |
 | D0021 | Nix-owned declaration of every newly required project workflow tool | [Superseded by D0022](../../toolchains/README.md#tool-provider-boundary-d0022) | Superseded |
 | D0022 | Nix fixes and provides tool versions without owning project workflows or lifecycle policy | [Tool provider boundary](../../toolchains/README.md#tool-provider-boundary-d0022) | Repository boundary |
-| D0023 | Intel x86_64 host qualification deferred from M0100 / `v0.1.0` to the `v0.2.0` support expansion | [W0101](../plan/M0100-core-foundation/work/W0101-build-toolchain.md) | Active release-boundary decision |
-| D0024 | Standard product SemVer plus four-part delivery coordinates, derived M/W/S identifiers, and the `v0.1.0` / `v0.2.0` qualification boundary | [Release and delivery identity](../../docs/release-versioning.md) | Repository identity and release-boundary policy |
+| D0023 | Intel x86_64 host qualification deferred from M0100 / `v0.1.0` to the `v0.2.0` support expansion | [Superseded future destination](../plan/M1000-stable-qualification/plan.md#release-boundary-decision-d0027) | Superseded by D0027; M0100 AMD reference boundary retained |
+| D0024 | Standard product SemVer plus four-part delivery coordinates and derived M/W/S identifiers | [Release and delivery identity](../../docs/release-versioning.md) | Repository identity policy; former Intel/NVIDIA allocation superseded by D0027 |
 | D0025 | Decision-authorized semantic changes synchronize every affected current and historical record while preserving factual evidence | [Semantic change governance](../../docs/architecture/semantic-change-governance.md) | Verified repository governance contract |
 | D0026 | Project-knowledge roast classifies durable promotion by semantic transformation depth and keeps session-only disposition separate | [Project knowledge roast](../../docs/architecture/project-knowledge-roast.md) | Verified repository knowledge-promotion contract |
+| D0027 | Intel x86_64 support and physical NVIDIA binding-performance qualification belong to M1000 / `v1.0.0`; native NixOS remains `v0.2.0` scope | [M1000 release boundary](../plan/M1000-stable-qualification/plan.md#release-boundary-decision-d0027) | Queued release-boundary decision |
 
 New decisions receive the next `DNNNN` identifier and point to a plan or
 architecture record containing rationale, consequences, and verification state.
