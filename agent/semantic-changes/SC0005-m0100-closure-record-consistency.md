@@ -55,7 +55,7 @@ superseded_by: null
 | `agent/sessions/2026/08/S0100-20260830-001-m0100-completion-sprint/session.json` | Historical | Pending | Map existing G010 event 26; lock every other field |
 | `agent/sessions/2026/08/S0100-20260830-001-m0100-completion-sprint/events.jsonl` | Historical | Retained evidence | Preserve seq 24/26 and every event byte; P013 corrects the forward identity assertion |
 | `agent/sessions/2026/08/S0100-20260830-001-m0100-completion-sprint/summary.md` | Historical | Pending | Preserve capture-time 26/201 count and distinguish later correction evidence |
-| `agent/sessions/2026/08/S0100-20260830-001-m0100-completion-sprint/notes.md` | Historical | Pending | Replace the terminal TODO with a bounded pointer to canonical closure evidence |
+| `agent/sessions/2026/08/S0100-20260830-001-m0100-completion-sprint/notes.md` | Historical | Pending | Replace terminal boilerplate with a bounded pointer to canonical closure evidence |
 | `.githooks/pre-commit` | Tooling | Pending | Candidate-index session coverage blocks agent-only bypasses |
 | `tools/check-agent-records.py` | Tooling | Pending | Full session references, terminal notes, and terminal guidance-event mapping are checked |
 | `tools/test-check-agent-records.py` | Tooling | Pending | Focused regressions cover every new record and hook invariant |
