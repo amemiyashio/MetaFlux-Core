@@ -51,7 +51,13 @@ honor an explicit user request to keep work uncommitted.
    material disposition, and removes the raw packet and attachments. Persist a
    deferred item in the existing unresolved work or open-decision flow and
    record that target before removing its packet.
-5. At a breakthrough trigger, stop expanding scope. Inspect `git status` and
+5. Before checkpoint or close, identify every durable collaborator-delivered
+   batch since the prior boundary. If any batch was not already reviewed, load
+   [`converge-project-changes`](../converge-project-changes/SKILL.md), resolve
+   its exact scope, and complete or route every blocker and required finding.
+   This is a fallback control boundary, not permission to absorb ambiguous or
+   foreign active-session changes.
+6. At a breakthrough trigger, stop expanding scope. Inspect `git status` and
    the diff, identify the exact files owned by the breakthrough, and run its
    focused verification. Stage only that coherent content and create an
    outcome-named Git commit. The pre-commit hook validates the attempt; it does
@@ -59,12 +65,12 @@ honor an explicit user request to keep work uncommitted.
    In an agent-run session, create every content, checkpoint, and closing-record
    commit through the [`start-work`](../start-work/SKILL.md) harness-identity
    helper; human-created commits retain the user's normal Git identity.
-6. After the content commit, append its revision and verification result to the
+7. After the content commit, append its revision and verification result to the
    active session. Refresh `progress/current.md` and add a compact checkpoint
    only when the commit is also a material handoff boundary. Commit these
    session/checkpoint records separately from content. If work continues, keep
    `status: in_progress`, `ended_at: null`, and `final_revision: null`.
-7. Before close or handoff, invoke `$roast` explicitly: split material outcomes
+8. Before close or handoff, invoke `$roast` explicitly: split material outcomes
    into independent claims; route unresolved choices to their canonical owner;
    retain bounded local material under the independent `session-only`
    disposition; and classify each materially promoted claim under one canonical
@@ -76,20 +82,20 @@ honor an explicit user request to keep work uncommitted.
    Preserve user changes and artifacts owned by other sessions or concurrent
    work. A terminal session's guidance inbox must contain no file or symbolic
    link.
-8. If an abandoned route contains a reusable lesson, retain one concise
+9. If an abandoned route contains a reusable lesson, retain one concise
    `work_note` or promote a validated experience. Otherwise remove the route
    and omit its noise. Never rewrite completed historical sessions or
    checkpoints to make an old route appear successful. A decision-authorized
    semantic synchronization follows `govern-semantic-change`, preserves factual
    evidence, and requires its exact protected paths in an Active SC already in
    `HEAD`.
-9. In close mode, fill `summary.md`. `## Cleanup` names removed and intentionally
+10. In close mode, fill `summary.md`. `## Cleanup` names removed and intentionally
    retained artifacts (`none` is valid after inspection). Lowercase `## roast`
    contains the ordered `light roasts`, `medium roasts`, and `dark roasts`
    promotion maps; the following lowercase `## session-only` contains only
    bounded local-retention reasons. `none` is valid after classification, and
    neither section copies canonical content.
-10. Fill `session.json` from current facts: agents, honest milestone/work-item
+11. Fill `session.json` from current facts: agents, honest milestone/work-item
    statuses, the final content revision, end time, and terminal status. Update
    the sessions index with a one-line outcome, validate the records, and create
    the separate closing record commit.

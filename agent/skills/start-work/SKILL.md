@@ -43,7 +43,14 @@ cover the complete change.
    [`session-guidance`](../session-guidance/SKILL.md) before the next coherent
    work unit. The session owner validates the packet and assigns its
    disposition; a specialist acting as its author does not edit product source.
-6. Make the change and monitor both the breakthrough trigger in `record-session`
+6. After a collaborator or subagent reports durable source or record changes,
+   load and follow
+   [`converge-project-changes`](../converge-project-changes/SKILL.md) before the
+   next coherent work unit. Review the exact delivered batch, not every ambient
+   worktree change. The current integration session repairs only its owned
+   compatible gaps; another active owner receives `session-guidance`, and a
+   breaking replacement follows `govern-semantic-change`.
+7. Make the change and monitor both the breakthrough trigger in `record-session`
    and the guidance control boundary. Recheck for ready guidance after a
    specialist or colleague completion notice and before beginning the next
    coherent work unit; do not interrupt a long-running command solely to poll.
@@ -51,7 +58,7 @@ cover the complete change.
    checkpoint it before entering the next risk or scope phase; do not wait for
    the entire task to finish. The semantic trigger belongs to the agent, while
    the pre-commit hook only validates an attempted commit.
-7. Before checkpoint or close, invoke `$roast` explicitly. Route each material
+8. Before checkpoint or close, invoke `$roast` explicitly. Route each material
    outcome to a canonical unresolved owner, the independent `session-only`
    disposition, or one materially updated canonical owner and roast depth.
    Verify with `python3 tools/check-agent-records.py .` and the relevant CTest

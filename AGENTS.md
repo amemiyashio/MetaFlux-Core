@@ -31,18 +31,26 @@ enforced by repository checks.
    product source; the session owner validates it, records any material
    disposition, and removes the transient packet. Duplicate or obsolete input
    is removed as no-material without adding a session event.
-4. **Never replace established meaning silently.** Record the canonical
+4. **Converge durable collaborator deliveries.** After a collaborator reports
+   durable source or record changes, invoke
+   [`converge-project-changes`](agent/skills/converge-project-changes/SKILL.md)
+   before the next coherent work unit. Resolve the exact delivered change set,
+   repair only compatible gaps owned by the current integration session, route
+   another active session through `session-guidance`, and route a breaking
+   replacement through `govern-semantic-change`. Checkpoint and close are the
+   fallback boundary for any delivered batch not reviewed earlier.
+5. **Never replace established meaning silently.** Record the canonical
    decision and use `govern-semantic-change` for a breaking semantic,
    identifier, constraint, record-shape, or authority migration. Keep the
    decision index resolvable; compose `close-decision` when an open ledger row
    is being resolved.
-5. **Verify before committing.** `python3 tools/check-agent-records.py .` must
+6. **Verify before committing.** `python3 tools/check-agent-records.py .` must
    pass; run the relevant CTest preset for build-affecting changes. Content
    and records are committed separately.
-6. **Keep tool ownership narrow.** Follow `manage-toolchain` for versions,
+7. **Keep tool ownership narrow.** Follow `manage-toolchain` for versions,
    manifests, shells, and Nix. Nix pins and provides tools only; Git, CMake,
    CTest, packaging, tests, and sessions keep their own semantics.
-7. **Record outcomes and clean work.** Invoke `$roast` explicitly to route each
+8. **Record outcomes and clean work.** Invoke `$roast` explicitly to route each
    materially promoted claim to one durable owner and semantic-transformation
    depth; keep `session-only` as an independent disposition. Record
    session-owned cleanup (`## Cleanup`), refresh `progress/current.md`, and

@@ -1,9 +1,9 @@
 # Expert Skill Trigger Evaluations
 
 The machine-readable source is [trigger-evals.json](trigger-evals.json). It
-contains 82 cases for 13 routed skills: 11 domain skills and two workflow
+contains 89 cases for 14 routed skills: 11 domain skills and three workflow
 skills. Every routed skill has two English positives, one English near-miss, one
-Chinese positive, and one Chinese near-miss; 16 additional cases exercise
+Chinese positive, and one Chinese near-miss; 18 additional cases exercise
 cross-boundary composition. Each workflow skill appears in at least one English
 and one Chinese composition.
 
@@ -34,10 +34,11 @@ python3 -B tools/check-skill-routing.py . --emit-template --repetitions 3 \
   > /tmp/metaflux-skill-routing.json
 ```
 
-Run each prompt from the repository root with normal discovery enabled. Roast
-positive and composition cases contain the explicit `$roast` invocation; plain
-English uses of "roast" remain near misses. The template binds every run both
-to the canonical corpus SHA-256 and to a routing
+Run each prompt from the repository root with normal discovery enabled.
+Convergence cases exercise implicit delivery-boundary routing. Roast positive
+and composition cases contain the explicit `$roast` invocation; plain English
+uses of "roast" remain near misses. The template binds every run both to the
+canonical corpus SHA-256 and to a routing
 input SHA-256 covering the catalog plus every routed `SKILL.md` and
 `agents/openai.yaml`. Record `Codex` as the product and the exact model,
 host/version, date, iteration, and selected skill slugs. Then score it:
@@ -52,10 +53,11 @@ loads, and no unlisted routed skill loads unless that case explicitly permits
 it. Both digests must still match, runner metadata cannot retain template
 placeholders or name another product, and every case must have exactly the
 recorded repetition count.
-The checked workflow roster is intentionally limited to
-`$govern-semantic-change` and explicit-only `$roast`. Other workflow
-skills such as `$start-work`, `$session-guidance`, and `$record-session` remain
-outside this scorer and may load without changing a case result.
+The checked workflow roster is intentionally limited to implicit
+`$converge-project-changes`, `$govern-semantic-change`, and explicit-only
+`$roast`. Other workflow skills such as `$start-work`, `$session-guidance`, and
+`$record-session` remain outside this scorer and may load without changing a
+case result.
 
 Captured observations are evidence only for their named model and host. Archive
 the filled JSON with the qualifying session or benchmark output; do not turn a
@@ -70,6 +72,8 @@ The corpus includes:
   generations, and provider revisions captured at different initialization times;
 - PTX semantics, MLIR conversion mechanics, and CPU/Vulkan target ownership;
 - Linux UAPI, vfio-user wire/DMA, PCI presentation, and lifecycle composition;
+- collaborator-delivery convergence, foreign active-session routing, and
+  project/domain review composition;
 - approved semantic replacements, protected-history migration, explicit
   project-knowledge roast, and their domain compositions;
 - English and Chinese near-miss prompts that mention neighboring terminology.

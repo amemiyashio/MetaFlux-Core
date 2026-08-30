@@ -63,6 +63,7 @@ for history.
 | [close-decision](close-decision/SKILL.md) | Active | Resolving a row of the open-decisions ledger |
 | [record-session](record-session/SKILL.md) | Active | Committing a verified stage breakthrough or closing a work session |
 | [session-guidance](session-guidance/SKILL.md) | Active | Publishing or processing specialist guidance for an active session |
+| [converge-project-changes](converge-project-changes/SKILL.md) | Active | Auditing and converging an explicit collaborator-delivered change set |
 | [govern-semantic-change](govern-semantic-change/SKILL.md) | Active | Replacing established repository meaning through a decision-authorized migration |
 | [roast](roast/SKILL.md) | Active | Explicitly classifying durable promotions by semantic transformation depth |
 | [implementation-readiness](implementation-readiness/SKILL.md) | Active | Assessing whether architecture or a workstream is ready for implementation |
@@ -88,6 +89,7 @@ separate even when one vertical slice needs all of them.
 | Request shape | Skills to compose | Ownership order |
 | --- | --- | --- |
 | Specialist direction or candidate patch for active work | `$session-guidance` + matching domain skill where needed | Session guidance owns the temporary handoff and disposition; the domain skill retains technical ownership, and the session owner alone applies source changes |
+| Durable collaborator-delivered source or records | `$converge-project-changes` + every materially touched domain skill | Convergence owns project-level audit and disposition; domain skills retain technical meaning; foreign active sessions receive `$session-guidance`, while breaking replacements compose `$govern-semantic-change` |
 | Breaking semantic, identifier, constraint, record-shape, or authority replacement | `$govern-semantic-change` + `$close-decision` when resolving an open row + matching domain skill | The decision owns new policy, the domain skill owns technical meaning, and semantic-change governance owns complete migration and active-session handoff |
 | Valuable experience, reasoning, failure lesson, or verified breakthrough at handoff | explicit `$roast` + `$record-session` | Roast chooses disposition, one durable owner, and semantic depth independently of evidence status; record-session owns Git checkpoint, cleanup, and lifecycle |
 | Tool version, compiler epoch, SDK/header input, development shell, or Nix-scope change | `$manage-toolchain` | Toolchain governance owns portable version identity and provisioning only; Git, CMake, CTest, packaging, tests, and sessions retain their workflows |

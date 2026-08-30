@@ -80,6 +80,24 @@ to the existing decision, progress, or experience records when their normal
 criteria apply. A terminal session's guidance inbox contains no file or
 symbolic link.
 
+## Collaborator change convergence
+
+A durable source or record delivery is reviewed as an explicit change set, not
+accepted from a completion message alone. At the next control boundary, use
+[`converge-project-changes`](skills/converge-project-changes/SKILL.md) to
+separate its committed, staged, unstaged, and untracked layers and audit the
+candidate against current project authority, architecture, contracts, records,
+and verification gates. Checkpoint and close provide a fallback when an earlier
+delivery boundary was missed.
+
+The active integration session may directly repair only its own exact increment
+or a completed batch explicitly handed to it. Source or records owned by another
+`in_progress` session receive transient `session-guidance`; ambiguous or
+concurrent material stays unchanged. An approved breaking replacement composes
+`govern-semantic-change`. Do not infer ownership from paths, Git identity,
+timestamps, processes, or a dirty worktree, and do not retain a review archive
+or source snapshot.
+
 ## Stable identifiers
 
 Product and delivery identity follows the canonical

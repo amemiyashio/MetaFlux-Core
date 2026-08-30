@@ -187,6 +187,7 @@ DOMAIN_SKILL_SLUGS = {
     "vulkan-spirv-compute",
 }
 WORKFLOW_SKILL_SLUGS = {
+    "converge-project-changes",
     "govern-semantic-change",
     "roast",
 }
@@ -2469,12 +2470,24 @@ class Validator:
                     self.add_error(openai_yaml, f"is not valid UTF-8: {exc}")
                 else:
                     parsed_openai = self.parse_openai_yaml(openai_yaml, openai_text, slug)
-                    if parsed_openai is not None and slug == "roast":
+                    if parsed_openai is not None:
                         _, policy = parsed_openai
-                        if policy.get("allow_implicit_invocation") is not False:
+                        if (
+                            slug == "roast"
+                            and policy.get("allow_implicit_invocation") is not False
+                        ):
                             self.add_error(
                                 openai_yaml,
                                 "roast requires policy.allow_implicit_invocation: false",
+                            )
+                        if (
+                            slug == "converge-project-changes"
+                            and policy.get("allow_implicit_invocation") is not True
+                        ):
+                            self.add_error(
+                                openai_yaml,
+                                "converge-project-changes requires "
+                                "policy.allow_implicit_invocation: true",
                             )
 
     def validate_skills(self) -> None:

@@ -121,6 +121,16 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "architecture"
   )
   add_test(
+    NAME metaflux.architecture.change-inventory-selftest
+    COMMAND
+      Python3::Interpreter -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/converge-project-changes/scripts/test_change_inventory.py"
+  )
+  set_tests_properties(
+    metaflux.architecture.change-inventory-selftest
+    PROPERTIES LABELS "architecture"
+  )
+  add_test(
     NAME metaflux.architecture.skill-routing
     COMMAND
       Python3::Interpreter -B

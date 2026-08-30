@@ -14,6 +14,7 @@
     "vulkan-spirv-compute"
   ],
   "workflow_skills": [
+    "converge-project-changes",
     "govern-semantic-change",
     "roast"
   ],
@@ -476,6 +477,46 @@
       "forbidden_skills": ["vulkan-spirv-compute"]
     },
     {
+      "id": "CONVERGE-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "An agent has delivered persistent changes into my active session. Audit the explicit change set against project-level authority, layout, dependencies, generated contracts, records, and verification rules; fix required findings before the next work unit.",
+      "expected_skills": ["converge-project-changes"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "CONVERGE-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "At this delivery boundary, audit the formally handed-off change batch. Converge required issues owned by my session, and send session guidance instead of editing issues owned by another in-progress collaborator.",
+      "expected_skills": ["converge-project-changes"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "CONVERGE-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Review this CUDA Driver provider patch only for libcuda symbol, handle, and error correctness; no project-level integration or collaborator-delivery governance is requested.",
+      "expected_skills": ["cuda-driver-abi-compatibility"],
+      "forbidden_skills": ["converge-project-changes"]
+    },
+    {
+      "id": "CONVERGE-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "另一位协作者刚交付一批持久更改；在进入下一个工作单元前，按项目级权威、仓库布局、依赖、契约与生成物、记录和验证规范审查明确 change set，并收敛当前会话拥有的 required findings。",
+      "expected_skills": ["converge-project-changes"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "CONVERGE-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "评估 M0110 工作流是否已具备实现条件，只做架构、激活、成熟度和发布证据的 go/no-go 判断，不审查或整改任何已交付 change set。",
+      "expected_skills": [],
+      "forbidden_skills": ["converge-project-changes"]
+    },
+    {
       "id": "GOV-P1",
       "kind": "single",
       "locale": "en",
@@ -690,6 +731,22 @@
       "locale": "en",
       "prompt": "Use $roast on a measured x86 backend breakthrough: apply the CPU performance expert, keep Candidate or Validated evidence status separate, and classify each materially promoted finding before checkpointing.",
       "expected_skills": ["cpu-backend-performance", "roast"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-CONVERGE-CPU",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Audit a delivered x86 backend patch for both project-level consistency and CPU execution/performance correctness; converge required integration findings and produce reproducible backend evidence.",
+      "expected_skills": ["converge-project-changes", "cpu-backend-performance"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-ZH-CONVERGE-GOV",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "在收敛协作者交付的 change set 时发现它替换了既有契约权威和记录形状；继续治理该批次，并通过已批准的语义变更流程迁移全部受影响载体且保留事实证据。",
+      "expected_skills": ["converge-project-changes", "govern-semantic-change"],
       "forbidden_skills": []
     }
   ]

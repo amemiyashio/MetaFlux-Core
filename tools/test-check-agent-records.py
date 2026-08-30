@@ -1095,6 +1095,29 @@ WORKFLOW_OPENAI_YAML = (
     "policy:\n"
     "  allow_implicit_invocation: false\n"
 )
+CONVERGENCE_SKILL_SLUG = "converge-project-changes"
+CONVERGENCE_SKILLS_README = (
+    "# Skills\n\n## Index\n\n"
+    "| Skill | Status | Use when |\n"
+    "| --- | --- | --- |\n"
+    "| [converge-project-changes](converge-project-changes/SKILL.md) | "
+    "Active | Converging collaborator changes |\n"
+)
+CONVERGENCE_SKILL_FILE = (
+    "---\n"
+    "name: converge-project-changes\n"
+    "description: Audit and converge an explicit collaborator-delivered change set.\n"
+    "---\n\n"
+    "# Converge Project Changes\n\nReview and route the delivered batch.\n"
+)
+CONVERGENCE_OPENAI_YAML = (
+    "interface:\n"
+    '  display_name: "Converge Project Changes"\n'
+    '  short_description: "Converge collaborator changes to project rules"\n'
+    '  default_prompt: "Use $converge-project-changes to review this delivered change set."\n'
+    "policy:\n"
+    "  allow_implicit_invocation: true\n"
+)
 
 
 def with_skills(
@@ -1152,6 +1175,24 @@ def with_workflow_skill(
     mutated[f"agent/skills/{WORKFLOW_SKILL_SLUG}/SKILL.md"] = skill_file
     if openai_yaml is not None:
         mutated[f"agent/skills/{WORKFLOW_SKILL_SLUG}/agents/openai.yaml"] = openai_yaml
+    mutated[".agents/skills"] = f"{SYMLINK_PREFIX}../agent/skills"
+    return mutated
+
+
+def with_convergence_skill(
+    files: dict[str, str],
+    *,
+    openai_yaml: str | None = CONVERGENCE_OPENAI_YAML,
+) -> dict[str, str]:
+    mutated = dict(files)
+    mutated["agent/skills/README.md"] = CONVERGENCE_SKILLS_README
+    mutated[f"agent/skills/{CONVERGENCE_SKILL_SLUG}/SKILL.md"] = (
+        CONVERGENCE_SKILL_FILE
+    )
+    if openai_yaml is not None:
+        mutated[f"agent/skills/{CONVERGENCE_SKILL_SLUG}/agents/openai.yaml"] = (
+            openai_yaml
+        )
     mutated[".agents/skills"] = f"{SYMLINK_PREFIX}../agent/skills"
     return mutated
 
@@ -2423,6 +2464,24 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         "valid explicit-only workflow skill package",
         with_workflow_skill(BASE_FILES),
         False,
+        False,
+    ),
+    (
+        "valid implicitly routed convergence skill package",
+        with_convergence_skill(BASE_FILES),
+        False,
+        False,
+    ),
+    (
+        "convergence skill rejects explicit-only invocation policy",
+        with_convergence_skill(
+            BASE_FILES,
+            openai_yaml=CONVERGENCE_OPENAI_YAML.replace(
+                "allow_implicit_invocation: true",
+                "allow_implicit_invocation: false",
+            ),
+        ),
+        True,
         False,
     ),
     (
