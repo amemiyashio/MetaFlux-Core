@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-30
 milestone: M0100
 workstream: W0106
-checkpoint: P20260830-004
+checkpoint: P20260830-005
 ---
 
 # Current Progress
@@ -14,13 +14,14 @@ Active milestone: [M0100](../plan/M0100-core-foundation/plan.md), delivery
 delivery identities follow [D0024](../memory/decisions-index.md).
 
 Repository-wide replacements of established meaning follow
-[D0025](../memory/decisions-index.md). Governance content revision
+[D0025](../memory/decisions-index.md). Governance revision
 `1ecdfb01497610c5042e12bda4a16839d2b9c734` adds independent SC records,
 evidence-preserving history synchronization, transient active-session handoff,
-and staged/HEAD machine gates. Active SC0001 enumerates 75 exact current,
-tooling, and historical surfaces plus G001/G003 handoffs. Its authorized
-migration of old Distillation/policy wording is the current
-repository-governance phase.
+and staged/HEAD machine gates. Applied SC0001 enumerates 75 exact current,
+tooling, and historical surfaces plus G001/G003 handoffs. Content revision
+`90c45eda2815c59617fffea581522b7ed6bff1c0` synchronized all 31 authorized
+historical files, completed the terminal summary gate, and preserved the four
+whole-file evidence surfaces. Its history-edit authority is now closed.
 
 ## Current Boundary
 
@@ -57,6 +58,7 @@ performance targets provisional and uses AMD x86_64 as its reference host.
 | Reproducibility | Independent DEB, RPM, and tar builds matched byte-for-byte |
 | Signed target SDK provenance | Passed for snapshot `20260820T000000Z`, two signed releases, three indexes, and ten packages |
 | D0024 migration verification | Dev build and CTest 63/63; Agent records 111/111; guidance 17/17; routing 68 cases and 23/23 self-tests; 18 skills valid |
+| D0025 migration verification | Architecture CTest 6/6; Agent records 136/136; semantic edits 21/21; guidance 17/17; routing 81 cases and 34/34 self-tests; two workflow skills valid |
 
 The generic release entry point is checked in at
 `tools/build-generic-release.sh` with the CMake-owned Ubuntu 20.04 target tuple.
@@ -68,10 +70,11 @@ Linux 9.8.
 
 ## Versioned Next Work
 
-1. Use the committed Active SC0001 rows to migrate the old summary and policy
-   wording without changing raw evidence, then bind its content revision.
-2. The M0100 completion owner processes G002, reconciles its compact session
-   record with D0024, and closes `v0.1.0` only from a verified Git revision.
+1. The foundation owner processes G001 at its next control boundary. The M0100
+   completion owner processes G002 before G003, then reconciles its compact
+   session record with D0024/D0025.
+2. Close `v0.1.0` only from a verified Git revision after the remaining active
+   session records and transient guidance are resolved by their owners.
 3. New work uses an explicit four-part delivery coordinate and the derived
    M/W/S identity; no pre-D0024 alias is accepted.
 4. Schedule Intel host, physical NVIDIA binding performance, and native NixOS

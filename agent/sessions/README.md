@@ -79,7 +79,7 @@ session-only claim; it does not copy promoted content.
 | [S0101-20260830-002-ubuntu-target-sdk-guide](2026/08/S0101-20260830-002-ubuntu-target-sdk-guide/summary.md) | 2026-08-30 | Exact | Complete | Explicit Ubuntu 20.04 target SDK construction, consumption, and release-gap guide |
 | [S0100-20260830-003-session-guidance-loop](2026/08/S0100-20260830-003-session-guidance-loop/summary.md) | 2026-08-30 | Exact | Complete | Session-local specialist guidance with validated disposition and transient cleanup |
 | [S0100-20260830-004-semantic-version-line](2026/08/S0100-20260830-004-semantic-version-line/summary.md) | 2026-08-30 | Exact | Complete | Product SemVer, derived M/W/S identities, 25-session migration, and v0.2.0 qualification boundary |
-| [S0100-20260830-005-semantic-change-distillation](2026/08/S0100-20260830-005-semantic-change-distillation/summary.md) | 2026-08-30 | Exact | In progress | D0025, semantic-change hard gates, workflow skills, and historical migration |
+| [S0100-20260830-005-semantic-change-distillation](2026/08/S0100-20260830-005-semantic-change-distillation/summary.md) | 2026-08-30 | Exact | Complete | D0025 governance, two workflow skills, and SC0001 evidence-preserving migration applied |
 
 ## Fidelity and retention
 
