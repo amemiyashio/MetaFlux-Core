@@ -10,7 +10,15 @@ option(METAFLUX_BUILD_VFIO_USER_TRANSPORT "Build the static vfio-user transport 
 option(METAFLUX_BUILD_COMPILER "Build the compiler core fixture" ON)
 option(METAFLUX_BUILD_CPU_BACKEND_COMPILER "Build the CPU backend compiler" ON)
 option(METAFLUX_BUILD_CPU_BACKEND_RUNTIME "Build the CPU backend runtime fixture" ON)
+option(METAFLUX_BUILD_VULKAN_BACKEND "Build the Vulkan capability/backend fixture" OFF)
 option(METAFLUX_BUILD_TESTS "Build MetaFlux tests when BUILD_TESTING is enabled" ON)
+
+set(
+  METAFLUX_VULKAN_SDK_DIR
+  ""
+  CACHE PATH
+  "Vulkan headers and loader output exposed by the pinned Vulkan tool shell"
+)
 
 option(METAFLUX_ENABLE_WERROR "Treat project warnings as errors" OFF)
 option(METAFLUX_ENABLE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)

@@ -100,6 +100,16 @@
         "METAFLUX_BUILD_CPU_BACKEND_RUNTIME": "OFF",
         "METAFLUX_ENABLE_LTO": "ON"
       }
+    },
+    {
+      "name": "vulkan",
+      "inherits": "cxx-base",
+      "displayName": "MetaFlux Vulkan capability probe",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "METAFLUX_BUILD_VULKAN_BACKEND": "ON",
+        "METAFLUX_VULKAN_SDK_DIR": "$env{VULKAN_SDK}"
+      }
     }
   ],
   "buildPresets": [
@@ -108,7 +118,8 @@
     { "name": "profile", "configurePreset": "profile" },
     { "name": "asan", "configurePreset": "asan" },
     { "name": "coverage", "configurePreset": "coverage" },
-    { "name": "provider", "configurePreset": "provider" }
+    { "name": "provider", "configurePreset": "provider" },
+    { "name": "vulkan", "configurePreset": "vulkan" }
   ],
   "testPresets": [
     {
@@ -139,6 +150,11 @@
     {
       "name": "provider",
       "configurePreset": "provider",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "vulkan",
+      "configurePreset": "vulkan",
       "output": { "outputOnFailure": true }
     }
   ]

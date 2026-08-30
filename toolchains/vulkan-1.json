@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "epoch": 1,
+  "api_version": "1.3",
+  "target": "compute",
+  "packages": {
+    "vulkan_headers": {
+      "nix_attribute": "vulkan-headers",
+      "version": "1.4.341.0"
+    },
+    "vulkan_loader": {
+      "nix_attribute": "vulkan-loader",
+      "version": "1.4.341.0"
+    },
+    "vulkan_tools": {
+      "nix_attribute": "vulkan-tools",
+      "version": "1.4.341.0"
+    },
+    "glslang": {
+      "nix_attribute": "glslang",
+      "version": "16.2.0"
+    },
+    "spirv_tools": {
+      "nix_attribute": "spirv-tools",
+      "version": "1.4.341.0"
+    }
+  }
+}

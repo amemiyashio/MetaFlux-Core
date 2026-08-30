@@ -128,6 +128,28 @@ capability. The static lock gate is:
 python3 toolchains/tests/verify_pytorch_cuda_clients.py
 ```
 
+## Vulkan Compute Tool Epoch 1
+
+[`vulkan-1.json`](vulkan-1.json) fixes the Vulkan 1.3 compute tool set used by
+the M0130 capability and target-environment probe: Vulkan headers, loader,
+`vulkaninfo`, `glslangValidator`, and `spirv-val` are taken from the pinned
+nixpkgs input at the versions named by the manifest. They are exposed only by
+the on-demand `vulkan-tools` package and `.#vulkan` shell; the default,
+provider, runtime, release, and PyTorch shells do not fetch this closure.
+
+Enter the shell when running the Vulkan capability slice:
+
+```sh
+nix develop .#vulkan
+nix shell .#vulkan-tools --command vulkaninfo --summary
+```
+
+The package provides tools and headers only. Vulkan device selection,
+capability truth, target-environment serialization, CMake configuration, build,
+tests, and qualification remain owned by M0130/CMake/CTest. A host probe is
+local evidence for the detected driver and does not satisfy the dual-driver
+qualification gate.
+
 ## Artifact Download Routing (D0020)
 
 Downloads first try a mirror in the current execution environment's configured

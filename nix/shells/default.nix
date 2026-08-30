@@ -94,4 +94,14 @@ in
       export LD_LIBRARY_PATH="${toolPackages.toolchain}/lib"
     '';
   };
+
+  vulkan = mkClangShell {
+    name = "metaflux-vulkan-tools";
+    prependPackages = [ toolPackages.vulkan-tools ];
+    extraShellHook = ''
+      export VULKAN_SDK="${toolPackages.vulkan-tools}"
+      export CMAKE_PREFIX_PATH="${toolPackages.vulkan-tools}''${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
+      export LD_LIBRARY_PATH="${toolPackages.vulkan-tools}/lib:${toolPackages.toolchain}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    '';
+  };
 }
