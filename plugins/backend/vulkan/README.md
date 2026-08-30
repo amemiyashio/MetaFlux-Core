@@ -39,3 +39,9 @@ The backend contract also includes a target-digest-bound packed argument block
 generation-bound device-address entries. Tier 3 staging is the baseline; direct
 OPAQUE_FD or DMA-BUF import is advertised only when a future device probe proves
 the matching handle and synchronization capabilities.
+
+Before a future SPIR-V module is created, the runtime target preflight checks
+the queried profile, required feature bits, target digest, workgroup limits,
+address-space flags, and subgroup assumptions. It produces stable diagnostics
+for mismatches and unsupported semantics; it does not yet perform MLIR
+conversion or SPIR-V validation.
