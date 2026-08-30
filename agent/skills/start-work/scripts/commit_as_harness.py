@@ -28,6 +28,11 @@ HARNESSES = {
         email="claude-code@localhost",
         signals=("CLAUDE_PROJECT_DIR",),
     ),
+    "zcode": HarnessIdentity(
+        name="ZCode",
+        email="zcode@localhost",
+        signals=("ZCODE_SESSION_ID",),
+    ),
 }
 
 
