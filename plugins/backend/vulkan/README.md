@@ -51,3 +51,10 @@ monotonic timeline values, preserves same-stream FIFO, requires cross-stream
 waits to be explicit, and validates transfer/compute stage-access masks before
 future `vkQueueSubmit2` submission. It does not claim queue submission,
 pipeline execution, or device timing.
+
+The cache model defines deterministic portable and device-bound identities from
+Kernel IR, compiler/lowering/tool epochs, target and specialization digests,
+argument/backend ABI, and physical device/driver UUIDs. Its bounded catalog
+removes corrupt unpinned entries for rebuild and protects live references from
+eviction. Filesystem publication, opaque `VkPipelineCache` data, and warm-launch
+tracing remain a later W0135 stage.
