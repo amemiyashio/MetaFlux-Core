@@ -5,8 +5,7 @@
 Move Intel x86_64 support and physical NVIDIA binding-performance qualification
 from the former `v0.2.0` expansion boundary to an explicit `v1.0.0` milestone,
 while leaving native NixOS qualification in `v0.2.0`. This active session owns
-the decision-bound semantic migration and does not claim that either hardware
-gate passed.
+the D0027/SC0003 migration and does not claim that either hardware gate passed.
 
 ## Durable changes
 
