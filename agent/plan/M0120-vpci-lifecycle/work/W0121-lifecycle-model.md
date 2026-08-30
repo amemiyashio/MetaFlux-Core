@@ -149,7 +149,7 @@ Implemented stage:
   tuple and leaving source-specific producer capture to the adapters.
 - [ ] Implement the canonical model, versioned bounds, deterministic checker, and
   machine-readable evidence contract; run the exact root command above.
-- [ ] Model provider removal/re-add with one `registry_view_id`, initialized CUDA,
+- [x] Model provider removal/re-add with one `registry_view_id`, initialized CUDA,
   current/later NVML init epochs, and a new process.
 - [ ] Model loss/removal fence publication racing telemetry-bank publication and
   bounded reader retry/fallback; forbid stale `ONLINE` after the observed fence.
