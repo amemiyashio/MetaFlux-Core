@@ -2,10 +2,10 @@
 id: W0122
 delivery: 0.1.2.2
 milestone: M0120
-status: Queued
+status: Active
 area: lifecycle.transports
 depends_on: [W0121]
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 
 # Lifecycle on Existing Transports
@@ -49,12 +49,43 @@ only.
 
 ## Work
 
-- [ ] Implement coordinator transactions and bounded transport mirror callbacks.
-- [ ] Exercise identical quiesce, drain, tombstone, `LOST`, and `ABSENT` paths on
-  memfd, cdev, and guest vfio-user.
+- [x] Implement the runtime-owned coordinator transactions and bounded transport
+  mirror callback boundary. The coordinator is the only component that commits
+  generation/epoch state; callbacks receive a normalized event and cannot
+  publish a replacement independently.
+- [x] Exercise identical prepare, quiesce, drain, commit, abort, tombstone,
+  `LOST`, and `ABSENT` paths with the memfd, cdev, and guest vfio-user mirror
+  fixture registrations.
 - [ ] Integrate every reset/disconnect/restart source and inject failure at each
   staging, commit, DMA, completion, and teardown step.
 - [ ] Verify provider enumeration freeze before, during, and after replacement.
+
+## Implemented stage
+
+`metaflux::runtime::lifecycle::Coordinator` in
+`runtime/core/include/metaflux/runtime/lifecycle.hpp` owns one logical-device
+state, generation and identity high-water marks, the retirement epoch, bounded
+request replay records, and immutable generation tombstones. `Mirror` callbacks
+are a C++-only runtime-core boundary: transport code supplies a context and
+prepare/quiesce/drain/commit/abort/loss hooks, while the coordinator supplies
+the normalized request and candidate identity. The boundary deliberately does
+not include M0110 descriptors, ioctl/mmap records, BAR definitions, QMP types,
+or provider APIs.
+
+Accepted add/reset/recover requests reserve a candidate before callbacks; a
+failed pre-commit stage consumes that candidate but leaves the old identity and
+epoch unchanged. A successful replacement retires the old generation and
+increments epoch once. A partial commit never reopens the old generation: the
+candidate becomes `LOST`. Transport loss preserves the current generation and
+epoch as a lost tombstone. Remove retires the current generation to `ABSENT`,
+and stale generation resolution returns `DeviceLost`.
+
+The focused unit gate is
+`metaflux.unit.runtime-lifecycle`. It covers all three mirror registrations,
+duplicate/conflicting request IDs, stale generations, pre-commit candidate
+consumption, transport-loss recovery, partial commit, remove/add, and checked
+generation/epoch exhaustion. This stage is a preparation for the real adapter
+and qualification work below; it does not claim those gates complete.
 
 ## Exit Gate
 
