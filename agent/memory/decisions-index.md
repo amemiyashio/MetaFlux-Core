@@ -35,6 +35,7 @@ an index row does not promote `Proposed` material to `Verified`.
 | D0023 | Intel x86_64 host qualification deferred from M0100 / `v0.1.0` to the `v0.2.0` support expansion | [W0101](../plan/M0100-core-foundation/work/W0101-build-toolchain.md) | Active release-boundary decision |
 | D0024 | Standard product SemVer plus four-part delivery coordinates, derived M/W/S identifiers, and the `v0.1.0` / `v0.2.0` qualification boundary | [Release and delivery identity](../../docs/release-versioning.md) | Repository identity and release-boundary policy |
 | D0025 | Decision-authorized semantic changes synchronize every affected current and historical record while preserving factual evidence | [Semantic change governance](../../docs/architecture/semantic-change-governance.md) | Verified repository governance contract |
+| D0026 | Project-knowledge roast classifies durable promotion by semantic transformation depth and keeps session-only disposition separate | [Project knowledge roast](../../docs/architecture/project-knowledge-roast.md) | Approved design; semantic migration pending |
 
 New decisions receive the next `DNNNN` identifier and point to a plan or
 architecture record containing rationale, consequences, and verification state.
