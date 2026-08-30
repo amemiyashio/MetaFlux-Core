@@ -103,6 +103,24 @@ class GuidanceCliTests(unittest.TestCase):
         with events_path.open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(event) + "\n")
 
+    def write_semantic_change_handoff(
+        self,
+        guidance_id: str,
+        *,
+        sc_id: str = "SC0001",
+    ) -> None:
+        semantic_changes = self.repo / "agent" / "semantic-changes"
+        semantic_changes.mkdir(parents=True, exist_ok=True)
+        (semantic_changes / f"{sc_id}-fixture.md").write_text(
+            "# Fixture semantic change\n\n"
+            "## Active-session handoff\n\n"
+            "| Session | Guidance | Status | Outcome |\n"
+            "| --- | --- | --- | --- |\n"
+            f"| `{SESSION_ID}` | `{guidance_id}` | Published | Fixture handoff |\n\n"
+            "## Evidence preservation\n\nFixture.\n",
+            encoding="utf-8",
+        )
+
     def test_complete_lifecycle_and_patch_cleanup(self) -> None:
         source_patch = self.repo / "candidate.patch"
         source_patch.write_text("diff --git a/a b/a\n", encoding="utf-8")
@@ -181,6 +199,30 @@ class GuidanceCliTests(unittest.TestCase):
         )
         self.assertIn("discarded G001 with no material outcome", result.stdout)
         self.assertFalse(draft.exists())
+
+    def test_no_material_id_is_reused_without_a_durable_reference(self) -> None:
+        draft = self.create_complete("duplicate-guidance")
+        self.run_cli(
+            "resolve",
+            str(draft),
+            "--no-material",
+            "--reason",
+            "duplicate of current source evidence",
+        )
+        replacement = self.create_complete("replacement-guidance")
+        self.assertEqual(replacement.name, "G001-replacement-guidance.draft.md")
+
+    def test_semantic_change_handoff_reserves_cleaned_id(self) -> None:
+        self.write_semantic_change_handoff("G001")
+        draft = self.create_complete("semantic-successor")
+        self.assertEqual(draft.name, "G002-semantic-successor.draft.md")
+
+    def test_semantic_change_handoff_and_events_allocate_g004(self) -> None:
+        self.append_disposition("G001", "adopted")
+        self.append_disposition("G002", "adapted")
+        self.write_semantic_change_handoff("G003")
+        draft = self.create_complete("completion-successor")
+        self.assertEqual(draft.name, "G004-completion-successor.draft.md")
 
     def test_material_resolution_requires_matching_event(self) -> None:
         draft = self.create_complete()

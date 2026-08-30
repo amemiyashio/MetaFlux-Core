@@ -58,6 +58,7 @@ REQUIRED_PACKET_FIELDS = {
     "supersedes",
     "candidate_patch",
 }
+SEMANTIC_CHANGE_HANDOFF_COLUMNS = ("Session", "Guidance", "Status", "Outcome")
 
 
 class GuidanceError(RuntimeError):
@@ -487,12 +488,83 @@ def _creation_residues(
     return residues
 
 
+def _markdown_table_cells(line: str) -> list[str]:
+    stripped = line.strip()
+    if not stripped.startswith("|") or not stripped.endswith("|"):
+        raise GuidanceError("semantic-change handoff table row must use pipe delimiters")
+    return [cell.strip() for cell in stripped[1:-1].split("|")]
+
+
+def _strip_code_cell(value: str) -> str:
+    if len(value) >= 2 and value.startswith("`") and value.endswith("`"):
+        return value[1:-1]
+    return value
+
+
+def _semantic_change_guidance_ids(repo: Path, session_id: str) -> set[str]:
+    semantic_changes = repo / "agent" / "semantic-changes"
+    if not semantic_changes.is_dir():
+        return set()
+
+    reserved: set[str] = set()
+    section_pattern = re.compile(
+        r"(?ms)^## Active-session handoff[ \t]*\n"
+        r"(?P<body>.*?)(?=^## |\Z)"
+    )
+    for path in sorted(semantic_changes.glob("SC[0-9][0-9][0-9][0-9]-*.md")):
+        if path.is_symlink() or not path.is_file():
+            raise GuidanceError(
+                f"semantic-change record must be a regular non-symlink file: {path}"
+            )
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            raise GuidanceError(f"semantic-change record is not valid UTF-8: {path}") from exc
+
+        sections = list(section_pattern.finditer(text))
+        if len(sections) != 1:
+            raise GuidanceError(
+                f"semantic-change record must contain one Active-session handoff section: {path}"
+            )
+        table_lines = [
+            line.strip()
+            for line in sections[0].group("body").splitlines()
+            if line.strip().startswith("|")
+        ]
+        if len(table_lines) < 2:
+            raise GuidanceError(f"semantic-change handoff table is incomplete: {path}")
+        if tuple(_markdown_table_cells(table_lines[0])) != SEMANTIC_CHANGE_HANDOFF_COLUMNS:
+            raise GuidanceError(f"semantic-change handoff table has unexpected columns: {path}")
+        separator = _markdown_table_cells(table_lines[1])
+        if len(separator) != len(SEMANTIC_CHANGE_HANDOFF_COLUMNS) or any(
+            re.fullmatch(r":?-{3,}:?", cell) is None for cell in separator
+        ):
+            raise GuidanceError(f"semantic-change handoff table separator is invalid: {path}")
+
+        for line in table_lines[2:]:
+            cells = _markdown_table_cells(line)
+            if len(cells) != len(SEMANTIC_CHANGE_HANDOFF_COLUMNS):
+                raise GuidanceError(f"semantic-change handoff row is malformed: {path}")
+            target = _strip_code_cell(cells[0])
+            if target != session_id:
+                continue
+            guidance_id = _strip_code_cell(cells[1])
+            if not GUIDANCE_ID_RE.fullmatch(guidance_id):
+                raise GuidanceError(
+                    f"semantic-change handoff has invalid guidance ID for {session_id}: {path}"
+                )
+            reserved.add(guidance_id)
+    return reserved
+
+
 def _next_guidance_id(
     guidance_dir: Path,
     packets: list[tuple[Path, re.Match[str]]],
     events: list[dict[str, object]],
+    semantic_change_ids: set[str],
 ) -> str:
-    numbers = [int(match.group("id")[1:]) for _, match in packets]
+    numbers = [int(guidance_id[1:]) for guidance_id in semantic_change_ids]
+    numbers.extend(int(match.group("id")[1:]) for _, match in packets)
     if guidance_dir.is_dir():
         for path in guidance_dir.iterdir():
             for pattern in (PATCH_RE, TEMP_PACKET_RE, TEMP_PATCH_RE):
@@ -779,7 +851,13 @@ def command_create(arguments: argparse.Namespace, repo: Path) -> None:
                 f"guidance.py recover --session {session_dir.name} "
                 f"--guidance-id {residue_id} --slug {residue_slug} --reason REASON"
             )
-        guidance_id = _next_guidance_id(guidance_dir, packets, events)
+        semantic_change_ids = _semantic_change_guidance_ids(repo, session_dir.name)
+        guidance_id = _next_guidance_id(
+            guidance_dir,
+            packets,
+            events,
+            semantic_change_ids,
+        )
         packet_name = f"{guidance_id}-{arguments.slug}.draft.md"
         patch_name = f"{guidance_id}-{arguments.slug}.patch" if patch_data is not None else None
         arguments.session_id = session_dir.name

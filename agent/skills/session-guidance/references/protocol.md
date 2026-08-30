@@ -35,7 +35,9 @@ draft --publish--> ready --claim--> processing --resolve--> removed
 the target `session.json`. The script rejects duplicate IDs and destination
 collisions. A no-material discard may remove a packet from any state. Because it
 creates no durable reference, its ID may be reused after every trace of that
-packet is removed; IDs referenced by session events remain reserved.
+packet is removed. IDs referenced by session events or by any semantic-change
+`Active-session handoff` row for the target session remain reserved even after
+their transient packet has been removed.
 
 `create` first writes and `fsync`s hidden same-directory files named
 `.GNNN-slug.draft.md.tmp` and, when needed, `.GNNN-slug.patch.tmp`. It publishes
