@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-30
 milestone: M0100
 workstream: W0106
-checkpoint: P20260830-003
+checkpoint: P20260830-004
 ---
 
 # Current Progress
@@ -12,6 +12,13 @@ Active milestone: [M0100](../plan/M0100-core-foundation/plan.md), delivery
 `0.1.0.0`, product release `v0.1.0`. Active workstream:
 [W0106](../plan/M0100-core-foundation/work/W0106-modes-release.md). Product and
 delivery identities follow [D0024](../memory/decisions-index.md).
+
+Repository-wide replacements of established meaning follow
+[D0025](../memory/decisions-index.md). Governance content revision
+`1ecdfb01497610c5042e12bda4a16839d2b9c734` adds independent SC records,
+evidence-preserving history synchronization, transient active-session handoff,
+and staged/HEAD machine gates. SC0001 activation and the authorized migration
+of old Distillation/policy wording are the current repository-governance phase.
 
 ## Current Boundary
 
@@ -59,11 +66,13 @@ Linux 9.8.
 
 ## Versioned Next Work
 
-1. The M0100 completion owner processes G002, reconciles its compact session
+1. Commit SC0001 Active with the exact audited Historical rows, then migrate the
+   old summary and policy wording without changing raw evidence.
+2. The M0100 completion owner processes G002, reconciles its compact session
    record with D0024, and closes `v0.1.0` only from a verified Git revision.
-2. New work uses an explicit four-part delivery coordinate and the derived
+3. New work uses an explicit four-part delivery coordinate and the derived
    M/W/S identity; no pre-D0024 alias is accepted.
-3. Schedule Intel host, physical NVIDIA binding performance, and native NixOS
+4. Schedule Intel host, physical NVIDIA binding performance, and native NixOS
    VM/package qualification under `v0.2.0`; do not reopen M0100 for them.
 
 ## Tool Boundary

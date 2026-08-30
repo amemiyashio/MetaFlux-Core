@@ -16,9 +16,12 @@ derived from `session.json.delivery`; the date and sequence make repeated work
 instances unique. The directory contains `session.json`, `events.jsonl`,
 `summary.md`, `notes.md`, and an `outputs/` directory. IDs and event sequence
 numbers are immutable after a session reaches a terminal status. D0024 was the
-one explicit repository-wide migration from the earlier date-only IDs. While
-work is in progress, the ledger may be distilled and resequenced; Git retains
-its earlier forms.
+first repository-wide migration from the earlier date-only IDs. A later
+decision-authorized synchronization follows D0025 and lists each terminal
+session surface in an `Active` SC already committed to `HEAD`; factual evidence
+remains locked. Outside that workflow, append a correction instead of changing
+a terminal ledger. While work is in progress, the ledger may be distilled and
+resequenced; Git retains its earlier forms.
 
 An `in_progress` session has `ended_at: null`. Complete, blocked, and abandoned
 sessions record the date or timestamp when work stopped.
@@ -44,6 +47,10 @@ Do not stage a raw inbox file; the pre-commit gate rejects added, modified,
 copied, renamed, or type-changed `guidance/` paths while allowing their staged
 deletion. Terminal sessions must contain no file or symbolic link under
 `guidance/`.
+
+At checkpoint or close, follow `distill-project-knowledge`. The summary keeps a
+promotion map (`claim -> canonical owner`) and a reason for any intentionally
+session-only claim; it does not copy promoted content.
 
 | Session | Date | Fidelity | Status | Summary |
 | --- | --- | --- | --- | --- |
@@ -72,6 +79,7 @@ deletion. Terminal sessions must contain no file or symbolic link under
 | [S0101-20260830-002-ubuntu-target-sdk-guide](2026/08/S0101-20260830-002-ubuntu-target-sdk-guide/summary.md) | 2026-08-30 | Exact | Complete | Explicit Ubuntu 20.04 target SDK construction, consumption, and release-gap guide |
 | [S0100-20260830-003-session-guidance-loop](2026/08/S0100-20260830-003-session-guidance-loop/summary.md) | 2026-08-30 | Exact | Complete | Session-local specialist guidance with validated disposition and transient cleanup |
 | [S0100-20260830-004-semantic-version-line](2026/08/S0100-20260830-004-semantic-version-line/summary.md) | 2026-08-30 | Exact | Complete | Product SemVer, derived M/W/S identities, 25-session migration, and v0.2.0 qualification boundary |
+| [S0100-20260830-005-semantic-change-distillation](2026/08/S0100-20260830-005-semantic-change-distillation/summary.md) | 2026-08-30 | Exact | In progress | D0025, semantic-change hard gates, workflow skills, and historical migration |
 
 ## Fidelity and retention
 

@@ -4,7 +4,7 @@
 checkpoints are protected and grouped by year under `checkpoints/YYYY/`.
 
 Latest checkpoint:
-[P20260830-003](checkpoints/2026/P20260830-003-semantic-delivery-migration.md).
+[P20260830-004](checkpoints/2026/P20260830-004-semantic-change-governance.md).
 
 A checkpoint records observed state and verification evidence; it is not a Git
 revision unless its metadata names one. Create a checkpoint at a material

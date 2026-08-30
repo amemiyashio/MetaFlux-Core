@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "S0100-20260830-005-semantic-change-distillation",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.0.0",
+  "started_at": "2026-08-30",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "Semantic-change and project-knowledge governance lead"
+    }
+  ],
+  "milestones": [],
+  "work_items": [],
+  "base_revision": "e1915a3b1944bd59171394d88a661b24c6085ec9",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
