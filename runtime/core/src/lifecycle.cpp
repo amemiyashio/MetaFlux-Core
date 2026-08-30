@@ -120,6 +120,7 @@ bool Coordinator::register_mirror(const Mirror& mirror) noexcept {
 bool Coordinator::same_request(const Request& left, const Request& right) const noexcept {
   return left.request_id == right.request_id && left.logical_device_id == right.logical_device_id &&
          left.daemon_incarnation == right.daemon_incarnation &&
+         left.expected_identity_record_id == right.expected_identity_record_id &&
          left.expected_generation == right.expected_generation &&
          left.expected_epoch == right.expected_epoch && left.deadline_tick == right.deadline_tick &&
          left.source == right.source && left.operation == right.operation;
@@ -136,6 +137,7 @@ bool Coordinator::valid_request(const Request& request) const noexcept {
     return false;
   }
   return request.expected_epoch == epoch_ &&
+         request.expected_identity_record_id == identity_record_id_ &&
          request.expected_generation == generation_;
 }
 
@@ -548,6 +550,7 @@ Result Coordinator::apply(const Request& request, ResultDetails& out) noexcept {
   }
   if (!valid_request(request)) {
     out.result = (request.daemon_incarnation != daemon_incarnation_ ||
+                  request.expected_identity_record_id != identity_record_id_ ||
                   request.expected_generation != generation_ || request.expected_epoch != epoch_)
                      ? Result::Stale
                      : Result::Invalid;

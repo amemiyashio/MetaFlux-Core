@@ -4,8 +4,9 @@
 one logical device's generation and epoch lifecycle. It accepts normalized
 requests from admin, memfd, cdev, vfio-user, QMP, disconnect, and restart
 sources. A request is identified by its ID, source, operation, daemon
-incarnation, expected generation/epoch, and deadline. Replays of an identical
-request are idempotent; a reused ID with different fields is a conflict.
+incarnation, expected identity-record generation/epoch tuple, and deadline.
+Replays of an identical request are idempotent; a reused ID with different
+fields is a conflict.
 
 Transport implementations register at most one bounded `Mirror` for each of
 `memfd`, `cdev`, and `vfio-user`. The coordinator invokes all registered mirrors

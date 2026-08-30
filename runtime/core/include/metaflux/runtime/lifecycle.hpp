@@ -74,6 +74,7 @@ struct Request final {
   std::uint64_t request_id = 0;
   std::uint64_t logical_device_id = 0;
   std::uint64_t daemon_incarnation = 0;
+  std::uint64_t expected_identity_record_id = 0;
   std::uint64_t expected_generation = 0;
   std::uint64_t expected_epoch = 0;
   std::uint64_t deadline_tick = 0;

@@ -65,7 +65,8 @@ only.
 `metaflux::runtime::lifecycle::Coordinator` in
 `runtime/core/include/metaflux/runtime/lifecycle.hpp` owns one logical-device
 state, generation and identity high-water marks, the retirement epoch, bounded
-request replay records, and immutable generation tombstones. `Mirror` callbacks
+request replay records, and immutable generation tombstones. Requests bind the
+expected identity-record ID together with generation and epoch. `Mirror` callbacks
 are a C++-only runtime-core boundary: transport code supplies a context and
 prepare/quiesce/drain/commit/abort/loss hooks, while the coordinator supplies
 the normalized request and candidate identity. The boundary deliberately does
