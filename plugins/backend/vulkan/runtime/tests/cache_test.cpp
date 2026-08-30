@@ -2,8 +2,35 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
+#include <string>
+#include <unistd.h>
 
 namespace {
+
+class TemporaryDirectory final {
+public:
+  TemporaryDirectory() {
+    char pattern[] = "/tmp/metaflux-vulkan-cache-XXXXXX";
+    const char* created = ::mkdtemp(pattern);
+    if (created != nullptr) {
+      path_ = created;
+    }
+  }
+
+  ~TemporaryDirectory() {
+    std::error_code error;
+    std::filesystem::remove_all(path_, error);
+  }
+
+  [[nodiscard]] bool valid() const noexcept { return !path_.empty(); }
+  [[nodiscard]] const std::filesystem::path& path() const noexcept { return path_; }
+
+private:
+  std::filesystem::path path_;
+};
 
 metaflux::backend::vulkan::CacheIdentity identity() {
   metaflux::backend::vulkan::CacheIdentity result{};
@@ -57,20 +84,17 @@ bool catalog_lifecycle() {
   const auto key_b = changed.portable_key();
   metaflux::backend::vulkan::CacheCatalog catalog(2U);
   std::string payload;
-  if (catalog.publish(key_a, "spirv-a", false) !=
-          metaflux::backend::vulkan::CacheStatus::success ||
+  if (catalog.publish(key_a, "spirv-a", false) != metaflux::backend::vulkan::CacheStatus::success ||
       catalog.lookup(key_a, &payload) != metaflux::backend::vulkan::CacheStatus::hit ||
       payload != "spirv-a" ||
-      catalog.publish(key_b, "spirv-b", false) !=
-          metaflux::backend::vulkan::CacheStatus::success ||
+      catalog.publish(key_b, "spirv-b", false) != metaflux::backend::vulkan::CacheStatus::success ||
       catalog.pin(key_a) != metaflux::backend::vulkan::CacheStatus::success) {
     return false;
   }
   auto changed_again = identity();
   changed_again.fp_mode = 10U;
   const auto key_c = changed_again.portable_key();
-  if (catalog.publish(key_c, "spirv-c", false) !=
-      metaflux::backend::vulkan::CacheStatus::success) {
+  if (catalog.publish(key_c, "spirv-c", false) != metaflux::backend::vulkan::CacheStatus::success) {
     return false;
   }
   if (catalog.lookup(key_a, &payload) != metaflux::backend::vulkan::CacheStatus::hit ||
@@ -92,8 +116,7 @@ bool pinned_quota() {
   const auto base = identity();
   const auto key = base.device_key();
   metaflux::backend::vulkan::CacheCatalog catalog(1U);
-  if (catalog.publish(key, "pipeline", true) !=
-          metaflux::backend::vulkan::CacheStatus::success ||
+  if (catalog.publish(key, "pipeline", true) != metaflux::backend::vulkan::CacheStatus::success ||
       catalog.pin(key) != metaflux::backend::vulkan::CacheStatus::success) {
     return false;
   }
@@ -109,10 +132,109 @@ bool pinned_quota() {
              metaflux::backend::vulkan::CacheStatus::success;
 }
 
+bool filesystem_round_trip_and_atomic_replace() {
+  TemporaryDirectory temporary;
+  if (!temporary.valid()) {
+    return false;
+  }
+  metaflux::backend::vulkan::CacheFileStore store(temporary.path() / "cache", 1024U);
+  const auto key = identity().portable_key();
+  if (store.publish(key, "spirv-old", false) != metaflux::backend::vulkan::CacheStatus::success ||
+      store.publish(key, "spirv-new", false) != metaflux::backend::vulkan::CacheStatus::success) {
+    return false;
+  }
+  std::string payload;
+  if (store.lookup(key, false, &payload) != metaflux::backend::vulkan::CacheStatus::hit ||
+      payload != "spirv-new") {
+    return false;
+  }
+  metaflux::backend::vulkan::CacheFileStore reopened(temporary.path() / "cache", 1024U);
+  if (reopened.lookup(key, false, &payload) != metaflux::backend::vulkan::CacheStatus::hit ||
+      payload != "spirv-new") {
+    return false;
+  }
+  for (const auto& entry : std::filesystem::directory_iterator(store.root())) {
+    if (entry.path().filename().string().find(".tmp.") != std::string::npos) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool filesystem_corruption_is_removed() {
+  TemporaryDirectory temporary;
+  if (!temporary.valid()) {
+    return false;
+  }
+  metaflux::backend::vulkan::CacheFileStore store(temporary.path() / "cache", 1024U);
+  const auto key = identity().portable_key();
+  if (store.publish(key, "0123456789", false) != metaflux::backend::vulkan::CacheStatus::success) {
+    return false;
+  }
+  {
+    std::ofstream output(store.entry_path(key, false), std::ios::binary | std::ios::trunc);
+    output << "truncated";
+  }
+  std::string payload;
+  if (store.lookup(key, false, &payload) != metaflux::backend::vulkan::CacheStatus::corrupt ||
+      std::filesystem::exists(store.entry_path(key, false))) {
+    return false;
+  }
+  if (store.publish(key, "0123456789", false) != metaflux::backend::vulkan::CacheStatus::success) {
+    return false;
+  }
+  const auto path = store.entry_path(key, false);
+  std::ifstream input(path, std::ios::binary);
+  const std::string original((std::istreambuf_iterator<char>(input)),
+                             std::istreambuf_iterator<char>());
+  if (original.empty()) {
+    return false;
+  }
+  std::string mutated = original;
+  mutated.back() = mutated.back() == 'x' ? 'y' : 'x';
+  {
+    std::ofstream output(path, std::ios::binary | std::ios::trunc);
+    output.write(mutated.data(), static_cast<std::streamsize>(mutated.size()));
+  }
+  return store.lookup(key, false, &payload) == metaflux::backend::vulkan::CacheStatus::corrupt &&
+         !std::filesystem::exists(path);
+}
+
+bool filesystem_device_invalidation_and_inputs() {
+  TemporaryDirectory temporary;
+  if (!temporary.valid()) {
+    return false;
+  }
+  metaflux::backend::vulkan::CacheFileStore store(temporary.path() / "cache", 8U);
+  const auto portable_key = identity().portable_key();
+  const auto device_key = identity().device_key();
+  if (store.publish(portable_key, "portable", false) !=
+          metaflux::backend::vulkan::CacheStatus::success ||
+      store.publish(device_key, "device", true) !=
+          metaflux::backend::vulkan::CacheStatus::success ||
+      store.invalidate_device(device_key) != metaflux::backend::vulkan::CacheStatus::success) {
+    return false;
+  }
+  std::string payload;
+  if (store.lookup(device_key, true, &payload) != metaflux::backend::vulkan::CacheStatus::miss ||
+      store.lookup(portable_key, false, &payload) != metaflux::backend::vulkan::CacheStatus::hit ||
+      payload != "portable") {
+    return false;
+  }
+  return store.publish("bad\nkey", "x", false) ==
+             metaflux::backend::vulkan::CacheStatus::invalid_argument &&
+         store.publish(portable_key, "012345678", false) ==
+             metaflux::backend::vulkan::CacheStatus::invalid_argument &&
+         store.lookup(portable_key, false, nullptr) ==
+             metaflux::backend::vulkan::CacheStatus::invalid_argument;
+}
+
 } // namespace
 
 int main() {
-  const bool ok = key_partitioning() && catalog_lifecycle() && pinned_quota();
+  const bool ok = key_partitioning() && catalog_lifecycle() && pinned_quota() &&
+                  filesystem_round_trip_and_atomic_replace() &&
+                  filesystem_corruption_is_removed() && filesystem_device_invalidation_and_inputs();
   std::printf("vulkan cache model: %s\n", ok ? "pass" : "fail");
   return ok ? 0 : 1;
 }

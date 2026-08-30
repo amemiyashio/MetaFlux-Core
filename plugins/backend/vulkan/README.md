@@ -56,5 +56,8 @@ The cache model defines deterministic portable and device-bound identities from
 Kernel IR, compiler/lowering/tool epochs, target and specialization digests,
 argument/backend ABI, and physical device/driver UUIDs. Its bounded catalog
 removes corrupt unpinned entries for rebuild and protects live references from
-eviction. Filesystem publication, opaque `VkPipelineCache` data, and warm-launch
-tracing remain a later W0135 stage.
+eviction. `CacheFileStore` persists either key class with a complete envelope,
+payload digest, process-unique temporary file, `fsync`, and atomic rename;
+truncated or mismatched entries are removed before returning `corrupt`, and a
+device-bound key can be explicitly invalidated. Cross-process stampede control,
+opaque `VkPipelineCache` data, and warm-launch tracing remain open.

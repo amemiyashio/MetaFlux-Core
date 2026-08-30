@@ -1,17 +1,90 @@
 #include "metaflux/backend/vulkan_cache.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <cerrno>
+#include <charconv>
 #include <cstddef>
+#include <cstdio>
+#include <fcntl.h>
+#include <fstream>
 #include <iomanip>
 #include <limits>
 #include <sstream>
+#include <string_view>
+#include <system_error>
+#include <unistd.h>
 
 namespace metaflux::backend::vulkan {
 
 namespace {
 
-template <typename Range>
-void append_hex(std::ostringstream& stream, const Range& bytes) {
+constexpr std::string_view kFileMagic = "metaflux-vulkan-cache-v1";
+constexpr std::size_t kMaxKeyBytes = 1024U;
+constexpr std::size_t kEnvelopeOverhead = 2048U;
+constexpr std::uint64_t kFnvOffset = UINT64_C(1469598103934665603);
+constexpr std::uint64_t kFnvPrime = UINT64_C(1099511628211);
+
+std::uint64_t fnv1a(std::string_view value, std::uint64_t seed) noexcept {
+  std::uint64_t result = seed;
+  for (const char raw_byte : value) {
+    const auto byte = static_cast<unsigned char>(raw_byte);
+    result ^= byte;
+    result *= kFnvPrime;
+  }
+  return result;
+}
+
+std::string hex_u64(std::uint64_t value) {
+  std::ostringstream stream;
+  stream << std::hex << std::setfill('0') << std::setw(16) << value;
+  return stream.str();
+}
+
+bool valid_key(std::string_view key) noexcept {
+  if (key.empty() || key.size() > kMaxKeyBytes) {
+    return false;
+  }
+  for (const char raw_byte : key) {
+    const auto byte = static_cast<unsigned char>(raw_byte);
+    if (byte < 0x20U || byte == 0x7fU) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool write_all(int fd, std::string_view bytes) noexcept {
+  const char* cursor = bytes.data();
+  std::size_t remaining = bytes.size();
+  while (remaining != 0U) {
+    const auto written = ::write(fd, cursor, remaining);
+    if (written < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      return false;
+    }
+    if (written == 0) {
+      return false;
+    }
+    cursor += written;
+    remaining -= static_cast<std::size_t>(written);
+  }
+  return true;
+}
+
+bool sync_directory(const std::filesystem::path& directory) noexcept {
+  const int fd = ::open(directory.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  if (fd < 0) {
+    return false;
+  }
+  const bool synced = ::fsync(fd) == 0;
+  (void)::close(fd);
+  return synced;
+}
+
+template <typename Range> void append_hex(std::ostringstream& stream, const Range& bytes) {
   stream << std::hex << std::setfill('0');
   for (const auto byte : bytes) {
     stream << std::setw(2) << static_cast<unsigned int>(byte);
@@ -164,8 +237,189 @@ const char* cache_status_string(CacheStatus status) noexcept {
     return "quota-exceeded";
   case CacheStatus::not_found:
     return "not-found";
+  case CacheStatus::io_error:
+    return "io-error";
   }
   return "unknown";
+}
+
+std::string CacheFileStore::key_token(std::string_view key, bool device_bound) {
+  const auto first = fnv1a(key, kFnvOffset);
+  const auto second = fnv1a(key, kFnvOffset ^ UINT64_C(0x9e3779b97f4a7c15));
+  return hex_u64(first) + hex_u64(second) + (device_bound ? ".device" : ".portable");
+}
+
+std::string CacheFileStore::payload_digest(std::string_view payload) {
+  return hex_u64(fnv1a(payload, kFnvOffset));
+}
+
+std::filesystem::path CacheFileStore::entry_path(std::string_view key, bool device_bound) const {
+  return root_ / (key_token(key, device_bound) + ".cache");
+}
+
+CacheStatus CacheFileStore::write_atomic_locked(std::string_view key, std::string_view payload,
+                                                bool device_bound) {
+  if (!valid_key(key) || payload.empty() || max_payload_bytes_ == 0U ||
+      payload.size() > max_payload_bytes_ || root_.empty()) {
+    return CacheStatus::invalid_argument;
+  }
+  std::error_code error;
+  std::filesystem::create_directories(root_, error);
+  if (error || !std::filesystem::is_directory(root_, error) || error) {
+    return CacheStatus::io_error;
+  }
+
+  std::string envelope;
+  envelope.reserve(kEnvelopeOverhead + key.size() + payload.size());
+  envelope.append(kFileMagic);
+  envelope.append("\nkey=");
+  envelope.append(key);
+  envelope.append("\nmode=");
+  envelope.append(device_bound ? "device" : "portable");
+  envelope.append("\npayload-size=");
+  envelope.append(std::to_string(payload.size()));
+  envelope.append("\npayload-digest=");
+  envelope.append(payload_digest(payload));
+  envelope.append("\n\n");
+  envelope.append(payload);
+
+  const auto target = entry_path(key, device_bound);
+  static std::atomic<std::uint64_t> temp_counter{0};
+  const auto token = std::to_string(static_cast<unsigned long long>(::getpid())) + "." +
+                     std::to_string(static_cast<unsigned long long>(
+                         temp_counter.fetch_add(1U, std::memory_order_relaxed)));
+  const auto temporary = target.string() + ".tmp." + token;
+  const int fd = ::open(temporary.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+  if (fd < 0) {
+    return CacheStatus::io_error;
+  }
+  bool written = write_all(fd, envelope);
+  if (written) {
+    written = ::fsync(fd) == 0;
+  }
+  const int close_result = ::close(fd);
+  written = written && close_result == 0;
+  if (!written) {
+    std::filesystem::remove(temporary, error);
+    return CacheStatus::io_error;
+  }
+  if (::rename(temporary.c_str(), target.c_str()) != 0) {
+    std::filesystem::remove(temporary, error);
+    return CacheStatus::io_error;
+  }
+  return sync_directory(root_) ? CacheStatus::success : CacheStatus::io_error;
+}
+
+CacheStatus CacheFileStore::read_locked(std::string_view key, bool device_bound,
+                                        std::string* out_payload) {
+  if (out_payload == nullptr || !valid_key(key) || max_payload_bytes_ == 0U || root_.empty()) {
+    return CacheStatus::invalid_argument;
+  }
+  out_payload->clear();
+  const auto path = entry_path(key, device_bound);
+  std::error_code error;
+  if (!std::filesystem::exists(path, error)) {
+    return error ? CacheStatus::io_error : CacheStatus::miss;
+  }
+  std::ifstream input(path, std::ios::binary | std::ios::ate);
+  if (!input) {
+    return CacheStatus::io_error;
+  }
+  const auto end = input.tellg();
+  if (end <= 0) {
+    std::filesystem::remove(path, error);
+    return CacheStatus::corrupt;
+  }
+  if (max_payload_bytes_ > std::numeric_limits<std::size_t>::max() - kEnvelopeOverhead ||
+      static_cast<std::uintmax_t>(end) >
+          static_cast<std::uintmax_t>(max_payload_bytes_ + kEnvelopeOverhead)) {
+    std::filesystem::remove(path, error);
+    return CacheStatus::corrupt;
+  }
+  const auto byte_count = static_cast<std::size_t>(end);
+  std::string encoded(byte_count, '\0');
+  input.seekg(0);
+  input.read(encoded.data(), static_cast<std::streamsize>(encoded.size()));
+  if (!input) {
+    std::filesystem::remove(path, error);
+    return CacheStatus::corrupt;
+  }
+
+  const auto separator = encoded.find("\n\n");
+  if (separator == std::string::npos) {
+    std::filesystem::remove(path, error);
+    return CacheStatus::corrupt;
+  }
+  const std::string_view header(encoded.data(), separator);
+  std::size_t cursor = 0U;
+  auto next_line = [&header, &cursor](std::string_view& line) {
+    if (cursor > header.size()) {
+      return false;
+    }
+    const auto end_line = header.find('\n', cursor);
+    if (end_line == std::string_view::npos) {
+      line = header.substr(cursor);
+      cursor = header.size();
+    } else {
+      line = header.substr(cursor, end_line - cursor);
+      cursor = end_line + 1U;
+    }
+    return true;
+  };
+  std::string_view magic;
+  std::string_view key_line;
+  std::string_view mode_line;
+  std::string_view size_line;
+  std::string_view digest_line;
+  const bool parsed = next_line(magic) && next_line(key_line) && next_line(mode_line) &&
+                      next_line(size_line) && next_line(digest_line) && cursor == header.size();
+  const std::string expected_key = "key=" + std::string(key);
+  const std::string_view expected_mode = device_bound ? "mode=device" : "mode=portable";
+  if (!parsed || magic != kFileMagic || key_line != expected_key || mode_line != expected_mode ||
+      size_line.substr(0U, 13U) != "payload-size=" ||
+      digest_line.substr(0U, 15U) != "payload-digest=") {
+    std::filesystem::remove(path, error);
+    return CacheStatus::corrupt;
+  }
+
+  std::uint64_t declared_size = 0U;
+  const auto size_value = size_line.substr(13U);
+  const auto size_result =
+      std::from_chars(size_value.data(), size_value.data() + size_value.size(), declared_size);
+  const auto payload =
+      std::string_view(encoded.data() + separator + 2U, encoded.size() - separator - 2U);
+  if (size_result.ec != std::errc{} || size_result.ptr != size_value.data() + size_value.size() ||
+      declared_size == 0U || declared_size > max_payload_bytes_ ||
+      declared_size != payload.size() || digest_line.substr(15U) != payload_digest(payload)) {
+    std::filesystem::remove(path, error);
+    return CacheStatus::corrupt;
+  }
+  *out_payload = std::string(payload);
+  return CacheStatus::hit;
+}
+
+CacheStatus CacheFileStore::publish(std::string_view key, std::string_view payload,
+                                    bool device_bound) {
+  std::lock_guard lock(mutex_);
+  return write_atomic_locked(key, payload, device_bound);
+}
+
+CacheStatus CacheFileStore::lookup(std::string_view key, bool device_bound,
+                                   std::string* out_payload) {
+  std::lock_guard lock(mutex_);
+  return read_locked(key, device_bound, out_payload);
+}
+
+CacheStatus CacheFileStore::invalidate_device(std::string_view key) {
+  std::lock_guard lock(mutex_);
+  std::string payload;
+  const auto status = read_locked(key, true, &payload);
+  if (status != CacheStatus::hit) {
+    return status;
+  }
+  std::error_code error;
+  return std::filesystem::remove(entry_path(key, true), error) && !error ? CacheStatus::success
+                                                                         : CacheStatus::io_error;
 }
 
 } // namespace metaflux::backend::vulkan

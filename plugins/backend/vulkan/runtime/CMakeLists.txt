@@ -1,3 +1,5 @@
+find_package(Threads REQUIRED)
+
 add_library(
   metaflux_vulkan_backend STATIC
   src/capability.cpp
@@ -16,7 +18,7 @@ target_include_directories(
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
 target_include_directories(metaflux_vulkan_backend SYSTEM PRIVATE "${METAFLUX_VULKAN_INCLUDE_DIR}")
-target_link_libraries(metaflux_vulkan_backend PRIVATE "${METAFLUX_VULKAN_LIBRARY}")
+target_link_libraries(metaflux_vulkan_backend PRIVATE "${METAFLUX_VULKAN_LIBRARY}" Threads::Threads)
 metaflux_configure_target(metaflux_vulkan_backend CXX)
 
 if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
