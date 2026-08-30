@@ -19,3 +19,7 @@ repository migrations follow the verified
 [`semantic-change-governance.md`](semantic-change-governance.md) contract
 (D0025). Durable project-knowledge promotion follows the verified
 [`project-knowledge-roast.md`](project-knowledge-roast.md) contract (D0026).
+The approved replacement of static agent identity mappings with automatic
+runtime harness-subject derivation is recorded in
+[`agent-harness-commit-identity.md`](agent-harness-commit-identity.md) (D0028)
+and remains Proposed while SC0004 is Active.
