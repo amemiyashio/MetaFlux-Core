@@ -8,6 +8,14 @@ incarnation, expected identity-record generation/epoch tuple, and deadline.
 Replays of an identical request are idempotent; a reused ID with different
 fields is a conflict.
 
+`lifecycle_normalizer.hpp` defines the fixed external-event vocabulary and maps
+admin add/remove/reset, VFIO-user reset, QMP add/remove, disconnect, and daemon
+restart to the existing `Request` source/operation pair. It validates the
+request envelope and returns an unsupported result for unknown event kinds. The
+normalizer has no state and does not reserve candidates, advance epochs, or
+publish lifecycle state; callers still submit the resulting request to the
+Coordinator.
+
 Transport implementations register at most one bounded `Mirror` for each of
 `memfd`, `cdev`, and `vfio-user`. The coordinator invokes all registered mirrors
 in the same prepare, quiesce, drain, commit sequence. The callbacks receive a

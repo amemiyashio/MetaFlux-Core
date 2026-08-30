@@ -1,6 +1,7 @@
 add_library(
   metaflux_runtime_core STATIC
   src/lifecycle.cpp
+  src/lifecycle_normalizer.cpp
   src/recovery_model.cpp
   src/registry_recovery.cpp
   src/runtime.cpp

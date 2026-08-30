@@ -64,6 +64,10 @@ only.
   C17 fast path remains the client half; the C++ adapter rejects stale
   generations, blocks submissions while quiescing, drains in-flight work, and
   retains a local lost/absent tombstone without allocating replacement identity.
+- [x] Add the fixed external-event request normalizer used by transport and
+  control adapters. It maps admin, VFIO-user, QMP, disconnect, and restart
+  events to existing lifecycle requests; producer call-site integration and
+  command/event correlation remain open.
 - [ ] Integrate every reset/disconnect/restart source and inject failure at each
   staging, commit, DMA, completion, and teardown step.
 - [ ] Verify provider enumeration freeze before, during, and after replacement.

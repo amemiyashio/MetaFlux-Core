@@ -138,7 +138,9 @@ Implemented stage:
 - [ ] Exercise shortened generation and epoch widths: exhaustion rejects before
   acceptance/intermediate publication, preserves state/identity/epoch, consumes
   no candidate, and never wraps.
-- [ ] Normalize admin, vfio-user, QMP, disconnect, and restart sources.
+- [x] Define a typed normalizer for admin, vfio-user, QMP, disconnect, and
+  restart sources. Runtime callers still need to wire each external event
+  producer through this mapping before submitting the resulting request.
 - [ ] Implement the canonical model, versioned bounds, deterministic checker, and
   machine-readable evidence contract; run the exact root command above.
 - [ ] Model provider removal/re-add with one `registry_view_id`, initialized CUDA,
