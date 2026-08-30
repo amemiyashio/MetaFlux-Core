@@ -6,7 +6,8 @@ Implement W0122's runtime-owned lifecycle transaction boundary for existing
 memfd, cdev, and guest vfio-user adapters. The coordinator and concrete C++
 transport mirror stages are verified below; the session remains active while
 production memfd wiring, QMP/vPCI integration, and qualification gates are
-completed.
+completed. The typed external-event normalizer is also recorded as a boundary
+fixture; producer call-site integration remains open.
 
 ## Durable changes
 
@@ -20,6 +21,9 @@ completed.
   generation/epoch advancement.
 - `transports/memfd/`: client ownership registration and C++ worker lifecycle
   mirror with in-flight drain and generation tombstone checks.
+- `runtime/core/include/metaflux/runtime/lifecycle_normalizer.hpp` and
+  `runtime/core/src/lifecycle_normalizer.cpp`: stateless external-event to
+  `Request` mapping with malformed/unknown rejection.
 - `transports/cdev/README.md` and `transports/vfio-user/README.md`: adapter
   ownership and protocol-boundary notes.
 - `agent/plan/M0120-vpci-lifecycle/work/W0122-existing-transports.md`: active
@@ -29,10 +33,10 @@ completed.
 
 | Command/gate | Result |
 | --- | --- |
-| `metaflux.unit.runtime-lifecycle` | Passed |
 | `metaflux.transport.cdev-worker` and `metaflux.transport.vfio-user-server` | Passed: 2/2 |
 | `metaflux.transport.memfd-worker` | Passed |
-| `ctest --preset dev` | Passed: 76/76 |
+| `metaflux.unit.runtime-lifecycle` and `metaflux.unit.runtime-lifecycle-normalizer` | Passed: 2/2 |
+| `ctest --preset dev` | Passed: 77/77 |
 | `python3 tools/check-component-graph.py <configured graph>` | Passed: 19 components / 22 edges |
 | `python3 tools/validate-transport-schema.py --root .` | Passed: 5 definitions / 15 records |
 | `python3 tools/check-skill-routing.py .` | Passed: 89 cases |
@@ -61,9 +65,11 @@ completed.
   (vfio-user transport regression; content revision `f5cdee3`)
 - Memfd worker lifecycle mirror -> `transports/memfd/worker/`
   (memfd transport regression; content revision `1dbc571`)
+- Fixed external-event normalization -> `runtime/core/include/metaflux/runtime/lifecycle_normalizer.hpp`
+  (normalizer regression; content revision `71956ff`)
 - W0122 implementation boundary and remaining gates ->
   `agent/plan/M0120-vpci-lifecycle/work/W0122-existing-transports.md`
-  (full dev CTest 76/76)
+  (full dev CTest 77/77)
 
 ### medium roasts
 
@@ -79,12 +85,13 @@ completed.
 
 ## Unresolved items
 
-- W0122 remains Active. Next: wire the production memfd worker path, normalize
-  QMP/disconnect/restart sources, and add provider-freeze plus
-  fault/qualification evidence.
+- W0122 remains Active. Next: wire producer call sites through the normalizer,
+  correlate QMP commands/events, wire the production memfd worker path, and add
+  provider-freeze plus fault/qualification evidence.
 
 ## Handoff
 
-Resume from checkpoint `P20260831-022`; run
-`metaflux.unit.runtime-lifecycle` and `metaflux.transport.memfd-worker` before
-changing an adapter, then preserve the M0110 descriptor/UAPI/BAR boundary.
+Resume from checkpoint `P20260831-023`; run
+`metaflux.unit.runtime-lifecycle`, the normalizer test, and
+`metaflux.transport.memfd-worker` before changing an adapter, then preserve the
+M0110 descriptor/UAPI/BAR boundary.
