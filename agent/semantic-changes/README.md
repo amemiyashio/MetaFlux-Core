@@ -16,3 +16,4 @@ committed to `HEAD`, bound to an in-progress session, can authorize exact
 
 | ID | Status | Decision | Scope | Updated |
 | --- | --- | --- | --- | --- |
+| [SC0001](SC0001-semantic-change-distillation.md) | Active | D0025 | semantic-change-distillation | 2026-08-30 |

@@ -6,8 +6,9 @@ Implement the approved semantic-change governance and project-knowledge
 distillation workflows. Content revision
 `1ecdfb01497610c5042e12bda4a16839d2b9c734` completes the skill packages,
 D0025/SC record contract, protected-history gate, staged-tree validation, and
-routing v2. The session remains in progress for SC0001 activation and the
-authorized historical record-shape migration.
+routing v2. SC0001 now carries the exact authorization inventory and published
+active-session handoffs. The session remains in progress for the protected
+historical record-shape migration and revision binding.
 
 ## Durable changes
 
@@ -42,11 +43,12 @@ authorized historical record-shape migration.
 
 - Promoted: semantic-change governance -> D0025 and `docs/architecture/semantic-change-governance.md` (`1ecdfb01497610c5042e12bda4a16839d2b9c734`).
 - Promoted: reusable governance procedures -> the two new workflow skill packages (package and forward-test evidence above).
-- Session-only: the exact historical migration inventory - retained here only until SC0001 becomes its durable owner.
+- Promoted: exact current/tooling/history migration inventory -> SC0001 (75 exact paths and G001/G003 handoffs).
+- Session-only: none.
 
 ## Unresolved items
 
-- Create and commit SC0001 as Active with every exact protected path and active-session handoff; then migrate history and close its revision binding.
+- Use the committed Active SC0001 permit to migrate the 31 protected files, add the terminal summary-shape gate, and close its revision binding.
 
 ## Handoff
 

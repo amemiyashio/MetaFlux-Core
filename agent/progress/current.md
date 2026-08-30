@@ -17,8 +17,10 @@ Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). Governance content revision
 `1ecdfb01497610c5042e12bda4a16839d2b9c734` adds independent SC records,
 evidence-preserving history synchronization, transient active-session handoff,
-and staged/HEAD machine gates. SC0001 activation and the authorized migration
-of old Distillation/policy wording are the current repository-governance phase.
+and staged/HEAD machine gates. Active SC0001 enumerates 75 exact current,
+tooling, and historical surfaces plus G001/G003 handoffs. Its authorized
+migration of old Distillation/policy wording is the current
+repository-governance phase.
 
 ## Current Boundary
 
@@ -66,8 +68,8 @@ Linux 9.8.
 
 ## Versioned Next Work
 
-1. Commit SC0001 Active with the exact audited Historical rows, then migrate the
-   old summary and policy wording without changing raw evidence.
+1. Use the committed Active SC0001 rows to migrate the old summary and policy
+   wording without changing raw evidence, then bind its content revision.
 2. The M0100 completion owner processes G002, reconciles its compact session
    record with D0024, and closes `v0.1.0` only from a verified Git revision.
 3. New work uses an explicit four-part delivery coordinate and the derived
