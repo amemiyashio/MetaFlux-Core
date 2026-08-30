@@ -2,6 +2,10 @@
 
 #include "metaflux/client/fastpath.h"
 
+#if defined(METAFLUX_CPU_BACKEND)
+#include "metaflux/backend/cpu.h"
+#endif
+
 #include <array>
 #include <cstdint>
 #include <cstring>
@@ -154,6 +158,70 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
+
+#if defined(METAFLUX_CPU_BACKEND)
+  const auto* cpu_api = mf_cpu_backend_get_api_v1();
+  mf_backend_instance_v1 cpu_instance = 0U;
+  mf_backend_context_v1 cpu_context = 0U;
+  mf_backend_queue_v1 cpu_queue = 0U;
+  mf_backend_memory_v1 cpu_memory = 0U;
+  if (cpu_api == nullptr || cpu_api->create_instance == nullptr ||
+      cpu_api->create_context == nullptr || cpu_api->create_queue == nullptr ||
+      cpu_api->copy == nullptr ||
+      cpu_api->create_instance(nullptr, &cpu_instance) != MF_BACKEND_SUCCESS ||
+      cpu_api->create_context(cpu_instance, 0U, &cpu_context) != MF_BACKEND_SUCCESS ||
+      cpu_api->create_queue(cpu_instance, cpu_context, &cpu_queue) != MF_BACKEND_SUCCESS ||
+      mf_cpu_backend_import_host_memory_v1(cpu_instance, cpu_context, payload.data(),
+                                           payload.size(), &cpu_memory) != MF_BACKEND_SUCCESS) {
+    if (cpu_api != nullptr && cpu_api->destroy_instance != nullptr) {
+      cpu_api->destroy_instance(cpu_instance);
+    }
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  metaflux::transport::cdev::CdevWorker production_worker({.submission = submission.header,
+                                                           .completion = completion.header,
+                                                           .payload = payload.data(),
+                                                           .payload_size = payload.size(),
+                                                           .generation = 4U},
+                                                          {.api = cpu_api,
+                                                           .instance = cpu_instance,
+                                                           .queue = cpu_queue,
+                                                           .memory = cpu_memory,
+                                                           .completion_event = 0U});
+  request.request_id = 45U;
+  request.target_id = 4U;
+  request.arguments[0] = 384U;
+  request.arguments[1] = 256U;
+  request.arguments[2] = 64U;
+  request.arguments[3] = 0U;
+  if (!production_worker.backend_bound() ||
+      mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      production_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      std::memcmp(payload.data() + 384U, payload.data() + 256U, 64U) != 0 ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
+    if (cpu_api->destroy_instance != nullptr) {
+      cpu_api->destroy_instance(cpu_instance);
+    }
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  if (cpu_api->free_memory != nullptr) {
+    cpu_api->free_memory(cpu_instance, cpu_memory);
+  }
+  if (cpu_api->destroy_queue != nullptr) {
+    cpu_api->destroy_queue(cpu_instance, cpu_queue);
+  }
+  if (cpu_api->destroy_context != nullptr) {
+    cpu_api->destroy_context(cpu_instance, cpu_context);
+  }
+  if (cpu_api->destroy_instance != nullptr) {
+    cpu_api->destroy_instance(cpu_instance);
+  }
+#endif
 
   metaflux::runtime::lifecycle::Config lifecycle_config{};
   lifecycle_config.logical_device_id = 7U;

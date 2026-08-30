@@ -37,6 +37,10 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     metaflux_transport_cdev_worker_test
     PRIVATE MetaFlux::TransportCdevWorker MetaFlux::ClientFastpath
   )
+  if(TARGET metaflux_cpu_backend_runtime)
+    target_link_libraries(metaflux_transport_cdev_worker_test PRIVATE MetaFlux::CpuBackendRuntime)
+    target_compile_definitions(metaflux_transport_cdev_worker_test PRIVATE METAFLUX_CPU_BACKEND=1)
+  endif()
   target_include_directories(
     metaflux_transport_cdev_worker_test
     PRIVATE "${PROJECT_SOURCE_DIR}/contracts/shared/device/v1/include"

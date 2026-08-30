@@ -4,6 +4,15 @@ The CPU backend is the executable reference backend for the first vertical
 slice. It owns Kernel IR execution, CTA scheduling, native lowering, and the
 runtime side of the compiled-kernel ABI.
 
+The versioned backend table now exposes the first transport-facing CPU subset:
+one device, instance/context/queue handles, caller-owned host-memory import,
+and synchronous, overlap-safe COPY. Imported ranges remain owned by the caller;
+the backend only retains their address and length until the matching memory
+handle is released. The cdev worker uses this table for mapped-payload COPY
+dispatch. Launch/Add, asynchronous events, backend DMA mapping, and policy or
+metrics operations remain outside this subset until their corresponding
+transport and lifecycle contracts are qualified.
+
 Compiler-side and runtime-side code are separate build targets. The compiler
 accepts verified canonical Kernel IR v2, emits LLVM-dialect MLIR, translates it
 to LLVM IR, runs the LLVM 22 O2 pipeline, emits an x86-64 PIC object, and links a
