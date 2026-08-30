@@ -20,8 +20,8 @@ W0111 now has one explicit, hashed transport base manifest and deterministic C/C
 
 ## Cleanup
 
-- Removed: TODO or none.
-- Retained: TODO or none.
+- Removed: none.
+- Retained: only durable schema, generator, fixtures, and records in Git.
 
 ## Decisions and experience
 

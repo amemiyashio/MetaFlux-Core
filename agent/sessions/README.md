@@ -88,7 +88,7 @@ copies canonical content.
 | [S0100-20260830-009-automatic-harness-identity](2026/08/S0100-20260830-009-automatic-harness-identity/summary.md) | 2026-08-30 | Exact | Complete | D0028/SC0004 agent self-declaration replaced fixed mappings and the rejected process-inference route |
 | [S0100-20260830-010-m0100-closure-consistency](2026/08/S0100-20260830-010-m0100-closure-consistency/summary.md) | 2026-08-30 | Exact | Complete | Applied SC0005, corrected M0100 closure records, and hardened candidate-index session gates |
 | [S0110-20260830-011-converge-project-changes](2026/08/S0110-20260830-011-converge-project-changes/summary.md) | 2026-08-30 | Exact | Complete | Implicit collaborator-delivery convergence, stable Git inventory, ownership routing, and machine-checked fallback |
-| [S0111-20260830-012-m0110-abi-contract](2026/08/S0111-20260830-012-m0110-abi-contract/summary.md) | 2026-08-30 | Exact | In progress | TODO: one-line summary |
+| [S0111-20260830-012-m0110-abi-contract](2026/08/S0111-20260830-012-m0110-abi-contract/summary.md) | 2026-08-30 | Exact | Complete | W0111 candidate transport ABI schema and deterministic C/C++ projections |
 
 ## Fidelity and retention
 

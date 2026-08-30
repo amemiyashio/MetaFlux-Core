@@ -1,9 +1,9 @@
 ---
-status: Queued
+status: Active
 updated: 2026-08-30
 milestone: M0110
-workstream: W0111
-checkpoint: P20260830-014
+workstream: W0112
+checkpoint: P20260830-015
 ---
 
 # Current Progress
@@ -19,7 +19,9 @@ The workflow inventories one exact committed/staged/unstaged/untracked change
 set, repairs only integration-owned compatible gaps, routes another active
 session through transient guidance, and routes breaking replacements through
 semantic-change governance. It creates no snapshot or review archive. This
-governance addition does not activate M0110 or W0111; both remain Queued.
+governance addition initially left product work queued. M0110 is now Active;
+W0111 has an implemented candidate contract and remains Active pending the
+local/guest negotiation slices, while W0112 is the next workstream.
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -112,9 +114,11 @@ Linux 9.8.
 
 1. M0100, its foundation session, and its completion session are terminal; the
    Applied SC0005 record correction does not reopen product scope or lifecycle.
-2. M0110 and W0111 are Queued. Start their product implementation only through
-   a new active session and the matching runtime, Linux UAPI, vfio-user, PCI,
-   and performance skills; this governance session did not activate them.
+2. M0110 is Active. W0111's schema stage is recorded in
+   [S0111](../sessions/2026/08/S0111-20260830-012-m0110-abi-contract/summary.md),
+   and its remaining negotiation gate continues with W0112/W0113. Start each
+   transport workstream through its own active session and matching runtime,
+   Linux UAPI, vfio-user, PCI, and performance skills.
 3. New work uses an explicit four-part delivery coordinate and the derived
    M/W/S identity; no pre-D0024 alias is accepted.
 4. After any durable collaborator delivery, converge its exact change set
