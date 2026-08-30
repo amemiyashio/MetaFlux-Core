@@ -211,3 +211,18 @@ only and does not alter product, build, release, or Nix ownership.
    archive access for full signed-chain verification.
 4. ~~Keep Intel host qualification deferred to M0002 until a host is available.~~
    **Done.**
+
+## Signed SDK Provenance Verification
+
+The signed Ubuntu archive provenance chain has been verified against the
+materialized target SDK. Evidence at `/tmp/metaflux-provenance-evidence/provenance.json`:
+
+| Field | Value |
+|---|---|
+| status | passed |
+| snapshot | 20260820T000000Z |
+| releases | 2 (focal, focal-updates) |
+| indexes | 3 |
+| packages | 10 |
+| keyring sha256 | 80a36b0a... |
+| valid signers | 2 fingerprints |
