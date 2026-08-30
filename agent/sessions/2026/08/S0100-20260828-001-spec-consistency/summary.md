@@ -24,9 +24,8 @@ provisional pending the W0101 reference-host harness.
 
 ## Distillation
 
-- Distilled: decisions D0008 and D0009 into decisions-index; glibc floor and
-  per-domain view into memory/constraints.md and memory/project.md; the
-  provisional/binding budget rule into agent/README.md and the milestone
-  template; the memfd wake budget into the control-and-data-plane record.
-  No experience records (practices were repository-specific wording, not
-  reusable procedures).
+- Promoted: D0008/D0009 and their constraint consequences -> decisions-index,
+  memory/constraints.md, memory/project.md, agent/README.md, the milestone
+  template, and the control-and-data-plane record (session verification above).
+- Session-only: none; the wording practices were repository-specific rather
+  than reusable experience.

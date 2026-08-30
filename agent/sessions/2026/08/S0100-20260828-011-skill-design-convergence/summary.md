@@ -57,14 +57,14 @@ that queued product work is complete.
 
 ## Distillation
 
-- Distilled: the skill catalog now has an explicit neutral runtime/contracts
-  owner and a single-owner composition matrix across semantics, compiler,
-  targets, transports, presentation, compatibility, and lifecycle.
-- Distilled: lifecycle publication now names atomic view identity, FIFO range
-  reserve/retire, admission and update records, telemetry ownership, reserved
-  close capacity, exact recovery proof, and live-writer quarantine.
-- Distilled: package and routing requirements are machine-enforced through a
-  structured bilingual corpus, self-tested validators, CTest, and Nix checks.
+- Promoted: neutral runtime/contracts owner and single-owner composition matrix
+  -> skill catalog (session verification above).
+- Promoted: lifecycle publication invariants -> lifecycle skill and its atomic
+  view, FIFO, admission, telemetry, recovery, and quarantine rules (session
+  verification above).
+- Promoted: package and routing requirements -> structured bilingual corpus,
+  self-tested validators, CTest, and Nix checks (session verification above).
+- Session-only: none.
 
 ## Unresolved items
 

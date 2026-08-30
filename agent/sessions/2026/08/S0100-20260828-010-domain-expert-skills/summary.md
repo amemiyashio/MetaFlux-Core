@@ -27,7 +27,7 @@ Active skills through `.agents/skills`.
 - `agent/skills/vulkan-spirv-compute/`: M0130 target/runtime expertise paired
   with the cross-backend MLIR skill.
 - This session, `progress/current.md`, and `P20260828-010`: exact work record and
-  immutable handoff snapshot.
+  protected handoff checkpoint.
 
 ## Verification
 
@@ -48,12 +48,12 @@ Active skills through `.agents/skills`.
 
 ## Distillation
 
-- Distilled: the ten-expert ownership matrix, composition routing, trigger corpus,
-  and source-backed repository checklists are durable in `agent/skills/`.
-- Distilled: Von Neumann and Harvard architecture terminology is placed in the
-  CPU memory-architecture reference and translated into practical address-space,
-  cache, coherence, NUMA, ordering, MMIO, and DMA checks rather than promoted to
-  a standalone skill.
+- Promoted: ten-expert ownership, composition routing, trigger corpus, and
+  source-backed checklists -> `agent/skills/` (session verification above).
+- Promoted: Von Neumann and Harvard terminology -> CPU memory-architecture
+  reference and its address-space, cache, coherence, NUMA, ordering, MMIO, and
+  DMA checks (session verification above).
+- Session-only: none; the terminology did not become a duplicate standalone skill.
 
 ## Unresolved items
 

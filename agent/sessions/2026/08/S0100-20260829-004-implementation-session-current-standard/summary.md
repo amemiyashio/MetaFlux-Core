@@ -15,7 +15,7 @@ for terminal records, and generates the current summary structure.
   transcript-like events into 13 material facts and corrected its lifecycle,
   title, cleanup, and handoff state.
 - `agent/sessions/README.md` and `agent/templates/session-summary.md`: define
-  active-ledger distillation, terminal immutability, and end-time semantics.
+  active-ledger distillation, terminal protection, and end-time semantics.
 - `tools/new-session.py` and `tools/check-agent-records.py`: generate and enforce
   coherent active and terminal session states.
 - `tools/test-check-agent-records.py`: covers three lifecycle combinations and
@@ -52,11 +52,12 @@ for terminal records, and generates the current summary structure.
 
 ## Distillation
 
-- Distilled session lifecycle semantics into the session policy, template,
-  generator, validator, and regression suite.
-- Distilled S0100-20260828-013-m0100-foundation into a current active ledger
-  while Git retains its earlier
-  forms.
+- Promoted: session lifecycle semantics -> session policy, template, generator,
+  validator, and regression suite (session verification above).
+- Promoted: curated M0100 active ledger ->
+  S0100-20260828-013-m0100-foundation while Git retains earlier forms (session
+  verification above).
+- Session-only: none.
 
 ## Unresolved items
 

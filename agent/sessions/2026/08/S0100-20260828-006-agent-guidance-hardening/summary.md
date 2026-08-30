@@ -52,8 +52,9 @@ commit then ran the hook for real.
 
 ## Distillation
 
-- Distilled: the three-layer guidance model (entry point / on-ramp skill /
-  commit gate) into AGENTS.md and the start-work skill. No experience records.
+- Promoted: three-layer guidance model -> AGENTS.md and the start-work skill
+  (session verification above).
+- Session-only: none; no separate experience claim was created.
 
 ## Unresolved items
 

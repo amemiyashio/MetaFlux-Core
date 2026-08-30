@@ -49,9 +49,11 @@ input at a defined control boundary.
 
 ## Distillation
 
-- Distilled into `AGENTS.md`, `agent/README.md`, the skills/session indexes,
-  `start-work`, `record-session`, `progress/current.md`, and checkpoint
-  `P20260830-002`.
+- Promoted: session-guidance lifecycle and ownership -> `AGENTS.md`,
+  `agent/README.md`, the skills/session indexes, `start-work`, `record-session`,
+  `progress/current.md`, and checkpoint `P20260830-002` (session verification
+  above).
+- Session-only: none.
 
 ## Unresolved items
 

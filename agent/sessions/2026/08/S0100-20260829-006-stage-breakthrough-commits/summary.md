@@ -42,8 +42,10 @@ glibc/package boundary and commit `267edc4` preserves the Skill policy itself.
 
 ## Distillation
 
-- Distilled into `record-session`, `start-work`, the Skill catalog, current
-  progress, and checkpoint P20260829-005.
+- Promoted: stage-breakthrough commit policy -> `record-session`, `start-work`,
+  the Skill catalog, current progress, and checkpoint P20260829-005 (session
+  verification above).
+- Session-only: none.
 
 ## Unresolved items
 

@@ -64,12 +64,13 @@ canonical `toolchains/` policy.
 
 ## Distillation
 
-- Distilled the owner boundary into `toolchains/README.md`, D0022,
-  `manage-toolchain`, and durable Agent constraints.
-- Distilled session cleanup into `record-session`, the session template, the
-  scaffolder, and validator self-tests.
-- Preserved one concise historical lesson in E0001-E0003 instead of retaining
-  failed-route build trees or raw logs.
+- Promoted: tool owner boundary -> `toolchains/README.md`, D0022,
+  `manage-toolchain`, and durable Agent constraints (session verification above).
+- Promoted: session cleanup semantics -> `record-session`, session template,
+  scaffolder, and validator self-tests (session verification above).
+- Promoted: concise historical lessons -> E0001-E0003 (recorded evidence), with
+  failed-route build trees and raw logs excluded.
+- Session-only: none.
 
 ## Unresolved items
 

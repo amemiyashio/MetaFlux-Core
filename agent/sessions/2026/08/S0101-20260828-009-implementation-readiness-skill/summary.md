@@ -25,7 +25,7 @@ so a strong scaffold is not mistaken for a finished product.
 - `nix/lib/source.nix` and `nix/checks/default.nix`: retain and prove the native
   skill entry point in isolated Agent-record sources.
 - This session, `progress/current.md`, and `P20260828-009`: exact work record and
-  immutable handoff snapshot.
+  protected handoff checkpoint.
 
 ## Verification
 
@@ -46,10 +46,12 @@ so a strong scaffold is not mistaken for a finished product.
 
 ## Distillation
 
-- Distilled: the official Codex package shape and native discovery boundary are
-  now durable in `agent/skills/README.md`, the validator, and the Nix entry-point
-  check. The researched readiness method is durable in the new skill and its
-  reference rather than duplicated into product memory.
+- Promoted: Codex package shape and native discovery boundary ->
+  `agent/skills/README.md`, validator, and Nix entry-point check (session
+  verification above).
+- Promoted: implementation-readiness method -> new skill and its reference
+  (research evidence recorded by the session).
+- Session-only: none; the method was not duplicated into product memory.
 
 ## Unresolved items
 

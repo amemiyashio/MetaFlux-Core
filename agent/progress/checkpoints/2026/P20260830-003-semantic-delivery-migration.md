@@ -37,9 +37,10 @@ physical NVIDIA binding performance, and native NixOS qualification to
 
 ## Decisions and durable outcomes
 
-- [D0024](../../../memory/decisions-index.md) is the one breaking identity
-  migration; product SemVer stays three-part and delivery trace metadata stays
-  four-part.
+- [D0024](../../../memory/decisions-index.md) is the first completed
+  pre-framework identity migration; D0025 and an Active SC govern later semantic
+  replacements. Product SemVer stays three-part and delivery trace metadata
+  stays four-part.
 - Historical checkpoint/session evidence claims and cited revisions remain
   unchanged even though their M/W/S references were rewritten.
 - Compact-body collisions are rejected because a multi-digit concatenation is
@@ -53,6 +54,6 @@ physical NVIDIA binding performance, and native NixOS qualification to
 
 ## Resume notes
 
-1. Read `agent/progress/current.md` and D0024.
+1. Read `agent/progress/current.md`, D0024, D0025, and any relevant Active SC.
 2. Use `python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>`.
 3. Run `python3 tools/check-agent-records.py .` before committing records.

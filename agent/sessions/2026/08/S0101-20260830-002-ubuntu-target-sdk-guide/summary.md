@@ -55,12 +55,15 @@ matrix evidence.
 
 ## Distillation
 
-- Distilled: SDK existence, product consumption, package validation, and
-  distribution qualification are separate claims with separate owners.
-- Distilled: `nix develop .#release` exposes tools but does not activate the
-  Ubuntu target tuple.
-- Distilled: a target-side `GLIBC_2.32` or newer result is diagnosed at the
-  CMake consumer boundary before changing the SDK or weakening package gates.
+- Promoted: SDK existence, product consumption, package validation, and
+  distribution qualification separation -> target SDK guide and owning
+  workflows (session verification above).
+- Promoted: release shell provisioning boundary -> target SDK guide and
+  `manage-toolchain` (`nix develop .#release` evidence above).
+- Promoted: target-side `GLIBC_2.32` or newer diagnosis -> CMake consumer
+  boundary guidance before SDK or package-gate changes (session verification
+  above).
+- Session-only: none.
 
 ## Unresolved items
 

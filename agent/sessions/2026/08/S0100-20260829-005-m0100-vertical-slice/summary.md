@@ -58,10 +58,12 @@ drift before the offline matrix runs.
 
 ## Distillation
 
-- Distilled the glibc floor into the toolchain skill, toolchain/packaging
-  documentation, package-builder ELF gates, manifest identity checks, and
-  release-fixture validation. Distilled cache/AOT and LLD regression outcomes
-  into their owning source tests.
+- Promoted: glibc floor -> toolchain skill, toolchain/packaging documentation,
+  package-builder ELF gates, manifest identity checks, and release-fixture
+  validation (session verification above).
+- Promoted: cache/AOT and LLD regression outcomes -> owning source tests
+  (session verification above).
+- Session-only: none.
 
 ## Unresolved items
 

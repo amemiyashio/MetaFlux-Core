@@ -35,9 +35,10 @@ evidence that the release sysroot or generic packages have been implemented.
 
 ## Distillation
 
-- Distilled: removed the sole stale candidate statement from W0101 and
-  made its release-sysroot consequence explicit. No new durable constraint was
-  added because D0009 and `memory/constraints.md` already carried the ruling.
+- Promoted: corrected glibc-floor consequence -> W0101 release-sysroot wording
+  under existing D0009 and `memory/constraints.md` authority (session
+  verification above).
+- Session-only: none; no duplicate durable constraint was added.
 
 ## Unresolved items
 

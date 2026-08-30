@@ -19,7 +19,7 @@ ordinary files invoked by `python3` through `.claude/settings.json`.
 - `nix/checks/default.nix`: add and export the isolated `entry-points` check.
 - `agent/sessions/2026/08/S0101-20260828-008-codex-entry-points/`: exact work record.
 - `agent/progress/current.md` and `agent/progress/checkpoints/2026/P20260828-008-codex-entry-points.md`:
-  refreshed resume point and immutable verification snapshot.
+  refreshed resume point and protected verification checkpoint.
 
 ## Verification
 
@@ -38,9 +38,10 @@ ordinary files invoked by `python3` through `.claude/settings.json`.
 
 ## Distillation
 
-- Distilled: none. Codex's native `AGENTS.md` behavior is external tool
-  documentation; the repository-specific guarantee is embodied directly in
-  the Nix check and checkpoint rather than duplicated into durable memory.
+- Promoted: repository-specific Codex entry guarantee -> Nix check and session
+  checkpoint (session verification above).
+- Session-only: Codex native `AGENTS.md` behavior - external tool documentation
+  that is not duplicated into durable project memory.
 
 ## Unresolved items
 

@@ -51,7 +51,8 @@ implementation.
 ## Resume notes
 
 1. Begin with `python3 tools/check-agent-records.py .`; this checkpoint is
-   immutable.
+   protected. Append corrections by default; use an exact committed D0025/SC
+   row only for authorized semantic synchronization.
 2. Codex follows root `AGENTS.md`; do not add a Codex-specific copied rulebook.
 3. The next W0101 product boundaries remain the release provider sysroot,
    CUDA/NVML header acquisition, LLVM 22 patchset, and reference-host

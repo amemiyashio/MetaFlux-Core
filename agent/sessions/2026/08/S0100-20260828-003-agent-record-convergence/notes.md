@@ -14,8 +14,10 @@
   matching.
 - **Distillation grandfathering**: sessions before 2026-08-28 are exempt
   (`DISTILLATION_REQUIRED_FROM`);
-  S0100-20260827-001-metaflux-bootstrap is reconstructed history and rewriting
-  it would violate the spirit of immutable evidence.
+  S0100-20260827-001-metaflux-bootstrap is reconstructed history and remains
+  protected evidence. Ordinary corrections append; only a committed Active SC
+  with an exact `Historical + Pending` row under D0025 may synchronize semantic
+  wording, while raw facts stay locked.
 - **Staleness is a warning, not an error**: a legitimately Active workstream
   can sit untouched while an unrelated checkpoint lands; failing the build for
   that would teach people to game the date field.

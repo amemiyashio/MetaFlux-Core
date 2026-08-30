@@ -1532,6 +1532,52 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         False,
     ),
     (
+        "terminal distillation requires Promoted row",
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/summary.md",
+            "- Promoted: none\n",
+            "",
+        ),
+        True,
+        False,
+    ),
+    (
+        "terminal distillation requires Session-only row",
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/summary.md",
+            "- Session-only: none\n",
+            "",
+        ),
+        True,
+        False,
+    ),
+    (
+        "terminal distillation rejects legacy Distilled row",
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/summary.md",
+            "- Promoted: none\n",
+            "- Distilled: none\n- Promoted: none\n",
+        ),
+        True,
+        False,
+    ),
+    (
+        "active distillation temporarily accepts legacy Distilled row",
+        with_in_progress_session(
+            replace(
+                BASE_FILES,
+                f"{SESSION_DIR}/summary.md",
+                "- Promoted: none\n- Session-only: none\n",
+                "- Distilled: none\n",
+            )
+        ),
+        False,
+        False,
+    ),
+    (
         "pre-cutoff session without distillation is grandfathered",
         replace(
             BASE_FILES,

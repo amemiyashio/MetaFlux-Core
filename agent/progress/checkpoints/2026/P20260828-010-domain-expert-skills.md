@@ -63,7 +63,8 @@ durable constraint, open decision, milestone status, or fixture maturity changed
 ## Resume notes
 
 1. Begin with `python3 tools/check-agent-records.py .` and `$start-work`; this
-   checkpoint is immutable.
+   checkpoint is protected. Append corrections by default; use an exact
+   committed D0025/SC row only for authorized semantic synchronization.
 2. Select the narrowest expert or composition route from the catalog. Exact
    versions come from the active plan, compiler epoch, pinned headers, and
    qualified support matrix.

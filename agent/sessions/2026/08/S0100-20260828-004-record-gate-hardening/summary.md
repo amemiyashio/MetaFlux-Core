@@ -47,10 +47,10 @@ until scale demands them.
 
 ## Distillation
 
-- Distilled: the two-grade consistency design (error for unambiguous drift,
-  warning for ambiguous drift) into tools/README.md. No experience records —
-  the golden-tree pattern is generic practice already implied by the suite
-  itself.
+- Promoted: two-grade consistency design -> tools/README.md (session
+  verification above).
+- Session-only: golden-tree pattern - generic practice already embodied by the
+  suite, so it was not duplicated as experience.
 
 ## Unresolved items
 

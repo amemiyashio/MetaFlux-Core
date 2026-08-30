@@ -52,8 +52,9 @@ committing, including the deny-then-scaffold-then-allow sequence.
 
 ## Distillation
 
-- Distilled: the @-import single-source pattern and the fail-open guard
-  design into `.claude/README.md`. No experience records.
+- Promoted: @-import single-source pattern and fail-open guard design ->
+  `.claude/README.md` (session verification above).
+- Session-only: none; no separate experience claim was created.
 
 ## Unresolved items
 

@@ -26,7 +26,8 @@ cca908221cb5b265ae0944a3e87598b1f5a70956.
 
 ## Distillation
 
-- Distilled: decisions D0010 and D0011 into decisions-index; the repo-layout
-  record into docs/architecture/repo-layout.md; the component-map navigation
-  row. No experience records (the graph-check pattern is documented in
-  tools/README.md rather than as reusable procedure).
+- Promoted: D0010/D0011, repository layout, and component-map navigation ->
+  decisions-index, docs/architecture/repo-layout.md, and the component map
+  (session verification above).
+- Session-only: none; the graph-check pattern remains documented in
+  tools/README.md rather than duplicated as experience.

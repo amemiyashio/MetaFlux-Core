@@ -46,12 +46,13 @@ index was written as part of this change.
 
 ## Distillation
 
-- Distilled: the skills-vs-experience-vs-templates boundary into
-  `agent/skills/README.md`; the three seeded procedures are themselves the
-  distillation of S0100-20260828-001-spec-consistency,
+- Promoted: skills-vs-experience-vs-templates boundary and three seeded
+  procedures -> `agent/skills/README.md` and the skill packages (outcomes from
+  S0100-20260828-001-spec-consistency,
   S0100-20260828-002-layout-convergence,
   S0100-20260828-003-agent-record-convergence, and
-  S0100-20260828-004-record-gate-hardening.
+  S0100-20260828-004-record-gate-hardening).
+- Session-only: none.
 
 ## Unresolved items
 

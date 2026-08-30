@@ -1144,10 +1144,30 @@ class Validator:
         body = parts[1].split("\n## ", 1)[0].strip()
         if not body:
             self.add_error(summary_path, "Distillation section is empty")
-        elif "none" not in body.lower() and "- " not in body:
+            return
+        if "none" not in body.lower() and "- " not in body:
             self.add_error(
                 summary_path,
-                "Distillation section must state 'none' or list promoted records",
+                "Distillation section must state 'none' or contain labeled rows",
+            )
+
+        status = session.get("status")
+        if status == "in_progress" or status not in ALLOWED_STATUSES:
+            return
+        if re.search(r"(?m)^- Distilled(?:\b|:)", body):
+            self.add_error(
+                summary_path,
+                "terminal Distillation sections must not use the legacy '- Distilled' row",
+            )
+        if not re.search(r"(?m)^- Promoted:[ \t]+\S", body):
+            self.add_error(
+                summary_path,
+                "terminal Distillation sections require a '- Promoted:' row",
+            )
+        if not re.search(r"(?m)^- Session-only:[ \t]+\S", body):
+            self.add_error(
+                summary_path,
+                "terminal Distillation sections require a '- Session-only:' row",
             )
 
     def validate_cleanup(self, summary_path: Path | None, session: dict) -> None:

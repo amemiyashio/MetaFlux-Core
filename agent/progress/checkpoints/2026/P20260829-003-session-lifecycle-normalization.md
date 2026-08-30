@@ -23,9 +23,11 @@ qualification boundary, durable decisions, valid implementation evidence, one
 failed-assertion lesson, and the current D0022 handoff. The full release matrix
 remains open.
 
-Active sessions use `ended_at: null` and may be distilled before closure; a
-terminal session records its end time and becomes immutable. Git retains earlier
-active-ledger forms. Skill discovery and task-based skill loading are unchanged.
+Active sessions use `ended_at: null` and may be curated before closure; a
+terminal session records its end time and becomes protected. Git retains
+earlier active-ledger forms. Ordinary corrections append; an exact committed
+D0025/SC row is the only semantic-synchronization exception, and it preserves
+raw facts. Skill discovery and task-based skill loading are unchanged.
 
 ## Verification evidence
 

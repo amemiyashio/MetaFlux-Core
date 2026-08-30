@@ -55,7 +55,8 @@ or backend fixture to functional implementation. W0101 remains active.
 ## Resume notes
 
 1. Begin with `python3 tools/check-agent-records.py .`; this checkpoint is
-   immutable.
+   protected. Append corrections by default; use an exact committed D0025/SC
+   row only for authorized semantic synchronization.
 2. Invoke `$implementation-readiness` for future architecture/workstream
    readiness reviews; do not infer implementation maturity from scaffold
    completeness.

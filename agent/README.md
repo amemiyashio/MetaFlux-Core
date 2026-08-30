@@ -121,11 +121,13 @@ singleton index.
 
 `Complete` requires the record's acceptance evidence. `Validated` requires a
 reproducible command or artifact. `Blocked` names the blocking condition and the
-next recheck. `Superseded` links its replacement. A checkpoint is immutable and
-does not claim that uncommitted files can be reconstructed. A numeric
-performance budget is `provisional` until the measurement harness it names
-exists and a baseline is archived; provisional budgets guide design but do not
-fail acceptance. Session summaries recorded from 2026-08-28 onward require a
+next recheck. `Superseded` links its replacement. A checkpoint is protected
+history and does not claim that uncommitted files can be reconstructed;
+ordinary corrections append, while exact semantic synchronization requires a
+committed Active SC under D0025. A numeric performance budget is `provisional`
+until the measurement harness it names exists and a baseline is archived;
+provisional budgets guide design but do not fail acceptance. Session summaries
+recorded from 2026-08-28 onward require a
 `Distillation` section mapping promoted claims to their unique durable owners
 and naming any intentionally session-only claim (`none` is valid after
 classification). Sessions from 2026-08-29 onward also require a `Cleanup` section

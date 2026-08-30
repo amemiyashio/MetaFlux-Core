@@ -31,8 +31,9 @@ Clarify the existing D0020 timezone-relative mirror priority directly in the
 
 ## Distillation
 
-- Distilled the existing D0020 priority into the `manage-toolchain` Routing
-  section so agents see it before starting network acquisition.
+- Promoted: existing D0020 timezone mirror priority -> `manage-toolchain`
+  Routing section (session verification above).
+- Session-only: none.
 
 ## Unresolved items
 

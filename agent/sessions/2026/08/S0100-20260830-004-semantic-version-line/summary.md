@@ -43,8 +43,10 @@ Intel/physical-NVIDIA/native-NixOS gates are assigned to `v0.2.0`.
 
 ## Distillation
 
-- Distilled: product/delivery identity into the release policy, durable memory,
-  plan index, templates, validators, and entry-point instructions.
+- Promoted: product/delivery identity -> release policy, durable memory, plan
+  index, templates, validators, and entry-point instructions (session
+  verification above).
+- Session-only: none.
 
 ## Unresolved items
 

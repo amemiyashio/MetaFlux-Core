@@ -48,10 +48,10 @@ group) were caught and fixed by those self-tests.
 
 ## Distillation
 
-- Distilled: the open-decisions ledger into memory; the distillation and
-  staleness rules into agent/README.md; the scaffolder into tools/README.md.
-  No experience records (the rules are repository-local governance, not
-  reusable engineering procedures).
+- Promoted: open-decision, distillation, staleness, and scaffolding rules ->
+  memory, agent/README.md, and tools/README.md (session verification above).
+- Session-only: none; these are repository-local governance rules rather than
+  reusable engineering experience.
 
 ## Unresolved items
 

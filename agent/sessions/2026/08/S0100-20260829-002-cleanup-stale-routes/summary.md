@@ -52,8 +52,9 @@ Historical records remain intact, and fixed tool materializations remain usable.
 
 ## Distillation
 
-- Distilled remaining ownership corrections into their active owner documents
-  and the future checkpoint template; no failed-route artifact was promoted.
+- Promoted: remaining ownership corrections -> active owner documents and the
+  checkpoint template (session verification above).
+- Session-only: none; failed-route artifacts were not promoted.
 
 ## Unresolved items
 

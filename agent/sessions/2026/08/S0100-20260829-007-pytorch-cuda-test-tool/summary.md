@@ -56,9 +56,11 @@ rerun after that refresh.
 
 ## Distillation
 
-- Distilled into `manage-toolchain`, the cross-release roadmap, exact manifests,
-  the static lock verifier, the probe self-tests, current progress, and
-  checkpoint P20260829-007.
+- Promoted: PyTorch/CUDA client profile design -> `manage-toolchain`, the
+  cross-release roadmap, exact manifests, static lock verifier, probe
+  self-tests, current progress, and checkpoint P20260829-007 (session
+  verification above).
+- Session-only: none.
 
 ## Unresolved items
 
