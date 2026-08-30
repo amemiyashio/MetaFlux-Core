@@ -1,9 +1,9 @@
 ---
 status: Active
 updated: 2026-08-31
-milestone: M0120
-workstream: W0122
-checkpoint: P20260831-025
+milestone: M0110
+workstream: W0112
+checkpoint: P20260831-026
 ---
 
 # Current Progress
@@ -41,6 +41,8 @@ W0122's QMP command/event correlation fixture is recorded at
 [P20260831-024](checkpoints/2026/P20260831-024-m0120-qmp-lifecycle-correlation.md).
 W0122's stateless runtime event ingress is recorded at
 [P20260831-025](checkpoints/2026/P20260831-025-m0120-lifecycle-event-ingress.md).
+W0112's bounded registered-memory pin/SG stage is recorded at
+[P20260831-026](checkpoints/2026/P20260831-026-m0110-registered-memory.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -136,7 +138,8 @@ Linux 9.8.
 | W0112 transport schema and component graph | Schema validator passed 4 definitions/12 records; graph passed 15 components/18 edges |
 | W0112 focused transport tests | C17/C++20 schema fixtures and cdev client/worker tests passed 5/5 |
 | W0112 kernel compile | Linux 6.18.42 default GCC built `metaflux_core.ko` with modpost success |
-| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, and eventfd ownership are implemented; FOLL_PIN/SG registration, backend payload wiring, daemon replacement, queue krefs, and fault qualification remain open |
+| W0112 registered-memory stage | `4465732`; one generation-bound range uses `FOLL_LONGTERM`/`FOLL_WRITE` pinning, memlock accounting, SG construction, partial unwind, dirty-unpin, explicit unregister, and owner-close revocation; focused cdev/lifecycle tests 4/4, full CTest 79/79, and Linux 6.18.42 GCC Kbuild passed |
+| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, eventfd ownership, and bounded registered-memory lifetime are implemented; backend payload wiring and DMA mapping, daemon replacement, queue krefs, and fault qualification remain open |
 | W0113 transport schema and component graph | Schema validator passed 5 definitions/15 records; graph passed 17 components/18 edges |
 | W0113 focused transport tests | Schema, cdev, guest, and server tests passed 7/7; full dev CTest passed 72/72 |
 | W0113 static vfio-user control fixture | Generated GET_INFO reply, static BAR0/BAR2/BAR4 profile, generation/epoch DMA map ledger, overlap and reset rejection, and `No_reply` unmap passed |
@@ -184,9 +187,9 @@ Linux 9.8.
    with source producer wiring, live QMP/socket integration, production memfd
    integration, provider freeze, and qualification while preserving the M0110
    root.
-7. M0110/W0112 remains Active after the payload/eventfd stage at
-   [P20260831-021](checkpoints/2026/P20260831-021-m0110-cdev-payload-eventfd.md).
-   Continue with registered-memory pinning, backend ABI wiring, replacement
+7. M0110/W0112 remains Active after the bounded registered-memory stage at
+   [P20260831-026](checkpoints/2026/P20260831-026-m0110-registered-memory.md).
+   Continue with backend ABI wiring and DMA mapping, queue krefs, replacement
    generations, and lifecycle/fault qualification; do not claim the cdev exit
    gate from the mapped fixture alone.
 
