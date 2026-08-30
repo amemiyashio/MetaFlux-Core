@@ -25,7 +25,7 @@ On `VK_ERROR_DEVICE_LOST` or an equivalent fatal worker condition:
 2. revoke the worker lease and prevent old completions from publishing;
 3. mark all BDA, memory, queue, command, semaphore, pipeline, and cache-residency
    objects old-generation and reject new references;
-4. notify the M0003 lifecycle authority, which publishes public `LOST` by its
+4. notify the M0120 lifecycle authority, which publishes public `LOST` by its
    deadline;
 5. isolate non-cancellable driver work behind tombstones and tear down the worker
    process/resources without reusing the Vulkan device/context;

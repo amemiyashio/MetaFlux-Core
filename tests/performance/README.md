@@ -1,6 +1,6 @@
-# M0001 Performance Evidence
+# M0100 Performance Evidence
 
-This directory owns the reproducible M0001 CPU-backed performance harness. The
+This directory owns the reproducible M0100 CPU-backed performance harness. The
 timed executables use `CLOCK_MONOTONIC_RAW`, allocate their sample arrays before
 warm-up, retain every sample, and emit a line-oriented protocol. The Python
 driver pins itself before starting any benchmark or daemon, so the ring client,
@@ -9,16 +9,16 @@ effective CPU affinity.
 
 The current workloads are:
 
-- `m0001_ring_benchmark.c`: one active, uncontended memfd-backed ring with an
+- `m0100_ring_benchmark.c`: one active, uncontended memfd-backed ring with an
   immediate submit/consume round trip, waiter-doorbell counters, and raw
   back-to-back clock-read calibration samples.
-- `m0001_cuda_managed_benchmark.c`: the production CUDA provider and daemon,
+- `m0100_cuda_managed_benchmark.c`: the production CUDA provider and daemon,
   with one initialized Add module followed by warm launch and managed D2D copy
   samples plus direct H2D and D2H samples over at least 16 MiB. Submit timing
   ends immediately when the corresponding asynchronous CUDA API returns;
   completion timing ends separately when `cuStreamSynchronize` returns. Add and
   every Copy direction are validated after measurement.
-- `m0001_nvml_benchmark.c`: the production NVML provider and daemon, with hot
+- `m0100_nvml_benchmark.c`: the production NVML provider and daemon, with hot
   memory getter samples and repeated warm shutdown/init cycles.
 
 The driver forces `METAFLUX_MODE=managed` whenever either provider benchmark is
@@ -44,7 +44,7 @@ dispatch gate, provider state gate, nor provider heap storage, including a
 four-thread shared-context submission regression. Timing samples alone are not
 used as lock-path proof.
 
-`run_m0001_performance.py` writes three atomic artifacts under `--output-dir`:
+`run_m0100_performance.py` writes three atomic artifacts under `--output-dir`:
 
 | Artifact | Contents |
 | --- | --- |
@@ -54,7 +54,7 @@ used as lock-path proof.
 
 ## Optimization and durability qualification
 
-`run_m0001_optimization.py` owns three gates bound to a clean Git `HEAD` and
+`run_m0100_optimization.py` owns three gates bound to a clean Git `HEAD` and
 tree. It refuses dirty tracked or untracked source state, never creates a
 per-file source snapshot, never reuses an evidence directory, and refuses any
 pre-existing `profraw` file.
@@ -90,9 +90,9 @@ directory. `TOOLCHAIN_PREFIX` and `NVIDIA_HEADER_DIR` are absolute paths to the
 materialized tool and header inputs:
 
 ```sh
-nix develop . --command python3 -B tests/performance/run_m0001_optimization.py \
+nix develop . --command python3 -B tests/performance/run_m0100_optimization.py \
   --repository . \
-  --output-dir ../.metaflux-evidence/MetaFlux-Core/m0001-optimization \
+  --output-dir ../.metaflux-evidence/MetaFlux-Core/m0100-optimization \
   --toolchain-prefix TOOLCHAIN_PREFIX \
   --nvidia-header-dir NVIDIA_HEADER_DIR \
   --jobs 16 \
@@ -103,12 +103,12 @@ nix develop . --command python3 -B tests/performance/run_m0001_optimization.py \
 
 The atomic top-level result is `optimization-evidence.json`. Raw fuzz and soak
 rows remain in JSONL files, command stdout/stderr remains in hashed logs, and
-`pgo/profile-evidence.json` plus `pgo/m0001-measured.profdata` describe the PGO
+`pgo/profile-evidence.json` plus `pgo/m0100-measured.profdata` describe the PGO
 measurement. The runner checks the clean Git revision and tree again after all
 selected stages; any concurrent source change fails the complete run even when
 individual commands passed. Build trees and raw profiles live in a system
 temporary work directory and are removed after success or failure. Pass
-`--work-dir ../.metaflux-build/MetaFlux-Core/m0001-optimization-work` together
+`--work-dir ../.metaflux-build/MetaFlux-Core/m0100-optimization-work` together
 with `--keep-work` only for explicit debugging retention. Repeated `--stage`
 arguments run `pgo`, `variants`, or `hardening` independently during harness development.
 PGO and hardening update an atomic `progress.json` after each completed test, so
@@ -123,8 +123,8 @@ CTest case uses this mode with a short workload:
 
 ```sh
 nix develop . --command ctest \
-  --test-dir ../.metaflux-build/MetaFlux-Core/m0001-integration \
-  -R 'metaflux.performance.m0001-(ring|managed)-smoke' \
+  --test-dir ../.metaflux-build/MetaFlux-Core/m0100-integration \
+  -R 'metaflux.performance.m0100-(ring|managed)-smoke' \
   --output-on-failure
 ```
 
@@ -142,23 +142,23 @@ than claiming success.
 For a controlled AMD reference run after the plan promotes its budgets:
 
 ```sh
-nix develop . --command python3 -B tests/performance/run_m0001_performance.py \
+nix develop . --command python3 -B tests/performance/run_m0100_performance.py \
   --mode binding-reference \
   --budget-status binding \
   --reference-host-role amd \
   --controlled-host \
-  --output-dir ../.metaflux-evidence/MetaFlux-Core/m0001-amd-reference \
+  --output-dir ../.metaflux-evidence/MetaFlux-Core/m0100-amd-reference \
   --repository . \
-  --milestone-plan agent/plan/M0001-core-foundation/plan.md \
-  --ring-benchmark ../.metaflux-build/MetaFlux-Core/m0001-integration/tests/metaflux_m0001_ring_benchmark \
-  --cuda-benchmark ../.metaflux-build/MetaFlux-Core/m0001-integration/tests/metaflux_m0001_cuda_managed_benchmark \
-  --nvml-benchmark ../.metaflux-build/MetaFlux-Core/m0001-integration/tests/metaflux_m0001_nvml_benchmark \
-  --daemon ../.metaflux-build/MetaFlux-Core/m0001-integration/services/metafluxd/metafluxd \
-  --provider-dir ../.metaflux-build/MetaFlux-Core/m0001-integration/plugins/compat/cuda/abi/driver \
-  --cuda-provider ../.metaflux-build/MetaFlux-Core/m0001-integration/plugins/compat/cuda/abi/driver/libcuda.so.1 \
-  --nvml-provider ../.metaflux-build/MetaFlux-Core/m0001-integration/plugins/compat/cuda/management/nvml/libnvidia-ml.so.1 \
+  --milestone-plan agent/plan/M0100-core-foundation/plan.md \
+  --ring-benchmark ../.metaflux-build/MetaFlux-Core/m0100-integration/tests/metaflux_m0100_ring_benchmark \
+  --cuda-benchmark ../.metaflux-build/MetaFlux-Core/m0100-integration/tests/metaflux_m0100_cuda_managed_benchmark \
+  --nvml-benchmark ../.metaflux-build/MetaFlux-Core/m0100-integration/tests/metaflux_m0100_nvml_benchmark \
+  --daemon ../.metaflux-build/MetaFlux-Core/m0100-integration/services/metafluxd/metafluxd \
+  --provider-dir ../.metaflux-build/MetaFlux-Core/m0100-integration/plugins/compat/cuda/abi/driver \
+  --cuda-provider ../.metaflux-build/MetaFlux-Core/m0100-integration/plugins/compat/cuda/abi/driver/libcuda.so.1 \
+  --nvml-provider ../.metaflux-build/MetaFlux-Core/m0100-integration/plugins/compat/cuda/management/nvml/libnvidia-ml.so.1 \
   --compiler-epoch toolchains/compiler-epoch-1.json \
-  --build-manifest ../.metaflux-build/MetaFlux-Core/m0001-integration/metaflux-build-manifest.json \
+  --build-manifest ../.metaflux-build/MetaFlux-Core/m0100-integration/metaflux-build-manifest.json \
   --execution-mode warm-jit \
   --warmup 1000 \
   --samples 10000 \
@@ -203,6 +203,11 @@ never substitutes for either host direction.
 The driver reads and hashes the plan named by `--milestone-plan`. Its canonical
 `budgets` front-matter value must be `binding` and must match the declared
 `--budget-status`; a command-line override alone never promotes a budget.
+
+M0100 / `v0.1.0` therefore runs only the provisional profile. The
+`binding-reference` profile, physical NVIDIA H2D/D2H and passthrough evidence,
+and any promotion of the numeric budgets belong to the `v0.2.0` support
+expansion.
 
 Run reference measurements on an otherwise idle host. Record Intel and AMD as
 separate artifacts; one host never stands in for the other. The client CPU is

@@ -5,7 +5,7 @@
 The external vfio-user wire format comes only from the pinned QEMU/libvfio-user
 revision. It is host-native adapter input and is not copied into the MetaFlux
 schema. MetaFlux regions, capabilities, BAR records, and extension bytes come
-from the M0002 root manifest at
+from the M0110 root manifest at
 `contracts/protocol/transport/v1/schema/manifest.json`; server-local structs are
 not normative.
 
@@ -23,7 +23,7 @@ ready before required features and memory behavior are accepted.
 - region inventory, sizes, flags, mmap capability, sparse areas, and access size;
 - IRQ sets, vector count, eventfd masks, and notification semantics;
 - DMA map/unmap flags, fd/offset rules, address width, dirty/migration capability;
-- reset and migration advertisement bits; M0002 advertises neither;
+- reset and migration advertisement bits; M0110 advertises neither;
 - shared-memory prerequisite and rejection of slow region fallback;
 - unknown command/capability handling and clean rollback after partial setup.
 

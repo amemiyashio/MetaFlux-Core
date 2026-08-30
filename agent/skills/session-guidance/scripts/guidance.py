@@ -16,7 +16,14 @@ from pathlib import Path, PurePosixPath
 from typing import Iterator
 
 
-SESSION_ID_RE = re.compile(r"^S\d{8}-\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*$")
+SESSION_ID_RE = re.compile(
+    r"^S(?P<delivery>\d{4,})-(?P<date>\d{8})-"
+    r"(?P<sequence>\d{3})-[a-z0-9]+(?:-[a-z0-9]+)*$"
+)
+DELIVERY_COORDINATE_RE = re.compile(
+    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\."
+    r"(0|[1-9]\d*)\.(0|[1-9]\d*)$"
+)
 GUIDANCE_ID_RE = re.compile(r"^G\d{3}$")
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 PACKET_RE = re.compile(
@@ -94,6 +101,24 @@ def _session_json_path(session_dir: Path) -> Path:
     return path
 
 
+def _validate_session_identity(
+    session_dir: Path,
+    document: dict[str, object],
+) -> None:
+    if document.get("id") != session_dir.name:
+        raise GuidanceError("session.json id does not match its directory")
+    match = SESSION_ID_RE.fullmatch(session_dir.name)
+    if match is None:
+        raise GuidanceError(f"session path has an unsupported shape: {session_dir}")
+    delivery = document.get("delivery")
+    if not isinstance(delivery, str) or not DELIVERY_COORDINATE_RE.fullmatch(delivery):
+        raise GuidanceError(
+            "session.json delivery must contain four canonical non-negative decimal components"
+        )
+    if "".join(delivery.split(".")) != match.group("delivery"):
+        raise GuidanceError("session.json delivery does not match its session ID")
+
+
 def _session_relative_file(session_dir: Path, value: object, label: str) -> Path:
     if not _nonempty_string(value):
         raise GuidanceError(f"{label} must be a non-empty relative path")
@@ -156,8 +181,7 @@ def _validate_active_session(session_dir: Path) -> dict[str, object]:
     document = _load_json(_session_json_path(session_dir))
     if not isinstance(document, dict):
         raise GuidanceError(f"session.json must contain an object: {session_dir}")
-    if document.get("id") != session_dir.name:
-        raise GuidanceError("session.json id does not match its directory")
+    _validate_session_identity(session_dir, document)
     if document.get("status") != "in_progress" or document.get("ended_at") is not None:
         raise GuidanceError(f"target session is not active: {session_dir.name}")
     return document
@@ -175,8 +199,7 @@ def _locked_session(session_dir: Path) -> Iterator[dict[str, object]]:
                 raise GuidanceError(f"invalid JSON in {session_path}: {exc.msg}") from exc
             if not isinstance(document, dict):
                 raise GuidanceError(f"session.json must contain an object: {session_dir}")
-            if document.get("id") != session_dir.name:
-                raise GuidanceError("session.json id does not match its directory")
+            _validate_session_identity(session_dir, document)
             if document.get("status") != "in_progress" or document.get("ended_at") is not None:
                 raise GuidanceError(f"target session is not active: {session_dir.name}")
             yield document

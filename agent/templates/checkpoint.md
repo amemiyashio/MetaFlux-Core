@@ -2,7 +2,7 @@
 id: PYYYYMMDD-NNN
 status: Recorded
 captured: YYYY-MM-DD
-milestone: MNNNN
+milestone: MXYZ0
 branch: branch-name
 git_revision: null
 workspace: clean/dirty summary

@@ -1,15 +1,16 @@
 # MetaFlux Milestone Plans
 
-This directory contains durable execution plans for MetaFlux releases. Stable
-milestone IDs are independent of product versions: changing a release assignment
-does not rename a milestone or invalidate links.
+This directory contains durable execution plans for MetaFlux releases. M and W
+identities derive from the four-part delivery coordinate defined by the
+[release-versioning policy](../../docs/release-versioning.md); they are not
+arbitrary serials.
 
-| Milestone | Release | Status | Goal |
-| --- | --- | --- | --- |
-| [M0001](M0001-core-foundation/plan.md) | v0.1 | Active | CPU-backed CUDA/NVML core foundation |
-| [M0002](M0002-kernel-guest-transport/plan.md) | v0.2.1 | Queued | Local cdev and static guest transport |
-| [M0003](M0003-vpci-lifecycle/plan.md) | v0.2.2 | Queued | Lifecycle and experimental vPCI presentation |
-| [M0004](M0004-vulkan-backend/plan.md) | v0.2.3 | Queued | Vulkan execution backend |
+| Milestone | Delivery | Release | Status | Goal |
+| --- | --- | --- | --- | --- |
+| [M0100](M0100-core-foundation/plan.md) | 0.1.0.0 | v0.1.0 | Active | CPU-backed CUDA/NVML core foundation |
+| [M0110](M0110-kernel-guest-transport/plan.md) | 0.1.1.0 | v0.1.1 | Queued | Local cdev and static guest transport |
+| [M0120](M0120-vpci-lifecycle/plan.md) | 0.1.2.0 | v0.1.2 | Queued | Lifecycle and experimental vPCI presentation |
+| [M0130](M0130-vulkan-backend/plan.md) | 0.1.3.0 | v0.1.3 | Queued | Vulkan execution backend |
 
 Cross-release research: [PyTorch compatibility](pytorch-compatibility-roadmap.md)
 tracks optional baseline and frontier client probes without changing a milestone.
@@ -20,8 +21,9 @@ decisions, and Definition of Done. Work documents define independently
 verifiable, multi-change execution slices. PR-sized tasks remain in the issue/PR
 system rather than becoming permanent repository documents.
 
-Milestone directory names use `MNNNN-durable-slug`. The numeric ID is the link
-and dependency identity; neither it nor the slug embeds the assigned release.
+Milestone directory names use `M<compact>-durable-slug`; work files use
+`W<compact>-durable-slug`. The compact body is derived from explicit `delivery`
+metadata and is checked against the product release and parent milestone.
 
 Allowed status values are `Draft`, `Queued`, `Active`, `Blocked`, `Complete`, and
 `Superseded`. Completed milestones remain at their original paths so historical

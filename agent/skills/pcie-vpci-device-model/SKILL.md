@@ -1,13 +1,13 @@
 ---
 name: pcie-vpci-device-model
-description: Design or review PCI or vPCI Type-0 configuration space, domain and BDF identity, VID/DID/class, BAR0/BAR2/BAR4, MSI-X, enumeration, host bridges, guest driver binding, reset, and hotplug. Use for M0002 guest PCI or M0003 vroot presentation. Do not use for PCIe electrical/link training or excluded SR-IOV, ATS, PASID, PRI, P2P, or AER features.
+description: Design or review PCI or vPCI Type-0 configuration space, domain and BDF identity, VID/DID/class, BAR0/BAR2/BAR4, MSI-X, enumeration, host bridges, guest driver binding, reset, and hotplug. Use for M0110 guest PCI or M0120 vroot presentation. Do not use for PCIe electrical/link training or excluded SR-IOV, ATS, PASID, PRI, P2P, or AER features.
 ---
 
 # PCIe and vPCI Device Model
 
 ## Inputs
 
-- The active M0002/M0003 work item and whether the target is the static QEMU
+- The active M0110/M0120 work item and whether the target is the static QEMU
   guest function or the default-off bare-metal software root.
 - Exact canonical schema profile, config image/capability list, BDF allocation
   policy, VID/DID/class, BAR/region contract, MSI-X vectors, driver binding
@@ -15,8 +15,8 @@ description: Design or review PCI or vPCI Type-0 configuration space, domain and
 - `lspci`, sysfs, config-access, BAR, IRQ, reset, add/remove, and concurrent-use
   evidence for the target kernel/QEMU matrix.
 
-Do not merge the two profiles: the M0002 guest function has BARs/MSI-X, while the
-initial M0003 vroot fixture deliberately advertises no BAR, IRQ, PM, PCIe, or FLR
+Do not merge the two profiles: the M0110 guest function has BARs/MSI-X, while the
+initial M0120 vroot fixture deliberately advertises no BAR, IRQ, PM, PCIe, or FLR
 capability.
 
 ## Routing
@@ -35,8 +35,8 @@ capability.
 
 ## Workflow
 
-1. Select the profile's owning manifest and validated import closure: the M0002
-   root for guest PCI or the M0003 vroot extension plus its imported hashes for
+1. Select the profile's owning manifest and validated import closure: the M0110
+   root for guest PCI or the M0120 vroot extension plus its imported hashes for
    vroot. Enumerate every implemented config byte, capability, writable mask,
    side effect, reset value, and unsupported feature before coding callbacks.
    Generated images/tables are projections, not local sources.

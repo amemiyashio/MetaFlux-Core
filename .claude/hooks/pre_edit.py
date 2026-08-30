@@ -68,7 +68,8 @@ def main() -> int:
                 return 0
         return deny(
             "changes outside agent/ require an in-progress session. Scaffold "
-            "one first: python3 tools/new-session.py <slug>  (see AGENTS.md)"
+            "one first: python3 tools/new-session.py "
+            "<MAJOR.MINOR.PATCH.WORK> <slug>  (see AGENTS.md)"
         )
 
     return 0

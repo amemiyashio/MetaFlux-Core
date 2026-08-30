@@ -1,14 +1,14 @@
 ---
 name: runtime-contracts-registry
-description: Design or review ecosystem-neutral registry and provider views, client negotiation, shared-memory layouts, backend C ABI, and canonical schema generation. Use across milestones for M0001 runtime/contracts, M0002 data-plane schema ownership, M0003 process-view lifecycle, or M0004 neutral external-memory ABI. Do not use for ecosystem API semantics, target lowering, or layer-local transport mechanics.
+description: Design or review ecosystem-neutral registry and provider views, client negotiation, shared-memory layouts, backend C ABI, and canonical schema generation. Use across milestones for M0100 runtime/contracts, M0110 data-plane schema ownership, M0120 process-view lifecycle, or M0130 neutral external-memory ABI. Do not use for ecosystem API semantics, target lowering, or layer-local transport mechanics.
 ---
 
 # Runtime Contracts and Registry
 
 ## Inputs
 
-- The active contract-owning work item (for example M0001-W02, M0002-W01/W04,
-  M0003-W01, or M0004-W01/W02/W06) and every consumer affected by the contract or
+- The active contract-owning work item (for example W0102, W0111/W0114,
+  W0121, or W0131/W0132/W0136) and every consumer affected by the contract or
   process-view change.
 - The canonical schema, generated-artifact manifest, registry/view policy,
   client-protocol versions, shared-layout definitions, and backend ABI versions.
@@ -161,5 +161,5 @@ Return or implement:
   them even if gate and lifecycle counters restart.
 - Stress queue wrap, false sharing, lost wakeups, process death, and concurrent
   producers/consumers under the active work item's syscall and ordering gates.
-- Prove every public M0002 data-plane layout is generated from the selected
+- Prove every public M0110 data-plane layout is generated from the selected
   canonical schema and that no kernel, server, provider, or backend copy drifts.

@@ -26,7 +26,7 @@ distributions with confidence intervals or another stated uncertainty method.
 Never report only the best sample. Preserve failures and outliers with reasons
 instead of silently deleting them.
 
-M0001 numeric budgets are provisional until the reference-host harness archives
+M0100 numeric budgets are provisional until the reference-host harness archives
 its baseline. A smoke result guides work but does not promote a binding gate.
 
 Primary source: [LLVM benchmarking guidelines](https://llvm.org/docs/Benchmarking.html).

@@ -263,4 +263,4 @@ forbid partial ranges, later-range publication, abandoned intermediate state,
 mixed fence/control fields, post-close admission/stale read or write, cross-view
 comparison, and ABA.
 
-Canonical source: [M0001-W02](../../../plan/M0001-core-foundation/work/W02-contracts-runtime.md).
+Canonical source: [W0102](../../../plan/M0100-core-foundation/work/W0102-contracts-runtime.md).

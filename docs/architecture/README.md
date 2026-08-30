@@ -12,6 +12,6 @@ ecosystems or general plugin APIs are documented here before their interfaces ar
 frozen, without creating speculative source directories.
 
 The current proposed boundaries are summarized in
-`control-and-data-plane.md`; detailed qualification remains in Plans 0002.1 and
-0002.2. The directory taxonomy and dependency-direction map are recorded in
+`control-and-data-plane.md`; detailed qualification remains in M0110 and M0120.
+The directory taxonomy and dependency-direction map are recorded in
 [`repo-layout.md`](repo-layout.md) (Verified).

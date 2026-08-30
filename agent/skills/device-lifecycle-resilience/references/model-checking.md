@@ -2,7 +2,7 @@
 
 ## Canonical inputs
 
-M0003-W01 consumes and verifies this frozen M0002-owned input:
+W0121 consumes and verifies this frozen M0110-owned input:
 
 - frozen base manifest: `contracts/protocol/transport/v1/schema/manifest.json`;
 
@@ -23,7 +23,7 @@ The base manifest never references the extension. A manifest may not repeat an
 identical tuple in its direct import list. The transitive DAG de-duplicates an
 identical `(path, version, content hash)` tuple reached through multiple parents;
 cycles or path/version/hash conflicts fail validation. Adding lifecycle cannot
-change a frozen M0002 data-plane import or the base manifest's content hash. The
+change a frozen M0110 data-plane import or the base manifest's content hash. The
 lifecycle model provides machine-readable
 `states`, `events`, `guards`, `side_effects`, `commit_points`, `terminal_states`,
 and `invariants`. Every transition names its source states, request identity,
@@ -101,6 +101,6 @@ Random sampling is supplemental and never substitutes for this command.
   completeness, and tombstone isolation invariants;
 - the minimal counterexample and replay sequence for every failed invariant.
 
-M0003-W01 is incomplete when the checker, any input, or this artifact is absent.
+W0121 is incomplete when the checker, any input, or this artifact is absent.
 Changing bounds requires review of the versioned bounds file and regenerating the
 artifact; reducing bounds cannot silently preserve a prior pass.

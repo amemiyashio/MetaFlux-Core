@@ -18,9 +18,9 @@ validated x86-64 PIC ELF artifact. Future target-lowering paths such as
 daemon/compiler-worker package enables the frontends and backends it serves
 without enabling application-side provider DSOs.
 
-## Implemented M0001 slice
+## Implemented M0100 slice
 
-Kernel IR schema v2 is the executable, ecosystem-neutral M0001 semantic slice.
+Kernel IR schema v2 is the executable, ecosystem-neutral M0100 semantic slice.
 It carries typed scalar/buffer parameters, 2D launch values, predicates, exact
 integer and binary32 operations, provenance-preserving global/shared addresses,
 static shared allocations, guarded stores, and full-CTA barriers. Its verifier
@@ -40,7 +40,7 @@ length-delimited SHA-256 cache identity covering toolchain fingerprint, compiler
 epoch, Kernel IR schema, pass pipeline, target triple, CPU/features,
 optimization/FP policy, helper/backend ABIs, PGO ID, and canonical kernel
 content. The in-memory `FixtureArtifactCache` remains qualification-only and does
-not represent a compiled executable. The production M0001 path lowers verified
+not represent a compiled executable. The production M0100 path lowers verified
 Kernel IR through MLIR and LLVM to a deterministic x86-64 PIC ELF artifact, then
 publishes it through the per-UID, compiler-epoch persistent cache or the separate
 read-only administrator AOT tier. The daemon retains publication authority;
@@ -50,6 +50,6 @@ validated artifact without contacting that worker.
 Each persistent entry carries a strict `metadata.v1` manifest next to
 `kernel.so`. It binds the compiler epoch and ABI/schema identities to the cache
 key, artifact size, SHA-256, and backend payload. In the administrator tier this
-is the M0001 AOT prewarm manifest: `metafluxd --prewarm-aot PTX` publishes one
+is the M0100 AOT prewarm manifest: `metafluxd --prewarm-aot PTX` publishes one
 read-only entry atomically, and a repeated invocation resolves the same manifest
 as an idempotent cache hit. There is no separate mutable AOT index.

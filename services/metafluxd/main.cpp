@@ -12,6 +12,10 @@
 #include <string_view>
 #include <unistd.h>
 
+#ifndef METAFLUX_PROJECT_VERSION
+#error "METAFLUX_PROJECT_VERSION must be supplied by the build"
+#endif
+
 namespace {
 
 std::string default_socket_path() {
@@ -42,7 +46,7 @@ int main(int argc, char** argv) {
     return metaflux::service::run_compiler_worker_process(parent_process_id);
   }
   if (argc == 2 && std::string_view(argv[1]) == "--version") {
-    std::cout << "metafluxd 0.1.0\n";
+    std::cout << "metafluxd " << METAFLUX_PROJECT_VERSION << '\n';
     return 0;
   }
   if (argc == 3 && std::string_view(argv[1]) == "--socket") {

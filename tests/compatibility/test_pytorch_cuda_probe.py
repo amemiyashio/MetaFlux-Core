@@ -177,7 +177,7 @@ class PytorchCudaProbeTests(unittest.TestCase):
             report["advertised_compute_capability"],
             {"d0017": "7.0", "observed": "7.0"},
         )
-        self.assertEqual(report["scope"], "diagnostic-only-not-m0001-compatibility-evidence")
+        self.assertEqual(report["scope"], "diagnostic-only-not-m0100-compatibility-evidence")
         self.assertEqual(len(report["d0017"]["bundle_sha256"]), 64)
         self.assertEqual(
             set(report["d0017"]["entries"]), {"capabilities", "forms", "corpus_index"}

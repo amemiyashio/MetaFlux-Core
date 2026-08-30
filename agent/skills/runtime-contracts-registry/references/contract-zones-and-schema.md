@@ -10,13 +10,13 @@ Select the zone by what crosses the boundary:
 | Linux UAPI | `contracts/uapi/linux/` | Linux-compatible fixed layouts, compat handling, reserved fields, and extension rules |
 
 For each freeze, record one schema owner plus the complete generated-artifact
-manifest. M0002-W01 authors the candidate base UAPI, device protocol,
+manifest. W0111 authors the candidate base UAPI, device protocol,
 BAR/extension directory, and capability extension rules from one canonical
-data-plane schema without changing M0001 descriptors; M0002-W04 qualifies and
+data-plane schema without changing M0100 descriptors; W0114 qualifies and
 freezes it. The Linux, vfio-user, and PCI skills own their layer mechanics; this
 skill owns the shared source and cross-consumer drift check.
 
-The M0002 base manifest freezes an explicit base-definition allowlist, not every
+The M0110 base manifest freezes an explicit base-definition allowlist, not every
 future file beneath its source directories. Each allowlisted definition appears
 once. A later versioned extension owns a separate manifest that imports the base
 by content hash and references only its extension definitions; it never adds an
@@ -33,5 +33,5 @@ lists, offsets, opcodes, masks, or version numbers into private definitions.
 
 Primary repository sources: [contracts](../../../../contracts/README.md),
 [component ownership](../../../memory/component-map.md), and
-[M0002-W01](../../../plan/M0002-kernel-guest-transport/work/W01-abi-benchmark-contract.md),
-and [M0002-W04](../../../plan/M0002-kernel-guest-transport/work/W04-fault-abi-freeze.md).
+[W0111](../../../plan/M0110-kernel-guest-transport/work/W0111-abi-benchmark-contract.md),
+and [W0114](../../../plan/M0110-kernel-guest-transport/work/W0114-fault-abi-freeze.md).

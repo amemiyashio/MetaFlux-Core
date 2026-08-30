@@ -17,7 +17,7 @@ the receiving agent must independently assess.
 Packets live only under the target session:
 
 ```text
-agent/sessions/YYYY/MM/SYYYYMMDD-NNN-slug/guidance/
+agent/sessions/YYYY/MM/S<delivery>-YYYYMMDD-NNN-slug/guidance/
   G001-topic.draft.md
   G002-other-topic.ready.md
   G003-third-topic.processing.md
@@ -90,7 +90,7 @@ Create a draft:
 ```sh
 python3 agent/skills/session-guidance/scripts/guidance.py create \
   --session SESSION --slug cache-publication --author A004 \
-  --role "compiler cache reviewer" --scope "M0001-W03 cache publication" \
+  --role "compiler cache reviewer" --scope "W0103 cache publication" \
   --supersedes G001 --patch /tmp/candidate.patch
 ```
 

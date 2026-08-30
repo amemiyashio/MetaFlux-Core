@@ -23,16 +23,16 @@ if(METAFLUX_BUILD_CLIENT_FASTPATH)
   )
 
   add_executable(
-    metaflux_m0001_ring_benchmark
-    performance/m0001_ring_audit.c
-    performance/m0001_ring_benchmark.c
+    metaflux_m0100_ring_benchmark
+    performance/m0100_ring_audit.c
+    performance/m0100_ring_benchmark.c
   )
   target_link_libraries(
-    metaflux_m0001_ring_benchmark
+    metaflux_m0100_ring_benchmark
     PRIVATE MetaFlux::ClientFastpath
   )
   target_link_options(
-    metaflux_m0001_ring_benchmark
+    metaflux_m0100_ring_benchmark
     PRIVATE
       "LINKER:--wrap=malloc"
       "LINKER:--wrap=calloc"
@@ -48,13 +48,13 @@ if(METAFLUX_BUILD_CLIENT_FASTPATH)
       "LINKER:--wrap=pthread_spin_lock"
       "LINKER:--wrap=pthread_spin_trylock"
   )
-  metaflux_configure_target(metaflux_m0001_ring_benchmark C)
+  metaflux_configure_target(metaflux_m0100_ring_benchmark C)
   add_test(
-    NAME metaflux.performance.m0001-ring-smoke
-    COMMAND metaflux_m0001_ring_benchmark 8 32
+    NAME metaflux.performance.m0100-ring-smoke
+    COMMAND metaflux_m0100_ring_benchmark 8 32
   )
   set_tests_properties(
-    metaflux.performance.m0001-ring-smoke
+    metaflux.performance.m0100-ring-smoke
     PROPERTIES LABELS "performance-smoke;runtime"
   )
 endif()
@@ -145,7 +145,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     NAME metaflux.performance.optimization-runner-selftest
     COMMAND
       Python3::Interpreter -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_m0001_optimization.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_m0100_optimization.py"
   )
   set_tests_properties(
     metaflux.performance.optimization-runner-selftest
@@ -155,7 +155,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     NAME metaflux.performance.measurement-runner-selftest
     COMMAND
       Python3::Interpreter -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_m0001_performance.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_m0100_performance.py"
   )
   set_tests_properties(
     metaflux.performance.measurement-runner-selftest
@@ -358,7 +358,7 @@ if(TARGET metaflux_cuda_provider AND TARGET metafluxd AND METAFLUX_NVIDIA_HEADER
 endif()
 
 if(
-  TARGET metaflux_m0001_ring_benchmark
+  TARGET metaflux_m0100_ring_benchmark
   AND TARGET metaflux_cuda_provider
   AND TARGET metaflux_nvml_provider
   AND TARGET metafluxd
@@ -368,47 +368,47 @@ if(
     message(FATAL_ERROR "METAFLUX_NVIDIA_HEADER_DIR does not contain nvml.h")
   endif()
   add_executable(
-    metaflux_m0001_cuda_managed_benchmark
-    performance/m0001_cuda_managed_benchmark.c
+    metaflux_m0100_cuda_managed_benchmark
+    performance/m0100_cuda_managed_benchmark.c
   )
   target_include_directories(
-    metaflux_m0001_cuda_managed_benchmark
+    metaflux_m0100_cuda_managed_benchmark
     SYSTEM PRIVATE "${METAFLUX_NVIDIA_HEADER_DIR}"
   )
   target_link_libraries(
-    metaflux_m0001_cuda_managed_benchmark
+    metaflux_m0100_cuda_managed_benchmark
     PRIVATE metaflux_cuda_provider
   )
-  metaflux_configure_target(metaflux_m0001_cuda_managed_benchmark C)
+  metaflux_configure_target(metaflux_m0100_cuda_managed_benchmark C)
 
   add_executable(
-    metaflux_m0001_nvml_benchmark
-    performance/m0001_nvml_benchmark.c
+    metaflux_m0100_nvml_benchmark
+    performance/m0100_nvml_benchmark.c
   )
   target_include_directories(
-    metaflux_m0001_nvml_benchmark
+    metaflux_m0100_nvml_benchmark
     SYSTEM PRIVATE "${METAFLUX_NVIDIA_HEADER_DIR}"
   )
   target_link_libraries(
-    metaflux_m0001_nvml_benchmark
+    metaflux_m0100_nvml_benchmark
     PRIVATE metaflux_nvml_provider
   )
-  metaflux_configure_target(metaflux_m0001_nvml_benchmark C)
+  metaflux_configure_target(metaflux_m0100_nvml_benchmark C)
 
   add_test(
-    NAME metaflux.performance.m0001-managed-smoke
+    NAME metaflux.performance.m0100-managed-smoke
     COMMAND
       Python3::Interpreter -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/performance/run_m0001_performance.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/performance/run_m0100_performance.py"
       --mode smoke
       --budget-status provisional
-      --output-dir "${CMAKE_CURRENT_BINARY_DIR}/m0001-performance-smoke-evidence"
+      --output-dir "${CMAKE_CURRENT_BINARY_DIR}/m0100-performance-smoke-evidence"
       --repository "${PROJECT_SOURCE_DIR}"
       --milestone-plan
-      "${PROJECT_SOURCE_DIR}/agent/plan/M0001-core-foundation/plan.md"
-      --ring-benchmark $<TARGET_FILE:metaflux_m0001_ring_benchmark>
-      --cuda-benchmark $<TARGET_FILE:metaflux_m0001_cuda_managed_benchmark>
-      --nvml-benchmark $<TARGET_FILE:metaflux_m0001_nvml_benchmark>
+      "${PROJECT_SOURCE_DIR}/agent/plan/M0100-core-foundation/plan.md"
+      --ring-benchmark $<TARGET_FILE:metaflux_m0100_ring_benchmark>
+      --cuda-benchmark $<TARGET_FILE:metaflux_m0100_cuda_managed_benchmark>
+      --nvml-benchmark $<TARGET_FILE:metaflux_m0100_nvml_benchmark>
       --daemon $<TARGET_FILE:metafluxd>
       --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
       --cuda-provider $<TARGET_FILE:metaflux_cuda_provider>
@@ -422,12 +422,52 @@ if(
       --require-all-core-metrics
   )
   set_tests_properties(
-    metaflux.performance.m0001-managed-smoke
+    metaflux.performance.m0100-managed-smoke
     PROPERTIES LABELS "performance-smoke;integration;cuda;nvml;runtime" TIMEOUT 180
   )
 endif()
 
 if(METAFLUX_BUILD_DAEMON)
-  add_test(NAME metaflux.integration.daemon-version COMMAND metafluxd --version)
+  set(
+    metaflux_daemon_version_check
+    "${CMAKE_CURRENT_BINARY_DIR}/check-daemon-version.cmake"
+  )
+  file(
+    GENERATE
+    OUTPUT "${metaflux_daemon_version_check}"
+    CONTENT [=[
+if(NOT DEFINED DAEMON OR NOT DEFINED EXPECTED_VERSION)
+  message(FATAL_ERROR "DAEMON and EXPECTED_VERSION are required")
+endif()
+execute_process(
+  COMMAND "${DAEMON}" --version
+  RESULT_VARIABLE daemon_result
+  OUTPUT_VARIABLE daemon_stdout
+  ERROR_VARIABLE daemon_stderr
+)
+if(NOT daemon_result EQUAL 0)
+  message(FATAL_ERROR "metafluxd --version exited with ${daemon_result}: ${daemon_stderr}")
+endif()
+set(expected_stdout "metafluxd ${EXPECTED_VERSION}\n")
+if(NOT daemon_stdout STREQUAL expected_stdout)
+  string(REPLACE "\n" "\\n" rendered_stdout "${daemon_stdout}")
+  message(
+    FATAL_ERROR
+      "metafluxd --version produced '${rendered_stdout}', expected 'metafluxd ${EXPECTED_VERSION}\\n'"
+  )
+endif()
+if(NOT daemon_stderr STREQUAL "")
+  message(FATAL_ERROR "metafluxd --version wrote to stderr: ${daemon_stderr}")
+endif()
+]=]
+  )
+  add_test(
+    NAME metaflux.integration.daemon-version
+    COMMAND
+      "${CMAKE_COMMAND}"
+      "-DDAEMON=$<TARGET_FILE:metafluxd>"
+      "-DEXPECTED_VERSION=${PROJECT_VERSION}"
+      -P "${metaflux_daemon_version_check}"
+  )
   set_tests_properties(metaflux.integration.daemon-version PROPERTIES LABELS "integration")
 endif()

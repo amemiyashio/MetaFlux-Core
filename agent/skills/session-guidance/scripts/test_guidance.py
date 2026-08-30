@@ -13,7 +13,7 @@ from pathlib import Path
 
 
 SCRIPT = Path(__file__).with_name("guidance.py").resolve()
-SESSION_ID = "S20260830-001-guidance-test"
+SESSION_ID = "S0100-20260830-001-guidance-test"
 
 
 class GuidanceCliTests(unittest.TestCase):
@@ -34,6 +34,7 @@ class GuidanceCliTests(unittest.TestCase):
         document = {
             "schema_version": 1,
             "id": SESSION_ID,
+            "delivery": "0.1.0.0",
             "status": status,
             "ended_at": ended_at,
             "event_log": "events.jsonl",
@@ -148,6 +149,17 @@ class GuidanceCliTests(unittest.TestCase):
             success=False,
         )
         self.assertIn("target session is not active", result.stderr)
+
+    def test_session_delivery_must_match_scoped_id(self) -> None:
+        document = json.loads((self.session / "session.json").read_text(encoding="utf-8"))
+        document["delivery"] = "0.1.0.1"
+        (self.session / "session.json").write_text(
+            json.dumps(document) + "\n", encoding="utf-8"
+        )
+        result = self.run_cli(
+            "list", "--session", SESSION_ID, "--state", "all", success=False
+        )
+        self.assertIn("delivery does not match its session ID", result.stderr)
 
     def test_conflicting_packet_numbers_are_rejected(self) -> None:
         first = self.create_complete()

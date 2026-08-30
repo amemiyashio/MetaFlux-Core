@@ -15,7 +15,7 @@ window, update cadence, maximum age, privilege, unsupported result, and
   duplicate UUID, BDF, generation, or lifecycle state. Persistent UUID/logical ID
   correlates replacement history, while live CUDA/NVML parity requires
   `(UUID, generation)` from an applicable common view revision.
-- GPU utilization is a documented capacity-weighted value over the M0001
+- GPU utilization is a documented capacity-weighted value over the M0100
   100-millisecond window. Name numerator, denominator, idle behavior, saturation,
   and timestamp.
 - Memory utilization is not derived from used/total unless the canonical

@@ -11,7 +11,7 @@ import sys
 BANNER = """\
 MetaFlux-Core rules apply in this repository:
 - Read AGENTS.md at the repository root before making any change.
-- Scaffold a session before editing anything outside agent/: python3 tools/new-session.py <slug>
+- Scaffold a session before editing anything outside agent/: python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>
 - agent/progress/checkpoints/ is immutable history; never rewrite it.
 - Follow the matching procedure in agent/skills/ when one exists.
 - Verify with: python3 tools/check-agent-records.py .

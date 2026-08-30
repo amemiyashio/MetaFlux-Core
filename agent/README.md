@@ -4,7 +4,8 @@
 
 1. If a task matches an [expert skill](skills/README.md), follow it verbatim.
 2. Scaffold a session first for durable work: `python3 tools/new-session.py
-   <slug>`. A session is a curated ledger and cleanup boundary, not a snapshot.
+   <MAJOR.MINOR.PATCH.WORK> <slug>`. A session is a curated ledger and cleanup
+   boundary, not a snapshot.
 3. Never relax a durable constraint in [`memory/constraints.md`](memory/constraints.md)
    without a recorded decision.
 
@@ -36,7 +37,7 @@ contract. Agent records link to canonical material instead of copying it.
 
 | Path | Purpose | Mutation rule |
 | --- | --- | --- |
-| `plan/MNNNN/` | Approved milestone and its work items | Update through an explicit planning decision |
+| `plan/M<delivery>/` | Approved milestone and its work items | Update through an explicit planning decision |
 | `memory/` | Stable project, constraints, ownership, terminology, and decision index | Change only when canonical sources change |
 | `experience/` | Reusable procedures supported by evidence | Validate before relying on them; supersede instead of silently rewriting conclusions |
 | `progress/current.md` | Replaceable resume point | Refresh after material state changes |
@@ -75,18 +76,25 @@ symbolic link.
 
 ## Stable identifiers
 
-- Milestone: `MNNNN`, for example `M0001`.
-- Work item: `MNNNN-WNN`, unique within the repository.
+Product and delivery identity follows the canonical
+[release-versioning policy](../docs/release-versioning.md). M, W, and S bodies
+are derived from an explicit four-part delivery coordinate; they are not
+allocated from an unrelated serial.
+
+- Milestone: `M<compact-delivery>`, for example `M0100` for `0.1.0.0`.
+- Work item: `W<compact-delivery>`, for example `W0101` for `0.1.0.1`.
 - Decision index entry: `DNNNN`.
 - Experience: `ENNNN`.
 - Checkpoint: `PYYYYMMDD-NNN`.
-- Project work record: `SYYYYMMDD-NNN-<slug>`.
+- Project work record: `S<compact-delivery>-YYYYMMDD-NNN-<slug>`.
 - Skill: a durable lowercase-hyphenated slug naming one `skills/<slug>/`
   directory; slugs are never renamed after links exist.
 
-Identifiers are never reused, renumbered, or changed after links exist. The file
-name starts with the identifier where the record is an instance rather than a
-singleton index.
+The D0024 migration replaced every pre-policy M/W/S name, including historical
+sessions, so the repository has one scheme. After that migration, identifiers
+are never reused, renumbered, or changed after links exist. The file name starts
+with the identifier where the record is an instance rather than a singleton
+index.
 
 ## Status rules
 

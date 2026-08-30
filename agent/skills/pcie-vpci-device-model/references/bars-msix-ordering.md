@@ -1,6 +1,6 @@
 # BARs, MSI-X, and Ordering
 
-This profile applies to the M0002 static guest function, not the initial vroot
+This profile applies to the M0110 static guest function, not the initial vroot
 fixture.
 
 ## Region contract

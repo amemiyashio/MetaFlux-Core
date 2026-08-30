@@ -4,11 +4,11 @@
 
 Distinguish bus/device reset requests, vfio-user device reset, lifecycle reset,
 and capability-level FLR. Do not advertise FLR until its exact config capability
-and semantics exist. In M0002, guest/QEMU reset observation fences work and ends
+and semantics exist. In M0110, guest/QEMU reset observation fences work and ends
 in `LOST`; reset support is not advertised and recovery requires a fresh static
 instance.
 
-In M0003 coordinated reset, PCI presentation mirrors lifecycle states:
+In M0120 coordinated reset, PCI presentation mirrors lifecycle states:
 
 ```text
 ONLINE -> QUIESCING -> DRAINING -> RESETTING -> ONLINE(new generation) | LOST

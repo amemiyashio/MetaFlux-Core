@@ -17,6 +17,7 @@ from urllib.parse import unquote, urlsplit
 REQUIRED_SESSION_FIELDS = {
     "schema_version",
     "id",
+    "delivery",
     "repository",
     "started_at",
     "ended_at",
@@ -56,25 +57,39 @@ MAX_INLINE_TEXT_BYTES = 65_536
 DISTILLATION_REQUIRED_FROM = "2026-08-28"
 CLEANUP_REQUIRED_FROM = "2026-08-29"
 STALENESS_WARNING_DAYS = 14
-SESSION_ID_RE = re.compile(r"^S\d{8}-\d{3}-[a-z0-9][a-z0-9-]*$")
-SESSION_PATH_RE = re.compile(
-    r"^(?P<year>\d{4})/(?P<month>0[1-9]|1[0-2])/(?P<id>S\d{8}-\d{3}-[a-z0-9][a-z0-9-]*)$"
+SESSION_ID_RE = re.compile(
+    r"^S(?P<delivery>\d{4,})-(?P<date>\d{8})-"
+    r"(?P<ordinal>\d{3})-(?P<slug>[a-z0-9][a-z0-9-]*)$"
 )
-MILESTONE_ID_RE = re.compile(r"^M\d{4}$")
-WORK_ITEM_ID_RE = re.compile(r"^M\d{4}-W\d{2}$")
+SESSION_PATH_RE = re.compile(
+    r"^(?P<year>\d{4})/(?P<month>0[1-9]|1[0-2])/"
+    r"(?P<id>S(?P<delivery>\d{4,})-(?P<date>\d{8})-"
+    r"(?P<ordinal>\d{3})-(?P<slug>[a-z0-9][a-z0-9-]*))$"
+)
+MILESTONE_ID_RE = re.compile(r"^M\d{4,}$")
+WORK_ITEM_ID_RE = re.compile(r"^W\d{4,}$")
+SEMVER_RELEASE_RE = re.compile(
+    r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$"
+)
+DELIVERY_COORDINATE_RE = re.compile(
+    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\."
+    r"(0|[1-9]\d*)\.(0|[1-9]\d*)$"
+)
 EXPERIENCE_ID_RE = re.compile(r"^E\d{4}$")
 DECISION_ID_RE = re.compile(r"^D\d{4}$")
 DECISION_ID_SEARCH_RE = re.compile(r"\bD\d{4}\b")
 GUIDANCE_ID_RE = re.compile(r"^G\d{3}$")
 CHECKPOINT_ID_RE = re.compile(r"^P\d{8}-\d{3}$")
 STABLE_AGENT_ID_RE = re.compile(
-    r"^(?:M\d{4}(?:-W\d{2})?|E\d{4}|P\d{8}-\d{3})$"
+    r"^(?:(?:M|W)\d{4,}|E\d{4}|P\d{8}-\d{3})$"
 )
 OUTPUT_REF_PATH_RE = re.compile(r"^outputs/\d{4}\.txt$")
 # Unanchored companions of the stable-id patterns, used to extract ids from
 # markdown link targets that carry directory prefixes.
-SESSION_ID_SEARCH_RE = re.compile(r"S\d{8}-\d{3}-[a-z0-9][a-z0-9-]*")
-MILESTONE_ID_SEARCH_RE = re.compile(r"M\d{4}")
+SESSION_ID_SEARCH_RE = re.compile(
+    r"\bS\d{4,}-\d{8}-\d{3}-[a-z0-9][a-z0-9-]*\b"
+)
+MILESTONE_ID_SEARCH_RE = re.compile(r"\bM\d{4,}\b")
 EXPERIENCE_ID_SEARCH_RE = re.compile(r"E\d{4}")
 SKILL_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SKILL_FRONTMATTER_KEYS = {
@@ -165,6 +180,10 @@ class Validator:
         self.event_count = 0
         self.markdown_count = 0
         self.agent_record_ids: dict[str, Path] = {}
+        self.work_item_parents: dict[str, str] = {}
+        self.delivery_bodies: dict[
+            str, tuple[tuple[str, str, str, str], Path]
+        ] = {}
 
     def add_error(self, path: Path, message: str) -> None:
         try:
@@ -303,8 +322,16 @@ class Validator:
             self.add_error(session_file, "schema_version must be a positive integer")
 
         session_id = session.get("id")
-        if not self.nonempty_string(session_id) or not SESSION_ID_RE.fullmatch(session_id):
-            self.add_error(session_file, "id must match SYYYYMMDD-NNN-slug")
+        session_id_match = (
+            SESSION_ID_RE.fullmatch(session_id)
+            if self.nonempty_string(session_id)
+            else None
+        )
+        if session_id_match is None:
+            self.add_error(
+                session_file,
+                "id must match S<delivery>-YYYYMMDD-NNN-slug",
+            )
         else:
             if session_id != session_dir.name:
                 self.add_error(session_file, "id must match the session directory name")
@@ -317,18 +344,52 @@ class Validator:
         if path_match is None:
             self.add_error(
                 session_file,
-                "session directory must match sessions/YYYY/MM/SYYYYMMDD-NNN-slug",
+                "session directory must match "
+                "sessions/YYYY/MM/S<delivery>-YYYYMMDD-NNN-slug",
             )
-        elif self.nonempty_string(session_id):
+        elif session_id_match is not None:
             if path_match.group("id") != session_id:
                 self.add_error(session_file, "session path id does not match session.json id")
-            date_digits = session_id[1:9]
-            if date_digits[:4] != path_match.group("year") or date_digits[4:6] != path_match.group("month"):
+            date_digits = session_id_match.group("date")
+            if (
+                date_digits[:4] != path_match.group("year")
+                or date_digits[4:6] != path_match.group("month")
+            ):
                 self.add_error(session_file, "session date must match its YYYY/MM directory")
             try:
                 dt.datetime.strptime(date_digits, "%Y%m%d")
             except ValueError:
                 self.add_error(session_file, "session id contains an invalid calendar date")
+
+        session_delivery = session.get("delivery")
+        delivery_match = (
+            DELIVERY_COORDINATE_RE.fullmatch(session_delivery)
+            if self.nonempty_string(session_delivery)
+            else None
+        )
+        if delivery_match is None:
+            self.add_error(
+                session_file,
+                "delivery must contain four canonical decimal components",
+            )
+        else:
+            coordinate = (
+                delivery_match.group(1),
+                delivery_match.group(2),
+                delivery_match.group(3),
+                delivery_match.group(4),
+            )
+            delivery_code = "".join(coordinate)
+            if (
+                session_id_match is not None
+                and session_id_match.group("delivery") != delivery_code
+            ):
+                self.add_error(
+                    session_file,
+                    f"session id delivery code {session_id_match.group('delivery')!r} "
+                    f"does not match delivery {session_delivery!r}",
+                )
+            self.register_delivery_coordinate(session_file, coordinate)
 
         if not self.nonempty_string(session.get("repository")):
             self.add_error(session_file, "repository must be a non-empty string")
@@ -371,6 +432,8 @@ class Validator:
             global_ids,
         )
 
+        # Sessions point back to durable M/W records; the checks below preserve
+        # the S -> M/W resolution edge and each delivery-derived W -> M edge.
         for milestone_id in milestones:
             if not MILESTONE_ID_RE.fullmatch(milestone_id):
                 self.add_error(session_file, f"milestone id is not stable: {milestone_id}")
@@ -396,7 +459,10 @@ class Validator:
                     session_file,
                     f"work item {work_id} references unknown milestone {milestone_id!r}",
                 )
-            elif WORK_ITEM_ID_RE.fullmatch(work_id) and not work_id.startswith(f"{milestone_id}-"):
+            elif (
+                WORK_ITEM_ID_RE.fullmatch(work_id)
+                and self.work_item_parents.get(work_id) not in {None, milestone_id}
+            ):
                 self.add_error(
                     session_file,
                     f"work item {work_id} does not belong to milestone {milestone_id}",
@@ -713,11 +779,14 @@ class Validator:
                 )
 
         plan_root = self.agent_root / "plan"
-        actual_milestones = {
-            path.parent.name[:5]
-            for path in plan_root.glob("M*/plan.md")
-            if MILESTONE_ID_RE.fullmatch(path.parent.name[:5])
-        }
+        actual_milestones = set()
+        for path in plan_root.glob("M*/plan.md"):
+            match = re.fullmatch(
+                r"(M\d{4,})(?:-[a-z0-9][a-z0-9-]*)?",
+                path.parent.name,
+            )
+            if match:
+                actual_milestones.add(match.group(1))
         plans_index = self.linked_ids(plan_root / "README.md", MILESTONE_ID_SEARCH_RE)
         if plans_index is not None and plans_index != actual_milestones:
             missing = sorted(actual_milestones - plans_index)
@@ -813,7 +882,9 @@ class Validator:
         plan_root = self.agent_root / "plan"
         plan_decisions: dict[str, list[str]] = {}
         for plan_file in sorted(plan_root.glob("M*/plan.md")):
-            milestone_id = plan_file.parent.name[:5]
+            milestone_id = self.expected_instance_id(plan_file)
+            if milestone_id is None:
+                continue
             try:
                 text = plan_file.read_text(encoding="utf-8")
             except UnicodeDecodeError:
@@ -1778,11 +1849,315 @@ class Validator:
             return None, "frontmatter id is empty"
         return values[0], None
 
+    @staticmethod
+    def read_frontmatter_values(
+        path: Path, field: str
+    ) -> tuple[list[str] | None, str | None]:
+        """Return all top-level values for one simple frontmatter field."""
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except UnicodeDecodeError as exc:
+            return None, f"is not valid UTF-8: {exc}"
+        if not lines or lines[0].strip() != "---":
+            return None, "is missing YAML frontmatter"
+
+        try:
+            closing = next(
+                index
+                for index, line in enumerate(lines[1:], start=1)
+                if line.strip() == "---"
+            )
+        except StopIteration:
+            return None, "has unterminated YAML frontmatter"
+
+        values: list[str] = []
+        pattern = re.compile(rf"{re.escape(field)}:\s*(.*?)\s*")
+        for line in lines[1:closing]:
+            match = pattern.fullmatch(line)
+            if not match:
+                continue
+            value = match.group(1)
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+                value = value[1:-1]
+            values.append(value)
+        return values, None
+
+    def plan_index_releases(self, path: Path) -> dict[str, str]:
+        """Parse the Milestone/Release columns from the canonical plan table."""
+        try:
+            text = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            return {}
+        except UnicodeDecodeError as exc:
+            self.add_error(path, f"is not valid UTF-8: {exc}")
+            return {}
+
+        lines = text.splitlines()
+        headers: list[tuple[int, tuple[str, ...]]] = []
+        for index, line in enumerate(lines):
+            cells = self.markdown_table_cells(line)
+            if cells and "Milestone" in cells and "Release" in cells:
+                headers.append((index, cells))
+        if len(headers) != 1:
+            self.add_error(
+                path,
+                "plan index requires exactly one table with Milestone and Release columns",
+            )
+            return {}
+
+        header_index, header = headers[0]
+        milestone_column = header.index("Milestone")
+        release_column = header.index("Release")
+        releases: dict[str, str] = {}
+        for line in lines[header_index + 1 :]:
+            cells = self.markdown_table_cells(line)
+            if cells is None:
+                if releases:
+                    break
+                continue
+            if len(cells) != len(header):
+                self.add_error(path, "plan index table row has the wrong column count")
+                continue
+            if all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells):
+                continue
+
+            target = next(
+                (match.group(1) for match in MARKDOWN_LINK_RE.finditer(cells[milestone_column])),
+                "",
+            )
+            milestone_match = MILESTONE_ID_SEARCH_RE.search(target)
+            if milestone_match is None:
+                continue
+            milestone_id = milestone_match.group(0)
+            if milestone_id in releases:
+                self.add_error(path, f"plan index repeats milestone {milestone_id}")
+                continue
+            releases[milestone_id] = cells[release_column]
+        return releases
+
+    def read_delivery_coordinate(
+        self, path: Path
+    ) -> tuple[str, str, str, str] | None:
+        """Read one canonical MAJOR.MINOR.MILESTONE.WORK coordinate."""
+        values, error = self.read_frontmatter_values(path, "delivery")
+        if error is not None:
+            return None  # The generic frontmatter validator reports this shape error.
+        assert values is not None
+        if len(values) != 1:
+            self.add_error(
+                path,
+                "frontmatter must contain exactly one delivery field",
+            )
+            return None
+        match = DELIVERY_COORDINATE_RE.fullmatch(values[0])
+        if match is None:
+            self.add_error(
+                path,
+                "delivery must contain four canonical decimal components: "
+                f"{values[0]!r}",
+            )
+            return None
+        return match.groups()  # type: ignore[return-value]
+
+    @staticmethod
+    def compressed_delivery_id(
+        prefix: str, coordinate: tuple[str, str, str, str]
+    ) -> str:
+        """Compress a delivery coordinate by directly joining its components."""
+        return prefix + "".join(coordinate)
+
+    def register_delivery_coordinate(
+        self,
+        path: Path,
+        coordinate: tuple[str, str, str, str],
+    ) -> None:
+        """Reject ambiguous compact bodies across every durable delivery record."""
+        body = "".join(coordinate)
+        previous = self.delivery_bodies.get(body)
+        if previous is None:
+            self.delivery_bodies[body] = (coordinate, path)
+            return
+        previous_coordinate, previous_path = previous
+        if previous_coordinate == coordinate:
+            return
+        try:
+            previous_display = previous_path.relative_to(self.repo_root)
+        except ValueError:
+            previous_display = previous_path
+        self.add_error(
+            path,
+            f"delivery compact body {body!r} is ambiguous: "
+            f"{'.'.join(coordinate)!r} collides with "
+            f"{'.'.join(previous_coordinate)!r} at {previous_display}",
+        )
+
+    def validate_plan_delivery_graph(self) -> None:
+        """Validate release-derived M IDs and delivery-derived W ownership."""
+        plan_root = self.agent_root / "plan"
+        plan_releases: dict[str, str] = {}
+        milestone_coordinates: dict[str, tuple[str, str, str, str]] = {}
+        for plan_file in sorted(plan_root.glob("M*/plan.md")):
+            milestone_id = self.expected_instance_id(plan_file)
+            if milestone_id is None:
+                continue
+            release_values, error = self.read_frontmatter_values(plan_file, "release")
+            if error is not None:
+                continue  # The generic frontmatter validator reports this shape error.
+            assert release_values is not None
+            if len(release_values) != 1:
+                self.add_error(
+                    plan_file,
+                    "frontmatter must contain exactly one release field",
+                )
+                release_match = None
+            else:
+                release_match = SEMVER_RELEASE_RE.fullmatch(release_values[0])
+                if release_match is None:
+                    self.add_error(
+                        plan_file,
+                        "release must be a v-prefixed three-part SemVer: "
+                        f"{release_values[0]!r}",
+                    )
+                else:
+                    plan_releases[milestone_id] = release_values[0]
+
+            coordinate = self.read_delivery_coordinate(plan_file)
+            if coordinate is None:
+                continue
+            self.register_delivery_coordinate(plan_file, coordinate)
+            if coordinate[3] != "0":
+                self.add_error(
+                    plan_file,
+                    "milestone delivery coordinates must use work component 0",
+                )
+            derived_id = self.compressed_delivery_id("M", coordinate)
+            if milestone_id != derived_id:
+                self.add_error(
+                    plan_file,
+                    f"path milestone {milestone_id} does not match delivery-derived "
+                    f"id {derived_id}",
+                )
+            id_values, _ = self.read_frontmatter_values(plan_file, "id")
+            if id_values is not None and len(id_values) == 1 and id_values[0] != derived_id:
+                self.add_error(
+                    plan_file,
+                    f"frontmatter id {id_values[0]!r} does not match delivery-derived "
+                    f"id {derived_id}",
+                )
+            if release_match is not None and release_match.groups() != coordinate[:3]:
+                self.add_error(
+                    plan_file,
+                    f"delivery {'.'.join(coordinate)!r} does not match release "
+                    f"{release_values[0]!r}",
+                )
+            if coordinate[3] == "0" and milestone_id == derived_id:
+                milestone_coordinates[milestone_id] = coordinate
+
+        index_path = plan_root / "README.md"
+        index_releases = self.plan_index_releases(index_path)
+        for milestone_id, release in plan_releases.items():
+            index_release = index_releases.get(milestone_id)
+            if index_release is None:
+                self.add_error(
+                    index_path,
+                    f"plan index has no release assignment for {milestone_id}",
+                )
+            elif index_release != release:
+                self.add_error(
+                    index_path,
+                    f"{milestone_id} release {index_release!r} does not match "
+                    f"plan release {release!r}",
+                )
+
+        for work_file in sorted(plan_root.glob("M*/work/W*-*.md")):
+            path_work_id = self.expected_instance_id(work_file)
+            if path_work_id is None:
+                continue
+            milestone_dir = re.fullmatch(
+                r"(M\d{4,})(?:-[a-z0-9][a-z0-9-]*)?",
+                work_file.parent.parent.name,
+            )
+            if milestone_dir is None:
+                continue
+            path_milestone = milestone_dir.group(1)
+            milestone_values, error = self.read_frontmatter_values(
+                work_file, "milestone"
+            )
+            if error is not None:
+                continue  # The generic frontmatter validator reports this shape error.
+            assert milestone_values is not None
+            if len(milestone_values) != 1:
+                self.add_error(
+                    work_file,
+                    "frontmatter must contain exactly one milestone field",
+                )
+                continue
+
+            id_values, _ = self.read_frontmatter_values(work_file, "id")
+            coordinate = self.read_delivery_coordinate(work_file)
+            if coordinate is None:
+                continue
+            self.register_delivery_coordinate(work_file, coordinate)
+            if coordinate[3] == "0":
+                self.add_error(
+                    work_file,
+                    "work-item delivery coordinates must use a nonzero work component",
+                )
+            derived_work_id = self.compressed_delivery_id("W", coordinate)
+            parent_coordinate = (*coordinate[:3], "0")
+            derived_milestone = self.compressed_delivery_id("M", parent_coordinate)
+            if path_work_id != derived_work_id:
+                self.add_error(
+                    work_file,
+                    f"path work item {path_work_id} does not match delivery-derived "
+                    f"id {derived_work_id}",
+                )
+            if id_values is not None and len(id_values) == 1 and id_values[0] != derived_work_id:
+                self.add_error(
+                    work_file,
+                    f"frontmatter id {id_values[0]!r} does not match delivery-derived "
+                    f"id {derived_work_id}",
+                )
+            declared_milestone = milestone_values[0]
+            if declared_milestone != path_milestone:
+                self.add_error(
+                    work_file,
+                    f"frontmatter milestone {declared_milestone!r} does not match "
+                    f"path milestone {path_milestone}",
+                )
+            if declared_milestone != derived_milestone:
+                self.add_error(
+                    work_file,
+                    f"frontmatter milestone {declared_milestone!r} does not match "
+                    f"delivery-derived milestone {derived_milestone}",
+                )
+            resolved_parent = milestone_coordinates.get(derived_milestone)
+            if resolved_parent is None:
+                self.add_error(
+                    work_file,
+                    f"delivery-derived milestone {derived_milestone} does not resolve "
+                    "to a milestone plan",
+                )
+            elif resolved_parent != parent_coordinate:
+                self.add_error(
+                    work_file,
+                    f"delivery {'.'.join(coordinate)!r} collides with parent "
+                    f"coordinate {'.'.join(resolved_parent)!r}",
+                )
+            if (
+                coordinate[3] != "0"
+                and resolved_parent == parent_coordinate
+                and id_values is not None
+                and len(id_values) == 1
+                and id_values[0] == derived_work_id
+            ):
+                self.work_item_parents[derived_work_id] = derived_milestone
+
     def expected_instance_id(self, path: Path) -> str | None:
         relative = path.relative_to(self.agent_root)
         parts = relative.parts
         milestone_dir = (
-            re.fullmatch(r"(M\d{4})(?:-[a-z0-9][a-z0-9-]*)?", parts[1])
+            re.fullmatch(r"(M\d{4,})(?:-[a-z0-9][a-z0-9-]*)?", parts[1])
             if len(parts) >= 2 and parts[0] == "plan"
             else None
         )
@@ -1790,9 +2165,9 @@ class Validator:
             if parts[2] == "plan.md":
                 return milestone_dir.group(1)
         if len(parts) == 4 and parts[0] == "plan" and parts[2] == "work":
-            work_match = re.fullmatch(r"W(\d{2})-[^/]+\.md", parts[3])
+            work_match = re.fullmatch(r"(W\d{4,})-[^/]+\.md", parts[3])
             if milestone_dir is not None and work_match:
-                return f"{milestone_dir.group(1)}-W{work_match.group(1)}"
+                return work_match.group(1)
         if len(parts) == 2 and parts[0] == "experience":
             match = re.fullmatch(r"(E\d{4})-[^/]+\.md", parts[1])
             return match.group(1) if match else None
@@ -1841,7 +2216,10 @@ class Validator:
             assert record_id is not None
             if not STABLE_AGENT_ID_RE.fullmatch(record_id):
                 if path in expected_paths:
-                    self.add_error(path, f"frontmatter id is not a stable M/E/P id: {record_id!r}")
+                    self.add_error(
+                        path,
+                        f"frontmatter id is not a stable M/W/E/P id: {record_id!r}",
+                    )
                 continue
             expected_id = expected_paths.get(path)
             if expected_id is None:
@@ -1857,6 +2235,7 @@ class Validator:
 
     def run(self) -> int:
         self.validate_agent_frontmatter_ids()
+        self.validate_plan_delivery_graph()
         actual_session_ids: set[str] = set()
         if not self.repo_root.is_dir():
             self.add_error(self.repo_root, "repository root is not a directory")

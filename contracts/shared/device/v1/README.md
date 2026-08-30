@@ -1,6 +1,6 @@
 # Shared Device Layout v1
 
-This directory is the canonical owner of the mmap-visible M0001 registry, device,
+This directory is the canonical owner of the mmap-visible M0100 registry, device,
 telemetry, handle, and memfd-ring layouts. Consumers include
 `metaflux/shared/device.h`; they do not reproduce field lists or offsets.
 
@@ -77,7 +77,7 @@ thread, prohibited, and exclusive process in numeric order 0-3. Writers preserve
 unknown bits, publish policy through the device-validation update protocol, and
 acknowledge a setter only after a stable fence read confirms the requested value.
 
-M0001 fixes table capacities at 16 attempts, 32 leases, 16 device updates, 16
+M0100 fixes table capacities at 16 attempts, 32 leases, 16 device updates, 16
 lifecycle ranges, 18 view publications, and 9 telemetry publications. The last
 two view-publication slots are reserved for closing and terminal publication;
 the last telemetry-publication slot is reserved for terminal publication. Those

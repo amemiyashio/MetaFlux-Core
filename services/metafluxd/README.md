@@ -88,7 +88,7 @@ performance runners require direct H2D and DtoH activity with all staged counter
 at zero; older clients still use the staged compatibility path.
 
 Observer sessions may also negotiate `MF_CLIENT_CAP_POLICY_SETTERS_V1` for the
-two payload-free M0001 policy operations. The target is the immutable identity
+two payload-free M0100 policy operations. The target is the immutable identity
 record, and the argument is the canonical shared-device persistence or compute
 mode value. The daemon accepts a setter only from root or its own effective UID,
 serializes it with registry publication, preserves unknown policy bits, and sends

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Report staged PyTorch/CUDA compatibility gaps without claiming M0001 support."""
+"""Report staged PyTorch/CUDA compatibility gaps without claiming M0100 support."""
 
 from __future__ import annotations
 
@@ -373,7 +373,7 @@ def run_probe(
     report: dict[str, Any] = {
         "schema_version": 1,
         "probe": "metaflux-pytorch-cuda-gap-probe",
-        "scope": "diagnostic-only-not-m0001-compatibility-evidence",
+        "scope": "diagnostic-only-not-m0100-compatibility-evidence",
         "profile": profile_name,
         "expected_client": expected,
         "d0017": {key: value for key, value in d0017.items() if key != "compute_capability"},
@@ -459,7 +459,7 @@ def required_stage_exit_code(report: dict[str, Any], required_stage: str | None)
 def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Diagnose staged PyTorch/CUDA gaps. Success is not an M0001 compatibility claim."
+            "Diagnose staged PyTorch/CUDA gaps. Success is not an M0100 compatibility claim."
         )
     )
     parser.add_argument("--profile", required=True, choices=PROFILE_NAMES)
@@ -483,7 +483,7 @@ def main(argv: list[str] | None = None) -> int:
         report = {
             "schema_version": 1,
             "probe": "metaflux-pytorch-cuda-gap-probe",
-            "scope": "diagnostic-only-not-m0001-compatibility-evidence",
+            "scope": "diagnostic-only-not-m0100-compatibility-evidence",
             "fatal_error": str(error),
         }
         print(json.dumps(report, sort_keys=True, separators=(",", ":")))

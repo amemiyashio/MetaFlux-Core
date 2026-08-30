@@ -1,6 +1,7 @@
 ---
-id: MNNNN-WNN
-milestone: MNNNN
+id: WXYZW
+delivery: X.Y.Z.W
+milestone: MXYZ0
 status: Draft
 area: component.area
 depends_on: []
@@ -9,7 +10,9 @@ updated: YYYY-MM-DD
 
 # Work Item Title
 
-Instance path: `agent/plan/MNNNN-slug/work/WNN-slug.md`.
+Instance path: `agent/plan/MXYZ0-slug/work/WXYZW-slug.md`. The first three
+delivery components equal the parent release; the fourth is the local work
+ordinal.
 
 ## Objective
 

@@ -1,24 +1,29 @@
 ---
 status: Current
-updated: 2026-08-29
+updated: 2026-08-30
 ---
 
 # Durable Constraints
 
-Canonical product sources are [M0001](../plan/M0001-core-foundation/plan.md),
-[M0001-W03](../plan/M0001-core-foundation/work/W03-compiler-cpu.md), and
-[M0001-W06](../plan/M0001-core-foundation/work/W06-modes-release.md). Tool
+Canonical product sources are [M0100](../plan/M0100-core-foundation/plan.md),
+[W0103](../plan/M0100-core-foundation/work/W0103-compiler-cpu.md), and
+[W0106](../plan/M0100-core-foundation/work/W0106-modes-release.md). Tool
 identity and provisioning boundaries live in
 [`toolchains/README.md`](../../toolchains/README.md).
 
+- Product release identity comes from the root [`VERSION`](../../VERSION) and
+  remains standard three-part SemVer. Four-part delivery coordinates and their
+  derived M/W/S identifiers follow
+  [`docs/release-versioning.md`](../../docs/release-versioning.md) (D0024).
 - Target Linux x86_64 and glibc. Kernel work uses the target kernel's Kbuild.
 - The userspace glibc floor is 2.31 (Ubuntu 20.04, D0009). Provider `DT_NEEDED`
   is restricted to `libc.so.6` plus `libpthread.so.0` and `libdl.so.2` only
   where a pre-2.34 target requires them; the kernel-module validation matrix is
   independent of this floor.
-- The v0.1 generic release matrix is Ubuntu 20.04.6, Ubuntu 22.04.5,
-  Ubuntu 24.04.4, and Rocky Linux 9.8; NixOS 26.05 is a native-package-only
-  row (D0012). Per-run image and update digests remain required evidence.
+- The `v0.1.0` generic release matrix is Ubuntu 20.04.6, Ubuntu 22.04.5,
+  Ubuntu 24.04.4, and Rocky Linux 9.8 (D0012). Native NixOS VM/package
+  qualification belongs to the `v0.2.0` support expansion. Per-run image and
+  update digests remain required evidence.
 - Application-side providers and client fast path use C17 and keep LLVM/MLIR,
   Python, systemd, and the C++ runtime out of the provider closure.
 - Runtime services, compiler code, scheduler, and execution backends use C++20.
@@ -63,11 +68,15 @@ identity and provisioning boundaries live in
 - CPU execution uses effective physical cores and NUMA-local pools, does not
   oversubscribe, schedules indivisible CTAs, and keeps cross-node stealing off
   by default (D0015).
+- M0100 / `v0.1.0` host evidence is AMD x86_64. Intel x86_64 host qualification
+  belongs to `v0.2.0` (D0023).
 - Generic packages do not overwrite vendor-owned libraries or device nodes and
   do not require Nix store paths at runtime.
-- Performance budgets are acceptance gates, not aspirations; canonical values
-  and measurement rules live in
-  [M0001](../plan/M0001-core-foundation/plan.md).
+- M0100 performance budgets remain provisional throughout `v0.1.0`. Promotion
+  to binding budgets requires the physical NVIDIA H2D/D2H and passthrough
+  evidence owned by the `v0.2.0` support expansion; an AMD-only host run cannot
+  promote them. Canonical target values and measurement rules remain in
+  [M0100](../plan/M0100-core-foundation/plan.md).
 
 When a task would relax one of these constraints, create or update a canonical
 architecture decision before implementation.

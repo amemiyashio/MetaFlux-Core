@@ -136,7 +136,7 @@ passing check.
 
 ## Product Compile Contract
 
-The CMake owner must encode a checked-in target configuration before the W01
+The CMake owner must encode a checked-in target configuration before the W0101
 generic release gate closes. Do not make agents reconstruct a release command
 from memory, and do not implement the product build as a Nix derivation.
 
@@ -274,7 +274,7 @@ settings. Do not infer these values from the development shell name.
 Package only a clean target build:
 
 ```sh
-output_dir="../.metaflux-evidence/MetaFlux-Core/m0001-generic-packages"
+output_dir="../.metaflux-evidence/MetaFlux-Core/m0100-generic-packages"
 source_date_epoch="$(git show -s --format=%ct HEAD)"
 
 SOURCE_DATE_EPOCH="$source_date_epoch" \

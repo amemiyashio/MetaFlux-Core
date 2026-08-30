@@ -28,10 +28,12 @@ cover the complete change.
    the first file change:
 
    ```sh
-   python3 tools/new-session.py <slug>
+   python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>
    ```
 
-   For a read-only task, do not create an empty session.
+   Use the narrowest useful delivery scope from
+   [`docs/release-versioning.md`](../../../docs/release-versioning.md). For a
+   read-only task, do not create an empty session.
 5. When resuming an active session, inspect only whether its `guidance/` inbox
    contains a ready packet. Do not load guidance as routine session context. If
    one exists, or the user explicitly requests guidance publication or

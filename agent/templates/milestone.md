@@ -1,6 +1,7 @@
 ---
-id: MNNNN
-release: vX.Y
+id: MXYZ0
+delivery: X.Y.Z.0
+release: vX.Y.Z
 status: Draft
 budgets: provisional
 depends_on: []
@@ -8,9 +9,10 @@ areas: []
 updated: YYYY-MM-DD
 ---
 
-# MNNNN: Milestone Title
+# MXYZ0: Milestone Title
 
-Instance path: `agent/plan/MNNNN-slug/plan.md`.
+Instance path: `agent/plan/MXYZ0-slug/plan.md`. Derive the compact ID from the
+explicit delivery coordinate; do not allocate an unrelated serial.
 
 ## Outcome
 
@@ -49,7 +51,7 @@ constraints here.
 
 | Work ID | Title | Status | Evidence |
 | --- | --- | --- | --- |
-| MNNNN-W01 | Title | Draft | Link |
+| WXYZ1 | Title | Draft | Link |
 
 ## Risks and unresolved decisions
 

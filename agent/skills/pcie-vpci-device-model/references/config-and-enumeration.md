@@ -2,11 +2,11 @@
 
 ## Canonical ownership
 
-The M0002 guest config/BAR profile is declared by the root manifest at
-`contracts/protocol/transport/v1/schema/manifest.json`. The M0003 vroot profile
+The M0110 guest config/BAR profile is declared by the root manifest at
+`contracts/protocol/transport/v1/schema/manifest.json`. The M0120 vroot profile
 is declared by
 `contracts/protocol/transport/v1/schema/extensions/vroot/v1/manifest.json`, which
-imports the frozen M0002 base and lifecycle-extension manifests by content hash
+imports the frozen M0110 base and lifecycle-extension manifests by content hash
 without changing either. The import closure de-duplicates an identical base tuple
 reached directly and through lifecycle; duplicate direct entries, cycles, and
 path/version/hash conflicts fail validation. Generated config images, writable masks, BAR tables,
@@ -15,13 +15,13 @@ copies are not authoritative.
 
 ## Profile matrix
 
-| Property | M0002 guest function | Initial M0003 vroot fixture |
+| Property | M0110 guest function | Initial M0120 vroot fixture |
 | --- | --- | --- |
 | Function type | QEMU `vfio-user-pci` Type-0 | Software-hosted Type-0 `pci_dev` |
 | Identity | CI `0x4D46:0x0001`, class `0x120000` | Same CI identity; optional default-off presentation policy |
 | Config size | Per pinned QEMU/profile contract | Preallocated 256-byte Type-0 image |
 | BAR/IRQ | BAR0, BAR2, BAR4/MSI-X | None initially |
-| Reset/hotplug | Static cold-plug, unadvertised observed reset is terminal in M0002 | Dynamic add/remove/re-add through M0003 lifecycle |
+| Reset/hotplug | Static cold-plug, unadvertised observed reset is terminal in M0110 | Dynamic add/remove/re-add through M0120 lifecycle |
 
 Release VID/DID is an open decision and requires the repository's registration
 or deployment-supplied process. Synthetic vendor identity is presentation only,

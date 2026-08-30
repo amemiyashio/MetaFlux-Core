@@ -16,7 +16,11 @@ import tempfile
 from typing import Iterable
 
 
-PROJECT_VERSION = "0.1.0"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_VERSION_FILE = PROJECT_ROOT / "VERSION"
+PROJECT_VERSION_PATTERN = re.compile(
+    r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\Z"
+)
 PACKAGE_ARCHITECTURE = "amd64"
 TAR_ARCHITECTURE = "x86_64"
 NIX_STORE_MARKER = b"/nix/store/"
@@ -334,6 +338,27 @@ fi
 """
 
 
+def validate_project_version(value: str, source: str) -> str:
+    if PROJECT_VERSION_PATTERN.fullmatch(value) is None:
+        raise ValueError(
+            f"{source} must contain exactly three numeric components "
+            f"without leading zeros; got {value!r}"
+        )
+    return value
+
+
+def read_project_version() -> str:
+    value = PROJECT_VERSION_FILE.read_text(encoding="ascii").strip()
+    return validate_project_version(value, str(PROJECT_VERSION_FILE))
+
+
+def parse_project_version(value: str) -> str:
+    try:
+        return validate_project_version(value, "--version")
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from error
+
+
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-dir", required=True, type=Path)
@@ -348,7 +373,11 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument("--target-sdk", type=Path)
     parser.add_argument("--generic-toolchain", type=Path)
-    parser.add_argument("--version", default=PROJECT_VERSION)
+    parser.add_argument(
+        "--version",
+        type=parse_project_version,
+        default=read_project_version(),
+    )
     parser.add_argument("--release", default="1")
     parser.add_argument(
         "--source-date-epoch",

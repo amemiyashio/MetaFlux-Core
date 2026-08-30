@@ -1,13 +1,13 @@
 ---
 name: gpu-virtualization-vfio-user
-description: Design or review QEMU/KVM vfio-user negotiation, shared guest RAM, DMA map and unmap, IOVA epochs, ioeventfd or IRQ transport, reset, disconnect, and failure containment. Use for M0002 static guest and M0003 vfio-user lifecycle-adapter work. Do not use for PCI config-space layout, kernel cdev UAPI, or physical VFIO passthrough setup.
+description: Design or review QEMU/KVM vfio-user negotiation, shared guest RAM, DMA map and unmap, IOVA epochs, ioeventfd or IRQ transport, reset, disconnect, and failure containment. Use for M0110 static guest and M0120 vfio-user lifecycle-adapter work. Do not use for PCI config-space layout, kernel cdev UAPI, or physical VFIO passthrough setup.
 ---
 
 # GPU Virtualization with vfio-user
 
 ## Inputs
 
-- The active M0002/M0003 work item, canonical transport-envelope manifest, and
+- The active M0110/M0120 work item, canonical transport-envelope manifest, and
   exact QEMU, libvfio-user, protocol, host kernel, and guest kernel matrix.
 - Server/device feature set, region and IRQ descriptors, shared-memory backend,
   DMA map/unmap records, worker lease, mapping/generation epochs, and reset/fault
@@ -27,7 +27,7 @@ model. Validate every guest-derived range, flag, offset, width, epoch, and quota
 - Use [guest DMA lifetime](references/guest-dma-lifetime.md) for shared guest RAM,
   map/unmap, IOVA validation, references, and drain.
 - Use [reset and failure](references/reset-and-failure.md) for disconnect,
-  terminal reset, worker/QEMU loss, and M0003 recovery boundaries.
+  terminal reset, worker/QEMU loss, and M0120 recovery boundaries.
 - Route host/guest kernel UAPI to `$linux-device-driver-uapi`, PCI config/BAR/
   MSI-X presentation to `$pcie-vpci-device-model`, and coordinated generation
   transitions to `$device-lifecycle-resilience`.
@@ -35,10 +35,10 @@ model. Validate every guest-derived range, flag, offset, width, epoch, and quota
 ## Workflow
 
 1. Freeze the QEMU/libvfio-user/protocol support matrix and state why vfio-user
-   is the selected M0002 model. Keep other virtualization models out of the
+   is the selected M0110 model. Keep other virtualization models out of the
    implementation path unless a later decision changes scope.
 2. Define standard vfio-user connection/feature negotiation separately from the
-   MetaFlux readiness profile. In M0002 advertise neither migration nor reset;
+   MetaFlux readiness profile. In M0110 advertise neither migration nor reset;
    direct mapping is accepted only when each required DMA map supplies a valid
    mmap-capable fd. Record region/IRQ inventory and exact rejection behavior
    before marking BAR0 ready.
@@ -54,9 +54,9 @@ model. Validate every guest-derived range, flag, offset, width, epoch, and quota
 6. Remove mappings from lookup before drain and acknowledge unmap only after all
    queue/backend/callback/host references are gone. Deadline failure transitions
    to lost and closes the connection without false success.
-7. Model reset/disconnect and stale completion fencing. M0002 does not advertise
+7. Model reset/disconnect and stale completion fencing. M0110 does not advertise
    the reset command; a guest/QEMU reset observation is terminal loss, and a
-   defensively received reset command never receives success. Only M0003
+   defensively received reset command never receives success. Only M0120
    lifecycle may advertise coordinated reset and publish a replacement generation.
 8. Treat vfio-user message IDs as sender-owned values echoed in replies: they may
    be reused concurrently, receivers assume no uniqueness, and they are never

@@ -107,4 +107,4 @@ treating a fixture compile as runtime or compatibility evidence.
 
 Primary repository sources: [runtime](../../../../runtime/README.md),
 [control/data-plane ownership](../../../../docs/architecture/control-and-data-plane.md),
-and [M0001-W02](../../../plan/M0001-core-foundation/work/W02-contracts-runtime.md).
+and [W0102](../../../plan/M0100-core-foundation/work/W0102-contracts-runtime.md).

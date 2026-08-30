@@ -21,6 +21,10 @@ add_executable(
   main.cpp
   server.cpp
 )
+target_compile_definitions(
+  metafluxd
+  PRIVATE "METAFLUX_PROJECT_VERSION=\"${PROJECT_VERSION}\""
+)
 
 target_link_libraries(
   metafluxd

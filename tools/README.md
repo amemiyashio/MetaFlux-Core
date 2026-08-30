@@ -71,15 +71,18 @@ every preset that enables tests.
 
 ## Session scaffolding
 
-`new-session.py` allocates the next `SYYYYMMDD-NNN` id for today, creates the
-session directory with a validator-clean skeleton, and appends the index row
-to `agent/sessions/README.md` so the index-completeness rule stays green:
+`new-session.py` accepts an explicit four-part delivery scope, allocates the
+next `S<delivery>-YYYYMMDD-NNN` id for today, creates the session directory with
+a validator-clean skeleton, and appends the index row to
+`agent/sessions/README.md` so the index-completeness rule stays green:
 
 ```sh
-python3 tools/new-session.py my-session-slug
+python3 tools/new-session.py 0.1.0.1 my-session-slug
 ```
 
-Fill the TODO fields as the session progresses. New sessions have
+The dotted `delivery` value is authoritative; its compact body is derived by
+concatenating the four decimal components. Fill the TODO fields as the session
+progresses. New sessions have
 `status: in_progress` and `ended_at: null`; closing the session records the end
 date and a terminal status. The skeleton passes `check-agent-records.py`
 immediately after creation.

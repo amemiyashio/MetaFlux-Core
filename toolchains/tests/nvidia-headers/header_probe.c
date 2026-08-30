@@ -3,7 +3,7 @@
 #include <nvml.h>
 
 #if !defined(CUDA_VERSION) || CUDA_VERSION < 12020
-#error "M0001 requires CUDA Driver headers from toolkit 12.2 or newer"
+#error "M0100 requires CUDA Driver headers from toolkit 12.2 or newer"
 #endif
 
 #if !defined(NVML_DEVICE_UUID_BUFFER_SIZE)

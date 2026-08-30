@@ -2,10 +2,10 @@
 
 ## Canonical ownership
 
-The root M0002 transport-envelope manifest lives under
+The root M0110 transport-envelope manifest lives under
 `contracts/protocol/transport/v1/schema/manifest.json`. Linux ioctl, mmap, and
 broker records remain authored in their zone under `contracts/uapi/linux/v1/`.
-Each definition on the frozen M0002 base allowlist is referenced exactly once by
+Each definition on the frozen M0110 base allowlist is referenced exactly once by
 that manifest. Later extension definitions stay outside the base closure and are
 referenced by their owning extension manifest. Generated kernel/userspace headers
 and byte/offset fixtures are projections, never competing sources of truth.
@@ -36,8 +36,8 @@ cache attributes, generation, revocation/tombstone behavior, fork policy, and
 VMA open/close ownership. Validate `vm_pgoff` conversion and overflow. Mapping a
 doorbell must not expose adjacent control pages.
 
-The base data-plane UAPI and extension namespace remain pre-freeze until M0002
-W04 evidence closes the open decisions. Versioning structure now must permit
+The base data-plane UAPI and extension namespace remain pre-freeze until M0110
+W0114 evidence closes the open decisions. Versioning structure now must permit
 that qualification without claiming v1 stability early.
 
 Primary source: [Linux ioctl design](https://docs.kernel.org/driver-api/ioctl.html).

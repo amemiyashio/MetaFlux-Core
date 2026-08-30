@@ -238,19 +238,19 @@ static int mf_client_registry_offsets_valid(const mf_shared_registry_header_v1* 
       extension->header_size != sizeof(*extension) || extension->flags != UINT32_C(0) ||
       extension->total_size != mapping_size ||
       !mf_registry_view_id_equal_v1(extension->registry_view_id, header->registry_view_id) ||
-      extension->admission_attempt_capacity != MF_SHARED_M0001_ADMISSION_ATTEMPT_CAPACITY ||
-      extension->admission_lease_capacity != MF_SHARED_M0001_ADMISSION_LEASE_CAPACITY ||
-      extension->device_update_capacity != MF_SHARED_M0001_DEVICE_UPDATE_CAPACITY ||
-      extension->lifecycle_range_capacity != MF_SHARED_M0001_LIFECYCLE_RANGE_CAPACITY ||
-      extension->view_publish_capacity != MF_SHARED_M0001_VIEW_PUBLISH_CAPACITY ||
-      extension->telemetry_publish_capacity != MF_SHARED_M0001_TELEMETRY_PUBLISH_CAPACITY ||
-      extension->ordinary_view_publish_capacity != MF_SHARED_M0001_VIEW_PUBLISH_ORDINARY_CAPACITY ||
+      extension->admission_attempt_capacity != MF_SHARED_M0100_ADMISSION_ATTEMPT_CAPACITY ||
+      extension->admission_lease_capacity != MF_SHARED_M0100_ADMISSION_LEASE_CAPACITY ||
+      extension->device_update_capacity != MF_SHARED_M0100_DEVICE_UPDATE_CAPACITY ||
+      extension->lifecycle_range_capacity != MF_SHARED_M0100_LIFECYCLE_RANGE_CAPACITY ||
+      extension->view_publish_capacity != MF_SHARED_M0100_VIEW_PUBLISH_CAPACITY ||
+      extension->telemetry_publish_capacity != MF_SHARED_M0100_TELEMETRY_PUBLISH_CAPACITY ||
+      extension->ordinary_view_publish_capacity != MF_SHARED_M0100_VIEW_PUBLISH_ORDINARY_CAPACITY ||
       extension->ordinary_telemetry_publish_capacity !=
-          MF_SHARED_M0001_TELEMETRY_PUBLISH_ORDINARY_CAPACITY ||
-      extension->close_closing_slot != MF_SHARED_M0001_VIEW_PUBLISH_ORDINARY_CAPACITY ||
+          MF_SHARED_M0100_TELEMETRY_PUBLISH_ORDINARY_CAPACITY ||
+      extension->close_closing_slot != MF_SHARED_M0100_VIEW_PUBLISH_ORDINARY_CAPACITY ||
       extension->close_terminal_slot !=
-          MF_SHARED_M0001_VIEW_PUBLISH_ORDINARY_CAPACITY + UINT32_C(1) ||
-      extension->telemetry_terminal_slot != MF_SHARED_M0001_TELEMETRY_PUBLISH_ORDINARY_CAPACITY) {
+          MF_SHARED_M0100_VIEW_PUBLISH_ORDINARY_CAPACITY + UINT32_C(1) ||
+      extension->telemetry_terminal_slot != MF_SHARED_M0100_TELEMETRY_PUBLISH_ORDINARY_CAPACITY) {
     return 0;
   }
 

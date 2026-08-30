@@ -1,6 +1,6 @@
 ---
 name: mlir-compiler-engineering
-description: Design or review Kernel IR to MLIR boundaries, ODS operations, verifiers, Dialect Conversion, TypeConverter use, pass pipelines, target-lowering conversion mechanics, compiler epochs, caches, diagnostics, and reproducers. Use for M0001 or M0004 compiler engineering. Do not use to redefine PTX semantics or own target-backend lowering policy, implementation, validation, or runtime behavior.
+description: Design or review Kernel IR to MLIR boundaries, ODS operations, verifiers, Dialect Conversion, TypeConverter use, pass pipelines, target-lowering conversion mechanics, compiler epochs, caches, diagnostics, and reproducers. Use for M0100 or M0130 compiler engineering. Do not use to redefine PTX semantics or own target-backend lowering policy, implementation, validation, or runtime behavior.
 ---
 
 # MLIR Compiler Engineering

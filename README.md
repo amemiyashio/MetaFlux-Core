@@ -26,8 +26,8 @@ nix develop . --command cmake --build --preset dev
 nix develop . --command ctest --preset dev
 ```
 
-The Linux kernel modules introduced in v0.2 are built separately by the target
-kernel's Kbuild environment.
+The Linux kernel modules introduced by M0110 / `v0.1.1` are built separately by
+the target kernel's Kbuild environment.
 
 MetaFlux project Agent context starts at [`agent/README.md`](agent/README.md),
 including project memory, progress, plans, validated experience, and work

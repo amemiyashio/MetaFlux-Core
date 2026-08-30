@@ -67,7 +67,7 @@ same lifecycle sequence. The peer must be root or the daemon owner; otherwise th
 response is `NO_PERMISSION`.
 
 Opcode 15 and capability bit 9 define `HOST_ADDRESS_SPACE_REGISTER` and
-`DIRECT_HOST_COPY` for the M0001 direct-copy extension. A compute client that
+`DIRECT_HOST_COPY` for the M0100 direct-copy extension. A compute client that
 negotiates the optional capability sends exactly one `PAYLOAD_FD | READ | WRITE`
 registration for the runtime context, with a zero argument and an `O_RDWR`
 descriptor opened from `/proc/self/mem`. The daemon accepts it only when its

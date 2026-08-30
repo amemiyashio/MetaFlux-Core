@@ -59,7 +59,7 @@ static corpus pass into a claim that implicit routing succeeded.
 
 The corpus includes:
 
-- ecosystem-neutral registry/client/backend contracts and M0002 schema ownership;
+- ecosystem-neutral registry/client/backend contracts and M0110 schema ownership;
 - CUDA/NVML view behavior including `CUDA_VISIBLE_DEVICES`, replacement
   generations, and provider revisions captured at different initialization times;
 - PTX semantics, MLIR conversion mechanics, and CPU/Vulkan target ownership;

@@ -3,12 +3,14 @@
 
 Builds a minimal valid agent/ tree in a temporary directory and asserts the
 validator's behavior on it, then mutates one aspect per case to pin every rule:
-required session fields, session lifecycle timestamps, contiguous event sequence
-numbers, guidance dispositions, transient-inbox isolation and cleanup, distillation,
-index completeness (both directions), Codex skill-package compatibility and
+required session fields, delivery-scoped session ids, lifecycle timestamps,
+contiguous event sequence numbers, guidance dispositions, transient-inbox isolation
+and cleanup, distillation, index completeness (both directions), milestone
+release/index consistency, M/W ownership, session-to-plan resolution, Codex
+skill-package compatibility and
 discovery, open-decision identity, decision-index references, staleness warnings,
-markdown link existence, checkpoint id/path agreement, current-progress
-freshness, latest-session status consistency, and the staged-guidance gate.
+markdown link existence, checkpoint id/path agreement, current-progress freshness,
+latest-session status consistency, and the staged-guidance gate.
 
 Run from anywhere:
 
@@ -42,39 +44,51 @@ check_agent_records = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(check_agent_records)
 Validator = check_agent_records.Validator
 
-SESSION_ID = "S20260828-001-selftest"
+SESSION_ID = "S0100-20260828-001-selftest"
 SESSION_DIR = f"agent/sessions/2026/08/{SESSION_ID}"
 SYMLINK_PREFIX = "SYMLINK->"
 
 BASE_FILES: dict[str, str] = {
-    "agent/plan/M0001-fixture/plan.md": (
+    "agent/plan/M0100-fixture/plan.md": (
         "---\n"
-        "id: M0001\n"
+        "id: M0100\n"
+        "release: v0.1.0\n"
+        "delivery: 0.1.0.0\n"
         "status: Active\n"
         "updated: 2026-08-28\n"
         "---\n"
-        "# M0001\n\n"
+        "# M0100\n\n"
         "## Decisions to Close\n\n"
         "1. One open decision.\n"
     ),
     "agent/plan/README.md": (
         "# Plans\n\n"
-        "| Milestone | Status |\n"
-        "| --- | --- |\n"
-        "| [M0001](M0001-fixture/plan.md) | Active |\n"
+        "| Milestone | Release | Status |\n"
+        "| --- | --- | --- |\n"
+        "| [M0100](M0100-fixture/plan.md) | v0.1.0 | Active |\n"
+    ),
+    "agent/plan/M0100-fixture/work/W0101-fixture.md": (
+        "---\n"
+        "id: W0101\n"
+        "milestone: M0100\n"
+        "delivery: 0.1.0.1\n"
+        "status: Active\n"
+        "updated: 2026-08-28\n"
+        "---\n"
+        "# W0101\n"
     ),
     "agent/memory/open-decisions.md": (
         "# Open Decisions\n\n"
         "| Milestone | Decision | Blocks | Closure |\n"
         "| --- | --- | --- | --- |\n"
-        "| M0001 | One open decision | fixture | fixture |\n"
+        "| M0100 | One open decision | fixture | fixture |\n"
     ),
     "agent/memory/decisions-index.md": (
         "# Decision Index\n\n"
         "| ID | Topic | Canonical source | Source status |\n"
         "| --- | --- | --- | --- |\n"
         "| D0001 | Fixture decision | "
-        "[M0001](../plan/M0001-fixture/plan.md) | Active plan |\n"
+        "[M0100](../plan/M0100-fixture/plan.md) | Active plan |\n"
     ),
     "agent/experience/README.md": "# Experience\n\nNo records yet.\n",
     "agent/sessions/README.md": (
@@ -87,6 +101,7 @@ BASE_FILES: dict[str, str] = {
         "{\n"
         '  "schema_version": 1,\n'
         f'  "id": "{SESSION_ID}",\n'
+        '  "delivery": "0.1.0.0",\n'
         '  "repository": "MetaFlux-Core",\n'
         '  "started_at": "2026-08-28",\n'
         '  "ended_at": "2026-08-28",\n'
@@ -94,8 +109,9 @@ BASE_FILES: dict[str, str] = {
         '  "status": "complete",\n'
         '  "fidelity": "exact",\n'
         '  "agents": [{"id": "A001", "role": "fixture"}],\n'
-        '  "milestones": [{"id": "M0001", "title": "Fixture", "status": "active", "event_seqs": [1]}],\n'
-        '  "work_items": [],\n'
+        '  "milestones": [{"id": "M0100", "title": "Fixture", "status": "active", "event_seqs": [1]}],\n'
+        '  "work_items": [{"id": "W0101", "milestone_id": "M0100", '
+        '"title": "Fixture work", "status": "active"}],\n'
         '  "base_revision": null,\n'
         '  "final_revision": null,\n'
         '  "event_log": "events.jsonl",\n'
@@ -248,6 +264,7 @@ def check_new_session_skeleton(root: Path) -> list[str]:
             sys.executable,
             "-B",
             str(NEW_SESSION_PATH),
+            "0.1.0.0",
             "lifecycle-fixture",
             "--repo-root",
             str(root),
@@ -278,6 +295,8 @@ def check_new_session_skeleton(root: Path) -> list[str]:
         problems.append("generated session status is not in_progress")
     if session.get("ended_at") is not None:
         problems.append("generated in-progress session has a non-null ended_at")
+    if session.get("delivery") != "0.1.0.0":
+        problems.append("generated session does not retain its delivery coordinate")
     if not summary.startswith("# Session Summary\n\n## Objective and outcome\n"):
         problems.append("generated summary does not use the current section shape")
 
@@ -286,6 +305,29 @@ def check_new_session_skeleton(root: Path) -> list[str]:
         problems.append(
             f"generated skeleton failed validation: code={code} "
             f"errors={errors} warnings={warnings}"
+        )
+
+    shutil.rmtree(root)
+    root.mkdir(parents=True)
+    write_tree(root, with_session_scope(BASE_FILES, "12.2.1.0"))
+    collision = subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            str(NEW_SESSION_PATH),
+            "1.2.2.10",
+            "collision-fixture",
+            "--repo-root",
+            str(root),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if collision.returncode == 0 or "ambiguous" not in collision.stderr:
+        problems.append(
+            "scaffolder accepted a compact delivery collision: "
+            f"exit={collision.returncode} stderr={collision.stderr.strip()!r}"
         )
     return problems
 
@@ -361,7 +403,7 @@ def check_pre_commit_guidance_gate(root: Path) -> list[str]:
         return environment
 
     guidance_path = Path(
-        "agent/sessions/2026/08/S20260828-001-selftest/guidance/G001-fixture.ready.md"
+        "agent/sessions/2026/08/S0100-20260828-001-selftest/guidance/G001-fixture.ready.md"
     )
 
     def prepare_tracked_path(tracked_path: Path) -> dict[str, str]:
@@ -672,9 +714,355 @@ def with_domain_skill(
     return mutated
 
 
+def with_multidigit_delivery(files: dict[str, str]) -> dict[str, str]:
+    """Remap the base graph to the 12.2.1.0/12.2.1.1 compression example."""
+    replacements = (
+        ("S0100", "S12210"),
+        ("M0100", "M12210"),
+        ("W0101", "W12211"),
+        ("v0.1.0", "v12.2.1"),
+        ("0.1.0.0", "12.2.1.0"),
+        ("0.1.0.1", "12.2.1.1"),
+    )
+    mutated: dict[str, str] = {}
+    for path, content in files.items():
+        for old, new in replacements:
+            path = path.replace(old, new)
+            content = content.replace(old, new)
+        mutated[path] = content
+    return mutated
+
+
+def with_session_parent_mismatch(files: dict[str, str]) -> dict[str, str]:
+    """Keep W0101 resolvable while assigning it to the wrong session M."""
+    mutated = dict(files)
+    session_path = f"{SESSION_DIR}/session.json"
+    session = json.loads(mutated[session_path])
+    session["milestones"].append(
+        {
+            "id": "M0110",
+            "title": "Wrong parent",
+            "status": "active",
+            "event_seqs": [1],
+        }
+    )
+    session["work_items"][0]["milestone_id"] = "M0110"
+    mutated[session_path] = json.dumps(session, indent=2) + "\n"
+    return mutated
+
+
+def with_session_scope(
+    files: dict[str, str], delivery: str
+) -> dict[str, str]:
+    """Move the fixture session to another explicit delivery scope."""
+    delivery_code = delivery.replace(".", "")
+    scoped_id = SESSION_ID.replace("S0100-", f"S{delivery_code}-", 1)
+    mutated: dict[str, str] = {}
+    for path, content in files.items():
+        path = path.replace(SESSION_ID, scoped_id)
+        content = content.replace(SESSION_ID, scoped_id)
+        mutated[path] = content
+    session_path = next(
+        path
+        for path in mutated
+        if path.startswith("agent/sessions/") and path.endswith("/session.json")
+    )
+    session = json.loads(mutated[session_path])
+    session["delivery"] = delivery
+    mutated[session_path] = json.dumps(session, indent=2) + "\n"
+    return mutated
+
+
+def with_session_compact_collision(files: dict[str, str]) -> dict[str, str]:
+    """Keep scope S12210 while changing its dotted coordinate ambiguously."""
+    mutated = with_multidigit_delivery(files)
+    session_path = next(
+        path
+        for path in mutated
+        if path.startswith("agent/sessions/") and path.endswith("/session.json")
+    )
+    session = json.loads(mutated[session_path])
+    session["delivery"] = "1.2.2.10"
+    mutated[session_path] = json.dumps(session, indent=2) + "\n"
+    return mutated
+
+
+def with_work_compact_collision(files: dict[str, str]) -> dict[str, str]:
+    """Add a valid W whose coordinate collides with another M compact body."""
+    mutated = with_multidigit_delivery(files)
+    mutated["agent/plan/M1220-collision-parent/plan.md"] = (
+        "---\n"
+        "id: M1220\n"
+        "release: v1.2.2\n"
+        "delivery: 1.2.2.0\n"
+        "status: Queued\n"
+        "updated: 2026-08-28\n"
+        "---\n"
+        "# M1220\n"
+    )
+    mutated["agent/plan/M1220-collision-parent/work/W12210-collision.md"] = (
+        "---\n"
+        "id: W12210\n"
+        "milestone: M1220\n"
+        "delivery: 1.2.2.10\n"
+        "status: Queued\n"
+        "updated: 2026-08-28\n"
+        "---\n"
+        "# W12210\n"
+    )
+    mutated["agent/plan/README.md"] += (
+        "| [M1220](M1220-collision-parent/plan.md) | v1.2.2 | Queued |\n"
+    )
+    return mutated
+
+
 CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
     # name, files, expect failure, expect warning
-    ("valid base tree", BASE_FILES, False, False),
+    ("valid release and M/W/session graph", BASE_FILES, False, False),
+    (
+        "multi-digit delivery components concatenate directly",
+        with_multidigit_delivery(BASE_FILES),
+        False,
+        False,
+    ),
+    (
+        "legacy unscoped session id is rejected",
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/session.json",
+            SESSION_ID,
+            "S20260828-001-selftest",
+        ),
+        True,
+        False,
+    ),
+    (
+        "session delivery is required",
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/session.json",
+            '  "delivery": "0.1.0.0",\n',
+            "",
+        ),
+        True,
+        False,
+    ),
+    (
+        "session delivery components are canonical",
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/session.json",
+            '"delivery": "0.1.0.0"',
+            '"delivery": "0.01.0.0"',
+        ),
+        True,
+        False,
+    ),
+    (
+        "session id scope derives from delivery",
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/session.json",
+            '"delivery": "0.1.0.0"',
+            '"delivery": "0.1.0.1"',
+        ),
+        True,
+        False,
+    ),
+    (
+        "session id date uses scoped capture position",
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/session.json",
+            SESSION_ID,
+            "S0100-20260230-001-selftest",
+        ),
+        True,
+        False,
+    ),
+    (
+        "session delivery rejects compact collision with milestone",
+        with_session_compact_collision(BASE_FILES),
+        True,
+        False,
+    ),
+    (
+        "work delivery rejects compact collision with milestone",
+        with_work_compact_collision(BASE_FILES),
+        True,
+        False,
+    ),
+    (
+        "milestone release is required exactly once",
+        replace(
+            BASE_FILES,
+            "agent/plan/M0100-fixture/plan.md",
+            "release: v0.1.0\n",
+            "",
+        ),
+        True,
+        False,
+    ),
+    (
+        "milestone release cannot repeat",
+        replace(
+            BASE_FILES,
+            "agent/plan/M0100-fixture/plan.md",
+            "release: v0.1.0\n",
+            "release: v0.1.0\nrelease: v0.1.0\n",
+        ),
+        True,
+        False,
+    ),
+    (
+        "milestone release requires v prefix",
+        replace(
+            BASE_FILES,
+            "agent/plan/M0100-fixture/plan.md",
+            "release: v0.1.0",
+            "release: 0.1.0",
+        ),
+        True,
+        False,
+    ),
+    (
+        "milestone release requires three parts",
+        replace(
+            BASE_FILES,
+            "agent/plan/M0100-fixture/plan.md",
+            "release: v0.1.0",
+            "release: v0.1",
+        ),
+        True,
+        False,
+    ),
+    (
+        "milestone release rejects leading zeros",
+        replace(
+            BASE_FILES,
+            "agent/plan/M0100-fixture/plan.md",
+            "release: v0.1.0",
+            "release: v00.1.0",
+        ),
+        True,
+        False,
+    ),
+    (
+        "milestone delivery is required exactly once",
+        replace(
+            BASE_FILES,
+            "agent/plan/M0100-fixture/plan.md",
+            "delivery: 0.1.0.0\n",
+            "",
+        ),
+        True,
+        False,
+    ),
+    (
+        "delivery components reject leading zeros",
+        replace(
+            BASE_FILES,
+            "agent/plan/M0100-fixture/plan.md",
+            "delivery: 0.1.0.0",
+            "delivery: 0.01.0.0",
+        ),
+        True,
+        False,
+    ),
+    (
+        "milestone delivery uses work zero",
+        replace(
+            BASE_FILES,
+            "agent/plan/M0100-fixture/plan.md",
+            "delivery: 0.1.0.0",
+            "delivery: 0.1.0.1",
+        ),
+        True,
+        False,
+    ),
+    (
+        "milestone delivery must match release core",
+        replace(
+            BASE_FILES,
+            "agent/plan/M0100-fixture/plan.md",
+            "delivery: 0.1.0.0",
+            "delivery: 0.1.1.0",
+        ),
+        True,
+        False,
+    ),
+    (
+        "plan index release must match milestone plan",
+        replace(
+            BASE_FILES,
+            "agent/plan/README.md",
+            "v0.1.0",
+            "v0.1.1",
+        ),
+        True,
+        False,
+    ),
+    (
+        "work item milestone is required exactly once",
+        replace(
+            BASE_FILES,
+            "agent/plan/M0100-fixture/work/W0101-fixture.md",
+            "milestone: M0100\n",
+            "",
+        ),
+        True,
+        False,
+    ),
+    (
+        "work item milestone must match path and delivery",
+        replace(
+            BASE_FILES,
+            "agent/plan/M0100-fixture/work/W0101-fixture.md",
+            "milestone: M0100",
+            "milestone: M0110",
+        ),
+        True,
+        False,
+    ),
+    (
+        "work item delivery uses nonzero work ordinal",
+        replace(
+            BASE_FILES,
+            "agent/plan/M0100-fixture/work/W0101-fixture.md",
+            "delivery: 0.1.0.1",
+            "delivery: 0.1.0.0",
+        ),
+        True,
+        False,
+    ),
+    (
+        "work item id derives from delivery",
+        replace(
+            BASE_FILES,
+            "agent/plan/M0100-fixture/work/W0101-fixture.md",
+            "delivery: 0.1.0.1",
+            "delivery: 0.1.0.2",
+        ),
+        True,
+        False,
+    ),
+    (
+        "session work item must resolve to durable W record",
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/session.json",
+            '"id": "W0101"',
+            '"id": "W0102"',
+        ),
+        True,
+        False,
+    ),
+    (
+        "session work item must belong to declared milestone",
+        with_session_parent_mismatch(BASE_FILES),
+        True,
+        False,
+    ),
     (
         "session missing required field",
         replace(BASE_FILES, f"{SESSION_DIR}/session.json", '"time_precision": "date",\n', ""),
@@ -944,7 +1332,7 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         mutate(
             {
                 "agent/sessions/README.md": BASE_FILES["agent/sessions/README.md"]
-                + "| [S20260828-002-ghost](2026/08/S20260828-002-ghost/summary.md) | 2026-08-28 | Exact | Complete | ghost |\n"
+                + "| [S0100-20260828-002-ghost](2026/08/S0100-20260828-002-ghost/summary.md) | 2026-08-28 | Exact | Complete | ghost |\n"
             }
         ),
         True,
@@ -952,7 +1340,7 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
     ),
     (
         "ledger row missing",
-        mutate({"agent/memory/open-decisions.md": BASE_FILES["agent/memory/open-decisions.md"].replace("| M0001 | One open decision | fixture | fixture |\n", "")}),
+        mutate({"agent/memory/open-decisions.md": BASE_FILES["agent/memory/open-decisions.md"].replace("| M0100 | One open decision | fixture | fixture |\n", "")}),
         True,
         False,
     ),
@@ -961,7 +1349,7 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         mutate(
             {
                 "agent/memory/open-decisions.md": BASE_FILES["agent/memory/open-decisions.md"]
-                + "| M0001 | Extra decision | fixture | fixture |\n"
+                + "| M0100 | Extra decision | fixture | fixture |\n"
             }
         ),
         True,
@@ -994,7 +1382,7 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         replace(
             replace(
                 BASE_FILES,
-                "agent/plan/M0001-fixture/plan.md",
+                "agent/plan/M0100-fixture/plan.md",
                 "One open decision.",
                 "选择供应商路径。",
             ),
@@ -1010,7 +1398,7 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         replace(
             replace(
                 BASE_FILES,
-                "agent/plan/M0001-fixture/plan.md",
+                "agent/plan/M0100-fixture/plan.md",
                 "One open decision.",
                 "Provider owns registry; daemon consumes policy.",
             ),
@@ -1028,7 +1416,7 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
                 "agent/memory/open-decisions.md": BASE_FILES[
                     "agent/memory/open-decisions.md"
                 ]
-                + "| M0001 | One open decision | fixture | fixture |\n"
+                + "| M0100 | One open decision | fixture | fixture |\n"
             }
         ),
         True,
@@ -1042,7 +1430,7 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
                     "agent/memory/decisions-index.md"
                 ]
                 + "| D0001 | Duplicate | "
-                "[M0001](../plan/M0001-fixture/plan.md) | Active plan |\n"
+                "[M0100](../plan/M0100-fixture/plan.md) | Active plan |\n"
             }
         ),
         True,
@@ -1077,7 +1465,7 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
     ),
     (
         "stale active plan warns without failing",
-        replace(BASE_FILES, "agent/plan/M0001-fixture/plan.md", "updated: 2026-08-28", "updated: 2026-07-01"),
+        replace(BASE_FILES, "agent/plan/M0100-fixture/plan.md", "updated: 2026-08-28", "updated: 2026-07-01"),
         False,
         True,
     ),
@@ -1118,7 +1506,7 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
     ),
     (
         "latest session status drift warns without failing",
-        replace(BASE_FILES, "agent/plan/M0001-fixture/plan.md", "status: Active", "status: Queued"),
+        replace(BASE_FILES, "agent/plan/M0100-fixture/plan.md", "status: Active", "status: Queued"),
         False,
         True,
     ),

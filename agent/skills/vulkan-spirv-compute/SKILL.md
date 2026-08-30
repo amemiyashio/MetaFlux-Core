@@ -1,13 +1,13 @@
 ---
 name: vulkan-spirv-compute
-description: Design or review Vulkan 1.3 compute device and queue selection, capability profiles, buffer device address, memory and Synchronization2, SPIR-V target environments and validation, pipeline caches, device loss, and rejection of unsupported subgroup assumptions. Use for M0004 Vulkan backend work. Do not use for MLIR conversion mechanics, graphics, or presentation.
+description: Design or review Vulkan 1.3 compute device and queue selection, capability profiles, buffer device address, memory and Synchronization2, SPIR-V target environments and validation, pipeline caches, device loss, and rejection of unsupported subgroup assumptions. Use for M0130 Vulkan backend work. Do not use for MLIR conversion mechanics, graphics, or presentation.
 ---
 
 # Vulkan and SPIR-V Compute
 
 ## Inputs
 
-- The active M0004 work item, exact Vulkan loader/ICD/driver-family matrix,
+- The active M0130 work item, exact Vulkan loader/ICD/driver-family matrix,
   physical-device properties/features/limits, and serialized target environment.
 - Kernel IR semantic requirements, SPIR-V module/reflection, packed argument ABI,
   memory tier, queue/timeline plan, cache keys, and lifecycle generation.
@@ -58,7 +58,7 @@ target environment and cache identity.
    weaken dependencies; no CUDA stream mode crosses this target boundary.
 6. Validate and reflect SPIR-V before creating a shader module/pipeline. Publish
    portable and device-bound cache entries atomically with complete identities.
-7. Integrate device loss with the M0003 authority: stop admission, isolate old
+7. Integrate device loss with the M0120 authority: stop admission, isolate old
    resources, publish lost by deadline, and never reuse a failed context or its
    device addresses.
 

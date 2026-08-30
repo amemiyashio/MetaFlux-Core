@@ -35,7 +35,8 @@ honor an explicit user request to keep work uncommitted.
 ## Steps
 
 1. Scaffold before the first durable edit with
-   `python3 tools/new-session.py <slug>`. Replace the objective immediately.
+   `python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>`. Use the
+   narrowest useful delivery scope and replace the objective immediately.
 2. Record only material decisions, non-obvious commands, verification results,
    and findings needed to resume or reproduce the outcome. Omit routine command
    chatter and raw output that does not change a decision.

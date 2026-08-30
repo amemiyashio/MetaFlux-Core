@@ -1,6 +1,6 @@
 ---
 name: cuda-driver-abi-compatibility
-description: Design or review libcuda.so compatibility for CUDA Driver symbols, ELF version aliases, cuGetProcAddress, contexts, modules, memory, streams, events, and CUDA error behavior. Use for M0001 provider ABI work or CUDA-visible M0003 lifecycle behavior. Do not use for PTX semantics, compiler lowering, NVML telemetry, or backend execution policy.
+description: Design or review libcuda.so compatibility for CUDA Driver symbols, ELF version aliases, cuGetProcAddress, contexts, modules, memory, streams, events, and CUDA error behavior. Use for M0100 provider ABI work or CUDA-visible M0120 lifecycle behavior. Do not use for PTX semantics, compiler lowering, NVML telemetry, or backend execution policy.
 ---
 
 # CUDA Driver ABI Compatibility

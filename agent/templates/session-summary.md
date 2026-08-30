@@ -1,5 +1,6 @@
 ---
-id: SYYYYMMDD-NNN-slug
+id: SXYZW-YYYYMMDD-NNN-slug
+delivery: X.Y.Z.W
 status: complete
 fidelity: exact
 started_at: YYYY-MM-DD
@@ -13,7 +14,7 @@ date only when recording a terminal status.
 
 # Session Summary
 
-Instance path: `agent/sessions/YYYY/MM/SYYYYMMDD-NNN-slug/summary.md`.
+Instance path: `agent/sessions/YYYY/MM/SXYZW-YYYYMMDD-NNN-slug/summary.md`.
 
 ## Objective and outcome
 

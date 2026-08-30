@@ -114,32 +114,32 @@ struct RegistryLayout final {
     return false;
   }
   layout.admission_attempts = offset;
-  if (!advance_layout(offset, MF_SHARED_M0001_ADMISSION_ATTEMPT_CAPACITY,
+  if (!advance_layout(offset, MF_SHARED_M0100_ADMISSION_ATTEMPT_CAPACITY,
                       sizeof(mf_admission_attempt_record_v1))) {
     return false;
   }
   layout.admission_leases = offset;
-  if (!advance_layout(offset, MF_SHARED_M0001_ADMISSION_LEASE_CAPACITY,
+  if (!advance_layout(offset, MF_SHARED_M0100_ADMISSION_LEASE_CAPACITY,
                       sizeof(mf_admission_lease_record_v1))) {
     return false;
   }
   layout.device_updates = offset;
-  if (!advance_layout(offset, MF_SHARED_M0001_DEVICE_UPDATE_CAPACITY,
+  if (!advance_layout(offset, MF_SHARED_M0100_DEVICE_UPDATE_CAPACITY,
                       sizeof(mf_device_validation_update_record_v1))) {
     return false;
   }
   layout.lifecycle_ranges = offset;
-  if (!advance_layout(offset, MF_SHARED_M0001_LIFECYCLE_RANGE_CAPACITY,
+  if (!advance_layout(offset, MF_SHARED_M0100_LIFECYCLE_RANGE_CAPACITY,
                       sizeof(mf_lifecycle_range_record_v1))) {
     return false;
   }
   layout.view_publish_records = offset;
-  if (!advance_layout(offset, MF_SHARED_M0001_VIEW_PUBLISH_CAPACITY,
+  if (!advance_layout(offset, MF_SHARED_M0100_VIEW_PUBLISH_CAPACITY,
                       sizeof(mf_view_publish_record_v1))) {
     return false;
   }
   layout.telemetry_publish_records = offset;
-  if (!advance_layout(offset, MF_SHARED_M0001_TELEMETRY_PUBLISH_CAPACITY,
+  if (!advance_layout(offset, MF_SHARED_M0100_TELEMETRY_PUBLISH_CAPACITY,
                       sizeof(mf_telemetry_publish_record_v1))) {
     return false;
   }
@@ -411,12 +411,12 @@ mf_shared_status_v1 RegistryView::initialize(
     extension->header_size = static_cast<std::uint32_t>(sizeof(*extension));
     extension->total_size = mapping_size;
     extension->registry_view_id = view_id;
-    extension->admission_attempt_capacity = MF_SHARED_M0001_ADMISSION_ATTEMPT_CAPACITY;
-    extension->admission_lease_capacity = MF_SHARED_M0001_ADMISSION_LEASE_CAPACITY;
-    extension->device_update_capacity = MF_SHARED_M0001_DEVICE_UPDATE_CAPACITY;
-    extension->lifecycle_range_capacity = MF_SHARED_M0001_LIFECYCLE_RANGE_CAPACITY;
-    extension->view_publish_capacity = MF_SHARED_M0001_VIEW_PUBLISH_CAPACITY;
-    extension->telemetry_publish_capacity = MF_SHARED_M0001_TELEMETRY_PUBLISH_CAPACITY;
+    extension->admission_attempt_capacity = MF_SHARED_M0100_ADMISSION_ATTEMPT_CAPACITY;
+    extension->admission_lease_capacity = MF_SHARED_M0100_ADMISSION_LEASE_CAPACITY;
+    extension->device_update_capacity = MF_SHARED_M0100_DEVICE_UPDATE_CAPACITY;
+    extension->lifecycle_range_capacity = MF_SHARED_M0100_LIFECYCLE_RANGE_CAPACITY;
+    extension->view_publish_capacity = MF_SHARED_M0100_VIEW_PUBLISH_CAPACITY;
+    extension->telemetry_publish_capacity = MF_SHARED_M0100_TELEMETRY_PUBLISH_CAPACITY;
     extension->view_publisher_control_offset = layout.view_publisher;
     extension->telemetry_publisher_control_offset = layout.telemetry_publisher;
     extension->admission_attempts_offset = layout.admission_attempts;
@@ -425,39 +425,39 @@ mf_shared_status_v1 RegistryView::initialize(
     extension->lifecycle_ranges_offset = layout.lifecycle_ranges;
     extension->view_publish_records_offset = layout.view_publish_records;
     extension->telemetry_publish_records_offset = layout.telemetry_publish_records;
-    extension->ordinary_view_publish_capacity = MF_SHARED_M0001_VIEW_PUBLISH_ORDINARY_CAPACITY;
+    extension->ordinary_view_publish_capacity = MF_SHARED_M0100_VIEW_PUBLISH_ORDINARY_CAPACITY;
     extension->ordinary_telemetry_publish_capacity =
-        MF_SHARED_M0001_TELEMETRY_PUBLISH_ORDINARY_CAPACITY;
-    extension->close_closing_slot = MF_SHARED_M0001_VIEW_PUBLISH_ORDINARY_CAPACITY;
-    extension->close_terminal_slot = MF_SHARED_M0001_VIEW_PUBLISH_ORDINARY_CAPACITY + 1U;
-    extension->telemetry_terminal_slot = MF_SHARED_M0001_TELEMETRY_PUBLISH_ORDINARY_CAPACITY;
+        MF_SHARED_M0100_TELEMETRY_PUBLISH_ORDINARY_CAPACITY;
+    extension->close_closing_slot = MF_SHARED_M0100_VIEW_PUBLISH_ORDINARY_CAPACITY;
+    extension->close_terminal_slot = MF_SHARED_M0100_VIEW_PUBLISH_ORDINARY_CAPACITY + 1U;
+    extension->telemetry_terminal_slot = MF_SHARED_M0100_TELEMETRY_PUBLISH_ORDINARY_CAPACITY;
 
     view_publisher->tagged_owner =
         mf_publisher_control_pack_v1(0U, MF_PUBLISHER_IDLE, MF_SHARED_RECORD_SLOT_NONE);
     telemetry_publisher->tagged_owner =
         mf_publisher_control_pack_v1(0U, MF_PUBLISHER_IDLE, MF_SHARED_RECORD_SLOT_NONE);
-    for (std::uint32_t index = 0; index < MF_SHARED_M0001_ADMISSION_ATTEMPT_CAPACITY; ++index) {
+    for (std::uint32_t index = 0; index < MF_SHARED_M0100_ADMISSION_ATTEMPT_CAPACITY; ++index) {
       attempts[index].target_lease_slot = MF_SHARED_RECORD_SLOT_NONE;
       attempts[index].tagged_phase =
           mf_admission_attempt_phase_pack_v1(0U, MF_ADMISSION_ATTEMPT_IDLE);
     }
-    for (std::uint32_t index = 0; index < MF_SHARED_M0001_ADMISSION_LEASE_CAPACITY; ++index) {
+    for (std::uint32_t index = 0; index < MF_SHARED_M0100_ADMISSION_LEASE_CAPACITY; ++index) {
       leases[index].attempt_slot = MF_SHARED_RECORD_SLOT_NONE;
       leases[index].tagged_state =
           mf_admission_lease_state_pack_v1(0U, MF_ADMISSION_LEASE_FREE, 0U);
     }
-    for (std::uint32_t index = 0; index < MF_SHARED_M0001_DEVICE_UPDATE_CAPACITY; ++index) {
+    for (std::uint32_t index = 0; index < MF_SHARED_M0100_DEVICE_UPDATE_CAPACITY; ++index) {
       updates[index].view_publish_slot = MF_SHARED_RECORD_SLOT_NONE;
       updates[index].tagged_state =
           mf_device_update_state_pack_v1(0U, MF_DEVICE_UPDATE_FREE, MF_SHARED_RECORD_SLOT_NONE);
     }
-    for (std::uint32_t index = 0; index < MF_SHARED_M0001_LIFECYCLE_RANGE_CAPACITY; ++index) {
+    for (std::uint32_t index = 0; index < MF_SHARED_M0100_LIFECYCLE_RANGE_CAPACITY; ++index) {
       ranges[index].predecessor_tail_slot = MF_SHARED_RECORD_SLOT_NONE;
       ranges[index].next_tail_slot = MF_SHARED_RECORD_SLOT_NONE;
       ranges[index].tagged_state = mf_lifecycle_range_state_pack_v1(
           0U, MF_LIFECYCLE_RANGE_FREE, MF_LIFECYCLE_RANGE_DISPOSITION_NONE);
     }
-    for (std::uint32_t index = 0; index < MF_SHARED_M0001_VIEW_PUBLISH_ORDINARY_CAPACITY; ++index) {
+    for (std::uint32_t index = 0; index < MF_SHARED_M0100_VIEW_PUBLISH_ORDINARY_CAPACITY; ++index) {
       view_records[index].range_slot = MF_SHARED_RECORD_SLOT_NONE;
       view_records[index].tagged_state =
           mf_view_publish_state_pack_v1(0U, MF_VIEW_PUBLISH_FREE, MF_SHARED_RECORD_SLOT_NONE);
@@ -472,7 +472,7 @@ mf_shared_status_v1 RegistryView::initialize(
     terminal_record.operation_kind = MF_VIEW_PUBLISH_KIND_CLOSE_TERMINAL;
     terminal_record.tagged_state = mf_view_publish_state_pack_v1(
         MF_SHARED_RECORD_TAG_TERMINAL, MF_VIEW_PUBLISH_PREPARED, MF_SHARED_RECORD_SLOT_NONE);
-    for (std::uint32_t index = 0; index < MF_SHARED_M0001_TELEMETRY_PUBLISH_ORDINARY_CAPACITY;
+    for (std::uint32_t index = 0; index < MF_SHARED_M0100_TELEMETRY_PUBLISH_ORDINARY_CAPACITY;
          ++index) {
       telemetry_records[index].tagged_state =
           mf_telemetry_publish_state_pack_v1(0U, MF_TELEMETRY_PUBLISH_FREE, 0U);
@@ -541,19 +541,19 @@ mf_shared_status_v1 RegistryView::attach(void* mapping, std::uint64_t mapping_si
         extension->header_size != sizeof(*extension) || extension->flags != 0U ||
         extension->total_size != mapping_size ||
         !mf_registry_view_id_equal_v1(extension->registry_view_id, header->registry_view_id) ||
-        extension->admission_attempt_capacity != MF_SHARED_M0001_ADMISSION_ATTEMPT_CAPACITY ||
-        extension->admission_lease_capacity != MF_SHARED_M0001_ADMISSION_LEASE_CAPACITY ||
-        extension->device_update_capacity != MF_SHARED_M0001_DEVICE_UPDATE_CAPACITY ||
-        extension->lifecycle_range_capacity != MF_SHARED_M0001_LIFECYCLE_RANGE_CAPACITY ||
-        extension->view_publish_capacity != MF_SHARED_M0001_VIEW_PUBLISH_CAPACITY ||
-        extension->telemetry_publish_capacity != MF_SHARED_M0001_TELEMETRY_PUBLISH_CAPACITY ||
+        extension->admission_attempt_capacity != MF_SHARED_M0100_ADMISSION_ATTEMPT_CAPACITY ||
+        extension->admission_lease_capacity != MF_SHARED_M0100_ADMISSION_LEASE_CAPACITY ||
+        extension->device_update_capacity != MF_SHARED_M0100_DEVICE_UPDATE_CAPACITY ||
+        extension->lifecycle_range_capacity != MF_SHARED_M0100_LIFECYCLE_RANGE_CAPACITY ||
+        extension->view_publish_capacity != MF_SHARED_M0100_VIEW_PUBLISH_CAPACITY ||
+        extension->telemetry_publish_capacity != MF_SHARED_M0100_TELEMETRY_PUBLISH_CAPACITY ||
         extension->ordinary_view_publish_capacity !=
-            MF_SHARED_M0001_VIEW_PUBLISH_ORDINARY_CAPACITY ||
+            MF_SHARED_M0100_VIEW_PUBLISH_ORDINARY_CAPACITY ||
         extension->ordinary_telemetry_publish_capacity !=
-            MF_SHARED_M0001_TELEMETRY_PUBLISH_ORDINARY_CAPACITY ||
-        extension->close_closing_slot != MF_SHARED_M0001_VIEW_PUBLISH_ORDINARY_CAPACITY ||
-        extension->close_terminal_slot != MF_SHARED_M0001_VIEW_PUBLISH_ORDINARY_CAPACITY + 1U ||
-        extension->telemetry_terminal_slot != MF_SHARED_M0001_TELEMETRY_PUBLISH_ORDINARY_CAPACITY ||
+            MF_SHARED_M0100_TELEMETRY_PUBLISH_ORDINARY_CAPACITY ||
+        extension->close_closing_slot != MF_SHARED_M0100_VIEW_PUBLISH_ORDINARY_CAPACITY ||
+        extension->close_terminal_slot != MF_SHARED_M0100_VIEW_PUBLISH_ORDINARY_CAPACITY + 1U ||
+        extension->telemetry_terminal_slot != MF_SHARED_M0100_TELEMETRY_PUBLISH_ORDINARY_CAPACITY ||
         extension->view_publisher_control_offset != layout.view_publisher ||
         extension->telemetry_publisher_control_offset != layout.telemetry_publisher ||
         extension->admission_attempts_offset != layout.admission_attempts ||

@@ -28,7 +28,7 @@ runner owns daemon startup, socket and provider selection, execution-mode input,
 timeouts, and cleanup so one unchanged application binary qualifies every CPU
 execution mode.
 
-The [M0001 performance harness](performance/README.md) replaces the old
+The [M0100 performance harness](performance/README.md) replaces the old
 bootstrap-call timing placeholder with active memfd ring, managed CUDA Add/Copy,
 and managed NVML measurements. It archives raw samples and an exact host,
 placement, toolchain, source, and binary fingerprint. CI runs only its smoke

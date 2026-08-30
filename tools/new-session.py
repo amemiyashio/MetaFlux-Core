@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Scaffold a MetaFlux project work session.
 
-Allocates the next SYYYYMMDD-NNN id for today, creates the session directory
-with a validator-clean skeleton (session.json, events.jsonl, summary.md,
-notes.md), appends the index row to agent/sessions/README.md, and prints the
-next steps. Run from the repository root:
+Allocates the next semantic-scope session id for today, creates the session
+directory with a validator-clean skeleton (session.json, events.jsonl,
+summary.md, notes.md), appends the index row to agent/sessions/README.md, and
+prints the next steps. Run from the repository root:
 
-    python3 tools/new-session.py my-session-slug
+    python3 tools/new-session.py 0.1.0.1 my-session-slug
 
 The skeleton passes tools/check-agent-records.py immediately; replace the TODO
 fields as the session progresses and set status to complete when finished.
@@ -23,9 +23,74 @@ import subprocess
 import sys
 from pathlib import Path
 
-SESSION_ID_TEMPLATE = "{date}-{sequence:03d}"
-SESSION_ID_RE = re.compile(r"^S(\d{8})-(\d{3})-[a-z0-9][a-z0-9-]*$")
+SESSION_ID_TEMPLATE = "S{delivery}-{date}-{sequence:03d}-{slug}"
+SESSION_ID_RE = re.compile(
+    r"^S(?P<delivery>\d{4,})-(?P<date>\d{8})-"
+    r"(?P<sequence>\d{3})-[a-z0-9][a-z0-9-]*$"
+)
+DELIVERY_COORDINATE_RE = re.compile(
+    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\."
+    r"(0|[1-9]\d*)\.(0|[1-9]\d*)$"
+)
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+
+
+def compact_delivery(coordinate: str) -> str:
+    return "".join(coordinate.split("."))
+
+
+def frontmatter_delivery(path: Path) -> str | None:
+    """Read one canonical delivery value from simple Agent frontmatter."""
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return None
+    if not lines or lines[0].strip() != "---":
+        return None
+    try:
+        closing = next(
+            index
+            for index, line in enumerate(lines[1:], start=1)
+            if line.strip() == "---"
+        )
+    except StopIteration:
+        return None
+    values: list[str] = []
+    for line in lines[1:closing]:
+        match = re.fullmatch(r"delivery:\s*(.*?)\s*", line)
+        if match is None:
+            continue
+        value = match.group(1)
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        values.append(value)
+    if len(values) != 1 or DELIVERY_COORDINATE_RE.fullmatch(values[0]) is None:
+        return None
+    return values[0]
+
+
+def repository_deliveries(repo_root: Path) -> list[tuple[Path, str]]:
+    """Collect canonical M/W/S coordinates before scaffolding a new session."""
+    records: list[tuple[Path, str]] = []
+    plan_root = repo_root / "agent" / "plan"
+    plan_files = sorted(plan_root.glob("M*/plan.md")) + sorted(
+        plan_root.glob("M*/work/W*-*.md")
+    )
+    for path in plan_files:
+        delivery = frontmatter_delivery(path)
+        if delivery is not None:
+            records.append((path, delivery))
+
+    sessions_root = repo_root / "agent" / "sessions"
+    for path in sorted(sessions_root.glob("*/*/S*/session.json")):
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        delivery = document.get("delivery") if isinstance(document, dict) else None
+        if isinstance(delivery, str) and DELIVERY_COORDINATE_RE.fullmatch(delivery):
+            records.append((path, delivery))
+    return records
 
 
 def git_revision(repo_root: Path) -> str | None:
@@ -44,6 +109,10 @@ def git_revision(repo_root: Path) -> str | None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "delivery",
+        help="four-part delivery coordinate, for example 0.1.0.1",
+    )
     parser.add_argument("slug", help="lowercase hyphenated session slug")
     parser.add_argument(
         "--repository",
@@ -58,6 +127,13 @@ def main() -> int:
     )
     arguments = parser.parse_args()
 
+    if not DELIVERY_COORDINATE_RE.fullmatch(arguments.delivery):
+        print(
+            "error: delivery must contain four non-negative decimal components: "
+            f"{arguments.delivery!r}",
+            file=sys.stderr,
+        )
+        return 1
     if not SLUG_RE.fullmatch(arguments.slug):
         print(f"error: slug must match {SLUG_RE.pattern}: {arguments.slug!r}", file=sys.stderr)
         return 1
@@ -68,6 +144,20 @@ def main() -> int:
         print(f"error: {sessions_root} does not exist", file=sys.stderr)
         return 1
 
+    requested_body = compact_delivery(arguments.delivery)
+    for existing_path, existing_delivery in repository_deliveries(repo_root):
+        if (
+            compact_delivery(existing_delivery) == requested_body
+            and existing_delivery != arguments.delivery
+        ):
+            print(
+                f"error: delivery compact body {requested_body!r} is ambiguous: "
+                f"{arguments.delivery!r} collides with {existing_delivery!r} at "
+                f"{existing_path.relative_to(repo_root)}",
+                file=sys.stderr,
+            )
+            return 1
+
     today = dt.date.today()
     month_dir = sessions_root / f"{today:%Y}" / f"{today:%m}"
     month_dir.mkdir(parents=True, exist_ok=True)
@@ -75,13 +165,18 @@ def main() -> int:
     used_sequences = set()
     for existing in month_dir.iterdir():
         match = SESSION_ID_RE.fullmatch(existing.name)
-        if match and match.group(1) == f"{today:%Y%m%d}" and existing.is_dir():
-            used_sequences.add(int(match.group(2)))
+        if match and match.group("date") == f"{today:%Y%m%d}" and existing.is_dir():
+            used_sequences.add(int(match.group("sequence")))
     sequence = 1
     while sequence in used_sequences:
         sequence += 1
 
-    session_id = f"S{SESSION_ID_TEMPLATE.format(date=f'{today:%Y%m%d}', sequence=sequence)}-{arguments.slug}"
+    session_id = SESSION_ID_TEMPLATE.format(
+        delivery=compact_delivery(arguments.delivery),
+        date=f"{today:%Y%m%d}",
+        sequence=sequence,
+        slug=arguments.slug,
+    )
     session_dir = month_dir / session_id
     if session_dir.exists():
         print(f"error: {session_dir} already exists", file=sys.stderr)
@@ -92,6 +187,7 @@ def main() -> int:
         "schema_version": 1,
         "id": session_id,
         "repository": arguments.repository,
+        "delivery": arguments.delivery,
         "started_at": f"{today:%Y-%m-%d}",
         "ended_at": None,
         "time_precision": "date",

@@ -52,7 +52,7 @@ python3 tools/test-check-agent-records.py > /dev/null 2>&1
 if git diff --cached --name-only | grep -qv '^agent/'; then
   if ! grep -rql '"status": "in_progress"' agent/sessions/*/*/*/session.json 2>/dev/null; then
     echo "error: staged changes outside agent/ require an in-progress session." >&2
-    echo "       scaffold one: python3 tools/new-session.py <slug>   (see AGENTS.md)" >&2
+    echo "       scaffold one: python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>   (see AGENTS.md)" >&2
     exit 1
   fi
 fi

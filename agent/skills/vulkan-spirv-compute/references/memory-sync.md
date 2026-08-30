@@ -54,7 +54,7 @@ queue-family ownership transfer.
 - Use Synchronization2 stage/access masks for copy, host, shader, transfer, and
   external visibility. A semaphore orders only the declared dependencies and
   does not replace queue-family transfer or non-coherent flush/invalidate.
-- Complete backend work before publishing the M0002 completion timeline with the
+- Complete backend work before publishing the M0110 completion timeline with the
   required release relationship.
 - Queue batching may combine submissions only when all observable dependencies,
   errors, and completion points remain equivalent.

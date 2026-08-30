@@ -79,5 +79,5 @@ provider DSO entries. It covers explicit modes, default-auto managed success,
 clean fail-open, dirty rollback refusal, all manifest symbol lookups, PTDS/PTSZ
 and versioned aliases, CUDA/NVML identity parity, fork/stale rejection, vendor
 call counts, and NVML final teardown/reload. Co-loading the physical CUDA/NVML
-pair and measuring the W06 performance and coexistence gates remain host
+pair and measuring the W0106 performance and coexistence gates remain host
 qualification work on supported NVIDIA driver systems.

@@ -1,13 +1,13 @@
 ---
 name: linux-device-driver-uapi
-description: Design or review Linux 6.12 or 6.18 character-device UAPI, ioctl and mmap behavior, kref and VMA lifetime, long-term page pinning, DMA, eventfd, MMIO barriers, teardown, and kernel qualification. Use for M0002 transport and M0003 kernel lifecycle-adapter work. Do not use for vfio-user wire protocol or PCI configuration-space design.
+description: Design or review Linux 6.12 or 6.18 character-device UAPI, ioctl and mmap behavior, kref and VMA lifetime, long-term page pinning, DMA, eventfd, MMIO barriers, teardown, and kernel qualification. Use for M0110 transport and M0120 kernel lifecycle-adapter work. Do not use for vfio-user wire protocol or PCI configuration-space design.
 ---
 
 # Linux Device Driver UAPI
 
 ## Inputs
 
-- The active M0002/M0003 work item, target Linux/Kbuild matrix, canonical
+- The active M0110/M0120 work item, target Linux/Kbuild matrix, canonical
   transport-envelope schema manifest, Linux UAPI projection, and native/compat
   callers.
 - Object ownership graph, fd/VMA/mapping/queue/eventfd/worker lifetimes, DMA
@@ -38,7 +38,7 @@ sized records and compile-probed compatibility shims for supported kernels.
    terminal state for every fd-, VMA-, mapping-, queue-, event-, and worker-owned
    object before changing code.
 2. Update the zone-owned Linux UAPI definitions in the selected manifest closure.
-   Definitions on the frozen M0002 base allowlist remain referenced exactly once
+   Definitions on the frozen M0110 base allowlist remain referenced exactly once
    by its base manifest; later lifecycle definitions are referenced by their own
    extension manifest and never retroactively added to the base. Generate the
    fixed-width size/version, flags, reserved-zero policy, extension namespace,

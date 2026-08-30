@@ -24,7 +24,7 @@
       "id": "RUNTIME-P1",
       "kind": "single",
       "locale": "en",
-      "prompt": "Define the ecosystem-neutral registry view, provider join/freeze rules, and client-protocol negotiation for M0001-W02.",
+      "prompt": "Define the ecosystem-neutral registry view, provider join/freeze rules, and client-protocol negotiation for W0102.",
       "expected_skills": ["runtime-contracts-registry"],
       "forbidden_skills": []
     },
@@ -32,7 +32,7 @@
       "id": "RUNTIME-P2",
       "kind": "single",
       "locale": "en",
-      "prompt": "Generate the M0002 UAPI, device descriptor, and BAR extension layouts from one canonical contract schema.",
+      "prompt": "Generate the M0110 UAPI, device descriptor, and BAR extension layouts from one canonical contract schema.",
       "expected_skills": ["runtime-contracts-registry"],
       "forbidden_skills": []
     },
@@ -73,7 +73,7 @@
       "id": "CUDA-P2",
       "kind": "single",
       "locale": "en",
-      "prompt": "Implement stale CUDA context, stream, event, and device-memory handle behavior for the M0001 provider.",
+      "prompt": "Implement stale CUDA context, stream, event, and device-memory handle behavior for the M0100 provider.",
       "expected_skills": ["cuda-driver-abi-compatibility"],
       "forbidden_skills": []
     },
@@ -496,18 +496,18 @@
       "forbidden_skills": []
     },
     {
-      "id": "COMBO-M0002-SCHEMA",
+      "id": "COMBO-M0110-SCHEMA",
       "kind": "composition",
       "locale": "en",
-      "prompt": "Freeze one M0002 schema that generates Linux UAPI, device protocol, vfio-user regions, and PCI BAR extension layouts.",
+      "prompt": "Freeze one M0110 schema that generates Linux UAPI, device protocol, vfio-user regions, and PCI BAR extension layouts.",
       "expected_skills": ["runtime-contracts-registry", "linux-device-driver-uapi", "gpu-virtualization-vfio-user", "pcie-vpci-device-model"],
       "forbidden_skills": []
     },
     {
-      "id": "COMBO-M0002-UNMAP",
+      "id": "COMBO-M0110-UNMAP",
       "kind": "composition",
       "locale": "en",
-      "prompt": "Fix a static M0002 VFIO_USER_DMA_UNMAP racing BAR2 submission and MSI-X completion, with no reset or replacement generation.",
+      "prompt": "Fix a static M0110 VFIO_USER_DMA_UNMAP racing BAR2 submission and MSI-X completion, with no reset or replacement generation.",
       "expected_skills": ["linux-device-driver-uapi", "gpu-virtualization-vfio-user", "pcie-vpci-device-model"],
       "forbidden_skills": ["device-lifecycle-resilience"]
     },

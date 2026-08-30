@@ -11,12 +11,14 @@ enforced by repository checks.
 2. **Scaffold a session before the first durable change.**
 
    ```sh
-   python3 tools/new-session.py <slug>
+   python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>
    ```
 
    The pre-commit hook rejects non-`agent/` changes while no session is in
    progress. The session closes by cleaning its disposable work, not by
    archiving a copy of the worktree.
+   Product and delivery identities follow
+   [`docs/release-versioning.md`](docs/release-versioning.md).
 3. **Process session guidance at control boundaries.** On session resume, a
    specialist-completion notice, before the next coherent work unit, and before
    checkpoint or close, check the active session for a ready guidance packet.
