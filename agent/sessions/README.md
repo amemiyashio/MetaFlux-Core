@@ -84,7 +84,7 @@ copies canonical content.
 | [S0100-20260830-005-semantic-change-distillation](2026/08/S0100-20260830-005-semantic-change-distillation/summary.md) | 2026-08-30 | Exact | Complete | D0025 governance and SC0001 evidence-preserving prior promotion-model migration applied |
 | [S0100-20260830-006-project-knowledge-roast](2026/08/S0100-20260830-006-project-knowledge-roast/summary.md) | 2026-08-30 | Exact | Complete | D0026/SC0002 migration to explicit-only roast semantics and independent session-only disposition |
 | [S1000-20260830-007-v100-qualification-boundary](2026/08/S1000-20260830-007-v100-qualification-boundary/summary.md) | 2026-08-30 | Exact | Complete | Applied D0027/SC0003 and moved Intel plus physical NVIDIA binding qualification to v1.0.0 |
-| [S0100-20260830-008-agent-harness-commit-identity](2026/08/S0100-20260830-008-agent-harness-commit-identity/summary.md) | 2026-08-30 | Exact | Complete | Agent commits use command-local Codex or Claude Code harness identity without changing human Git configuration |
+| [S0100-20260830-008-agent-harness-commit-identity](2026/08/S0100-20260830-008-agent-harness-commit-identity/summary.md) | 2026-08-30 | Exact | Complete | Initial static Codex/Claude Code harness identity, later superseded by D0028/SC0004 automatic runtime derivation |
 | [S0100-20260830-009-automatic-harness-identity](2026/08/S0100-20260830-009-automatic-harness-identity/summary.md) | 2026-08-30 | Exact | In progress | TODO: one-line summary |
 
 ## Fidelity and retention

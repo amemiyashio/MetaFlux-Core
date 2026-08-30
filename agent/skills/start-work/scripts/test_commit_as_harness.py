@@ -3,30 +3,53 @@
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from types import ModuleType
+from typing import Callable, cast
 
 
 SCRIPT = Path(__file__).with_name("commit_as_harness.py").resolve()
-HARNESS_SIGNALS = (
-    "CODEX_SESSION_ID",
-    "CODEX_THREAD_ID",
-    "CLAUDE_PROJECT_DIR",
-    "METAFLUX_AGENT_HARNESS",
+GIT_IDENTITY_VARIABLES = {
     "GIT_AUTHOR_NAME",
     "GIT_AUTHOR_EMAIL",
     "GIT_COMMITTER_NAME",
     "GIT_COMMITTER_EMAIL",
-)
+}
+
+
+def load_harness_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("metaflux_commit_harness", SCRIPT)
+    if spec is None or spec.loader is None:
+        raise AssertionError(f"cannot load {SCRIPT}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+HARNESS = load_harness_module()
 
 
 def clean_environment() -> dict[str, str]:
     environment = os.environ.copy()
-    for name in HARNESS_SIGNALS:
-        environment.pop(name, None)
+    for name in tuple(environment):
+        if (
+            name == HARNESS.HARNESS_DECLARATION
+            or HARNESS.HARNESS_SIGNAL.fullmatch(name)
+            or name in GIT_IDENTITY_VARIABLES
+        ):
+            environment.pop(name)
+    return environment
+
+
+def harness_environment(subject: str) -> dict[str, str]:
+    environment = clean_environment()
+    environment[HARNESS.HARNESS_DECLARATION] = subject
     return environment
 
 
@@ -52,6 +75,16 @@ def require(result: subprocess.CompletedProcess[str], context: str) -> None:
         )
 
 
+def expect_value_error(action: Callable[[], object], text: str) -> None:
+    try:
+        action()
+    except ValueError as error:
+        if text not in str(error):
+            raise AssertionError(f"expected {text!r} in {error!r}") from error
+        return
+    raise AssertionError(f"expected ValueError containing {text!r}")
+
+
 def initialize(repository: Path) -> None:
     require(run(repository, "git", "init", "-q"), "git init")
     require(run(repository, "git", "config", "user.name", "Human User"), "set user.name")
@@ -72,7 +105,7 @@ def identity(repository: Path) -> tuple[str, str, str, str]:
     fields = tuple(result.stdout.rstrip("\n").split("\0"))
     if len(fields) != 4:
         raise AssertionError(f"unexpected identity fields: {fields!r}")
-    return fields  # type: ignore[return-value]
+    return cast(tuple[str, str, str, str], fields)
 
 
 def commit(
@@ -83,12 +116,90 @@ def commit(
     return run(repository, sys.executable, str(SCRIPT), *arguments, environment=environment)
 
 
-def test_explicit_codex_overrides_without_config_mutation(root: Path) -> None:
-    repository = root / "explicit-codex"
+def test_unseen_harness_is_derived(root: Path) -> None:
+    del root
+    environment = {
+        "FUTURE_AGENT_SESSION_ID": "fixture-session",
+        "FUTURE_AGENT_THREAD_ID": "fixture-thread",
+    }
+    ancestry = ("/usr/bin/zsh", "/opt/future-agent/bin/future-agent --serve")
+    subject = HARNESS.detect_harness(environment, ancestry)
+    assert subject == "future-agent"
+    derived = HARNESS.identity_for_subject(subject)
+    assert derived.name == "Agent Harness (future-agent)"
+    assert derived.email == "future-agent@localhost"
+
+
+def test_runtime_selection_and_rejection(root: Path) -> None:
+    del root
+    nested_environment = {
+        "CODEX_THREAD_ID": "outer-thread",
+        "ZCODE_SESSION_ID": "inner-session",
+    }
+    nested_ancestry = (
+        "/usr/bin/zsh",
+        "/opt/zcode/bin/zcode worker",
+        "/opt/codex/bin/codex",
+    )
+    assert HARNESS.detect_harness(nested_environment, nested_ancestry) == "zcode"
+
+    expect_value_error(
+        lambda: HARNESS.detect_harness({}, ("/opt/codex/bin/codex",)),
+        "not detectable",
+    )
+    expect_value_error(
+        lambda: HARNESS.detect_harness(
+            {"XDG_SESSION_ID": "desktop"},
+            ("/opt/codex/bin/codex",),
+        ),
+        "not corroborated",
+    )
+    expect_value_error(
+        lambda: HARNESS.detect_harness(
+            {
+                "ALPHA_SESSION_ID": "alpha",
+                "BETA_THREAD_ID": "beta",
+            },
+            ("/opt/alpha-beta/bin/runner",),
+        ),
+        "multiple harness subjects",
+    )
+
+
+def test_declaration_validation_and_isolation(root: Path) -> None:
+    del root
+    direct = {HARNESS.HARNESS_DECLARATION: "future-agent"}
+    assert HARNESS.detect_harness(direct, ()) == "future-agent"
+
+    def reject_ancestry_read() -> tuple[str, ...]:
+        raise AssertionError("direct harness declaration must not read ancestry")
+
+    resolved = HARNESS.resolve_identity(direct, reject_ancestry_read)
+    assert resolved.subject == "future-agent"
+    assert resolved.name == "Agent Harness (future-agent)"
+
+    invalid_subjects = (
+        "Codex",
+        "../codex",
+        "codex@example",
+        "codex--nested",
+        "x" * (HARNESS.MAX_SUBJECT_LENGTH + 1),
+    )
+    for invalid in invalid_subjects:
+        expect_value_error(
+            lambda invalid=invalid: HARNESS.detect_harness(
+                {HARNESS.HARNESS_DECLARATION: invalid},
+                (),
+            ),
+            "harness subject",
+        )
+
+def test_commit_overrides_without_config_mutation(root: Path) -> None:
+    repository = root / "derived-identity"
     repository.mkdir()
     initialize(repository)
     stage(repository, "one.txt", "one\n")
-    environment = clean_environment()
+    environment = harness_environment("fixture-agent")
     environment.update(
         {
             "GIT_AUTHOR_NAME": "Stale Agent",
@@ -97,66 +208,19 @@ def test_explicit_codex_overrides_without_config_mutation(root: Path) -> None:
             "GIT_COMMITTER_EMAIL": "stale-committer@example.invalid",
         }
     )
-    result = commit(
-        repository,
-        environment,
-        "--harness",
-        "codex",
-        "--",
-        "-m",
-        "one",
+    result = commit(repository, environment, "--", "-m", "one")
+    require(result, "derived harness commit")
+    expected = (
+        "Agent Harness (fixture-agent)",
+        "fixture-agent@localhost",
+        "Agent Harness (fixture-agent)",
+        "fixture-agent@localhost",
     )
-    require(result, "explicit Codex commit")
-    assert identity(repository) == (
-        "Codex",
-        "codex@localhost",
-        "Codex",
-        "codex@localhost",
-    )
+    assert identity(repository) == expected
     assert run(repository, "git", "config", "user.name").stdout.strip() == "Human User"
     assert (
         run(repository, "git", "config", "user.email").stdout.strip()
         == "human@example.invalid"
-    )
-
-
-def test_codex_environment_detection(root: Path) -> None:
-    repository = root / "detect-codex"
-    repository.mkdir()
-    initialize(repository)
-    stage(repository, "two.txt", "two\n")
-    environment = clean_environment()
-    environment["CODEX_SESSION_ID"] = "fixture-session"
-    result = commit(repository, environment, "--", "-m", "two")
-    require(result, "detected Codex commit")
-    assert identity(repository) == (
-        "Codex",
-        "codex@localhost",
-        "Codex",
-        "codex@localhost",
-    )
-
-
-def test_claude_code_environment_detection(root: Path) -> None:
-    repository = root / "detect-claude"
-    repository.mkdir()
-    initialize(repository)
-    stage(repository, "three.txt", "three\n")
-    environment = clean_environment()
-    environment["CLAUDE_PROJECT_DIR"] = str(repository)
-    result = commit(
-        repository,
-        environment,
-        "--",
-        "-m",
-        "three",
-    )
-    require(result, "detected Claude Code commit")
-    assert identity(repository) == (
-        "Claude Code",
-        "claude-code@localhost",
-        "Claude Code",
-        "claude-code@localhost",
     )
 
 
@@ -165,124 +229,70 @@ def test_harness_handoff_is_not_sticky(root: Path) -> None:
     repository.mkdir()
     initialize(repository)
 
-    stage(repository, "codex.txt", "codex\n")
+    stage(repository, "alpha.txt", "alpha\n")
     first = commit(
         repository,
-        clean_environment(),
-        "--harness",
-        "codex",
+        harness_environment("alpha-agent"),
         "--",
         "-m",
-        "Codex stage",
+        "Alpha stage",
     )
-    require(first, "Codex handoff commit")
+    require(first, "alpha harness commit")
     assert identity(repository) == (
-        "Codex",
-        "codex@localhost",
-        "Codex",
-        "codex@localhost",
+        "Agent Harness (alpha-agent)",
+        "alpha-agent@localhost",
+        "Agent Harness (alpha-agent)",
+        "alpha-agent@localhost",
     )
 
-    stage(repository, "claude.txt", "claude\n")
+    stage(repository, "beta.txt", "beta\n")
     second = commit(
         repository,
-        clean_environment(),
-        "--harness",
-        "claude-code",
+        harness_environment("beta-agent"),
         "--",
         "-m",
-        "Claude Code stage",
+        "Beta stage",
     )
-    require(second, "Claude Code handoff commit")
+    require(second, "beta harness commit")
     assert identity(repository) == (
-        "Claude Code",
-        "claude-code@localhost",
-        "Claude Code",
-        "claude-code@localhost",
+        "Agent Harness (beta-agent)",
+        "beta-agent@localhost",
+        "Agent Harness (beta-agent)",
+        "beta-agent@localhost",
     )
     assert run(repository, "git", "config", "user.name").stdout.strip() == "Human User"
-    assert (
-        run(repository, "git", "config", "user.email").stdout.strip()
-        == "human@example.invalid"
-    )
 
 
-def test_missing_and_ambiguous_detection(root: Path) -> None:
+def test_missing_legacy_and_conflicting_options_are_rejected(root: Path) -> None:
     missing = commit(root, clean_environment(), "--print-identity")
     assert missing.returncode == 2
     assert "not detectable" in missing.stderr
 
-    environment = clean_environment()
-    environment["CODEX_SESSION_ID"] = "fixture-session"
-    environment["CLAUDE_PROJECT_DIR"] = str(root)
-    ambiguous = commit(root, environment, "--print-identity")
-    assert ambiguous.returncode == 2
-    assert "multiple agent harnesses" in ambiguous.stderr
+    legacy = commit(
+        root,
+        clean_environment(),
+        "--harness",
+        "codex",
+        "--print-identity",
+    )
+    assert legacy.returncode == 2
+    assert "--harness was removed" in legacy.stderr
 
-
-def test_conflicting_commit_options_are_rejected(root: Path) -> None:
     repository = root / "rejected-options"
     repository.mkdir()
     initialize(repository)
-    stage(repository, "four.txt", "four\n")
-    environment = clean_environment()
-
-    author = commit(
-        repository,
-        environment,
-        "--harness",
-        "codex",
-        "--",
-        "--author=Human User <human@example.invalid>",
-        "-m",
-        "four",
+    stage(repository, "options.txt", "options\n")
+    environment = harness_environment("fixture-agent")
+    conflicting = (
+        ("--author=Human User <human@example.invalid>", "-m", "options"),
+        ("--auth=Human User <human@example.invalid>", "-m", "options"),
+        ("--amend", "-m", "options"),
+        ("--amen", "-m", "options"),
     )
-    assert author.returncode == 2
-    assert "--author conflicts" in author.stderr
-
-    abbreviated_author = commit(
-        repository,
-        environment,
-        "--harness",
-        "codex",
-        "--",
-        "--auth=Human User <human@example.invalid>",
-        "-m",
-        "four",
-    )
-    assert abbreviated_author.returncode == 2
-    assert "--author conflicts" in abbreviated_author.stderr
-
-    amend = commit(
-        repository,
-        environment,
-        "--harness",
-        "codex",
-        "--",
-        "--amend",
-        "-m",
-        "four",
-    )
-    assert amend.returncode == 2
-    assert "--amend is excluded" in amend.stderr
-
-    abbreviated_amend = commit(
-        repository,
-        environment,
-        "--harness",
-        "codex",
-        "--",
-        "--amen",
-        "-m",
-        "four",
-    )
-    assert abbreviated_amend.returncode == 2
-    assert "--amend is excluded" in abbreviated_amend.stderr
-
-    assert (
-        run(repository, "git", "rev-list", "--all", "--count").stdout.strip()
-        == "0"
-    )
+    for arguments in conflicting:
+        result = commit(repository, environment, "--", *arguments)
+        assert result.returncode == 2
+    assert run(repository, "git", "rev-list", "--all", "--count").stdout.strip() == "0"
 
 
 def test_authorship_reuse_options_are_rejected(root: Path) -> None:
@@ -291,7 +301,14 @@ def test_authorship_reuse_options_are_rejected(root: Path) -> None:
     initialize(repository)
     stage(repository, "source.txt", "source\n")
     require(
-        run(repository, "git", "commit", "-m", "Human source"),
+        run(
+            repository,
+            "git",
+            "commit",
+            "-m",
+            "Human source",
+            environment=clean_environment(),
+        ),
         "human source commit",
     )
     assert identity(repository) == (
@@ -319,28 +336,23 @@ def test_authorship_reuse_options_are_rejected(root: Path) -> None:
     for reuse_form in reuse_forms:
         result = commit(
             repository,
-            clean_environment(),
-            "--harness",
-            "codex",
+            harness_environment("fixture-agent"),
             "--",
             *reuse_form,
         )
         assert result.returncode == 2
         assert "reuse another commit's authorship" in result.stderr
-        assert (
-            run(repository, "git", "rev-list", "--all", "--count").stdout.strip()
-            == "1"
-        )
+        assert run(repository, "git", "rev-list", "--all", "--count").stdout.strip() == "1"
 
 
 def main() -> int:
     tests = (
-        test_explicit_codex_overrides_without_config_mutation,
-        test_codex_environment_detection,
-        test_claude_code_environment_detection,
+        test_unseen_harness_is_derived,
+        test_runtime_selection_and_rejection,
+        test_declaration_validation_and_isolation,
+        test_commit_overrides_without_config_mutation,
         test_harness_handoff_is_not_sticky,
-        test_missing_and_ambiguous_detection,
-        test_conflicting_commit_options_are_rejected,
+        test_missing_legacy_and_conflicting_options_are_rejected,
         test_authorship_reuse_options_are_rejected,
     )
     with tempfile.TemporaryDirectory(prefix="metaflux-harness-identity-") as temporary:

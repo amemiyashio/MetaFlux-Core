@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Proposed |
+| Status | Verified |
 | Decision | D0028 |
 | Applies to | Git commits created by repository agents |
 
@@ -14,12 +14,12 @@ mapping Codex, Claude Code, ZCode, or any later harness to hand-maintained Git
 identities. Adding a harness therefore does not require a repository patch.
 
 The repository helper reads the harness subject automatically. A validated
-generic `METAFLUX_AGENT_HARNESS` declaration is the direct harness protocol.
-Otherwise, the helper collects non-empty environment namespaces ending in
-`_SESSION_ID`, `_THREAD_ID`, or `_PROJECT_DIR` and matches them against the
-Linux ancestor-process command lines. The nearest unambiguous match is the
-active subject. Missing, malformed, or ambiguous evidence stops the commit;
-human Git configuration is never a fallback.
+generic `METAFLUX_AGENT_HARNESS` declaration is the direct harness protocol and
+does not require `/proc`. Otherwise, the helper collects non-empty environment
+namespaces ending in `_SESSION_ID`, `_THREAD_ID`, or `_PROJECT_DIR` and matches
+them against the Linux ancestor-process command lines. The nearest unambiguous
+match is the active subject. Missing, malformed, or ambiguous evidence stops
+the commit; human Git configuration is never a fallback.
 
 ## Identity Derivation
 
@@ -44,15 +44,24 @@ execute, probe, or modify the harness process.
 - The command interface has no per-product harness selector. A harness that
   needs an explicit protocol supplies `METAFLUX_AGENT_HARNESS` in its runtime
   environment.
+- `METAFLUX_AGENT_HARNESS` is a provenance declaration supplied by the harness
+  runtime. It is not authenticated evidence, and an agent must not synthesize
+  or override it to choose a preferred identity.
 - Git Author and Committer identify workflow provenance; they are not
   authentication, signing, or proof of a particular human operator.
+- This is the required repository workflow for agent-created commits, not a Git
+  hook identity check. Direct human commits remain valid and continue to use
+  the human-owned Git configuration.
 - Commit `ded1dad` using `Codex <codex@localhost>` and commit `f862852` using
   `ZCode <zcode@localhost>` remain factual evidence of the superseded static
   implementation. D0028 changes future derivation, not those Git objects.
 
 ## Verification State
 
-D0028 is approved for migration through SC0004. It becomes Verified only after
-generic unseen-harness, ancestry selection, ambiguity rejection, Git identity,
-configuration-isolation, protected-option, residual-search, and real automatic
-commit checks pass.
+The isolated helper suite passes seven cases covering an unseen harness,
+nearest-ancestor selection, direct-protocol isolation, missing or ambiguous
+automatic evidence, malformed subjects, stale Git identity override,
+cross-harness handoff, configuration isolation, removed fixed selection, and
+protected commit options. The repository runtime resolves the current subject
+without a selector as `codex`; SC0004 binds the synchronized migration and real
+automatic content commit.

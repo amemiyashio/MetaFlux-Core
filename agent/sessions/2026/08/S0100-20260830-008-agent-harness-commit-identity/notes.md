@@ -1,10 +1,12 @@
 # Notes
 
-The stable identities are `Codex <codex@localhost>` and `Claude Code
-<claude-code@localhost>`. The helper sets all four `GIT_AUTHOR_*` and
-`GIT_COMMITTER_*` variables only for its `git commit` child process, so inherited
-agent variables are overwritten and repository/global Git configuration is not
-modified.
+At capture time the helper used `Codex <codex@localhost>` and `Claude Code
+<claude-code@localhost>` as static identities. Revision `f862852` later added
+`ZCode <zcode@localhost>`, exposing the need for another product row. D0028 and
+SC0004 supersede those identities as future derivation rules while retaining
+them as exact historical commit evidence. The command-local `GIT_AUTHOR_*` and
+`GIT_COMMITTER_*` isolation remains current and repository/global Git
+configuration is still not modified.
 
 The helper rejects author overrides, amend, and authorship-reusing message
 options, including Git long-option abbreviations and clustered `-C`/`-c` forms

@@ -2,15 +2,16 @@
 
 ## Objective and outcome
 
-Bound agent-created commits to the active agent harness for both Git Author and
-Committer without changing the human identity stored in Git configuration. The
-rule is now owned by `start-work`, used by `record-session`, and proved by both
-isolated fixtures and the real content commit `ded1dad`.
+This session introduced the first binding of agent-created commits to a harness
+for both Git Author and Committer without changing the human Git identity. Its
+static Codex/Claude Code implementation was proved by isolated fixtures and
+content commit `ded1dad`; D0028/SC0004 later replaced only its identity-source
+rule with automatic runtime-subject derivation.
 
 ## Durable changes
 
-- `agent/skills/start-work/`: defines the harness-identity rule and provides the
-  Codex/Claude Code commit helper plus its isolated forward tests.
+- `agent/skills/start-work/`: provided the capture-time static Codex/Claude Code
+  helper and isolated forward tests; D0028/SC0004 later migrated that package.
 - `agent/skills/record-session/SKILL.md`: routes agent-created content,
   checkpoint, and closing-record commits through the same helper.
 - `agent/progress/`: P20260830-009 records the applied workflow handoff without
@@ -38,7 +39,8 @@ isolated fixtures and the real content commit `ded1dad`.
 
 ## Decisions and experience
 
-- No architecture or product decision changed, so no D/SC record was needed.
+- No architecture or product decision changed during this initial session.
+  D0028/SC0004 later governs the replacement of its static mapping authority.
 - No experience record was needed; the reusable method and its executable proof
   are directly owned by the `start-work` skill package.
 
@@ -64,14 +66,15 @@ isolated fixtures and the real content commit `ded1dad`.
 
 ## Unresolved items
 
-- None for this workflow change. The helper is a procedural invariant for agent
-  runs; the pre-commit hook intentionally does not infer whether a human or an
-  agent initiated a commit.
+- The pre-commit hook intentionally does not infer whether a human or an agent
+  initiated a commit. The capture-time static mapping limitation was later
+  resolved by D0028/SC0004 without changing this session's evidence.
 
 ## Handoff
 
 Begin with `start-work`. For every agent-created commit, run
 `python3 agent/skills/start-work/scripts/commit_as_harness.py -- -m "Subject"`
 and verify the resulting Author and Committer before reporting the revision.
-Pass `--harness` explicitly when environment detection is unavailable or
-ambiguous; do not replace the repository user's Git configuration.
+Under D0028 the helper reads the runtime harness subject automatically; missing
+or ambiguous evidence stops the commit. Do not select a product identity or
+replace the repository user's Git configuration.

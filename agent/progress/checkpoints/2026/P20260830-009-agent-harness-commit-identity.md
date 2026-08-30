@@ -12,12 +12,12 @@ workspace: agent commits use command-local harness identity; human Git configura
 
 ## Engineering state
 
-Revision `ded1dad4172b515a3b17cb66c3f7aa18df9cb20e` makes `start-work`
-the canonical owner of agent commit identity. Agent-created content,
-checkpoint, and closing-record commits now record the active Codex or Claude
-Code harness as both Author and Committer. The helper changes only the child
-commit process environment; human repository and global Git configuration are
-outside its mutation boundary.
+Revision `ded1dad4172b515a3b17cb66c3f7aa18df9cb20e` captured the first
+`start-work` implementation of agent commit identity. It used a static Codex
+and Claude Code table; revision `f862852` later added ZCode. D0028 and SC0004
+supersede that mapping authority with automatic runtime-subject derivation.
+The original command-local environment and human Git configuration boundary
+remains valid.
 
 ## Verification evidence
 
@@ -32,8 +32,10 @@ outside its mutation boundary.
 
 ## Decisions and durable outcomes
 
-- `start-work` owns the stable Codex and Claude Code mappings, detection,
-  command-local environment, protected-option boundary, and post-commit check.
+- At capture time, `start-work` owned static Codex and Claude Code mappings.
+  D0028/SC0004 later supersede only that identity-source rule; this checkpoint's
+  revisions, identities, gate results, and configuration observation stay
+  factual evidence.
 - `record-session` references that owner for every agent-created content,
   checkpoint, and closing-record commit.
 - The pre-commit hook remains a deterministic repository validator; it does not
@@ -41,8 +43,9 @@ outside its mutation boundary.
 
 ## Open work and risks
 
-- None for the identity workflow. Direct human commits continue to use normal
-  Git configuration.
+- The capture-time conclusion that no identity workflow work remained was
+  invalidated when ZCode required another static row. D0028/SC0004 replace that
+  route; direct human commits continue to use normal Git configuration.
 - Attached short arguments containing `c` or `C` are conservatively rejected by
   the helper; use the documented separated argument form.
 
@@ -51,5 +54,6 @@ outside its mutation boundary.
 1. Start agent work through `start-work` and keep the active session current.
 2. Commit through `commit_as_harness.py`, then verify Author and Committer with
    `git show` before reporting the revision.
-3. Use explicit `--harness` when automatic detection is absent or ambiguous;
-   never rewrite the user's Git configuration to prepare an agent commit.
+3. Under D0028, let the helper read the runtime harness subject automatically;
+   missing or ambiguous evidence stops the commit, and the user's Git
+   configuration is never rewritten as preparation.

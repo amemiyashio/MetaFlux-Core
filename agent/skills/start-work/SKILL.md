@@ -72,14 +72,21 @@ Use the package helper instead of invoking `git commit` directly:
 python3 agent/skills/start-work/scripts/commit_as_harness.py -- -m "Commit subject"
 ```
 
-The helper detects Codex or Claude Code from harness-owned environment signals,
-sets command-local Author and Committer values, and leaves local and global Git
-configuration unchanged. If automatic detection is unavailable, pass the
-actual harness explicitly with `--harness codex` or `--harness claude-code`.
-The stable mappings are `Codex <codex@localhost>` and `Claude Code
-<claude-code@localhost>`.
-Never fall back to a repository user's name or email for an agent-created
-commit. The helper rejects `--author`, `--amend`, and commit-message reuse
+The helper reads the active runtime harness subject automatically under
+[D0028](../../../docs/architecture/agent-harness-commit-identity.md). A harness
+may supply the generic `METAFLUX_AGENT_HARNESS` provenance declaration directly;
+that path does not inspect `/proc`. When the declaration is absent, the helper
+corroborates generic session/thread/project environment namespaces against the
+nearest Linux ancestor process. It contains no Codex, Claude Code, ZCode, or
+other product identity table, and `--harness` is not a supported selector.
+
+The normalized subject generates both roles as `Agent Harness (<subject>)
+<<subject>@localhost>`. The declaration is supplied by the harness runtime as a
+provenance label; it is not an authentication credential and agents do not set
+it ad hoc. Automatic detection stops on missing, malformed, or ambiguous
+evidence and never falls back to a repository user's identity. The helper sets
+the result only for the child `git commit`, leaves local and global Git
+configuration unchanged, and rejects `--author`, `--amend`, and message-reuse
 options that could carry another commit's authorship into the new commit.
 
 When an agent operation would normally create a merge, revert, or cherry-pick

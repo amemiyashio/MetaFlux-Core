@@ -5,63 +5,164 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable
 
 
 @dataclass(frozen=True)
 class HarnessIdentity:
+    subject: str
     name: str
     email: str
-    signals: tuple[str, ...]
 
 
-HARNESSES = {
-    "codex": HarnessIdentity(
-        name="Codex",
-        email="codex@localhost",
-        signals=("CODEX_SESSION_ID", "CODEX_THREAD_ID"),
-    ),
-    "claude-code": HarnessIdentity(
-        name="Claude Code",
-        email="claude-code@localhost",
-        signals=("CLAUDE_PROJECT_DIR",),
-    ),
-    "zcode": HarnessIdentity(
-        name="ZCode",
-        email="zcode@localhost",
-        signals=("ZCODE_SESSION_ID",),
-    ),
-}
+HARNESS_DECLARATION = "METAFLUX_AGENT_HARNESS"
+HARNESS_SIGNAL = re.compile(
+    r"^(?P<namespace>[A-Z][A-Z0-9_]*)_"
+    r"(?:SESSION_ID|THREAD_ID|PROJECT_DIR)$"
+)
+HARNESS_SUBJECT = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+MAX_SUBJECT_LENGTH = 48
 
 
-def detect_harness(explicit: str | None, environment: dict[str, str]) -> str:
-    selected = explicit or environment.get("METAFLUX_AGENT_HARNESS")
-    if selected:
-        if selected not in HARNESSES:
-            choices = ", ".join(sorted(HARNESSES))
-            raise ValueError(
-                f"unknown agent harness {selected!r}; choose one of: {choices}"
-            )
-        return selected
-
-    detected = [
-        slug
-        for slug, identity in HARNESSES.items()
-        if any(environment.get(signal) for signal in identity.signals)
-    ]
-    if len(detected) == 1:
-        return detected[0]
-    if not detected:
+def validate_subject(value: str) -> str:
+    if not value or len(value) > MAX_SUBJECT_LENGTH:
         raise ValueError(
-            "agent harness is not detectable; pass --harness or set "
-            "METAFLUX_AGENT_HARNESS"
+            f"harness subject must contain 1-{MAX_SUBJECT_LENGTH} characters"
+        )
+    if not HARNESS_SUBJECT.fullmatch(value):
+        raise ValueError(
+            "harness subject must use lowercase ASCII letters, digits, and "
+            "single hyphen separators"
+        )
+    return value
+
+
+def identity_for_subject(subject: str) -> HarnessIdentity:
+    validated = validate_subject(subject)
+    return HarnessIdentity(
+        subject=validated,
+        name=f"Agent Harness ({validated})",
+        email=f"{validated}@localhost",
+    )
+
+
+def environment_subjects(environment: dict[str, str]) -> tuple[str, ...]:
+    subjects: set[str] = set()
+    for name, value in environment.items():
+        if not value:
+            continue
+        match = HARNESS_SIGNAL.fullmatch(name)
+        if not match:
+            continue
+        candidate = match.group("namespace").lower().replace("_", "-")
+        try:
+            subjects.add(validate_subject(candidate))
+        except ValueError:
+            continue
+    return tuple(sorted(subjects))
+
+
+def command_mentions_subject(command: str, subject: str) -> bool:
+    boundary = re.compile(
+        rf"(?<![a-z0-9]){re.escape(subject)}(?![a-z0-9])",
+        re.IGNORECASE,
+    )
+    return boundary.search(command) is not None
+
+
+def detect_harness(
+    environment: dict[str, str],
+    ancestry: tuple[str, ...],
+) -> str:
+    declared_value = environment.get(HARNESS_DECLARATION)
+    if declared_value:
+        return validate_subject(declared_value)
+
+    subjects = environment_subjects(environment)
+
+    detected: str | None = None
+    for command in ancestry:
+        matches = [
+            subject
+            for subject in subjects
+            if command_mentions_subject(command, subject)
+        ]
+        if len(matches) > 1:
+            raise ValueError(
+                "multiple harness subjects match the same ancestor process: "
+                + ", ".join(matches)
+            )
+        if matches:
+            detected = matches[0]
+            break
+
+    if detected:
+        return detected
+    if not subjects:
+        raise ValueError(
+            "agent harness is not detectable; the harness must expose runtime "
+            "session, thread, or project signals"
         )
     raise ValueError(
-        "multiple agent harnesses are detectable; pass --harness explicitly: "
-        + ", ".join(sorted(detected))
+        "harness environment signals are not corroborated by process ancestry: "
+        + ", ".join(subjects)
     )
+
+
+def read_process_ancestry(start_pid: int | None = None) -> tuple[str, ...]:
+    process_id = os.getppid() if start_pid is None else start_pid
+    commands: list[str] = []
+    visited: set[int] = set()
+
+    while process_id > 1 and process_id not in visited and len(visited) < 64:
+        visited.add(process_id)
+        process_root = Path("/proc") / str(process_id)
+        try:
+            command_bytes = (process_root / "cmdline").read_bytes()
+            status = (process_root / "status").read_text(encoding="utf-8")
+        except FileNotFoundError:
+            break
+        except OSError as error:
+            raise ValueError(
+                f"cannot read harness process ancestry at pid {process_id}: {error}"
+            ) from error
+
+        command = command_bytes.replace(b"\0", b" ").decode(
+            "utf-8", errors="replace"
+        ).strip()
+        if not command:
+            try:
+                command = (process_root / "comm").read_text(
+                    encoding="utf-8"
+                ).strip()
+            except OSError:
+                command = ""
+        if command:
+            commands.append(command)
+
+        parent_lines = [
+            line for line in status.splitlines() if line.startswith("PPid:")
+        ]
+        if len(parent_lines) != 1:
+            raise ValueError(
+                f"cannot resolve parent process for harness ancestry pid {process_id}"
+            )
+        process_id = int(parent_lines[0].split()[1])
+
+    return tuple(commands)
+
+
+def resolve_identity(
+    environment: dict[str, str],
+    ancestry_reader: Callable[[], tuple[str, ...]] = read_process_ancestry,
+) -> HarnessIdentity:
+    ancestry = () if environment.get(HARNESS_DECLARATION) else ancestry_reader()
+    return identity_for_subject(detect_harness(environment, ancestry))
 
 
 def commit_arguments(raw_arguments: list[str]) -> list[str]:
@@ -108,11 +209,7 @@ def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(
         description="Run git commit with the active agent harness as Author and Committer."
     )
-    result.add_argument(
-        "--harness",
-        choices=sorted(HARNESSES),
-        help="explicit harness when environment detection is unavailable or ambiguous",
-    )
+    result.add_argument("--harness", dest="legacy_harness", help=argparse.SUPPRESS)
     result.add_argument(
         "--print-identity",
         action="store_true",
@@ -125,8 +222,12 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     arguments = parser().parse_args()
     try:
-        harness = detect_harness(arguments.harness, dict(os.environ))
-        identity = HARNESSES[harness]
+        if arguments.legacy_harness is not None:
+            raise ValueError(
+                "--harness was removed; identity is read automatically from "
+                "the runtime harness subject"
+            )
+        identity = resolve_identity(dict(os.environ))
         if arguments.print_identity:
             if arguments.git_arguments:
                 raise ValueError("--print-identity does not accept git commit arguments")
