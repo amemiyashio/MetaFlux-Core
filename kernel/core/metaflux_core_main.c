@@ -165,6 +165,16 @@ static void mf_cdev_payload_reap_locked(void)
 	}
 }
 
+static void mf_cdev_queue_reap_locked(void)
+{
+	if (!mf_cdev_queue.online && atomic_read(&mf_cdev_queue.vma_refs) == 0 &&
+	    mf_cdev_queue.mapping != NULL) {
+		vfree(mf_cdev_queue.mapping);
+		mf_cdev_queue.mapping = NULL;
+		mf_cdev_queue.allocation_size = 0;
+	}
+}
+
 static void mf_cdev_registered_resources_release(struct page **pages, unsigned long page_count,
 							 struct sg_table *sg_table,
 							 struct mm_struct *mm, u32 flags)
@@ -738,8 +748,12 @@ static void mf_cdev_vma_close(struct vm_area_struct *vma)
 {
 	struct mf_cdev_queue *queue = vma->vm_private_data;
 
-	if (queue != NULL)
+	if (queue != NULL) {
+		mutex_lock(&mf_cdev_lock);
 		atomic_dec(&queue->vma_refs);
+		mf_cdev_queue_reap_locked();
+		mutex_unlock(&mf_cdev_lock);
+	}
 }
 
 static const struct vm_operations_struct mf_cdev_vm_ops = {
@@ -1006,10 +1020,7 @@ static void __exit mf_cdev_exit(void)
 	}
 	wake_up_all(&mf_cdev_queue.wait);
 	mf_cdev_payload_reap_locked();
-	if (atomic_read(&mf_cdev_queue.vma_refs) == 0 && mf_cdev_queue.mapping != NULL) {
-		vfree(mf_cdev_queue.mapping);
-		mf_cdev_queue.mapping = NULL;
-	}
+	mf_cdev_queue_reap_locked();
 	mutex_unlock(&mf_cdev_lock);
 	if (reap_registered)
 		mf_cdev_registered_memory_destroy(&retired);
