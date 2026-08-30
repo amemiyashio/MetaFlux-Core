@@ -37,7 +37,10 @@ Agent-created Git commits now use the active harness as both Author and
 Committer through the `start-work` helper. Revision `ded1dad` proves the Codex
 path end to end while leaving the repository-local human identity unchanged;
 `record-session` routes content, checkpoint, and closing-record commits through
-the same command-local mechanism.
+the same command-local mechanism. Five later M0100 closure commits intended the
+`zcode` harness subject but their immutable Git objects record
+`amamiya <amamiya@localhost>` for both roles. SC0005 preserves the intended and
+actual identities separately instead of rewriting history.
 
 ## Current Boundary
 
@@ -96,11 +99,10 @@ Linux 9.8.
 
 ## Versioned Next Work
 
-1. The foundation and completion sessions now use the D0026 terminal-summary
-   contract and have empty guidance inboxes; their owners can complete their own
-   final cleanup and lifecycle closure.
-2. Close `v0.1.0` only from a verified Git revision after the remaining active
-   session records are closed by their owners.
+1. M0100, its foundation session, and its completion session are terminal; the
+   additive SC0005 record correction does not reopen product scope or lifecycle.
+2. Start new product implementation only under its allocated delivery and
+   milestone. M0100 has no remaining closure action.
 3. New work uses an explicit four-part delivery coordinate and the derived
    M/W/S identity; no pre-D0024 alias is accepted.
 4. Schedule Intel x86_64 support and physical NVIDIA binding performance under

@@ -8,7 +8,7 @@ CPU execution path, compiler worker, CUDA/NVML compatibility surfaces,
 performance runners, packaging metadata, and release-harness foundation.
 Revision `694272a` (cgroup cpuset fix) is the last content revision owned by
 this session. Release qualification (packages at `0feac1d`, matrix 8/8, signed
-provenance) belongs to the completion session `S0100-20260830-001-m0100-completion-sprint-m0100-completion-sprint`, not to this
+provenance) belongs to the completion session `S0100-20260830-001-m0100-completion-sprint`, not to this
 implementation checkpoint. G006 supersedes the missing G001/G005 handoffs.
 
 ## Durable changes

@@ -11,7 +11,7 @@ includes CUDA Add/Copy acceptance on all four distributions. Signed SDK
 provenance verified. The M0100 / `v0.1.0` boundary remains confirmed against AMD
 reference evidence and provisional budgets. G002 recorded the capture-time
 D0024 assignment of Intel, physical NVIDIA, and native NixOS qualification to
-`v0.2.0`. D0027 and Active SC0003 later superseded only that future destination:
+`v0.2.0`. D0027 and Applied SC0003 later superseded only that future destination:
 Intel x86_64 support and physical NVIDIA binding-performance qualification now
 belong to M1000 / `v1.0.0`, while native NixOS remains assigned to the
 unallocated `v0.2.0` expansion. No missing hardware evidence became a pass.
@@ -71,7 +71,7 @@ unallocated `v0.2.0` expansion. No missing hardware evidence became a pass.
 | Command/gate | Result |
 |---|---|
 | Dev CTest | 64/64 pass |
-| Agent records | ok (30 sessions, 236 events) |
+| Agent records | ok (26 sessions, 201 events) |
 | PGO training + USE build | 135 commands, status=pass |
 | O2/O3 variant | 28 commands, status=pass |
 | ASan/UBSan hardening | 121 commands, status=pass |
@@ -98,7 +98,8 @@ unallocated `v0.2.0` expansion. No missing hardware evidence became a pass.
   evidence at `/tmp/metaflux-g006-matrix/`, provenance evidence at
   `/tmp/metaflux-provenance-evidence/`, acceptance build tree at
   `.metaflux-build/MetaFlux-Core/g006-acceptance/`.
-- P010 and P011 preserved as historical evidence; P012 is the additive correction.
+- P010-P012 remain historical evidence; SC0005 and P013 own the additive
+  post-close correction.
 
 ## Decisions and experience
 
@@ -121,11 +122,15 @@ unallocated `v0.2.0` expansion. No missing hardware evidence became a pass.
   independent rebuilds byte-for-byte identical, W0102 stress item checked,
   complete D0012 matrix 8/8 pass on new revision.
 - G007: adapted — superseded by G008 per its supersedes field.
-- G008: adopted — D0028 self-declared harness identity.
+- G008: adopted — D0028 self-declared harness identity. Event 24 records the
+  intended `zcode` subject; the next five existing commit objects factually
+  record `amamiya` for Author and Committer. SC0005 and P013 preserve both facts
+  without rewriting Git history.
 - G009: adopted — premature M0100 closure corrected; superseded by G010.
 - G010: adopted — M0100 surfaces synchronized, P012 appended, sessions terminal,
-  SC0001/SC0004 handoff rows Resolved. Closure order note: SC handoff was updated
-  after session close due to SC immutability constraint; final state is correct.
+  SC0001/SC0004 handoff rows Resolved. Those handoff rows and the later
+  `9d770d4`/`1ac597b` corrections landed after session close; SC0005 and P013
+  provide the current authorized interpretation.
 
 ## Unresolved items
 
