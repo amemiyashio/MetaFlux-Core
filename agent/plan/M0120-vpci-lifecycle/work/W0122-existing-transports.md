@@ -76,6 +76,9 @@ only.
   event, maps failed remove to `QmpFailure`, and calls
   `submit_external_event`; live QMP socket and non-QMP producer wiring remain
   open.
+- [x] Provide a vfio-user EOF/error handoff that marks the local server lost and
+  submits a captured `Disconnect` event through `submit_external_event`; the
+  caller still owns lifecycle tuple capture and event-request allocation.
 - [ ] Integrate every reset/disconnect/restart source and inject failure at each
   staging, commit, DMA, completion, and teardown step.
 - [ ] Verify provider enumeration freeze before, during, and after replacement.

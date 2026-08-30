@@ -8,8 +8,9 @@ transport mirror stages are verified below; the session remains active while
 production memfd wiring, live QMP/vPCI integration, and qualification gates
 remain open. The typed external-event normalizer and QMP command/event
 correlation fixture are recorded as boundary fixtures; the QMP fixture now also
-has a direct completion-to-ingress helper, while live socket and remaining
-producer call-site integration remain open.
+has a direct completion-to-ingress helper and the vfio-user server has an EOF
+disconnect handoff, while live command transport and remaining producer
+call-site integration remain open.
 
 ## Durable changes
 
@@ -30,6 +31,10 @@ producer call-site integration remain open.
   and its implementation/test: one-pending-command QMP event correlation with
   failed-remove loss mapping, failed-add rejection, and a completion-to-ingress
   helper for callers that own the Coordinator.
+- `transports/vfio-user/server/include/metaflux/transport/vfio_user_server.hpp`
+  and its implementation/test: a disconnect handoff that marks local EOF/error
+  loss and submits a caller-captured `Disconnect` event through lifecycle
+  ingress.
 - `runtime/core/include/metaflux/runtime/lifecycle_dispatch.hpp` and its
   implementation/test: one stateless ingress that normalizes external events
   before submitting accepted requests to the Coordinator.
@@ -46,6 +51,7 @@ producer call-site integration remain open.
 | `metaflux.transport.memfd-worker` | Passed |
 | `metaflux.unit.runtime-lifecycle`, normalizer, and vfio-user QMP | Passed: 3/3 |
 | QMP completion-to-ingress regression | Passed: QMP and lifecycle-dispatch selection 2/2 |
+| vfio-user disconnect-to-ingress regression | Passed: server and lifecycle-dispatch selection 2/2 |
 | `metaflux.unit.runtime-lifecycle-dispatch` | Passed |
 | `ctest --preset dev` | Passed: 79/79 |
 | `python3 tools/check-component-graph.py <configured graph>` | Passed: 19 components / 22 edges |
@@ -68,6 +74,11 @@ producer call-site integration remain open.
   clearing correlation state, and routes the event through
   `submit_external_event`. A failed remove therefore reaches the existing
   `QmpFailure` lifecycle path without adding a QMP-specific authority API.
+- The vfio-user disconnect handoff marks local transport loss before calling the
+  stateless ingress, but it does not manufacture event metadata. The owner must
+  supply the logical device, daemon incarnation, identity, generation, epoch,
+  and request ID, and can inspect local `ServerResult` separately from
+  `ResultDetails`.
 
 ## roast
 
@@ -89,6 +100,9 @@ producer call-site integration remain open.
 - QMP completion-to-ingress wiring -> `transports/vfio-user/server/src/qmp_lifecycle.cpp`
   (focused QMP/lifecycle dispatch regression; content revision `b37e8ba`, full
   development CTest 79/79)
+- vfio-user disconnect-to-ingress wiring -> `transports/vfio-user/server/src/server.cpp`
+  (focused server/lifecycle dispatch regression; content revision `ee0ecab`,
+  full development CTest 79/79)
 - Runtime external-event ingress -> `runtime/core/include/metaflux/runtime/lifecycle_dispatch.hpp`
   (focused dispatch regression; content revision `04ecf81`, full development
   CTest 79/79)
@@ -110,13 +124,14 @@ producer call-site integration remain open.
 
 ## Unresolved items
 
-- W0122 remains Active. Next: implement live QMP/socket integration, wire the
-  remaining reset/disconnect/restart producer call sites and production memfd
-  worker path, and add provider-freeze plus fault/qualification evidence.
+- W0122 remains Active. Next: bind the real EOF owner to the disconnect helper,
+  implement live QMP/socket command transport, wire remaining reset/restart
+  producer call sites and the production memfd worker path, and add
+  provider-freeze plus fault/qualification evidence.
 
 ## Handoff
 
-Resume from checkpoint `P20260831-028`; run
+Resume from checkpoint `P20260831-029`; run
 `metaflux.unit.runtime-lifecycle`, the normalizer, dispatch, and QMP tests, and
 `metaflux.transport.memfd-worker` before changing an adapter, then preserve the
 M0110 descriptor/UAPI/BAR boundary.
