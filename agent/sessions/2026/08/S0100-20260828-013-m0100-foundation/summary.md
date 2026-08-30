@@ -8,7 +8,7 @@ CPU execution path, compiler worker, CUDA/NVML compatibility surfaces,
 performance runners, packaging metadata, and release-harness foundation.
 Revision `694272a` (cgroup cpuset fix) is the last content revision owned by
 this session. Release qualification (packages at `0feac1d`, matrix 8/8, signed
-provenance) belongs to the completion session `S0100-20260830-001-m0100-completion-sprint`, not to this
+provenance) belongs to the completion session `S0100-20260830-001-m0100-completion-sprint-m0100-completion-sprint`, not to this
 implementation checkpoint. G006 supersedes the missing G001/G005 handoffs.
 
 ## Durable changes
@@ -113,7 +113,7 @@ implementation checkpoint. G006 supersedes the missing G001/G005 handoffs.
 ## Unresolved items
 
 - Current M0100 gate and lifecycle state is owned by `agent/progress/current.md`
-  and the now-terminal completion session `S0100-20260830-001`; this
+  and the now-terminal completion session `S0100-20260830-001-m0100-completion-sprint`; this
   implementation checkpoint remains evidence for its named revision rather than
   release certification.
 - Intel x86_64 support and physical NVIDIA binding-performance qualification
