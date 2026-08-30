@@ -68,13 +68,15 @@ and arithmetic operation is validated.
   queue, and caller-owned host-memory import) and exercise it through the cdev
   worker's mapped payload, including invalid event and range rejection. The
   backend remains synchronous and advertises no launch, event, or DMA feature.
+- [x] Retain an offline queue mapping as a VMA tombstone after module teardown
+  and reclaim its backing under the cdev lock when the final queue VMA closes.
 
 ## Remaining work
 
-- [ ] Complete queue object/kref/tombstone ownership, backend reference drain, and
-  daemon-controlled generation replacement. The payload arena VMA tombstone,
-  eventfd references, and bounded registered-memory lifetime are implemented for
-  the current fixture.
+- [ ] Complete queue object/kref/tombstone ownership beyond the VMA backing,
+  backend reference drain, and daemon-controlled generation replacement. The
+  payload and queue VMA tombstones, eventfd references, and bounded
+  registered-memory lifetime are implemented for the current fixture.
 - [ ] Extend the leased worker/backend binding from the verified COPY subset to
   the unmodified CPU Add/launch path and prove Add/Copy end to end through the
   mapped payload arena. Production registered-memory import and DMA mapping
