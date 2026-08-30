@@ -70,6 +70,8 @@ and arithmetic operation is validated.
   backend remains synchronous and advertises no launch, event, or DMA feature.
 - [x] Retain an offline queue mapping as a VMA tombstone after module teardown
   and reclaim its backing under the cdev lock when the final queue VMA closes.
+- [x] Mark the current generation offline and wake waiters when the queue owner
+  or worker lease closes, preventing new users from reusing that tombstone.
 
 ## Remaining work
 

@@ -19,6 +19,9 @@ remains Active until full ownership, backend, and fault gates close.
 - `kernel/core/` retains an offline queue mapping as a VMA tombstone during
   module teardown and reclaims its backing under the cdev lock after the final
   queue VMA closes.
+- `kernel/core/` marks the generation offline and wakes waiters when the queue
+  owner or worker lease closes, so a dead owner cannot leave the generation
+  reusable before daemon-controlled replacement exists.
 - Queue creation and worker leasing accept one complete eventfd pair per
   generation, retain kernel `eventfd_ctx` references, and reject a second owner.
 - `transports/cdev/client/` exposes eventfd-aware session opening and payload
@@ -51,7 +54,7 @@ remains Active until full ownership, backend, and fault gates close.
 | Backend dispatch seam | Passed: cdev worker fake backend covers ABI size/capability/handle validation, COPY translation, success/timeout mapping, and unsupported-capability rejection |
 | CPU backend COPY binding | Passed: backend ABI smoke covers lifecycle, enumeration, imported ranges, COPY bytes, invalid event, and out-of-range rejection; cdev worker uses the real API against mapped payload |
 | Full development CTest | Passed: 79/79 |
-| Target Kbuild (Linux 6.18.42, GCC) | Passed: `metaflux_core.ko` built and modpost completed after queue VMA tombstone changes |
+| Target Kbuild (Linux 6.18.42, GCC) | Passed: `metaflux_core.ko` built and modpost completed after owner-death tombstone changes |
 | Target Kbuild with `LLVM=1` | Not qualified: target config rejects GCC-specific flags before source compile |
 
 ## Cleanup
@@ -81,6 +84,9 @@ remains Active until full ownership, backend, and fault gates close.
   marks the object offline first, then the final VMA close performs the backing
   free under the cdev lock. The queue object itself remains a static tombstone
   until generation replacement is implemented.
+- Queue or worker owner close follows the same terminal path as module exit:
+  it marks the generation offline before waking waiters, and no subsequent
+  queue creation or lease can reuse that generation.
 - W0112 stays Active until the kernel broker, lease exclusivity, teardown, and
   local Add/Copy evidence pass their workstream gates.
 
@@ -108,6 +114,8 @@ remains Active until full ownership, backend, and fault gates close.
   backend ABI and cdev worker regressions, full CTest 79/79)
 - Queue VMA tombstone backing reaping -> `kernel/core/metaflux_core_main.c`
   (content revision `70f332c`; Linux 6.18.42 GCC Kbuild and full CTest 79/79)
+- Owner-death generation tombstone -> `kernel/core/metaflux_core_main.c`
+  (content revision `4a502b5`; Linux 6.18.42 GCC Kbuild and full CTest 79/79)
 
 ### medium roasts
 
@@ -125,7 +133,7 @@ remains Active until full ownership, backend, and fault gates close.
 ## Unresolved items
 
 - W0112 / local cdev: complete queue kref/tombstone ownership beyond the VMA
-  backing and daemon generation replacement, wire generation-bound registered memory to backend
+  backing and owner-death transition, add daemon generation replacement, wire generation-bound registered memory to backend
   `dma_map_sg` and in-flight device reference draining, extend the production
   CPU binding to unmodified Add/launch, and add KUnit/KASAN/KCSAN,
   lockdep/kmemleak, teardown, stale-generation, and owner-death evidence. The
@@ -138,8 +146,9 @@ Read W0112, the W0111 transport schema, and the generated UAPI projection. The
 registered-memory fixture is one generation-bound range with no backend DMA map
 or in-flight device reference. The CPU backend now provides a real synchronous
 COPY table and the cdev worker regression consumes an imported mapped payload;
-the queue and payload VMA backings now reap after offline tombstones, while
-production Add/launch, backend DMA mapping, queue krefs, and daemon replacement
-remain open. Run the focused cdev and backend ABI CTests and target Kbuild before
+the queue and payload VMA backings now reap after offline tombstones, and owner
+close now transitions the generation offline, while production Add/launch,
+backend DMA mapping, queue krefs, and daemon replacement remain open. Run the
+focused cdev and backend ABI CTests and target Kbuild before
 changing the broker; keep the cdev client and worker halves in separate load
 images.
