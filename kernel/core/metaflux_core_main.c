@@ -175,6 +175,14 @@ static void mf_cdev_queue_reap_locked(void)
 	}
 }
 
+static void mf_cdev_queue_mark_offline_locked(void)
+{
+	if (mf_cdev_queue.online) {
+		mf_cdev_queue.online = false;
+		wake_up_all(&mf_cdev_queue.wait);
+	}
+}
+
 static void mf_cdev_registered_resources_release(struct page **pages, unsigned long page_count,
 							 struct sg_table *sg_table,
 							 struct mm_struct *mm, u32 flags)
@@ -887,11 +895,13 @@ static int mf_cdev_release(struct inode *inode, struct file *file_pointer)
 		return 0;
 	memset(&retired, 0, sizeof(retired));
 	mutex_lock(&mf_cdev_lock);
-	if (mf_cdev_queue.queue_owner == file)
+	if (mf_cdev_queue.queue_owner == file) {
 		mf_cdev_queue.queue_owner = NULL;
+		mf_cdev_queue_mark_offline_locked();
+	}
 	if (mf_cdev_queue.lease_owner == file) {
 		mf_cdev_queue.lease_owner = NULL;
-		wake_up_all(&mf_cdev_queue.wait);
+		mf_cdev_queue_mark_offline_locked();
 	}
 	if (mf_cdev_queue.eventfd_owner == file) {
 		mf_cdev_queue.eventfd_owner = NULL;
@@ -910,6 +920,7 @@ static int mf_cdev_release(struct inode *inode, struct file *file_pointer)
 		reap_registered = mf_cdev_registered_memory_take_locked(file, 0U, &retired);
 		file->memory_registered = false;
 	}
+	mf_cdev_queue_reap_locked();
 	mutex_unlock(&mf_cdev_lock);
 	if (reap_registered)
 		mf_cdev_registered_memory_destroy(&retired);
@@ -1005,7 +1016,7 @@ static void __exit mf_cdev_exit(void)
 	misc_deregister(&mf_cdev_data_device);
 	misc_deregister(&mf_cdev_control_device);
 	mutex_lock(&mf_cdev_lock);
-	mf_cdev_queue.online = false;
+	mf_cdev_queue_mark_offline_locked();
 	mf_cdev_queue.queue_owner = NULL;
 	mf_cdev_queue.lease_owner = NULL;
 	mf_cdev_queue.eventfd_owner = NULL;
@@ -1018,7 +1029,6 @@ static void __exit mf_cdev_exit(void)
 		retired = mf_cdev_registered;
 		memset(&mf_cdev_registered, 0, sizeof(mf_cdev_registered));
 	}
-	wake_up_all(&mf_cdev_queue.wait);
 	mf_cdev_payload_reap_locked();
 	mf_cdev_queue_reap_locked();
 	mutex_unlock(&mf_cdev_lock);

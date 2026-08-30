@@ -25,6 +25,12 @@ registration. SG teardown precedes dirty-unpin for device-written pages and
 releases the memlock charge. This stage does not expose backend `dma_map_sg`
 or in-flight device references; those remain W0112/W0114 qualification work.
 
+Closing the queue owner or worker lease transitions the current generation to an
+offline tombstone before waking waiters. Existing queue VMAs remain mapped until
+their final close, but new negotiation, queue creation, allocation, and worker
+lease attempts cannot reuse that generation; daemon-controlled replacement is a
+separate lifecycle step.
+
 Eventfds are caller-owned descriptors. A queue or worker lease may attach one
 complete pair (or no eventfds) for a generation; the kernel retains `eventfd_ctx` references and returns
 the supplied descriptor numbers unchanged. A second owner is rejected with

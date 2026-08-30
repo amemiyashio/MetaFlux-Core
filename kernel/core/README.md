@@ -33,9 +33,10 @@ The Kbuild rule regenerates the ignored header under `kernel/core/generated/`
 from the repository manifest before compiling. Queue and payload mapping lifetime
 is held by VMA callbacks. An offline queue mapping is retained as a tombstone
 until its final VMA closes, then its backing is reclaimed under the cdev lock;
-worker leases are exclusive per generation, unknown ioctls return `-ENOTTY`, and
-malformed/short records are rejected before any allocation or reference
-acquisition.
+worker leases are exclusive per generation, and closing either the queue owner
+or worker lease marks the generation offline and wakes waiters. Unknown ioctls
+return `-ENOTTY`, and malformed/short records are rejected before any allocation
+or reference acquisition.
 
 Use `LLVM=1` only with a target kernel configuration whose Kbuild flags support
 the selected LLVM compiler; the current CachyOS 6.18 headers require GCC for
