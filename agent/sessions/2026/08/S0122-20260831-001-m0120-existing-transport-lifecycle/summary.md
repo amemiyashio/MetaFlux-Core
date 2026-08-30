@@ -3,9 +3,9 @@
 ## Objective and outcome
 
 Implement W0122's runtime-owned lifecycle transaction boundary for existing
-memfd, cdev, and guest vfio-user adapters. The verified coordinator stage is
-recorded below; the session remains active while concrete transport adapters,
-QMP/vPCI integration, and qualification gates are completed.
+memfd, cdev, and guest vfio-user adapters. The coordinator and concrete C++
+cdev/vfio-user mirror stage are verified below; the session remains active while
+memfd integration, QMP/vPCI integration, and qualification gates are completed.
 
 ## Durable changes
 
@@ -13,6 +13,12 @@ QMP/vPCI integration, and qualification gates are completed.
   `runtime/core/src/lifecycle.cpp`: coordinator and bounded mirror contract.
 - `runtime/core/tests/lifecycle.cpp`: generation/epoch lifecycle regressions.
 - `runtime/core/README.md`: ownership and adapter boundary.
+- `transports/cdev/worker/`: lifecycle mirror, queue drain, and lost-generation
+  completion handling.
+- `transports/vfio-user/server/`: lifecycle mirror, DMA admission gates, and
+  generation/epoch advancement.
+- `transports/cdev/README.md` and `transports/vfio-user/README.md`: adapter
+  ownership and protocol-boundary notes.
 - `agent/plan/M0120-vpci-lifecycle/work/W0122-existing-transports.md`: active
   stage and remaining adapter gates.
 
@@ -21,7 +27,9 @@ QMP/vPCI integration, and qualification gates are completed.
 | Command/gate | Result |
 | --- | --- |
 | `metaflux.unit.runtime-lifecycle` | Passed |
+| `metaflux.transport.cdev-worker` and `metaflux.transport.vfio-user-server` | Passed: 2/2 |
 | `ctest --preset dev` | Passed: 75/75 |
+| `python3 tools/check-component-graph.py <configured graph>` | Passed: 17 components / 20 edges |
 | `python3 tools/check-agent-records.py .` | Passed |
 
 ## Cleanup
@@ -39,13 +47,15 @@ QMP/vPCI integration, and qualification gates are completed.
 
 ### light roasts
 
-- Coordinator and mirror boundary -> `runtime/core/include/metaflux/runtime/lifecycle.hpp`
+- Runtime coordinator and normalized mirror contract -> `runtime/core/include/metaflux/runtime/lifecycle.hpp`
   (focused lifecycle CTest; content revision `3e89434`)
-- Generation/epoch transaction implementation -> `runtime/core/src/lifecycle.cpp`
-  (full dev CTest 75/75)
-- W0122 stage ownership and remaining gates ->
+- Cdev generation gate and lost completion -> `transports/cdev/worker/src/worker.cpp`
+  (cdev transport regression; content revision `f5cdee3`)
+- Vfio-user DMA generation/epoch gate -> `transports/vfio-user/server/src/server.cpp`
+  (vfio-user transport regression; content revision `f5cdee3`)
+- W0122 implementation boundary and remaining gates ->
   `agent/plan/M0120-vpci-lifecycle/work/W0122-existing-transports.md`
-  (coordinator stage recorded)
+  (full dev CTest 75/75)
 
 ### medium roasts
 
@@ -61,12 +71,12 @@ QMP/vPCI integration, and qualification gates are completed.
 
 ## Unresolved items
 
-- W0122 remains Active. Next: wire the coordinator into concrete memfd/cdev/
-  guest vfio-user adapters, normalize QMP/disconnect/restart sources, and add
-  provider-freeze and fault/qualification evidence.
+- W0122 remains Active. Next: integrate the concrete memfd path, normalize
+  QMP/disconnect/restart sources, and add provider-freeze plus
+  fault/qualification evidence.
 
 ## Handoff
 
-Resume from checkpoint `P20260831-019`; run
+Resume from checkpoint `P20260831-020`; run
 `metaflux.unit.runtime-lifecycle` before changing an adapter, then preserve the
 M0110 descriptor/UAPI/BAR boundary.
