@@ -49,11 +49,18 @@ and arithmetic operation is validated.
   and enforce one worker lease per generation.
 - [x] Keep cdev fallback limited to `ENOENT`/`ENODEV`/explicit ABI incompatibility
   in the userspace client; permission and malformed states remain visible.
+- [x] Allocate one generation-bound, page-aligned driver payload arena through
+  `MF_UAPI_IOCTL_MEMORY_ALLOC`, expose it through the generated payload mmap
+  offset, and retain an offline tombstone until the final VMA closes.
+- [x] Attach one complete caller-owned eventfd pair to either the data queue or
+  worker lease, retain kernel `eventfd_ctx` references, and reject a second owner
+  for the generation with `-EBUSY`.
 
 ## Remaining work
 
-- [ ] Complete kernel object/kref/tombstone ownership, eventfd registration,
-  memory pin/register ioctls, and daemon-controlled generation replacement.
+- [ ] Complete queue object/kref/tombstone ownership, FOLL_PIN/SG-backed memory
+  registration, and daemon-controlled generation replacement. The payload arena
+  VMA tombstone and eventfd references are implemented for the current fixture.
 - [ ] Connect the leased worker to `mf_backend_api_v1` and prove unmodified CPU
   Add/Copy end to end through the mapped payload arena.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and

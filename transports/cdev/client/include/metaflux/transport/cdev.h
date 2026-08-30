@@ -14,6 +14,8 @@ extern "C" {
 #define MF_CDEV_DEFAULT_CONTROL_PATH_V0 "/dev/metafluxctl"
 #define MF_CDEV_RING_CAPACITY_V0 UINT32_C(256)
 #define MF_CDEV_PAYLOAD_OFFSET_V0 UINT64_C(16384)
+#define MF_CDEV_PAYLOAD_MMAP_OFFSET_V0 UINT64_C(8192)
+#define MF_CDEV_PAYLOAD_MAX_SIZE_V0 UINT64_C(67108864)
 
 typedef struct mf_cdev_session_v0 {
   void* mapping;
@@ -26,7 +28,19 @@ typedef struct mf_cdev_session_v0 {
   int32_t device_fd;
   uint32_t negotiated_features;
   uint32_t reserved;
+  int32_t submission_eventfd;
+  int32_t completion_eventfd;
 } mf_cdev_session_v0;
+
+typedef struct mf_cdev_memory_v0 {
+  void* mapping;
+  uint64_t mapping_size;
+  uint64_t byte_count;
+  uint64_t handle;
+  uint64_t generation;
+  int32_t device_fd;
+  uint32_t reserved;
+} mf_cdev_memory_v0;
 
 typedef struct mf_cdev_copy_v0 {
   uint64_t destination_offset;
@@ -38,9 +52,23 @@ typedef struct mf_cdev_copy_v0 {
 mf_shared_status_v1 mf_cdev_session_open_v0(const char* device_path,
                                              mf_cdev_session_v0* out_session);
 
+/* Open a queue and attach caller-owned eventfds to its generation. */
+mf_shared_status_v1 mf_cdev_session_open_with_eventfds_v0(const char* device_path,
+                                                          int32_t submission_eventfd,
+                                                          int32_t completion_eventfd,
+                                                          mf_cdev_session_v0* out_session);
+
 mf_shared_status_v1 mf_cdev_session_open_default_v0(mf_cdev_session_v0* out_session);
 
 void mf_cdev_session_close_v0(mf_cdev_session_v0* session);
+
+/* Allocate and map the generation-bound driver payload arena. */
+mf_shared_status_v1 mf_cdev_memory_alloc_v0(mf_cdev_session_v0* session,
+                                            uint64_t byte_count,
+                                            uint64_t alignment,
+                                            mf_cdev_memory_v0* out_memory);
+
+void mf_cdev_memory_close_v0(mf_cdev_memory_v0* memory);
 
 /* Encode a copy descriptor without submitting it. Offsets address the mapped payload arena. */
 mf_shared_status_v1 mf_cdev_copy_descriptor_v0(uint64_t request_id,

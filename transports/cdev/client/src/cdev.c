@@ -87,8 +87,10 @@ static mf_shared_status_v1 mf_cdev_validate_ring(void* mapping, uint64_t mapping
   return MF_SHARED_SUCCESS;
 }
 
-mf_shared_status_v1 mf_cdev_session_open_v0(const char* device_path,
-                                             mf_cdev_session_v0* out_session) {
+static mf_shared_status_v1 mf_cdev_session_open_internal_v0(const char* device_path,
+                                                             int32_t submission_eventfd,
+                                                             int32_t completion_eventfd,
+                                                             mf_cdev_session_v0* out_session) {
   const char* path = device_path == NULL ? MF_CDEV_DEFAULT_PATH_V0 : device_path;
   mf_uapi_negotiate_v0 negotiate;
   mf_uapi_queue_v0 queue;
@@ -97,7 +99,7 @@ mf_shared_status_v1 mf_cdev_session_open_v0(const char* device_path,
   int32_t fd = -1;
   int result = -1;
 
-  if (out_session == NULL || path == NULL) {
+  if (out_session == NULL || path == NULL || submission_eventfd < -1 || completion_eventfd < -1) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
   path_length = strlen(path);
@@ -108,6 +110,8 @@ mf_shared_status_v1 mf_cdev_session_open_v0(const char* device_path,
   out_session->device_fd = -1;
   out_session->submission.owned_fd = -1;
   out_session->completion.owned_fd = -1;
+  out_session->submission_eventfd = -1;
+  out_session->completion_eventfd = -1;
   fd = open(path, O_RDWR | O_CLOEXEC);
   if (fd < 0) {
     return (errno == ENOENT || errno == ENODEV) ? MF_SHARED_NOT_SUPPORTED : MF_SHARED_SYSTEM_ERROR;
@@ -134,6 +138,8 @@ mf_shared_status_v1 mf_cdev_session_open_v0(const char* device_path,
   }
   (void)memset(&queue, 0, sizeof(queue));
   queue.struct_size = sizeof(queue);
+  queue.submission_eventfd = submission_eventfd;
+  queue.completion_eventfd = completion_eventfd;
   result = ioctl(fd, MF_UAPI_IOCTL_QUEUE_CREATE, &queue);
   if (result < 0) {
     const int error = errno;
@@ -143,6 +149,7 @@ mf_shared_status_v1 mf_cdev_session_open_v0(const char* device_path,
   if (queue.struct_size != sizeof(queue) || queue.queue_id == 0U ||
       queue.queue_generation != negotiate.device_generation || queue.mapping_size == 0U ||
       queue.mapping_size > (uint64_t)SIZE_MAX || (queue.mmap_offset % 4096U) != 0U ||
+      (queue.submission_eventfd < -1 || queue.completion_eventfd < -1) ||
       !mf_cdev_reserved_zero(queue.reserved, sizeof(queue.reserved))) {
     (void)close(fd);
     return MF_SHARED_MALFORMED;
@@ -158,7 +165,10 @@ mf_shared_status_v1 mf_cdev_session_open_v0(const char* device_path,
   out_session->registry_view_id.view_serial = negotiate.registry_view_serial;
   out_session->device_generation = negotiate.device_generation;
   out_session->queue_id = queue.queue_id;
-  out_session->negotiated_features = (uint32_t)negotiate.required_features;
+  out_session->negotiated_features =
+      (uint32_t)(negotiate.required_features | negotiate.optional_features);
+  out_session->submission_eventfd = queue.submission_eventfd;
+  out_session->completion_eventfd = queue.completion_eventfd;
   if (mf_cdev_validate_ring(mapping, queue.mapping_size, &queue, out_session) !=
       MF_SHARED_SUCCESS) {
     (void)munmap(mapping, (size_t)queue.mapping_size);
@@ -167,9 +177,24 @@ mf_shared_status_v1 mf_cdev_session_open_v0(const char* device_path,
     out_session->device_fd = -1;
     out_session->submission.owned_fd = -1;
     out_session->completion.owned_fd = -1;
+    out_session->submission_eventfd = -1;
+    out_session->completion_eventfd = -1;
     return MF_SHARED_MALFORMED;
   }
   return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1 mf_cdev_session_open_v0(const char* device_path,
+                                             mf_cdev_session_v0* out_session) {
+  return mf_cdev_session_open_internal_v0(device_path, -1, -1, out_session);
+}
+
+mf_shared_status_v1 mf_cdev_session_open_with_eventfds_v0(const char* device_path,
+                                                          int32_t submission_eventfd,
+                                                          int32_t completion_eventfd,
+                                                          mf_cdev_session_v0* out_session) {
+  return mf_cdev_session_open_internal_v0(device_path, submission_eventfd, completion_eventfd,
+                                          out_session);
 }
 
 mf_shared_status_v1 mf_cdev_session_open_default_v0(mf_cdev_session_v0* out_session) {
@@ -192,6 +217,74 @@ void mf_cdev_session_close_v0(mf_cdev_session_v0* session) {
   session->device_fd = -1;
   session->submission.owned_fd = -1;
   session->completion.owned_fd = -1;
+  session->submission_eventfd = -1;
+  session->completion_eventfd = -1;
+}
+
+mf_shared_status_v1 mf_cdev_memory_alloc_v0(mf_cdev_session_v0* session, uint64_t byte_count,
+                                            uint64_t alignment,
+                                            mf_cdev_memory_v0* out_memory) {
+  mf_uapi_memory_v0 request;
+  void* mapping = MAP_FAILED;
+  int result = -1;
+
+  if (session == NULL || session->device_fd < 0 || out_memory == NULL || byte_count == 0U ||
+      byte_count > MF_CDEV_PAYLOAD_MAX_SIZE_V0 || alignment == 0U ||
+      (alignment & (alignment - 1U)) != 0U || alignment < 4096U) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  (void)memset(out_memory, 0, sizeof(*out_memory));
+  out_memory->device_fd = -1;
+  (void)memset(&request, 0, sizeof(request));
+  request.struct_size = sizeof(request);
+  request.generation = session->device_generation;
+  request.byte_count = byte_count;
+  request.alignment = alignment;
+  request.fd = -1;
+  result = ioctl(session->device_fd, MF_UAPI_IOCTL_MEMORY_ALLOC, &request);
+  if (result < 0) {
+    if (errno == ENOTTY || errno == EOPNOTSUPP || errno == ENODEV) {
+      return MF_SHARED_NOT_SUPPORTED;
+    }
+    if (errno == EBUSY || errno == ENOMEM) {
+      return MF_SHARED_RESOURCE_EXHAUSTED;
+    }
+    if (errno == ESTALE) {
+      return MF_SHARED_STALE_HANDLE;
+    }
+    return errno == EINVAL ? MF_SHARED_INVALID_ARGUMENT : MF_SHARED_SYSTEM_ERROR;
+  }
+  if (request.struct_size != sizeof(request) || request.handle == 0U ||
+      request.generation != session->device_generation || request.byte_count < byte_count ||
+      request.byte_count > MF_CDEV_PAYLOAD_MAX_SIZE_V0 || request.alignment < 4096U ||
+      (request.alignment & (request.alignment - 1U)) != 0U ||
+      request.offset == 0U || (request.offset % 4096U) != 0U || request.fd != -1 ||
+      !mf_cdev_reserved_zero(request.reserved, sizeof(request.reserved))) {
+    return MF_SHARED_MALFORMED;
+  }
+  mapping = mmap(NULL, (size_t)request.byte_count, PROT_READ | PROT_WRITE, MAP_SHARED,
+                 session->device_fd, (off_t)request.offset);
+  if (mapping == MAP_FAILED) {
+    return MF_SHARED_SYSTEM_ERROR;
+  }
+  out_memory->mapping = mapping;
+  out_memory->mapping_size = request.byte_count;
+  out_memory->byte_count = request.byte_count;
+  out_memory->handle = request.handle;
+  out_memory->generation = request.generation;
+  out_memory->device_fd = session->device_fd;
+  return MF_SHARED_SUCCESS;
+}
+
+void mf_cdev_memory_close_v0(mf_cdev_memory_v0* memory) {
+  if (memory == NULL) {
+    return;
+  }
+  if (memory->mapping != NULL && memory->mapping_size <= (uint64_t)SIZE_MAX) {
+    (void)munmap(memory->mapping, (size_t)memory->mapping_size);
+  }
+  (void)memset(memory, 0, sizeof(*memory));
+  memory->device_fd = -1;
 }
 
 mf_shared_status_v1 mf_cdev_copy_descriptor_v0(uint64_t request_id, uint64_t generation,
