@@ -1,9 +1,9 @@
 ---
-status: Complete
+status: Queued
 updated: 2026-08-30
-milestone: M0100
-workstream: W0106
-checkpoint: P20260830-013
+milestone: M0110
+workstream: W0111
+checkpoint: P20260830-014
 ---
 
 # Current Progress
@@ -12,6 +12,14 @@ Completed milestone: [M0100](../plan/M0100-core-foundation/plan.md), delivery
 `0.1.0.0`, product release `v0.1.0`. All workstreams W0101-W0106 are Complete.
 Product and delivery identities follow [D0024](../memory/decisions-index.md).
 Both foundation and completion sessions are terminal.
+
+Repository collaboration now has an implicit post-delivery convergence
+boundary at content revision `faea90189f2b34fb53667e20f843b9bd737c87c6`.
+The workflow inventories one exact committed/staged/unstaged/untracked change
+set, repairs only integration-owned compatible gaps, routes another active
+session through transient guidance, and routes breaking replacements through
+semantic-change governance. It creates no snapshot or review archive. This
+governance addition does not activate M0110 or W0111; both remain Queued.
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -90,6 +98,7 @@ performance targets provisional and uses AMD x86_64 as its reference host.
 | D0027 migration verification | Architecture CTest 6/6; Agent validator 163/163 plus repository 28 sessions/215 events/213 Markdown at record closure; semantic edits 21/21; guidance 20/20; protected evidence and residual scans passed |
 | Agent harness commit identity | Isolated forward test 7/7; both workflow skills valid; real content commit `ded1dad` records Codex as Author and Committer while local Git configuration remains `amamiya` |
 | M0100 closure consistency | Record correction `1812617`; candidate-index gates `4d1ff2b` / `9586b45`; Agent records 31 sessions / 242 events / 226 Markdown; self-test 169/169; architecture 6/6; semantic edits 21/21 |
+| Collaborator change convergence | Content `faea901`; inventory 15/15; routing 89 cases and 34/34 self-tests; final dev CTest 65/65; two independent reviews converged |
 
 The generic release entry point is checked in at
 `tools/build-generic-release.sh` with the CMake-owned Ubuntu 20.04 target tuple.
@@ -103,11 +112,15 @@ Linux 9.8.
 
 1. M0100, its foundation session, and its completion session are terminal; the
    Applied SC0005 record correction does not reopen product scope or lifecycle.
-2. Start new product implementation only under its allocated delivery and
-   milestone. M0100 has no remaining closure action.
+2. M0110 and W0111 are Queued. Start their product implementation only through
+   a new active session and the matching runtime, Linux UAPI, vfio-user, PCI,
+   and performance skills; this governance session did not activate them.
 3. New work uses an explicit four-part delivery coordinate and the derived
    M/W/S identity; no pre-D0024 alias is accepted.
-4. Schedule Intel x86_64 support and physical NVIDIA binding performance under
+4. After any durable collaborator delivery, converge its exact change set
+   before the next work unit; checkpoint or close is the missed-boundary
+   fallback.
+5. Schedule Intel x86_64 support and physical NVIDIA binding performance under
    M1000 / `v1.0.0`; keep native NixOS VM/package qualification in the
    unallocated `v0.2.0` expansion. Do not reopen M0100 for any of them.
 
