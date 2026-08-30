@@ -835,6 +835,12 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
     environment = prepare_active_head()
     stage(session_path, complete_session)
     stage(Path("agent/sessions/README.md"), "# Closing record fixture\n")
+    stage(
+        Path(
+            "agent/sessions/2026/08/S0100-20260828-001-selftest/outputs/0001.txt"
+        ),
+        "bounded output fixture\n",
+    )
     result = run_hook(environment)
     if result.returncode != 0:
         problems.append(
@@ -859,6 +865,29 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
     if result.returncode == 0 or "candidate Git index" not in result.stderr:
         problems.append(
             "agent skill content piggybacked on a final session close: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_active_head()
+    stage(session_path, complete_session)
+    stage(
+        Path("agent/sessions/2026/08/S0100-20260828-001-selftest/extra.py"),
+        "raise SystemExit(0)\n",
+    )
+    result = run_hook(environment)
+    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+        problems.append(
+            "unknown session descendant piggybacked on a final session close: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_active_head()
+    stage(session_path, complete_session)
+    stage(Path("agent/progress/checkpoints/2026/extra.bin"), "fixture\n")
+    result = run_hook(environment)
+    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+        problems.append(
+            "noncanonical checkpoint descendant piggybacked on a final close: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 

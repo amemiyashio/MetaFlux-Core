@@ -42,7 +42,11 @@ records whose staged `session.json` changes a session from `in_progress` in
 `HEAD` to `complete`, `blocked`, or `abandoned`; it never authorizes product,
 plan, memory, template, or skill content in the closing commit. This lets the
 first session scaffold establish coverage and lets the last record commit close
-it without leaving a synthetic activity record behind.
+it without leaving a synthetic activity record behind. Session records are
+limited to `session.json`, `events.jsonl`, `summary.md`, `notes.md`, valid
+`outputs/NNNN.txt`, and staged guidance deletions. Checkpoints must use the
+canonical `PYYYYMMDD-NNN-slug.md` shape; unknown descendants are not closing
+records.
 
 `check-semantic-change-edits.py` is the staged-diff hard gate for D0025. It
 reads only `Active` SC permits already committed to `HEAD`, requires their bound

@@ -13,10 +13,12 @@ is_guidance_path() {
 
 is_closing_record_path() {
   [[ "$1" == agent/sessions/README.md \
-    || "$1" =~ ^agent/sessions/[^/]+/[^/]+/[^/]+/ \
+    || "$1" =~ ^agent/sessions/[0-9]{4}/[0-9]{2}/S[0-9]{4,}-[0-9]{8}-[0-9]{3}-[a-z0-9][a-z0-9-]*/(session\.json|events\.jsonl|summary\.md|notes\.md)$ \
+    || "$1" =~ ^agent/sessions/[0-9]{4}/[0-9]{2}/S[0-9]{4,}-[0-9]{8}-[0-9]{3}-[a-z0-9][a-z0-9-]*/outputs/[0-9]{4}\.txt$ \
+    || "$1" =~ ^agent/sessions/[0-9]{4}/[0-9]{2}/S[0-9]{4,}-[0-9]{8}-[0-9]{3}-[a-z0-9][a-z0-9-]*/guidance/ \
     || "$1" == agent/progress/README.md \
     || "$1" == agent/progress/current.md \
-    || "$1" =~ ^agent/progress/checkpoints/[^/]+/[^/]+$ \
+    || "$1" =~ ^agent/progress/checkpoints/[0-9]{4}/P[0-9]{8}-[0-9]{3}-[a-z0-9][a-z0-9-]*\.md$ \
     || "$1" == agent/semantic-changes/README.md \
     || "$1" =~ ^agent/semantic-changes/SC[0-9]{4}-.+\.md$ ]]
 }
