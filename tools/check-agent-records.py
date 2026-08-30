@@ -1190,7 +1190,7 @@ class Validator:
         Only the newest complete session is compared: older sessions
         legitimately reflect the state of their time.
         """
-        latest: tuple[str, str, Path] | None = None
+        latest: tuple[tuple[str, int, str, str], Path, dict[str, object]] | None = None
         for session_file in sorted(self.sessions_root.rglob("session.json")):
             if (
                 self.is_guidance_inbox_path(session_file)
@@ -1205,17 +1205,26 @@ class Validator:
             if not isinstance(document, dict) or document.get("status") != "complete":
                 continue
             started_at = document.get("started_at")
-            if not isinstance(started_at, str):
+            session_id = document.get("id")
+            session_match = (
+                SESSION_ID_RE.fullmatch(session_id)
+                if isinstance(session_id, str)
+                else None
+            )
+            if not isinstance(started_at, str) or session_match is None:
                 continue
-            key = (started_at, str(session_file))
-            if latest is None or key > (latest[0], latest[1]):
-                latest = (started_at, str(session_file), session_file)
+            key = (
+                session_match.group("date"),
+                int(session_match.group("ordinal")),
+                started_at,
+                session_id,
+            )
+            if latest is None or key > latest[0]:
+                latest = (key, session_file, document)
         if latest is None:
             return
-        try:
-            document = json.loads(latest[2].read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-            return
+        latest_path = latest[1]
+        document = latest[2]
 
         session_to_plan_status = {
             "queued": "Queued",
@@ -1238,7 +1247,7 @@ class Validator:
                 plan_status = plan_statuses.get(record_id) if isinstance(record_id, str) else None
                 if mapped and plan_status and mapped != plan_status:
                     self.warnings.append(
-                        f"{latest[2].relative_to(self.repo_root)}: latest complete "
+                        f"{latest_path.relative_to(self.repo_root)}: latest complete "
                         f"session records {record_id} as '{session_status}' while "
                         f"the plan says '{plan_status}'; one of them is stale"
                     )

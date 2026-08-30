@@ -751,6 +751,36 @@ def with_session_parent_mismatch(files: dict[str, str]) -> dict[str, str]:
     return mutated
 
 
+def with_same_day_delivery_order_trap(files: dict[str, str]) -> dict[str, str]:
+    """Add an older higher-delivery session before a newer lower-delivery one."""
+    newer_id = "S0100-20260828-002-newer-scope"
+    mutated: dict[str, str] = {}
+    for path, content in files.items():
+        mutated[path.replace(SESSION_ID, newer_id)] = content.replace(
+            SESSION_ID, newer_id
+        )
+
+    newer_dir = f"agent/sessions/2026/08/{newer_id}"
+    older_id = "S0101-20260828-001-older-scope"
+    older_dir = f"agent/sessions/2026/08/{older_id}"
+    newer_session = json.loads(mutated[f"{newer_dir}/session.json"])
+    older_session = dict(newer_session)
+    older_session["id"] = older_id
+    older_session["delivery"] = "0.1.0.1"
+    older_session["work_items"] = [dict(newer_session["work_items"][0])]
+    older_session["work_items"][0]["status"] = "queued"
+    mutated[f"{older_dir}/session.json"] = json.dumps(older_session, indent=2) + "\n"
+    for filename in ("events.jsonl", "summary.md", "notes.md"):
+        mutated[f"{older_dir}/{filename}"] = mutated[
+            f"{newer_dir}/{filename}"
+        ].replace(newer_id, older_id)
+    mutated["agent/sessions/README.md"] += (
+        f"| [{older_id}](2026/08/{older_id}/summary.md) "
+        "| 2026-08-28 | Exact | Complete | older scope fixture |\n"
+    )
+    return mutated
+
+
 def with_session_scope(
     files: dict[str, str], delivery: str
 ) -> dict[str, str]:
@@ -1509,6 +1539,12 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
         replace(BASE_FILES, "agent/plan/M0100-fixture/plan.md", "status: Active", "status: Queued"),
         False,
         True,
+    ),
+    (
+        "latest same-day session follows ordinal before delivery scope",
+        with_same_day_delivery_order_trap(BASE_FILES),
+        False,
+        False,
     ),
     (
         "valid minimal Codex skill package",
