@@ -1,4 +1,7 @@
 {
+  "git_commit": "@METAFLUX_GIT_COMMIT@",
+  "git_tree": "@METAFLUX_GIT_TREE@",
+  "git_clean": @METAFLUX_GIT_CLEAN@,
   "project_version": "@PROJECT_VERSION@",
   "compiler_epoch": @METAFLUX_COMPILER_EPOCH_JSON_INLINE@,
   "compiler_epoch_descriptor_sha256": "@METAFLUX_COMPILER_EPOCH_SHA256@",

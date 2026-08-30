@@ -1,3 +1,41 @@
+# --- Git source identity ---
+find_package(Git QUIET)
+if(GIT_FOUND)
+  execute_process(
+    COMMAND "${GIT_EXECUTABLE}" -C "${PROJECT_SOURCE_DIR}" rev-parse HEAD
+    OUTPUT_VARIABLE METAFLUX_GIT_COMMIT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+    RESULT_VARIABLE _git_commit_result
+  )
+  execute_process(
+    COMMAND "${GIT_EXECUTABLE}" -C "${PROJECT_SOURCE_DIR}" rev-parse HEAD^{tree}
+    OUTPUT_VARIABLE METAFLUX_GIT_TREE
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+    RESULT_VARIABLE _git_tree_result
+  )
+  execute_process(
+    COMMAND "${GIT_EXECUTABLE}" -C "${PROJECT_SOURCE_DIR}" diff --quiet HEAD
+    RESULT_VARIABLE _git_dirty_result
+  )
+  if(_git_commit_result EQUAL 0 AND _git_tree_result EQUAL 0)
+    if(_git_dirty_result EQUAL 0)
+      set(METAFLUX_GIT_CLEAN "true")
+    else()
+      set(METAFLUX_GIT_CLEAN "false")
+    endif()
+  else()
+    set(METAFLUX_GIT_COMMIT "unknown")
+    set(METAFLUX_GIT_TREE "unknown")
+    set(METAFLUX_GIT_CLEAN "unknown")
+  endif()
+else()
+  set(METAFLUX_GIT_COMMIT "unknown")
+  set(METAFLUX_GIT_TREE "unknown")
+  set(METAFLUX_GIT_CLEAN "unknown")
+endif()
+
 set(METAFLUX_COMPILER_EPOCH_FILE "${PROJECT_SOURCE_DIR}/toolchains/compiler-epoch-1.json")
 if(NOT EXISTS "${METAFLUX_COMPILER_EPOCH_FILE}")
   message(FATAL_ERROR "Missing compiler epoch descriptor: ${METAFLUX_COMPILER_EPOCH_FILE}")
