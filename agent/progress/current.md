@@ -78,6 +78,10 @@ performance targets provisional and uses AMD x86_64 as its reference host.
 | Signed target SDK provenance | Passed for snapshot `20260820T000000Z`, two signed releases, three indexes, and ten packages |
 | D0024 migration verification | Dev build and CTest 63/63; Agent records 111/111; guidance 17/17; routing 68 cases and 23/23 self-tests; 18 skills valid |
 | D0025 migration verification | Architecture CTest 6/6; Agent records 136/136; semantic edits 21/21; guidance 17/17; routing 81 cases and 34/34 self-tests; two workflow skills valid |
+| Git source identity | Build manifests record 40-hex commit, tree, and clean status |
+| Reproducibility (independent rebuilds) | Two independent builds from same revision produce byte-for-byte identical metafluxd, libcuda.so, libnvidia-ml.so, and manifests |
+| W0102 stress coverage | All 15 sub-items covered; focused ordinary + sanitizer gates pass |
+| Complete D0012 matrix (G006 revision) | 8/8 pass with CUDA Add/Copy acceptance on new revision |
 | D0026 migration verification | Architecture CTest 6/6; Agent records 163/163 plus repository 27 sessions/210 events/205 Markdown; semantic edits 21/21; guidance 20/20; routing 82 cases and 34/34 self-tests; roast package and independent A-E forward review passed |
 | D0027 migration verification | Architecture CTest 6/6; Agent validator 163/163 plus repository 28 sessions/215 events/213 Markdown at record closure; semantic edits 21/21; guidance 20/20; protected evidence and residual scans passed |
 | Agent harness commit identity | Isolated forward test 7/7; both workflow skills valid; real content commit `ded1dad` records Codex as Author and Committer while local Git configuration remains `amamiya` |
