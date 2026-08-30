@@ -4,7 +4,7 @@
 checkpoints are protected and grouped by year under `checkpoints/YYYY/`.
 
 Latest checkpoint:
-[P20260831-047](checkpoints/2026/P20260831-047-m0110-transport-fault-matrix.md).
+[P20260831-048](checkpoints/2026/P20260831-048-m0120-lifecycle-core-long-run.md).
 
 A checkpoint records observed state and verification evidence; it is not a Git
 revision unless its metadata names one. Create a checkpoint at a material

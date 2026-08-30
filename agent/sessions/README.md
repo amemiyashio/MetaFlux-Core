@@ -99,6 +99,7 @@ copies canonical content.
 | [S0134-20260831-005-vulkan-execution-streams](2026/08/S0134-20260831-005-vulkan-execution-streams/summary.md) | 2026-08-31 | Exact | In progress | W0134 stream/dependency planner with FIFO, explicit waits, visibility masks, and generation guards; Vulkan submission remains open |
 | [S0135-20260831-006-vulkan-cache-warm-path](2026/08/S0135-20260831-006-vulkan-cache-warm-path/summary.md) | 2026-08-31 | Exact | In progress | W0135 deterministic portable/device cache identities and bounded catalog; Vulkan pipeline and warm-launch qualification remain open |
 | [S0114-20260831-007-transport-fault-qualification](2026/08/S0114-20260831-007-transport-fault-qualification/summary.md) | 2026-08-31 | Exact | In progress | W0114 bounded cdev/vfio-user fault matrix; malformed input, COPY dispositions, backpressure/FIFO retry, stale unmap, and DMA overflow are covered while full qualification remains open |
+| [S0123-20260831-008-lifecycle-core-qualification](2026/08/S0123-20260831-008-lifecycle-core-qualification/summary.md) | 2026-08-31 | Exact | In progress | W0123 host-independent 1,000-cycle lifecycle authority qualification; concurrent transport and kernel gates remain open |
 
 ## Fidelity and retention
 

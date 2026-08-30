@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0123-20260831-008-lifecycle-core-qualification",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.2.3",
+  "started_at": "2026-08-31",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0120/W0123 lifecycle core qualification implementer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0120",
+      "title": "Lifecycle and vPCI Presentation",
+      "status": "active",
+      "event_seqs": [1, 2, 3, 4]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0123",
+      "milestone_id": "M0120",
+      "title": "1,000-cycle core qualification and lifecycle v1 freeze",
+      "status": "active"
+    }
+  ],
+  "base_revision": "3ac1ad07c83c5f41d4ea2c32c133f9a9cd741275",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

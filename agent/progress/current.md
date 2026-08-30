@@ -1,9 +1,9 @@
 ---
 status: Active
 updated: 2026-08-31
-milestone: M0110
-workstream: W0114
-checkpoint: P20260831-047
+milestone: M0120
+workstream: W0123
+checkpoint: P20260831-048
 ---
 
 # Current Progress
@@ -196,7 +196,7 @@ Linux 9.8.
 | W0121 fence/telemetry publication model | Separate bounded branch passed 337 states/565 transitions and 6 direct checks for loss-fence precedence, even-latch bank publication, stale `ONLINE` rejection, and bounded reader retry |
 | W0121 lifecycle regression | Lifecycle CTest and tampered-manifest self-test passed 2/2; full dev CTest passed 79/79 |
 | W0121 runtime telemetry producer guards | Legacy and recovery mappings reject stale/future fence sequences with `MF_SHARED_RETRY`, reject loss with `MF_SHARED_DEVICE_LOST`, and preserve the old bank across marker-complete owner-death recovery; focused registry/recovery CTest passed 2/2 |
-| W0121 current boundary | Concrete memfd/cdev/vfio-user mirror stages, typed source mapping, QMP correlation, runtime ingress, provider-view invariants, bounded fence/telemetry publication model, and runtime telemetry producer fence/admission guards are recorded; live provider hooks, live QMP/vPCI integration, 1,000-cycle fault qualification, and lifecycle ABI freeze remain open |
+| W0121 current boundary | Concrete memfd/cdev/vfio-user mirror stages, typed source mapping, QMP correlation, runtime ingress, provider-view invariants, bounded fence/telemetry publication model, and runtime telemetry producer fence/admission guards are recorded; live provider hooks, live QMP/vPCI integration, three-transport cycle qualification, and lifecycle ABI freeze remain open |
 
 ## Recorded M0120 W0122 Evidence
 
@@ -215,6 +215,16 @@ Linux 9.8.
 | W0122 vfio-user process ingress | `699cff8`; `process_once` overload invokes the disconnect handoff only for `Closed`, preserving ordinary message results; focused server/dispatch 2/2 and full dev CTest 79/79 passed |
 | W0122 snapshot-bound event metadata | QMP command factory and vfio-user `process_once` capture logical device, daemon, identity, generation, epoch, and deadline from the authority snapshot; stale completion remains `Stale`; focused normalizer/QMP/server tests passed 3/3 |
 | W0122 current boundary | Live QMP/socket command transport, reset/restart producer metadata binding, production memfd worker wiring, provider freeze, fault injection, and qualification remain open; QMP and vfio-user disconnect capture are covered by the snapshot-bound helper |
+
+## Recorded M0120 W0123 Evidence
+
+| Gate | Recorded result |
+| --- | --- |
+| Lifecycle authority capacity | `72025af`; 4,096 request replay records and 2,048 immutable tombstones sized for the W0123 1,000-cycle envelope without eviction |
+| Lifecycle core long run | `72025af`; 1,000 reset/remove/add cycles passed, with 2,000 retired generations resolving as `DeviceLost`, exact high-water/epoch checks, all three mirror streams, and replay/conflict checks |
+| Focused lifecycle tests | Four lifecycle, long-run, normalizer, and dispatch tests passed |
+| Full development CTest | 83/83 passed |
+| W0123 current boundary | Core authority long-run evidence is recorded; concurrent memfd/local-cdev/guest-QMP activity, old-object/worker-death faults, kernel sanitizer/fuzz/soak, canonical nodes, and lifecycle ABI freeze remain open |
 
 ## Recorded M0130 W0131 Evidence
 
@@ -339,6 +349,12 @@ Linux 9.8.
     Continue with kernel/BAR/DMA ownership injection and native/compat
     qualification; do not claim the transport ABI freeze from userspace
     socketpair coverage alone.
+15. M0120/W0123 is Active after the host-independent lifecycle authority run at
+    [P20260831-048](checkpoints/2026/P20260831-048-m0120-lifecycle-core-long-run.md).
+    Continue by binding the 1,000-cycle core evidence to concurrent
+    memfd/cdev/guest-QMP activity, old-object tombstones, worker-death faults,
+    and kernel/package qualification; do not claim the three transport suites
+    or lifecycle extension freeze from the core fixture alone.
 
 ## Tool Boundary
 

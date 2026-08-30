@@ -2,10 +2,10 @@
 id: W0123
 delivery: 0.1.2.3
 milestone: M0120
-status: Queued
+status: Active
 area: lifecycle.qualification
 depends_on: [W0122]
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 
 # Core Lifecycle Qualification and Freeze
@@ -17,6 +17,11 @@ freeze `mf_admin_lifecycle_v1` from one schema.
 
 ## Work
 
+- [x] Add a host-independent Coordinator qualification fixture covering 1,000
+  reset/remove/add cycles. It retains and resolves all 2,000 retired
+  generations as `DEVICE_LOST`, checks the three mirror callback streams, and
+  verifies replay/conflict behavior after the run. The static authority bounds
+  are 4,096 request records and 2,048 tombstones; no eviction is introduced.
 - [ ] Implement and qualify canonical MetaFlux udev/node policy for existing
   transports; the optional namespace launcher and NVIDIA-named aliases belong
   only to W0124.
