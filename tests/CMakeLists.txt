@@ -101,6 +101,16 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "architecture"
   )
   add_test(
+    NAME metaflux.architecture.semantic-change-edit-selftest
+    COMMAND
+      Python3::Interpreter
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-semantic-change-edits.py"
+  )
+  set_tests_properties(
+    metaflux.architecture.semantic-change-edit-selftest
+    PROPERTIES LABELS "architecture"
+  )
+  add_test(
     NAME metaflux.architecture.session-guidance-selftest
     COMMAND
       Python3::Interpreter -B

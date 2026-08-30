@@ -42,8 +42,12 @@ done < <(
     --diff-filter=ACMRT
 )
 
-# Records must stay valid: indexes, ledger counts, distillation, freshness.
-python3 tools/check-agent-records.py .
+# Protected history changes require a committed, exact Active SC permit.
+python3 tools/check-semantic-change-edits.py . --cached
+
+# Records must stay valid in the exact candidate tree, even when the working
+# tree differs from the staged index.
+python3 tools/check-agent-records.py . --cached
 
 # The record gate itself must stay proven.
 python3 tools/test-check-agent-records.py > /dev/null 2>&1

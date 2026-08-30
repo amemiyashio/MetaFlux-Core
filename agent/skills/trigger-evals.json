@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "domain_skills": [
     "runtime-contracts-registry",
     "cuda-driver-abi-compatibility",
@@ -13,11 +13,16 @@
     "device-lifecycle-resilience",
     "vulkan-spirv-compute"
   ],
+  "workflow_skills": [
+    "govern-semantic-change",
+    "distill-project-knowledge"
+  ],
   "coverage": {
     "required_locales": ["en", "zh-CN"],
     "minimum_positive_per_skill": {"en": 2, "zh-CN": 1},
     "minimum_near_miss_per_skill": {"en": 1, "zh-CN": 1},
-    "minimum_composition_cases": 12
+    "minimum_composition_cases": 12,
+    "minimum_composition_per_workflow_skill": {"en": 1, "zh-CN": 1}
   },
   "cases": [
     {
@@ -470,6 +475,86 @@
       "expected_skills": ["mlir-compiler-engineering"],
       "forbidden_skills": ["vulkan-spirv-compute"]
     },
+    {
+      "id": "GOV-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Apply an approved replacement of established milestone identifiers across current documents, completed sessions, checkpoints, validators, and active-session handoffs.",
+      "expected_skills": ["govern-semantic-change"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "GOV-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Replace the durable session record shape and authority semantics repository-wide while preserving raw timestamps, commands, counts, hashes, and revisions.",
+      "expected_skills": ["govern-semantic-change"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "GOV-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Add one backward-compatible registry field in the current implementation without changing established record meaning or historical documents.",
+      "expected_skills": ["runtime-contracts-registry"],
+      "forbidden_skills": ["govern-semantic-change"]
+    },
+    {
+      "id": "GOV-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "执行已批准的仓库语义替换，同步当前文档、终态会话、检查点、校验器和活动会话交接，并保留原始事实证据。",
+      "expected_skills": ["govern-semantic-change"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "GOV-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "只给当前注册表实现增加向后兼容字段，不改变既有记录语义或历史文档。",
+      "expected_skills": ["runtime-contracts-registry"],
+      "forbidden_skills": ["govern-semantic-change"]
+    },
+    {
+      "id": "DISTILL-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "At a material handoff, classify reusable methods, observed facts, decisions, failures, and open questions into one authoritative durable owner with evidence-aware status.",
+      "expected_skills": ["distill-project-knowledge"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "DISTILL-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "A verified stage breakthrough is ready for checkpointing; deduplicate its valuable conclusions and promote each claim to the correct canonical project record first.",
+      "expected_skills": ["distill-project-knowledge"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "DISTILL-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Send an unreviewed, session-scoped expert suggestion to an active collaborator for evaluation, without promoting it as project knowledge.",
+      "expected_skills": [],
+      "forbidden_skills": ["distill-project-knowledge"]
+    },
+    {
+      "id": "DISTILL-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "在阶段性交接时，把可复用方法、事实、决策、失败教训和未决问题拆分并萃取到唯一权威载体，按证据标注状态。",
+      "expected_skills": ["distill-project-knowledge"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "DISTILL-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "把尚未评审的会话级专家建议临时发给活动协作者参考，不把它固化为项目知识。",
+      "expected_skills": [],
+      "forbidden_skills": ["distill-project-knowledge"]
+    },
 
     {
       "id": "COMBO-PTX-CPU",
@@ -573,6 +658,30 @@
       "locale": "zh-CN",
       "prompt": "处理 vfio-user reset 与 BAR2、MSI-X、页解除固定和 generation replacement 的竞态。",
       "expected_skills": ["linux-device-driver-uapi", "gpu-virtualization-vfio-user", "pcie-vpci-device-model", "device-lifecycle-resilience"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-GOV-PTX",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Apply an approved breaking replacement of the PTX semantic oracle and migrate every affected current and historical contract without rewriting raw test evidence.",
+      "expected_skills": ["govern-semantic-change", "ptx-simt-semantics"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-GOV-DISTILL",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "完成已批准的仓库级权威语义替换和历史迁移，同时把迁移中经验证的可复用方法萃取到唯一规范载体。",
+      "expected_skills": ["govern-semantic-change", "distill-project-knowledge"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-DISTILL-CPU",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Review a measured x86 backend breakthrough, determine whether its reusable method is Candidate or Validated from the reproducer, and promote each durable CPU finding to one authoritative owner before checkpointing.",
+      "expected_skills": ["cpu-backend-performance", "distill-project-knowledge"],
       "forbidden_skills": []
     }
   ]

@@ -1,9 +1,11 @@
 # Expert Skill Trigger Evaluations
 
 The machine-readable source is [trigger-evals.json](trigger-evals.json). It
-contains 68 cases for the 11 domain skills: two English positives, one English
-near-miss, one Chinese positive, and one Chinese near-miss per skill, plus 13
-cross-boundary compositions.
+contains 81 cases for 13 routed skills: 11 domain skills and two workflow
+skills. Every routed skill has two English positives, one English near-miss, one
+Chinese positive, and one Chinese near-miss; 16 additional cases exercise
+cross-boundary composition. Each workflow skill appears in at least one English
+and one Chinese composition.
 
 ## Static validation
 
@@ -34,7 +36,7 @@ python3 -B tools/check-skill-routing.py . --emit-template --repetitions 3 \
 
 Run each prompt from the repository root with implicit skill discovery enabled.
 The template binds every run both to the canonical corpus SHA-256 and to a routing
-input SHA-256 covering the catalog plus every domain `SKILL.md` and
+input SHA-256 covering the catalog plus every routed `SKILL.md` and
 `agents/openai.yaml`. Record `Codex` as the product and the exact model,
 host/version, date, iteration, and selected skill slugs. Then score it:
 
@@ -43,13 +45,15 @@ python3 -B tools/check-skill-routing.py . \
   --observed /tmp/metaflux-skill-routing.json
 ```
 
-A run passes only when every expected domain skill loads, no forbidden skill
-loads, and no unlisted domain skill loads unless that case explicitly permits
+A run passes only when every expected routed skill loads, no forbidden skill
+loads, and no unlisted routed skill loads unless that case explicitly permits
 it. Both digests must still match, runner metadata cannot retain template
 placeholders or name another product, and every case must have exactly the
 recorded repetition count.
-Workflow skills such as `$start-work` and `$record-session` are ignored by the
-domain scorer.
+The checked workflow roster is intentionally limited to
+`$govern-semantic-change` and `$distill-project-knowledge`. Other workflow
+skills such as `$start-work`, `$session-guidance`, and `$record-session` remain
+outside this scorer and may load without changing a case result.
 
 Captured observations are evidence only for their named model and host. Archive
 the filled JSON with the qualifying session or benchmark output; do not turn a
@@ -64,6 +68,8 @@ The corpus includes:
   generations, and provider revisions captured at different initialization times;
 - PTX semantics, MLIR conversion mechanics, and CPU/Vulkan target ownership;
 - Linux UAPI, vfio-user wire/DMA, PCI presentation, and lifecycle composition;
+- approved semantic replacements, protected-history migration, evidence-aware
+  project-knowledge promotion, and their domain compositions;
 - English and Chinese near-miss prompts that mention neighboring terminology.
 
 Add a case whenever a description boundary, ownership route, or supported prompt

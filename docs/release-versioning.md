@@ -80,11 +80,13 @@ records, and require the plan index release to equal the plan frontmatter.
 Changing an assigned product release therefore creates or supersedes a record;
 it does not leave an arbitrary serial ID behind.
 
-D0024 is the one breaking migration exception: it renamed every pre-policy M/W/S
-record and rewrote those identifier references in historical sessions and
-checkpoints. The evidence claims and cited Git revisions in those records did
-not change. After D0024, the normal immutability rules apply again and an
-assigned coordinate is superseded instead of renamed.
+D0024 was the first repository-wide breaking migration: it renamed every
+pre-policy M/W/S record and synchronized those identifier references in
+historical sessions and checkpoints. The evidence claims and cited Git
+revisions in those records did not change. D0025 now governs any later breaking
+replacement through a decision-bound `SCNNNN` record, complete affected-history
+synchronization, and factual-evidence preservation. Outside that explicit
+workflow, an assigned coordinate is superseded instead of renamed.
 
 ## Independent Version Namespaces
 

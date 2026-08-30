@@ -16,13 +16,14 @@ Contents:
 
 - `settings.json`: registers the hooks below. Project-scoped only.
 - `hooks/session_start.py`: prints the onboarding banner into every new
-  Claude session (read AGENTS.md, scaffold before changing, checkpoints are
-  immutable).
+  Claude session (read AGENTS.md, scaffold before changing, protected history
+  requires D0025/SC authorization).
 - `hooks/pre_edit.py`: PreToolUse guard for Edit/Write/MultiEdit/NotebookEdit.
-  Blocks rewrites of `agent/progress/checkpoints/` and any edit outside
-  `agent/` while no session is in progress, with the remediation command in
-  the denial. Fails open on schema drift — the pre-commit hook, repository
-  validators, and owner-specific tests remain the authoritative gates.
+  Allows new checkpoints, blocks unlisted edits to existing checkpoints and
+  terminal sessions, and blocks edits outside `agent/` while no session is in
+  progress. Protected-history authorization is read only from a committed
+  Active SC. The bridge fails open on schema drift; the pre-commit hook,
+  repository validators, and owner-specific tests remain authoritative.
 
 The single source of rules is [`AGENTS.md`](../AGENTS.md); the root
 `CLAUDE.md` is a one-line `@AGENTS.md` import plus a pointer here, enforced by

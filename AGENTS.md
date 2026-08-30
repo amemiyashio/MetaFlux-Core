@@ -28,18 +28,21 @@ enforced by repository checks.
    product source; the session owner validates it, records any material
    disposition, and removes the transient packet. Duplicate or obsolete input
    is removed as no-material without adding a session event.
-4. **Never relax a durable constraint silently.** Record the replacement and
-   keep the decision index resolvable; use `close-decision` when an open ledger
-   row is being resolved.
+4. **Never replace established meaning silently.** Record the canonical
+   decision and use `govern-semantic-change` for a breaking semantic,
+   identifier, constraint, record-shape, or authority migration. Keep the
+   decision index resolvable; compose `close-decision` when an open ledger row
+   is being resolved.
 5. **Verify before committing.** `python3 tools/check-agent-records.py .` must
    pass; run the relevant CTest preset for build-affecting changes. Content
    and records are committed separately.
 6. **Keep tool ownership narrow.** Follow `manage-toolchain` for versions,
    manifests, shells, and Nix. Nix pins and provides tools only; Git, CMake,
    CTest, packaging, tests, and sessions keep their own semantics.
-7. **Record outcomes and clean work.** Distill promoted knowledge, record
-   session-owned cleanup (`## Cleanup`), refresh `progress/current.md`, and
-   checkpoint material handoffs (`record-session` skill).
+7. **Record outcomes and clean work.** Use `distill-project-knowledge` to route
+   valuable claims to one durable owner, record session-owned cleanup (`##
+   Cleanup`), refresh `progress/current.md`, and checkpoint material handoffs
+   with `record-session`.
 
 Product boundaries live in `contracts/README.md` and
 `docs/architecture/repo-layout.md`; the language wall and dependency

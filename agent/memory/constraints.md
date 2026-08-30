@@ -47,6 +47,11 @@ identity and provisioning boundaries live in
   CMake/Ninja own configure and build, CTest and test harnesses own testing,
   `packaging/` owns release artifacts, sessions own durable work evidence, and
   invoking tools or host operators own cleanup and garbage collection (D0022).
+- Breaking replacements of established semantics, identifiers, constraints,
+  record shapes, or authority use a decision-bound `SCNNNN` migration (D0025).
+  The current checkout synchronizes every affected record, while historical
+  commands, outputs, counts, revisions, hashes, provenance, and observed facts
+  remain unchanged. Terminal sessions and checkpoints are otherwise protected.
 - A tool newly required by a repeatable workflow is versioned in the Nix-provided
   tool environment before use; this does not transfer workflow semantics or
   outputs to Nix. D0022 supersedes the broader D0021 wording.

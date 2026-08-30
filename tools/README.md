@@ -22,10 +22,23 @@ restricted `agents/openai.yaml` interface schema.
 
 ```sh
 python3 tools/check-agent-records.py .
+python3 tools/check-agent-records.py . --cached
 ```
 
-The same command runs from CTest and repository hooks. Nix only provides the
-fixed Python tool used to execute it.
+The ordinary command validates the checkout; `--cached` materializes and checks
+the exact Git index tree. CTest uses the checkout mode and the pre-commit hook
+uses the staged mode. Nix only provides the fixed Python tool used to execute
+it.
+
+`check-semantic-change-edits.py` is the staged-diff hard gate for D0025. It
+reads only `Active` SC permits already committed to `HEAD`, requires their bound
+migration session to remain in progress, and rejects unlisted edits to recorded
+checkpoints or terminal-session files. New checkpoints and in-progress sessions
+remain ordinary record writes. Its focused regression suite is:
+
+```sh
+python3 tools/test-semantic-change-edits.py
+```
 
 Domain skill metadata currently permits exactly the quoted `interface` fields
 `display_name`, `short_description`, and `default_prompt`; the prompt must name
@@ -37,10 +50,12 @@ the repository validator and adding the corresponding checked resources first.
 `check-skill-routing.py` validates the structured English/Chinese trigger corpus
 and can score captured implicit-routing observations for an exact Codex
 model/host/repetition tuple. The domain roster comes from the independent records
-gate, coverage floors are tool policy rather than corpus-controlled values, and
-duplicate locale/prompt pairs are rejected. Each observation is bound to both the
-canonical corpus SHA-256 and a digest of the catalog plus every domain
-`SKILL.md`/`agents/openai.yaml`; its product is exactly `Codex`:
+gate, as does the separate checked workflow roster. Coverage floors are tool
+policy rather than corpus-controlled values, and duplicate locale/prompt pairs
+are rejected. Each observation is bound to both the
+canonical corpus SHA-256 and a digest of the catalog plus every routed
+domain/workflow `SKILL.md` and `agents/openai.yaml`; its product is exactly
+`Codex`:
 
 ```sh
 python3 -B tools/check-skill-routing.py .

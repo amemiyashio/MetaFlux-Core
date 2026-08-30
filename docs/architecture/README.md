@@ -14,4 +14,7 @@ frozen, without creating speculative source directories.
 The current proposed boundaries are summarized in
 `control-and-data-plane.md`; detailed qualification remains in M0110 and M0120.
 The directory taxonomy and dependency-direction map are recorded in
-[`repo-layout.md`](repo-layout.md) (Verified).
+[`repo-layout.md`](repo-layout.md) (Verified). Decision-authorized breaking
+repository migrations follow the verified
+[`semantic-change-governance.md`](semantic-change-governance.md) contract
+(D0025).

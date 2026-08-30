@@ -3,8 +3,8 @@
 
 Blocks the edit tools before a rule-skipping change lands:
 
-- agent/progress/checkpoints/** is immutable history (append a correction
-  instead of rewriting);
+- existing checkpoints and terminal-session files require an exact Historical
+  row in a committed Active SC; new checkpoints remain writable;
 - any edit outside agent/ requires an in-progress session record.
 
 Fails open on any parse or environment error: this guard is a convenience
@@ -15,6 +15,8 @@ tests remain the hard gates for every contributor regardless of tooling.
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -44,18 +46,25 @@ def main() -> int:
     target = Path(raw_path)
     if not target.is_absolute():
         target = repo_root / target
+    target = Path(os.path.abspath(target))
     try:
-        relative = target.resolve().relative_to(repo_root)
+        relative = target.relative_to(repo_root)
     except ValueError:
         return 0  # outside this repository; not our jurisdiction
 
     parts = relative.parts
-    if parts[:3] == ("agent", "progress", "checkpoints"):
-        return deny(
-            "checkpoints are immutable history. Record a correction in the "
-            "current session notes and, if material, a new checkpoint; never "
-            "rewrite a recorded one."
+    history_gate = repo_root / "tools" / "check-semantic-change-edits.py"
+    if history_gate.is_file():
+        result = subprocess.run(
+            [sys.executable, str(history_gate), str(repo_root), "--path", relative.as_posix()],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
         )
+        if result.returncode != 0:
+            detail = result.stderr.strip().removeprefix("error: ")
+            return deny(detail or "protected history requires a committed Active SC")
 
     if parts and parts[0] != "agent":
         sessions_root = repo_root / "agent" / "sessions"

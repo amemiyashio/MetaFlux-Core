@@ -37,5 +37,6 @@ functional implementation.
 2. Required environment command.
 3. Narrow and broad verification to rerun.
 
-Checkpoints are immutable historical evidence. Append a dated correction instead
-of rewriting the captured state.
+Checkpoints are protected historical evidence. Append a dated correction by
+default. Only the exact, pre-authorized D0025/SC migration route may synchronize
+current semantics, and it preserves the captured factual evidence.

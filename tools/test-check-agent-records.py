@@ -91,6 +91,12 @@ BASE_FILES: dict[str, str] = {
         "[M0100](../plan/M0100-fixture/plan.md) | Active plan |\n"
     ),
     "agent/experience/README.md": "# Experience\n\nNo records yet.\n",
+    "agent/semantic-changes/README.md": (
+        "# Semantic Changes\n\n"
+        "## Index\n\n"
+        "| ID | Status | Decision | Scope | Updated |\n"
+        "| --- | --- | --- | --- | --- |\n"
+    ),
     "agent/sessions/README.md": (
         "# Sessions\n\n"
         "| Session | Date | Fidelity | Status | Summary |\n"
@@ -124,7 +130,9 @@ BASE_FILES: dict[str, str] = {
         '"type": "objective", "actor": "A001", "content": "fixture objective"}\n'
     ),
     f"{SESSION_DIR}/summary.md": (
-        "# Summary\n\nFixture.\n\n## Distillation\n\n- Distilled: none\n"
+        "# Summary\n\nFixture.\n\n## Distillation\n\n"
+        "- Promoted: none\n"
+        "- Session-only: none\n"
     ),
     f"{SESSION_DIR}/notes.md": "# Notes\n\nFixture decision D0001.\n",
     "agent/progress/current.md": (
@@ -299,6 +307,10 @@ def check_new_session_skeleton(root: Path) -> list[str]:
         problems.append("generated session does not retain its delivery coordinate")
     if not summary.startswith("# Session Summary\n\n## Objective and outcome\n"):
         problems.append("generated summary does not use the current section shape")
+    if "- Promoted: TODO at session end (or none).\n" not in summary:
+        problems.append("generated summary is missing the Promoted distillation row")
+    if "- Session-only: TODO at session end (or none).\n" not in summary:
+        problems.append("generated summary is missing the Session-only distillation row")
 
     code, errors, warnings = run_validator(root)
     if code != 0 or errors or warnings:
@@ -610,6 +622,78 @@ def check_pre_commit_guidance_gate(root: Path) -> list[str]:
     return problems
 
 
+def check_cached_tree_validation(root: Path) -> list[str]:
+    """Prove --cached validates the index rather than a cleaner worktree."""
+
+    problems: list[str] = []
+    if root.exists():
+        shutil.rmtree(root)
+    root.mkdir(parents=True)
+    write_tree(root, BASE_FILES)
+    subprocess.run(
+        ["git", "init", "-q"], cwd=root, check=True, capture_output=True, text=True
+    )
+    subprocess.run(
+        ["git", "add", "-A"], cwd=root, check=True, capture_output=True, text=True
+    )
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=MetaFlux Self-Test",
+            "-c",
+            "user.email=selftest@invalid",
+            "commit",
+            "--no-verify",
+            "-qm",
+            "baseline",
+        ],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    index_path = root / "agent/semantic-changes/README.md"
+    valid_index = index_path.read_text(encoding="utf-8")
+    index_path.write_text(
+        valid_index
+        + "| [SC0001](SC0001-missing.md) | Active | D0001 | fixture | 2026-08-28 |\n",
+        encoding="utf-8",
+    )
+    subprocess.run(
+        ["git", "add", "--", "agent/semantic-changes/README.md"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    index_path.write_text(valid_index, encoding="utf-8")
+
+    ordinary = subprocess.run(
+        [sys.executable, "-B", str(VALIDATOR_PATH), str(root)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if ordinary.returncode != 0:
+        problems.append(
+            "working-tree control unexpectedly failed: " + ordinary.stderr.strip()
+        )
+    cached = subprocess.run(
+        [sys.executable, "-B", str(VALIDATOR_PATH), str(root), "--cached"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if cached.returncode == 0 or "SC0001" not in cached.stderr:
+        problems.append(
+            "staged invalid semantic-change index was not rejected: "
+            f"exit={cached.returncode} stderr={cached.stderr.strip()!r}"
+        )
+    return problems
+
+
 SKILLS_README = (
     "# Skills\n\n## Index\n\n"
     "| Skill | Status | Use when |\n"
@@ -842,6 +926,86 @@ def with_work_compact_collision(files: dict[str, str]) -> dict[str, str]:
     )
     mutated["agent/plan/README.md"] += (
         "| [M1220](M1220-collision-parent/plan.md) | v1.2.2 | Queued |\n"
+    )
+    return mutated
+
+
+def semantic_change_record(
+    *,
+    record_id: str = "SC0001",
+    status: str = "Active",
+    decision: str = "D0001",
+    disposition: str | None = None,
+    verification: str | None = None,
+    superseded_by: str = "null",
+    evidence: str = "fixture search",
+    effective_revision: str | None = None,
+) -> str:
+    if disposition is None:
+        disposition = "Pending" if status == "Active" else "Migrated"
+    if verification is None:
+        verification = "Pending" if status == "Active" else "Passed"
+    if effective_revision is None:
+        effective_revision = "null" if status == "Active" else "a" * 40
+    return (
+        "---\n"
+        f"id: {record_id}\n"
+        f"status: {status}\n"
+        "created: 2026-08-28\n"
+        "updated: 2026-08-28\n"
+        f"decision: {decision}\n"
+        f"session: {SESSION_ID}\n"
+        "scope: fixture-governance\n"
+        "history_sync: automatic\n"
+        f"effective_revision: {effective_revision}\n"
+        f"superseded_by: {superseded_by}\n"
+        "---\n\n"
+        f"# {record_id}: Fixture semantic change\n\n"
+        "## Semantic replacement\n\n"
+        "Replace one fixture meaning under D0001.\n\n"
+        "## Migration inventory\n\n"
+        "| Surface | Class | Disposition | Evidence |\n"
+        "| --- | --- | --- | --- |\n"
+        f"| `agent/README.md` | Current | {disposition} | {evidence} |\n\n"
+        "## Active-session handoff\n\n"
+        "| Session | Guidance | Status | Outcome |\n"
+        "| --- | --- | --- | --- |\n"
+        "| none | none | Not required | no other active fixture session |\n\n"
+        "## Evidence preservation\n\n"
+        "Fixture factual evidence remains unchanged.\n\n"
+        "## Future-agent reminder\n\n"
+        "Use the current fixture meaning.\n\n"
+        "## Verification\n\n"
+        "| Gate | Result |\n"
+        "| --- | --- |\n"
+        f"| fixture gate | {verification} |\n"
+    )
+
+
+def with_semantic_change(
+    files: dict[str, str],
+    *,
+    status: str = "Active",
+    decision: str = "D0001",
+    disposition: str | None = None,
+    verification: str | None = None,
+    superseded_by: str = "null",
+    evidence: str = "fixture search",
+    effective_revision: str | None = None,
+) -> dict[str, str]:
+    mutated = with_in_progress_session(files) if status == "Active" else dict(files)
+    mutated["agent/semantic-changes/SC0001-fixture.md"] = semantic_change_record(
+        status=status,
+        decision=decision,
+        disposition=disposition,
+        verification=verification,
+        superseded_by=superseded_by,
+        evidence=evidence,
+        effective_revision=effective_revision,
+    )
+    mutated["agent/semantic-changes/README.md"] = (
+        BASE_FILES["agent/semantic-changes/README.md"]
+        + f"| [SC0001](SC0001-fixture.md) | {status} | {decision} | fixture-governance | 2026-08-28 |\n"
     )
     return mutated
 
@@ -1358,7 +1522,12 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
     ),
     (
         "distillation section missing",
-        replace(BASE_FILES, f"{SESSION_DIR}/summary.md", "\n## Distillation\n\n- Distilled: none\n", ""),
+        replace(
+            BASE_FILES,
+            f"{SESSION_DIR}/summary.md",
+            "\n## Distillation\n\n- Promoted: none\n- Session-only: none\n",
+            "",
+        ),
         True,
         False,
     ),
@@ -1893,6 +2062,205 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
 ]
 
 
+SC_CASES: list[tuple[str, dict[str, str | None], bool, str]] = [
+    (
+        "valid Active semantic change",
+        with_semantic_change(BASE_FILES),
+        False,
+        "",
+    ),
+    (
+        "valid Applied semantic change",
+        with_semantic_change(BASE_FILES, status="Applied"),
+        False,
+        "",
+    ),
+    (
+        "semantic-change index missing row",
+        {
+            **with_semantic_change(BASE_FILES),
+            "agent/semantic-changes/README.md": BASE_FILES[
+                "agent/semantic-changes/README.md"
+            ],
+        },
+        True,
+        "semantic-change index is missing SC0001",
+    ),
+    (
+        "semantic-change index status drift",
+        replace(
+            with_semantic_change(BASE_FILES),
+            "agent/semantic-changes/README.md",
+            "| Active | D0001 |",
+            "| Applied | D0001 |",
+        ),
+        True,
+        "semantic-change index status drifts for SC0001",
+    ),
+    (
+        "semantic-change path identity mismatch",
+        {
+            **without_path(
+                with_semantic_change(BASE_FILES),
+                "agent/semantic-changes/SC0001-fixture.md",
+            ),
+            "agent/semantic-changes/SC0002-fixture.md": semantic_change_record(),
+        },
+        True,
+        "frontmatter id 'SC0001' does not match path id 'SC0002'",
+    ),
+    (
+        "semantic-change required section missing",
+        replace(
+            with_semantic_change(BASE_FILES),
+            "agent/semantic-changes/SC0001-fixture.md",
+            "## Future-agent reminder",
+            "## Missing reminder",
+        ),
+        True,
+        "semantic change sections must appear exactly in order",
+    ),
+    (
+        "semantic-change invalid status",
+        with_semantic_change(BASE_FILES, status="Broken"),
+        True,
+        "semantic-change status is invalid",
+    ),
+    (
+        "semantic-change unknown decision",
+        with_semantic_change(BASE_FILES, decision="D9999"),
+        True,
+        "decision reference D9999 is absent from the index",
+    ),
+    (
+        "Active semantic change requires active migration session",
+        {
+            **with_semantic_change(BASE_FILES),
+            f"{SESSION_DIR}/session.json": BASE_FILES[f"{SESSION_DIR}/session.json"],
+        },
+        True,
+        "Active semantic change requires an in-progress migration session",
+    ),
+    (
+        "semantic-change duplicate migration surface",
+        replace(
+            with_semantic_change(BASE_FILES),
+            "agent/semantic-changes/SC0001-fixture.md",
+            "| `agent/README.md` | Current | Pending | fixture search |\n",
+            "| `agent/README.md` | Current | Pending | fixture search |\n"
+            "| `agent/README.md` | Tooling | Pending | duplicate search |\n",
+        ),
+        True,
+        "migration inventory repeats Surface 'agent/README.md'",
+    ),
+    (
+        "semantic-change invalid migration disposition",
+        with_semantic_change(BASE_FILES, disposition="Done"),
+        True,
+        "migration Disposition is invalid",
+    ),
+    (
+        "Applied semantic change rejects Pending surface",
+        with_semantic_change(
+            BASE_FILES,
+            status="Applied",
+            disposition="Pending",
+        ),
+        True,
+        "Applied semantic change retains Pending Surface",
+    ),
+    (
+        "Applied semantic change rejects pending verification",
+        with_semantic_change(
+            BASE_FILES,
+            status="Applied",
+            verification="Pending",
+        ),
+        True,
+        "Applied semantic change has incomplete verification",
+    ),
+    (
+        "Applied semantic change rejects negated pass text",
+        with_semantic_change(
+            BASE_FILES,
+            status="Applied",
+            verification="Not passed",
+        ),
+        True,
+        "Applied semantic change requires an explicit passing result",
+    ),
+    (
+        "Applied semantic change rejects placeholder evidence",
+        with_semantic_change(
+            BASE_FILES,
+            status="Applied",
+            evidence="TODO",
+        ),
+        True,
+        "Applied semantic change has placeholder Evidence",
+    ),
+    (
+        "Applied semantic change requires a full revision",
+        with_semantic_change(
+            BASE_FILES,
+            status="Applied",
+            effective_revision="abcdef1",
+        ),
+        True,
+        "Applied semantic change requires a full hexadecimal effective_revision",
+    ),
+    (
+        "Applied semantic change rejects empty verification gate",
+        replace(
+            with_semantic_change(BASE_FILES, status="Applied"),
+            "agent/semantic-changes/SC0001-fixture.md",
+            "| fixture gate | Passed |",
+            "|  | Passed |",
+        ),
+        True,
+        "Applied semantic change has an empty verification Gate",
+    ),
+    (
+        "semantic-change supersession must resolve",
+        with_semantic_change(
+            BASE_FILES,
+            status="Superseded",
+            superseded_by="SC9999",
+        ),
+        True,
+        "superseded_by does not resolve: SC9999",
+    ),
+    (
+        "semantic change cannot supersede itself",
+        with_semantic_change(
+            BASE_FILES,
+            status="Superseded",
+            superseded_by="SC0001",
+        ),
+        True,
+        "semantic change cannot supersede itself",
+    ),
+    (
+        "semantic-change supersession must move forward",
+        {
+            **with_semantic_change(BASE_FILES, status="Applied"),
+            "agent/semantic-changes/SC0002-later.md": semantic_change_record(
+                record_id="SC0002",
+                status="Superseded",
+                superseded_by="SC0001",
+            ),
+            "agent/semantic-changes/README.md": (
+                BASE_FILES["agent/semantic-changes/README.md"]
+                + "| [SC0001](SC0001-fixture.md) | Applied | D0001 | fixture-governance | 2026-08-28 |\n"
+                + "| [SC0002](SC0002-later.md) | Superseded | D0001 | fixture-governance | 2026-08-28 |\n"
+            ),
+        },
+        True,
+        "superseded_by must name a later SC identity",
+    ),
+]
+
+
 def main() -> int:
     failures = 0
     with tempfile.TemporaryDirectory(prefix="metaflux-records-selftest-") as temporary:
@@ -1906,6 +2274,20 @@ def main() -> int:
             failed = (code != 0) != expect_failure
             warned = bool(warnings) != expect_warning
             if failed or warned:
+                failures += 1
+                print(f"FAIL: {name}", file=sys.stderr)
+                print(f"  exit={code} errors={errors} warnings={warnings}", file=sys.stderr)
+            else:
+                print(f"ok: {name}")
+        for name, files, expect_failure, needle in SC_CASES:
+            if root.exists():
+                shutil.rmtree(root)
+            root.mkdir(parents=True)
+            write_tree(root, files)  # type: ignore[arg-type]
+            code, errors, warnings = run_validator(root)
+            failed = (code != 0) != expect_failure
+            wrong_error = bool(needle) and not any(needle in error for error in errors)
+            if failed or wrong_error or warnings:
                 failures += 1
                 print(f"FAIL: {name}", file=sys.stderr)
                 print(f"  exit={code} errors={errors} warnings={warnings}", file=sys.stderr)
@@ -1938,10 +2320,21 @@ def main() -> int:
                 print(f"  {problem}", file=sys.stderr)
         else:
             print("ok: pre-commit guidance gate")
+        cached_problems = check_cached_tree_validation(root)
+        if cached_problems:
+            failures += 1
+            print("FAIL: cached tree validation", file=sys.stderr)
+            for problem in cached_problems:
+                print(f"  {problem}", file=sys.stderr)
+        else:
+            print("ok: cached tree validation")
     if failures:
         print(f"{failures} case(s) failed", file=sys.stderr)
         return 1
-    print(f"agent-records self-test: {len(CASES) + 3} case(s) passed")
+    print(
+        "agent-records self-test: "
+        f"{len(CASES) + len(SC_CASES) + 4} case(s) passed"
+    )
     return 0
 
 

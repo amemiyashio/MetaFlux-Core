@@ -17,6 +17,11 @@ Agent configuration, cross-project memory, or conversation transcripts.
 Product truth remains in source, tests, verified architecture records,
 contracts, and approved milestone plans.
 
+Decision-authorized replacements of established meaning are indexed under
+[`semantic-changes/`](semantic-changes/README.md). An SC is migration authority
+and a compact reminder; it points to canonical truth instead of outranking or
+duplicating it.
+
 ## Source precedence
 
 When records disagree, use this order:
@@ -39,9 +44,10 @@ contract. Agent records link to canonical material instead of copying it.
 | --- | --- | --- |
 | `plan/M<delivery>/` | Approved milestone and its work items | Update through an explicit planning decision |
 | `memory/` | Stable project, constraints, ownership, terminology, and decision index | Change only when canonical sources change |
+| `semantic-changes/` | Decision-bound breaking migration permits and durable reminders | Activate before protected history changes; apply only after complete synchronization |
 | `experience/` | Reusable procedures supported by evidence | Validate before relying on them; supersede instead of silently rewriting conclusions |
 | `progress/current.md` | Replaceable resume point | Refresh after material state changes |
-| `progress/checkpoints/` | Immutable historical handoffs | Append corrections; never rewrite history |
+| `progress/checkpoints/` | Protected historical handoffs | Append corrections by default; exact D0025/SC migrations preserve factual evidence |
 | `sessions/` | Curated task objective, material decisions/results, cleanup, and resume summary | Keep compact; Git owns source history, and disposable failed-route artifacts are removed at handoff |
 | `skills/` | Codex skill packages for repository-specific work | Load on demand; keep `SKILL.md` standard-compatible and verify repository-changing procedures proportionately |
 | `templates/` | Required record shapes | Keep fields and status vocabularies stable |
@@ -84,6 +90,7 @@ allocated from an unrelated serial.
 - Milestone: `M<compact-delivery>`, for example `M0100` for `0.1.0.0`.
 - Work item: `W<compact-delivery>`, for example `W0101` for `0.1.0.1`.
 - Decision index entry: `DNNNN`.
+- Semantic change: `SCNNNN`.
 - Experience: `ENNNN`.
 - Checkpoint: `PYYYYMMDD-NNN`.
 - Project work record: `S<compact-delivery>-YYYYMMDD-NNN-<slug>`.
@@ -91,10 +98,12 @@ allocated from an unrelated serial.
   directory; slugs are never renamed after links exist.
 
 The D0024 migration replaced every pre-policy M/W/S name, including historical
-sessions, so the repository has one scheme. After that migration, identifiers
-are never reused, renumbered, or changed after links exist. The file name starts
-with the identifier where the record is an instance rather than a singleton
-index.
+sessions, so the repository has one scheme. It remains the first completed
+pre-framework semantic migration. Later replacements require D0025 and an
+`Active` SC already committed before any protected-history edit. Identifiers are
+never reused; ordinary evolution supersedes rather than renumbers them. The file
+name starts with the identifier where the record is an instance rather than a
+singleton index.
 
 ## Status rules
 
@@ -106,6 +115,7 @@ index.
 | Checkpoint | `Recorded` |
 | Project work record | `in_progress`, `complete`, `blocked`, `abandoned` |
 | Architecture decision | `Proposed`, `Verified`, `Superseded` |
+| Semantic change | `Active`, `Applied`, `Superseded` |
 | Skill catalog entry | `Draft`, `Active`, `Retired` |
 | Performance budgets | `provisional`, `binding` |
 
@@ -116,8 +126,9 @@ does not claim that uncommitted files can be reconstructed. A numeric
 performance budget is `provisional` until the measurement harness it names
 exists and a baseline is archived; provisional budgets guide design but do not
 fail acceptance. Session summaries recorded from 2026-08-28 onward require a
-`Distillation` section stating what was promoted into durable records (`none`
-is valid). Sessions from 2026-08-29 onward also require a `Cleanup` section
+`Distillation` section mapping promoted claims to their unique durable owners
+and naming any intentionally session-only claim (`none` is valid after
+classification). Sessions from 2026-08-29 onward also require a `Cleanup` section
 naming removed and intentionally retained session-owned artifacts. Unresolved decisions are aggregated in
 [`memory/open-decisions.md`](memory/open-decisions.md) and scaffold new sessions
 with `tools/new-session.py`.
@@ -128,10 +139,12 @@ Use this fixed order for routine work:
 
 1. This `agent/README.md`.
 2. [`memory/README.md`](memory/README.md) and the indexed durable memory.
-3. [`progress/current.md`](progress/current.md) and its latest checkpoint when
+3. The [`semantic-changes`](semantic-changes/README.md) index; load only an
+   `Active` record or an `Applied` record relevant to the task.
+4. [`progress/current.md`](progress/current.md) and its latest checkpoint when
    historical evidence is needed.
-4. The active milestone and relevant workstream under [`plan/`](plan/).
-5. Only the related validated records from
+5. The active milestone and relevant workstream under [`plan/`](plan/).
+6. Only the related validated records from
    [`experience/`](experience/README.md).
 
 Then inspect Git status and current files before editing. Session records are

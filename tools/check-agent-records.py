@@ -9,7 +9,9 @@ import hashlib
 import json
 import re
 import shlex
+import subprocess
 import sys
+import tempfile
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlsplit
 
@@ -78,10 +80,14 @@ DELIVERY_COORDINATE_RE = re.compile(
 EXPERIENCE_ID_RE = re.compile(r"^E\d{4}$")
 DECISION_ID_RE = re.compile(r"^D\d{4}$")
 DECISION_ID_SEARCH_RE = re.compile(r"\bD\d{4}\b")
+SEMANTIC_CHANGE_ID_RE = re.compile(r"^SC\d{4}$")
+SEMANTIC_CHANGE_FILE_RE = re.compile(
+    r"^(?P<id>SC\d{4})-(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.md$"
+)
 GUIDANCE_ID_RE = re.compile(r"^G\d{3}$")
 CHECKPOINT_ID_RE = re.compile(r"^P\d{8}-\d{3}$")
 STABLE_AGENT_ID_RE = re.compile(
-    r"^(?:(?:M|W)\d{4,}|E\d{4}|P\d{8}-\d{3})$"
+    r"^(?:(?:M|W)\d{4,}|E\d{4}|SC\d{4}|P\d{8}-\d{3})$"
 )
 OUTPUT_REF_PATH_RE = re.compile(r"^outputs/\d{4}\.txt$")
 # Unanchored companions of the stable-id patterns, used to extract ids from
@@ -140,6 +146,32 @@ DECISION_IDENTITY_STOP_WORDS = {
 DECISION_TERM_ALIASES = {"marks": "mark"}
 SKILL_LIFECYCLE_STATUSES = {"Draft", "Active", "Retired"}
 SKILL_INDEX_COLUMNS = ("Skill", "Status", "Use when")
+SEMANTIC_CHANGE_STATUSES = {"Active", "Applied", "Superseded"}
+SEMANTIC_CHANGE_SECTIONS = (
+    "Semantic replacement",
+    "Migration inventory",
+    "Active-session handoff",
+    "Evidence preservation",
+    "Future-agent reminder",
+    "Verification",
+)
+SEMANTIC_CHANGE_INDEX_COLUMNS = ("ID", "Status", "Decision", "Scope", "Updated")
+SEMANTIC_CHANGE_MIGRATION_COLUMNS = (
+    "Surface",
+    "Class",
+    "Disposition",
+    "Evidence",
+)
+SEMANTIC_CHANGE_HANDOFF_COLUMNS = ("Session", "Guidance", "Status", "Outcome")
+SEMANTIC_CHANGE_VERIFICATION_COLUMNS = ("Gate", "Result")
+SEMANTIC_CHANGE_CLASSES = {"Current", "Historical", "Tooling", "Active session"}
+SEMANTIC_CHANGE_DISPOSITIONS = {
+    "Pending",
+    "Migrated",
+    "Removed",
+    "Retained evidence",
+}
+SEMANTIC_CHANGE_HANDOFF_STATUSES = {"Published", "Resolved", "Not required"}
 DOMAIN_SKILL_SLUGS = {
     "cpu-backend-performance",
     "cuda-driver-abi-compatibility",
@@ -153,11 +185,16 @@ DOMAIN_SKILL_SLUGS = {
     "runtime-contracts-registry",
     "vulkan-spirv-compute",
 }
+WORKFLOW_SKILL_SLUGS = {
+    "distill-project-knowledge",
+    "govern-semantic-change",
+}
 DOMAIN_SKILL_SECTIONS = ("Inputs", "Routing", "Workflow", "Output", "Verification")
 OPENAI_INTERFACE_FIELDS = {"display_name", "short_description", "default_prompt"}
 MIN_OPENAI_SHORT_DESCRIPTION_LENGTH = 25
 MAX_OPENAI_SHORT_DESCRIPTION_LENGTH = 64
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+FULL_GIT_REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".txt", ".yaml", ".yml"}
 
@@ -1433,6 +1470,408 @@ class Validator:
                 headings.append((line_number, heading.group(1)))
         return headings
 
+    @staticmethod
+    def markdown_lines_outside_fences(text: str) -> list[tuple[int, str]]:
+        """Return line numbers and text while excluding fenced code blocks."""
+        visible: list[tuple[int, str]] = []
+        fence_marker: str | None = None
+        fence_length = 0
+        for line_number, line in enumerate(text.splitlines(), start=1):
+            fence = re.match(r"^[ \t]{0,3}(`{3,}|~{3,})(.*)$", line)
+            if fence:
+                marker = fence.group(1)
+                if fence_marker is None:
+                    fence_marker = marker[0]
+                    fence_length = len(marker)
+                elif (
+                    marker[0] == fence_marker
+                    and len(marker) >= fence_length
+                    and not fence.group(2).strip()
+                ):
+                    fence_marker = None
+                    fence_length = 0
+                continue
+            if fence_marker is None:
+                visible.append((line_number, line))
+        return visible
+
+    def semantic_change_sections(self, path: Path, text: str) -> dict[str, str]:
+        """Validate the exact SC section sequence and return each section body."""
+        headings = self.markdown_h2_headings(text)
+        names = [name for _, name in headings]
+        if names != list(SEMANTIC_CHANGE_SECTIONS):
+            self.add_error(
+                path,
+                "semantic change sections must appear exactly in order: "
+                + " -> ".join(SEMANTIC_CHANGE_SECTIONS),
+            )
+            return {}
+
+        lines = text.splitlines()
+        sections: dict[str, str] = {}
+        for index, (line_number, name) in enumerate(headings):
+            next_line = headings[index + 1][0] if index + 1 < len(headings) else len(lines) + 1
+            body = "\n".join(lines[line_number : next_line - 1]).strip()
+            if not body:
+                self.add_error(path, f"semantic change section '## {name}' is empty")
+            sections[name] = body
+        return sections
+
+    def parse_exact_markdown_table(
+        self,
+        path: Path,
+        section: str,
+        text: str,
+        columns: tuple[str, ...],
+        *,
+        allow_empty: bool = False,
+    ) -> list[tuple[str, ...]]:
+        """Parse one exact table outside code fences from a bounded section."""
+        visible = self.markdown_lines_outside_fences(text)
+        headers = [
+            index
+            for index, (_, line) in enumerate(visible)
+            if self.markdown_table_cells(line) == columns
+        ]
+        if len(headers) != 1:
+            self.add_error(
+                path,
+                f"{section} requires exactly one table with columns: "
+                + ", ".join(columns),
+            )
+            return []
+
+        header_index = headers[0]
+        if header_index + 1 >= len(visible):
+            self.add_error(path, f"{section} table is missing its separator row")
+            return []
+        separator = self.markdown_table_cells(visible[header_index + 1][1])
+        if separator is None or len(separator) != len(columns) or not all(
+            re.fullmatch(r":?-{3,}:?", cell) for cell in separator
+        ):
+            self.add_error(path, f"{section} table has an invalid separator row")
+            return []
+
+        rows: list[tuple[str, ...]] = []
+        for _, line in visible[header_index + 2 :]:
+            cells = self.markdown_table_cells(line)
+            if cells is None:
+                if rows or line.strip():
+                    break
+                continue
+            if len(cells) != len(columns):
+                self.add_error(path, f"{section} table row has the wrong column count")
+                continue
+            rows.append(cells)
+        if not rows and not allow_empty:
+            self.add_error(path, f"{section} table requires at least one data row")
+        return rows
+
+    def required_frontmatter_scalar(self, path: Path, field: str) -> str | None:
+        values, error = self.read_frontmatter_values(path, field)
+        if error is not None:
+            self.add_error(path, error)
+            return None
+        assert values is not None
+        if not values:
+            self.add_error(path, f"semantic change frontmatter is missing {field}")
+            return None
+        if len(values) != 1:
+            self.add_error(path, f"semantic change frontmatter repeats {field}")
+            return None
+        if not values[0]:
+            self.add_error(path, f"semantic change frontmatter {field} is empty")
+            return None
+        return values[0]
+
+    def parse_semantic_change_index(
+        self, path: Path
+    ) -> dict[str, tuple[str, str, str, str, int]]:
+        if not path.is_file():
+            self.add_error(path, "required semantic-change index is missing")
+            return {}
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as exc:
+            self.add_error(path, f"is not valid UTF-8: {exc}")
+            return {}
+
+        headings = self.markdown_h2_headings(text)
+        index_headings = [(line, name) for line, name in headings if name == "Index"]
+        if len(index_headings) != 1:
+            self.add_error(path, "semantic-change index requires exactly one '## Index'")
+            return {}
+        line_number = index_headings[0][0]
+        next_heading = next((line for line, _ in headings if line > line_number), len(text.splitlines()) + 1)
+        section = "\n".join(text.splitlines()[line_number : next_heading - 1])
+        rows = self.parse_exact_markdown_table(
+            path,
+            "semantic-change Index",
+            section,
+            SEMANTIC_CHANGE_INDEX_COLUMNS,
+            allow_empty=True,
+        )
+        indexed: dict[str, tuple[str, str, str, str, int]] = {}
+        for offset, cells in enumerate(rows, start=1):
+            id_cell, status, decision, scope, updated = cells
+            link = re.fullmatch(r"\[([^]]+)\]\(([^)]+)\)", id_cell)
+            if link is None:
+                self.add_error(path, "semantic-change index ID must be a Markdown link")
+                continue
+            label, target = link.groups()
+            if not SEMANTIC_CHANGE_ID_RE.fullmatch(label):
+                self.add_error(path, f"semantic-change index has invalid ID {label!r}")
+                continue
+            target_match = SEMANTIC_CHANGE_FILE_RE.fullmatch(target)
+            if target_match is None or target_match.group("id") != label:
+                self.add_error(path, f"semantic-change index target does not match {label}")
+            if status not in SEMANTIC_CHANGE_STATUSES:
+                self.add_error(path, f"semantic-change index has invalid status {status!r}")
+            if not DECISION_ID_RE.fullmatch(decision):
+                self.add_error(path, f"semantic-change index has invalid decision {decision!r}")
+            if not scope:
+                self.add_error(path, f"semantic-change index {label} has an empty scope")
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", updated):
+                self.add_error(path, f"semantic-change index {label} has an invalid updated date")
+            if label in indexed:
+                self.add_error(path, f"semantic-change index repeats {label}")
+                continue
+            indexed[label] = (status, decision, scope, updated, offset)
+        return indexed
+
+    @staticmethod
+    def strip_code_cell(value: str) -> str:
+        match = re.fullmatch(r"`([^`]+)`", value.strip())
+        return match.group(1) if match else value.strip()
+
+    def semantic_change_session_status(self, session_id: str) -> str | None:
+        matches = list(self.sessions_root.glob(f"*/*/{session_id}/session.json"))
+        if len(matches) != 1:
+            return None
+        document = self.load_json(matches[0])
+        if not isinstance(document, dict):
+            return None
+        status = document.get("status")
+        return status if isinstance(status, str) else None
+
+    def validate_semantic_changes(self) -> None:
+        root = self.agent_root / "semantic-changes"
+        index_path = root / "README.md"
+        indexed = self.parse_semantic_change_index(index_path)
+        if not root.is_dir():
+            return
+
+        records: dict[str, dict[str, str]] = {}
+        filenames: dict[str, str] = {}
+        for entry in sorted(root.iterdir()):
+            if entry.name == "README.md":
+                continue
+            if not entry.is_file() or entry.is_symlink():
+                self.add_error(entry, "semantic-change directory accepts only regular SC Markdown files")
+                continue
+            file_match = SEMANTIC_CHANGE_FILE_RE.fullmatch(entry.name)
+            if file_match is None:
+                self.add_error(entry, "semantic-change filename must match SCNNNN-slug.md")
+                continue
+
+            record_id = file_match.group("id")
+            try:
+                text = entry.read_text(encoding="utf-8")
+            except UnicodeDecodeError as exc:
+                self.add_error(entry, f"is not valid UTF-8: {exc}")
+                continue
+
+            fields = {
+                field: self.required_frontmatter_scalar(entry, field)
+                for field in (
+                    "id",
+                    "status",
+                    "created",
+                    "updated",
+                    "decision",
+                    "session",
+                    "scope",
+                    "history_sync",
+                    "effective_revision",
+                    "superseded_by",
+                )
+            }
+            if fields["id"] != record_id:
+                self.add_error(entry, f"semantic-change id must match path identity {record_id}")
+
+            status = fields["status"]
+            if status not in SEMANTIC_CHANGE_STATUSES:
+                self.add_error(entry, f"semantic-change status is invalid: {status!r}")
+            for date_field in ("created", "updated"):
+                value = fields[date_field]
+                if value is None or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+                    self.add_error(entry, f"semantic-change {date_field} must be YYYY-MM-DD")
+                    continue
+                try:
+                    parsed = dt.date.fromisoformat(value)
+                except ValueError:
+                    self.add_error(entry, f"semantic-change {date_field} is not a calendar date")
+                    continue
+                if parsed > dt.date.today():
+                    self.add_error(entry, f"semantic-change {date_field} must not be in the future")
+            if fields["created"] and fields["updated"] and fields["created"] > fields["updated"]:
+                self.add_error(entry, "semantic-change created date must not follow updated date")
+            if fields["decision"] is not None and not DECISION_ID_RE.fullmatch(fields["decision"]):
+                self.add_error(entry, "semantic-change decision must match DNNNN")
+            session_id = fields["session"]
+            if session_id is not None and not SESSION_ID_RE.fullmatch(session_id):
+                self.add_error(entry, "semantic-change session must be a canonical full session ID")
+            elif session_id is not None:
+                session_status = self.semantic_change_session_status(session_id)
+                if session_status is None:
+                    self.add_error(entry, f"semantic-change session does not resolve: {session_id}")
+                elif status == "Active" and session_status != "in_progress":
+                    self.add_error(entry, "Active semantic change requires an in-progress migration session")
+            if fields["scope"] is not None and not SKILL_SLUG_RE.fullmatch(fields["scope"]):
+                self.add_error(entry, "semantic-change scope must be a lowercase-hyphenated slug")
+            if fields["history_sync"] != "automatic":
+                self.add_error(entry, "semantic-change history_sync must be automatic")
+
+            effective_revision = fields["effective_revision"]
+            superseded_by = fields["superseded_by"]
+            if status == "Active":
+                if effective_revision != "null":
+                    self.add_error(entry, "Active semantic change requires effective_revision: null")
+                if superseded_by != "null":
+                    self.add_error(entry, "Active semantic change requires superseded_by: null")
+            elif status == "Applied":
+                if effective_revision is None or not FULL_GIT_REVISION_RE.fullmatch(effective_revision):
+                    self.add_error(entry, "Applied semantic change requires a full hexadecimal effective_revision")
+                if superseded_by != "null":
+                    self.add_error(entry, "Applied semantic change requires superseded_by: null")
+            elif status == "Superseded":
+                if effective_revision is None or not FULL_GIT_REVISION_RE.fullmatch(effective_revision):
+                    self.add_error(entry, "Superseded semantic change retains a full hexadecimal effective_revision")
+                if superseded_by is None or not SEMANTIC_CHANGE_ID_RE.fullmatch(superseded_by):
+                    self.add_error(entry, "Superseded semantic change requires superseded_by: SCNNNN")
+                elif superseded_by == record_id:
+                    self.add_error(entry, "semantic change cannot supersede itself")
+                elif int(superseded_by[2:]) <= int(record_id[2:]):
+                    self.add_error(entry, "superseded_by must name a later SC identity")
+
+            sections = self.semantic_change_sections(entry, text)
+            migration_rows = self.parse_exact_markdown_table(
+                entry,
+                "Migration inventory",
+                sections.get("Migration inventory", ""),
+                SEMANTIC_CHANGE_MIGRATION_COLUMNS,
+            )
+            surfaces: set[str] = set()
+            for surface_cell, record_class, disposition, evidence in migration_rows:
+                surface = self.strip_code_cell(surface_cell)
+                if not re.fullmatch(r"`[^`]+`", surface_cell.strip()):
+                    self.add_error(entry, "migration Surface must be one exact backticked path")
+                pure = PurePosixPath(surface)
+                if pure.is_absolute() or not surface or ".." in pure.parts or re.search(r"[*?\[]", surface):
+                    self.add_error(entry, f"migration Surface is not an exact repository-relative path: {surface!r}")
+                if surface in surfaces:
+                    self.add_error(entry, f"migration inventory repeats Surface {surface!r}")
+                surfaces.add(surface)
+                if record_class not in SEMANTIC_CHANGE_CLASSES:
+                    self.add_error(entry, f"migration Class is invalid: {record_class!r}")
+                if disposition not in SEMANTIC_CHANGE_DISPOSITIONS:
+                    self.add_error(entry, f"migration Disposition is invalid: {disposition!r}")
+                if not evidence.strip():
+                    self.add_error(entry, f"migration Evidence is empty for {surface!r}")
+                elif status in {"Applied", "Superseded"} and re.search(
+                    r"\b(?:pending|todo)\b", evidence, re.IGNORECASE
+                ):
+                    self.add_error(entry, f"{status} semantic change has placeholder Evidence for {surface!r}")
+                if status in {"Applied", "Superseded"} and disposition == "Pending":
+                    self.add_error(entry, f"{status} semantic change retains Pending Surface {surface!r}")
+
+            handoff_rows = self.parse_exact_markdown_table(
+                entry,
+                "Active-session handoff",
+                sections.get("Active-session handoff", ""),
+                SEMANTIC_CHANGE_HANDOFF_COLUMNS,
+            )
+            handoff_sessions: set[str] = set()
+            for target_cell, guidance_cell, handoff_status, outcome in handoff_rows:
+                target = self.strip_code_cell(target_cell)
+                guidance = self.strip_code_cell(guidance_cell)
+                if handoff_status not in SEMANTIC_CHANGE_HANDOFF_STATUSES:
+                    self.add_error(entry, f"handoff Status is invalid: {handoff_status!r}")
+                if not outcome.strip():
+                    self.add_error(entry, "handoff Outcome must be non-empty")
+                if target == "none":
+                    if guidance != "none" or handoff_status != "Not required" or len(handoff_rows) != 1:
+                        self.add_error(entry, "none handoff row must be the sole Not required row")
+                    continue
+                if not SESSION_ID_RE.fullmatch(target):
+                    self.add_error(entry, f"handoff Session is not canonical: {target!r}")
+                else:
+                    target_status = self.semantic_change_session_status(target)
+                    if target_status is None:
+                        self.add_error(entry, f"handoff Session does not resolve: {target}")
+                    elif handoff_status == "Published" and target_status != "in_progress":
+                        self.add_error(entry, "Published handoff requires an in-progress target session")
+                if target == session_id:
+                    self.add_error(entry, "semantic-change migration owner must not receive self-guidance")
+                if target in handoff_sessions:
+                    self.add_error(entry, f"handoff repeats Session {target}")
+                handoff_sessions.add(target)
+                if not GUIDANCE_ID_RE.fullmatch(guidance):
+                    self.add_error(entry, f"handoff Guidance must match GNNN: {guidance!r}")
+                if handoff_status == "Not required":
+                    self.add_error(entry, "Not required handoff status is valid only for the none row")
+
+            verification_rows = self.parse_exact_markdown_table(
+                entry,
+                "Verification",
+                sections.get("Verification", ""),
+                SEMANTIC_CHANGE_VERIFICATION_COLUMNS,
+            )
+            if status in {"Applied", "Superseded"}:
+                for gate, result in verification_rows:
+                    if not gate.strip():
+                        self.add_error(entry, f"{status} semantic change has an empty verification Gate")
+                results = [result.strip() for _, result in verification_rows]
+                if any(not result or re.search(r"\b(?:pending|todo)\b", result, re.IGNORECASE) for result in results):
+                    self.add_error(entry, f"{status} semantic change has incomplete verification")
+                if results and not any(
+                    re.match(r"^pass(?:ed)?(?:\b|:)", result, re.IGNORECASE)
+                    for result in results
+                ):
+                    self.add_error(entry, f"{status} semantic change requires an explicit passing result")
+
+            records[record_id] = {key: value or "" for key, value in fields.items()}
+            filenames[record_id] = entry.name
+
+        actual_ids = set(records)
+        indexed_ids = set(indexed)
+        for missing in sorted(actual_ids - indexed_ids):
+            self.add_error(index_path, f"semantic-change index is missing {missing}")
+        for stale in sorted(indexed_ids - actual_ids):
+            self.add_error(index_path, f"semantic-change index references nonexistent {stale}")
+        for record_id in sorted(actual_ids & indexed_ids):
+            status, decision, scope, updated, _ = indexed[record_id]
+            record = records[record_id]
+            target = re.search(
+                rf"\[{re.escape(record_id)}\]\(([^)]+)\)",
+                index_path.read_text(encoding="utf-8"),
+            )
+            if target is None or target.group(1) != filenames[record_id]:
+                self.add_error(index_path, f"semantic-change index target is stale for {record_id}")
+            for field, indexed_value in (
+                ("status", status),
+                ("decision", decision),
+                ("scope", scope),
+                ("updated", updated),
+            ):
+                if record[field] != indexed_value:
+                    self.add_error(index_path, f"semantic-change index {field} drifts for {record_id}")
+
+        for record_id, record in records.items():
+            successor = record.get("superseded_by", "")
+            if successor not in {"", "null"} and successor not in records:
+                self.add_error(root / filenames[record_id], f"superseded_by does not resolve: {successor}")
+
     def validate_domain_skill_sections(self, path: Path, text: str) -> None:
         headings = self.markdown_h2_headings(text)
         positions: list[int] = []
@@ -2222,6 +2661,9 @@ class Validator:
         if len(parts) == 2 and parts[0] == "experience":
             match = re.fullmatch(r"(E\d{4})-[^/]+\.md", parts[1])
             return match.group(1) if match else None
+        if len(parts) == 2 and parts[0] == "semantic-changes":
+            match = SEMANTIC_CHANGE_FILE_RE.fullmatch(parts[1])
+            return match.group("id") if match else None
         if len(parts) >= 4 and parts[0:2] == ("progress", "checkpoints"):
             match = re.fullmatch(r"(P\d{8}-\d{3})-[^/]+\.md", parts[-1])
             return match.group(1) if match else None
@@ -2269,7 +2711,7 @@ class Validator:
                 if path in expected_paths:
                     self.add_error(
                         path,
-                        f"frontmatter id is not a stable M/W/E/P id: {record_id!r}",
+                        f"frontmatter id is not a stable M/W/E/P/SC id: {record_id!r}",
                     )
                 continue
             expected_id = expected_paths.get(path)
@@ -2307,6 +2749,7 @@ class Validator:
                 if SESSION_ID_RE.fullmatch(session_file.parent.name):
                     actual_session_ids.add(session_file.parent.name)
 
+        self.validate_semantic_changes()
         self.validate_index_completeness(actual_session_ids)
         self.validate_open_decisions()
         self.validate_decision_index()
@@ -2338,12 +2781,46 @@ class Validator:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("repo_root", type=Path, help="path to the repository root")
+    parser.add_argument(
+        "--cached",
+        action="store_true",
+        help="validate the exact Git index tree instead of the working tree",
+    )
     return parser.parse_args()
+
+
+def validate_cached_tree(repo_root: Path) -> int:
+    """Materialize the Git index and validate the exact candidate commit tree."""
+
+    with tempfile.TemporaryDirectory(prefix="metaflux-agent-index-") as temporary:
+        staged_root = Path(temporary) / "tree"
+        staged_root.mkdir()
+        result = subprocess.run(
+            [
+                "git",
+                "checkout-index",
+                "--all",
+                "--force",
+                f"--prefix={staged_root.as_posix()}/",
+            ],
+            cwd=repo_root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            detail = result.stderr.strip() or result.stdout.strip()
+            print(f"error: cannot materialize staged Agent records: {detail}", file=sys.stderr)
+            return 1
+        return Validator(staged_root).run()
 
 
 def main() -> int:
     args = parse_args()
-    return Validator(args.repo_root.resolve()).run()
+    repo_root = args.repo_root.resolve()
+    if args.cached:
+        return validate_cached_tree(repo_root)
+    return Validator(repo_root).run()
 
 
 if __name__ == "__main__":

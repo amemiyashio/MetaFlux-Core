@@ -61,7 +61,10 @@ honor an explicit user request to keep work uncommitted.
    only when the commit is also a material handoff boundary. Commit these
    session/checkpoint records separately from content. If work continues, keep
    `status: in_progress`, `ended_at: null`, and `final_revision: null`.
-7. Before close or handoff, enumerate paths created by this session and classify them:
+7. Before close or handoff, follow `distill-project-knowledge`: split material
+   outcomes into independent claims, promote each to one canonical owner or
+   mark it session-only with a reason, and keep only links/evidence identities
+   in the session. Then enumerate paths created by this session and classify them:
    durable Git content; promoted canonical evidence; or disposable work.
    Remove disposable build trees, duplicate source snapshots, failed-route
    files, processed guidance packets, temporary downloads, profiles, and logs.
@@ -71,10 +74,15 @@ honor an explicit user request to keep work uncommitted.
 8. If an abandoned route contains a reusable lesson, retain one concise
    `work_note` or promote a validated experience. Otherwise remove the route
    and omit its noise. Never rewrite completed historical sessions or
-   checkpoints to make the old route appear successful.
+   checkpoints to make an old route appear successful. A decision-authorized
+   semantic synchronization follows `govern-semantic-change`, preserves factual
+   evidence, and requires its exact protected paths in an Active SC already in
+   `HEAD`.
 9. In close mode, fill `summary.md`. `## Cleanup` names removed and intentionally retained
-   artifacts (`none` is valid after inspection). `## Distillation` names the
-   durable records that received reusable knowledge (`none` is valid).
+   artifacts (`none` is valid after inspection). `## Distillation` maps
+   promoted claims to their durable owners and names any intentionally
+   session-only claim (`none` is valid after classification); it does not copy
+   the promoted content.
 10. Fill `session.json` from current facts: agents, honest milestone/work-item
    statuses, the final content revision, end time, and terminal status. Update
    the sessions index with a one-line outcome, validate the records, and create

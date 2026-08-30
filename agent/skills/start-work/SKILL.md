@@ -16,14 +16,16 @@ cover the complete change.
    anything"), [durable memory](../../memory/README.md) — especially
    [constraints](../../memory/constraints.md) and the
    [open-decisions ledger](../../memory/open-decisions.md) for your area —
-   then [current progress](../../progress/current.md) and the active
-   milestone plan.
+   then the [semantic-change index](../../semantic-changes/README.md), [current
+   progress](../../progress/current.md), and the active milestone plan. Load
+   only an Active SC or an Applied SC relevant to the task.
 2. Check [skills](../README.md) for one matching the task (add-component,
    close-decision, record-session, ...) and follow it verbatim instead of
    improvising.
-3. If your task resolves a ledger row, follow the `close-decision` skill; if
-   it would relax anything in constraints, stop: that requires a recorded
-   decision and a canonical source, not an edit.
+3. If the task replaces established semantics, identifiers, constraints,
+   record shape, or authority, follow `govern-semantic-change` before the first
+   affected edit. If it resolves a ledger row, compose `close-decision`. A
+   compatible implementation correction does not create an SC.
 4. If the task will change durable repository state, scaffold the session before
    the first file change:
 
@@ -49,11 +51,12 @@ cover the complete change.
    checkpoint it before entering the next risk or scope phase; do not wait for
    the entire task to finish. The semantic trigger belongs to the agent, while
    the pre-commit hook only validates an attempted commit.
-7. Verify with `python3 tools/check-agent-records.py .` and the relevant CTest
+7. Before checkpoint or close, use `distill-project-knowledge` to route each
+   valuable claim to one canonical owner or mark it session-only with a reason.
+   Verify with `python3 tools/check-agent-records.py .` and the relevant CTest
    preset for build-affecting files. Use `record-session` in checkpoint mode for
-   separate content/record commits and in close mode for distillation, cleanup,
-   progress refresh, and final handoff. A read-only task reports its evidence
-   directly.
+   separate content/record commits and in close mode for cleanup, progress
+   refresh, and final handoff. A read-only task reports its evidence directly.
 
 ## Verification
 

@@ -47,11 +47,13 @@ and why it is still required.
 
 ## Distillation
 
-What this session promoted into durable records so reusable knowledge does not
-stay trapped in cold storage. `none` is a valid answer; the validator requires
-this section for sessions from 2026-08-28 onward.
+Map each promoted claim to its single durable owner, then name any material
+claim intentionally retained only in this session. `none` is valid after the
+classification; the validator requires this section for sessions from
+2026-08-28 onward.
 
-- Distilled: none | memory/<file>, decisions DNNNN, experience ENNNN
+- Promoted: <outcome> -> <canonical path or ID> (<evidence>) | none.
+- Session-only: <material fact> - <reason it is not promotable> | none.
 
 ## Unresolved items
 
@@ -64,5 +66,6 @@ the current progress record or checkpoint when the session changes durable state
 
 The summary is a curated outcome and resume point. It does not mirror Git,
 archive a build directory, preserve routine command output, or retain failed
-routes without a reusable lesson. Promote only validated, reusable project
-knowledge to `memory/` or `experience/`.
+routes without a reusable lesson. Promote claims to their owning source,
+contract, decision, memory, experience, plan, progress, or semantic-change
+record. Keep only the promotion map here.
