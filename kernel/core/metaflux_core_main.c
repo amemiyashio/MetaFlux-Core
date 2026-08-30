@@ -2,6 +2,7 @@
 #include <linux/eventfd.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
+#include <linux/kref.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
@@ -56,7 +57,9 @@ struct mf_cdev_queue {
 	struct mf_cdev_file *eventfd_owner;
 	struct eventfd_ctx *submission_eventfd;
 	struct eventfd_ctx *completion_eventfd;
+	struct kref refs;
 	atomic_t vma_refs;
+	bool root_ref_held;
 	bool online;
 	wait_queue_head_t wait;
 };
@@ -90,6 +93,17 @@ static DEFINE_MUTEX(mf_cdev_lock);
 static struct mf_cdev_queue mf_cdev_queue;
 static struct mf_cdev_memory mf_cdev_payload;
 static struct mf_cdev_registered_memory mf_cdev_registered;
+
+static void mf_cdev_queue_release(struct kref *reference)
+{
+	struct mf_cdev_queue *queue = container_of(reference, struct mf_cdev_queue, refs);
+
+	if (queue->mapping != NULL) {
+		vfree(queue->mapping);
+		queue->mapping = NULL;
+		queue->allocation_size = 0;
+	}
+}
 
 static bool mf_cdev_bytes_zero(const u8 *bytes, size_t count)
 {
@@ -165,21 +179,15 @@ static void mf_cdev_payload_reap_locked(void)
 	}
 }
 
-static void mf_cdev_queue_reap_locked(void)
-{
-	if (!mf_cdev_queue.online && atomic_read(&mf_cdev_queue.vma_refs) == 0 &&
-	    mf_cdev_queue.mapping != NULL) {
-		vfree(mf_cdev_queue.mapping);
-		mf_cdev_queue.mapping = NULL;
-		mf_cdev_queue.allocation_size = 0;
-	}
-}
-
 static void mf_cdev_queue_mark_offline_locked(void)
 {
 	if (mf_cdev_queue.online) {
 		mf_cdev_queue.online = false;
 		wake_up_all(&mf_cdev_queue.wait);
+		if (mf_cdev_queue.root_ref_held) {
+			mf_cdev_queue.root_ref_held = false;
+			kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
+		}
 	}
 }
 
@@ -553,6 +561,7 @@ static int mf_cdev_queue_create(struct mf_cdev_file *file, void __user *argument
 		file->completion_eventfd = completion_eventfd;
 	}
 	mf_cdev_queue.queue_owner = file;
+	kref_get(&mf_cdev_queue.refs);
 	file->queue_created = true;
 	mutex_unlock(&mf_cdev_lock);
 
@@ -570,6 +579,7 @@ static int mf_cdev_queue_create(struct mf_cdev_file *file, void __user *argument
 			mf_cdev_eventfd_put(&completion_eventfd);
 		}
 		file->queue_created = false;
+		kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
 		mutex_unlock(&mf_cdev_lock);
 		return -EFAULT;
 	}
@@ -648,6 +658,7 @@ static int mf_cdev_worker_lease(struct mf_cdev_file *file, void __user *argument
 		file->completion_eventfd = completion_eventfd;
 	}
 	mf_cdev_queue.lease_owner = file;
+	kref_get(&mf_cdev_queue.refs);
 	file->lease = true;
 	claimed = true;
 	mutex_unlock(&mf_cdev_lock);
@@ -667,6 +678,7 @@ static int mf_cdev_worker_lease(struct mf_cdev_file *file, void __user *argument
 				mf_cdev_eventfd_put(&completion_eventfd);
 			}
 			file->lease = false;
+			kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
 			mutex_unlock(&mf_cdev_lock);
 		}
 		return -EFAULT;
@@ -681,6 +693,7 @@ static long mf_cdev_wait(struct mf_cdev_file *file, void __user *argument)
 	u64 observed;
 	long timeout;
 	long result;
+	long final_result;
 
 	if (!file->queue_created)
 		return -EPERM;
@@ -698,8 +711,15 @@ static long mf_cdev_wait(struct mf_cdev_file *file, void __user *argument)
 	if (timeout < 0 || timeout > MAX_SCHEDULE_TIMEOUT)
 		timeout = MAX_SCHEDULE_TIMEOUT;
 
+	mutex_lock(&mf_cdev_lock);
+	if (!file->queue_created || mf_cdev_queue.mapping == NULL) {
+		mutex_unlock(&mf_cdev_lock);
+		return -ENODEV;
+	}
+	kref_get(&mf_cdev_queue.refs);
 	completion = (struct mf_ring_header_v1 *)((u8 *)mf_cdev_queue.mapping +
-						  MF_CDEV_SINGLE_MAPPING_SIZE);
+							  MF_CDEV_SINGLE_MAPPING_SIZE);
+	mutex_unlock(&mf_cdev_lock);
 	result = wait_event_interruptible_timeout(
 		mf_cdev_queue.wait,
 		(!READ_ONCE(mf_cdev_queue.online) ||
@@ -707,15 +727,19 @@ static long mf_cdev_wait(struct mf_cdev_file *file, void __user *argument)
 		timeout);
 	observed = READ_ONCE(completion->producer.position);
 	request.observed_timeline = observed;
+	final_result = 0;
 	if (copy_to_user(argument, &request, sizeof(request)) != 0)
-		return -EFAULT;
-	if (!READ_ONCE(mf_cdev_queue.online))
-		return -ENODEV;
-	if (result < 0)
-		return -ERESTARTSYS;
-	if (result == 0 && observed < request.timeline)
-		return -ETIMEDOUT;
-	return 0;
+		final_result = -EFAULT;
+	else if (!READ_ONCE(mf_cdev_queue.online))
+		final_result = -ENODEV;
+	else if (result < 0)
+		final_result = -ERESTARTSYS;
+	else if (result == 0 && observed < request.timeline)
+		final_result = -ETIMEDOUT;
+	mutex_lock(&mf_cdev_lock);
+	kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
+	mutex_unlock(&mf_cdev_lock);
+	return final_result;
 }
 
 static long mf_cdev_ioctl(struct file *file_pointer, unsigned int command,
@@ -748,8 +772,12 @@ static void mf_cdev_vma_open(struct vm_area_struct *vma)
 {
 	struct mf_cdev_queue *queue = vma->vm_private_data;
 
-	if (queue != NULL)
+	if (queue != NULL) {
+		mutex_lock(&mf_cdev_lock);
+		kref_get(&queue->refs);
 		atomic_inc(&queue->vma_refs);
+		mutex_unlock(&mf_cdev_lock);
+	}
 }
 
 static void mf_cdev_vma_close(struct vm_area_struct *vma)
@@ -759,7 +787,7 @@ static void mf_cdev_vma_close(struct vm_area_struct *vma)
 	if (queue != NULL) {
 		mutex_lock(&mf_cdev_lock);
 		atomic_dec(&queue->vma_refs);
-		mf_cdev_queue_reap_locked();
+		kref_put(&queue->refs, mf_cdev_queue_release);
 		mutex_unlock(&mf_cdev_lock);
 	}
 }
@@ -832,10 +860,13 @@ static int mf_cdev_mmap(struct file *file_pointer, struct vm_area_struct *vma)
 	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_ops = &mf_cdev_vm_ops;
 	vma->vm_private_data = &mf_cdev_queue;
+	kref_get(&mf_cdev_queue.refs);
 	atomic_inc(&mf_cdev_queue.vma_refs);
 	result = remap_vmalloc_range(vma, mf_cdev_queue.mapping, 0);
-	if (result != 0)
+	if (result != 0) {
 		atomic_dec(&mf_cdev_queue.vma_refs);
+		kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
+	}
 	mutex_unlock(&mf_cdev_lock);
 	return result;
 }
@@ -850,14 +881,16 @@ static __poll_t mf_cdev_poll(struct file *file_pointer, poll_table *wait)
 		return EPOLLERR;
 	poll_wait(file_pointer, &mf_cdev_queue.wait, wait);
 	mutex_lock(&mf_cdev_lock);
-	if (!mf_cdev_queue.online) {
+	if (!file->queue_created || !mf_cdev_queue.online || mf_cdev_queue.mapping == NULL) {
 		mask = EPOLLHUP | EPOLLERR;
 	} else {
+		kref_get(&mf_cdev_queue.refs);
 		completion = (struct mf_ring_header_v1 *)((u8 *)mf_cdev_queue.mapping +
 							  MF_CDEV_SINGLE_MAPPING_SIZE);
 		if (READ_ONCE(completion->producer.position) !=
 		    READ_ONCE(completion->consumer.position))
 			mask = EPOLLIN | EPOLLRDNORM;
+		kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
 	}
 	mutex_unlock(&mf_cdev_lock);
 	return mask;
@@ -895,13 +928,19 @@ static int mf_cdev_release(struct inode *inode, struct file *file_pointer)
 		return 0;
 	memset(&retired, 0, sizeof(retired));
 	mutex_lock(&mf_cdev_lock);
-	if (mf_cdev_queue.queue_owner == file) {
-		mf_cdev_queue.queue_owner = NULL;
+	if (file->queue_created) {
+		if (mf_cdev_queue.queue_owner == file)
+			mf_cdev_queue.queue_owner = NULL;
 		mf_cdev_queue_mark_offline_locked();
+		file->queue_created = false;
+		kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
 	}
-	if (mf_cdev_queue.lease_owner == file) {
-		mf_cdev_queue.lease_owner = NULL;
+	if (file->lease) {
+		if (mf_cdev_queue.lease_owner == file)
+			mf_cdev_queue.lease_owner = NULL;
 		mf_cdev_queue_mark_offline_locked();
+		file->lease = false;
+		kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
 	}
 	if (mf_cdev_queue.eventfd_owner == file) {
 		mf_cdev_queue.eventfd_owner = NULL;
@@ -920,7 +959,6 @@ static int mf_cdev_release(struct inode *inode, struct file *file_pointer)
 		reap_registered = mf_cdev_registered_memory_take_locked(file, 0U, &retired);
 		file->memory_registered = false;
 	}
-	mf_cdev_queue_reap_locked();
 	mutex_unlock(&mf_cdev_lock);
 	if (reap_registered)
 		mf_cdev_registered_memory_destroy(&retired);
@@ -974,6 +1012,8 @@ static int __init mf_cdev_init(void)
 	mf_cdev_queue.generation = MF_CDEV_GENERATION;
 	mf_cdev_queue.mapping_size = MF_CDEV_MAPPING_SIZE;
 	mf_cdev_queue.allocation_size = PAGE_ALIGN(MF_CDEV_MAPPING_SIZE);
+	kref_init(&mf_cdev_queue.refs);
+	mf_cdev_queue.root_ref_held = true;
 	init_waitqueue_head(&mf_cdev_queue.wait);
 	atomic_set(&mf_cdev_queue.vma_refs, 0);
 	atomic_set(&mf_cdev_payload.vma_refs, 0);
@@ -1002,8 +1042,8 @@ static int __init mf_cdev_init(void)
 
 fail_mapping:
 	mf_cdev_queue.online = false;
-	vfree(mf_cdev_queue.mapping);
-	mf_cdev_queue.mapping = NULL;
+	mf_cdev_queue.root_ref_held = false;
+	kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
 	return result;
 }
 
@@ -1017,8 +1057,20 @@ static void __exit mf_cdev_exit(void)
 	misc_deregister(&mf_cdev_control_device);
 	mutex_lock(&mf_cdev_lock);
 	mf_cdev_queue_mark_offline_locked();
-	mf_cdev_queue.queue_owner = NULL;
-	mf_cdev_queue.lease_owner = NULL;
+	if (mf_cdev_queue.queue_owner != NULL) {
+		mf_cdev_queue.queue_owner->queue_created = false;
+		mf_cdev_queue.queue_owner = NULL;
+		kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
+	}
+	if (mf_cdev_queue.lease_owner != NULL) {
+		mf_cdev_queue.lease_owner->lease = false;
+		mf_cdev_queue.lease_owner = NULL;
+		kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
+	}
+	if (mf_cdev_queue.eventfd_owner != NULL) {
+		mf_cdev_queue.eventfd_owner->submission_eventfd = NULL;
+		mf_cdev_queue.eventfd_owner->completion_eventfd = NULL;
+	}
 	mf_cdev_queue.eventfd_owner = NULL;
 	mf_cdev_eventfd_put(&mf_cdev_queue.submission_eventfd);
 	mf_cdev_eventfd_put(&mf_cdev_queue.completion_eventfd);
@@ -1030,7 +1082,6 @@ static void __exit mf_cdev_exit(void)
 		memset(&mf_cdev_registered, 0, sizeof(mf_cdev_registered));
 	}
 	mf_cdev_payload_reap_locked();
-	mf_cdev_queue_reap_locked();
 	mutex_unlock(&mf_cdev_lock);
 	if (reap_registered)
 		mf_cdev_registered_memory_destroy(&retired);

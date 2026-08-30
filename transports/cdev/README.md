@@ -29,7 +29,9 @@ Closing the queue owner or worker lease transitions the current generation to an
 offline tombstone before waking waiters. Existing queue VMAs remain mapped until
 their final close, but new negotiation, queue creation, allocation, and worker
 lease attempts cannot reuse that generation; daemon-controlled replacement is a
-separate lifecycle step.
+separate lifecycle step. The kernel queue reference graph keeps root, owner,
+lease, VMA, and active wait/poll references distinct, so owner close cannot free
+backing still observed by an in-flight operation.
 
 Eventfds are caller-owned descriptors. A queue or worker lease may attach one
 complete pair (or no eventfds) for a generation; the kernel retains `eventfd_ctx` references and returns
