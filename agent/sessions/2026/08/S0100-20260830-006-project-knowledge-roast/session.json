@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "S0100-20260830-006-project-knowledge-roast",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.0.0",
+  "started_at": "2026-08-30",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "semantic migration owner"
+    }
+  ],
+  "milestones": [],
+  "work_items": [],
+  "base_revision": "2314e3453b7a3d8b1f901024f0c55398200a2561",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
