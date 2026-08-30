@@ -1,0 +1,1 @@
+{"schema_version": 1, "seq": 1, "timestamp": "2026-08-30", "type": "objective", "actor": "A001", "content": "Implement the M0110 W0111 candidate transport ABI 0.x as one hashed schema manifest, generate C/C++ projections for the transport and Linux UAPI records, and prove deterministic layouts and golden bytes through CTest without changing the inherited M0100 descriptor."}

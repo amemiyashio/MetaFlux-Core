@@ -1,0 +1,40 @@
+{
+  "id": "shared.ring.v1",
+  "version": "1.0",
+  "zone": "shared/device/v1",
+  "kind": "inherited-layout",
+  "source": "contracts/shared/device/v1/include/metaflux/shared/device.h",
+  "records": [
+    {
+      "name": "mf_ring_metadata_v1",
+      "size": 64,
+      "alignment": 64,
+      "fields": [
+        {"name": "magic", "offset": 0, "width": 4, "type": "u32"},
+        {"name": "abi_version", "offset": 4, "width": 4, "type": "u32"},
+        {"name": "header_size", "offset": 8, "width": 4, "type": "u32"},
+        {"name": "descriptor_size", "offset": 12, "width": 4, "type": "u32"},
+        {"name": "capacity", "offset": 16, "width": 4, "type": "u32"},
+        {"name": "flags", "offset": 20, "width": 4, "type": "u32"},
+        {"name": "mapping_size", "offset": 24, "width": 8, "type": "u64"},
+        {"name": "registry_view_id", "offset": 32, "width": 16, "type": "bytes[16]"},
+        {"name": "queue_id", "offset": 48, "width": 8, "type": "u64"},
+        {"name": "queue_generation", "offset": 56, "width": 8, "type": "u64"}
+      ]
+    },
+    {
+      "name": "mf_ring_descriptor_v1",
+      "size": 64,
+      "alignment": 64,
+      "source": "contracts/protocol/device/v1/schema/descriptor.json",
+      "fields": [
+        {"name": "sequence", "offset": 0, "width": 8, "type": "u64"},
+        {"name": "opcode", "offset": 8, "width": 4, "type": "u32"},
+        {"name": "flags", "offset": 12, "width": 4, "type": "u32"},
+        {"name": "request_id", "offset": 16, "width": 8, "type": "u64"},
+        {"name": "target_id", "offset": 24, "width": 8, "type": "u64"},
+        {"name": "arguments", "offset": 32, "width": 32, "type": "u64[4]"}
+      ]
+    }
+  ]
+}

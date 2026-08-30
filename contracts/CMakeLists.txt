@@ -1,5 +1,49 @@
 set(metaflux_runtime_contract_targets)
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+set(
+  METAFLUX_TRANSPORT_SCHEMA_HEADER
+  "${CMAKE_CURRENT_BINARY_DIR}/generated/include/metaflux/transport/generated.h"
+)
+add_custom_command(
+  OUTPUT "${METAFLUX_TRANSPORT_SCHEMA_HEADER}"
+  COMMAND
+    Python3::Interpreter
+    "${PROJECT_SOURCE_DIR}/tools/validate-transport-schema.py"
+    --root "${PROJECT_SOURCE_DIR}"
+    --generate-header "${METAFLUX_TRANSPORT_SCHEMA_HEADER}"
+  DEPENDS
+    "${PROJECT_SOURCE_DIR}/tools/validate-transport-schema.py"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/manifest.json"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/device/v1/schema/descriptor.json"
+    "${PROJECT_SOURCE_DIR}/contracts/shared/device/v1/schema/ring.json"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/negotiation.json"
+    "${PROJECT_SOURCE_DIR}/contracts/uapi/linux/v1/schema/uapi.json"
+  VERBATIM
+)
+add_custom_target(metaflux_transport_schema DEPENDS "${METAFLUX_TRANSPORT_SCHEMA_HEADER}")
+add_library(metaflux_transport_schema_projection INTERFACE)
+add_library(MetaFlux::TransportSchema ALIAS metaflux_transport_schema_projection)
+add_dependencies(metaflux_transport_schema_projection metaflux_transport_schema)
+target_include_directories(
+  metaflux_transport_schema_projection
+  INTERFACE
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/generated/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/shared/device/v1/include>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+)
+install(
+  FILES "${METAFLUX_TRANSPORT_SCHEMA_HEADER}"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/metaflux/transport"
+  COMPONENT Runtime
+)
+install(
+  DIRECTORY uapi/linux/v1/include/
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  COMPONENT Runtime
+)
+
 set(METAFLUX_BUILD_SHARED_DEVICE_LAYOUT ON)
 metaflux_add_component(
   ID contract.shared-device-layout
@@ -89,6 +133,7 @@ if(metaflux_runtime_contract_targets)
 endif()
 
 if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
+  add_subdirectory(protocol/transport/v1/tests)
   add_subdirectory(shared/device/v1/tests)
   add_subdirectory(protocol/client/v1/tests)
   add_subdirectory(plugin/backend/v1/tests)

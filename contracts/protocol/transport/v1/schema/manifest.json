@@ -1,0 +1,32 @@
+{
+  "id": "transport.base.v0",
+  "version": "0.1",
+  "byte_order": "little",
+  "base_definition_allowlist": true,
+  "definitions": [
+    {
+      "id": "device.descriptor.v1",
+      "version": "1.0",
+      "path": "contracts/protocol/device/v1/schema/descriptor.json",
+      "sha256": "1d1fd710289a7f110798221a4202bfca18b492854970a6dae073caa242d77697"
+    },
+    {
+      "id": "shared.ring.v1",
+      "version": "1.0",
+      "path": "contracts/shared/device/v1/schema/ring.json",
+      "sha256": "17df883249787f59dae62f859700a6ec77a16511068b395cb92a0f8dc7199c4e"
+    },
+    {
+      "id": "transport.negotiation.v0",
+      "version": "0.1",
+      "path": "contracts/protocol/transport/v1/schema/negotiation.json",
+      "sha256": "9e202479c116cc34b5078935f99be2d0034ee7d3063060cbff67bf7d0e633f55"
+    },
+    {
+      "id": "linux.uapi.v0",
+      "version": "0.1",
+      "path": "contracts/uapi/linux/v1/schema/uapi.json",
+      "sha256": "e3713bf3473171b87ee1da68c1bf4d61255bfa32c65fe6e64d0b47d01bc716ca"
+    }
+  ]
+}

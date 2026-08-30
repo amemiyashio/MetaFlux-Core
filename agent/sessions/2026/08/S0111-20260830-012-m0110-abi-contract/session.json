@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0111-20260830-012-m0110-abi-contract",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.1.1",
+  "started_at": "2026-08-30",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0110 transport contract implementer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0110",
+      "title": "Kernel and Guest Transport",
+      "status": "active",
+      "event_seqs": [1]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0111",
+      "milestone_id": "M0110",
+      "title": "ABI Fixtures and Benchmark Contract",
+      "status": "active"
+    }
+  ],
+  "base_revision": "b2a4f3dd68b68a56f4679a9150ad554d854f7910",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
