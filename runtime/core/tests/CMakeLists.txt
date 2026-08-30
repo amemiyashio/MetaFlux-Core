@@ -114,6 +114,21 @@ set_tests_properties(
   PROPERTIES LABELS "abi;lifecycle;model;unit" TIMEOUT 60
 )
 
+add_executable(metaflux_runtime_lifecycle_long_run_test lifecycle_long_run.cpp)
+target_link_libraries(
+  metaflux_runtime_lifecycle_long_run_test
+  PRIVATE MetaFlux::RuntimeCore
+)
+metaflux_configure_target(metaflux_runtime_lifecycle_long_run_test CXX)
+add_test(
+  NAME metaflux.stress.runtime-lifecycle-long-run
+  COMMAND metaflux_runtime_lifecycle_long_run_test
+)
+set_tests_properties(
+  metaflux.stress.runtime-lifecycle-long-run
+  PROPERTIES LABELS "abi;lifecycle;stress;unit" TIMEOUT 60
+)
+
 add_executable(metaflux_runtime_lifecycle_normalizer_test lifecycle_normalizer.cpp)
 target_link_libraries(
   metaflux_runtime_lifecycle_normalizer_test

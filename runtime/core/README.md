@@ -38,6 +38,13 @@ generation. Transport loss preserves the current generation and epoch; recovery
 uses a new candidate. Removed and replaced generations remain bounded
 tombstones and resolve as `DeviceLost`.
 
+The bounded replay and tombstone tables are sized for the W0123 qualification
+envelope: 4,096 request records and 2,048 immutable tombstones. A 1,000-cycle
+reset/remove/add run consumes 3,000 request records, 2,000 tombstones, and
+2,000 generation/identity candidates. Capacity exhaustion returns
+`ResourceExhausted`; there is no eviction or implicit garbage collection that
+could make a replay or an old object ambiguous.
+
 Telemetry publication is bound to the same authority. A producer row must carry
 the current identity and exact stable lifecycle sequence while device admission
 is `OPEN` and the fence is `ONLINE`. The runtime checks that tuple before taking

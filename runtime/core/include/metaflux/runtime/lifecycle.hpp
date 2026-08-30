@@ -149,8 +149,11 @@ struct ResultDetails final {
 class Coordinator final {
 public:
   static constexpr std::uint32_t kMaxMirrors = 3;
-  static constexpr std::uint32_t kRequestCapacity = 64;
-  static constexpr std::uint32_t kTombstoneCapacity = 64;
+  // W0123's 1,000 reset/remove/add envelope retains three request records and
+  // two immutable retirement tombstones per cycle. Records are never evicted
+  // because replay and stale-object resolution are authority semantics.
+  static constexpr std::uint32_t kRequestCapacity = 4096;
+  static constexpr std::uint32_t kTombstoneCapacity = 2048;
 
   explicit Coordinator(Config config = {}) noexcept;
 
