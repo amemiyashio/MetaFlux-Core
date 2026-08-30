@@ -1,9 +1,9 @@
 ---
 status: Active
 updated: 2026-08-31
-milestone: M0120
-workstream: W0123
-checkpoint: P20260831-048
+milestone: M0130
+workstream: W0135
+checkpoint: P20260831-049
 ---
 
 # Current Progress
@@ -271,7 +271,9 @@ Linux 9.8.
 | W0135 cache identity | `073376d`; deterministic portable/device keys include compiler/lowering/tool epochs, target and specialization digests, ABI fields, and device/driver UUIDs |
 | W0135 catalog | `073376d`; bounded publication, hit/miss, corrupt unpinned removal, live-reference pinning, LRU eviction, and quota exhaustion are tested |
 | W0135 CTest | Full `vulkan` preset passed 87/87, including `metaflux.backend.vulkan-cache-model` |
-| W0135 current boundary | Atomic filesystem publication, opaque `VkPipelineCache`, pipeline creation, warm-launch no-compiler trace, and device invalidation remain open |
+| W0135 filesystem publication | `4959da6`; portable/device-bound envelopes use complete-key, mode, length, and digest validation with fsync/atomic rename; malformed entries are removed and device invalidation is explicit |
+| W0135 CTest after filesystem stage | Full `vulkan` preset passed 88/88, including filesystem corruption and invalidation regressions |
+| W0135 current boundary | CacheFileStore persistence is recorded; CacheCatalog/filesystem residency and quota integration, cross-process stampede control, opaque `VkPipelineCache`, pipeline creation, warm-launch no-compiler trace, and pipeline-bound device/driver invalidation remain open |
 
 ## Versioned Next Work
 
@@ -355,6 +357,11 @@ Linux 9.8.
     memfd/cdev/guest-QMP activity, old-object tombstones, worker-death faults,
     and kernel/package qualification; do not claim the three transport suites
     or lifecycle extension freeze from the core fixture alone.
+16. M0130/W0135 is Active after filesystem publication at
+    [P20260831-049](checkpoints/2026/P20260831-049-m0130-vulkan-cache-filesystem.md).
+    Continue by integrating `CacheFileStore` with catalog residency and quota,
+    then add cross-process stampede and pipeline-bound device invalidation;
+    do not claim Vulkan pipeline or warm-launch qualification from file tests.
 
 ## Tool Boundary
 

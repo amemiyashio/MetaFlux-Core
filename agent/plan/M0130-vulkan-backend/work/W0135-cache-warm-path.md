@@ -34,9 +34,14 @@ where available; other platforms use traces and a separate p99 creation budget.
   model. Key mutations miss, corrupt unpinned entries are removed for rebuild,
   live references pin entries against LRU eviction, and a full pinned catalog
   reports quota exhaustion.
-- [ ] Implement both caches, live-reference pinning, atomic publication,
-  stampede control, quota/eviction, corruption recovery, and device/driver
-  invalidation.
+- [x] Add host-independent filesystem persistence for portable and device-bound
+  entries. The file envelope carries the complete key, cache mode, payload size,
+  and digest; publish uses a process-unique temporary file, `fsync`, and atomic
+  rename, while malformed, truncated, or mismatched entries are removed and
+  device-bound entries can be explicitly invalidated.
+- [ ] Integrate `CacheFileStore` with `CacheCatalog` for live-reference
+  pinning, quota/eviction, cross-process stampede control, and device/driver
+  invalidation at the pipeline boundary.
 - [ ] Verify every key mutation causes a miss and provisional extension revisions
   deterministically invalidate incompatible entries.
 - [ ] Prove warm launch invokes no MLIR/SPIR-V compiler or validator, creates no
