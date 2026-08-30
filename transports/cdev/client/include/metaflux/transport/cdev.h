@@ -16,6 +16,11 @@ extern "C" {
 #define MF_CDEV_PAYLOAD_OFFSET_V0 UINT64_C(16384)
 #define MF_CDEV_PAYLOAD_MMAP_OFFSET_V0 UINT64_C(8192)
 #define MF_CDEV_PAYLOAD_MAX_SIZE_V0 UINT64_C(67108864)
+#define MF_CDEV_MEMORY_KIND_ALLOC_V0 UINT32_C(0)
+#define MF_CDEV_MEMORY_KIND_REGISTERED_V0 UINT32_C(1)
+#define MF_CDEV_MEMORY_REGISTER_FLAG_READ_V0 MF_UAPI_MEMORY_REGISTER_FLAG_READ_V0
+#define MF_CDEV_MEMORY_REGISTER_FLAG_WRITE_V0 MF_UAPI_MEMORY_REGISTER_FLAG_WRITE_V0
+#define MF_CDEV_MEMORY_REGISTER_KNOWN_FLAGS_V0 MF_UAPI_MEMORY_REGISTER_KNOWN_FLAGS_V0
 
 typedef struct mf_cdev_session_v0 {
   void* mapping;
@@ -39,7 +44,11 @@ typedef struct mf_cdev_memory_v0 {
   uint64_t handle;
   uint64_t generation;
   int32_t device_fd;
-  uint32_t reserved;
+  /* Client metadata; reserved is retained as a source-compatible alias. */
+  union {
+    uint32_t kind;
+    uint32_t reserved;
+  };
 } mf_cdev_memory_v0;
 
 typedef struct mf_cdev_copy_v0 {
@@ -67,6 +76,13 @@ mf_shared_status_v1 mf_cdev_memory_alloc_v0(mf_cdev_session_v0* session,
                                             uint64_t byte_count,
                                             uint64_t alignment,
                                             mf_cdev_memory_v0* out_memory);
+
+/* Pin a caller-owned range for long-term device access and retain its registration handle. */
+mf_shared_status_v1 mf_cdev_memory_register_v0(mf_cdev_session_v0* session,
+                                               void* address,
+                                               uint64_t byte_count,
+                                               uint32_t flags,
+                                               mf_cdev_memory_v0* out_memory);
 
 void mf_cdev_memory_close_v0(mf_cdev_memory_v0* memory);
 

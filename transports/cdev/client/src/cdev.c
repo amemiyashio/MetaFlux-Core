@@ -273,6 +273,68 @@ mf_shared_status_v1 mf_cdev_memory_alloc_v0(mf_cdev_session_v0* session, uint64_
   out_memory->handle = request.handle;
   out_memory->generation = request.generation;
   out_memory->device_fd = session->device_fd;
+  out_memory->kind = MF_CDEV_MEMORY_KIND_ALLOC_V0;
+  return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1 mf_cdev_memory_register_v0(mf_cdev_session_v0* session, void* address,
+                                               uint64_t byte_count, uint32_t flags,
+                                               mf_cdev_memory_v0* out_memory) {
+  mf_uapi_memory_v0 request;
+  int result = -1;
+
+  if (session == NULL || session->device_fd < 0 || address == NULL || byte_count == 0U ||
+      byte_count > MF_CDEV_PAYLOAD_MAX_SIZE_V0 ||
+      (flags & ~(uint32_t)MF_CDEV_MEMORY_REGISTER_KNOWN_FLAGS_V0) != 0U ||
+      (flags & (MF_CDEV_MEMORY_REGISTER_FLAG_READ_V0 |
+                MF_CDEV_MEMORY_REGISTER_FLAG_WRITE_V0)) == 0U || out_memory == NULL) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  if ((session->negotiated_features & (uint32_t)MF_UAPI_FEATURE_REGISTERED_MEMORY_V0) == 0U) {
+    return MF_SHARED_NOT_SUPPORTED;
+  }
+  (void)memset(out_memory, 0, sizeof(*out_memory));
+  out_memory->device_fd = -1;
+  (void)memset(&request, 0, sizeof(request));
+  request.struct_size = sizeof(request);
+  request.flags = flags;
+  request.generation = session->device_generation;
+  request.byte_count = byte_count;
+  request.alignment = 4096U;
+  request.offset = (uint64_t)(uintptr_t)address;
+  request.fd = -1;
+  result = ioctl(session->device_fd, MF_UAPI_IOCTL_MEMORY_REGISTER, &request);
+  if (result < 0) {
+    if (errno == ENOTTY || errno == EOPNOTSUPP || errno == ENODEV) {
+      return MF_SHARED_NOT_SUPPORTED;
+    }
+    if (errno == EBUSY || errno == ENOMEM) {
+      return MF_SHARED_RESOURCE_EXHAUSTED;
+    }
+    if (errno == EPERM) {
+      return MF_SHARED_PERMISSION_DENIED;
+    }
+    if (errno == ESTALE) {
+      return MF_SHARED_STALE_HANDLE;
+    }
+    if (errno == EOVERFLOW) {
+      return MF_SHARED_OVERFLOW;
+    }
+    return errno == EINVAL || errno == EFAULT ? MF_SHARED_INVALID_ARGUMENT
+                                               : MF_SHARED_SYSTEM_ERROR;
+  }
+  if (request.struct_size != sizeof(request) || request.flags != flags || request.handle == 0U ||
+      request.generation != session->device_generation || request.byte_count != byte_count ||
+      request.alignment < 4096U || (request.alignment & (request.alignment - 1U)) != 0U ||
+      request.offset != (uint64_t)(uintptr_t)address || request.fd != -1 ||
+      !mf_cdev_reserved_zero(request.reserved, sizeof(request.reserved))) {
+    return MF_SHARED_MALFORMED;
+  }
+  out_memory->byte_count = request.byte_count;
+  out_memory->handle = request.handle;
+  out_memory->generation = request.generation;
+  out_memory->device_fd = session->device_fd;
+  out_memory->kind = MF_CDEV_MEMORY_KIND_REGISTERED_V0;
   return MF_SHARED_SUCCESS;
 }
 
@@ -282,6 +344,16 @@ void mf_cdev_memory_close_v0(mf_cdev_memory_v0* memory) {
   }
   if (memory->mapping != NULL && memory->mapping_size <= (uint64_t)SIZE_MAX) {
     (void)munmap(memory->mapping, (size_t)memory->mapping_size);
+  }
+  if (memory->kind == MF_CDEV_MEMORY_KIND_REGISTERED_V0 && memory->device_fd >= 0 &&
+      memory->handle != 0U && memory->generation != 0U) {
+    mf_uapi_memory_v0 request;
+    (void)memset(&request, 0, sizeof(request));
+    request.struct_size = sizeof(request);
+    request.handle = memory->handle;
+    request.generation = memory->generation;
+    request.fd = -1;
+    (void)ioctl(memory->device_fd, MF_UAPI_IOCTL_MEMORY_REGISTER, &request);
   }
   (void)memset(memory, 0, sizeof(*memory));
   memory->device_fd = -1;

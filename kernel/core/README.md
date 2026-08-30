@@ -11,10 +11,17 @@ connected.
 `MF_UAPI_IOCTL_MEMORY_ALLOC` now creates one page-aligned payload arena (up to
 64 MiB) owned by the data-file descriptor. Its returned byte range is mapped at
 `MF_UAPI_MMAP_PAYLOAD_V0`; owner close transitions it to an offline tombstone and
-the backing is reclaimed only after the final VMA closes. `MEMORY_REGISTER` remains
-unsupported until the FOLL_PIN/SG accounting shim is qualified. Queue creation and
-worker leasing accept optional eventfd descriptors, retain kernel references, and
-reject a second eventfd owner for the same generation.
+the backing is reclaimed only after the final VMA closes. `MEMORY_REGISTER` accepts
+one caller-owned range up to the same bound, charges the current process's
+memlock quota, pins full pages with `pin_user_pages_fast()` using
+`FOLL_LONGTERM` and optional `FOLL_WRITE`, and builds an SG table. Unregister and
+owner close remove the live object under the cdev lock, then free the SG table,
+dirty-unpin device-written pages, release the memlock charge, and drop the mm
+reference outside the lock. The generated registration handle is a deterministic
+fixture handle (`3`) for the current generation. Backend DMA mapping and worker
+references are intentionally not claimed yet. Queue creation and worker leasing
+accept optional eventfd descriptors, retain kernel references, and reject a second
+eventfd owner for the same generation.
 
 Build against the exact target kernel tree with:
 

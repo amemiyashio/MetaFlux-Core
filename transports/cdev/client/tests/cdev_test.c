@@ -12,6 +12,7 @@ int main(void) {
   mf_ring_descriptor_v1 descriptor;
   mf_cdev_memory_v0 memory = {.device_fd = -1};
   mf_cdev_session_v0 session;
+  session.device_fd = 0;
   if (mf_cdev_copy_descriptor_v0(UINT64_C(9), UINT64_C(3), &copy, &descriptor) !=
           MF_SHARED_SUCCESS ||
       descriptor.opcode != MF_RING_OPCODE_COPY || descriptor.request_id != UINT64_C(9) ||
@@ -25,6 +26,25 @@ int main(void) {
           MF_SHARED_INVALID_ARGUMENT ||
       mf_cdev_memory_alloc_v0((mf_cdev_session_v0*)0, UINT64_C(0), UINT64_C(4096), &memory) !=
           MF_SHARED_INVALID_ARGUMENT ||
+      mf_cdev_memory_register_v0(NULL, &session, UINT64_C(4096),
+                                 MF_CDEV_MEMORY_REGISTER_FLAG_READ_V0, &memory) !=
+          MF_SHARED_INVALID_ARGUMENT ||
+      mf_cdev_memory_register_v0(&session, NULL, UINT64_C(4096),
+                                 MF_CDEV_MEMORY_REGISTER_FLAG_READ_V0, &memory) !=
+          MF_SHARED_INVALID_ARGUMENT ||
+      mf_cdev_memory_register_v0(&session, &session, UINT64_C(4096), 0U, &memory) !=
+          MF_SHARED_INVALID_ARGUMENT ||
+      mf_cdev_memory_register_v0(&session, &session, UINT64_C(4096), UINT32_C(4), &memory) !=
+          MF_SHARED_INVALID_ARGUMENT ||
+      mf_cdev_memory_register_v0(&session, &session, UINT64_C(0),
+                                 MF_CDEV_MEMORY_REGISTER_FLAG_READ_V0, &memory) !=
+          MF_SHARED_INVALID_ARGUMENT ||
+      mf_cdev_memory_register_v0(&session, &session, UINT64_C(4096),
+                                 MF_CDEV_MEMORY_REGISTER_FLAG_READ_V0, NULL) !=
+          MF_SHARED_INVALID_ARGUMENT ||
+      mf_cdev_memory_register_v0(&session, &session, UINT64_C(4096),
+                                 MF_CDEV_MEMORY_REGISTER_FLAG_READ_V0, &memory) !=
+          MF_SHARED_NOT_SUPPORTED ||
       mf_cdev_session_open_with_eventfds_v0("/dev/null", -2, -1, &session) !=
           MF_SHARED_INVALID_ARGUMENT) {
     return 1;

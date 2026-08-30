@@ -8,6 +8,8 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
+#include <linux/scatterlist.h>
+#include <linux/sched/mm.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
@@ -29,6 +31,7 @@
 #define MF_CDEV_MAPPING_SIZE (MF_CDEV_SINGLE_MAPPING_SIZE * (size_t)2)
 #define MF_CDEV_PAYLOAD_PGOFF_V0 2UL
 #define MF_CDEV_PAYLOAD_MAX_SIZE (UINT64_C(67108864))
+#define MF_CDEV_REGISTERED_MEMORY_HANDLE UINT64_C(3)
 
 struct mf_cdev_file {
 	bool control;
@@ -36,6 +39,8 @@ struct mf_cdev_file {
 	bool queue_created;
 	bool lease;
 	bool memory_allocated;
+	bool memory_registered;
+	u64 negotiated_features;
 	struct eventfd_ctx *submission_eventfd;
 	struct eventfd_ctx *completion_eventfd;
 };
@@ -67,9 +72,24 @@ struct mf_cdev_memory {
 	bool online;
 };
 
+struct mf_cdev_registered_memory {
+	struct page **pages;
+	unsigned long page_count;
+	struct sg_table sg_table;
+	struct mm_struct *mm;
+	u64 user_address;
+	u64 byte_count;
+	u64 handle;
+	u64 generation;
+	u32 flags;
+	struct mf_cdev_file *owner;
+	bool online;
+};
+
 static DEFINE_MUTEX(mf_cdev_lock);
 static struct mf_cdev_queue mf_cdev_queue;
 static struct mf_cdev_memory mf_cdev_payload;
+static struct mf_cdev_registered_memory mf_cdev_registered;
 
 static bool mf_cdev_bytes_zero(const u8 *bytes, size_t count)
 {
@@ -145,6 +165,46 @@ static void mf_cdev_payload_reap_locked(void)
 	}
 }
 
+static void mf_cdev_registered_resources_release(struct page **pages, unsigned long page_count,
+							 struct sg_table *sg_table,
+							 struct mm_struct *mm, u32 flags)
+{
+	if (sg_table != NULL && sg_table->sgl != NULL)
+		sg_free_table(sg_table);
+	if (pages != NULL) {
+		if ((flags & MF_UAPI_MEMORY_REGISTER_FLAG_WRITE_V0) != 0U)
+			unpin_user_pages_dirty_lock(pages, page_count, true);
+		else
+			unpin_user_pages(pages, page_count);
+	}
+	if (mm != NULL) {
+		(void)account_locked_vm(mm, page_count, false);
+		mmput(mm);
+	}
+	kvfree(pages);
+}
+
+static void mf_cdev_registered_memory_destroy(struct mf_cdev_registered_memory *memory)
+{
+	if (memory == NULL)
+		return;
+	mf_cdev_registered_resources_release(memory->pages, memory->page_count,
+						     &memory->sg_table, memory->mm, memory->flags);
+	memset(memory, 0, sizeof(*memory));
+}
+
+static bool mf_cdev_registered_memory_take_locked(struct mf_cdev_file *owner, u64 handle,
+							  struct mf_cdev_registered_memory *out_memory)
+{
+	if (out_memory == NULL || !mf_cdev_registered.online ||
+	    (owner != NULL && mf_cdev_registered.owner != owner) ||
+	    (handle != 0U && mf_cdev_registered.handle != handle))
+		return false;
+	*out_memory = mf_cdev_registered;
+	memset(&mf_cdev_registered, 0, sizeof(mf_cdev_registered));
+	return true;
+}
+
 static int mf_cdev_memory_alloc(struct mf_cdev_file *file, void __user *argument)
 {
 	mf_uapi_memory_v0 request;
@@ -214,11 +274,167 @@ static int mf_cdev_memory_alloc(struct mf_cdev_file *file, void __user *argument
 	return 0;
 }
 
+static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argument)
+{
+	mf_uapi_memory_v0 request;
+	struct mf_cdev_registered_memory retired;
+	struct page **pages = NULL;
+	struct sg_table sg_table;
+	struct mm_struct *mm = NULL;
+	unsigned long start;
+	unsigned long end;
+	unsigned long first;
+	unsigned long last;
+	unsigned long page_count;
+	unsigned int gup_flags;
+	long pinned;
+	int result;
+	bool reap_registered = false;
+
+	memset(&sg_table, 0, sizeof(sg_table));
+	memset(&retired, 0, sizeof(retired));
+	if (file == NULL || file->control || !file->negotiated)
+		return -EPERM;
+	if ((file->negotiated_features & MF_UAPI_FEATURE_REGISTERED_MEMORY_V0) == 0U)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&request, argument, sizeof(request)) != 0)
+		return -EFAULT;
+	if (mf_cdev_validate_size(request.struct_size, sizeof(request)) != 0 ||
+		!mf_cdev_bytes_zero(request.reserved, sizeof(request.reserved)))
+		return -EINVAL;
+
+	if (request.handle != 0U) {
+		if (request.flags != 0U || request.generation == 0U ||
+		    request.generation != mf_cdev_queue.generation || request.byte_count != 0U ||
+		    request.alignment != 0U || request.offset != 0U || request.fd != -1)
+			return -EINVAL;
+		mutex_lock(&mf_cdev_lock);
+		if (!mf_cdev_registered.online || mf_cdev_registered.owner != file ||
+		    mf_cdev_registered.handle != request.handle) {
+			bool was_online = mf_cdev_registered.online;
+
+			mutex_unlock(&mf_cdev_lock);
+			return was_online ? -EPERM : -ENOENT;
+		}
+		reap_registered = mf_cdev_registered_memory_take_locked(file, request.handle, &retired);
+		file->memory_registered = false;
+		mutex_unlock(&mf_cdev_lock);
+		if (reap_registered)
+			mf_cdev_registered_memory_destroy(&retired);
+		memset(&request, 0, sizeof(request));
+		request.struct_size = sizeof(request);
+		request.fd = -1;
+		return copy_to_user(argument, &request, sizeof(request)) == 0 ? 0 : -EFAULT;
+	}
+
+	if ((request.flags & ~MF_UAPI_MEMORY_REGISTER_KNOWN_FLAGS_V0) != 0U ||
+	    (request.flags & (MF_UAPI_MEMORY_REGISTER_FLAG_READ_V0 |
+                       MF_UAPI_MEMORY_REGISTER_FLAG_WRITE_V0)) == 0U ||
+	    request.byte_count == 0U || request.byte_count > MF_CDEV_PAYLOAD_MAX_SIZE ||
+	    (request.generation != 0U && request.generation != mf_cdev_queue.generation) ||
+	    request.alignment < PAGE_SIZE ||
+	    (request.alignment & (request.alignment - 1U)) != 0U || request.offset == 0U ||
+	    request.offset > (u64)ULONG_MAX || request.byte_count > (u64)ULONG_MAX || request.fd != -1)
+		return -EINVAL;
+	if (request.offset > (u64)ULONG_MAX - request.byte_count)
+		return -EOVERFLOW;
+	if (request.offset + request.byte_count > (u64)ULONG_MAX - (PAGE_SIZE - 1U))
+		return -EOVERFLOW;
+
+	start = (unsigned long)request.offset;
+	end = start + (unsigned long)request.byte_count;
+	first = start & PAGE_MASK;
+	last = (end + PAGE_SIZE - 1U) & PAGE_MASK;
+	page_count = (last - first) >> PAGE_SHIFT;
+	if (page_count == 0U || page_count > INT_MAX ||
+	    page_count > SIZE_MAX / sizeof(*pages) || current->mm == NULL)
+		return -EINVAL;
+
+	mm = current->mm;
+	mmget(mm);
+	result = account_locked_vm(mm, page_count, true);
+	if (result != 0) {
+		mmput(mm);
+		return result;
+	}
+	pages = kvmalloc_array(page_count, sizeof(*pages), GFP_KERNEL);
+	if (pages == NULL) {
+		(void)account_locked_vm(mm, page_count, false);
+		mmput(mm);
+		return -ENOMEM;
+	}
+	/* pin_user_pages_fast() supplies FOLL_PIN; only long-term and write intent are caller flags. */
+	gup_flags = FOLL_LONGTERM;
+	if ((request.flags & MF_UAPI_MEMORY_REGISTER_FLAG_WRITE_V0) != 0U)
+		gup_flags |= FOLL_WRITE;
+	pinned = pin_user_pages_fast(first, (int)page_count, gup_flags, pages);
+	if (pinned < 0 || pinned != (long)page_count) {
+		if (pinned > 0)
+			unpin_user_pages(pages, pinned);
+		kvfree(pages);
+		(void)account_locked_vm(mm, page_count, false);
+		mmput(mm);
+		return pinned < 0 ? (int)pinned : -EFAULT;
+	}
+	result = sg_alloc_table_from_pages(&sg_table, pages, (unsigned int)page_count,
+					  offset_in_page(start), request.byte_count, GFP_KERNEL);
+	if (result != 0) {
+		mf_cdev_registered_resources_release(pages, page_count, &sg_table, mm, request.flags);
+		return result;
+	}
+
+	mutex_lock(&mf_cdev_lock);
+	if (!mf_cdev_queue.online) {
+		mutex_unlock(&mf_cdev_lock);
+		mf_cdev_registered_resources_release(pages, page_count, &sg_table, mm, request.flags);
+		return -ENODEV;
+	}
+	if (mf_cdev_registered.online || mf_cdev_registered.pages != NULL) {
+		mutex_unlock(&mf_cdev_lock);
+		mf_cdev_registered_resources_release(pages, page_count, &sg_table, mm, request.flags);
+		return -EBUSY;
+	}
+	mf_cdev_registered.pages = pages;
+	mf_cdev_registered.page_count = page_count;
+	mf_cdev_registered.sg_table = sg_table;
+	mf_cdev_registered.mm = mm;
+	mf_cdev_registered.user_address = request.offset;
+	mf_cdev_registered.byte_count = request.byte_count;
+	mf_cdev_registered.handle = MF_CDEV_REGISTERED_MEMORY_HANDLE;
+	mf_cdev_registered.generation = mf_cdev_queue.generation;
+	mf_cdev_registered.flags = request.flags;
+	mf_cdev_registered.owner = file;
+	mf_cdev_registered.online = true;
+	file->memory_registered = true;
+	request.handle = mf_cdev_registered.handle;
+	request.generation = mf_cdev_registered.generation;
+	request.alignment = PAGE_SIZE;
+	request.fd = -1;
+	memset(&sg_table, 0, sizeof(sg_table));
+	mutex_unlock(&mf_cdev_lock);
+
+	if (copy_to_user(argument, &request, sizeof(request)) != 0) {
+		mutex_lock(&mf_cdev_lock);
+		if (mf_cdev_registered.owner == file &&
+		    mf_cdev_registered.handle == MF_CDEV_REGISTERED_MEMORY_HANDLE) {
+			reap_registered = mf_cdev_registered_memory_take_locked(file,
+										 MF_CDEV_REGISTERED_MEMORY_HANDLE,
+										 &retired);
+			file->memory_registered = false;
+		}
+		mutex_unlock(&mf_cdev_lock);
+		if (reap_registered)
+			mf_cdev_registered_memory_destroy(&retired);
+		return -EFAULT;
+	}
+	return 0;
+}
+
 static int mf_cdev_negotiate(struct mf_cdev_file *file, void __user *argument)
 {
 	mf_uapi_negotiate_v0 request;
 	u64 supported = MF_UAPI_FEATURE_QUEUE_MMAP_V0 | MF_UAPI_FEATURE_EVENTFD_V0 |
-			MF_UAPI_FEATURE_WORKER_BROKER_V0;
+			MF_UAPI_FEATURE_REGISTERED_MEMORY_V0 | MF_UAPI_FEATURE_WORKER_BROKER_V0;
 
 	if (copy_from_user(&request, argument, sizeof(request)) != 0)
 		return -EFAULT;
@@ -241,10 +457,11 @@ static int mf_cdev_negotiate(struct mf_cdev_file *file, void __user *argument)
 	request.descriptor_size = sizeof(mf_ring_descriptor_v1);
 	request.ring_order = ilog2(MF_CDEV_RING_CAPACITY);
 	request.max_queues = 1U;
-	request.max_regions = 0U;
+	request.max_regions = 1U;
 	request.max_inflight = MF_CDEV_RING_CAPACITY;
 	request.dma_width = 64U;
 	request.dma_alignment = PAGE_SIZE;
+	file->negotiated_features = request.required_features | request.optional_features;
 	file->negotiated = true;
 	mutex_unlock(&mf_cdev_lock);
 
@@ -503,7 +720,7 @@ static long mf_cdev_ioctl(struct file *file_pointer, unsigned int command,
 	case MF_UAPI_IOCTL_MEMORY_ALLOC:
 		return mf_cdev_memory_alloc(file, user_argument);
 	case MF_UAPI_IOCTL_MEMORY_REGISTER:
-		return -EOPNOTSUPP;
+		return mf_cdev_memory_register(file, user_argument);
 	default:
 		return -ENOTTY;
 	}
@@ -649,9 +866,12 @@ static int mf_cdev_open_data(struct inode *inode, struct file *file_pointer)
 static int mf_cdev_release(struct inode *inode, struct file *file_pointer)
 {
 	struct mf_cdev_file *file = file_pointer->private_data;
+	struct mf_cdev_registered_memory retired;
+	bool reap_registered = false;
 
 	if (file == NULL)
 		return 0;
+	memset(&retired, 0, sizeof(retired));
 	mutex_lock(&mf_cdev_lock);
 	if (mf_cdev_queue.queue_owner == file)
 		mf_cdev_queue.queue_owner = NULL;
@@ -672,7 +892,13 @@ static int mf_cdev_release(struct inode *inode, struct file *file_pointer)
 		file->memory_allocated = false;
 		mf_cdev_payload_reap_locked();
 	}
+	if (mf_cdev_registered.owner == file) {
+		reap_registered = mf_cdev_registered_memory_take_locked(file, 0U, &retired);
+		file->memory_registered = false;
+	}
 	mutex_unlock(&mf_cdev_lock);
+	if (reap_registered)
+		mf_cdev_registered_memory_destroy(&retired);
 	kfree(file);
 	return 0;
 }
@@ -717,6 +943,7 @@ static int __init mf_cdev_init(void)
 
 	memset(&mf_cdev_queue, 0, sizeof(mf_cdev_queue));
 	memset(&mf_cdev_payload, 0, sizeof(mf_cdev_payload));
+	memset(&mf_cdev_registered, 0, sizeof(mf_cdev_registered));
 	mf_cdev_queue.view_id.daemon_incarnation = MF_CDEV_DAEMON_INCARNATION;
 	mf_cdev_queue.view_id.view_serial = MF_CDEV_VIEW_SERIAL;
 	mf_cdev_queue.generation = MF_CDEV_GENERATION;
@@ -757,6 +984,10 @@ fail_mapping:
 
 static void __exit mf_cdev_exit(void)
 {
+	struct mf_cdev_registered_memory retired;
+	bool reap_registered;
+
+	memset(&retired, 0, sizeof(retired));
 	misc_deregister(&mf_cdev_data_device);
 	misc_deregister(&mf_cdev_control_device);
 	mutex_lock(&mf_cdev_lock);
@@ -768,6 +999,11 @@ static void __exit mf_cdev_exit(void)
 	mf_cdev_eventfd_put(&mf_cdev_queue.completion_eventfd);
 	mf_cdev_payload.online = false;
 	mf_cdev_payload.owner = NULL;
+	reap_registered = mf_cdev_registered.pages != NULL;
+	if (reap_registered) {
+		retired = mf_cdev_registered;
+		memset(&mf_cdev_registered, 0, sizeof(mf_cdev_registered));
+	}
 	wake_up_all(&mf_cdev_queue.wait);
 	mf_cdev_payload_reap_locked();
 	if (atomic_read(&mf_cdev_queue.vma_refs) == 0 && mf_cdev_queue.mapping != NULL) {
@@ -775,6 +1011,8 @@ static void __exit mf_cdev_exit(void)
 		mf_cdev_queue.mapping = NULL;
 	}
 	mutex_unlock(&mf_cdev_lock);
+	if (reap_registered)
+		mf_cdev_registered_memory_destroy(&retired);
 }
 
 module_init(mf_cdev_init);

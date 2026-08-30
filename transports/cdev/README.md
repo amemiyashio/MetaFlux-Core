@@ -7,13 +7,23 @@ active queues use shared descriptors and timelines directly.
 The userspace halves are split per the transport halves convention (D0010). The
 kernel counterpart under `kernel/core/` maps one submission and one completion
 ring back-to-back from the generated UAPI queue record. It advertises queue mmap,
-eventfd association, and the worker-broker bit. `MEMORY_ALLOC` provisions one
+eventfd association, registered-memory, and the worker-broker bits.
+`MEMORY_ALLOC` provisions one
 generation-bound, page-aligned driver payload arena per data-file owner; the
 returned `offset` is the `MF_UAPI_MMAP_PAYLOAD_V0` mapping offset and `fd` remains
 `-1` because the arena is driver-owned. Closing the owner marks the arena
-offline; existing VMAs retain a tombstone until their final VMA close. Import and
-long-term user-page registration are deliberately separate `MEMORY_REGISTER`
-work and still return `-EOPNOTSUPP`.
+offline; existing VMAs retain a tombstone until their final VMA close.
+
+`MEMORY_REGISTER` accepts one caller-owned range up to 64 MiB. The C17 client
+passes the virtual address in `offset`, the exact byte count in `byte_count`,
+`fd=-1`, and `READ`/`WRITE` direction flags. The kernel charges the current
+process's memlock quota, pins full pages with `pin_user_pages_fast()` using
+`FOLL_LONGTERM` and optional `FOLL_WRITE`, and builds an SG table. A returned
+kind-`REGISTERED` memory record is generation-bound; `mf_cdev_memory_close_v0`
+issues the matching unregister request, while owner close also revokes the
+registration. SG teardown precedes dirty-unpin for device-written pages and
+releases the memlock charge. This stage does not expose backend `dma_map_sg`
+or in-flight device references; those remain W0112/W0114 qualification work.
 
 Eventfds are caller-owned descriptors. A queue or worker lease may attach one
 complete pair (or no eventfds) for a generation; the kernel retains `eventfd_ctx` references and returns

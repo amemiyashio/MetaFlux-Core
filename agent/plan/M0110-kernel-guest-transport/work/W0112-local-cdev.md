@@ -55,12 +55,17 @@ and arithmetic operation is validated.
 - [x] Attach one complete caller-owned eventfd pair to either the data queue or
   worker lease, retain kernel `eventfd_ctx` references, and reject a second owner
   for the generation with `-EBUSY`.
+- [x] Register one bounded caller-owned range with `FOLL_LONGTERM`/`FOLL_WRITE`
+  pinning, normal memlock accounting, an SG table, partial-pin unwind, dirty
+  unpin, and owner-close or explicit unregister revocation. Backend DMA mapping,
+  multi-region quota, and in-flight device references remain open.
 
 ## Remaining work
 
-- [ ] Complete queue object/kref/tombstone ownership, FOLL_PIN/SG-backed memory
-  registration, and daemon-controlled generation replacement. The payload arena
-  VMA tombstone and eventfd references are implemented for the current fixture.
+- [ ] Complete queue object/kref/tombstone ownership, backend reference drain, and
+  daemon-controlled generation replacement. The payload arena VMA tombstone,
+  eventfd references, and bounded registered-memory lifetime are implemented for
+  the current fixture.
 - [ ] Connect the leased worker to `mf_backend_api_v1` and prove unmodified CPU
   Add/Copy end to end through the mapped payload arena.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and

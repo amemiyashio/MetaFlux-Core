@@ -7,7 +7,7 @@
       "id": "transport.base.v0",
       "version": "0.1",
       "path": "contracts/protocol/transport/v1/schema/manifest.json",
-      "sha256": "aa6c8ac042e167a27f147399f5e8549ec2119c7dd51405d58612f98d70a53292"
+      "sha256": "9fd9dfa0cb3c6fe8405d6df4da1ee4935e280a296532f248398bf9641a211a76"
     }
   ],
   "model": {
