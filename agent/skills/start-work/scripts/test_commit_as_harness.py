@@ -38,11 +38,7 @@ HARNESS = load_harness_module()
 def clean_environment() -> dict[str, str]:
     environment = os.environ.copy()
     for name in tuple(environment):
-        if (
-            name == HARNESS.HARNESS_DECLARATION
-            or HARNESS.HARNESS_SIGNAL.fullmatch(name)
-            or name in GIT_IDENTITY_VARIABLES
-        ):
+        if name == HARNESS.HARNESS_DECLARATION or name in GIT_IDENTITY_VARIABLES:
             environment.pop(name)
     return environment
 
@@ -116,65 +112,36 @@ def commit(
     return run(repository, sys.executable, str(SCRIPT), *arguments, environment=environment)
 
 
-def test_unseen_harness_is_derived(root: Path) -> None:
+def test_unseen_harness_declaration_is_derived(root: Path) -> None:
     del root
-    environment = {
-        "FUTURE_AGENT_SESSION_ID": "fixture-session",
-        "FUTURE_AGENT_THREAD_ID": "fixture-thread",
-    }
-    ancestry = ("/usr/bin/zsh", "/opt/future-agent/bin/future-agent --serve")
-    subject = HARNESS.detect_harness(environment, ancestry)
+    environment = {HARNESS.HARNESS_DECLARATION: "future-agent"}
+    subject = HARNESS.declared_harness(environment)
     assert subject == "future-agent"
     derived = HARNESS.identity_for_subject(subject)
     assert derived.name == "Agent Harness (future-agent)"
     assert derived.email == "future-agent@localhost"
 
 
-def test_runtime_selection_and_rejection(root: Path) -> None:
+def test_process_and_namespace_inference_is_absent(root: Path) -> None:
     del root
-    nested_environment = {
-        "CODEX_THREAD_ID": "outer-thread",
-        "ZCODE_SESSION_ID": "inner-session",
-    }
-    nested_ancestry = (
-        "/usr/bin/zsh",
-        "/opt/zcode/bin/zcode worker",
-        "/opt/codex/bin/codex",
-    )
-    assert HARNESS.detect_harness(nested_environment, nested_ancestry) == "zcode"
-
+    assert not hasattr(HARNESS, "read_process_ancestry")
+    assert '"/proc"' not in SCRIPT.read_text(encoding="utf-8")
     expect_value_error(
-        lambda: HARNESS.detect_harness({}, ("/opt/codex/bin/codex",)),
-        "not detectable",
-    )
-    expect_value_error(
-        lambda: HARNESS.detect_harness(
-            {"XDG_SESSION_ID": "desktop"},
-            ("/opt/codex/bin/codex",),
-        ),
-        "not corroborated",
-    )
-    expect_value_error(
-        lambda: HARNESS.detect_harness(
+        lambda: HARNESS.resolve_identity(
             {
-                "ALPHA_SESSION_ID": "alpha",
-                "BETA_THREAD_ID": "beta",
-            },
-            ("/opt/alpha-beta/bin/runner",),
+                "CODEX_THREAD_ID": "outer-thread",
+                "ZCODE_SESSION_ID": "inner-session",
+                "CLAUDE_PROJECT_DIR": "/fixture/project",
+            }
         ),
-        "multiple harness subjects",
+        "declaration is missing",
     )
 
 
-def test_declaration_validation_and_isolation(root: Path) -> None:
+def test_declaration_validation(root: Path) -> None:
     del root
     direct = {HARNESS.HARNESS_DECLARATION: "future-agent"}
-    assert HARNESS.detect_harness(direct, ()) == "future-agent"
-
-    def reject_ancestry_read() -> tuple[str, ...]:
-        raise AssertionError("direct harness declaration must not read ancestry")
-
-    resolved = HARNESS.resolve_identity(direct, reject_ancestry_read)
+    resolved = HARNESS.resolve_identity(direct)
     assert resolved.subject == "future-agent"
     assert resolved.name == "Agent Harness (future-agent)"
 
@@ -187,9 +154,8 @@ def test_declaration_validation_and_isolation(root: Path) -> None:
     )
     for invalid in invalid_subjects:
         expect_value_error(
-            lambda invalid=invalid: HARNESS.detect_harness(
-                {HARNESS.HARNESS_DECLARATION: invalid},
-                (),
+            lambda invalid=invalid: HARNESS.declared_harness(
+                {HARNESS.HARNESS_DECLARATION: invalid}
             ),
             "harness subject",
         )
@@ -266,7 +232,7 @@ def test_harness_handoff_is_not_sticky(root: Path) -> None:
 def test_missing_legacy_and_conflicting_options_are_rejected(root: Path) -> None:
     missing = commit(root, clean_environment(), "--print-identity")
     assert missing.returncode == 2
-    assert "not detectable" in missing.stderr
+    assert "declaration is missing" in missing.stderr
 
     legacy = commit(
         root,
@@ -347,9 +313,9 @@ def test_authorship_reuse_options_are_rejected(root: Path) -> None:
 
 def main() -> int:
     tests = (
-        test_unseen_harness_is_derived,
-        test_runtime_selection_and_rejection,
-        test_declaration_validation_and_isolation,
+        test_unseen_harness_declaration_is_derived,
+        test_process_and_namespace_inference_is_absent,
+        test_declaration_validation,
         test_commit_overrides_without_config_mutation,
         test_harness_handoff_is_not_sticky,
         test_missing_legacy_and_conflicting_options_are_rejected,

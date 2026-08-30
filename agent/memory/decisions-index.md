@@ -37,7 +37,7 @@ an index row does not promote `Proposed` material to `Verified`.
 | D0025 | Decision-authorized semantic changes synchronize every affected current and historical record while preserving factual evidence | [Semantic change governance](../../docs/architecture/semantic-change-governance.md) | Verified repository governance contract |
 | D0026 | Project-knowledge roast classifies durable promotion by semantic transformation depth and keeps session-only disposition separate | [Project knowledge roast](../../docs/architecture/project-knowledge-roast.md) | Verified repository knowledge-promotion contract |
 | D0027 | Intel x86_64 support and physical NVIDIA binding-performance qualification belong to M1000 / `v1.0.0`; native NixOS remains `v0.2.0` scope | [M1000 release boundary](../plan/M1000-stable-qualification/plan.md#release-boundary-decision-d0027) | Queued release-boundary decision |
-| D0028 | Agent commit identity is derived automatically from the active runtime harness subject without a product mapping table | [Agent harness commit identity](../../docs/architecture/agent-harness-commit-identity.md) | Verified repository workflow; migration tracked by SC0004 |
+| D0028 | Agent commit identity is derived from the active agent's self-declared harness subject without process inference or a product mapping table | [Agent harness commit identity](../../docs/architecture/agent-harness-commit-identity.md) | Verified repository workflow; migration tracked by SC0004 |
 
 New decisions receive the next `DNNNN` identifier and point to a plan or
 architecture record containing rationale, consequences, and verification state.

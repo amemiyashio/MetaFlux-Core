@@ -66,28 +66,38 @@ active agent harness, not the human identity stored in `.git/config`. This
 applies to content, checkpoint, and closing-record commits. Human-created
 commits outside an agent run are unaffected.
 
-Use the package helper instead of invoking `git commit` directly:
+Before the first agent-created commit, read the harness subject from the active
+agent runtime context and emit this declaration in the interaction:
 
-```sh
-python3 agent/skills/start-work/scripts/commit_as_harness.py -- -m "Commit subject"
+```text
+Agent harness subject: <subject>
 ```
 
-The helper reads the active runtime harness subject automatically under
-[D0028](../../../docs/architecture/agent-harness-commit-identity.md). A harness
-may supply the generic `METAFLUX_AGENT_HARNESS` provenance declaration directly;
-that path does not inspect `/proc`. When the declaration is absent, the helper
-corroborates generic session/thread/project environment namespaces against the
-nearest Linux ancestor process. It contains no Codex, Claude Code, ZCode, or
-other product identity table, and `--harness` is not a supported selector.
+This is an agent self-report. Do not infer it from `/proc`, process names,
+product-specific environment namespaces, repository contents, or the user's Git
+configuration. Repeat the declaration whenever work passes to another agent or
+harness. Then provide that same normalized subject command-locally to the
+package helper instead of invoking `git commit` directly:
+
+```sh
+METAFLUX_AGENT_HARNESS=HARNESS_SUBJECT \
+  python3 agent/skills/start-work/scripts/commit_as_harness.py -- -m "Commit subject"
+```
+
+Under [D0028](../../../docs/architecture/agent-harness-commit-identity.md), the
+helper consumes only the agent-provided `METAFLUX_AGENT_HARNESS` declaration. It
+contains no `/proc` reader, process or environment heuristic, Codex/Claude
+Code/ZCode product table, or `--harness` selector. A missing or malformed
+declaration stops before Git runs.
 
 The normalized subject generates both roles as `Agent Harness (<subject>)
-<<subject>@localhost>`. The declaration is supplied by the harness runtime as a
-provenance label; it is not an authentication credential and agents do not set
-it ad hoc. Automatic detection stops on missing, malformed, or ambiguous
-evidence and never falls back to a repository user's identity. The helper sets
-the result only for the child `git commit`, leaves local and global Git
-configuration unchanged, and rejects `--author`, `--amend`, and message-reuse
-options that could carry another commit's authorship into the new commit.
+<<subject>@localhost>`. The declaration is a provenance label supplied by the
+agent after reading its harness context; it is not an authentication credential
+or a preferred identity to choose ad hoc. The helper never falls back to a
+repository user's identity. It sets the result only for the child `git commit`,
+leaves local and global Git configuration unchanged, and rejects `--author`,
+`--amend`, and message-reuse options that could carry another commit's
+authorship into the new commit.
 
 When an agent operation would normally create a merge, revert, or cherry-pick
 commit, first prepare the result without committing (`git merge --no-commit
@@ -99,6 +109,14 @@ After each commit, verify the recorded identity before reporting its revision:
 
 ```sh
 git show -s --format='Author: %an <%ae>%nCommitter: %cn <%ce>' HEAD
+```
+
+To validate the declaration before staging or committing, use the same
+command-local subject:
+
+```sh
+METAFLUX_AGENT_HARNESS=HARNESS_SUBJECT \
+  python3 agent/skills/start-work/scripts/commit_as_harness.py --print-identity
 ```
 
 ## Verification

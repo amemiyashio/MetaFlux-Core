@@ -15,7 +15,7 @@ workspace: agent commits use command-local harness identity; human Git configura
 Revision `ded1dad4172b515a3b17cb66c3f7aa18df9cb20e` captured the first
 `start-work` implementation of agent commit identity. It used a static Codex
 and Claude Code table; revision `f862852` later added ZCode. D0028 and SC0004
-supersede that mapping authority with automatic runtime-subject derivation.
+supersede that mapping authority with agent-provided harness-subject derivation.
 The original command-local environment and human Git configuration boundary
 remains valid.
 
@@ -54,6 +54,7 @@ remains valid.
 1. Start agent work through `start-work` and keep the active session current.
 2. Commit through `commit_as_harness.py`, then verify Author and Committer with
    `git show` before reporting the revision.
-3. Under D0028, let the helper read the runtime harness subject automatically;
-   missing or ambiguous evidence stops the commit, and the user's Git
-   configuration is never rewritten as preparation.
+3. Under D0028, read and surface the active harness subject, then supply it
+   command-locally as `METAFLUX_AGENT_HARNESS`; missing or malformed
+   declarations stop the commit, and the user's Git configuration is never
+   rewritten as preparation.

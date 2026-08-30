@@ -6,7 +6,7 @@ This session introduced the first binding of agent-created commits to a harness
 for both Git Author and Committer without changing the human Git identity. Its
 static Codex/Claude Code implementation was proved by isolated fixtures and
 content commit `ded1dad`; D0028/SC0004 later replaced only its identity-source
-rule with automatic runtime-subject derivation.
+rule with agent-provided harness-subject derivation.
 
 ## Durable changes
 
@@ -75,6 +75,7 @@ rule with automatic runtime-subject derivation.
 Begin with `start-work`. For every agent-created commit, run
 `python3 agent/skills/start-work/scripts/commit_as_harness.py -- -m "Subject"`
 and verify the resulting Author and Committer before reporting the revision.
-Under D0028 the helper reads the runtime harness subject automatically; missing
-or ambiguous evidence stops the commit. Do not select a product identity or
-replace the repository user's Git configuration.
+Under D0028 the agent first surfaces its active harness subject and passes that
+generic declaration command-locally; missing or malformed declarations stop the
+commit. Do not infer a product identity or replace the repository user's Git
+configuration.

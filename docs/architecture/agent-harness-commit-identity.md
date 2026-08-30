@@ -9,17 +9,18 @@
 ## Decision
 
 An agent-created Git commit derives both Author and Committer from the active
-agent harness observed at runtime. Repository code does not own a product list
-mapping Codex, Claude Code, ZCode, or any later harness to hand-maintained Git
-identities. Adding a harness therefore does not require a repository patch.
+agent's self-declared harness subject. Before its first commit, the agent reads
+that subject from its own harness runtime context and emits `Agent harness
+subject: <subject>` in the interaction. Repository code does not own a product
+list mapping Codex, Claude Code, ZCode, or any later harness to hand-maintained
+Git identities. Adding a harness therefore does not require a repository patch.
 
-The repository helper reads the harness subject automatically. A validated
-generic `METAFLUX_AGENT_HARNESS` declaration is the direct harness protocol and
-does not require `/proc`. Otherwise, the helper collects non-empty environment
-namespaces ending in `_SESSION_ID`, `_THREAD_ID`, or `_PROJECT_DIR` and matches
-them against the Linux ancestor-process command lines. The nearest unambiguous
-match is the active subject. Missing, malformed, or ambiguous evidence stops
-the commit; human Git configuration is never a fallback.
+The agent supplies the same subject command-locally through the generic
+`METAFLUX_AGENT_HARNESS` declaration. The repository helper validates that
+declaration and derives the Git identity. It does not inspect `/proc`, process
+names, product-specific environment namespaces, repository contents, or human
+Git configuration to guess the harness. A missing or malformed declaration
+stops before Git runs; human Git configuration is never a fallback.
 
 ## Identity Derivation
 
@@ -32,21 +33,21 @@ name  = Agent Harness (<subject>)
 email = <subject>@localhost
 ```
 
-Session and thread values are corroborating presence signals only. They never
-enter the identity or logs. On the automatic-detection path, the helper reads
-process metadata but does not execute, probe, or modify the harness process.
+Harness session and thread values never enter the declaration, identity, or
+logs. Only the normalized subject is passed to the helper.
 
 ## Boundary And Consequences
 
 - The helper sets all four `GIT_AUTHOR_*` and `GIT_COMMITTER_*` variables only
   for its `git commit` child process.
 - Local and global Git configuration remain human-owned and unchanged.
-- The command interface has no per-product harness selector. A harness that
-  needs an explicit protocol supplies `METAFLUX_AGENT_HARNESS` in its runtime
-  environment.
-- `METAFLUX_AGENT_HARNESS` is a provenance declaration supplied by the harness
-  runtime. It is not authenticated evidence, and an agent must not synthesize
-  or override it to choose a preferred identity.
+- The command interface has no per-product harness selector. The agent supplies
+  its self-reported subject through command-local `METAFLUX_AGENT_HARNESS`.
+- The self-report is a provenance declaration, not authenticated evidence. The
+  agent must read the active harness context, surface the subject before the
+  commit, and must not synthesize a preferred or inherited prior-agent value.
+- Every agent or harness handoff requires a fresh self-declaration. The
+  command-local value prevents one agent's identity from becoming sticky.
 - Git Author and Committer identify workflow provenance; they are not
   authentication, signing, or proof of a particular human operator.
 - This is the required repository workflow for agent-created commits, not a Git
@@ -58,10 +59,9 @@ process metadata but does not execute, probe, or modify the harness process.
 
 ## Verification State
 
-The isolated helper suite passes seven cases covering an unseen harness,
-nearest-ancestor selection, direct-protocol isolation, missing or ambiguous
-automatic evidence, malformed subjects, stale Git identity override,
-cross-harness handoff, configuration isolation, removed fixed selection, and
-protected commit options. The repository runtime resolves the current subject
-without a selector as `codex`; SC0004 binds the synchronized migration and real
-automatic content commit.
+The isolated helper suite passes seven cases covering an unseen declared
+harness, complete absence of process/environment inference, missing and
+malformed declarations, stale Git identity override, cross-harness handoff,
+configuration isolation, removed fixed selection, and protected commit
+options. SC0004 binds the synchronized migration and a real commit created only
+after the active agent self-declares its harness subject.

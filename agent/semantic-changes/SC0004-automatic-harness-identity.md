@@ -43,8 +43,8 @@ superseded_by: null
 | `agent/skills/start-work/scripts/test_commit_as_harness.py` | Tooling | Migrated | Seven isolated cases cover unseen declarations, no-inference failure, validation, Git identity, and isolation paths |
 | `agent/sessions/README.md` | Current | Migrated | S0100-20260830-008-agent-harness-commit-identity is explicitly the initial static implementation superseded by D0028/SC0004 |
 | `agent/progress/current.md` | Current | Retained evidence | HEAD blob `7dc3e420aca64caa8b2adb6f7a73b02e21970818` states the generic invariant and factual `ded1dad`; concurrent P20260830-010 remains outside this migration |
-| `agent/progress/checkpoints/2026/P20260830-009-agent-harness-commit-identity.md` | Historical | Pending | Replace the superseded automatic-inference resume wording with agent self-declaration while preserving revision, identity, configuration, and gate evidence |
-| `agent/sessions/2026/08/S0100-20260830-008-agent-harness-commit-identity/summary.md` | Historical | Pending | Replace the superseded automatic-inference handoff wording with agent self-declaration while preserving recorded gates and revisions |
+| `agent/progress/checkpoints/2026/P20260830-009-agent-harness-commit-identity.md` | Historical | Migrated | Resume wording now requires agent self-declaration; revision, identity, configuration, and gate evidence remain unchanged |
+| `agent/sessions/2026/08/S0100-20260830-008-agent-harness-commit-identity/summary.md` | Historical | Migrated | Handoff now requires agent self-declaration; recorded gates and revisions remain unchanged |
 | `agent/sessions/2026/08/S0100-20260830-008-agent-harness-commit-identity/notes.md` | Historical | Migrated | Capture-time identities contextualized; command-local and protected-option observations retained |
 | `agent/sessions/2026/08/S0100-20260830-008-agent-harness-commit-identity/events.jsonl` | Historical | Retained evidence | Preserve byte-for-byte event evidence at Git blob `5b16d08e62765e483aa715bded55e954ba63794d` |
 | `agent/sessions/2026/08/S0100-20260830-009-automatic-harness-identity/session.json` | Active session | Pending | Close only after the corrected self-declaration content revision exists |
@@ -83,7 +83,7 @@ missing or malformed input without falling back to human Git configuration.
 | --- | --- |
 | User decision authority | Passed: the user classified this as governance, required harness-neutral identity, and clarified that the agent must provide its subject without `/proc` inference |
 | Active-session handoff | G005 and G008 supersede the earlier G004/G007 discovery route and are published to both affected in-progress sessions |
-| Active authorization revision | Passed at `0a2c0c4242b754254a6806b0d9c8584b17765d37` before protected edits |
+| Active authorization revisions | Passed at initial revision `0a2c0c4242b754254a6806b0d9c8584b17765d37` and correction revision `69fce57347b08dadba48218812ddf3f1cda56542` before their respective protected edits |
 | Agent self-declaration behavior | Seven of seven isolated cases pass; namespace-only signals fail closed, and the helper source contains no process-ancestry reader |
 | Historical evidence lock and residual search | Passed pre-commit audit: retained event blob is `5b16d08e62765e483aa715bded55e954ba63794d`; no live static `HARNESSES` table remains |
 | Agent records, semantic edit gate, skill validation, and routing | Pending final corrected gates |
