@@ -2,10 +2,10 @@
 id: W0134
 delivery: 0.1.3.4
 milestone: M0130
-status: Queued
+status: Active
 area: backend.vulkan.execution
 depends_on: [W0132, W0133]
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 
 # Execution, Streams, and Events
@@ -31,6 +31,10 @@ a capability diagnostic and never switch an established context to CPU.
 
 ## Work
 
+- [x] Add the host-independent stream/dependency planning layer. It preserves
+  per-stream FIFO, adds the prior same-stream timeline edge, requires explicit
+  cross-stream waits, validates copy/launch stage/access masks, and rejects
+  stale or future dependencies before `vkQueueSubmit2` integration.
 - [ ] Implement pipeline creation, command recycling, batching, and
   `vkQueueSubmit2` timeline completion into the M0110 timeline.
 - [ ] Implement Graph IR FIFO/cross-stream dependencies, copy visibility,

@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0130
-workstream: W0133
-checkpoint: P20260831-044
+workstream: W0134
+checkpoint: P20260831-045
 ---
 
 # Current Progress
@@ -66,6 +66,8 @@ W0132's generation-bound staging suballocation and timeline admission model are
 recorded at [P20260831-043](checkpoints/2026/P20260831-043-m0130-vulkan-memory-model.md).
 W0133's target profile/module preflight diagnostics are recorded at
 [P20260831-044](checkpoints/2026/P20260831-044-m0130-vulkan-target-preflight.md).
+W0134's stream/dependency planner is recorded at
+[P20260831-045](checkpoints/2026/P20260831-045-m0130-vulkan-stream-graph.md).
 W0122's QMP completion-to-ingress helper is recorded at
 [P20260831-028](checkpoints/2026/P20260831-028-m0120-qmp-ingress.md).
 W0122's vfio-user disconnect handoff is recorded at
@@ -239,6 +241,15 @@ Linux 9.8.
 | W0133 CTest | Full `vulkan` preset passed 85/85, including `metaflux.backend.vulkan-target-preflight` |
 | W0133 current boundary | MLIR conversion, SPIR-V validation/reflection, pipeline creation, execution, and dual-driver differential evidence remain open |
 
+## Recorded M0130 W0134 Evidence
+
+| Gate | Recorded result |
+| --- | --- |
+| W0134 stream graph | `c3b8c5e`; monotonic plans preserve per-stream FIFO, keep independent streams unordered, and require explicit cross-stream waits |
+| W0134 visibility | Copy plans require transfer masks; launch plans require compute masks; invalid masks and unknown operations are rejected |
+| W0134 CTest | Full `vulkan` preset passed 86/86, including `metaflux.backend.vulkan-stream-graph` |
+| W0134 current boundary | Command-resource recycling, `vkQueueSubmit2`, timeline completion, composed provider/runtime dependencies, validation, and driver-family execution remain open |
+
 ## Versioned Next Work
 
 1. M0100, its foundation session, and its completion session are terminal; the
@@ -302,6 +313,10 @@ Linux 9.8.
     [P20260831-044](checkpoints/2026/P20260831-044-m0130-vulkan-target-preflight.md).
     Continue with MLIR/SPIR-V conversion and reflection fixtures only after the
     preflight admission remains the first module boundary.
+12. M0130/W0134 is Active after the stream-graph stage at
+    [P20260831-045](checkpoints/2026/P20260831-045-m0130-vulkan-stream-graph.md).
+    Continue with command resources and actual queue submission only after the
+    stream planner remains the dependency admission boundary.
 
 ## Tool Boundary
 

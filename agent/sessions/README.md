@@ -96,6 +96,7 @@ copies canonical content.
 | [S0131-20260831-002-vulkan-capability-abi](2026/08/S0131-20260831-002-vulkan-capability-abi/summary.md) | 2026-08-31 | Exact | In progress | Vulkan capability ABI, packed argument and external-memory profiles, deterministic target identity, opt-in tool epoch, and truthful no-device host probe; execution and driver qualification remain open |
 | [S0132-20260831-003-vulkan-device-memory](2026/08/S0132-20260831-003-vulkan-device-memory/summary.md) | 2026-08-31 | Exact | In progress | W0132 generation-bound staging ledger and timeline admission model; physical Vulkan allocation and driver qualification remain open |
 | [S0133-20260831-004-vulkan-spirv-lowering](2026/08/S0133-20260831-004-vulkan-spirv-lowering/summary.md) | 2026-08-31 | Exact | In progress | W0133 target profile/module preflight diagnostics; MLIR conversion and SPIR-V validation remain open |
+| [S0134-20260831-005-vulkan-execution-streams](2026/08/S0134-20260831-005-vulkan-execution-streams/summary.md) | 2026-08-31 | Exact | In progress | W0134 stream/dependency planner with FIFO, explicit waits, visibility masks, and generation guards; Vulkan submission remains open |
 
 ## Fidelity and retention
 
