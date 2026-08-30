@@ -12,6 +12,10 @@ has a direct completion-to-ingress helper and the vfio-user server has an EOF
 disconnect handoff, while live command transport and remaining producer
 call-site integration remain open. The coordinator-aware server loop now binds
 `Closed` results to that handoff without changing ordinary message results.
+Source metadata capture is now centralized in `capture_external_event`: QMP
+commands and the automatic vfio-user disconnect path copy the authority tuple
+from a snapshot at observation time, so later generation changes remain
+observable as stale events.
 
 ## Durable changes
 
@@ -27,7 +31,8 @@ call-site integration remain open. The coordinator-aware server loop now binds
   mirror with in-flight drain and generation tombstone checks.
 - `runtime/core/include/metaflux/runtime/lifecycle_normalizer.hpp` and
   `runtime/core/src/lifecycle_normalizer.cpp`: stateless external-event to
-  `Request` mapping with malformed/unknown rejection.
+  `Request` mapping with malformed/unknown rejection plus snapshot-bound event
+  capture.
 - `transports/vfio-user/server/include/metaflux/transport/qmp_lifecycle.hpp`
   and its implementation/test: one-pending-command QMP event correlation with
   failed-remove loss mapping, failed-add rejection, and a completion-to-ingress
@@ -35,7 +40,8 @@ call-site integration remain open. The coordinator-aware server loop now binds
 - `transports/vfio-user/server/include/metaflux/transport/vfio_user_server.hpp`
   and its implementation/test: a disconnect handoff that marks local EOF/error
   loss and submits a caller-captured `Disconnect` event through lifecycle
-  ingress, plus a coordinator-aware `process_once` overload for `Closed` paths.
+  ingress, plus coordinator-aware `process_once` overloads for explicit and
+  snapshot-bound `Closed` paths.
 - `runtime/core/include/metaflux/runtime/lifecycle_dispatch.hpp` and its
   implementation/test: one stateless ingress that normalizes external events
   before submitting accepted requests to the Coordinator.
@@ -54,6 +60,7 @@ call-site integration remain open. The coordinator-aware server loop now binds
 | QMP completion-to-ingress regression | Passed: QMP and lifecycle-dispatch selection 2/2 |
 | vfio-user disconnect-to-ingress regression | Passed: server and lifecycle-dispatch selection 2/2 |
 | vfio-user process-to-ingress regression | Passed: coordinator-aware server/dispatch selection 2/2 |
+| Snapshot-bound producer metadata regression | Passed: normalizer, QMP, and vfio-user server tests cover capture-time identity/generation/epoch binding and stale completion |
 | `metaflux.unit.runtime-lifecycle-dispatch` | Passed |
 | `ctest --preset dev` | Passed: 79/79 |
 | `python3 tools/check-component-graph.py <configured graph>` | Passed: 19 components / 22 edges |
@@ -77,10 +84,14 @@ call-site integration remain open. The coordinator-aware server loop now binds
   `submit_external_event`. A failed remove therefore reaches the existing
   `QmpFailure` lifecycle path without adding a QMP-specific authority API.
 - The vfio-user disconnect handoff marks local transport loss before calling the
-  stateless ingress, but it does not manufacture event metadata. The owner must
-  supply the logical device, daemon incarnation, identity, generation, epoch,
-  and request ID, and can inspect local `ServerResult` separately from
-  `ResultDetails`.
+  stateless ingress, while the snapshot-bound overload captures logical device,
+  daemon incarnation, identity, generation, epoch, and deadline immediately
+  after the receive path observes `Closed`. The explicit overload remains for
+  owners that already captured a tuple, and local `ServerResult` stays separate
+  from `ResultDetails`.
+- The QMP `from_snapshot` factory captures the same tuple before a command is
+  correlated. Completion uses that immutable event; if the authority advances
+  meanwhile, the result is `Stale` rather than silently rebinding the command.
 - The coordinator-aware `process_once` overload submits only after the receive
   path returns `Closed`; normal replies, no-reply operations, idle reads, and
   malformed packets retain their transport result and do not create lifecycle
@@ -115,6 +126,9 @@ call-site integration remain open. The coordinator-aware server loop now binds
 - Runtime external-event ingress -> `runtime/core/include/metaflux/runtime/lifecycle_dispatch.hpp`
   (focused dispatch regression; content revision `04ecf81`, full development
   CTest 79/79)
+- Snapshot-bound producer metadata -> `runtime/core/include/metaflux/runtime/lifecycle_normalizer.hpp`
+  (normalizer, QMP, and vfio-user capture-time tuple regression; content
+  revision `3259683`)
 - W0122 implementation boundary and remaining gates ->
   `agent/plan/M0120-vpci-lifecycle/work/W0122-existing-transports.md`
   (full dev CTest 77/77)
@@ -133,14 +147,15 @@ call-site integration remain open. The coordinator-aware server loop now binds
 
 ## Unresolved items
 
-- W0122 remains Active. Next: bind real lifecycle metadata capture at the
-  vfio-user owner, implement live QMP/socket command transport, wire remaining
-  reset/restart producer call sites and the production memfd worker path, and
-  add provider-freeze plus fault/qualification evidence.
+- W0122 remains Active. Snapshot-bound metadata capture is implemented for the
+  QMP and vfio-user fixtures. Next: implement live QMP/socket command
+  transport, wire remaining reset/restart producer call sites and the
+  production memfd worker path, and add provider-freeze plus
+  fault/qualification evidence.
 
 ## Handoff
 
-Resume from checkpoint `P20260831-030`; run
+Resume from checkpoint `P20260831-034`; run
 `metaflux.unit.runtime-lifecycle`, the normalizer, dispatch, and QMP tests, and
 `metaflux.transport.memfd-worker` before changing an adapter, then preserve the
 M0110 descriptor/UAPI/BAR boundary.

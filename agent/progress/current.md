@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-033
+checkpoint: P20260831-034
 ---
 
 # Current Progress
@@ -58,6 +58,9 @@ at [P20260831-032](checkpoints/2026/P20260831-032-m0120-fence-telemetry-races.md
 W0121's runtime telemetry producer fence/admission guards and marker-complete
 recovery target-bank validation are recorded at
 [P20260831-033](checkpoints/2026/P20260831-033-m0120-runtime-telemetry-fence-guards.md).
+W0122's snapshot-bound producer metadata capture for QMP and vfio-user
+disconnect paths is recorded at
+[P20260831-034](checkpoints/2026/P20260831-034-m0120-snapshot-bound-event-metadata.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -181,7 +184,8 @@ Linux 9.8.
 | W0122 QMP producer ingress | `b37e8ba`; QMP completion snapshots the correlated event, maps failed remove to `QmpFailure`, and submits through the stateless ingress; focused QMP/lifecycle dispatch 2/2 and full dev CTest 79/79 passed |
 | W0122 vfio-user disconnect ingress | `ee0ecab`; EOF/error handoff marks the local server lost and submits a captured `Disconnect` event through the stateless ingress; focused server/dispatch 2/2 and full dev CTest 79/79 passed |
 | W0122 vfio-user process ingress | `699cff8`; `process_once` overload invokes the disconnect handoff only for `Closed`, preserving ordinary message results; focused server/dispatch 2/2 and full dev CTest 79/79 passed |
-| W0122 current boundary | Live QMP/socket command transport, event-metadata binding for reset/restart producers, production memfd worker wiring, provider freeze, fault injection, and qualification remain open |
+| W0122 snapshot-bound event metadata | QMP command factory and vfio-user `process_once` capture logical device, daemon, identity, generation, epoch, and deadline from the authority snapshot; stale completion remains `Stale`; focused normalizer/QMP/server tests passed 3/3 |
+| W0122 current boundary | Live QMP/socket command transport, reset/restart producer metadata binding, production memfd worker wiring, provider freeze, fault injection, and qualification remain open; QMP and vfio-user disconnect capture are covered by the snapshot-bound helper |
 
 ## Versioned Next Work
 
