@@ -2,48 +2,64 @@
 
 ## Objective and outcome
 
-W0113 now has a generated DMA map/unmap contract, a C17 guest packet encoder,
-and a C++20 host vfio-user adapter fixture. The adapter validates shared-file
-DMA ranges, maps one generation/epoch, reports the static BAR profile, and keeps
-reset and migration unsupported. Guest PCI kernel binding and steady-state BAR
-doorbells remain the next stage.
+W0113 is implementing the M0110 static vfio-user guest transport. The
+generated control-plane records, guest/server fixtures, and a compile-checked
+Linux PCI resource-binding stage are now present. The work item remains Active:
+the PCI module does not yet provide the guest data plane or a QEMU/libvfio-user
+vertical execution path.
 
 ## Durable changes
 
-- `contracts/protocol/transport/v1/schema/vfio_user.json` and the base manifest
-  add generation/epoch-bound DMA records and the static GET_INFO reply.
-- `transports/vfio-user/guest/` encodes and validates packet boundaries.
-- `transports/vfio-user/server/` owns the socket state machine, mapping ledger,
-  static BAR reply, and message-ID/`No_reply` behavior.
+- `contracts/protocol/transport/v1/schema/` defines the generated DMA map/unmap
+  records and static GET_INFO BAR profile used by the guest/server fixtures.
+- `transports/vfio-user/guest/` and `transports/vfio-user/server/` provide
+  bounded packet handling, generation/epoch mapping validation, static BAR
+  reporting, and no-reset/no-migration control behavior.
+- `kernel/pci/metaflux_pci_main.c` adds `metaflux_pci.ko`, which rejects an
+  unexpected CI VID/DID/class or BAR0/BAR2/BAR4 size, maps BAR0 and BAR2,
+  reserves exactly two MSI-X vectors, leaves BAR4 to the PCI MSI-X capability,
+  and unwinds probe/remove resources in reverse order.
+- `kernel/pci/README.md`, `kernel/README.md`, and the W0113 plan record the
+  ownership and bounded scope of the PCI stage.
 
 ## Verification
 
 | Command/gate | Result |
 | --- | --- |
-| Transport schema and generated header | Passed: 5 definitions, 15 records |
-| Component graph | Passed: 17 components, 18 dependency edges |
-| Focused transport CTest | Passed: 7/7 schema, cdev, guest, and server tests |
-| Full dev CTest | Passed: 72/72 |
-| vfio-user server mapping fixture | Passed: GET_INFO, generation/epoch map, overlap rejection, reset rejection, and `No_reply` unmap |
+| Transport schema | Passed: 5 definitions / 15 records |
+| Component graph | Passed: 19 components / 23 dependency edges |
+| Full development CTest | Passed: 79/79 through `nix develop . --command ctest --preset dev` |
+| Target Kbuild | Passed: Linux 6.18.42 GCC built `metaflux_pci.ko`, modpost and BTF completed |
+| Module identity | Passed: PCI alias `0x4D46:0x0001`, target vermagic `6.18.42-1-cachyos-lts` |
+| Formatting/diff checks | Passed: `git diff --check` |
+| Content identity | Passed: `cb118f1`, Agent Harness (codex) as Author and Committer |
 
 ## Cleanup
 
-- Removed: failed first-reply overflow route; no build artifacts were added to the repository.
-- Retained: durable schema, guest/server sources, tests, plan updates, and compact session records.
+- Removed: none; Kbuild output remains under the external target-kernel build
+  owner and ignored module artifacts are not repository evidence.
+- Retained: the PCI driver source, its Makefile/documentation, the plan update,
+  and this compact session record.
 
 ## Decisions and experience
 
-- vfio-user framing stays an adapter boundary; MetaFlux records remain generated
-  little-endian projections from the root manifest.
-- W0113 remains Active until guest PCI/BAR/IRQ wiring, QEMU integration, and DMA
-  fault/lifetime evidence pass the workstream gate.
+- The M0110 static PCI stage validates the canonical BAR profile before device
+  enablement and reserves MSI-X vectors without claiming an interrupt handler.
+- BAR4 remains owned by the PCI MSI-X capability; doorbell, ring, DMA, and
+  interrupt-arm behavior require later W0113 increments.
+- The driver uses the target kernel's Kbuild API and keeps PCI transport
+  mechanics separate from vfio-user socket and backend semantics.
 
 ## roast
 
 ### light roasts
 
-- Generated vfio-user map/unmap and GET_INFO records -> `contracts/protocol/transport/v1/schema/` (schema validator and C/C++ fixtures)
-- Guest encoder and server fixture -> `transports/vfio-user/` (focused CTest)
+- Static guest PCI resource binder -> `kernel/pci/metaflux_pci_main.c`
+  (content `cb118f1`; Linux 6.18.42 GCC Kbuild and module metadata)
+- PCI source ownership and bounded-stage contract -> `kernel/pci/README.md`
+  (content `cb118f1`; full CTest 79/79)
+- W0113 implementation boundary -> `agent/plan/M0110-kernel-guest-transport/work/W0113-static-vfio-user.md`
+  (content `cb118f1`; schema and component gates)
 
 ### medium roasts
 
@@ -55,16 +71,20 @@ doorbells remain the next stage.
 
 ## session-only
 
-- none.
+- Target Kbuild emitted a local GCC minor-version mismatch warning - reason:
+  host evidence only; no repository-wide compiler policy is changed.
 
 ## Unresolved items
 
-- W0113 / static guest: connect the server to pinned QEMU/libvfio-user, implement
-  guest `metaflux_pci.ko` BAR0/BAR2/BAR4 and MSI-X, and add DMA drain/tombstone
-  and reset/disconnect qualification.
+- W0113 / static guest: connect pinned QEMU/libvfio-user, implement the BAR2
+  doorbell and MSI-X steady-state data plane, add guest SPSC rings and DMA
+  lifetime/drain/tombstone evidence, execute CPU Add/Copy, and qualify reset or
+  disconnect behavior without advertising unsupported reset or migration.
 
 ## Handoff
 
-Read W0113, the root transport manifest and vfio-user references. Run the guest
-and server packet tests before adding QEMU or kernel PCI code; keep reset and
-migration unadvertised in M0110.
+Resume from [P20260831-040](../../../../progress/checkpoints/2026/P20260831-040-m0110-static-guest-pci.md).
+Read the W0113 plan, the root transport manifest, `kernel/pci/README.md`, and
+the PCI/vfio-user skills. The current module only binds static resources; the
+next increment must add one independently testable ring, DMA, or pinned
+QEMU/libvfio-user boundary and preserve the no-reset/no-migration contract.
