@@ -111,8 +111,8 @@ superseded_by: null
 
 | Session | Guidance | Status | Outcome |
 | --- | --- | --- | --- |
-| `S0100-20260828-013-m0100-foundation` | `G001` | Published | Owner validates the new summary and D0025 wording at its next control boundary |
-| `S0100-20260830-001-m0100-completion-sprint` | `G003` | Published | Owner processes earlier guidance first, then validates this migration before close |
+| `S0100-20260828-013-m0100-foundation` | `G001` | Adopted | G001 superseded by G006; foundation session terminal at 694272a |
+| `S0100-20260830-001-m0100-completion-sprint` | `G003` | Adopted | G003 adopted; completion session terminal at be9a421 |
 
 ## Evidence preservation
 
