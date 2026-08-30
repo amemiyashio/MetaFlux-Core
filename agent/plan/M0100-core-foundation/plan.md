@@ -138,10 +138,9 @@ separate single-thread/contended cases, archive raw samples with the toolchain
 fingerprint, and compare distributions rather than best runs.
 
 These numeric targets remain diagnostic throughout M0100 / `v0.1.0`; they do
-not become binding release gates from an AMD-only host run. The `v0.2.0`
-support expansion owns physical NVIDIA H2D/D2H, passthrough, and device-identity
-evidence and may promote the budgets to binding only when that complete harness
-passes.
+not become binding release gates from an AMD-only host run. M1000 / `v1.0.0`
+owns physical NVIDIA H2D/D2H, passthrough, and device-identity evidence and may
+promote the budgets to binding only when that complete harness passes.
 
 Release compatibility:
 
@@ -187,10 +186,10 @@ separate release matrix; this decision does not substitute for those gates.
 | D0012 | Freeze the `v0.1.0` four-distribution generic package matrix without raising the glibc 2.31 floor; move native NixOS qualification to `v0.2.0`. | [W0101](work/W0101-build-toolchain.md#release-qualification-matrix-d0012) | Policy verified; provider matrix passed once and complete matrix passed twice. |
 | D0013 | Discover vendor CUDA/NVML only as one validated, same-build absolute-path pair under distribution whitelists or the root-owned override. | [W0106](work/W0106-modes-release.md#vendor-library-discovery-d0013) | Policy frozen; coexistence fixtures remain a release gate. |
 | D0014 | Isolate mutable compiler cache content per peer-credential UID with fixed quotas, atomic publication, deterministic eviction, and a separate read-only AOT tier. | [W0103](work/W0103-compiler-cpu.md#cache-isolation-and-eviction-d0014) | Policy frozen; fault and quota tests remain W0103 gates. |
-| D0015 | Derive workers from effective physical cores, keep NUMA-local pools and CTA-granularity work, and disable cross-node stealing by default. | [W0103](work/W0103-compiler-cpu.md#cpu-and-numa-placement-d0015) | Policy and AMD evidence verified; Intel host qualification belongs to `v0.2.0`. |
+| D0015 | Derive workers from effective physical cores, keep NUMA-local pools and CTA-granularity work, and disable cross-node stealing by default. | [W0103](work/W0103-compiler-cpu.md#cpu-and-numa-placement-d0015) | Policy and AMD evidence verified; Intel x86_64 support qualification belongs to M1000 / `v1.0.0`. |
 | D0017 | Freeze the compiler-epoch-1 PTX 9.0/sm_70 capability, instruction-form, and semantic-oracle corpus manifests. | [W0103](work/W0103-compiler-cpu.md#ptx-oracle-and-corpus-d0017) | Manifest hashes, positive/rejection coverage, interpreter differential tests, and ordinary/ASan runs verified. |
 | D0019 | Link the generic daemon to a static MLIR/LLVM component closure; retain shared framework DSOs only as a qualification comparison. | [Compiler link closure](#compiler-link-closure-d0019) | AMD cold-process and idle-RSS comparison plus generic distribution packaging verified. |
-| D0023 | Use AMD x86_64 as the M0100 reference host and move Intel x86_64 qualification to `v0.2.0`. | [W0101](work/W0101-build-toolchain.md) | M0100 boundary frozen; Intel evidence remains future work. |
+| D0023 | Use AMD x86_64 as the M0100 reference host; D0027 supersedes only its future Intel destination and assigns Intel x86_64 support qualification to M1000 / `v1.0.0`. | [W0101](work/W0101-build-toolchain.md) | M0100 boundary remains frozen; Intel evidence remains future M1000 work. |
 | D0024 | Separate standard three-part product SemVer from four-part delivery coordinates and derived M/W/S identities. | [Release and delivery identity](../../../docs/release-versioning.md) | Repository-wide identity policy. |
 
 ## Definition of Done
@@ -202,9 +201,10 @@ Add/Copy, supported stock
 release is reproducible from one Git revision and the declared tool identities,
 is installable without Nix, archives available provisional benchmark and
 compiler fingerprints, and admits no excluded later feature into the `v0.1.0`
-hot path. Intel host qualification, physical NVIDIA binding-performance
-promotion, and native NixOS VM/package qualification are explicitly outside
-this DoD and begin with the `v0.2.0` support expansion.
+hot path. Intel x86_64 support qualification and physical NVIDIA
+binding-performance promotion are explicitly outside this DoD and begin with
+M1000 / `v1.0.0`. Native NixOS VM/package qualification is also outside this
+DoD and remains in the unallocated `v0.2.0` support expansion.
 
 [M0110](../M0110-kernel-guest-transport/plan.md) begins kernel/cdev and static
 guest transport work only after this DoD or an explicit milestone-boundary

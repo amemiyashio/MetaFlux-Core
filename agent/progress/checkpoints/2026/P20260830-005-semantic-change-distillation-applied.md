@@ -46,8 +46,10 @@ the Applied SC no longer authorizes history edits.
 - G001 and G003 remain published to the two active M0100 session owners; the
   pre-existing G002 remains untouched. Those owners validate, disposition, and
   remove their transient packets before session closure.
-- Intel host, physical NVIDIA binding performance, and native NixOS
-  qualification remain the `v0.2.0` support-expansion boundary.
+- At capture time, Intel host, physical NVIDIA binding performance, and native
+  NixOS qualification remained the `v0.2.0` support-expansion boundary. D0027
+  later supersedes only the Intel and physical NVIDIA destinations with M1000 /
+  `v1.0.0`; native NixOS remains `v0.2.0`.
 
 ## Resume notes
 

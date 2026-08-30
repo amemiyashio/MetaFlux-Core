@@ -54,9 +54,10 @@ ELF/SONAME gates and prior P20260827-001 build evidence remain standing.
 1. Read [current progress](../../current.md), then
    [repo layout](../../../../docs/architecture/repo-layout.md) before placing
    new code.
-2. The next material boundary remains W0101: sysroot, CUDA/NVML header
-   acquisition, the LLVM 22 patchset, and provisional AMD reference evidence;
-   `v0.2.0` owns physical NVIDIA binding promotion.
+2. At capture time, the next material boundary remained W0101: sysroot,
+   CUDA/NVML header acquisition, the LLVM 22 patchset, and provisional AMD
+   reference evidence; `v0.2.0` owned physical NVIDIA binding promotion. D0027
+   later supersedes only that destination with M1000 / `v1.0.0`.
 3. When the first transport implementation begins, create
    `transports/<name>/client/` and `transports/<name>/worker/` per D0010 and
    register both roles so the graph check covers them.

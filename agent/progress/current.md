@@ -38,12 +38,15 @@ the revisions and invocations they name.
 
 The following items are not `v0.1.0` blockers:
 
-- Intel x86_64 host qualification (D0023).
+- Intel x86_64 support qualification (D0027, superseding D0023 only for its
+  future destination).
 - Physical NVIDIA H2D/D2H and passthrough evidence that promotes provisional
   performance budgets to binding.
 - Native NixOS VM/package qualification.
 
-All three belong to the `v0.2.0` support expansion. M0100 keeps the measured
+Intel x86_64 support qualification and physical NVIDIA binding-performance
+promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
+remains the unallocated `v0.2.0` support expansion. M0100 keeps the measured
 performance targets provisional and uses AMD x86_64 as its reference host.
 
 ## Recorded M0100 Evidence
@@ -82,8 +85,9 @@ Linux 9.8.
    session records are closed by their owners.
 3. New work uses an explicit four-part delivery coordinate and the derived
    M/W/S identity; no pre-D0024 alias is accepted.
-4. Schedule Intel host, physical NVIDIA binding performance, and native NixOS
-   VM/package qualification under `v0.2.0`; do not reopen M0100 for them.
+4. Schedule Intel x86_64 support and physical NVIDIA binding performance under
+   M1000 / `v1.0.0`; keep native NixOS VM/package qualification in the
+   unallocated `v0.2.0` expansion. Do not reopen M0100 for any of them.
 
 ## Tool Boundary
 

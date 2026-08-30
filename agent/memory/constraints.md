@@ -73,14 +73,15 @@ identity and provisioning boundaries live in
 - CPU execution uses effective physical cores and NUMA-local pools, does not
   oversubscribe, schedules indivisible CTAs, and keeps cross-node stealing off
   by default (D0015).
-- M0100 / `v0.1.0` host evidence is AMD x86_64. Intel x86_64 host qualification
-  belongs to `v0.2.0` (D0023).
+- M0100 / `v0.1.0` host evidence is AMD x86_64. Intel x86_64 support
+  qualification belongs to M1000 / `v1.0.0` (D0027, superseding D0023 only for
+  the future destination).
 - Generic packages do not overwrite vendor-owned libraries or device nodes and
   do not require Nix store paths at runtime.
 - M0100 performance budgets remain provisional throughout `v0.1.0`. Promotion
   to binding budgets requires the physical NVIDIA H2D/D2H and passthrough
-  evidence owned by the `v0.2.0` support expansion; an AMD-only host run cannot
-  promote them. Canonical target values and measurement rules remain in
+  evidence owned by M1000 / `v1.0.0`; an AMD-only host run cannot promote them.
+  Canonical target values and measurement rules remain in
   [M0100](../plan/M0100-core-foundation/plan.md).
 
 When a task would relax one of these constraints, create or update a canonical

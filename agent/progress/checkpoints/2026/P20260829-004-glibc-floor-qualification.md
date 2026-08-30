@@ -50,9 +50,11 @@ additional SDKs or glibc targets.
 ## Open work and risks
 
 - At capture time, stock-tool, optimized-lowering, fault, quota, and soak gates
-  still needed closure. D0023/D0024 later assign Intel host and native NixOS
-  VM/package qualification to `v0.2.0`; neither is an M0100 exit gate. This
-  checkpoint does not certify the entire milestone.
+  still needed closure. D0023/D0024 later assigned Intel host and native NixOS
+  VM/package qualification to `v0.2.0`; D0027 later supersedes only the Intel
+  destination with M1000 / `v1.0.0`, while native NixOS remains `v0.2.0`.
+  Neither is an M0100 exit gate. This checkpoint does not certify the entire
+  milestone.
 
 ## Resume notes
 

@@ -52,7 +52,9 @@ Three new sub-tests in `metaflux.integration.provider.cuda-nvml-mode`:
 ## W0101 Host Qualification
 
 - AMD: fully qualified (62/62 pass, 42.59s)
-- Intel: deferred to the `v0.2.0` support expansion (no Intel host available)
+- Intel: deferred to the `v0.2.0` support expansion at capture time
+  (no Intel host available); D0027 later supersedes only that destination with
+  M1000 / `v1.0.0`
 
 ## D0012 Release Matrix
 

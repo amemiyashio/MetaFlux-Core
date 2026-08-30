@@ -75,8 +75,9 @@ qualification semantics to Nix.
   Independent packages matched for DEB, RPM, and tar bytes. These results
   remain bound to their recorded Git revision and evidence invocation.
 
-D0023 moves Intel x86_64 host qualification to `v0.2.0`. The absence of an
-Intel host does not leave this M0100 work item open.
+D0027 supersedes D0023 only for the future destination: Intel x86_64 support
+qualification belongs to M1000 / `v1.0.0`. The absence of an Intel host does
+not leave this M0100 work item open.
 
 ## Exit Gate
 

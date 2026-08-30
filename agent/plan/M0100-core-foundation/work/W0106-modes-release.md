@@ -77,8 +77,8 @@ counters remain zero.
 
 This binding route is implemented as a strict harness but is not a M0100 /
 `v0.1.0` exit gate. Physical NVIDIA execution, passthrough performance, and
-budget promotion belong to `v0.2.0`; missing physical fields must continue to
-fail binding mode rather than being treated as a provisional pass.
+budget promotion belong to M1000 / `v1.0.0`; missing physical fields must
+continue to fail binding mode rather than being treated as a provisional pass.
 
 The harness and its self-test are implemented. The recorded clean-revision run
 archives PGO, optimization, hardening, and release evidence and binds the
@@ -105,8 +105,9 @@ workflows. A project PGO profile does not enter the compiler epoch or
   build, O2/O3 comparison, ASan/UBSan hardening, coexistence tests, and both
   eight-row generic package matrices.
 
-Native NixOS VM/package qualification and physical NVIDIA binding-performance
-promotion are `v0.2.0` work, not unchecked W0106 rows.
+Native NixOS VM/package qualification remains unallocated `v0.2.0` work.
+Physical NVIDIA binding-performance promotion belongs to M1000 / `v1.0.0`.
+Neither is an unchecked W0106 row.
 
 ## Exit Gate
 
@@ -114,5 +115,6 @@ Recursion is impossible, injected managed failures leave no partial state and
 transfer to the vendor stack, the four generic distribution rows pass from one
 declared Git revision, and all in-scope global acceptance criteria in
 [M0100](../plan.md) pass on the AMD reference host. Passthrough loss and the
-other provisional numeric budgets become binding only with `v0.2.0` physical
-NVIDIA evidence; Intel and native NixOS qualification are also `v0.2.0` gates.
+other provisional numeric budgets become binding only with M1000 / `v1.0.0`
+physical NVIDIA evidence. Intel x86_64 support qualification is also an M1000
+obligation; native NixOS qualification remains an unallocated `v0.2.0` gate.

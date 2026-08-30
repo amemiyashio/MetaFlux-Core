@@ -54,8 +54,10 @@ authorizes later history edits.
 
 - The M0100 foundation and completion sessions remain under their own owners;
   both now have D0026 summaries and empty guidance inboxes.
-- Intel host, physical NVIDIA binding performance, and native NixOS
-  qualification remain the `v0.2.0` support-expansion boundary.
+- At capture time, Intel host, physical NVIDIA binding performance, and native
+  NixOS qualification remained the `v0.2.0` support-expansion boundary. D0027
+  later supersedes only the Intel and physical NVIDIA destinations with M1000 /
+  `v1.0.0`; native NixOS remains `v0.2.0`.
 
 ## Resume notes
 

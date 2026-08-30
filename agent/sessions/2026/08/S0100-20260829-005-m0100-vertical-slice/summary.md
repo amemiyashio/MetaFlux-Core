@@ -96,10 +96,14 @@ drift before the offline matrix runs.
 
 ## Unresolved items
 
-- W0101 remains active for Intel/AMD reference-host qualification, the
-  native NixOS package row, stock-tool and optimized-lowering qualification,
-  and remaining fault, quota, and soak gates. The generic package claim is
-  verified for the rows executed here but is not the entire M0100 release gate.
+- At this session's capture time, W0101 remained active for Intel/AMD reference-
+  host qualification, the native NixOS package row, stock-tool and optimized-
+  lowering qualification, and remaining fault, quota, and soak gates. The
+  generic package claim was verified for the rows executed here but was not the
+  entire M0100 release gate. D0027 later assigned Intel support qualification to
+  M1000 / `v1.0.0`; native NixOS qualification remains assigned to the
+  unallocated `v0.2.0` expansion. That later destination split does not change
+  any test result or create qualification evidence for this session.
 
 ## Handoff
 

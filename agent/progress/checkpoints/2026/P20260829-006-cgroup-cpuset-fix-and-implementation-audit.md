@@ -61,10 +61,13 @@ audit.
 
 ## Remaining M0100 work
 
-W0101: AMD reference-host qualification was available; D0023 later assigns Intel
-host qualification to the `v0.2.0` support expansion.
+W0101: AMD reference-host qualification was available; D0023 later assigned
+Intel host qualification to the `v0.2.0` support expansion. D0027 later
+supersedes only that future destination with M1000 / `v1.0.0`.
 W0102: Multiprocess stress with concurrent admission/lease/release (needs harness).
 W0106: PGO training, -O2/-O3 comparison, hardening/soak/fuzz archival (requires
 clean Git tree run) and extended audit dimensions
-(syscall/cache-line/NUMA/asm/relocation/RSS). D0024 later assigns native NixOS
+(syscall/cache-line/NUMA/asm/relocation/RSS). D0024 later assigned native NixOS
 VM/package qualification and physical NVIDIA binding performance to `v0.2.0`.
+D0027 later supersedes only the physical NVIDIA destination with M1000 /
+`v1.0.0`; native NixOS remains `v0.2.0`.

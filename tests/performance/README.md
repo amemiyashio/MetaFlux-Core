@@ -206,8 +206,7 @@ The driver reads and hashes the plan named by `--milestone-plan`. Its canonical
 
 M0100 / `v0.1.0` therefore runs only the provisional profile. The
 `binding-reference` profile, physical NVIDIA H2D/D2H and passthrough evidence,
-and any promotion of the numeric budgets belong to the `v0.2.0` support
-expansion.
+and any promotion of the numeric budgets belong to M1000 / `v1.0.0`.
 
 Run reference measurements on an otherwise idle host. Record Intel and AMD as
 separate artifacts; one host never stands in for the other. The client CPU is

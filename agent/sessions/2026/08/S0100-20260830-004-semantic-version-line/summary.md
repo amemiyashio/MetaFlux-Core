@@ -4,8 +4,13 @@
 
 Defined and applied one product SemVer and delivery-coordinate policy across the
 repository. Every current and historical M/W/S record now uses the derived
-identity, product artifacts read `0.1.0` from one source, and the unsupported
-Intel/physical-NVIDIA/native-NixOS gates are assigned to `v0.2.0`.
+identity and product artifacts read `0.1.0` from one source. Under the policy
+captured by this session, the unsupported Intel, physical-NVIDIA, and native-
+NixOS gates were assigned to `v0.2.0`. D0027 later superseded that destination
+for Intel support qualification and physical NVIDIA binding performance by
+assigning them to M1000 / `v1.0.0`; native NixOS qualification remains assigned
+to the unallocated `v0.2.0` expansion. This later interpretation does not create
+hardware qualification evidence for this session.
 
 ## Durable changes
 
@@ -38,8 +43,10 @@ Intel/physical-NVIDIA/native-NixOS gates are assigned to `v0.2.0`.
 
 ## Decisions and experience
 
-- D0024 is canonical in `docs/release-versioning.md`; D0012 and D0023 now state
-  the exact `v0.1.0`/`v0.2.0` qualification boundary.
+- At capture time, D0024 was canonical in `docs/release-versioning.md`; D0012
+  and D0023 stated the then-current `v0.1.0`/`v0.2.0` qualification boundary.
+  D0027 later superseded only the Intel and physical-NVIDIA destination with
+  M1000 / `v1.0.0`; native NixOS remains assigned to `v0.2.0`.
 
 ## roast
 
@@ -66,10 +73,16 @@ Intel/physical-NVIDIA/native-NixOS gates are assigned to `v0.2.0`.
 ## Unresolved items
 
 - The target completion-session owner still needs to process G002.
-- `v0.2.0` has no allocated milestone until its plan is approved.
+- At capture time, `v0.2.0` had no allocated milestone pending plan approval.
+  D0027 later allocated M1000 / `v1.0.0` for Intel support and physical NVIDIA
+  binding-performance qualification while leaving native NixOS in the
+  unallocated `v0.2.0` expansion.
 
 ## Handoff
 
 Use `python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>` for all new
-work. The M0100 completion owner should process G002 before its next checkpoint
-or close boundary.
+work. At this session's handoff boundary, the M0100 completion owner still had
+to process G002 before its next checkpoint or close boundary. D0027 later
+superseded G002's destination only for Intel support and physical NVIDIA
+binding-performance qualification; it did not alter this session's recorded
+guidance disposition or evidence.

@@ -67,8 +67,9 @@ release qualification.
 ## Open work and risks
 
 - At capture time, M0100 release, generic-package, stock-tool, AMD/NUMA, fault,
-  quota, and optimized-lowering gates remained open. D0023 later assigns Intel
-  host qualification to `v0.2.0`.
+  quota, and optimized-lowering gates remained open. D0023 later assigned Intel
+  host qualification to `v0.2.0`; D0027 later supersedes only that future
+  destination with M1000 / `v1.0.0`.
 - S0100-20260828-013-m0100-foundation continues the product vertical slice. Its current 58/58 dev
   result is not release certification.
 - Host-wide Nix GC policy remains outside repository semantics.

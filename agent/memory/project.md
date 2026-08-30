@@ -33,10 +33,12 @@ Product releases use standard three-part SemVer from the repository-root
 the [release and delivery identity policy](../../docs/release-versioning.md).
 
 The current product line is M0100 / `v0.1.0`: the CPU-backed CUDA/NVML core
-foundation and its four-distribution generic release qualification. Intel host
-qualification, physical NVIDIA binding-performance promotion, and native NixOS
-VM/package qualification are the `v0.2.0` support expansion, not M0100 exit
-gates. Canonical scope and acceptance remain in the
-[repository overview](../../README.md), [plugin ownership](../../plugins/README.md),
-and [M0100](../plan/M0100-core-foundation/plan.md); recorded evidence is valid
-only for the Git revision and invocation it names.
+foundation and its four-distribution generic release qualification. Native
+NixOS VM/package qualification remains the unallocated `v0.2.0` support
+expansion. Intel x86_64 support qualification and physical NVIDIA
+binding-performance promotion belong to M1000 / `v1.0.0`. None of these later
+qualification tasks is an M0100 exit gate. Canonical scope and acceptance
+remain in the [repository overview](../../README.md),
+[plugin ownership](../../plugins/README.md), and
+[M0100](../plan/M0100-core-foundation/plan.md); recorded evidence is valid only
+for the Git revision and invocation it names.

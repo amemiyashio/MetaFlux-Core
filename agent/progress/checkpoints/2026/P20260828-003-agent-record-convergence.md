@@ -50,9 +50,10 @@ No product code, contract, or build semantic changed in this round.
    <MAJOR.MINOR.PATCH.WORK> <slug>`; close the terminal `## roast` and
    `## session-only` sections honestly and move any closed decision's row out
    of the ledger.
-3. The next material boundary remains W0101: sysroot, CUDA/NVML header
-   acquisition, LLVM 22 patchset, and provisional AMD reference evidence;
-   `v0.2.0` owns physical NVIDIA binding promotion.
+3. At capture time, the next material boundary remained W0101: sysroot,
+   CUDA/NVML header acquisition, LLVM 22 patchset, and provisional AMD reference
+   evidence; `v0.2.0` owned physical NVIDIA binding promotion. D0027 later
+   supersedes only that destination with M1000 / `v1.0.0`.
 4. Re-run the full preset matrix and `nix flake check path:.` before the next
    checkpoint.
 

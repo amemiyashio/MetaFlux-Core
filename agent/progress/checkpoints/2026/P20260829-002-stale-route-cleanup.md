@@ -63,8 +63,9 @@ implementation remains active and is not release-qualified by this cleanup.
 
 - At capture time, M0100 release, stock-tool, AMD reference,
   optimized-lowering, fault, quota, and soak gates remained open. D0023/D0024
-  later assign Intel host qualification and physical NVIDIA binding-performance
-  promotion to `v0.2.0`.
+  later assigned Intel host qualification and physical NVIDIA
+  binding-performance promotion to `v0.2.0`; D0027 later supersedes only those
+  future destinations with M1000 / `v1.0.0`.
 - S0100-20260828-013-m0100-foundation continues the product vertical slice; its prior 58/58 dev result
   is not release certification.
 - Unrelated host Nix-store retention remains an operator concern.

@@ -18,9 +18,10 @@ revision `8b79bb0` makes latest-session selection chronological across delivery
 scopes. Final content revision `209caee` rejects legacy and truncated session
 references in durable Agent records. This separate record checkpoint migrates
 all 25 historical sessions without retaining pre-policy aliases. M0100-M0130
-now represent releases `v0.1.0`-`v0.1.3`; D0012/D0023 assign Intel host,
-physical NVIDIA binding performance, and native NixOS qualification to
-`v0.2.0`.
+now represent releases `v0.1.0`-`v0.1.3`; at capture time, D0012/D0023 assigned
+Intel host, physical NVIDIA binding performance, and native NixOS qualification
+to `v0.2.0`. D0027 later supersedes only the Intel and physical NVIDIA
+destinations with M1000 / `v1.0.0`; native NixOS remains `v0.2.0`.
 
 ## Verification evidence
 

@@ -46,9 +46,10 @@ not yet demanded.
    `python3 tools/check-agent-records.py .`; then read
    [open decisions](../../../memory/open-decisions.md) and
    [current progress](../../current.md).
-2. The next material boundary remains W0101: sysroot, CUDA/NVML header
-   acquisition, the LLVM 22 patchset, and provisional AMD reference evidence;
-   `v0.2.0` owns physical NVIDIA binding promotion.
+2. At capture time, the next material boundary remained W0101: sysroot,
+   CUDA/NVML header acquisition, the LLVM 22 patchset, and provisional AMD
+   reference evidence; `v0.2.0` owned physical NVIDIA binding promotion. D0027
+   later supersedes only that destination with M1000 / `v1.0.0`.
 3. When changing the validator, add or adjust a golden-tree case in the same
    change; vacuous passes are the suite's known failure mode.
 4. Re-run the full preset matrix and `nix flake check path:.` before the next

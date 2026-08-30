@@ -47,9 +47,10 @@ procedural playbooks, machine-enforced like the rest.
    the three seeds encode procedures practiced in sessions
    S0100-20260828-001-spec-consistency through
    S0100-20260828-004-record-gate-hardening.
-3. The next material boundary remains W0101: sysroot, CUDA/NVML header
-   acquisition, the LLVM 22 patchset, and provisional AMD reference evidence;
-   `v0.2.0` owns physical NVIDIA binding promotion.
+3. At capture time, the next material boundary remained W0101: sysroot,
+   CUDA/NVML header acquisition, the LLVM 22 patchset, and provisional AMD
+   reference evidence; `v0.2.0` owned physical NVIDIA binding promotion. D0027
+   later supersedes only that destination with M1000 / `v1.0.0`.
 4. Re-run the full preset matrix and `nix flake check path:.` before the next
    checkpoint.
 
