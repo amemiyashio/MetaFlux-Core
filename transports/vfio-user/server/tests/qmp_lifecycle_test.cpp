@@ -3,11 +3,16 @@
 #include <cstdint>
 #include <iostream>
 
+using metaflux::runtime::lifecycle::Config;
+using metaflux::runtime::lifecycle::Coordinator;
 using metaflux::runtime::lifecycle::ExternalEvent;
 using metaflux::runtime::lifecycle::ExternalEventKind;
 using metaflux::runtime::lifecycle::Operation;
 using metaflux::runtime::lifecycle::Request;
+using metaflux::runtime::lifecycle::Result;
+using metaflux::runtime::lifecycle::ResultDetails;
 using metaflux::runtime::lifecycle::Source;
+using metaflux::runtime::lifecycle::State;
 using metaflux::transport::vfio_user::QmpCommand;
 using metaflux::transport::vfio_user::QmpLifecycleAdapter;
 using metaflux::transport::vfio_user::QmpReply;
@@ -17,7 +22,7 @@ using metaflux::transport::vfio_user::QmpResult;
 #define REQUIRE(condition)                                                                         \
   do {                                                                                             \
     if (!(condition)) {                                                                            \
-      std::cerr << __func__ << ':' << __LINE__ << ": " #condition "\n";                         \
+      std::cerr << __func__ << ':' << __LINE__ << ": " #condition "\n";                            \
       return false;                                                                                \
     }                                                                                              \
   } while (false)
@@ -40,8 +45,8 @@ ExternalEvent event(ExternalEventKind kind, std::uint64_t request_id,
 
 bool correlates_qmp_add_and_remove() {
   QmpLifecycleAdapter adapter;
-  REQUIRE(adapter.begin({.command_id = 100U,
-                         .event = event(ExternalEventKind::QmpAdd, 41U, 0U, 0U, 2U)}) ==
+  REQUIRE(adapter.begin(
+              {.command_id = 100U, .event = event(ExternalEventKind::QmpAdd, 41U, 0U, 0U, 2U)}) ==
           QmpResult::Accepted);
   REQUIRE(adapter.pending() && adapter.pending_command_id() == 100U);
   REQUIRE(adapter.begin({.command_id = 101U,
@@ -82,21 +87,58 @@ bool maps_remove_failure_and_rejects_add_failure() {
           request.request_id == 51U);
   REQUIRE(!adapter.pending());
 
-  REQUIRE(adapter.begin({.command_id = 201U,
-                         .event = event(ExternalEventKind::QmpAdd, 52U, 0U, 0U, 2U)}) ==
+  REQUIRE(adapter.begin(
+              {.command_id = 201U, .event = event(ExternalEventKind::QmpAdd, 52U, 0U, 0U, 2U)}) ==
           QmpResult::Accepted);
   REQUIRE(adapter.complete({.command_id = 201U, .kind = QmpReplyKind::CommandFailed}, request) ==
           QmpResult::Failed);
   REQUIRE(request.request_id == 0U && !adapter.pending());
 
-  REQUIRE(adapter.begin({.command_id = 0U,
-                         .event = event(ExternalEventKind::QmpAdd, 53U, 0U, 0U, 2U)}) ==
+  REQUIRE(adapter.begin(
+              {.command_id = 0U, .event = event(ExternalEventKind::QmpAdd, 53U, 0U, 0U, 2U)}) ==
           QmpResult::Invalid);
+  return true;
+}
+
+bool submits_qmp_completion_through_ingress() {
+  Coordinator coordinator(Config{.logical_device_id = 7U,
+                                 .daemon_incarnation = 11U,
+                                 .initial_identity_record_id = 0U,
+                                 .initial_generation = 0U,
+                                 .initial_epoch = 1U,
+                                 .initial_state = State::Absent,
+                                 .identity_record_terminal = 32U,
+                                 .generation_terminal = 32U,
+                                 .epoch_terminal = 32U});
+  QmpLifecycleAdapter adapter;
+  const auto add = event(ExternalEventKind::QmpAdd, 61U, 0U, 0U, 1U);
+  REQUIRE(adapter.begin({.command_id = 300U, .event = add}) == QmpResult::Accepted);
+  ResultDetails details{};
+  REQUIRE(adapter.complete_and_submit({.command_id = 300U, .kind = QmpReplyKind::DeviceAdded},
+                                      coordinator, details) == QmpResult::Accepted);
+  REQUIRE(details.result == Result::Accepted && details.snapshot.state == State::Online &&
+          details.snapshot.generation == 1U && details.snapshot.identity_record_id == 1U);
+
+  REQUIRE(adapter.begin({.command_id = 301U, .event = add}) == QmpResult::Accepted);
+  REQUIRE(adapter.complete_and_submit({.command_id = 301U, .kind = QmpReplyKind::DeviceAdded},
+                                      coordinator, details) == QmpResult::Accepted);
+  REQUIRE(details.result == Result::Duplicate && details.snapshot.state == State::Online);
+
+  REQUIRE(adapter.begin({.command_id = 302U,
+                         .event = event(ExternalEventKind::QmpRemove, 62U, 1U, 1U, 1U)}) ==
+          QmpResult::Accepted);
+  REQUIRE(adapter.complete_and_submit({.command_id = 302U, .kind = QmpReplyKind::CommandFailed},
+                                      coordinator, details) == QmpResult::Accepted);
+  REQUIRE(details.result == Result::Accepted && details.snapshot.state == State::Lost &&
+          coordinator.resolve(1U) == metaflux::runtime::lifecycle::ResolveResult::DeviceLost);
   return true;
 }
 
 } // namespace
 
 int main() {
-  return correlates_qmp_add_and_remove() && maps_remove_failure_and_rejects_add_failure() ? 0 : 1;
+  return correlates_qmp_add_and_remove() && maps_remove_failure_and_rejects_add_failure() &&
+                 submits_qmp_completion_through_ingress()
+             ? 0
+             : 1;
 }

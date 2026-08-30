@@ -1,5 +1,7 @@
 #include "metaflux/transport/qmp_lifecycle.hpp"
 
+#include "metaflux/runtime/lifecycle_dispatch.hpp"
+
 namespace metaflux::transport::vfio_user {
 
 using metaflux::runtime::lifecycle::ExternalEventKind;
@@ -18,30 +20,27 @@ QmpResult QmpLifecycleAdapter::begin(const QmpCommand& command) noexcept {
   if (pending_) {
     return QmpResult::Busy;
   }
-  if (command.command_id == 0U ||
-      (command.event.kind != ExternalEventKind::QmpAdd &&
-       command.event.kind != ExternalEventKind::QmpRemove)) {
+  if (command.command_id == 0U || (command.event.kind != ExternalEventKind::QmpAdd &&
+                                   command.event.kind != ExternalEventKind::QmpRemove)) {
     return QmpResult::Invalid;
   }
 
   metaflux::runtime::lifecycle::Request normalized{};
-  if (RequestNormalizer::normalize(command.event, normalized) !=
-      NormalizationResult::Accepted) {
+  if (RequestNormalizer::normalize(command.event, normalized) != NormalizationResult::Accepted) {
     return QmpResult::Invalid;
   }
 
   pending_ = true;
   pending_command_id_ = command.command_id;
-  expected_reply_ = command.event.kind == ExternalEventKind::QmpAdd
-                        ? QmpReplyKind::DeviceAdded
-                        : QmpReplyKind::DeviceDeleted;
+  expected_reply_ = command.event.kind == ExternalEventKind::QmpAdd ? QmpReplyKind::DeviceAdded
+                                                                    : QmpReplyKind::DeviceDeleted;
   pending_event_ = command.event;
   pending_request_ = normalized;
   return QmpResult::Accepted;
 }
 
-QmpResult QmpLifecycleAdapter::complete(
-    const QmpReply& reply, metaflux::runtime::lifecycle::Request& out) noexcept {
+QmpResult QmpLifecycleAdapter::complete(const QmpReply& reply,
+                                        metaflux::runtime::lifecycle::Request& out) noexcept {
   out = {};
   if (!pending_ || reply.command_id == 0U || reply.command_id != pending_command_id_) {
     return pending_ ? QmpResult::Pending : QmpResult::Invalid;
@@ -62,6 +61,34 @@ QmpResult QmpLifecycleAdapter::complete(
   }
   out = pending_request_;
   clear_pending();
+  return QmpResult::Accepted;
+}
+
+QmpResult QmpLifecycleAdapter::complete_and_submit(
+    const QmpReply& reply, metaflux::runtime::lifecycle::Coordinator& coordinator,
+    metaflux::runtime::lifecycle::ResultDetails& out) noexcept {
+  out = metaflux::runtime::lifecycle::ResultDetails{};
+  if (!pending_) {
+    out.result = metaflux::runtime::lifecycle::Result::Invalid;
+    out.snapshot = coordinator.snapshot();
+    return QmpResult::Invalid;
+  }
+  auto event = pending_event_;
+  metaflux::runtime::lifecycle::Request request{};
+  const QmpResult result = complete(reply, request);
+  if (result != QmpResult::Accepted) {
+    out.result = metaflux::runtime::lifecycle::Result::Invalid;
+    out.snapshot = coordinator.snapshot();
+    return result;
+  }
+  if (reply.kind == QmpReplyKind::CommandFailed && event.kind == ExternalEventKind::QmpRemove) {
+    event.kind = ExternalEventKind::QmpFailure;
+  }
+  if (submit_external_event(coordinator, event, out) != NormalizationResult::Accepted) {
+    out.result = metaflux::runtime::lifecycle::Result::Invalid;
+    out.snapshot = coordinator.snapshot();
+    return QmpResult::Invalid;
+  }
   return QmpResult::Accepted;
 }
 

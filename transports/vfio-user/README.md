@@ -34,4 +34,8 @@ correlation fixture. It permits one pending command, requires the matching
 after that match. A failed remove emits the existing QMP transport-loss
 operation so the coordinator can publish `LOST`; a failed add emits no device
 request. The adapter owns no generation or epoch allocation and does not yet
-implement a QMP socket or production producer wiring.
+implement a QMP socket or production producer wiring. Callers that already own
+the coordinator can use `complete_and_submit` to complete the correlation and
+submit the captured event through the stateless lifecycle ingress in one step;
+the `QmpResult` reports correlation status while `ResultDetails` reports the
+coordinator's authoritative outcome.

@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-#include "metaflux/runtime/lifecycle_normalizer.hpp"
+#include "metaflux/runtime/lifecycle_dispatch.hpp"
 
 namespace metaflux::transport::vfio_user {
 
@@ -35,7 +35,10 @@ class QmpLifecycleAdapter final {
 public:
   [[nodiscard]] QmpResult begin(const QmpCommand& command) noexcept;
   [[nodiscard]] QmpResult complete(const QmpReply& reply,
-                                    metaflux::runtime::lifecycle::Request& out) noexcept;
+                                   metaflux::runtime::lifecycle::Request& out) noexcept;
+  [[nodiscard]] QmpResult
+  complete_and_submit(const QmpReply& reply, metaflux::runtime::lifecycle::Coordinator& coordinator,
+                      metaflux::runtime::lifecycle::ResultDetails& out) noexcept;
 
   [[nodiscard]] bool pending() const noexcept { return pending_; }
   [[nodiscard]] std::uint64_t pending_command_id() const noexcept {
