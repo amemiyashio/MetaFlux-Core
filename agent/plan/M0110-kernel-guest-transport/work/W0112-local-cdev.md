@@ -72,12 +72,14 @@ and arithmetic operation is validated.
   and reclaim its backing under the cdev lock when the final queue VMA closes.
 - [x] Mark the current generation offline and wake waiters when the queue owner
   or worker lease closes, preventing new users from reusing that tombstone.
+- [x] Track queue backing with distinct root, owner, lease, VMA, and active
+  wait/poll `kref` references so the final reference performs reclamation.
 
 ## Remaining work
 
-- [ ] Complete queue object/kref/tombstone ownership beyond the VMA backing,
-  backend reference drain, and daemon-controlled generation replacement. The
-  payload and queue VMA tombstones, eventfd references, and bounded
+- [ ] Complete daemon-controlled generation replacement and backend reference
+  drain beyond the queue kref/tombstone graph. The payload and queue VMA
+  tombstones, owner-death transition, eventfd references, and bounded
   registered-memory lifetime are implemented for the current fixture.
 - [ ] Extend the leased worker/backend binding from the verified COPY subset to
   the unmodified CPU Add/launch path and prove Add/Copy end to end through the
