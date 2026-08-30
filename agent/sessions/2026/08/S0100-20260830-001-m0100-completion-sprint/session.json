@@ -11,11 +11,55 @@
   "agents": [
     {
       "id": "A001",
-      "role": "TODO: agent role"
+      "role": "M0100 completion, release qualification, and guidance processing"
     }
   ],
-  "milestones": [],
-  "work_items": [],
+  "milestones": [
+    {
+      "id": "M0100",
+      "title": "Core Foundation",
+      "status": "complete",
+      "event_seqs": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0101",
+      "milestone_id": "M0100",
+      "title": "Build and Release Prerequisites",
+      "status": "complete"
+    },
+    {
+      "id": "W0102",
+      "milestone_id": "M0100",
+      "title": "Contracts and Runtime Fast Path",
+      "status": "complete"
+    },
+    {
+      "id": "W0103",
+      "milestone_id": "M0100",
+      "title": "Compiler, Interpreter, and CPU Backend",
+      "status": "complete"
+    },
+    {
+      "id": "W0104",
+      "milestone_id": "M0100",
+      "title": "CUDA Driver Provider",
+      "status": "complete"
+    },
+    {
+      "id": "W0105",
+      "milestone_id": "M0100",
+      "title": "NVML Provider and stock nvidia-smi",
+      "status": "complete"
+    },
+    {
+      "id": "W0106",
+      "milestone_id": "M0100",
+      "title": "Modes, Performance, and Release",
+      "status": "complete"
+    }
+  ],
   "base_revision": "4c00411e2cebaa0f608475a1b454d33f5f8e1bc1",
   "final_revision": null,
   "event_log": "events.jsonl",

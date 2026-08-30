@@ -43,10 +43,10 @@ tasks and acceptance evidence, not tool versions or Nix workflow ownership.
 | Workstream | Status | Deliverable |
 | --- | --- | --- |
 | [W0101](work/W0101-build-toolchain.md) | Complete | Pinned-tool availability and M0100 build/release prerequisite qualification |
-| [W0102](work/W0102-contracts-runtime.md) | Active | Registry, shared ABI, client protocol, rings, and backend C ABI |
-| [W0103](work/W0103-compiler-cpu.md) | Active | PTX/Kernel IR oracle, CPU execution, JIT/AOT, and cache |
-| [W0104](work/W0104-cuda-provider.md) | Active | CUDA Driver ABI provider and managed Add/Copy |
-| [W0105](work/W0105-nvml-provider.md) | Active | NVML provider and supported stock `nvidia-smi` |
+| [W0102](work/W0102-contracts-runtime.md) | Complete | Registry, shared ABI, client protocol, rings, and backend C ABI |
+| [W0103](work/W0103-compiler-cpu.md) | Complete | PTX/Kernel IR oracle, CPU execution, JIT/AOT, and cache |
+| [W0104](work/W0104-cuda-provider.md) | Complete | CUDA Driver ABI provider and managed Add/Copy |
+| [W0105](work/W0105-nvml-provider.md) | Complete | NVML provider and supported stock `nvidia-smi` |
 | [W0106](work/W0106-modes-release.md) | Complete | passthrough/auto/fail-open, provisional performance, and generic packaging |
 
 Every workstream exit gate is mandatory. The dependency metadata in each work
