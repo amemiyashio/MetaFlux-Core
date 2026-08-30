@@ -56,8 +56,8 @@ superseded_by: null
 
 | Session | Guidance | Status | Outcome |
 | --- | --- | --- | --- |
-| `S0100-20260828-013-m0100-foundation` | `G005` | Adopted | G005 superseded by G006; foundation session terminal at 694272a |
-| `S0100-20260830-001-m0100-completion-sprint` | `G008` | Adopted | G008 adopted; completion session terminal at be9a421 |
+| `S0100-20260828-013-m0100-foundation` | `G005` | Resolved | G005 superseded by G006; foundation session terminal at 694272a |
+| `S0100-20260830-001-m0100-completion-sprint` | `G008` | Resolved | G008 adopted; completion session terminal at be9a421 |
 
 ## Evidence preservation
 
