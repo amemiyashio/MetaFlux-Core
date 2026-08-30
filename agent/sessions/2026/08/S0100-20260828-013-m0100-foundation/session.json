@@ -4,9 +4,9 @@
   "repository": "MetaFlux-Core",
   "delivery": "0.1.0.0",
   "started_at": "2026-08-28",
-  "ended_at": null,
+  "ended_at": "2026-08-30",
   "time_precision": "date",
-  "status": "in_progress",
+  "status": "complete",
   "fidelity": "exact",
   "agents": [
     {
@@ -30,8 +30,8 @@
     {
       "id": "M0100",
       "title": "Core Foundation",
-      "status": "active",
-      "event_seqs": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+      "status": "complete",
+      "event_seqs": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
     }
   ],
   "work_items": [
@@ -39,41 +39,41 @@
       "id": "W0101",
       "milestone_id": "M0100",
       "title": "Build and Release Prerequisites",
-      "status": "active"
+      "status": "complete"
     },
     {
       "id": "W0102",
       "milestone_id": "M0100",
       "title": "Contracts and Runtime Fast Path",
-      "status": "active"
+      "status": "complete"
     },
     {
       "id": "W0103",
       "milestone_id": "M0100",
       "title": "Compiler, Interpreter, and CPU Backend",
-      "status": "active"
+      "status": "complete"
     },
     {
       "id": "W0104",
       "milestone_id": "M0100",
       "title": "CUDA Driver Provider",
-      "status": "active"
+      "status": "complete"
     },
     {
       "id": "W0105",
       "milestone_id": "M0100",
       "title": "NVML Provider and stock nvidia-smi",
-      "status": "active"
+      "status": "complete"
     },
     {
       "id": "W0106",
       "milestone_id": "M0100",
       "title": "Modes, Performance, and Release",
-      "status": "active"
+      "status": "complete"
     }
   ],
   "base_revision": "cbb0e9b3c8ef631c0e04945eb29cd10caf63a441",
-  "final_revision": null,
+  "final_revision": "694272aeeb86b9546a7ead0adc385ee8a2f7c038",
   "event_log": "events.jsonl",
   "summary": "summary.md",
   "notes": "notes.md"

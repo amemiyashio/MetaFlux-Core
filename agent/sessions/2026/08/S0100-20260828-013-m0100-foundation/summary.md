@@ -2,12 +2,14 @@
 
 ## Objective and outcome
 
-M0100 implementation remains active. Revision `7b86b35` is the implementation
+M0100 implementation is Complete. Revision `7b86b35` is the implementation
 provenance checkpoint for a working registry and fast path, PTX/Kernel IR and
 CPU execution path, compiler worker, CUDA/NVML compatibility surfaces,
-performance runners, packaging metadata, and release-harness foundation. Its
-development suite passed, but remaining release and reference-host gates prevent
-a completion claim.
+performance runners, packaging metadata, and release-harness foundation.
+Revision `694272a` (cgroup cpuset fix) is the last content revision owned by
+this session. Release qualification (packages at `0feac1d`, matrix 8/8, signed
+provenance) belongs to the completion session `S0100-20260830-001-m0100-completion-sprint`, not to this
+implementation checkpoint. G006 supersedes the missing G001/G005 handoffs.
 
 ## Durable changes
 
