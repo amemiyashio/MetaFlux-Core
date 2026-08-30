@@ -2,10 +2,10 @@
 id: W0133
 delivery: 0.1.3.3
 milestone: M0130
-status: Queued
+status: Active
 area: compiler.spirv
 depends_on: [W0131]
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 
 # Target-Constrained SPIR-V Lowering
@@ -32,6 +32,10 @@ fallback inside a Vulkan context.
 
 ## Work
 
+- [x] Add a target preflight validator for the queried Vulkan profile and
+  target digest. It rejects missing required features, mismatched target
+  identity, out-of-range workgroups, unknown address spaces, and unproved
+  subgroup-width assumptions before any future module creation.
 - [ ] Implement target-constrained Kernel IR to MLIR SPIR-V lowering and packed
   BDA reflection/verification.
 - [ ] Validate every module against Vulkan 1.3 and the actually enabled target.

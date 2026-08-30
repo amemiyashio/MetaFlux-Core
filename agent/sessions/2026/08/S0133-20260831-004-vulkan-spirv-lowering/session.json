@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0133-20260831-004-vulkan-spirv-lowering",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.3.3",
+  "started_at": "2026-08-31",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0130 Vulkan target-preflight implementer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0130",
+      "title": "Vulkan Execution Backend",
+      "status": "active",
+      "event_seqs": [1, 2, 3]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0133",
+      "milestone_id": "M0130",
+      "title": "Target-constrained SPIR-V lowering",
+      "status": "active"
+    }
+  ],
+  "base_revision": "2d817473b822c23d5c70df5261892b33ce77de0a",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

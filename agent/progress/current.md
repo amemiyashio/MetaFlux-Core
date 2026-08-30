@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0130
-workstream: W0132
-checkpoint: P20260831-043
+workstream: W0133
+checkpoint: P20260831-044
 ---
 
 # Current Progress
@@ -64,6 +64,8 @@ W0131's packed BDA argument and external-memory 0.x profiles are recorded at
 [P20260831-042](checkpoints/2026/P20260831-042-m0130-vulkan-abi-profiles.md).
 W0132's generation-bound staging suballocation and timeline admission model are
 recorded at [P20260831-043](checkpoints/2026/P20260831-043-m0130-vulkan-memory-model.md).
+W0133's target profile/module preflight diagnostics are recorded at
+[P20260831-044](checkpoints/2026/P20260831-044-m0130-vulkan-target-preflight.md).
 W0122's QMP completion-to-ingress helper is recorded at
 [P20260831-028](checkpoints/2026/P20260831-028-m0120-qmp-ingress.md).
 W0122's vfio-user disconnect handoff is recorded at
@@ -228,6 +230,15 @@ Linux 9.8.
 | W0132 CTest | Full `vulkan` preset passed 84/84, including `metaflux.backend.vulkan-memory` |
 | W0132 current boundary | Physical `VkDeviceMemory`, non-coherent flush/invalidate, external-handle import, cross-process synchronization, lifecycle drain, and driver qualification remain open |
 
+## Recorded M0130 W0133 Evidence
+
+| Gate | Recorded result |
+| --- | --- |
+| W0133 target preflight | `86441c7`; queried profile, required features, target digest, workgroup limits, known address spaces, BDA intent, and subgroup constraints are validated before module creation |
+| W0133 diagnostics | Stable statuses cover invalid profile/module, unsupported features/semantics, target mismatch, and limit exceeded; positive and negative fixtures pass |
+| W0133 CTest | Full `vulkan` preset passed 85/85, including `metaflux.backend.vulkan-target-preflight` |
+| W0133 current boundary | MLIR conversion, SPIR-V validation/reflection, pipeline creation, execution, and dual-driver differential evidence remain open |
+
 ## Versioned Next Work
 
 1. M0100, its foundation session, and its completion session are terminal; the
@@ -287,6 +298,10 @@ Linux 9.8.
     [P20260831-043](checkpoints/2026/P20260831-043-m0130-vulkan-memory-model.md).
     Continue with qualified-device allocation and synchronization evidence;
     keep the staging model separate from physical Vulkan qualification.
+11. M0130/W0133 is Active after the target-preflight stage at
+    [P20260831-044](checkpoints/2026/P20260831-044-m0130-vulkan-target-preflight.md).
+    Continue with MLIR/SPIR-V conversion and reflection fixtures only after the
+    preflight admission remains the first module boundary.
 
 ## Tool Boundary
 
