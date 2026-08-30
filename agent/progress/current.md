@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0130
 workstream: W0131
-checkpoint: P20260831-041
+checkpoint: P20260831-042
 ---
 
 # Current Progress
@@ -60,6 +60,8 @@ W0113's compile-checked static guest PCI resource binder is recorded at
 M0130 is now Active; W0131's Vulkan capability ABI, opt-in tool epoch, and
 truthful host probe are recorded at
 [P20260831-041](checkpoints/2026/P20260831-041-m0130-vulkan-capability.md).
+W0131's packed BDA argument and external-memory 0.x profiles are recorded at
+[P20260831-042](checkpoints/2026/P20260831-042-m0130-vulkan-abi-profiles.md).
 W0122's QMP completion-to-ingress helper is recorded at
 [P20260831-028](checkpoints/2026/P20260831-028-m0120-qmp-ingress.md).
 W0122's vfio-user disconnect handoff is recorded at
@@ -209,6 +211,7 @@ Linux 9.8.
 | Gate | Recorded result |
 | --- | --- |
 | Vulkan capability ABI | `837619a`; fixed-width C profile with status, API/driver/device identity, queue, subgroup, memory-tier, UUID, target-environment, and digest fields; C layout test passed |
+| Vulkan packed arguments and memory profiles | `21ed444`; 64-byte/48-byte target-digest-bound argument layout and 96-byte external-memory 0.x tier profile; positive and negative C fixtures passed |
 | Vulkan host probe | Optional C++20 probe requires Vulkan 1.3 compute, timeline semaphores, Synchronization2, buffer device address, and a compute queue; unavailable host reports `no-device` without qualification |
 | Vulkan tool epoch | `toolchains/vulkan-1.json` and `.#vulkan` expose Vulkan headers/loader/tools, glslang, and SPIR-V Tools at the locked nixpkgs versions |
 | Vulkan CTest | Full `vulkan` preset passed 81/81, including ABI and capability regressions |
@@ -263,11 +266,12 @@ Linux 9.8.
    Add/launch, backend references, replacement generations, and lifecycle/fault
    qualification. Do not claim the cdev exit gate from the mapped COPY fixture
    alone.
-9. M0130/W0131 is Active after the capability ABI stage at
-   [P20260831-041](checkpoints/2026/P20260831-041-m0130-vulkan-capability.md).
-   Continue with the exact target baseline and packed BDA/external-memory
-   fixtures, then W0132/W0133, without claiming physical driver-family support
-   from the current host's `no-device` probe.
+9. M0130/W0131 is Active after the capability ABI stages at
+   [P20260831-041](checkpoints/2026/P20260831-041-m0130-vulkan-capability.md) and
+   [P20260831-042](checkpoints/2026/P20260831-042-m0130-vulkan-abi-profiles.md).
+   Continue with the exact target baseline, then move to W0132/W0133 without
+   claiming physical driver-family support from the current host's `no-device`
+   probe.
 
 ## Tool Boundary
 

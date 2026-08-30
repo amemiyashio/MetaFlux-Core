@@ -45,6 +45,9 @@ Implemented stage:
   `spirv-val` in the named Nix `vulkan-tools` output and `.#vulkan` shell.
 - [x] Add C ABI layout and host capability regression tests; an unavailable or
   incompatible host is reported as a skipped local probe.
+- [x] Draft the target-digest-bound packed scalar/device-address argument block
+  and external-memory 0.x profile, with generation, range, ownership, and
+  staging/direct-import negative fixtures.
 
 - [ ] Select the exact feature/limit baseline, minimum versions, and two
   independent Vulkan driver families.
