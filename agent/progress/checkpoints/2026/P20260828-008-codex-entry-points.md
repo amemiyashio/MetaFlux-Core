@@ -2,8 +2,8 @@
 id: P20260828-008
 status: Recorded
 captured: 2026-08-28
-milestone: M0001
-workstream: M0001-W01
+milestone: M0100
+workstream: W0101
 branch: main
 git_revision: 3fe0ace283c857f926b4d9a9555438a5df7e835e
 workspace: Agent entry-point check committed; this checkpoint and its session record are committed afterward
@@ -11,8 +11,8 @@ workspace: Agent entry-point check committed; this checkpoint and its session re
 
 # Codex Entry-Point Verification
 
-Milestone: [M0001](../../../plan/M0001-core-foundation/plan.md). Workstream:
-[M0001-W01](../../../plan/M0001-core-foundation/work/W01-build-toolchain.md).
+Milestone: [M0100](../../../plan/M0100-core-foundation/plan.md). Workstream:
+[W0101](../../../plan/M0100-core-foundation/work/W0101-build-toolchain.md).
 This checkpoint records the state at revision
 `3fe0ace283c857f926b4d9a9555438a5df7e835e`.
 
@@ -53,9 +53,9 @@ implementation.
 1. Begin with `python3 tools/check-agent-records.py .`; this checkpoint is
    immutable.
 2. Codex follows root `AGENTS.md`; do not add a Codex-specific copied rulebook.
-3. The next M0001-W01 product boundaries remain the release provider sysroot,
+3. The next W0101 product boundaries remain the release provider sysroot,
    CUDA/NVML header acquisition, LLVM 22 patchset, and reference-host
    qualification.
 
 Related work record:
-[S20260828-008](../../../sessions/2026/08/S20260828-008-codex-entry-points/summary.md).
+[S0101-20260828-008-codex-entry-points](../../../sessions/2026/08/S0101-20260828-008-codex-entry-points/summary.md).

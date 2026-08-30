@@ -2,8 +2,8 @@
 id: P20260828-009
 status: Recorded
 captured: 2026-08-28
-milestone: M0001
-workstream: M0001-W01
+milestone: M0100
+workstream: W0101
 branch: main
 git_revision: 12efb20e52e215fdfc70a3d4a59c2fc46bfcf4d9
 workspace: Codex skill package migration committed; this checkpoint and its session record are committed afterward
@@ -11,8 +11,8 @@ workspace: Codex skill package migration committed; this checkpoint and its sess
 
 # Codex Skill Packages and Readiness Guidance
 
-Milestone: [M0001](../../../plan/M0001-core-foundation/plan.md). Workstream:
-[M0001-W01](../../../plan/M0001-core-foundation/work/W01-build-toolchain.md).
+Milestone: [M0100](../../../plan/M0100-core-foundation/plan.md). Workstream:
+[W0101](../../../plan/M0100-core-foundation/work/W0101-build-toolchain.md).
 This checkpoint records the state at revision
 `12efb20e52e215fdfc70a3d4a59c2fc46bfcf4d9`.
 
@@ -39,7 +39,7 @@ classifies open decisions by latest safe closure point and requires executable
 fitness evidence for important quality attributes.
 
 This checkpoint does not promote any CUDA, NVML, runtime, compiler, transport,
-or backend fixture to functional implementation. M0001-W01 remains active.
+or backend fixture to functional implementation. W0101 remains active.
 
 ## Verification evidence
 
@@ -59,9 +59,9 @@ or backend fixture to functional implementation. M0001-W01 remains active.
 2. Invoke `$implementation-readiness` for future architecture/workstream
    readiness reviews; do not infer implementation maturity from scaffold
    completeness.
-3. The next M0001-W01 product boundaries remain the release provider sysroot,
+3. The next W0101 product boundaries remain the release provider sysroot,
    CUDA/NVML header acquisition, LLVM 22 patchset, and reference-host
    qualification.
 
 Related work record:
-[S20260828-009](../../../sessions/2026/08/S20260828-009-implementation-readiness-skill/summary.md).
+[S0101-20260828-009-implementation-readiness-skill](../../../sessions/2026/08/S0101-20260828-009-implementation-readiness-skill/summary.md).

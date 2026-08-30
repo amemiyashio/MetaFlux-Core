@@ -2,8 +2,8 @@
 id: P20260829-004
 status: Recorded
 captured: 2026-08-29
-milestone: M0001
-workstream: M0001-W01
+milestone: M0100
+workstream: W0101
 branch: main
 git_revision: f604fbea7f3bc2eaffb4c4448ef89607cd7ed697
 workspace: glibc/package enforcement changes remain in the worktree; disposable build and matrix outputs were removed after recording
@@ -11,8 +11,8 @@ workspace: glibc/package enforcement changes remain in the worktree; disposable 
 
 # Generic Linux glibc Floor Qualification
 
-Active milestone: [M0001](../../../plan/M0001-core-foundation/plan.md). Active
-workstream: [M0001-W01](../../../plan/M0001-core-foundation/work/W01-build-toolchain.md).
+Active milestone: [M0100](../../../plan/M0100-core-foundation/plan.md). Active
+workstream: [W0101](../../../plan/M0100-core-foundation/work/W0101-build-toolchain.md).
 
 ## Engineering state
 
@@ -49,13 +49,14 @@ additional SDKs or glibc targets.
 
 ## Open work and risks
 
-- M0001-W01 still needs Intel/AMD reference-host qualification and the native
-  NixOS package row, plus stock-tool, optimized-lowering, fault, quota, and
-  soak gates. This checkpoint does not certify the entire milestone.
+- At capture time, stock-tool, optimized-lowering, fault, quota, and soak gates
+  still needed closure. D0023/D0024 later assign Intel host and native NixOS
+  VM/package qualification to `v0.2.0`; neither is an M0100 exit gate. This
+  checkpoint does not certify the entire milestone.
 
 ## Resume notes
 
-1. Read D0009, M0001-W01, and
+1. Read D0009, W0101, and
    [`manage-toolchain`](../../../skills/manage-toolchain/SKILL.md) before
    changing target inputs or shell materialization.
 2. Build generic artifacts with the Ubuntu 20.04 target tuple, then run
@@ -64,4 +65,4 @@ additional SDKs or glibc targets.
    only their compact result in the session and progress records.
 
 Related work record:
-[S20260829-005](../../../sessions/2026/08/S20260829-005-m0001-vertical-slice/summary.md).
+[S0100-20260829-005-m0100-vertical-slice](../../../sessions/2026/08/S0100-20260829-005-m0100-vertical-slice/summary.md).

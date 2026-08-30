@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "S0100-20260828-002-layout-convergence",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.0.0",
+  "started_at": "2026-08-28",
+  "ended_at": "2026-08-28",
+  "time_precision": "date",
+  "status": "complete",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "MetaFlux-Core integration coordinator"
+    },
+    {
+      "id": "A002",
+      "role": "Repository layout convergence agent"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0100",
+      "title": "Core Foundation",
+      "status": "active",
+      "event_seqs": [1, 2, 3, 4, 5, 6, 7, 8]
+    },
+    {
+      "id": "M0110",
+      "title": "Kernel and Guest Transport",
+      "status": "queued",
+      "event_seqs": [2]
+    },
+    {
+      "id": "M0130",
+      "title": "Vulkan Execution Backend",
+      "status": "queued",
+      "event_seqs": [5]
+    }
+  ],
+  "work_items": [],
+  "base_revision": "67aa3975e37bfff5812a32b97490a1eec1c3b11b",
+  "final_revision": "cca908221cb5b265ae0944a3e87598b1f5a70956",
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

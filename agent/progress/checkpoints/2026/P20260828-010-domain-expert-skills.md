@@ -2,8 +2,8 @@
 id: P20260828-010
 status: Recorded
 captured: 2026-08-28
-milestone: M0001
-workstream: M0001-W01
+milestone: M0100
+workstream: W0101
 branch: main
 git_revision: a40a47553a9654024e06ac80200d61d1543c563b
 workspace: Domain expert skill content committed; this checkpoint and its session record are committed afterward
@@ -11,12 +11,12 @@ workspace: Domain expert skill content committed; this checkpoint and its sessio
 
 # Domain Expert Skill Matrix
 
-Milestone: [M0001](../../../plan/M0001-core-foundation/plan.md). Active
+Milestone: [M0100](../../../plan/M0100-core-foundation/plan.md). Active
 workstream:
-[M0001-W01](../../../plan/M0001-core-foundation/work/W01-build-toolchain.md).
+[W0101](../../../plan/M0100-core-foundation/work/W0101-build-toolchain.md).
 This checkpoint records the skill catalog at revision
 `a40a47553a9654024e06ac80200d61d1543c563b` while also routing future work in
-queued M0002-M0004.
+queued M0110-M0130.
 
 ## Snapshot
 
@@ -67,11 +67,11 @@ durable constraint, open decision, milestone status, or fixture maturity changed
 2. Select the narrowest expert or composition route from the catalog. Exact
    versions come from the active plan, compiler epoch, pinned headers, and
    qualified support matrix.
-3. M0001-W01 remains active. The next product boundaries remain the release
+3. W0101 remains active. The next product boundaries remain the release
    provider sysroot, CUDA/NVML header acquisition, LLVM 22 patchset, and
    reference-host qualification.
 4. Do not interpret expert guidance or trigger coverage as functional CUDA,
    NVML, compiler, kernel, guest, PCI, lifecycle, or Vulkan evidence.
 
 Related work record:
-[S20260828-010](../../../sessions/2026/08/S20260828-010-domain-expert-skills/summary.md).
+[S0100-20260828-010-domain-expert-skills](../../../sessions/2026/08/S0100-20260828-010-domain-expert-skills/summary.md).

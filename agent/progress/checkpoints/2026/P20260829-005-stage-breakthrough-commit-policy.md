@@ -2,8 +2,8 @@
 id: P20260829-005
 status: Recorded
 captured: 2026-08-29
-milestone: M0001
-workstream: M0001-W01
+milestone: M0100
+workstream: W0101
 branch: main
 git_revision: 267edc4cd1344906ec2a5d9d1e44b4c4eb7aeb35
 workspace: content breakthroughs are committed; compact session and progress records are pending their separate record commit
@@ -11,8 +11,8 @@ workspace: content breakthroughs are committed; compact session and progress rec
 
 # Stage Breakthrough Commit Policy
 
-Active milestone: [M0001](../../../plan/M0001-core-foundation/plan.md). Active
-workstream: [M0001-W01](../../../plan/M0001-core-foundation/work/W01-build-toolchain.md).
+Active milestone: [M0100](../../../plan/M0100-core-foundation/plan.md). Active
+workstream: [W0101](../../../plan/M0100-core-foundation/work/W0101-build-toolchain.md).
 
 ## Engineering state
 
@@ -52,4 +52,4 @@ chosen to invoke `git commit`.
    session active.
 
 Related work record:
-[S20260829-006](../../../sessions/2026/08/S20260829-006-stage-breakthrough-commits/summary.md).
+[S0100-20260829-006-stage-breakthrough-commits](../../../sessions/2026/08/S0100-20260829-006-stage-breakthrough-commits/summary.md).

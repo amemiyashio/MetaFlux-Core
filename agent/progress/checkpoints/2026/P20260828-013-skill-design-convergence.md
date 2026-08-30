@@ -2,8 +2,8 @@
 id: P20260828-013
 status: Recorded
 captured: 2026-08-28
-milestone: M0001
-workstream: M0001-W01
+milestone: M0100
+workstream: W0101
 branch: main
 git_revision: 497a58fb8d54da5ea569bb894736de98c58d8fb8
 workspace: expert-skill and routing content committed; this checkpoint records cross-milestone architecture guidance without advancing queued implementation status
@@ -11,10 +11,10 @@ workspace: expert-skill and routing content committed; this checkpoint records c
 
 # Expert Skill Design Convergence
 
-Active milestone: [M0001](../../../plan/M0001-core-foundation/plan.md). Active
+Active milestone: [M0100](../../../plan/M0100-core-foundation/plan.md). Active
 workstream:
-[M0001-W01](../../../plan/M0001-core-foundation/work/W01-build-toolchain.md).
-The skill changes also refine queued M0001-W02 and M0002-M0004 planning.
+[W0101](../../../plan/M0100-core-foundation/work/W0101-build-toolchain.md).
+The skill changes also refine queued W0102 and M0110-M0130 planning.
 
 ## Snapshot
 
@@ -28,7 +28,7 @@ shared layouts, backend C ABI, and canonical cross-layer schema generation.
 Package and routing expectations are machine-enforced. The structured bilingual
 corpus contains 68 cases for the 11 domain skills, including 13 compositions;
 the observation scorer keeps real model/host routing evidence separate from
-static corpus validity. M0001-W02 and M0003 planning now specify publication,
+static corpus validity. W0102 and M0120 planning now specify publication,
 admission, range reserve/retire, telemetry, exact recovery, close reserve, and
 live-writer quarantine invariants consistently.
 
@@ -65,16 +65,16 @@ implemented or release-qualified.
   model/host combination that is to be behaviorally qualified.
 - Implement and measure the queued workstreams before using these planning
   contracts as release evidence.
-- M0001-W01 still owns the release sysroot, header acquisition, LLVM patchset,
-  and reference-host performance gates before M0001-W02 activation.
+- W0101 still owns the release sysroot, header acquisition, LLVM patchset,
+  and reference-host performance gates before W0102 activation.
 
 ## Resume notes
 
 1. Start with the smallest owner set in `agent/skills/README.md`.
-2. For shared registry or publication changes, read M0001-W02 and
+2. For shared registry or publication changes, read W0102 and
    `runtime-contracts-registry` before changing schema or state.
 3. Keep static routing validation and captured model behavior as separate
    evidence classes.
 
 Related work record:
-[S20260828-011](../../../sessions/2026/08/S20260828-011-skill-design-convergence/summary.md).
+[S0100-20260828-011-skill-design-convergence](../../../sessions/2026/08/S0100-20260828-011-skill-design-convergence/summary.md).

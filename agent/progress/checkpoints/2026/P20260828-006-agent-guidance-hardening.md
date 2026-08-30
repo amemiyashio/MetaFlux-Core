@@ -2,8 +2,8 @@
 id: P20260828-006
 status: Recorded
 captured: 2026-08-28
-milestone: M0001
-workstream: M0001-W01
+milestone: M0100
+workstream: W0101
 branch: main
 git_revision: e2aebe96364eb653c1af2b896771c08910835fe7
 workspace: guidance hardening committed; this checkpoint and its session record are committed afterward
@@ -11,8 +11,8 @@ workspace: guidance hardening committed; this checkpoint and its session record 
 
 # Agent Guidance Hardening
 
-Milestone: [M0001](../../../plan/M0001-core-foundation/plan.md). Workstream:
-[M0001-W01](../../../plan/M0001-core-foundation/work/W01-build-toolchain.md).
+Milestone: [M0100](../../../plan/M0100-core-foundation/plan.md). Workstream:
+[W0101](../../../plan/M0100-core-foundation/work/W0101-build-toolchain.md).
 This checkpoint records the state at revision
 `e2aebe96364eb653c1af2b896771c08910835fe7`.
 
@@ -45,11 +45,11 @@ checks are the backstop.
 
 1. New agents read [AGENTS.md](../../../../AGENTS.md) first; the on-ramp is
    the [start-work skill](../../../skills/start-work/SKILL.md).
-2. The next material boundary remains M0001-W01: sysroot, CUDA/NVML header
+2. The next material boundary remains W0101: sysroot, CUDA/NVML header
    acquisition, the LLVM 22 patchset, and reference-host baselines — plus the
    three product spikes recommended in the 2026-08-28 improvement review.
 3. Re-run the full preset matrix and `nix flake check path:.` before the next
    checkpoint.
 
 Related work record:
-[S20260828-006](../../../sessions/2026/08/S20260828-006-agent-guidance-hardening/summary.md).
+[S0100-20260828-006-agent-guidance-hardening](../../../sessions/2026/08/S0100-20260828-006-agent-guidance-hardening/summary.md).

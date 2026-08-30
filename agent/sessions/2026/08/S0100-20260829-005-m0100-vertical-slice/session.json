@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "id": "S0100-20260829-005-m0100-vertical-slice",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.0.0",
+  "started_at": "2026-08-29",
+  "ended_at": "2026-08-29",
+  "time_precision": "date",
+  "status": "complete",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "primary repository agent"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0100",
+      "title": "Core Foundation",
+      "status": "active",
+      "event_seqs": [1, 2, 3, 4, 5, 6, 7, 8]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0101",
+      "milestone_id": "M0100",
+      "title": "Build, Toolchain, and Reproducible Environment",
+      "status": "active"
+    },
+    {
+      "id": "W0102",
+      "milestone_id": "M0100",
+      "title": "Contracts and Runtime Fast Path",
+      "status": "active"
+    },
+    {
+      "id": "W0103",
+      "milestone_id": "M0100",
+      "title": "Compiler, Interpreter, and CPU Backend",
+      "status": "active"
+    },
+    {
+      "id": "W0104",
+      "milestone_id": "M0100",
+      "title": "CUDA Driver Provider",
+      "status": "active"
+    },
+    {
+      "id": "W0105",
+      "milestone_id": "M0100",
+      "title": "NVML Provider and stock nvidia-smi",
+      "status": "active"
+    },
+    {
+      "id": "W0106",
+      "milestone_id": "M0100",
+      "title": "Modes, Performance, and Release",
+      "status": "active"
+    }
+  ],
+  "base_revision": "f604fbea7f3bc2eaffb4c4448ef89607cd7ed697",
+  "final_revision": "f604fbea7f3bc2eaffb4c4448ef89607cd7ed697",
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

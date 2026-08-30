@@ -39,7 +39,7 @@ and SHA-256. Transfer candidates follow D0020 and end at canonical upstream.
 
 ## Product boundary
 
-D0017 and M0001 remain PTX 9.0/`sm_70`. The baseline records gaps on that path;
+D0017 and M0100 remain PTX 9.0/`sm_70`. The baseline records gaps on that path;
 the frontier is research until a later milestone owns an `sm_80` capability
 descriptor, negotiation, compiler/runtime changes, and complete evidence.
 

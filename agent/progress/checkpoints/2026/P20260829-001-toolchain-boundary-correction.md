@@ -2,18 +2,18 @@
 id: P20260829-001
 status: Recorded
 captured: 2026-08-29
-milestone: M0001
-workstream: M0001-W01
+milestone: M0100
+workstream: W0101
 branch: main
 git_revision: 7b86b35552c0a52661071cf6a74b76aef1faf289
-workspace: durable content committed; correction records follow separately; repository and session-owned build trees removed; S20260828-013 remains active
+workspace: durable content committed; correction records follow separately; repository and session-owned build trees removed; S0100-20260828-013-m0100-foundation remains active
 ---
 
 # Toolchain Boundary Correction
 
-Active milestone: [M0001](../../../plan/M0001-core-foundation/plan.md). Active
+Active milestone: [M0100](../../../plan/M0100-core-foundation/plan.md). Active
 workstream:
-[M0001-W01](../../../plan/M0001-core-foundation/work/W01-build-toolchain.md).
+[W0101](../../../plan/M0100-core-foundation/work/W0101-build-toolchain.md).
 
 ## Snapshot
 
@@ -25,11 +25,11 @@ CMake/Ninja own builds; CTest and test harnesses own qualification;
 the host owns Nix-store retention.
 
 The `manage-toolchain` skill governs this boundary, and `record-session` now
-requires cleanup accounting instead of worktree snapshots. M0001 and W01 retain
+requires cleanup accounting instead of worktree snapshots. M0100 and W0101 retain
 task, dependency, and acceptance semantics without becoming a repository-wide
 toolchain policy.
 
-The current M0001 foundation is committed at the revision above and remains
+The current M0100 foundation is committed at the revision above and remains
 active. This checkpoint records a governance and implementation handoff, not a
 release qualification.
 
@@ -66,15 +66,16 @@ release qualification.
 
 ## Open work and risks
 
-- M0001 release, generic-package, stock-tool, Intel/NUMA, fault, quota, and
-  optimized-lowering gates remain open.
-- S20260828-013 continues the product vertical slice. Its current 58/58 dev
+- At capture time, M0100 release, generic-package, stock-tool, AMD/NUMA, fault,
+  quota, and optimized-lowering gates remained open. D0023 later assigns Intel
+  host qualification to `v0.2.0`.
+- S0100-20260828-013-m0100-foundation continues the product vertical slice. Its current 58/58 dev
   result is not release certification.
 - Host-wide Nix GC policy remains outside repository semantics.
 
 ## Resume notes
 
-1. Read `toolchains/README.md`, current progress, M0001, and the smallest
+1. Read `toolchains/README.md`, current progress, M0100, and the smallest
    matching domain skill.
 2. Use `nix develop . --command <owner command>` only to obtain fixed tools.
 3. Put generated work under the external `.metaflux-build` or
@@ -82,6 +83,6 @@ release qualification.
    handoff.
 
 Related work records:
-[S20260829-001](../../../sessions/2026/08/S20260829-001-toolchain-boundary-correction/summary.md)
+[S0101-20260829-001-toolchain-boundary-correction](../../../sessions/2026/08/S0101-20260829-001-toolchain-boundary-correction/summary.md)
 and
-[S20260828-013](../../../sessions/2026/08/S20260828-013-m0001-foundation/summary.md).
+[S0100-20260828-013-m0100-foundation](../../../sessions/2026/08/S0100-20260828-013-m0100-foundation/summary.md).

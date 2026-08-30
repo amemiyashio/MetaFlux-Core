@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0101-20260828-012-ubuntu-2004-glibc-floor",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.0.1",
+  "started_at": "2026-08-28",
+  "ended_at": "2026-08-28",
+  "time_precision": "date",
+  "status": "complete",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "Codex build-baseline decision maintainer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0100",
+      "title": "Core Foundation",
+      "status": "active",
+      "event_seqs": [1, 2, 3, 4, 5, 6]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0101",
+      "milestone_id": "M0100",
+      "title": "Build, Toolchain, and Reproducible Environment",
+      "status": "active"
+    }
+  ],
+  "base_revision": "27ee7da855abc630bdc3da2535d5574bc2238ccf",
+  "final_revision": "235801e7c8710cea2086a26d3a3a7b64c11d7cf1",
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

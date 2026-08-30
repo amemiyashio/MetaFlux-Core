@@ -2,8 +2,8 @@
 id: P20260828-004
 status: Recorded
 captured: 2026-08-28
-milestone: M0001
-workstream: M0001-W01
+milestone: M0100
+workstream: W0101
 branch: main
 git_revision: 6e71a253a6c14749ca6a5a5dd1ecbb7d929d2888
 workspace: record-gate hardening committed; this checkpoint and its session record are committed afterward
@@ -11,8 +11,8 @@ workspace: record-gate hardening committed; this checkpoint and its session reco
 
 # Record Gate Hardening
 
-Milestone: [M0001](../../../plan/M0001-core-foundation/plan.md). Workstream:
-[M0001-W01](../../../plan/M0001-core-foundation/work/W01-build-toolchain.md).
+Milestone: [M0100](../../../plan/M0100-core-foundation/plan.md). Workstream:
+[W0101](../../../plan/M0100-core-foundation/work/W0101-build-toolchain.md).
 This checkpoint records the state at revision
 `6e71a253a6c14749ca6a5a5dd1ecbb7d929d2888`.
 
@@ -46,13 +46,13 @@ not yet demanded.
    `python3 tools/check-agent-records.py .`; then read
    [open decisions](../../../memory/open-decisions.md) and
    [current progress](../../current.md).
-2. The next material boundary remains M0001-W01: sysroot, CUDA/NVML header
-   acquisition, the LLVM 22 patchset, and reference-host baselines that
-   promote the provisional budgets to binding.
+2. The next material boundary remains W0101: sysroot, CUDA/NVML header
+   acquisition, the LLVM 22 patchset, and provisional AMD reference evidence;
+   `v0.2.0` owns physical NVIDIA binding promotion.
 3. When changing the validator, add or adjust a golden-tree case in the same
    change; vacuous passes are the suite's known failure mode.
 4. Re-run the full preset matrix and `nix flake check path:.` before the next
    checkpoint.
 
 Related work record:
-[S20260828-004](../../../sessions/2026/08/S20260828-004-record-gate-hardening/summary.md).
+[S0100-20260828-004-record-gate-hardening](../../../sessions/2026/08/S0100-20260828-004-record-gate-hardening/summary.md).

@@ -11,11 +11,14 @@ verification claim, or handoff. Failed routes are deleted at the session
 boundary unless one concise lesson is needed to prevent repetition.
 
 Sessions use the date hierarchy
-`sessions/YYYY/MM/SYYYYMMDD-NNN-slug/`. The directory contains `session.json`,
-`events.jsonl`, `summary.md`, `notes.md`, and an `outputs/` directory. IDs and
-event sequence numbers are immutable after a session reaches a terminal status.
-While work is in progress, the ledger may be distilled and resequenced; Git
-retains its earlier forms.
+`sessions/YYYY/MM/S<delivery>-YYYYMMDD-NNN-slug/`. The semantic prefix is
+derived from `session.json.delivery`; the date and sequence make repeated work
+instances unique. The directory contains `session.json`, `events.jsonl`,
+`summary.md`, `notes.md`, and an `outputs/` directory. IDs and event sequence
+numbers are immutable after a session reaches a terminal status. D0024 was the
+one explicit repository-wide migration from the earlier date-only IDs. While
+work is in progress, the ledger may be distilled and resequenced; Git retains
+its earlier forms.
 
 An `in_progress` session has `ended_at: null`. Complete, blocked, and abandoned
 sessions record the date or timestamp when work stopped.
@@ -44,30 +47,31 @@ deletion. Terminal sessions must contain no file or symbolic link under
 
 | Session | Date | Fidelity | Status | Summary |
 | --- | --- | --- | --- | --- |
-| [S20260827-001-metaflux-bootstrap](2026/08/S20260827-001-metaflux-bootstrap/summary.md) | 2026-08-27 | Reconstructed | Complete | MetaFlux planning, bootstrap, architecture review, and build hardening |
-| [S20260828-001-spec-consistency](2026/08/S20260828-001-spec-consistency/summary.md) | 2026-08-28 | Exact | Complete | Five specification self-review amendments, D0008/D0009, first commits |
-| [S20260828-002-layout-convergence](2026/08/S20260828-002-layout-convergence/summary.md) | 2026-08-28 | Exact | Complete | Mesa/Wine-patterned layout convergence, D0010/D0011, component graph gate |
-| [S20260828-003-agent-record-convergence](2026/08/S20260828-003-agent-record-convergence/summary.md) | 2026-08-28 | Exact | Complete | Machine-enforced record-loop rules: index completeness, open-decisions ledger, distillation, staleness warnings, session scaffolder |
-| [S20260828-004-record-gate-hardening](2026/08/S20260828-004-record-gate-hardening/summary.md) | 2026-08-28 | Exact | Complete | Record gate hardening: current-progress freshness, status-drift warnings, and the fifteen-case validator self-test |
-| [S20260828-005-skills-layer](2026/08/S20260828-005-skills-layer/summary.md) | 2026-08-28 | Exact | Complete | Expert-skills layer under agent/skills with three seeds and validator-enforced form |
-| [S20260828-006-agent-guidance-hardening](2026/08/S20260828-006-agent-guidance-hardening/summary.md) | 2026-08-28 | Exact | Complete | Guidance hardening: root AGENTS.md, start-work skill, pre-commit session-coverage gate |
-| [S20260828-007-claude-bridge](2026/08/S20260828-007-claude-bridge/summary.md) | 2026-08-28 | Exact | Complete | Repository-local Claude Code bridge: @AGENTS.md import, edit-time guards, drift-checked by the validator |
-| [S20260828-008-codex-entry-points](2026/08/S20260828-008-codex-entry-points/summary.md) | 2026-08-28 | Exact | Complete | Codex-native AGENTS.md verified and repository entry points enforced by an isolated Nix check |
-| [S20260828-009-implementation-readiness-skill](2026/08/S20260828-009-implementation-readiness-skill/summary.md) | 2026-08-28 | Exact | Complete | Codex-native skill packages, enforced discovery compatibility, and implementation-readiness expert guidance |
-| [S20260828-010-domain-expert-skills](2026/08/S20260828-010-domain-expert-skills/summary.md) | 2026-08-28 | Exact | Complete | Ten Codex domain experts, source-backed references, composition routing, and trigger evaluations for M0001-M0004 |
-| [S20260828-011-skill-design-convergence](2026/08/S20260828-011-skill-design-convergence/summary.md) | 2026-08-28 | Exact | Complete | Sixteen bounded expert skills, runtime-contract ownership, structured routing gates, and lifecycle publication invariants |
-| [S20260828-012-ubuntu-2004-glibc-floor](2026/08/S20260828-012-ubuntu-2004-glibc-floor/summary.md) | 2026-08-28 | Exact | Complete | Ubuntu 20.04 LTS and glibc 2.31 fixed as the W01 userspace release floor |
-| [S20260828-013-m0001-foundation](2026/08/S20260828-013-m0001-foundation/summary.md) | 2026-08-28 | Exact | In progress | M0001 registry, compiler/CPU, daemon, and CUDA/NVML foundation implementation |
-| [S20260829-001-toolchain-boundary-correction](2026/08/S20260829-001-toolchain-boundary-correction/summary.md) | 2026-08-29 | Exact | Complete | D0022 tool boundary, skill governance, session cleanup, and duplicate-source reclamation |
-| [S20260829-002-cleanup-stale-routes](2026/08/S20260829-002-cleanup-stale-routes/summary.md) | 2026-08-29 | Exact | Complete | Remaining D0022 residue corrected; exact temporary and dead-store routes removed |
-| [S20260829-003-timezone-mirror-priority](2026/08/S20260829-003-timezone-mirror-priority/summary.md) | 2026-08-29 | Exact | Complete | Explicit current-timezone mirror priority in manage-toolchain routing |
-| [S20260829-004-implementation-session-current-standard](2026/08/S20260829-004-implementation-session-current-standard/summary.md) | 2026-08-29 | Exact | Complete | Distilled S013 ledger and enforced active/terminal session lifecycle semantics |
-| [S20260829-005-m0001-vertical-slice](2026/08/S20260829-005-m0001-vertical-slice/summary.md) | 2026-08-29 | Exact | Complete | M0001 CPU-backed vertical slice and Ubuntu 20.04/glibc 2.31 package enforcement |
-| [S20260829-006-stage-breakthrough-commits](2026/08/S20260829-006-stage-breakthrough-commits/summary.md) | 2026-08-29 | Exact | Complete | Verified stage-breakthrough trigger with separate content and record commits |
-| [S20260829-007-pytorch-cuda-test-tool](2026/08/S20260829-007-pytorch-cuda-test-tool/summary.md) | 2026-08-29 | Exact | Complete | Isolated PyTorch cu126 baseline, cu132 frontier, and staged CUDA gap probe |
-| [S20260830-001-m0001-completion-sprint](2026/08/S20260830-001-m0001-completion-sprint/summary.md) | 2026-08-30 | Exact | In progress | TODO: one-line summary |
-| [S20260830-002-ubuntu-target-sdk-guide](2026/08/S20260830-002-ubuntu-target-sdk-guide/summary.md) | 2026-08-30 | Exact | Complete | Explicit Ubuntu 20.04 target SDK construction, consumption, and release-gap guide |
-| [S20260830-003-session-guidance-loop](2026/08/S20260830-003-session-guidance-loop/summary.md) | 2026-08-30 | Exact | Complete | Session-local specialist guidance with validated disposition and transient cleanup |
+| [S0100-20260827-001-metaflux-bootstrap](2026/08/S0100-20260827-001-metaflux-bootstrap/summary.md) | 2026-08-27 | Reconstructed | Complete | MetaFlux planning, bootstrap, architecture review, and build hardening |
+| [S0100-20260828-001-spec-consistency](2026/08/S0100-20260828-001-spec-consistency/summary.md) | 2026-08-28 | Exact | Complete | Five specification self-review amendments, D0008/D0009, first commits |
+| [S0100-20260828-002-layout-convergence](2026/08/S0100-20260828-002-layout-convergence/summary.md) | 2026-08-28 | Exact | Complete | Mesa/Wine-patterned layout convergence, D0010/D0011, component graph gate |
+| [S0100-20260828-003-agent-record-convergence](2026/08/S0100-20260828-003-agent-record-convergence/summary.md) | 2026-08-28 | Exact | Complete | Machine-enforced record-loop rules: index completeness, open-decisions ledger, distillation, staleness warnings, session scaffolder |
+| [S0100-20260828-004-record-gate-hardening](2026/08/S0100-20260828-004-record-gate-hardening/summary.md) | 2026-08-28 | Exact | Complete | Record gate hardening: current-progress freshness, status-drift warnings, and the fifteen-case validator self-test |
+| [S0100-20260828-005-skills-layer](2026/08/S0100-20260828-005-skills-layer/summary.md) | 2026-08-28 | Exact | Complete | Expert-skills layer under agent/skills with three seeds and validator-enforced form |
+| [S0100-20260828-006-agent-guidance-hardening](2026/08/S0100-20260828-006-agent-guidance-hardening/summary.md) | 2026-08-28 | Exact | Complete | Guidance hardening: root AGENTS.md, start-work skill, pre-commit session-coverage gate |
+| [S0100-20260828-007-claude-bridge](2026/08/S0100-20260828-007-claude-bridge/summary.md) | 2026-08-28 | Exact | Complete | Repository-local Claude Code bridge: @AGENTS.md import, edit-time guards, drift-checked by the validator |
+| [S0101-20260828-008-codex-entry-points](2026/08/S0101-20260828-008-codex-entry-points/summary.md) | 2026-08-28 | Exact | Complete | Codex-native AGENTS.md verified and repository entry points enforced by an isolated Nix check |
+| [S0101-20260828-009-implementation-readiness-skill](2026/08/S0101-20260828-009-implementation-readiness-skill/summary.md) | 2026-08-28 | Exact | Complete | Codex-native skill packages, enforced discovery compatibility, and implementation-readiness expert guidance |
+| [S0100-20260828-010-domain-expert-skills](2026/08/S0100-20260828-010-domain-expert-skills/summary.md) | 2026-08-28 | Exact | Complete | Ten Codex domain experts, source-backed references, composition routing, and trigger evaluations for M0100-M0130 |
+| [S0100-20260828-011-skill-design-convergence](2026/08/S0100-20260828-011-skill-design-convergence/summary.md) | 2026-08-28 | Exact | Complete | Sixteen bounded expert skills, runtime-contract ownership, structured routing gates, and lifecycle publication invariants |
+| [S0101-20260828-012-ubuntu-2004-glibc-floor](2026/08/S0101-20260828-012-ubuntu-2004-glibc-floor/summary.md) | 2026-08-28 | Exact | Complete | Ubuntu 20.04 LTS and glibc 2.31 fixed as the W0101 userspace release floor |
+| [S0100-20260828-013-m0100-foundation](2026/08/S0100-20260828-013-m0100-foundation/summary.md) | 2026-08-28 | Exact | In progress | M0100 registry, compiler/CPU, daemon, and CUDA/NVML foundation implementation |
+| [S0101-20260829-001-toolchain-boundary-correction](2026/08/S0101-20260829-001-toolchain-boundary-correction/summary.md) | 2026-08-29 | Exact | Complete | D0022 tool boundary, skill governance, session cleanup, and duplicate-source reclamation |
+| [S0100-20260829-002-cleanup-stale-routes](2026/08/S0100-20260829-002-cleanup-stale-routes/summary.md) | 2026-08-29 | Exact | Complete | Remaining D0022 residue corrected; exact temporary and dead-store routes removed |
+| [S0101-20260829-003-timezone-mirror-priority](2026/08/S0101-20260829-003-timezone-mirror-priority/summary.md) | 2026-08-29 | Exact | Complete | Explicit current-timezone mirror priority in manage-toolchain routing |
+| [S0100-20260829-004-implementation-session-current-standard](2026/08/S0100-20260829-004-implementation-session-current-standard/summary.md) | 2026-08-29 | Exact | Complete | Distilled S0100-20260828-013-m0100-foundation ledger and enforced active/terminal session lifecycle semantics |
+| [S0100-20260829-005-m0100-vertical-slice](2026/08/S0100-20260829-005-m0100-vertical-slice/summary.md) | 2026-08-29 | Exact | Complete | M0100 CPU-backed vertical slice and Ubuntu 20.04/glibc 2.31 package enforcement |
+| [S0100-20260829-006-stage-breakthrough-commits](2026/08/S0100-20260829-006-stage-breakthrough-commits/summary.md) | 2026-08-29 | Exact | Complete | Verified stage-breakthrough trigger with separate content and record commits |
+| [S0100-20260829-007-pytorch-cuda-test-tool](2026/08/S0100-20260829-007-pytorch-cuda-test-tool/summary.md) | 2026-08-29 | Exact | Complete | Isolated PyTorch cu126 baseline, cu132 frontier, and staged CUDA gap probe |
+| [S0100-20260830-001-m0100-completion-sprint](2026/08/S0100-20260830-001-m0100-completion-sprint/summary.md) | 2026-08-30 | Exact | In progress | TODO: one-line summary |
+| [S0101-20260830-002-ubuntu-target-sdk-guide](2026/08/S0101-20260830-002-ubuntu-target-sdk-guide/summary.md) | 2026-08-30 | Exact | Complete | Explicit Ubuntu 20.04 target SDK construction, consumption, and release-gap guide |
+| [S0100-20260830-003-session-guidance-loop](2026/08/S0100-20260830-003-session-guidance-loop/summary.md) | 2026-08-30 | Exact | Complete | Session-local specialist guidance with validated disposition and transient cleanup |
+| [S0100-20260830-004-semantic-version-line](2026/08/S0100-20260830-004-semantic-version-line/summary.md) | 2026-08-30 | Exact | Complete | Product SemVer, derived M/W/S identities, 25-session migration, and v0.2.0 qualification boundary |
 
 ## Fidelity and retention
 

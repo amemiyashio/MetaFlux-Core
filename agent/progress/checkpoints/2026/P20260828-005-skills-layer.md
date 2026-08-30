@@ -2,8 +2,8 @@
 id: P20260828-005
 status: Recorded
 captured: 2026-08-28
-milestone: M0001
-workstream: M0001-W01
+milestone: M0100
+workstream: W0101
 branch: main
 git_revision: 36edd9ece327ca1959b52c3cd844eaee4081e61b
 workspace: skills layer committed; this checkpoint and its session record are committed afterward
@@ -11,8 +11,8 @@ workspace: skills layer committed; this checkpoint and its session record are co
 
 # Skills Layer
 
-Milestone: [M0001](../../../plan/M0001-core-foundation/plan.md). Workstream:
-[M0001-W01](../../../plan/M0001-core-foundation/work/W01-build-toolchain.md).
+Milestone: [M0100](../../../plan/M0100-core-foundation/plan.md). Workstream:
+[W0101](../../../plan/M0100-core-foundation/work/W0101-build-toolchain.md).
 This checkpoint records the state at revision
 `36edd9ece327ca1959b52c3cd844eaee4081e61b`.
 
@@ -44,12 +44,13 @@ procedural playbooks, machine-enforced like the rest.
    [open decisions](../../../memory/open-decisions.md) and
    [current progress](../../current.md).
 2. Write a new skill only for a procedure already practiced at least once;
-   the three seeds distill sessions S20260828-001 through S20260828-004.
-3. The next material boundary remains M0001-W01: sysroot, CUDA/NVML header
-   acquisition, the LLVM 22 patchset, and reference-host baselines that
-   promote the provisional budgets to binding.
+   the three seeds distill sessions S0100-20260828-001-spec-consistency through
+   S0100-20260828-004-record-gate-hardening.
+3. The next material boundary remains W0101: sysroot, CUDA/NVML header
+   acquisition, the LLVM 22 patchset, and provisional AMD reference evidence;
+   `v0.2.0` owns physical NVIDIA binding promotion.
 4. Re-run the full preset matrix and `nix flake check path:.` before the next
    checkpoint.
 
 Related work record:
-[S20260828-005](../../../sessions/2026/08/S20260828-005-skills-layer/summary.md).
+[S0100-20260828-005-skills-layer](../../../sessions/2026/08/S0100-20260828-005-skills-layer/summary.md).

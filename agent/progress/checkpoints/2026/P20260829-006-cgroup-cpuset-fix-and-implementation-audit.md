@@ -3,15 +3,15 @@ id: P20260829-006
 date: 2026-08-29
 status: Recorded
 revision: 694272a
-trigger: cgroup cpuset fallback fix and M0001 implementation audit breakthrough
+trigger: cgroup cpuset fallback fix and M0100 implementation audit breakthrough
 ---
 
-# Cgroup cpuset fallback fix and M0001 implementation audit
+# Cgroup cpuset fallback fix and M0100 implementation audit
 
 ## Outcome
 
 Content revision `694272a` fixes cgroup cpuset fallback for scopes without cpuset
-controller and confirms W02/W03/W04 are fully implemented through a comprehensive
+controller and confirms W0102/W0103/W0104 are fully implemented through a comprehensive
 audit.
 
 ## What changed
@@ -21,12 +21,12 @@ audit.
   `cpuset.cpus.effective` and `cpuset.mems.effective`. When no ancestor has the
   cpuset controller mounted, treats the constraint as unconstrained (fall back to
   `sched_getaffinity` for CPUs, online nodes for memory).
-- `W02-contracts-runtime.md`: Marked registry/latch/handle implementation as
+- `W0102-contracts-runtime.md`: Marked registry/latch/handle implementation as
   complete (registry_recovery.cpp 2294 lines, runtime.cpp, recovery_model.cpp).
-- `W03-compiler-cpu.md`: Marked daemon lifecycle/credentials/cache/AOT as
+- `W0103-compiler-cpu.md`: Marked daemon lifecycle/credentials/cache/AOT as
   complete (server.cpp SO_PEERCRED, compiler_worker_process.cpp isolation,
   artifact_cache.cpp 1394 lines).
-- `W04-cuda-provider.md`: Marked fast path routing as complete (dispatch.c
+- `W0104-cuda-provider.md`: Marked fast path routing as complete (dispatch.c
   routes launch/copy/event/sync through fastpath.c shared-memory ring).
 
 ## Verification
@@ -59,10 +59,12 @@ audit.
 - Ninja:1.13.2
 - Git:436388e (pre-fix),694272a (post-fix)
 
-## Remaining M0001 work
+## Remaining M0100 work
 
-W01: Intel/AMD dual-host qualification (requires Intel host access).
-W02: Multiprocess stress with concurrent admission/lease/release (needs harness).
-W06: PGO training, -O2/-O3 comparison, hardening/soak/fuzz archival (requires
-clean Git tree run), NixOS native package (requires flake output), extended
-audit dimensions (syscall/cache-line/NUMA/asm/relocation/RSS).
+W0101: AMD reference-host qualification was available; D0023 later assigns Intel
+host qualification to the `v0.2.0` support expansion.
+W0102: Multiprocess stress with concurrent admission/lease/release (needs harness).
+W0106: PGO training, -O2/-O3 comparison, hardening/soak/fuzz archival (requires
+clean Git tree run) and extended audit dimensions
+(syscall/cache-line/NUMA/asm/relocation/RSS). D0024 later assigns native NixOS
+VM/package qualification and physical NVIDIA binding performance to `v0.2.0`.

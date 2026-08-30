@@ -2,8 +2,8 @@
 id: P20260827-001
 status: Recorded
 captured: 2026-08-27
-milestone: M0001
-workstream: M0001-W01
+milestone: M0100
+workstream: W0101
 branch: main
 git_revision: null
 workspace: all files untracked
@@ -11,8 +11,8 @@ workspace: all files untracked
 
 # Engineering Bootstrap Baseline
 
-Milestone: [M0001](../../../plan/M0001-core-foundation/plan.md). Workstream:
-[M0001-W01](../../../plan/M0001-core-foundation/work/W01-build-toolchain.md). The
+Milestone: [M0100](../../../plan/M0100-core-foundation/plan.md). Workstream:
+[W0101](../../../plan/M0100-core-foundation/work/W0101-build-toolchain.md). The
 repository has no Git revision; all repository files were untracked when this
 checkpoint was recorded.
 
@@ -21,10 +21,10 @@ checkpoint was recorded.
 The monorepo scaffold, Nix environment, compiler epoch descriptor, CMake target
 graph, initial contract boundaries, provider fixtures, runtime/compiler/backend
 fixtures, package outputs, and cross-component qualification tests are present.
-They establish ownership and build constraints but do not implement the M0001
+They establish ownership and build constraints but do not implement the M0100
 vertical slice.
 
-The tracked collaboration layer contains stable M0001-M0004 plans, durable
+The tracked collaboration layer contains stable M0100-M0130 plans, durable
 memory, three validated experience records, current progress, this checkpoint,
 templates, and the reconstructed bootstrap session. Architecture and public
 contracts remain authoritative outside `agent/`.
@@ -63,7 +63,7 @@ consumer/RUNPATH, formatting, and the shared test graph.
 1. Inspect `git status` before changing files; no Git revision reconstructs this
    snapshot.
 2. Use `nix develop path:.` while the flake remains untracked.
-3. Read [current progress](../../current.md), then the relevant part of M0001.
+3. Read [current progress](../../current.md), then the relevant part of M0100.
 4. Re-run the affected narrow gate and full `nix flake check path:.` before the
    next checkpoint.
 
