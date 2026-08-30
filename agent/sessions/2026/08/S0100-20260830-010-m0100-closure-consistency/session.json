@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "id": "S0100-20260830-010-m0100-closure-consistency",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.0.0",
+  "started_at": "2026-08-30",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0100 closure-record consistency migration and evidence preservation"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0100",
+      "title": "Core Foundation",
+      "status": "complete",
+      "event_seqs": [1, 2]
+    }
+  ],
+  "work_items": [],
+  "base_revision": "1ac597b9e33793fb628e77a3d7fc11144c36b9e4",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

@@ -20,3 +20,4 @@ committed to `HEAD`, bound to an in-progress session, can authorize exact
 | [SC0002](SC0002-project-knowledge-roast.md) | Applied | D0026 | project-knowledge-roast | 2026-08-30 |
 | [SC0003](SC0003-v100-qualification-boundary.md) | Applied | D0027 | v100-qualification-boundary | 2026-08-30 |
 | [SC0004](SC0004-automatic-harness-identity.md) | Applied | D0028 | automatic-harness-identity | 2026-08-30 |
+| [SC0005](SC0005-m0100-closure-record-consistency.md) | Active | D0025 | m0100-closure-record-consistency | 2026-08-30 |

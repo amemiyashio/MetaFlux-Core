@@ -86,6 +86,7 @@ copies canonical content.
 | [S1000-20260830-007-v100-qualification-boundary](2026/08/S1000-20260830-007-v100-qualification-boundary/summary.md) | 2026-08-30 | Exact | Complete | Applied D0027/SC0003 and moved Intel plus physical NVIDIA binding qualification to v1.0.0 |
 | [S0100-20260830-008-agent-harness-commit-identity](2026/08/S0100-20260830-008-agent-harness-commit-identity/summary.md) | 2026-08-30 | Exact | Complete | Initial static Codex/Claude Code harness identity, later superseded by D0028/SC0004 agent-provided subject derivation |
 | [S0100-20260830-009-automatic-harness-identity](2026/08/S0100-20260830-009-automatic-harness-identity/summary.md) | 2026-08-30 | Exact | Complete | D0028/SC0004 agent self-declaration replaced fixed mappings and the rejected process-inference route |
+| [S0100-20260830-010-m0100-closure-consistency](2026/08/S0100-20260830-010-m0100-closure-consistency/summary.md) | 2026-08-30 | Exact | In progress | D0025-authorized M0100 closure-record and ZCode provenance correction |
 
 ## Fidelity and retention
 
