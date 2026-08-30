@@ -35,6 +35,17 @@ generation. Transport loss preserves the current generation and epoch; recovery
 uses a new candidate. Removed and replaced generations remain bounded
 tombstones and resolve as `DeviceLost`.
 
+Telemetry publication is bound to the same authority. A producer row must carry
+the current identity and exact stable lifecycle sequence while device admission
+is `OPEN` and the fence is `ONLINE`. The runtime checks that tuple before taking
+the telemetry latch, again while the latch is odd, and once more after staging
+the inactive bank. An old or future sequence returns `RETRY`; a closed or lost
+device returns `DEVICE_LOST`; malformed identity data returns
+`INVALID_ARGUMENT`. Recovery validates a marker-complete target bank against
+the current fences before promoting it, so an owner-death race cannot make stale
+telemetry `READY`. Readers still perform the final fence recheck described by
+the shared telemetry contract.
+
 This header is an in-process runtime contract. It intentionally contains no
 M0110 descriptor, Linux UAPI, BAR, vfio-user wire, QMP, CUDA, or NVML type.
 Those layers remain adapters and consume the coordinator without redefining its

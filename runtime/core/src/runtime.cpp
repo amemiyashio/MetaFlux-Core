@@ -708,6 +708,90 @@ mf_shared_status_v1 RegistryView::stable_fence(std::uint32_t device_index, Fence
   return MF_SHARED_RETRY;
 }
 
+mf_shared_status_v1 RegistryView::validate_telemetry_rows(
+    std::span<const mf_virtual_device_telemetry_v1> rows) const noexcept {
+  if (rows.size() != device_count_) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  for (std::uint32_t index = 0; index < device_count_; ++index) {
+    const std::uint64_t admission_before =
+        mf_atomic_load_u64_seq_cst(&device_admission_[index].state_generation_tag);
+    const std::uint32_t admission_state = mf_device_admission_state_v1(admission_before);
+    if (admission_state != MF_DEVICE_ADMISSION_OPEN) {
+      return admission_state == MF_DEVICE_ADMISSION_UPDATING ? MF_SHARED_RETRY
+                                                             : MF_SHARED_DEVICE_LOST;
+    }
+    FenceSnapshot fence{};
+    std::uint64_t fence_latch = 0;
+    const mf_shared_status_v1 fence_status = stable_fence(index, fence, fence_latch);
+    if (fence_status != MF_SHARED_SUCCESS) {
+      return fence_status;
+    }
+    if (fence.identity_record_id != identities_[index].identity_record_id ||
+        rows[index].identity_record_id != fence.identity_record_id ||
+        rows[index].observed_lifecycle_sequence == 0U) {
+      return MF_SHARED_INVALID_ARGUMENT;
+    }
+    if (fence.device_state != MF_DEVICE_STATE_ONLINE) {
+      return MF_SHARED_DEVICE_LOST;
+    }
+    if (rows[index].observed_lifecycle_sequence != fence.lifecycle_sequence) {
+      return MF_SHARED_RETRY;
+    }
+    const std::uint64_t admission_after =
+        mf_atomic_load_u64_seq_cst(&device_admission_[index].state_generation_tag);
+    if (admission_after != admission_before) {
+      return mf_device_admission_state_v1(admission_after) == MF_DEVICE_ADMISSION_CLOSED
+                 ? MF_SHARED_DEVICE_LOST
+                 : MF_SHARED_RETRY;
+    }
+  }
+  return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1 RegistryView::validate_telemetry_bank(std::uint32_t bank) const noexcept {
+  if (bank > 1U) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  for (std::uint32_t index = 0; index < device_count_; ++index) {
+    const std::uint64_t admission_before =
+        mf_atomic_load_u64_seq_cst(&device_admission_[index].state_generation_tag);
+    const std::uint32_t admission_state = mf_device_admission_state_v1(admission_before);
+    if (admission_state != MF_DEVICE_ADMISSION_OPEN) {
+      return admission_state == MF_DEVICE_ADMISSION_UPDATING ? MF_SHARED_RETRY
+                                                             : MF_SHARED_DEVICE_LOST;
+    }
+    FenceSnapshot fence{};
+    std::uint64_t fence_latch = 0;
+    const mf_shared_status_v1 fence_status = stable_fence(index, fence, fence_latch);
+    if (fence_status != MF_SHARED_SUCCESS) {
+      return fence_status;
+    }
+    const auto& row = telemetry_banks_[bank][index];
+    const std::uint64_t identity_record_id = mf_atomic_load_u64_relaxed(&row.identity_record_id);
+    const std::uint64_t observed_lifecycle_sequence =
+        mf_atomic_load_u64_relaxed(&row.observed_lifecycle_sequence);
+    if (fence.identity_record_id != identities_[index].identity_record_id ||
+        identity_record_id != fence.identity_record_id || observed_lifecycle_sequence == 0U) {
+      return MF_SHARED_INVALID_ARGUMENT;
+    }
+    if (fence.device_state != MF_DEVICE_STATE_ONLINE) {
+      return MF_SHARED_DEVICE_LOST;
+    }
+    if (observed_lifecycle_sequence != fence.lifecycle_sequence) {
+      return MF_SHARED_RETRY;
+    }
+    const std::uint64_t admission_after =
+        mf_atomic_load_u64_seq_cst(&device_admission_[index].state_generation_tag);
+    if (admission_after != admission_before) {
+      return mf_device_admission_state_v1(admission_after) == MF_DEVICE_ADMISSION_CLOSED
+                 ? MF_SHARED_DEVICE_LOST
+                 : MF_SHARED_RETRY;
+    }
+  }
+  return MF_SHARED_SUCCESS;
+}
+
 std::uint32_t RegistryView::find_identity(std::uint64_t identity_record_id) const noexcept {
   for (std::uint32_t index = 0; index < device_count_; ++index) {
     if (identities_[index].identity_record_id == identity_record_id) {
@@ -956,6 +1040,10 @@ RegistryView::publish_telemetry(std::span<const mf_virtual_device_telemetry_v1> 
       return MF_SHARED_INVALID_ARGUMENT;
     }
   }
+  mf_shared_status_v1 telemetry_status = validate_telemetry_rows(rows);
+  if (telemetry_status != MF_SHARED_SUCCESS) {
+    return telemetry_status;
+  }
 
   std::uint64_t even = mf_atomic_load_u64_acquire(&telemetry_control_->telemetry_latch_sequence);
   if ((even & 1U) != 0U) {
@@ -974,6 +1062,11 @@ RegistryView::publish_telemetry(std::span<const mf_virtual_device_telemetry_v1> 
   if (!mf_atomic_compare_exchange_u64_seq_cst(&telemetry_control_->telemetry_latch_sequence,
                                               &expected, even + 1U)) {
     return MF_SHARED_RETRY;
+  }
+  telemetry_status = validate_telemetry_rows(rows);
+  if (telemetry_status != MF_SHARED_SUCCESS) {
+    mf_atomic_store_u64_release(&telemetry_control_->telemetry_latch_sequence, even + 2U);
+    return telemetry_status;
   }
   const std::uint64_t old_bank_state =
       mf_atomic_load_u64_relaxed(&telemetry_control_->active_bank_state);
@@ -994,6 +1087,11 @@ RegistryView::publish_telemetry(std::span<const mf_virtual_device_telemetry_v1> 
     mf_atomic_store_u64_relaxed(&destination.memory_capacity_bytes,
                                 rows[index].memory_capacity_bytes);
     mf_atomic_store_u64_relaxed(&destination.sample_time_ns, rows[index].sample_time_ns);
+  }
+  telemetry_status = validate_telemetry_rows(rows);
+  if (telemetry_status != MF_SHARED_SUCCESS) {
+    mf_atomic_store_u64_release(&telemetry_control_->telemetry_latch_sequence, even + 2U);
+    return telemetry_status;
   }
   mf_atomic_store_u64_relaxed(&telemetry_control_->snapshot_sequence, previous_snapshot + 1U);
   mf_atomic_store_u64_relaxed(&telemetry_control_->active_bank_state,

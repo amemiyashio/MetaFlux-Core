@@ -67,6 +67,7 @@ enum class RecoveryFaultPoint : std::uint32_t {
   UpdateRangeRetired = 13,
   RecoveryPayloadHazardHeld = 14,
   UpdateTerminal = 15,
+  TelemetryMarker = 16,
 };
 
 class RegistryView final {
@@ -159,6 +160,9 @@ private:
   [[nodiscard]] mf_shared_status_v1 stable_fence(std::uint32_t device_index,
                                                  FenceSnapshot& out_fence,
                                                  std::uint64_t& out_latch) const noexcept;
+  [[nodiscard]] mf_shared_status_v1
+  validate_telemetry_rows(std::span<const mf_virtual_device_telemetry_v1> rows) const noexcept;
+  [[nodiscard]] mf_shared_status_v1 validate_telemetry_bank(std::uint32_t bank) const noexcept;
   [[nodiscard]] mf_shared_status_v1 write_fence(std::uint32_t device_index,
                                                 const FenceSnapshot& intended_fence,
                                                 std::uint64_t expected_device_control,

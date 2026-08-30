@@ -157,6 +157,9 @@ Implemented stage:
   current/later NVML init epochs, and a new process.
 - [x] Model loss/removal fence publication racing telemetry-bank publication and
   bounded reader retry/fallback; forbid stale `ONLINE` after the observed fence.
+- [x] Bind `RegistryView` telemetry producers to stable online fence/admission
+  snapshots before, during, and after bank staging; recovery validates a
+  marker-complete target bank before promoting it.
 - [ ] Compose the runtime view gate and enumerate reserve(A), reserve(B), A partial
   publish, B blocked publish, A complete/abort/compensate/suffix-skip, owner death,
   B authority loss plus admission/read and loss-deadline close, one shared admission

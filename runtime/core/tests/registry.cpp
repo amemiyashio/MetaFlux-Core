@@ -69,9 +69,62 @@ void release_mapping(void* mapping, std::uint64_t bytes) {
          fence.policy_bits == ~value && fence.device_state == MF_DEVICE_STATE_ONLINE;
 }
 
+[[nodiscard]] bool legacy_telemetry_fence_tests() {
+  std::uint64_t mapping_size = 0;
+  if (RegistryView::required_legacy_mapping_size(UINT32_C(1), mapping_size) != MF_SHARED_SUCCESS) {
+    return false;
+  }
+  void* mapping = allocate_mapping(mapping_size);
+  if (mapping == MAP_FAILED) {
+    return false;
+  }
+  std::array<mf_virtual_device_identity_v1, 1> identities{make_identity()};
+  std::array<FenceSnapshot, 1> fences{{
+      {
+          .identity_record_id = UINT64_C(101),
+          .lifecycle_sequence = UINT64_C(1),
+          .epoch = UINT64_C(0),
+          .effective_quota_bytes = UINT64_C(4096),
+          .policy_bits = UINT64_C(7),
+          .device_state = MF_DEVICE_STATE_ONLINE,
+      },
+  }};
+  RegistryView view;
+  bool ok = RegistryView::initialize(mapping, mapping_size, {UINT64_C(0xdef), UINT64_C(1)},
+                                     UINT64_C(1), identities, fences, view) == MF_SHARED_SUCCESS;
+  std::array<mf_virtual_device_telemetry_v1, 1> rows{};
+  rows[0].identity_record_id = UINT64_C(101);
+  rows[0].observed_lifecycle_sequence = UINT64_C(1);
+  ok = ok && view.publish_telemetry(rows) == MF_SHARED_SUCCESS;
+
+  std::uint32_t validation_generation = UINT32_C(1);
+  const FenceSnapshot next{
+      .identity_record_id = UINT64_C(101),
+      .lifecycle_sequence = UINT64_C(2),
+      .epoch = UINT64_C(1),
+      .effective_quota_bytes = UINT64_C(8192),
+      .policy_bits = UINT64_C(9),
+      .device_state = MF_DEVICE_STATE_ONLINE,
+  };
+  ok = ok && view.publish_fence(UINT32_C(0), validation_generation, next, validation_generation) ==
+                 MF_SHARED_SUCCESS;
+  ok = ok && view.publish_telemetry(rows) == MF_SHARED_RETRY;
+  rows[0].observed_lifecycle_sequence = UINT64_C(3);
+  ok = ok && view.publish_telemetry(rows) == MF_SHARED_RETRY;
+  ok = ok && view.mark_device_lost(UINT32_C(0), UINT64_C(3), UINT64_C(2)) == MF_SHARED_SUCCESS;
+  rows[0].observed_lifecycle_sequence = UINT64_C(2);
+  ok = ok && view.publish_telemetry(rows) == MF_SHARED_DEVICE_LOST;
+  ok = ok && view.close() == MF_SHARED_SUCCESS;
+  release_mapping(mapping, mapping_size);
+  return ok;
+}
+
 } // namespace
 
 int main() {
+  if (!legacy_telemetry_fence_tests()) {
+    return 15;
+  }
   std::uint64_t mapping_size = 0;
   if (RegistryView::required_recovery_mapping_size(UINT32_C(1), mapping_size) !=
           MF_SHARED_SUCCESS ||

@@ -1552,15 +1552,28 @@ mf_shared_status_v1 RegistryView::recover_telemetry_publish(mf_owner_identity_v1
     } else if (state == MF_TELEMETRY_PUBLISH_ACTIVE &&
                latch == publication.expected_latch_sequence + 1U) {
       if (mf_atomic_load_u64_acquire(&publication.publication_marker) != 0U) {
-        mf_atomic_store_u64_relaxed(&telemetry_control_->snapshot_sequence,
-                                    publication.target_snapshot_sequence);
-        mf_atomic_store_u64_relaxed(&telemetry_control_->active_bank_state,
-                                    publication.target_bank_state);
-        mf_atomic_store_u64_relaxed(&telemetry_control_->publish_generation,
-                                    publication.target_control_hash);
-        mf_atomic_store_u64_release(&telemetry_control_->telemetry_latch_sequence,
-                                    publication.target_latch_sequence);
-        settled_state = MF_TELEMETRY_PUBLISH_PUBLISHED;
+        const mf_shared_status_v1 bank_status = validate_telemetry_bank(publication.target_bank);
+        if (bank_status != MF_SHARED_SUCCESS) {
+          mf_atomic_store_u64_relaxed(&telemetry_control_->snapshot_sequence,
+                                      publication.expected_snapshot_sequence);
+          mf_atomic_store_u64_relaxed(&telemetry_control_->active_bank_state,
+                                      publication.old_bank_state);
+          mf_atomic_store_u64_relaxed(&telemetry_control_->publish_generation,
+                                      publication.expected_control_hash);
+          mf_atomic_store_u64_release(&telemetry_control_->telemetry_latch_sequence,
+                                      publication.expected_latch_sequence);
+          settled_state = MF_TELEMETRY_PUBLISH_ABORTED;
+        } else {
+          mf_atomic_store_u64_relaxed(&telemetry_control_->snapshot_sequence,
+                                      publication.target_snapshot_sequence);
+          mf_atomic_store_u64_relaxed(&telemetry_control_->active_bank_state,
+                                      publication.target_bank_state);
+          mf_atomic_store_u64_relaxed(&telemetry_control_->publish_generation,
+                                      publication.target_control_hash);
+          mf_atomic_store_u64_release(&telemetry_control_->telemetry_latch_sequence,
+                                      publication.target_latch_sequence);
+          settled_state = MF_TELEMETRY_PUBLISH_PUBLISHED;
+        }
       } else {
         mf_atomic_store_u64_relaxed(&telemetry_control_->snapshot_sequence,
                                     publication.expected_snapshot_sequence);
@@ -1903,6 +1916,10 @@ mf_shared_status_v1 RegistryView::publish_telemetry_recovery(
       return MF_SHARED_INVALID_ARGUMENT;
     }
   }
+  mf_shared_status_v1 telemetry_status = validate_telemetry_rows(rows);
+  if (telemetry_status != MF_SHARED_SUCCESS) {
+    return telemetry_status;
+  }
   mf_owner_identity_v1 owner{};
   if (current_owner_identity(owner) != MF_SHARED_SUCCESS) {
     return MF_SHARED_SYSTEM_ERROR;
@@ -1997,6 +2014,13 @@ mf_shared_status_v1 RegistryView::publish_telemetry_recovery(
                                        publish_slot, target_bank, MF_TELEMETRY_PUBLISH_ABORTED);
     return MF_SHARED_RETRY;
   }
+  telemetry_status = validate_telemetry_rows(rows);
+  if (telemetry_status != MF_SHARED_SUCCESS) {
+    mf_atomic_store_u64_release(&telemetry_control_->telemetry_latch_sequence, even);
+    (void)finish_telemetry_publication(publication, *telemetry_publisher_, publish_tag,
+                                       publish_slot, target_bank, MF_TELEMETRY_PUBLISH_ABORTED);
+    return telemetry_status;
+  }
   if (fault_point_ == RecoveryFaultPoint::TelemetryActiveOdd) {
     return MF_SHARED_INTERRUPTED;
   }
@@ -2017,7 +2041,17 @@ mf_shared_status_v1 RegistryView::publish_telemetry_recovery(
                                 rows[index].memory_capacity_bytes);
     mf_atomic_store_u64_relaxed(&destination.sample_time_ns, rows[index].sample_time_ns);
   }
+  telemetry_status = validate_telemetry_rows(rows);
+  if (telemetry_status != MF_SHARED_SUCCESS) {
+    mf_atomic_store_u64_release(&telemetry_control_->telemetry_latch_sequence, even);
+    (void)finish_telemetry_publication(publication, *telemetry_publisher_, publish_tag,
+                                       publish_slot, target_bank, MF_TELEMETRY_PUBLISH_ABORTED);
+    return telemetry_status;
+  }
   mf_atomic_store_u64_release(&publication.publication_marker, 1U);
+  if (fault_point_ == RecoveryFaultPoint::TelemetryMarker) {
+    return MF_SHARED_INTERRUPTED;
+  }
   mf_atomic_store_u64_relaxed(&telemetry_control_->snapshot_sequence,
                               publication.target_snapshot_sequence);
   mf_atomic_store_u64_relaxed(&telemetry_control_->active_bank_state,

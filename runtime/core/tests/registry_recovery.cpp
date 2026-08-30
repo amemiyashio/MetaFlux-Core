@@ -309,11 +309,15 @@ template <typename Function> [[nodiscard]] bool child_succeeds(Function function
 
   std::array<mf_virtual_device_telemetry_v1, 1> rows{};
   rows[0].identity_record_id = UINT64_C(77);
+  rows[0].observed_lifecycle_sequence = UINT64_C(1);
+  ok = ok && view.publish_telemetry(rows) == MF_SHARED_RETRY;
   rows[0].observed_lifecycle_sequence = next.lifecycle_sequence;
   rows[0].committed_work_items = UINT64_C(11);
   rows[0].completed_work_items = UINT64_C(11);
   ok = ok && view.publish_telemetry(rows) == MF_SHARED_SUCCESS &&
-       view.close() == MF_SHARED_SUCCESS &&
+       view.mark_device_lost(UINT32_C(0), next.lifecycle_sequence + 1U, UINT64_C(4)) ==
+           MF_SHARED_SUCCESS &&
+       view.publish_telemetry(rows) == MF_SHARED_DEVICE_LOST && view.close() == MF_SHARED_SUCCESS &&
        view.validate_device(handle, observed) == MF_SHARED_TERMINAL_VIEW;
   unmap(address, size);
   return ok;
@@ -636,6 +640,54 @@ template <typename Function> [[nodiscard]] bool child_succeeds(Function function
   return ok;
 }
 
+[[nodiscard]] bool telemetry_marker_loss_recovery_test() {
+  std::uint64_t size = 0;
+  if (RegistryView::required_recovery_mapping_size(1U, size) != MF_SHARED_SUCCESS) {
+    return false;
+  }
+  void* address = mapping(size);
+  RegistryView parent;
+  if (address == MAP_FAILED || !initialize_one(address, size, 45U, parent)) {
+    unmap(address, size);
+    return false;
+  }
+  const bool published_marker = child_succeeds([&] {
+    RegistryView child;
+    std::array<mf_virtual_device_telemetry_v1, 1> rows{};
+    rows[0].identity_record_id = UINT64_C(77);
+    rows[0].observed_lifecycle_sequence = UINT64_C(1);
+    if (RegistryView::attach(address, size, child) != MF_SHARED_SUCCESS) {
+      return false;
+    }
+    child.set_fault_point_for_testing(RecoveryFaultPoint::TelemetryMarker);
+    return child.publish_telemetry(rows) == MF_SHARED_INTERRUPTED;
+  });
+  bool ok = published_marker &&
+            parent.mark_device_lost(UINT32_C(0), UINT64_C(2), UINT64_C(2)) == MF_SHARED_SUCCESS;
+  RegistryView helper;
+  ok = ok && RegistryView::attach(address, size, helper) == MF_SHARED_SUCCESS &&
+       helper.recover() == MF_SHARED_SUCCESS && helper.recover() == MF_SHARED_SUCCESS;
+  auto* header = static_cast<mf_shared_registry_header_v1*>(address);
+  auto* telemetry = reinterpret_cast<mf_telemetry_control_v1*>(static_cast<std::uint8_t*>(address) +
+                                                               header->telemetry_control_offset);
+  auto* ext = extension(address, 1U);
+  auto* publications = reinterpret_cast<mf_telemetry_publish_record_v1*>(
+      static_cast<std::uint8_t*>(address) + ext->telemetry_publish_records_offset);
+  ok = ok && mf_atomic_load_u64_seq_cst(&telemetry->telemetry_latch_sequence) == UINT64_C(0) &&
+       mf_atomic_load_u64_relaxed(&telemetry->snapshot_sequence) == UINT64_C(0) &&
+       mf_telemetry_state_v1(mf_atomic_load_u64_relaxed(&telemetry->active_bank_state)) ==
+           MF_TELEMETRY_STATE_UNAVAILABLE &&
+       mf_tagged_record_state_v1(mf_atomic_load_u64_seq_cst(&publications[0].tagged_state)) ==
+           MF_TELEMETRY_PUBLISH_TERMINAL;
+  std::array<mf_virtual_device_telemetry_v1, 1> rows{};
+  rows[0].identity_record_id = UINT64_C(77);
+  rows[0].observed_lifecycle_sequence = UINT64_C(1);
+  ok = ok && helper.publish_telemetry(rows) == MF_SHARED_DEVICE_LOST &&
+       helper.close() == MF_SHARED_SUCCESS;
+  unmap(address, size);
+  return ok;
+}
+
 [[nodiscard]] bool concurrent_exact_fence_recovery_test() {
   std::uint64_t size = 0;
   if (RegistryView::required_recovery_mapping_size(1U, size) != MF_SHARED_SUCCESS) {
@@ -909,17 +961,20 @@ int main() {
   if (!fork_publication_tests()) {
     return 6;
   }
-  if (!concurrent_exact_fence_recovery_test()) {
+  if (!telemetry_marker_loss_recovery_test()) {
     return 7;
   }
-  if (!update_cleanup_cut_tests()) {
+  if (!concurrent_exact_fence_recovery_test()) {
     return 8;
   }
-  if (!recovery_payload_hazard_test()) {
+  if (!update_cleanup_cut_tests()) {
     return 9;
   }
-  if (!close_unpublished_claim_tests()) {
+  if (!recovery_payload_hazard_test()) {
     return 10;
+  }
+  if (!close_unpublished_claim_tests()) {
+    return 11;
   }
   return 0;
 }
