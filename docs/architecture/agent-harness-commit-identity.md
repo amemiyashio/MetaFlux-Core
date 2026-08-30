@@ -24,9 +24,10 @@ stops before Git runs; human Git configuration is never a fallback.
 
 ## Identity Derivation
 
-The detected subject is normalized to a lowercase ASCII slug containing only
-letters, digits, and single hyphen separators. The command-local identity is
-then generated without a vendor table:
+The self-declared subject must already be a normalized lowercase ASCII slug
+containing only letters, digits, and single hyphen separators. The helper
+validates that form, then generates the command-local identity without a vendor
+table:
 
 ```text
 name  = Agent Harness (<subject>)

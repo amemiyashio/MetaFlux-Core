@@ -125,7 +125,17 @@ def test_unseen_harness_declaration_is_derived(root: Path) -> None:
 def test_process_and_namespace_inference_is_absent(root: Path) -> None:
     del root
     assert not hasattr(HARNESS, "read_process_ancestry")
-    assert '"/proc"' not in SCRIPT.read_text(encoding="utf-8")
+    source = SCRIPT.read_text(encoding="utf-8")
+    forbidden_inference_tokens = (
+        "/proc",
+        "getppid",
+        "HARNESS_SIGNAL",
+        "SESSION_ID",
+        "THREAD_ID",
+        "PROJECT_DIR",
+    )
+    for token in forbidden_inference_tokens:
+        assert token not in source
     expect_value_error(
         lambda: HARNESS.resolve_identity(
             {
