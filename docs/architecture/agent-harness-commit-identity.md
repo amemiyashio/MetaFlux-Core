@@ -33,8 +33,8 @@ email = <subject>@localhost
 ```
 
 Session and thread values are corroborating presence signals only. They never
-enter the identity or logs. The helper reads process metadata but does not
-execute, probe, or modify the harness process.
+enter the identity or logs. On the automatic-detection path, the helper reads
+process metadata but does not execute, probe, or modify the harness process.
 
 ## Boundary And Consequences
 
