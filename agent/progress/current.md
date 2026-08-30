@@ -1,9 +1,9 @@
 ---
 status: Active
-updated: 2026-08-30
-milestone: M0110
-workstream: W0121
-checkpoint: P20260830-018
+updated: 2026-08-31
+milestone: M0120
+workstream: W0122
+checkpoint: P20260831-019
 ---
 
 # Current Progress
@@ -25,8 +25,10 @@ local/guest negotiation slices. W0112 is Active with its first local cdev stage
 recorded at [P20260830-016](checkpoints/2026/P20260830-016-m0110-local-cdev.md).
 W0113 is Active with its static vfio-user control-plane stage recorded at
 [P20260830-017](checkpoints/2026/P20260830-017-m0110-static-vfio-user.md).
-M0120 is now Active for its lifecycle model preparation; W0121's model stage is
+M0120 is now Active for lifecycle implementation. W0121's model stage is
 recorded at [P20260830-018](checkpoints/2026/P20260830-018-m0120-lifecycle-model.md).
+W0122's runtime-owned coordinator and bounded transport mirror stage is recorded
+at [P20260831-019](checkpoints/2026/P20260831-019-m0120-lifecycle-coordinator.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -131,6 +133,15 @@ Linux 9.8.
 | W0121 lifecycle regression | Lifecycle CTest and tampered-manifest self-test passed 2/2; full dev CTest passed 74/74 |
 | W0121 current boundary | Existing transport lifecycle adapters, QMP/vPCI integration, 1,000-cycle fault qualification, provider-view integration, and lifecycle ABI freeze remain open |
 
+## Recorded M0120 W0122 Evidence
+
+| Gate | Recorded result |
+| --- | --- |
+| Runtime lifecycle coordinator | `3e89434`; normalized requests, identity/generation high-water, epoch retirement, tombstones, and bounded mirror callbacks |
+| Lifecycle focused test | `metaflux.unit.runtime-lifecycle` passed |
+| Full development CTest | 75/75 passed |
+| W0122 current boundary | Concrete memfd/cdev/guest adapter wiring, QMP/disconnect/restart normalization, provider freeze, fault injection, and qualification remain open |
+
 ## Versioned Next Work
 
 1. M0100, its foundation session, and its completion session are terminal; the
@@ -150,9 +161,10 @@ Linux 9.8.
 5. Schedule Intel x86_64 support and physical NVIDIA binding performance under
    M1000 / `v1.0.0`; keep native NixOS VM/package qualification in the
    unallocated `v0.2.0` expansion. Do not reopen M0100 for any of them.
-6. M0120/W0121 model preparation is Active but does not satisfy the M0110
-   dependency or lifecycle Definition of Done; continue through W0122 only
-   after its adapters consume the canonical model and preserve the M0110 root.
+6. M0120/W0122 is Active. The coordinator stage is recorded, but it does not
+   satisfy the lifecycle Definition of Done; continue with concrete adapters,
+   source normalization, provider freeze, and qualification while preserving
+   the M0110 root.
 
 ## Tool Boundary
 

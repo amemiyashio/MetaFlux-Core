@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0122-20260831-001-m0120-existing-transport-lifecycle",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.2.2",
+  "started_at": "2026-08-31",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0120/W0122 lifecycle coordinator implementer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0120",
+      "title": "Lifecycle and vPCI Presentation",
+      "status": "active",
+      "event_seqs": [1, 2]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0122",
+      "milestone_id": "M0120",
+      "title": "Reset and hotplug on existing transports",
+      "status": "active"
+    }
+  ],
+  "base_revision": "03fcd1adec65d593a3ec51b64c5910ce37f3fc8f",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
