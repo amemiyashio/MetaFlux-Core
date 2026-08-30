@@ -32,6 +32,7 @@ an index row does not promote `Proposed` material to `Verified`.
 | D0020 | Timezone-relative artifact mirror routing with canonical identity and verification | [Artifact download routing](../../toolchains/README.md#artifact-download-routing-d0020) | Repository tool-input policy; Asia/Shanghai route historically qualified |
 | D0021 | Nix-owned declaration of every newly required project workflow tool | [Superseded by D0022](../../toolchains/README.md#tool-provider-boundary-d0022) | Superseded |
 | D0022 | Nix fixes and provides tool versions without owning project workflows or lifecycle policy | [Tool provider boundary](../../toolchains/README.md#tool-provider-boundary-d0022) | Repository boundary |
+| D0023 | Intel x86_64 host qualification deferred from M0001 to v1.0 support phase | [M0001-W01](../plan/M0001-core-foundation/work/W01-build-toolchain.md) | Active milestone boundary decision |
 
 New decisions receive the next `DNNNN` identifier and point to a plan or
 architecture record containing rationale, consequences, and verification state.

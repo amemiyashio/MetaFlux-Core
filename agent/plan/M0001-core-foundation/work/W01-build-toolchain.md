@@ -62,8 +62,9 @@ tool-provider role does not acquire either responsibility.
 - [x] Implement signed Ubuntu 20.04 target-SDK provenance verification and the
   generic glibc-floor toolchain path.
 - [x] Qualify both Intel and AMD x86_64 build/reference hosts.
-  AMD Ryzen 7 H 255 fully qualified (62/62 pass). Intel deferred to M0002
-  (no Intel host available; D0015 placement policy verified on AMD).
+  AMD Ryzen 7 H 255 fully qualified (63/63 pass). Intel explicitly deferred
+  from M0001 to v1.0 support phase per D0023 (no Intel host available;
+  D0015 placement policy verified on AMD).
 - [ ] Execute every D0012 install, upgrade, removal, closure, and coexistence row
   and archive its owning harness evidence.
   Matrix infrastructure ready (offline, sha256-pinned images). Blocked on

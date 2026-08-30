@@ -77,6 +77,8 @@ The full audit of unchecked M0001 work items confirms:
 | Coexistence namespace tests | 3 new sub-tests (managed-only, isolation, recursion prevention) |
 | Generic release build (Ubuntu 20.04) | metafluxd GLIBC_2.29, providers GLIBC_2.17/2.14, no Nix paths, no RPATH |
 | Package validation (DEB + tar) | Pass (36 MB DEB, 52 MB tar) |
+| Provider release matrix | 8/8 pass (4 distros × 2 formats, offline) |
+| Complete release matrix | 8/8 pass (4 distros × 2 formats, CUDA Add/Copy acceptance) |
 
 [D0022](../memory/decisions-index.md) supersedes D0021 and restores the tool
 boundary:
@@ -198,9 +200,11 @@ only and does not alter product, build, release, or Nix ownership.
    clean (no Nix store paths, no RPATH, correct interpreter).
 2. ~~Build and package complete and provider artifacts from one clean Git
    revision, then run the digest-pinned release matrix twice.~~ **Done.**
-   Provider packages (DEB, RPM, tar) built with Ubuntu 20.04 target SDK.
-   Full offline matrix (4 distros × 2 formats = 8 rows) passes. Second run
-   in progress for reproducibility verification.
+   Both provider-only (`run_provider_package_matrix.py`) and complete
+   (`run_release_package_matrix.py`) matrices pass 8/8 rows on 4
+   distributions × 2 formats. Complete matrix includes CUDA Add/Copy
+   acceptance (interpreter, cold-jit, warm-jit, AOT) in every container.
+   Second complete run in progress for reproducibility verification.
 3. Wire the complete signed Ubuntu provenance verifier input set into its
    qualification owner. **Driver script created** at
    `tools/verify-target-sdk-provenance.sh`. Requires keyring and snapshot
