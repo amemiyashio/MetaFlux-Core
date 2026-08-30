@@ -2,7 +2,7 @@
 id: W0112
 delivery: 0.1.1.2
 milestone: M0110
-status: Queued
+status: Active
 area: transport.cdev
 depends_on: [W0111]
 updated: 2026-08-30
@@ -40,18 +40,29 @@ Empty-to-nonempty uses arm/recheck/wake. Active queues poll atomically; blocking
 queues arm/recheck before futex/eventfd. Every handle/range/permission/generation
 and arithmetic operation is validated.
 
-## Work
+## Implemented stage
 
-- [ ] Implement `metaflux_core.ko` object/kref/cdev/VMA/tombstone ownership.
-- [ ] Implement negotiate/context/queue/mapping/eventfd/wait UAPI.
-- [ ] Implement the worker broker and prove one leased consumer per generation.
-- [ ] Select cdev under the fallback rules and retain M0100 memfd.
-- [ ] Execute CPU Add/Copy with no PCI module.
+- [x] Add C17 client and C++20 worker halves with a paired submission/completion
+  ring projection and generation validation.
+- [x] Build `metaflux_core.ko` through target Kbuild; register `/dev/metafluxctl`
+  and `/dev/metaflux0`, negotiate the fixed candidate UAPI, map the paired rings,
+  and enforce one worker lease per generation.
+- [x] Keep cdev fallback limited to `ENOENT`/`ENODEV`/explicit ABI incompatibility
+  in the userspace client; permission and malformed states remain visible.
+
+## Remaining work
+
+- [ ] Complete kernel object/kref/tombstone ownership, eventfd registration,
+  memory pin/register ioctls, and daemon-controlled generation replacement.
+- [ ] Connect the leased worker to `mf_backend_api_v1` and prove unmodified CPU
+  Add/Copy end to end through the mapped payload arena.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak.
 
 ## Exit Gate
 
-Unmodified Add/Copy succeeds through `/dev/metafluxN`; uncontended active enqueue
-uses no syscall, allocation, or global lock; fd/VMA tombstones remain safe after
-daemon death. Contention and owner-death slow paths are bounded separately.
+The implemented stage is not the W0112 exit gate yet. Closure still requires
+unmodified Add/Copy through `/dev/metafluxN`, an uncontended active enqueue with
+no syscall, allocation, or global lock, and fd/VMA tombstones that remain safe
+after daemon death. Contention and owner-death slow paths must be bounded
+separately.

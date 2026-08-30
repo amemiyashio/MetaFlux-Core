@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0112-20260830-013-m0110-local-cdev",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.1.2",
+  "started_at": "2026-08-30",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0110 local cdev transport implementer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0110",
+      "title": "Kernel and Guest Transport",
+      "status": "active",
+      "event_seqs": [1]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0112",
+      "milestone_id": "M0110",
+      "title": "Local cdev Add/Copy and exclusive worker broker",
+      "status": "active"
+    }
+  ],
+  "base_revision": "1f8a5a9ba145efa1a83cf7da5a870dd55651b2e8",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

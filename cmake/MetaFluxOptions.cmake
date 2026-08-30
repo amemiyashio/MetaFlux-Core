@@ -4,6 +4,7 @@ option(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER "Build the CUDA Driver ABI provider f
 option(METAFLUX_BUILD_NVML_PROVIDER "Build the NVML provider fixture" ON)
 option(METAFLUX_BUILD_CUDA_PTX_FRONTEND "Build the CUDA PTX compiler frontend fixture" ON)
 option(METAFLUX_BUILD_DAEMON "Build the MetaFlux daemon fixture" ON)
+option(METAFLUX_BUILD_CDEV_TRANSPORT "Build the local cdev transport halves" ON)
 option(METAFLUX_BUILD_COMPILER "Build the compiler core fixture" ON)
 option(METAFLUX_BUILD_CPU_BACKEND_COMPILER "Build the CPU backend compiler" ON)
 option(METAFLUX_BUILD_CPU_BACKEND_RUNTIME "Build the CPU backend runtime fixture" ON)

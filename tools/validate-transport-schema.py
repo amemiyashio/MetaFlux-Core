@@ -144,7 +144,7 @@ def c_type(field_type: str, width: int) -> str:
     if field_type in TYPE_SIZES:
         if TYPE_SIZES[field_type] != width:
             raise SchemaError(f"type {field_type} width mismatch: {width}")
-        return {"u16": "uint16_t", "u32": "uint32_t", "u64": "uint64_t", "s32": "int32_t"}[field_type]
+        return {"u16": "MF_SCHEMA_U16", "u32": "MF_SCHEMA_U32", "u64": "MF_SCHEMA_U64", "s32": "MF_SCHEMA_S32"}[field_type]
     match = re.fullmatch(r"(bytes|u64)\[(\d+)\]", field_type)
     if match:
         base, count_text = match.groups()
@@ -152,7 +152,7 @@ def c_type(field_type: str, width: int) -> str:
         unit = 1 if base == "bytes" else 8
         if count * unit != width:
             raise SchemaError(f"type {field_type} width mismatch: {width}")
-        return f"{'uint8_t' if base == 'bytes' else 'uint64_t'} {count}"
+        return f"{'MF_SCHEMA_U8' if base == 'bytes' else 'MF_SCHEMA_U64'} {count}"
     raise SchemaError(f"unsupported C field type {field_type!r}")
 
 
@@ -163,17 +163,17 @@ def emit_field_lines(record: dict[str, Any]) -> list[str]:
     for field in sorted(record["fields"], key=lambda item: item["offset"]):
         offset = field["offset"]
         if offset > cursor:
-            lines.append(f"  uint8_t _padding_{padding_index}[{offset - cursor}];")
+            lines.append(f"  MF_SCHEMA_U8 _padding_{padding_index}[{offset - cursor}];")
             padding_index += 1
         type_text = c_type(field["type"], field["width"])
-        if " " in type_text and type_text.rsplit(" ", 1)[0] in {"uint8_t", "uint64_t"}:
+        if " " in type_text and type_text.rsplit(" ", 1)[0] in {"MF_SCHEMA_U8", "MF_SCHEMA_U64"}:
             base, count = type_text.rsplit(" ", 1)
             lines.append(f"  {base} {field['name']}[{count}];")
         else:
             lines.append(f"  {type_text} {field['name']};")
         cursor = offset + field["width"]
     if cursor < record["size"]:
-        lines.append(f"  uint8_t _padding_{padding_index}[{record['size'] - cursor}];")
+        lines.append(f"  MF_SCHEMA_U8 _padding_{padding_index}[{record['size'] - cursor}];")
     return lines
 
 
@@ -220,7 +220,7 @@ def emit_golden_array(record: dict[str, Any], name: str) -> list[str]:
         elif field["type"] in {"bytes[16]", "bytes[8]"} and not field.get("reserved"):
             pack_at(buffer, field["offset"], field["type"], None)
     values_text = ", ".join(f"0x{byte:02x}" for byte in buffer)
-    return [f"static const uint8_t {name}[{record['size']}] = {{", f"  {values_text}", "};"]
+    return [f"static const MF_SCHEMA_U8 {name}[{record['size']}] = {{", f"  {values_text}", "};"]
 
 
 def emit_header(root: Path, manifest_path: Path, manifest: dict[str, Any], loaded: list[tuple[Path, dict[str, Any], list[dict[str, Any]]]], output: Path) -> None:
@@ -230,16 +230,34 @@ def emit_header(root: Path, manifest_path: Path, manifest: dict[str, Any], loade
         "#ifndef METAFLUX_TRANSPORT_SCHEMA_GENERATED_H",
         "#define METAFLUX_TRANSPORT_SCHEMA_GENERATED_H",
         "",
+        "#ifdef __KERNEL__",
+        "#include <linux/stddef.h>",
+        "#include <linux/ioctl.h>",
+        "#include <linux/types.h>",
+        "#define MF_SCHEMA_U8 __u8",
+        "#define MF_SCHEMA_U16 __u16",
+        "#define MF_SCHEMA_U32 __u32",
+        "#define MF_SCHEMA_U64 __u64",
+        "#define MF_SCHEMA_S32 __s32",
+        "#define MF_SCHEMA_ALIGNOF __alignof__",
+        "#define MF_SCHEMA_STATIC_ASSERT static_assert",
+        "#else",
         "#include <stddef.h>",
         "#include <stdint.h>",
         "#include <stdalign.h>",
         "#include <linux/ioctl.h>",
         '#include "metaflux/shared/device.h"',
-        "",
+        "#define MF_SCHEMA_U8 uint8_t",
+        "#define MF_SCHEMA_U16 uint16_t",
+        "#define MF_SCHEMA_U32 uint32_t",
+        "#define MF_SCHEMA_U64 uint64_t",
+        "#define MF_SCHEMA_S32 int32_t",
+        "#define MF_SCHEMA_ALIGNOF _Alignof",
         "#ifdef __cplusplus",
         "#define MF_SCHEMA_STATIC_ASSERT static_assert",
         "#else",
         "#define MF_SCHEMA_STATIC_ASSERT _Static_assert",
+        "#endif",
         "#endif",
         "",
         f'#define MF_TRANSPORT_SCHEMA_MANIFEST_SHA256 "{manifest_hash}"',
@@ -275,12 +293,13 @@ def emit_header(root: Path, manifest_path: Path, manifest: dict[str, Any], loade
                     )
             elif document.get("kind") == "inherited-layout":
                 lines.append(
-                    f"#ifdef __cplusplus\nMF_SCHEMA_STATIC_ASSERT(alignof({name}) == {record['alignment']}u, \"{name} alignment\");\n#else\nMF_SCHEMA_STATIC_ASSERT(_Alignof({name}) == {record['alignment']}u, \"{name} alignment\");\n#endif\nMF_SCHEMA_STATIC_ASSERT(sizeof({name}) == {record['size']}u, \"{name} size\");"
+                    f"#ifndef __KERNEL__\n#ifdef __cplusplus\nMF_SCHEMA_STATIC_ASSERT(alignof({name}) == {record['alignment']}u, \"{name} alignment\");\n#else\nMF_SCHEMA_STATIC_ASSERT(_Alignof({name}) == {record['alignment']}u, \"{name} alignment\");\n#endif\nMF_SCHEMA_STATIC_ASSERT(sizeof({name}) == {record['size']}u, \"{name} size\");"
                 )
                 for field in record["fields"]:
                     lines.append(
                         f"MF_SCHEMA_STATIC_ASSERT(offsetof({name}, {field['name']}) == {field['offset']}u, \"{name}.{field['name']} offset\");"
                     )
+                lines.append("#endif")
             lines.append("")
         for constant_name, value in document.get("constants", {}).items():
             if isinstance(value, str):

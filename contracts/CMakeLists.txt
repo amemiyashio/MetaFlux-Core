@@ -26,11 +26,13 @@ add_custom_target(metaflux_transport_schema DEPENDS "${METAFLUX_TRANSPORT_SCHEMA
 add_library(metaflux_transport_schema_projection INTERFACE)
 add_library(MetaFlux::TransportSchema ALIAS metaflux_transport_schema_projection)
 add_dependencies(metaflux_transport_schema_projection metaflux_transport_schema)
+list(APPEND metaflux_runtime_contract_targets metaflux_transport_schema_projection)
 target_include_directories(
   metaflux_transport_schema_projection
   INTERFACE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/generated/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/shared/device/v1/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/uapi/linux/v1/include>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
 install(

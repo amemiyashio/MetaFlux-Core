@@ -1,8 +1,22 @@
 #ifndef METAFLUX_SHARED_DEVICE_H
 #define METAFLUX_SHARED_DEVICE_H
 
+#ifdef __KERNEL__
+#include <linux/stddef.h>
+#include <linux/types.h>
+#ifndef UINT32_C
+#define UINT32_C(value) value##U
+#endif
+#ifndef UINT64_C
+#define UINT64_C(value) value##ULL
+#endif
+#ifndef INT32_C
+#define INT32_C(value) value
+#endif
+#else
 #include <stddef.h>
 #include <stdint.h>
+#endif
 
 #include "metaflux/shared/atomic.h"
 
@@ -692,21 +706,21 @@ static inline uint64_t mf_telemetry_publish_state_pack_v1(uint32_t publish_tag, 
   return mf_tagged_record_pack_v1(publish_tag, state, target_bank);
 }
 
-static inline int mf_shared_checked_add_u64_below_terminal_v1(uint64_t current, uint64_t increment,
+static inline int mf_shared_checked_add_u64_below_terminal_v1(uint64_t cursor, uint64_t increment,
                                                               uint64_t terminal,
                                                               uint64_t* out_value) {
-  if (out_value == NULL || current >= terminal || increment >= terminal - current) {
+  if (out_value == NULL || cursor >= terminal || increment >= terminal - cursor) {
     return 0;
   }
-  *out_value = current + increment;
+  *out_value = cursor + increment;
   return 1;
 }
 
-static inline int mf_shared_checked_next_record_tag_v1(uint32_t current, uint32_t* out_tag) {
-  if (out_tag == NULL || current >= MF_SHARED_RECORD_TAG_MAX_NORMAL) {
+static inline int mf_shared_checked_next_record_tag_v1(uint32_t tag, uint32_t* out_tag) {
+  if (out_tag == NULL || tag >= MF_SHARED_RECORD_TAG_MAX_NORMAL) {
     return 0;
   }
-  *out_tag = current + 1U;
+  *out_tag = tag + 1U;
   return 1;
 }
 

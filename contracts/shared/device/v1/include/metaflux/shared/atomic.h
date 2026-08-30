@@ -1,7 +1,11 @@
 #ifndef METAFLUX_SHARED_ATOMIC_H
 #define METAFLUX_SHARED_ATOMIC_H
 
+#ifdef __KERNEL__
+#include <linux/types.h>
+#else
 #include <stdint.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
