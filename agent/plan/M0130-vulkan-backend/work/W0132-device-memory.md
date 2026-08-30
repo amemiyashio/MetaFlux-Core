@@ -2,10 +2,10 @@
 id: W0132
 delivery: 0.1.3.2
 milestone: M0130
-status: Queued
+status: Active
 area: backend.vulkan.memory
 depends_on: [W0131]
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 
 # Vulkan Device, Queue, and Memory
@@ -45,6 +45,10 @@ memory or host heap object.
 
 ## Work
 
+- [x] Add a generation-bound staging suballocation ledger and timeline
+  admission model. It consumes the capability profile's truthful staging
+  budget, enforces power-of-two alignment and non-overlap, and rejects stale
+  generations or completions outside the submitted timeline.
 - [ ] Implement instance/device/queue discovery and actual enabled feature,
   property, limit, and capability capture behind `mf_backend_api_v1`.
 - [ ] Implement allocation/suballocation, staging, optional direct tiers,

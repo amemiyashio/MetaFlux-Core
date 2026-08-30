@@ -94,6 +94,7 @@ copies canonical content.
 | [S0121-20260830-015-m0120-lifecycle-model](2026/08/S0121-20260830-015-m0120-lifecycle-model/summary.md) | 2026-08-30 | Exact | In progress | W0121 lifecycle extension, generation/epoch and fence/telemetry model checker with CUDA/NVML invariants, runtime telemetry producer guards, marker recovery containment, and 79/79 dev regression; live provider/adapters and qualification remain |
 | [S0122-20260831-001-m0120-existing-transport-lifecycle](2026/08/S0122-20260831-001-m0120-existing-transport-lifecycle/summary.md) | 2026-08-31 | Exact | In progress | W0122 coordinator, memfd/cdev/vfio-user mirrors, typed normalizer, QMP/disconnect process ingress fixtures, and runtime ingress; live producer/socket wiring, provider, and qualification gates remain |
 | [S0131-20260831-002-vulkan-capability-abi](2026/08/S0131-20260831-002-vulkan-capability-abi/summary.md) | 2026-08-31 | Exact | In progress | Vulkan capability ABI, packed argument and external-memory profiles, deterministic target identity, opt-in tool epoch, and truthful no-device host probe; execution and driver qualification remain open |
+| [S0132-20260831-003-vulkan-device-memory](2026/08/S0132-20260831-003-vulkan-device-memory/summary.md) | 2026-08-31 | Exact | In progress | W0132 generation-bound staging ledger and timeline admission model; physical Vulkan allocation and driver qualification remain open |
 
 ## Fidelity and retention
 

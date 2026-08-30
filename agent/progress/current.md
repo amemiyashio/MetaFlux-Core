@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0130
-workstream: W0131
-checkpoint: P20260831-042
+workstream: W0132
+checkpoint: P20260831-043
 ---
 
 # Current Progress
@@ -62,6 +62,8 @@ truthful host probe are recorded at
 [P20260831-041](checkpoints/2026/P20260831-041-m0130-vulkan-capability.md).
 W0131's packed BDA argument and external-memory 0.x profiles are recorded at
 [P20260831-042](checkpoints/2026/P20260831-042-m0130-vulkan-abi-profiles.md).
+W0132's generation-bound staging suballocation and timeline admission model are
+recorded at [P20260831-043](checkpoints/2026/P20260831-043-m0130-vulkan-memory-model.md).
 W0122's QMP completion-to-ingress helper is recorded at
 [P20260831-028](checkpoints/2026/P20260831-028-m0120-qmp-ingress.md).
 W0122's vfio-user disconnect handoff is recorded at
@@ -217,6 +219,15 @@ Linux 9.8.
 | Vulkan CTest | Full `vulkan` preset passed 81/81, including ABI and capability regressions |
 | W0131 current boundary | Exact feature/limit minimums, two driver families, packed BDA/external-memory fixtures, lowering, execution, caches, and lifecycle integration remain open |
 
+## Recorded M0130 W0132 Evidence
+
+| Gate | Recorded result |
+| --- | --- |
+| W0132 staging ledger | `67eaf28`; capability-backed first-fit suballocation with power-of-two alignment, non-overlap, release/reuse, and generation-bound validation |
+| W0132 timeline model | `67eaf28`; monotonic submit/complete/wait admission with stale-generation and future-value rejection |
+| W0132 CTest | Full `vulkan` preset passed 84/84, including `metaflux.backend.vulkan-memory` |
+| W0132 current boundary | Physical `VkDeviceMemory`, non-coherent flush/invalidate, external-handle import, cross-process synchronization, lifecycle drain, and driver qualification remain open |
+
 ## Versioned Next Work
 
 1. M0100, its foundation session, and its completion session are terminal; the
@@ -272,6 +283,10 @@ Linux 9.8.
    Continue with the exact target baseline, then move to W0132/W0133 without
    claiming physical driver-family support from the current host's `no-device`
    probe.
+10. M0130/W0132 is Active after the host-independent memory model stage at
+    [P20260831-043](checkpoints/2026/P20260831-043-m0130-vulkan-memory-model.md).
+    Continue with qualified-device allocation and synchronization evidence;
+    keep the staging model separate from physical Vulkan qualification.
 
 ## Tool Boundary
 
