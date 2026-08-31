@@ -495,6 +495,11 @@ verify_payload() {
   test -f /artifacts/add-u32.ptx
   test -x /usr/bin/metafluxd
   test -x /usr/libexec/metaflux/ld.lld
+  test -f /usr/lib/udev/rules.d/70-metaflux.rules
+  grep -Fx 'SUBSYSTEM=="misc", KERNEL=="metafluxctl", GROUP="metaflux", MODE="0660"' \
+    /usr/lib/udev/rules.d/70-metaflux.rules
+  grep -Fx 'SUBSYSTEM=="misc", KERNEL=="metaflux[0-9]*", GROUP="metaflux", MODE="0660"' \
+    /usr/lib/udev/rules.d/70-metaflux.rules
   test ! -e /usr/lib/metaflux/runtime
   test -f /usr/share/metaflux/toolchains/ubuntu-20.04-target-sdk.manifest
   test -f /usr/share/metaflux/toolchains/generic-llvm-toolchain.manifest
@@ -573,6 +578,7 @@ create_metaflux_account_fallback() {
 apply_tar_lifecycle_metadata() {
   test -f /usr/lib/sysusers.d/metaflux.conf
   test -f /usr/lib/tmpfiles.d/metaflux.conf
+  test -f /usr/lib/udev/rules.d/70-metaflux.rules
   grep -F 'u metaflux ' /usr/lib/sysusers.d/metaflux.conf
   grep -F 'd /var/cache/metaflux 0750 metaflux metaflux' \
     /usr/lib/tmpfiles.d/metaflux.conf
@@ -737,6 +743,7 @@ verify_removed() {
     /usr/lib/metaflux \
     /usr/lib/systemd/system/metafluxd.service \
     /usr/lib/systemd/system/metafluxd.socket \
+    /usr/lib/udev/rules.d/70-metaflux.rules \
     /usr/lib/sysusers.d/metaflux.conf \
     /usr/lib/tmpfiles.d/metaflux.conf \
     /usr/libexec/metaflux \
@@ -869,6 +876,7 @@ remove_tar_payload() {
   rm -rf /usr/share/doc/metaflux
   rm -f /usr/bin/metafluxd /usr/lib/libmetaflux_cuda_passthrough.a
   rm -f /usr/lib/systemd/system/metafluxd.service /usr/lib/systemd/system/metafluxd.socket
+  rm -f /usr/lib/udev/rules.d/70-metaflux.rules
   rm -f /usr/lib/sysusers.d/metaflux.conf /usr/lib/tmpfiles.d/metaflux.conf
 }
 

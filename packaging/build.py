@@ -543,6 +543,7 @@ def validate_payload(stage: Path, kind: str, readelf: str) -> None:
             (
                 "usr/bin/metafluxd",
                 "usr/libexec/metaflux/ld.lld",
+                "usr/lib/udev/rules.d/70-metaflux.rules",
                 "usr/share/metaflux/toolchains/ubuntu-20.04-target-sdk.manifest",
                 "usr/share/metaflux/toolchains/generic-llvm-toolchain.manifest",
             )

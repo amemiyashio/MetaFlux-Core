@@ -3,6 +3,12 @@
 Shared release metadata, udev/systemd policy templates, install layout, signing
 inputs, coexistence rules, and reproducible packaging helpers live here.
 
+`70-metaflux.rules` is the canonical node policy for the existing cdev
+transport. It matches only the kernel-owned `misc` nodes `metafluxctl` and
+`metaflux[0-9]*`, assigns group `metaflux`, and applies mode `0660`. It does not
+create nodes, change their names, or install vendor/NVIDIA aliases; the kernel
+and udev remain the authorities for creation and activation.
+
 The shipped socket unit exposes `/run/metaflux/metafluxd.sock` only to members
 of the `metaflux` group. The service runs as an unprivileged system user with
 write access limited to its runtime, compiler-cache, and state directories.

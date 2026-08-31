@@ -1,0 +1,4 @@
+# MetaFlux cdev nodes are owned by the package-created service group.
+# The kernel remains the authority for device creation and naming.
+SUBSYSTEM=="misc", KERNEL=="metafluxctl", GROUP="metaflux", MODE="0660"
+SUBSYSTEM=="misc", KERNEL=="metaflux[0-9]*", GROUP="metaflux", MODE="0660"

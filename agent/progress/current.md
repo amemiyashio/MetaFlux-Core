@@ -375,6 +375,7 @@ Linux 9.8.
 | Gate | Recorded result |
 | --- | --- |
 | Lifecycle authority capacity | `72025af`; 4,096 request replay records and 2,048 immutable tombstones sized for the W0123 1,000-cycle envelope without eviction |
+| W0123 canonical cdev node policy | Daemon install now ships `70-metaflux.rules`, matching only `misc` `metafluxctl` and `metaflux[0-9]*` with group `metaflux`/mode `0660`; packaging payload and removal assertions cover the rule, with no node creation or vendor aliases |
 | Lifecycle core long run | `72025af`; 1,000 reset/remove/add cycles passed, with 2,000 retired generations resolving as `DeviceLost`, exact high-water/epoch checks, all three mirror streams, and replay/conflict checks |
 | Focused lifecycle tests | Four lifecycle, long-run, normalizer, and dispatch tests passed |
 | Full development CTest | 83/83 passed |

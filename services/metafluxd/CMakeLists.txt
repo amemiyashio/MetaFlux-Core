@@ -83,6 +83,11 @@ install(
   COMPONENT Daemon
 )
 install(
+  FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../packaging/common/70-metaflux.rules"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/udev/rules.d"
+  COMPONENT Daemon
+)
+install(
   FILES "${CMAKE_CURRENT_SOURCE_DIR}/../../packaging/common/vendor-libraries.conf.example"
   DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/metaflux"
   COMPONENT Daemon

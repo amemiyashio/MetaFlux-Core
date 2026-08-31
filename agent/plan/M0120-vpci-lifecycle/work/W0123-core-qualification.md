@@ -27,9 +27,11 @@ freeze `mf_admin_lifecycle_v1` from one schema.
   open, mmap, submit, and telemetry-style observations. The fixture proves one
   accepted replay, idempotent duplicates, legal intermediate states, and final
   generation/tombstone invariants without changing the transport ABI.
-- [ ] Implement and qualify canonical MetaFlux udev/node policy for existing
-  transports; the optional namespace launcher and NVIDIA-named aliases belong
-  only to W0124.
+- [x] Implement the canonical MetaFlux udev/node policy for existing cdev
+  transports. The Daemon component installs one rule for the kernel-owned
+  `metafluxctl` and `metaflux[0-9]*` misc nodes with group `metaflux` and mode
+  `0660`; it creates no nodes and adds no vendor aliases. The optional
+  namespace launcher and NVIDIA-named aliases belong only to W0124.
 - [ ] Run 1,000 memfd, local-cdev, and guest-QMP reset/remove/add cycles under
   concurrent open, mmap, submit, and `nvidia-smi` activity.
 - [ ] Run KUnit, kselftest, ABI fuzz, KASAN, KCSAN, lockdep, kmemleak, crash, and

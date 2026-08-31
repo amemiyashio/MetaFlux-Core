@@ -46,6 +46,8 @@ that way. Package removal deliberately retains the system account,
 `/var/lib/metaflux`, and `/var/cache/metaflux`; this prevents service-UID reuse
 and preserves compiler state. An administrator may archive and remove those
 three retained resources explicitly when permanent data deletion is intended.
+The Daemon component also installs the shared `70-metaflux.rules` policy under
+`/usr/lib/udev/rules.d`; packages do not create device nodes or vendor aliases.
 
 ## Build entry point
 
