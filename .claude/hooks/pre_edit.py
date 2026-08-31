@@ -24,6 +24,9 @@ import sys
 from pathlib import Path
 
 DENIED_MARKER = "MetaFlux guard:"
+CURRENT_SESSION_SCHEMA_VERSION = 2
+CURRENT_FOCUS_SCHEMA_VERSION = 2
+EXECUTION_GOVERNANCE_EPOCH = "D0029"
 SESSION_ID_RE = re.compile(
     r"^S\d{4,}-(?P<year>\d{4})(?P<month>\d{2})\d{2}-"
     r"\d{3}-[a-z0-9][a-z0-9-]*$"
@@ -42,6 +45,11 @@ def execution_focus_owner(repo_root: Path) -> str | None:
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return None
     if not isinstance(focus, dict):
+        return None
+    if (
+        focus.get("schema_version") != CURRENT_FOCUS_SCHEMA_VERSION
+        or focus.get("governance_epoch") != EXECUTION_GOVERNANCE_EPOCH
+    ):
         return None
     owner = focus.get("owner_session")
     if not isinstance(owner, str):
@@ -64,6 +72,8 @@ def execution_focus_owner(repo_root: Path) -> str | None:
         return None
     if (
         not isinstance(session, dict)
+        or session.get("schema_version") != CURRENT_SESSION_SCHEMA_VERSION
+        or session.get("governance_epoch") != EXECUTION_GOVERNANCE_EPOCH
         or session.get("id") != owner
         or session.get("status") != "in_progress"
         or session.get("ended_at") is not None

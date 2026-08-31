@@ -602,7 +602,8 @@ def check_pre_commit_guidance_gate(root: Path) -> list[str]:
         write_fixture_entry(
             root,
             active_session_path.as_posix(),
-            '{"status":"in_progress"}\n',
+            '{"schema_version":2,"governance_epoch":"D0029",'
+            '"status":"in_progress"}\n',
         )
         subprocess.run(
             ["git", "add", "--", active_session_path.as_posix()],
@@ -614,7 +615,14 @@ def check_pre_commit_guidance_gate(root: Path) -> list[str]:
         write_fixture_entry(
             root,
             focus_path.as_posix(),
-            json.dumps({"owner_session": active_session_id}) + "\n",
+            json.dumps(
+                {
+                    "schema_version": 2,
+                    "governance_epoch": "D0029",
+                    "owner_session": active_session_id,
+                }
+            )
+            + "\n",
         )
         subprocess.run(
             ["git", "add", "--", focus_path.as_posix()],
@@ -855,28 +863,18 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
         '{"schema_version":1,"governance_epoch":"D0029",'
         '"status":"in_progress"}\n'
     )
+    legacy_complete_session = (
+        '{"schema_version":1,"governance_epoch":"D0029",'
+        '"status":"complete"}\n'
+    )
 
-    def focus_document(owner: str) -> str:
-        return json.dumps(
-            {
-                "schema_version": 2,
-                "governance_epoch": "D0029",
-                "owner_session": owner,
-            }
-        ) + "\n"
-
-    def cutover_focus_document(schema_version: int, *, updated: str = "2026-08-28") -> str:
+    def focus_document(owner: str, **updates: object) -> str:
         document: dict[str, object] = {
-            "schema_version": schema_version,
-            "updated": updated,
-            "mode": "governance",
-            "owner_session": session_id,
-            "authority": {"decision": "D0029", "semantic_change": "SC0007"},
-            "target": None,
-            "resume_target": {"milestone": "M0110", "work_item": "W0112"},
+            "schema_version": 2,
+            "governance_epoch": "D0029",
+            "owner_session": owner,
         }
-        if schema_version == 2:
-            document["governance_epoch"] = "D0029"
+        document.update(updates)
         return json.dumps(document) + "\n"
 
     def prepare_repository(*, bypass_python_gates: bool = True) -> dict[str, str]:
@@ -1008,31 +1006,43 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 
-    environment = prepare_repository()
-    stage(session_path, legacy_active_session)
-    stage(focus_path, cutover_focus_document(1))
-    commit_staged("legacy SC0007 governance owner fixture")
-    stage(session_path, active_session)
-    stage(focus_path, cutover_focus_document(2))
-    stage(product_path, "atomic D0029 cutover fixture\n")
+    environment = prepare_active_head()
+    stage(focus_path, focus_document(session_id, schema_version=1))
+    stage(product_path, "legacy focus fixture\n")
     result = run_hook(environment)
-    if result.returncode != 0:
+    if result.returncode == 0 or "focus.json is missing or invalid" not in result.stderr:
         problems.append(
-            "exact atomic D0029 cutover was rejected: "
+            "schema-1 focus passed the strict commit gate: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 
-    environment = prepare_repository()
+    environment = prepare_active_head()
+    stage(focus_path, focus_document(session_id, governance_epoch="D0028"))
+    stage(product_path, "wrong focus epoch fixture\n")
+    result = run_hook(environment)
+    if result.returncode == 0 or "focus.json is missing or invalid" not in result.stderr:
+        problems.append(
+            "wrong focus epoch passed the strict commit gate: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_active_head()
     stage(session_path, legacy_active_session)
-    stage(focus_path, cutover_focus_document(1))
-    commit_staged("legacy SC0007 drift fixture")
-    stage(session_path, active_session)
-    stage(focus_path, cutover_focus_document(2, updated="2026-08-29"))
-    stage(product_path, "drifting D0029 cutover fixture\n")
+    stage(product_path, "legacy owner fixture\n")
+    result = run_hook(environment)
+    if result.returncode == 0 or "not one in-progress session" not in result.stderr:
+        problems.append(
+            "schema-1 owner passed the strict commit gate: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_active_head()
+    stage(focus_path, focus_document(session_id, updated="2026-09-01"))
+    stage(product_path, "focus metadata piggyback fixture\n")
     result = run_hook(environment)
     if result.returncode == 0 or "record-only" not in result.stderr:
         problems.append(
-            "D0029 cutover accepted unrelated focus drift: "
+            "current-epoch focus metadata accepted piggybacked content: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 
@@ -1058,6 +1068,19 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
     if result.returncode != 0:
         problems.append(
             "exact record-only non-owner close was rejected: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_active_head()
+    stage(other_path, legacy_active_session)
+    commit_staged("legacy non-owner session fixture")
+    stage(other_path, legacy_complete_session)
+    stage(Path("agent/sessions/README.md"), "# Legacy close fixture\n")
+    environment["METAFLUX_SESSION_ID"] = other_id
+    result = run_hook(environment)
+    if result.returncode == 0 or "does not own" not in result.stderr:
+        problems.append(
+            "legacy non-owner retained the record-only close path: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 
@@ -1196,14 +1219,20 @@ def check_claude_focus_guard(root: Path) -> list[str]:
             shutil.rmtree(root)
         root.mkdir(parents=True)
 
-    def write_owner(*, status: str = "in_progress", ended_at: str | None = None) -> None:
+    def write_owner(
+        *,
+        status: str = "in_progress",
+        ended_at: str | None = None,
+        schema_version: int = 2,
+        governance_epoch: str = "D0029",
+    ) -> None:
         write_fixture_entry(
             root,
             session_path,
             json.dumps(
                 {
-                    "schema_version": 2,
-                    "governance_epoch": "D0029",
+                    "schema_version": schema_version,
+                    "governance_epoch": governance_epoch,
                     "id": owner,
                     "status": status,
                     "ended_at": ended_at,
@@ -1213,14 +1242,16 @@ def check_claude_focus_guard(root: Path) -> list[str]:
             + "\n",
         )
 
-    def write_focus() -> None:
+    def write_focus(
+        *, schema_version: int = 2, governance_epoch: str = "D0029"
+    ) -> None:
         write_fixture_entry(
             root,
             "agent/progress/focus.json",
             json.dumps(
                 {
-                    "schema_version": 2,
-                    "governance_epoch": "D0029",
+                    "schema_version": schema_version,
+                    "governance_epoch": governance_epoch,
                     "owner_session": owner,
                 },
                 indent=2,
@@ -1275,6 +1306,46 @@ def check_claude_focus_guard(root: Path) -> list[str]:
     if result.returncode != 2 or "does not match" not in result.stderr:
         problems.append(
             "an explicit mismatched Claude session was not rejected: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    reset()
+    write_owner()
+    write_focus(schema_version=1)
+    result = run_guard("src/fixture.cpp")
+    if result.returncode != 2 or "focus.json" not in result.stderr:
+        problems.append(
+            "a schema-1 focus covered a Claude product edit: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    reset()
+    write_owner()
+    write_focus(governance_epoch="D0028")
+    result = run_guard("src/fixture.cpp")
+    if result.returncode != 2 or "focus.json" not in result.stderr:
+        problems.append(
+            "a wrong-epoch focus covered a Claude product edit: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    reset()
+    write_owner(schema_version=1)
+    write_focus()
+    result = run_guard("src/fixture.cpp")
+    if result.returncode != 2 or "focus.json" not in result.stderr:
+        problems.append(
+            "a schema-1 owner covered a Claude product edit: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    reset()
+    write_owner(governance_epoch="D0028")
+    write_focus()
+    result = run_guard("src/fixture.cpp")
+    if result.returncode != 2 or "focus.json" not in result.stderr:
+        problems.append(
+            "a wrong-epoch owner covered a Claude product edit: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 

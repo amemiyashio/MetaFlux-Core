@@ -16,14 +16,16 @@ Contents:
 
 - `settings.json`: registers the hooks below. Project-scoped only.
 - `hooks/session_start.py`: prints the onboarding banner into every new
-  Claude session (read AGENTS.md and `agent/progress/focus.json`, distinguish
-  scaffolding from focus ownership, and use D0025/SC authorization for
-  protected history).
+  Claude session (read AGENTS.md, require schema version 2 and D0029 on focus
+  plus owner, reject legacy-session resumption, distinguish scaffolding from
+  focus ownership, and use D0025/SC authorization for protected history).
 - `hooks/pre_edit.py`: PreToolUse guard for Edit/Write/MultiEdit/NotebookEdit.
   Allows new checkpoints, blocks unlisted edits to existing checkpoints and
   terminal sessions, and blocks edits outside `agent/` unless
-  `agent/progress/focus.json` names one resolvable in-progress owner. When
-  `METAFLUX_SESSION_ID` is present, the guard also rejects an owner mismatch.
+  `agent/progress/focus.json` names one resolvable schema version 2, D0029,
+  in-progress owner. Schema version 1, missing-epoch, and mismatched-epoch focus
+  or owner records fail closed. When `METAFLUX_SESSION_ID` is present, the guard
+  also rejects an owner mismatch.
   Protected-history authorization is read only from a committed Active SC.
   The pre-commit hook still validates the exact candidate tree and owns commit
   authorization.
