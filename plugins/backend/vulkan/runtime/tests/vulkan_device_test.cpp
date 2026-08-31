@@ -1,10 +1,13 @@
 #include "../src/vulkan_device.hpp"
 #include "../src/vulkan_staging.hpp"
 
+#include "../src/vulkan_device_copy.hpp"
 #include "metaflux/backend/vulkan_capability.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 
 int main() {
   mf_vulkan_capability_profile_v1 profile{};
@@ -81,6 +84,34 @@ int main() {
         staging.allocate(0U, 256U) !=
             metaflux::backend::vulkan::AllocationStatus::invalid_argument) {
       return 7;
+    }
+  }
+
+  {
+    metaflux::backend::vulkan::VulkanDeviceLocalCopy transfer(context);
+    if (transfer.allocate(4096U, 256U) != metaflux::backend::vulkan::AllocationStatus::success ||
+        !transfer.ready() ||
+        transfer.map() != metaflux::backend::vulkan::AllocationStatus::success) {
+      return 9;
+    }
+    auto* host = static_cast<std::uint8_t*>(transfer.host_allocation().mapped);
+    for (std::size_t index = 0U; index < 4096U; ++index) {
+      host[index] = static_cast<std::uint8_t>((index * 17U) & 0xffU);
+    }
+    if (transfer.upload(0U, 4096U, UINT64_C(5000000000)) !=
+            metaflux::backend::vulkan::AllocationStatus::success ||
+        transfer.download(0U, 4096U, UINT64_C(5000000000)) !=
+            metaflux::backend::vulkan::AllocationStatus::success) {
+      return 10;
+    }
+    for (std::size_t index = 0U; index < 4096U; ++index) {
+      if (host[index] != static_cast<std::uint8_t>((index * 17U) & 0xffU)) {
+        return 11;
+      }
+    }
+    if (transfer.upload(4096U, 1U, UINT64_C(5000000000)) !=
+        metaflux::backend::vulkan::AllocationStatus::range_out_of_bounds) {
+      return 12;
     }
   }
 

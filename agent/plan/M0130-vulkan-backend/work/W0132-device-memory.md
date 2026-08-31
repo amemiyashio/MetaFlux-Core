@@ -62,6 +62,11 @@ memory or host heap object.
   host-visible memory type while preferring host-coherent memory, maps the
   allocation, and applies queried non-coherent atom-size range normalization to
   flush/invalidate operations without changing `mf_backend_api_v1`.
+- [x] Add a source-local Tier 3 copy adapter. It pairs the host-visible staging
+  allocation with a device-local transfer buffer, records `vkCmdCopyBuffer`
+  upload/download operations, submits them through the generation-bound Vulkan
+  timeline context, and verifies an AMD/RADV round trip without changing
+  `mf_backend_api_v1`.
 - [ ] Expose the context through the backend admission path without changing
   the stable C ABI, then implement allocation/suballocation, staging, optional
   direct tiers, non-coherent flush/invalidate, and timeline synchronization.

@@ -9,6 +9,7 @@ add_library(
   src/cache.cpp
   src/vulkan_device.cpp
   src/vulkan_staging.cpp
+  src/vulkan_device_copy.cpp
 )
 add_library(MetaFlux::VulkanBackend ALIAS metaflux_vulkan_backend)
 

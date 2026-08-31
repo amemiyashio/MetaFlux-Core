@@ -371,6 +371,56 @@ DeviceStatus VulkanDeviceContext::submit_signal(std::uint64_t generation,
   return status;
 }
 
+DeviceStatus VulkanDeviceContext::submit_commands(std::uint64_t generation,
+                                                  VkCommandBuffer command_buffer,
+                                                  std::uint64_t wait_value,
+                                                  std::uint64_t signal_value) noexcept {
+  if (generation == 0U || command_buffer == VK_NULL_HANDLE) {
+    return DeviceStatus::invalid_argument;
+  }
+  if (generation != generation_) {
+    return DeviceStatus::stale_generation;
+  }
+  if (lost_) {
+    return DeviceStatus::device_lost;
+  }
+  if (!ready()) {
+    return DeviceStatus::not_ready;
+  }
+  if (signal_value == 0U || signal_value == std::numeric_limits<std::uint64_t>::max() ||
+      signal_value <= last_submitted_ || signal_value <= last_completed_ ||
+      wait_value >= signal_value || wait_value > last_submitted_) {
+    return DeviceStatus::invalid_timeline;
+  }
+
+  VkCommandBufferSubmitInfo command_info{};
+  command_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+  command_info.commandBuffer = command_buffer;
+  VkSemaphoreSubmitInfo wait_info{};
+  wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+  wait_info.semaphore = timeline_;
+  wait_info.value = wait_value;
+  wait_info.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+  VkSemaphoreSubmitInfo signal_info{};
+  signal_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+  signal_info.semaphore = timeline_;
+  signal_info.value = signal_value;
+  signal_info.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+  VkSubmitInfo2 submit_info{};
+  submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+  submit_info.waitSemaphoreInfoCount = wait_value == 0U ? 0U : 1U;
+  submit_info.pWaitSemaphoreInfos = wait_value == 0U ? nullptr : &wait_info;
+  submit_info.commandBufferInfoCount = 1U;
+  submit_info.pCommandBufferInfos = &command_info;
+  submit_info.signalSemaphoreInfoCount = 1U;
+  submit_info.pSignalSemaphoreInfos = &signal_info;
+  const auto status = map_runtime_result(vkQueueSubmit2(queue_, 1U, &submit_info, VK_NULL_HANDLE));
+  if (status == DeviceStatus::success) {
+    last_submitted_ = signal_value;
+  }
+  return status;
+}
+
 DeviceStatus VulkanDeviceContext::wait(std::uint64_t generation, std::uint64_t value,
                                        std::uint64_t timeout_ns) noexcept {
   if (generation == 0U) {

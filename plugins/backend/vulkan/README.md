@@ -70,8 +70,10 @@ adds a source-local host-visible `VkBuffer`/`VkDeviceMemory` staging adapter. It
 selects a compatible host-visible memory type, prefers host-coherent memory,
 maps the allocation, and normalizes non-coherent flush/invalidate ranges. This
 is physical allocation and mapping evidence on the current AMD/RADV host only;
-device-local copies, external-handle import, backend admission, device-loss
-drain, and driver qualification remain open.
+the source-local runtime now also records an explicit host-to-device and
+device-to-host copy through a device-local buffer and the generation-bound
+timeline context. This is a single-device Tier 3 round-trip, not external-handle
+import, backend admission, device-loss drain, or driver qualification.
 
 W0134 also provides a host-independent command-resource pool. A finite pool
 assigns each acquired resource a monotonic identity, generation, stream, and

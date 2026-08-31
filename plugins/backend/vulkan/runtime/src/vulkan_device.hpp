@@ -37,6 +37,10 @@ public:
 
   [[nodiscard]] DeviceStatus initialize(const mf_vulkan_capability_profile_v1& profile) noexcept;
   [[nodiscard]] DeviceStatus submit_signal(std::uint64_t generation, std::uint64_t value) noexcept;
+  [[nodiscard]] DeviceStatus submit_commands(std::uint64_t generation,
+                                             VkCommandBuffer command_buffer,
+                                             std::uint64_t wait_value,
+                                             std::uint64_t signal_value) noexcept;
   [[nodiscard]] DeviceStatus wait(std::uint64_t generation, std::uint64_t value,
                                   std::uint64_t timeout_ns) noexcept;
   [[nodiscard]] DeviceStatus poll(std::uint64_t generation, std::uint64_t* out_value) noexcept;
