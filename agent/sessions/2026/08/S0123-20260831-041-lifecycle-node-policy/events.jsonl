@@ -1,0 +1,1 @@
+{"schema_version": 1, "seq": 1, "timestamp": "2026-08-31", "type": "objective", "actor": "A001", "content": "Implement the canonical Linux udev policy for the existing MetaFlux cdev nodes /dev/metafluxctl and /dev/metafluxN, install the rule through the Daemon component, and add release-payload assertions without changing the kernel UAPI or creating vendor aliases."}
