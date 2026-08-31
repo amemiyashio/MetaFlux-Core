@@ -88,6 +88,11 @@ only.
   and vfio-user `process_once` can now capture logical device, daemon incarnation,
   identity record, generation, epoch, and deadline at observation time; the
   explicit event overload remains for callers that already own a captured tuple.
+- [x] Provide a `QmpSocket`-to-lifecycle completion bridge. One receive returns
+  separate transport and lifecycle outcomes, submits only a correlated reply
+  through `QmpLifecycleAdapter` and `Coordinator`, keeps wrong-kind events
+  pending, and leaves malformed/timeout/closed socket errors outside authority
+  state mutation.
 - [ ] Integrate every reset/disconnect/restart source and inject failure at each
   staging, commit, DMA, completion, and teardown step.
 - [ ] Verify provider enumeration freeze before, during, and after replacement.
@@ -135,7 +140,11 @@ identity, mutate generation/epoch state, retry commands, or submit events.
 `QmpLifecycleAdapter` remains the composition point for correlation and
 `Coordinator` remains the authority for state transitions. Its focused test
 uses `socketpair` plus a pathname Unix listener and is included in the Vulkan
-CTest preset.
+CTest preset. `QmpLifecycleAdapter::receive_and_submit` now composes one
+socket receive with that correlation and ingress, reports a separate
+`QmpLifecycleSocketOutcome`, preserves pending state for an unrelated or
+wrong-kind event, and does not submit malformed, timeout, or closed-socket
+results.
 
 ## Exit Gate
 

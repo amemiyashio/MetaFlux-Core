@@ -64,6 +64,11 @@ enum class QmpSocketResult : std::uint8_t {
   Unexpected = 7,
 };
 
+struct QmpLifecycleSocketOutcome final {
+  QmpSocketResult transport = QmpSocketResult::Invalid;
+  QmpResult lifecycle = QmpResult::Invalid;
+};
+
 class QmpSocket final {
 public:
   static constexpr std::size_t kMaximumMessageBytes = 64U * 1024U;
@@ -107,6 +112,10 @@ public:
   [[nodiscard]] QmpResult
   complete_and_submit(const QmpReply& reply, metaflux::runtime::lifecycle::Coordinator& coordinator,
                       metaflux::runtime::lifecycle::ResultDetails& out) noexcept;
+  [[nodiscard]] QmpLifecycleSocketOutcome
+  receive_and_submit(QmpSocket& socket,
+                     metaflux::runtime::lifecycle::Coordinator& coordinator,
+                     metaflux::runtime::lifecycle::ResultDetails& out) noexcept;
 
   [[nodiscard]] bool pending() const noexcept { return pending_; }
   [[nodiscard]] std::uint64_t pending_command_id() const noexcept {

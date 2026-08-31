@@ -53,12 +53,13 @@ connected `SOCK_STREAM` fd, sends one command object with a non-zero numeric ID,
 frames one top-level JSON object up to 64 KiB, and classifies QMP greetings,
 replies, errors, device events, closure, and malformed input. It does not own
 lifecycle identity, generation/epoch allocation, command retry, or event
-publication. Callers compose `receive_lifecycle_reply` with the existing
-`QmpLifecycleAdapter`; callers that already own the coordinator can use
-`complete_and_submit` to complete the correlation and submit the captured event
-through the stateless lifecycle ingress in one step. The `QmpResult` reports
-correlation status while `ResultDetails` reports the coordinator's authoritative
-outcome. Production QEMU producer wiring and qualification remain open.
+publication. `QmpLifecycleAdapter::receive_and_submit` composes one socket
+receive with correlation and the stateless lifecycle ingress, returning a
+separate `{transport, lifecycle}` outcome. Unrelated or wrong-kind events keep
+the adapter pending; malformed, timeout, and closed-socket results never mutate
+coordinator state. The `QmpResult` reports correlation status while
+`ResultDetails` reports the coordinator's authoritative outcome. Production
+QEMU producer wiring and qualification remain open.
 
 The W0114 bounded fault matrix covers short and flag-invalid packets, payload
 size mismatches, stale exact unmaps, DMA address overflow, duplicate ranges,

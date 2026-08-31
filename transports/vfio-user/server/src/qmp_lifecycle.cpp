@@ -103,4 +103,25 @@ QmpResult QmpLifecycleAdapter::complete_and_submit(
   return QmpResult::Accepted;
 }
 
+QmpLifecycleSocketOutcome QmpLifecycleAdapter::receive_and_submit(
+    QmpSocket& socket, metaflux::runtime::lifecycle::Coordinator& coordinator,
+    metaflux::runtime::lifecycle::ResultDetails& out) noexcept {
+  QmpLifecycleSocketOutcome outcome{};
+  out = metaflux::runtime::lifecycle::ResultDetails{};
+  if (!pending_) {
+    out.result = metaflux::runtime::lifecycle::Result::Invalid;
+    out.snapshot = coordinator.snapshot();
+    return outcome;
+  }
+  QmpReply reply{};
+  outcome.transport = socket.receive_lifecycle_reply(pending_command_id_, reply);
+  if (outcome.transport != QmpSocketResult::Ok) {
+    out.result = metaflux::runtime::lifecycle::Result::Invalid;
+    out.snapshot = coordinator.snapshot();
+    return outcome;
+  }
+  outcome.lifecycle = complete_and_submit(reply, coordinator, out);
+  return outcome;
+}
+
 } // namespace metaflux::transport::vfio_user

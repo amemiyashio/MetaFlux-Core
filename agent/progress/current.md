@@ -141,7 +141,9 @@ device-add, device-delete, closure, malformed, and unexpected messages, and
 composes with the existing QMP lifecycle correlation adapter. Its focused
 socket regression and the full Vulkan preset pass 91/91. QEMU producer wiring,
 restart metadata binding, provider freeze, fault injection, and live
-qualification remain open.
+qualification remain open. The socket-to-Coordinator completion bridge now
+returns separate transport/lifecycle outcomes and keeps socket errors outside
+authority mutation.
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -368,6 +370,7 @@ Linux 9.8.
 | W0122 vfio-user disconnect ingress | `ee0ecab`; EOF/error handoff marks the local server lost and submits a captured `Disconnect` event through the stateless ingress; focused server/dispatch 2/2 and full dev CTest 79/79 passed |
 | W0122 vfio-user process ingress | `699cff8`; `process_once` overload invokes the disconnect handoff only for `Closed`, preserving ordinary message results; focused server/dispatch 2/2 and full dev CTest 79/79 passed |
 | W0122 snapshot-bound event metadata | QMP command factory and vfio-user `process_once` capture logical device, daemon, identity, generation, epoch, and deadline from the authority snapshot; stale completion remains `Stale`; focused normalizer/QMP/server tests passed 3/3 |
+| W0122 QMP socket lifecycle bridge | `QmpLifecycleAdapter::receive_and_submit` returns separate transport/lifecycle outcomes, keeps wrong-kind events pending, and submits only correlated socket replies; focused socket bridge regression passed 1/1 |
 | W0122 current boundary | Bounded live QMP/socket command transport is recorded; reset/restart producer metadata binding, production memfd worker wiring, provider freeze, fault injection, and qualification remain open; QMP and vfio-user disconnect capture are covered by the snapshot-bound helper |
 
 ## Recorded M0120 W0123 Evidence

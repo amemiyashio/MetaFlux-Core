@@ -11,10 +11,19 @@
 
 using metaflux::transport::vfio_user::QmpReply;
 using metaflux::transport::vfio_user::QmpReplyKind;
+using metaflux::transport::vfio_user::QmpCommand;
+using metaflux::transport::vfio_user::QmpLifecycleAdapter;
+using metaflux::transport::vfio_user::QmpLifecycleSocketOutcome;
 using metaflux::transport::vfio_user::QmpSocket;
 using metaflux::transport::vfio_user::QmpSocketResult;
 using metaflux::transport::vfio_user::QmpWireKind;
 using metaflux::transport::vfio_user::QmpWireMessage;
+using metaflux::runtime::lifecycle::Config;
+using metaflux::runtime::lifecycle::Coordinator;
+using metaflux::runtime::lifecycle::ExternalEventKind;
+using metaflux::runtime::lifecycle::Result;
+using metaflux::runtime::lifecycle::ResultDetails;
+using metaflux::runtime::lifecycle::State;
 
 #define REQUIRE(condition)                                                                         \
   do {                                                                                             \
@@ -170,8 +179,81 @@ bool connects_to_unix_path() {
   return ok;
 }
 
+bool bridges_socket_replies_to_lifecycle_authority() {
+  int sockets[2] = {-1, -1};
+  REQUIRE(::socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, sockets) == 0);
+  QmpSocket client(sockets[0]);
+  sockets[0] = -1;
+  Coordinator coordinator(Config{.logical_device_id = 7U,
+                                 .daemon_incarnation = 11U,
+                                 .initial_identity_record_id = 0U,
+                                 .initial_generation = 0U,
+                                 .initial_epoch = 1U,
+                                 .initial_state = State::Absent,
+                                 .identity_record_terminal = 32U,
+                                 .generation_terminal = 32U,
+                                 .epoch_terminal = 32U});
+  QmpLifecycleAdapter adapter;
+  const QmpCommand add =
+      QmpCommand::from_snapshot(17U, ExternalEventKind::QmpAdd, 41U, coordinator.snapshot());
+  REQUIRE(adapter.begin(add) == metaflux::transport::vfio_user::QmpResult::Accepted);
+
+  REQUIRE(write_all(sockets[1], "{\"event\":\"DEVICE_DELETED\",\"data\":{}}"));
+  ResultDetails details{};
+  const QmpLifecycleSocketOutcome unrelated =
+      adapter.receive_and_submit(client, coordinator, details);
+  REQUIRE(unrelated.transport == QmpSocketResult::Ok &&
+          unrelated.lifecycle == metaflux::transport::vfio_user::QmpResult::Pending &&
+          adapter.pending() && coordinator.snapshot().state == State::Absent);
+
+  REQUIRE(write_all(sockets[1], "{\"event\":\"DEVICE_ADDED\",\"data\":{}}"));
+  const QmpLifecycleSocketOutcome added = adapter.receive_and_submit(client, coordinator, details);
+  REQUIRE(added.transport == QmpSocketResult::Ok &&
+          added.lifecycle == metaflux::transport::vfio_user::QmpResult::Accepted &&
+          details.result == Result::Accepted && details.snapshot.state == State::Online &&
+          !adapter.pending());
+
+  const QmpCommand remove = QmpCommand::from_snapshot(18U, ExternalEventKind::QmpRemove, 42U,
+                                                       coordinator.snapshot());
+  REQUIRE(adapter.begin(remove) == metaflux::transport::vfio_user::QmpResult::Accepted);
+  REQUIRE(write_all(sockets[1], "{\"return\":{},\"id\":18}"));
+  const QmpLifecycleSocketOutcome unexpected =
+      adapter.receive_and_submit(client, coordinator, details);
+  REQUIRE(unexpected.transport == QmpSocketResult::Unexpected &&
+          unexpected.lifecycle == metaflux::transport::vfio_user::QmpResult::Invalid &&
+          adapter.pending() && coordinator.snapshot().state == State::Online);
+
+  REQUIRE(write_all(sockets[1], "{\"error\":{\"class\":\"GenericError\"},\"id\":18}"));
+  const QmpLifecycleSocketOutcome failed =
+      adapter.receive_and_submit(client, coordinator, details);
+  REQUIRE(failed.transport == QmpSocketResult::Ok &&
+          failed.lifecycle == metaflux::transport::vfio_user::QmpResult::Accepted &&
+          details.result == Result::Accepted && details.snapshot.state == State::Lost &&
+          !adapter.pending());
+
+  const QmpCommand pending_remove =
+      QmpCommand::from_snapshot(19U, ExternalEventKind::QmpRemove, 43U, coordinator.snapshot());
+  REQUIRE(adapter.begin(pending_remove) == metaflux::transport::vfio_user::QmpResult::Accepted);
+  REQUIRE(write_all(sockets[1], "{\"return\":{}}"));
+  const QmpLifecycleSocketOutcome malformed =
+      adapter.receive_and_submit(client, coordinator, details);
+  REQUIRE(malformed.transport == QmpSocketResult::Malformed &&
+          malformed.lifecycle == metaflux::transport::vfio_user::QmpResult::Invalid &&
+          adapter.pending() && coordinator.snapshot().state == State::Lost);
+  ::close(sockets[1]);
+  sockets[1] = -1;
+  const QmpLifecycleSocketOutcome closed = adapter.receive_and_submit(client, coordinator, details);
+  REQUIRE(closed.transport == QmpSocketResult::Closed &&
+          closed.lifecycle == metaflux::transport::vfio_user::QmpResult::Invalid &&
+          adapter.pending() && coordinator.snapshot().state == State::Lost);
+  return true;
+}
+
 } // namespace
 
 int main() {
-  return socket_round_trip() && rejects_invalid_commands() && connects_to_unix_path() ? 0 : 1;
+  return socket_round_trip() && rejects_invalid_commands() && connects_to_unix_path() &&
+                 bridges_socket_replies_to_lifecycle_authority()
+             ? 0
+             : 1;
 }
