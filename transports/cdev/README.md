@@ -63,6 +63,12 @@ rings, before closing the fd so the kernel release revokes the lease. `ENOENT`/
 stale, busy, permission, resource, and malformed responses remain distinct
 statuses.
 
+`map_current_payload()` first issues `MF_UAPI_IOCTL_MEMORY_QUERY` on that same
+lease fd and then maps the returned exact page-aligned size. The query returns
+retry while the data owner has not published an online arena, and the mmap
+operation rechecks current ownership and length; it does not transfer data-fd
+ownership or infer a size from a local configuration.
+
 The C++ worker can register a `metaflux::runtime::lifecycle::Mirror` with the
 M0120 coordinator. Quiesce stops ordinary queue consumption, the lifecycle
 drain consumes only already-published descriptors, and a committed generation

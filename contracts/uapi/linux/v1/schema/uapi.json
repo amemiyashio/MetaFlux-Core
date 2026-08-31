@@ -114,6 +114,7 @@
     {"name": "MF_UAPI_IOCTL_MEMORY_ALLOC", "number": 2, "direction": "readwrite", "record": "mf_uapi_memory_v0"},
     {"name": "MF_UAPI_IOCTL_MEMORY_REGISTER", "number": 3, "direction": "readwrite", "record": "mf_uapi_memory_v0"},
     {"name": "MF_UAPI_IOCTL_WAIT", "number": 4, "direction": "readwrite", "record": "mf_uapi_wait_v0"},
+    {"name": "MF_UAPI_IOCTL_MEMORY_QUERY", "number": 5, "direction": "readwrite", "record": "mf_uapi_memory_v0"},
     {"name": "MF_UAPI_IOCTL_WORKER_LEASE", "number": 16, "direction": "readwrite", "record": "mf_uapi_worker_lease_v0"}
   ]
 }

@@ -14,6 +14,7 @@ int main(void) {
       MF_SCHEMA_MF_RING_DESCRIPTOR_V1_OFFSET_arguments != 32u ||
       MF_SCHEMA_MF_TRANSPORT_NEGOTIATE_V0_SIZE != sizeof(mf_transport_negotiate_v0) ||
       MF_SCHEMA_MF_UAPI_QUEUE_V0_SIZE != sizeof(mf_uapi_queue_v0) ||
+      MF_SCHEMA_MF_UAPI_MEMORY_V0_SIZE != sizeof(mf_uapi_memory_v0) ||
       MF_SCHEMA_MF_VFIO_USER_DMA_MAP_V0_SIZE != sizeof(mf_vfio_user_dma_map_v0) ||
       MF_SCHEMA_MF_VFIO_USER_DMA_UNMAP_V0_SIZE != sizeof(mf_vfio_user_dma_unmap_v0) ||
       MF_SCHEMA_MF_VFIO_USER_GET_INFO_REPLY_V0_SIZE != sizeof(mf_vfio_user_get_info_reply_v0)) {
@@ -31,7 +32,8 @@ int main(void) {
   queue.struct_size = (uint32_t)sizeof(queue);
   queue.queue_id = UINT64_C(41);
   if (queue.struct_size != 128u || queue.queue_id != UINT64_C(41) ||
-      queue.reserved[0] != 0u || MF_UAPI_IOCTL_QUEUE_CREATE == 0) {
+      queue.reserved[0] != 0u || MF_UAPI_IOCTL_QUEUE_CREATE == 0 ||
+      MF_UAPI_IOCTL_MEMORY_QUERY == 0) {
     return 1;
   }
   return 0;

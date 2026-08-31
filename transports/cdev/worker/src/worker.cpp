@@ -127,6 +127,8 @@ mf_shared_status_v1 map_open_error(int error) noexcept {
     return MF_SHARED_RESOURCE_EXHAUSTED;
   case EINVAL:
     return MF_SHARED_INVALID_ARGUMENT;
+  case EAGAIN:
+    return MF_SHARED_RETRY;
   default:
     return MF_SHARED_SYSTEM_ERROR;
   }
@@ -170,6 +172,21 @@ bool valid_negotiate_response(const mf_uapi_negotiate_v0& response,
   out_view_id.daemon_incarnation = response.registry_view_daemon;
   out_view_id.view_serial = response.registry_view_serial;
   out_generation = response.device_generation;
+  return true;
+}
+
+bool valid_payload_query_response(const mf_uapi_memory_v0& response,
+                                  std::uint64_t expected_generation,
+                                  std::uint64_t& out_size) noexcept {
+  if (response.struct_size != sizeof(response) || response.flags != 0U ||
+      response.handle == 0U || response.generation != expected_generation ||
+      response.byte_count == 0U || response.byte_count > kPayloadMaximumSize ||
+      response.byte_count % kPageSize != 0U || response.alignment != kPageSize ||
+      response.offset != kPayloadMmapOffset || response.fd != -1 ||
+      !bytes_zero(response.reserved, sizeof(response.reserved))) {
+    return false;
+  }
+  out_size = response.byte_count;
   return true;
 }
 
@@ -375,6 +392,31 @@ mf_shared_status_v1 CdevWorkerSession::map_payload(std::uint64_t mapping_size) n
   payload_mapping_ = mapping;
   payload_mapping_size_ = mapping_size;
   return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1 CdevWorkerSession::query_payload_size(std::uint64_t& out_size) const noexcept {
+  if (!is_open() || lease_.generation == 0U) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  mf_uapi_memory_v0 request{};
+  request.struct_size = sizeof(request);
+  request.fd = -1;
+  if (::ioctl(control_fd_, MF_UAPI_IOCTL_MEMORY_QUERY, &request) < 0) {
+    return map_open_error(errno);
+  }
+  if (!valid_payload_query_response(request, lease_.generation, out_size)) {
+    return MF_SHARED_MALFORMED;
+  }
+  return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1 CdevWorkerSession::map_current_payload() noexcept {
+  if (!is_open() || payload_mapping_ != nullptr) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  std::uint64_t mapping_size = 0U;
+  const mf_shared_status_v1 query_status = query_payload_size(mapping_size);
+  return query_status == MF_SHARED_SUCCESS ? map_payload(mapping_size) : query_status;
 }
 
 WorkerQueueView CdevWorkerSession::queue_view(std::uint8_t* payload,

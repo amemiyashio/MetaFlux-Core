@@ -388,6 +388,42 @@ static int mf_cdev_memory_alloc(struct mf_cdev_file *file, void __user *argument
 	return 0;
 }
 
+static int mf_cdev_memory_query(struct mf_cdev_file *file, void __user *argument)
+{
+	mf_uapi_memory_v0 request;
+
+	if (file == NULL || !file->control || !file->lease || !file->negotiated)
+		return -EPERM;
+	if (copy_from_user(&request, argument, sizeof(request)) != 0)
+		return -EFAULT;
+	if (mf_cdev_validate_size(request.struct_size, sizeof(request)) != 0 ||
+	    request.flags != 0U || request.handle != 0U || request.generation != 0U ||
+	    request.byte_count != 0U || request.alignment != 0U || request.offset != 0U ||
+	    request.fd != -1 || !mf_cdev_bytes_zero(request.reserved, sizeof(request.reserved)))
+		return -EINVAL;
+
+	mutex_lock(&mf_cdev_lock);
+	if (!mf_cdev_queue.online) {
+		mutex_unlock(&mf_cdev_lock);
+		return -ENODEV;
+	}
+	if (!mf_cdev_payload.online || mf_cdev_payload.mapping == NULL ||
+	    mf_cdev_payload.owner == NULL ||
+	    mf_cdev_payload.generation != mf_cdev_queue.generation) {
+		mutex_unlock(&mf_cdev_lock);
+		return -EAGAIN;
+	}
+	request.handle = mf_cdev_payload.handle;
+	request.generation = mf_cdev_payload.generation;
+	request.byte_count = mf_cdev_payload.byte_count;
+	request.alignment = PAGE_SIZE;
+	request.offset = (u64)MF_CDEV_PAYLOAD_PGOFF_V0 * (u64)PAGE_SIZE;
+	request.fd = -1;
+	mutex_unlock(&mf_cdev_lock);
+
+	return copy_to_user(argument, &request, sizeof(request)) == 0 ? 0 : -EFAULT;
+}
+
 static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argument)
 {
 	mf_uapi_memory_v0 request;
@@ -899,6 +935,8 @@ static long mf_cdev_ioctl(struct file *file_pointer, unsigned int command,
 		return mf_cdev_wait(file, user_argument);
 	case MF_UAPI_IOCTL_MEMORY_ALLOC:
 		return mf_cdev_memory_alloc(file, user_argument);
+	case MF_UAPI_IOCTL_MEMORY_QUERY:
+		return mf_cdev_memory_query(file, user_argument);
 	case MF_UAPI_IOCTL_MEMORY_REGISTER:
 		return mf_cdev_memory_register(file, user_argument);
 	default:
@@ -978,6 +1016,7 @@ static int mf_cdev_mmap(struct file *file_pointer, struct vm_area_struct *vma)
 		mutex_lock(&mf_cdev_lock);
 		worker_lease = file->control && file->lease;
 		if (!mf_cdev_payload.online || mf_cdev_payload.mapping == NULL ||
+		    mf_cdev_payload.owner == NULL ||
 		    (mf_cdev_payload.owner != file && !worker_lease) ||
 		    length != mf_cdev_payload.byte_count) {
 			mutex_unlock(&mf_cdev_lock);

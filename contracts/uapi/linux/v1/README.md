@@ -24,3 +24,12 @@ teardown, dirty-unpin of device-written pages, and memlock-charge release. A
 map failure is unpublished and unwound in the same order. The fixed UAPI still
 does not expose backend memory import or in-flight device references; physical
 GPU DMA and lifecycle qualification remain outside this stage.
+
+`MF_UAPI_IOCTL_MEMORY_QUERY` uses the same memory record on a negotiated worker
+lease fd. The input keeps `handle`, `generation`, `byte_count`, `alignment`,
+and `offset` zero, uses `fd=-1`, and requires reserved-zero bytes. The kernel
+returns the currently online data-owner payload handle, generation, exact
+page-aligned byte count, `MF_UAPI_MMAP_PAYLOAD_V0` offset, and `fd=-1`.
+The query is generation-bound and returns `-EAGAIN` while no payload is online;
+it never transfers ownership or exposes the data fd. A subsequent mmap still
+rechecks the online state and exact length under the cdev lock.

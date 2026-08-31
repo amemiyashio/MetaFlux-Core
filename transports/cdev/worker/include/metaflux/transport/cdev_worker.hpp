@@ -51,6 +51,7 @@ public:
 
   void close() noexcept;
   [[nodiscard]] mf_shared_status_v1 map_payload(std::uint64_t mapping_size) noexcept;
+  [[nodiscard]] mf_shared_status_v1 map_current_payload() noexcept;
   [[nodiscard]] bool is_open() const noexcept { return control_fd_ >= 0; }
   [[nodiscard]] int control_fd() const noexcept { return control_fd_; }
   [[nodiscard]] const CdevWorkerLeaseView& lease() const noexcept { return lease_; }
@@ -69,6 +70,7 @@ private:
                                            std::uint64_t expected_generation,
                                            bool discover_current,
                                            CdevWorkerSession& out) noexcept;
+  [[nodiscard]] mf_shared_status_v1 query_payload_size(std::uint64_t& out_size) const noexcept;
 
   int control_fd_ = -1;
   void* mapping_ = nullptr;

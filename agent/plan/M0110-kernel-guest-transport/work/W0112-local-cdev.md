@@ -140,6 +140,10 @@ and arithmetic operation is validated.
 - [x] Track payload backing with distinct root, owner, VMA, and active allocation
   operation `kref` references so owner or module close cannot reclaim an arena
   while `MEMORY_ALLOC` or an existing VMA still observes it.
+- [x] Add `MF_UAPI_IOCTL_MEMORY_QUERY` on the negotiated worker lease so the
+  worker obtains the current payload handle, generation, exact page-aligned
+  size, and mmap offset without a local size convention; mmap rechecks the
+  owner and exact length under the cdev lock.
 
 ## Remaining work
 
@@ -152,7 +156,7 @@ and arithmetic operation is validated.
   live cdev registered-memory handles and prove Add/Copy through the mapped
   payload arena. The embedded CPU daemon path now invokes
   `CdevBackendMemoryImporter` only after generation/range validation; live
-  `/dev/metafluxctl` lease attachment, kernel DMA-backed references, generation
+  daemon use of the lease/query path, kernel DMA-backed references, generation
   replacement, and physical device qualification remain open.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak.
