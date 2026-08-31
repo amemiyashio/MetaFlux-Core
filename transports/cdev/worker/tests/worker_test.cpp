@@ -111,6 +111,35 @@ struct CopyResolutionFixture final {
   mf_shared_status_v1 result = MF_SHARED_SUCCESS;
 };
 
+struct MemoryReferenceFixture final {
+  std::uint32_t retains = 0U;
+  std::uint32_t releases = 0U;
+  std::uint32_t active = 0U;
+  mf_shared_status_v1 retain_result = MF_SHARED_SUCCESS;
+  mf_backend_memory_v1 last_handle = 0U;
+};
+
+mf_shared_status_v1 retain_memory_reference(void* context,
+                                            mf_backend_memory_v1 memory) noexcept {
+  auto* fixture = static_cast<MemoryReferenceFixture*>(context);
+  if (fixture == nullptr || memory == 0U || fixture->retain_result != MF_SHARED_SUCCESS) {
+    return fixture == nullptr ? MF_SHARED_INVALID_ARGUMENT : fixture->retain_result;
+  }
+  ++fixture->retains;
+  ++fixture->active;
+  fixture->last_handle = memory;
+  return MF_SHARED_SUCCESS;
+}
+
+void release_memory_reference(void* context, mf_backend_memory_v1 memory) noexcept {
+  auto* fixture = static_cast<MemoryReferenceFixture*>(context);
+  if (fixture != nullptr && memory != 0U && fixture->active != 0U) {
+    --fixture->active;
+    ++fixture->releases;
+    fixture->last_handle = memory;
+  }
+}
+
 mf_shared_status_v1 resolve_copy(void* context, const mf_ring_descriptor_v1* request,
                                  metaflux::transport::cdev::CdevCopyResolution* out) noexcept {
   auto* fixture = static_cast<CopyResolutionFixture*>(context);
@@ -447,8 +476,21 @@ int main() {
   CopyResolutionFixture copy_resolution{};
   copy_resolution.resolution.destination = 31U;
   copy_resolution.resolution.destination_offset = 400U;
+  MemoryReferenceFixture region_memory_refs{};
+  copy_resolution.resolution.destination_reference = {
+      .handle = 31U,
+      .retain = retain_memory_reference,
+      .release = release_memory_reference,
+      .context = &region_memory_refs,
+  };
   copy_resolution.resolution.source = 37U;
   copy_resolution.resolution.source_offset = 512U;
+  copy_resolution.resolution.source_reference = {
+      .handle = 37U,
+      .retain = retain_memory_reference,
+      .release = release_memory_reference,
+      .context = &region_memory_refs,
+  };
   copy_resolution.resolution.byte_count = 64U;
   metaflux::transport::cdev::CdevWorker region_worker(
       {.submission = submission.header,
@@ -484,6 +526,8 @@ int main() {
       backend_fixture.last.destination != 31U || backend_fixture.last.source != 37U ||
       backend_fixture.last.destination_offset != 400U ||
       backend_fixture.last.source_offset != 512U || backend_fixture.last.byte_count != 64U ||
+      region_memory_refs.retains != 2U || region_memory_refs.releases != 2U ||
+      region_memory_refs.active != 0U ||
       backend_fixture.lease_acquires != 4U || backend_fixture.lease_releases != 3U ||
       backend_fixture.lease_active || region_completion != MF_SHARED_SUCCESS ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
@@ -496,6 +540,8 @@ int main() {
   if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
       region_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
       copy_resolution.calls != 1U || backend_fixture.calls != 3U ||
+      region_memory_refs.retains != 2U || region_memory_refs.releases != 2U ||
+      region_memory_refs.active != 0U ||
       backend_fixture.lease_acquires != 4U || backend_fixture.lease_releases != 3U ||
       backend_fixture.lease_active ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
@@ -510,6 +556,8 @@ int main() {
   if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
       region_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
       copy_resolution.calls != 2U || backend_fixture.calls != 3U ||
+      region_memory_refs.retains != 2U || region_memory_refs.releases != 2U ||
+      region_memory_refs.active != 0U ||
       backend_fixture.lease_acquires != 5U || backend_fixture.lease_releases != 4U ||
       backend_fixture.lease_active ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
@@ -519,6 +567,91 @@ int main() {
     return 1;
   }
   copy_resolution.result = MF_SHARED_SUCCESS;
+
+  BackendFixture async_region_fixture{};
+  const auto async_region_api = make_async_fixture_api();
+  async_region_fixture.expected_completion_event = 101U;
+  MemoryReferenceFixture async_region_refs{};
+  CopyResolutionFixture async_region_resolution{};
+  async_region_resolution.resolution.destination = 31U;
+  async_region_resolution.resolution.destination_offset = 400U;
+  async_region_resolution.resolution.destination_reference = {
+      .handle = 31U,
+      .retain = retain_memory_reference,
+      .release = release_memory_reference,
+      .context = &async_region_refs,
+  };
+  async_region_resolution.resolution.source = 37U;
+  async_region_resolution.resolution.source_offset = 512U;
+  async_region_resolution.resolution.source_reference = {
+      .handle = 37U,
+      .retain = retain_memory_reference,
+      .release = release_memory_reference,
+      .context = &async_region_refs,
+  };
+  async_region_resolution.resolution.byte_count = 64U;
+  metaflux::transport::cdev::CdevWorker async_region_worker(
+      {.submission = submission.header,
+       .completion = completion.header,
+       .payload = payload.data(),
+       .payload_size = payload.size(),
+       .generation = 4U},
+      {.api = &async_region_api,
+       .instance = static_cast<mf_backend_instance_v1>(
+           reinterpret_cast<std::uintptr_t>(&async_region_fixture)),
+       .queue = 17U,
+       .memory = 0U,
+       .completion_event = async_region_fixture.expected_completion_event,
+       .copy_resolver = resolve_copy,
+       .copy_context = &async_region_resolution,
+       .lease_acquire = fixture_lease_acquire,
+       .lease_release = fixture_lease_release,
+       .lease_context = &async_region_fixture});
+  request.request_id = 434U;
+  request.target_id = 71U;
+  request.arguments[0] = 73U;
+  request.arguments[1] = 0U;
+  request.arguments[2] = 0U;
+  request.arguments[3] = 0U;
+  if (!async_region_worker.backend_bound() ||
+      mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      async_region_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Idle ||
+      async_region_refs.retains != 2U || async_region_refs.releases != 0U ||
+      async_region_refs.active != 2U || !async_region_fixture.lease_active ||
+      async_region_fixture.calls != 1U || async_region_fixture.query_calls != 0U) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  mf_ring_descriptor_v1 async_region_filler{};
+  async_region_filler.opcode = MF_RING_OPCODE_COMPLETION;
+  async_region_filler.request_id = 102U;
+  while (mf_client_ring_try_submit_v1(&completion, &async_region_filler) == MF_SHARED_SUCCESS) {
+  }
+  async_region_fixture.event_complete = true;
+  if (async_region_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Backpressure ||
+      async_region_refs.retains != 2U || async_region_refs.releases != 0U ||
+      async_region_refs.active != 2U || !async_region_worker.backend_operation_pending() ||
+      !async_region_fixture.lease_active ||
+      mf_client_ring_try_consume_v1(&completion, &async_region_filler) != MF_SHARED_SUCCESS ||
+      async_region_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      async_region_refs.retains != 2U || async_region_refs.releases != 2U ||
+      async_region_refs.active != 0U || async_region_worker.backend_operation_pending() ||
+      async_region_fixture.lease_releases != 1U || async_region_fixture.lease_active) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  auto async_region_result = MF_SHARED_WOULD_BLOCK;
+  do {
+    async_region_result = mf_client_ring_try_consume_v1(&completion, &result);
+  } while (async_region_result == MF_SHARED_SUCCESS && result.request_id != 434U);
+  if (async_region_result != MF_SHARED_SUCCESS || result.request_id != 434U ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
 
   backend_fixture.result = MF_BACKEND_SUCCESS;
   LaunchResolutionFixture launch_resolution{};
@@ -902,8 +1035,21 @@ int main() {
   CopyResolutionFixture cpu_region_resolution{};
   cpu_region_resolution.resolution.destination = region_destination_memory;
   cpu_region_resolution.resolution.destination_offset = 16U;
+  MemoryReferenceFixture cpu_region_refs{};
+  cpu_region_resolution.resolution.destination_reference = {
+      .handle = region_destination_memory,
+      .retain = retain_memory_reference,
+      .release = release_memory_reference,
+      .context = &cpu_region_refs,
+  };
   cpu_region_resolution.resolution.source = region_source_memory;
   cpu_region_resolution.resolution.source_offset = 32U;
+  cpu_region_resolution.resolution.source_reference = {
+      .handle = region_source_memory,
+      .retain = retain_memory_reference,
+      .release = release_memory_reference,
+      .context = &cpu_region_refs,
+  };
   cpu_region_resolution.resolution.byte_count = 64U;
   BackendFixture cpu_region_lease{};
   metaflux::transport::cdev::CdevWorker cpu_region_worker({.submission = submission.header,
@@ -933,6 +1079,8 @@ int main() {
       cpu_region_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
       cpu_region_resolution.calls != 1U || cpu_region_lease.lease_acquires != 1U ||
       cpu_region_lease.lease_releases != 1U || cpu_region_lease.lease_active ||
+      cpu_region_refs.retains != 2U || cpu_region_refs.releases != 2U ||
+      cpu_region_refs.active != 0U ||
       std::memcmp(region_destination.data() + 16U, region_source.data() + 32U, 64U) != 0 ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {

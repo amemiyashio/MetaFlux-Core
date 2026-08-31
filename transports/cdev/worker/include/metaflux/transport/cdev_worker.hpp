@@ -39,12 +39,27 @@ using CdevLaunchResolver = mf_shared_status_v1 (*)(void* context,
                                                    const mf_ring_descriptor_v1* request,
                                                    CdevLaunchResolution* out) noexcept;
 
+using CdevBackendMemoryRetain = mf_shared_status_v1 (*)(void* context,
+                                                        mf_backend_memory_v1 memory) noexcept;
+using CdevBackendMemoryRelease = void (*)(void* context,
+                                          mf_backend_memory_v1 memory) noexcept;
+
+/* A resolver-owned backend memory reference held across one worker operation. */
+struct CdevBackendMemoryReference final {
+  mf_backend_memory_v1 handle = 0U;
+  CdevBackendMemoryRetain retain = nullptr;
+  CdevBackendMemoryRelease release = nullptr;
+  void* context = nullptr;
+};
+
 /* Object-table result for a region COPY argument block. */
 struct CdevCopyResolution final {
   mf_backend_memory_v1 destination = 0U;
   std::uint64_t destination_offset = 0U;
+  CdevBackendMemoryReference destination_reference{};
   mf_backend_memory_v1 source = 0U;
   std::uint64_t source_offset = 0U;
+  CdevBackendMemoryReference source_reference{};
   std::uint64_t byte_count = 0U;
   std::uint32_t reserved_word = 0U;
 };
@@ -126,8 +141,13 @@ private:
   static bool valid_backend_event(const CdevBackendBinding& backend) noexcept;
   static bool valid_copy_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_region_copy_backend(const CdevBackendBinding& backend) noexcept;
+  static bool valid_memory_reference(mf_backend_memory_v1 memory,
+                                     const CdevBackendMemoryReference& reference) noexcept;
+  static bool valid_copy_resolution(const CdevCopyResolution& resolution) noexcept;
   static bool valid_launch_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_backend_lease(const CdevBackendBinding& backend) noexcept;
+  static mf_shared_status_v1 retain_copy_references(CdevCopyResolution& resolution) noexcept;
+  static void release_copy_references(const CdevCopyResolution& resolution) noexcept;
   static std::int32_t map_backend_status(mf_backend_status_v1 status) noexcept;
   [[nodiscard]] mf_backend_status_v1 dispatch_copy(std::uint64_t base, std::uint64_t destination,
                                                    std::uint64_t source,
@@ -137,7 +157,8 @@ private:
   [[nodiscard]] mf_shared_status_v1
   dispatch_launch(const mf_ring_descriptor_v1& request) const noexcept;
   [[nodiscard]] WorkerResult finish_backend_request(const mf_ring_descriptor_v1& request,
-                                                    mf_shared_status_v1 status) noexcept;
+                                                    mf_shared_status_v1 status,
+                                                    const CdevCopyResolution* resolution = nullptr) noexcept;
   [[nodiscard]] WorkerResult progress_pending() noexcept;
   [[nodiscard]] mf_shared_status_v1 acquire_backend_lease() const noexcept;
   void release_backend_lease(const CdevBackendBinding& backend) const noexcept;
@@ -154,6 +175,8 @@ private:
     bool active = false;
     mf_ring_descriptor_v1 request{};
     CdevBackendBinding backend{};
+    CdevCopyResolution resolution{};
+    bool has_memory_references = false;
     mf_backend_event_v1 event = 0U;
   } pending_{};
 };

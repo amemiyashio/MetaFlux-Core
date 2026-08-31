@@ -68,11 +68,14 @@ The worker also accepts `MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1` when the
 binding supplies a `CdevCopyResolver`. The resolver owns daemon/object-table
 semantics and maps the descriptor's region argument-block references to
 independent destination and source backend memory handles, offsets, and a byte
-count. The worker validates both handles, range arithmetic, and reserved fields,
-then keeps the same synchronous operation lease across resolution and the
-`mf_backend_api_v1.copy` call. Direct-host COPY flags remain unsupported on this
-worker. This is the backend import/resolution seam; backend memory import,
-in-flight worker references, and physical-device qualification remain open.
+count. Each returned handle carries a resolver-owned retain/release pair. The
+worker validates both handles and callbacks, retains both references before
+calling `mf_backend_api_v1.copy`, and releases them after synchronous completion
+or after an asynchronous event is observed and its completion is published.
+References remain held while the completion ring applies backpressure. Direct-
+host COPY flags remain unsupported on this worker. This is the backend
+import/reference seam; production backend memory import and physical-device
+qualification remain open.
 
 The region descriptor uses the argument-block object ID as `target_id`, its
 generation in `arguments[0]`, and zero in `arguments[1..3]`; the resolver must
@@ -95,7 +98,8 @@ events and daemon generation replacement are still outside this synchronous
 descriptor stage; the worker's asynchronous event contract extends the lease
 until observed completion and snapshots the exact backend binding so a later
 replacement cannot query or release the old operation through the new binding.
-Backend memory import remains open.
+Production backend memory import remains open; the host-independent reference
+lifetime contract is implemented by the region resolver callbacks.
 
 The W0114 bounded fault matrix now treats unknown COPY flags as malformed,
 known direct-host flags as unsupported on this worker, and zero-length COPY as
