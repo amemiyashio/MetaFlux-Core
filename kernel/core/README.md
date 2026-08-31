@@ -15,12 +15,15 @@ the backing is reclaimed only after the root, owner, VMA, and active allocation
 references all drain. `MEMORY_REGISTER` accepts
 one caller-owned range up to the same bound, charges the current process's
 memlock quota, pins full pages with `pin_user_pages_fast()` using
-`FOLL_LONGTERM` and optional `FOLL_WRITE`, and builds an SG table. Unregister and
-owner close remove the live object under the cdev lock, then free the SG table,
-dirty-unpin device-written pages, release the memlock charge, and drop the mm
-reference outside the lock. The generated registration handle is a deterministic
-fixture handle (`3`) for the current generation. Backend DMA mapping and worker
-references are intentionally not claimed yet. Queue creation and worker leasing
+`FOLL_LONGTERM` and optional `FOLL_WRITE`, and builds an SG table. The SG table
+is direction-mapped through the data cdev's DMA device. Unregister and owner
+close remove the live object under the cdev lock, then unmap the SG table, free
+it, dirty-unpin device-written pages, release the memlock charge, and drop the
+mm reference outside the lock. A map failure unwinds in the same order before
+publication. The generated registration handle is a deterministic fixture
+handle (`3`) for the current generation. This proves the kernel pin/map
+lifetime only; a physical GPU DMA master, backend memory import, and worker
+references remain unqualified. Queue creation and worker leasing
 accept optional eventfd descriptors, retain kernel references, and reject a second
 eventfd owner for the same generation.
 

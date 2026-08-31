@@ -14,11 +14,13 @@ one long-term user range. The input `offset` is the user virtual address and
 and `flags` must contain `MF_UAPI_MEMORY_REGISTER_FLAG_READ_V0` (device reads
 the range) and/or `MF_UAPI_MEMORY_REGISTER_FLAG_WRITE_V0` (device writes the
 range). The kernel pins full pages with `FOLL_PIN | FOLL_LONGTERM` and adds
-`FOLL_WRITE` for a device-write range, then builds an SG table. The returned
-handle and current generation identify the registration. The current projection
-permits one range per data-file owner, bounded to 64 MiB. An unregister uses the
-returned handle and generation with all range fields zero; owner close performs
-the same revocation implicitly. Both paths remove the live lookup before SG
-teardown, dirty-unpin device-written pages, and memlock-charge release. No
-backend DMA mapping or in-flight device-reference ABI is claimed until the
-lifecycle and device-reference gates are qualified.
+`FOLL_WRITE` for a device-write range, then builds and direction-maps an SG
+table through the transport DMA device. The returned handle and current
+generation identify the registration. The current projection permits one range
+per data-file owner, bounded to 64 MiB. An unregister uses the returned handle
+and generation with all range fields zero; owner close performs the same
+revocation implicitly. Both paths remove the live lookup before DMA unmap, SG
+teardown, dirty-unpin of device-written pages, and memlock-charge release. A
+map failure is unpublished and unwound in the same order. The fixed UAPI still
+does not expose backend memory import or in-flight device references; physical
+GPU DMA and lifecycle qualification remain outside this stage.

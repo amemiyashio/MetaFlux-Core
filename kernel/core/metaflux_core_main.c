@@ -1,4 +1,5 @@
 #include <linux/fs.h>
+#include <linux/dma-mapping.h>
 #include <linux/eventfd.h>
 #include <linux/init.h>
 #include <linux/jiffies.h>
@@ -82,6 +83,9 @@ struct mf_cdev_registered_memory {
 	struct page **pages;
 	unsigned long page_count;
 	struct sg_table sg_table;
+	struct device *dma_device;
+	enum dma_data_direction dma_direction;
+	int dma_nents;
 	struct mm_struct *mm;
 	u64 user_address;
 	u64 byte_count;
@@ -96,6 +100,7 @@ static DEFINE_MUTEX(mf_cdev_lock);
 static struct mf_cdev_queue mf_cdev_queue;
 static struct mf_cdev_memory mf_cdev_payload;
 static struct mf_cdev_registered_memory mf_cdev_registered;
+static struct miscdevice mf_cdev_data_device;
 
 static void mf_cdev_queue_release(struct kref *reference)
 {
@@ -131,6 +136,16 @@ static bool mf_cdev_bytes_zero(const u8 *bytes, size_t count)
 			return false;
 	}
 	return true;
+}
+
+static enum dma_data_direction mf_cdev_dma_direction(u32 flags)
+{
+	const bool device_reads = (flags & MF_UAPI_MEMORY_REGISTER_FLAG_READ_V0) != 0U;
+	const bool device_writes = (flags & MF_UAPI_MEMORY_REGISTER_FLAG_WRITE_V0) != 0U;
+
+	if (device_reads && device_writes)
+		return DMA_BIDIRECTIONAL;
+	return device_reads ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 }
 
 static void mf_cdev_init_ring(struct mf_ring_header_v1 *header, u64 queue_id)
@@ -208,8 +223,12 @@ static void mf_cdev_queue_mark_offline_locked(void)
 
 static void mf_cdev_registered_resources_release(struct page **pages, unsigned long page_count,
 							 struct sg_table *sg_table,
-							 struct mm_struct *mm, u32 flags)
+							 struct device *dma_device,
+							 enum dma_data_direction dma_direction,
+							 int dma_nents, struct mm_struct *mm, u32 flags)
 {
+	if (dma_device != NULL && sg_table != NULL && sg_table->sgl != NULL && dma_nents > 0)
+		dma_unmap_sg(dma_device, sg_table->sgl, sg_table->orig_nents, dma_direction);
 	if (sg_table != NULL && sg_table->sgl != NULL)
 		sg_free_table(sg_table);
 	if (pages != NULL) {
@@ -230,7 +249,9 @@ static void mf_cdev_registered_memory_destroy(struct mf_cdev_registered_memory *
 	if (memory == NULL)
 		return;
 	mf_cdev_registered_resources_release(memory->pages, memory->page_count,
-						     &memory->sg_table, memory->mm, memory->flags);
+						     &memory->sg_table, memory->dma_device,
+						     memory->dma_direction, memory->dma_nents,
+						     memory->mm, memory->flags);
 	memset(memory, 0, sizeof(*memory));
 }
 
@@ -340,6 +361,9 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 	struct page **pages = NULL;
 	struct sg_table sg_table;
 	struct mm_struct *mm = NULL;
+	struct device *dma_device = NULL;
+	enum dma_data_direction dma_direction = DMA_NONE;
+	int dma_nents = 0;
 	unsigned long start;
 	unsigned long end;
 	unsigned long first;
@@ -438,24 +462,43 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 	result = sg_alloc_table_from_pages(&sg_table, pages, (unsigned int)page_count,
 					  offset_in_page(start), request.byte_count, GFP_KERNEL);
 	if (result != 0) {
-		mf_cdev_registered_resources_release(pages, page_count, &sg_table, mm, request.flags);
+		mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,
+							     dma_direction, dma_nents, mm, request.flags);
 		return result;
+	}
+	dma_device = READ_ONCE(mf_cdev_data_device.this_device);
+	dma_direction = mf_cdev_dma_direction(request.flags);
+	if (dma_device == NULL) {
+		mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,
+							     dma_direction, dma_nents, mm, request.flags);
+		return -ENODEV;
+	}
+	dma_nents = dma_map_sg(dma_device, sg_table.sgl, sg_table.orig_nents, dma_direction);
+	if (dma_nents <= 0) {
+		mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,
+							     dma_direction, dma_nents, mm, request.flags);
+		return -EIO;
 	}
 
 	mutex_lock(&mf_cdev_lock);
 	if (!mf_cdev_queue.online) {
 		mutex_unlock(&mf_cdev_lock);
-		mf_cdev_registered_resources_release(pages, page_count, &sg_table, mm, request.flags);
+		mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,
+							     dma_direction, dma_nents, mm, request.flags);
 		return -ENODEV;
 	}
 	if (mf_cdev_registered.online || mf_cdev_registered.pages != NULL) {
 		mutex_unlock(&mf_cdev_lock);
-		mf_cdev_registered_resources_release(pages, page_count, &sg_table, mm, request.flags);
+		mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,
+							     dma_direction, dma_nents, mm, request.flags);
 		return -EBUSY;
 	}
 	mf_cdev_registered.pages = pages;
 	mf_cdev_registered.page_count = page_count;
 	mf_cdev_registered.sg_table = sg_table;
+	mf_cdev_registered.dma_device = dma_device;
+	mf_cdev_registered.dma_direction = dma_direction;
+	mf_cdev_registered.dma_nents = dma_nents;
 	mf_cdev_registered.mm = mm;
 	mf_cdev_registered.user_address = request.offset;
 	mf_cdev_registered.byte_count = request.byte_count;

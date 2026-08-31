@@ -22,9 +22,12 @@ process's memlock quota, pins full pages with `pin_user_pages_fast()` using
 `FOLL_LONGTERM` and optional `FOLL_WRITE`, and builds an SG table. A returned
 kind-`REGISTERED` memory record is generation-bound; `mf_cdev_memory_close_v0`
 issues the matching unregister request, while owner close also revokes the
-registration. SG teardown precedes dirty-unpin for device-written pages and
-releases the memlock charge. This stage does not expose backend `dma_map_sg`
-or in-flight device references; those remain W0112/W0114 qualification work.
+registration. The kernel maps the SG table with one direction derived from
+the READ/WRITE flags through the data cdev's DMA device, and every unregister,
+owner-close, module-exit, and map-failure path unmaps before SG teardown,
+dirty-unpin for device-written pages, and memlock release. This stage does not
+expose backend memory import or in-flight worker references, and it does not
+qualify a physical GPU DMA master; those remain W0112/W0114 work.
 
 Closing the queue owner or worker lease transitions the current generation to an
 offline tombstone before waking waiters. Existing queue VMAs remain mapped until
@@ -68,9 +71,8 @@ independent destination and source backend memory handles, offsets, and a byte
 count. The worker validates both handles, range arithmetic, and reserved fields,
 then keeps the same synchronous operation lease across resolution and the
 `mf_backend_api_v1.copy` call. Direct-host COPY flags remain unsupported on this
-worker. This is the backend import/resolution seam; registered-memory
-`dma_map_sg`, asynchronous ownership, and physical-device qualification remain
-open.
+worker. This is the backend import/resolution seam; backend memory import,
+in-flight worker references, and physical-device qualification remain open.
 
 The region descriptor uses the argument-block object ID as `target_id`, its
 generation in `arguments[0]`, and zero in `arguments[1..3]`; the resolver must
@@ -89,9 +91,9 @@ operation lease covers resolver access and the submit call. The C client
 helpers `mf_cdev_launch_descriptor_v0` and `mf_cdev_submit_launch_v0` encode
 this primary-entry layout. Resolver failures and backend statuses remain
 visible in the completion record, with no silent fallback. Nonzero completion
-events, asynchronous backend ownership, backend DMA mapping, and daemon
-generation replacement are still outside this synchronous stage; a future
-asynchronous contract must extend the lease until observed completion.
+events and daemon generation replacement are still outside this synchronous
+descriptor stage; the worker's asynchronous event contract extends the lease
+until observed completion, while backend memory import remains open.
 
 The W0114 bounded fault matrix now treats unknown COPY flags as malformed,
 known direct-host flags as unsupported on this worker, and zero-length COPY as
