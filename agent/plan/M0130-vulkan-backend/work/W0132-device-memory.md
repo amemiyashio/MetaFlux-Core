@@ -53,8 +53,13 @@ memory or host heap object.
   tracks host/device dirty ranges, non-coherent atom-size alignment, explicit
   flush/invalidate operations, submission completion, and in-flight teardown
   rejection without owning Vulkan handles.
-- [ ] Implement instance/device/queue discovery and actual enabled feature,
-  property, limit, and capability capture behind `mf_backend_api_v1`.
+- [x] Bind the existing capability profile to a private Vulkan 1.3
+  instance/device/compute queue/timeline context. The context rechecks the
+  selected device's identity, properties, limits, queue, and required feature
+  chain before enabling it; no Vulkan handle crosses `mf_backend_api_v1`.
+- [ ] Expose the context through the backend admission path without changing
+  the stable C ABI, then implement allocation/suballocation, staging, optional
+  direct tiers, non-coherent flush/invalidate, and timeline synchronization.
 - [ ] Implement allocation/suballocation, staging, optional direct tiers,
   non-coherent flush/invalidate, and timeline synchronization.
 - [ ] Test fd ownership on success/failure, `memoryTypeBits`, overlapping imports,

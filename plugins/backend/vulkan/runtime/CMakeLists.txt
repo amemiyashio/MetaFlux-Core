@@ -7,6 +7,7 @@ add_library(
   src/target.cpp
   src/streams.cpp
   src/cache.cpp
+  src/vulkan_device.cpp
 )
 add_library(MetaFlux::VulkanBackend ALIAS metaflux_vulkan_backend)
 
@@ -65,5 +66,14 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   set_tests_properties(
     metaflux.backend.vulkan-cache-model
     PROPERTIES LABELS "backend;vulkan;cache"
+  )
+
+  add_executable(metaflux_vulkan_device_test tests/vulkan_device_test.cpp)
+  target_link_libraries(metaflux_vulkan_device_test PRIVATE MetaFlux::VulkanBackend)
+  metaflux_configure_target(metaflux_vulkan_device_test CXX)
+  add_test(NAME metaflux.backend.vulkan-device COMMAND metaflux_vulkan_device_test)
+  set_tests_properties(
+    metaflux.backend.vulkan-device
+    PROPERTIES LABELS "backend;vulkan;device"
   )
 endif()

@@ -88,6 +88,18 @@ graph and resource generation together and rejects in-flight work. The ledger
 returns a complete host-independent plan/resource/completion tuple; it does not
 create Vulkan objects or claim `vkQueueSubmit2` execution.
 
+W0132 now adds a private `VulkanDeviceContext` that binds a successful capability
+profile to a new Vulkan 1.3 instance, an exact physical-device identity, one
+compute queue, and a timeline semaphore. It rechecks the profile's API/driver
+versions, UUID, queue family, workgroup limits, memory totals, and required
+timeline/Synchronization2/buffer-device-address features before enabling the
+logical device. Empty `vkQueueSubmit2` timeline signals, bounded waits, and
+counter polling are generation-checked and map device loss or timeout to stable
+runtime statuses. Vulkan handles remain source-local C++ state and never cross
+the stable backend C ABI. The optional `.#vulkan-runtime` shell can exercise
+this boundary on AMD RADV; that smoke is provisioning/single-driver evidence,
+not dual-driver, physical NVIDIA, allocation, or release qualification.
+
 The cache model defines deterministic portable and device-bound identities from
 Kernel IR, compiler/lowering/tool epochs, target and specialization digests,
 argument/backend ABI, and physical device/driver UUIDs. Its bounded catalog
