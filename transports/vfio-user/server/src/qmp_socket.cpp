@@ -1,7 +1,7 @@
 #include "metaflux/transport/qmp_lifecycle.hpp"
 
-#include <cerrno>
 #include <cctype>
+#include <cerrno>
 #include <cstring>
 #include <limits>
 #include <sys/socket.h>
@@ -33,9 +33,7 @@ QmpSocketResult map_errno(int error) noexcept {
   }
 }
 
-bool is_space(char value) noexcept {
-  return std::isspace(static_cast<unsigned char>(value)) != 0;
-}
+bool is_space(char value) noexcept { return std::isspace(static_cast<unsigned char>(value)) != 0; }
 
 void skip_space(const char* bytes, std::size_t size, std::size_t& cursor) noexcept {
   while (cursor < size && is_space(bytes[cursor])) {
@@ -503,7 +501,7 @@ QmpSocketResult QmpSocket::receive_lifecycle_reply(std::uint64_t pending_command
   if (message.kind == QmpWireKind::DeviceAdded || message.kind == QmpWireKind::DeviceDeleted) {
     out.command_id = pending_command_id;
     out.kind = message.kind == QmpWireKind::DeviceAdded ? QmpReplyKind::DeviceAdded
-                                                         : QmpReplyKind::DeviceDeleted;
+                                                        : QmpReplyKind::DeviceDeleted;
     return QmpSocketResult::Ok;
   }
   if (message.kind == QmpWireKind::CommandFailed) {

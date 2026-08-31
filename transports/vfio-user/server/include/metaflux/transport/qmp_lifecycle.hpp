@@ -1,9 +1,9 @@
 #ifndef METAFLUX_TRANSPORT_QMP_LIFECYCLE_HPP
 #define METAFLUX_TRANSPORT_QMP_LIFECYCLE_HPP
 
-#include <cstdint>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <string_view>
 
 #include "metaflux/runtime/lifecycle_dispatch.hpp"
@@ -78,12 +78,11 @@ public:
 
   [[nodiscard]] static QmpSocketResult connect(const char* path, QmpSocket& out,
                                                std::uint32_t timeout_ms = 1000U) noexcept;
-  [[nodiscard]] QmpSocketResult send_command(std::uint64_t command_id,
-                                              std::string_view execute,
-                                              std::string_view arguments = "{}") noexcept;
+  [[nodiscard]] QmpSocketResult send_command(std::uint64_t command_id, std::string_view execute,
+                                             std::string_view arguments = "{}") noexcept;
   [[nodiscard]] QmpSocketResult receive(QmpWireMessage& out) noexcept;
   [[nodiscard]] QmpSocketResult receive_lifecycle_reply(std::uint64_t pending_command_id,
-                                                         QmpReply& out) noexcept;
+                                                        QmpReply& out) noexcept;
 
   void close() noexcept;
   [[nodiscard]] bool is_open() const noexcept { return fd_ >= 0; }
@@ -92,10 +91,10 @@ public:
 private:
   [[nodiscard]] QmpSocketResult set_timeout(std::uint32_t timeout_ms) noexcept;
   [[nodiscard]] QmpSocketResult send_bytes(const char* bytes, std::size_t size) noexcept;
-  [[nodiscard]] QmpSocketResult read_json_object(
-      std::array<char, kMaximumMessageBytes>& object, std::size_t& size) noexcept;
+  [[nodiscard]] QmpSocketResult read_json_object(std::array<char, kMaximumMessageBytes>& object,
+                                                 std::size_t& size) noexcept;
   [[nodiscard]] static QmpSocketResult classify_json(const char* bytes, std::size_t size,
-                                                      QmpWireMessage& out) noexcept;
+                                                     QmpWireMessage& out) noexcept;
 
   int fd_ = -1;
 };

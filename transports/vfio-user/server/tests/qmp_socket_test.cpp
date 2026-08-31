@@ -19,7 +19,7 @@ using metaflux::transport::vfio_user::QmpWireMessage;
 #define REQUIRE(condition)                                                                         \
   do {                                                                                             \
     if (!(condition)) {                                                                            \
-      std::cerr << __func__ << ':' << __LINE__ << ": " #condition "\n";                        \
+      std::cerr << __func__ << ':' << __LINE__ << ": " #condition "\n";                            \
       return false;                                                                                \
     }                                                                                              \
   } while (false)
