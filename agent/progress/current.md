@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-064
+checkpoint: P20260831-065
 ---
 
 # Current Progress
@@ -50,6 +50,9 @@ W0112's synchronous backend-operation lease boundary is recorded at
 W0112's backend-agnostic region COPY resolver and independent memory-handle
 dispatch are recorded at
 [P20260831-064](checkpoints/2026/P20260831-064-m0110-cdev-region-copy.md).
+W0112's region COPY object-identity correction and cdev descriptor helpers are
+recorded at
+[P20260831-065](checkpoints/2026/P20260831-065-m0110-cdev-region-identity.md).
 The CPU backend transport-facing COPY subset and mapped-payload integration are
 recorded at [P20260831-035](checkpoints/2026/P20260831-035-m0110-cpu-backend-copy.md).
 W0112's queue VMA tombstone backing reaping correction is recorded at
@@ -409,6 +412,8 @@ Linux 9.8.
    [P20260831-063](checkpoints/2026/P20260831-063-m0110-cdev-operation-lease.md),
    and its region COPY resolver is recorded at
    [P20260831-064](checkpoints/2026/P20260831-064-m0110-cdev-region-copy.md);
+   the shared object-identity correction and cdev helpers are recorded at
+   [P20260831-065](checkpoints/2026/P20260831-065-m0110-cdev-region-identity.md);
    do not claim the cdev exit gate from these synchronous paths or the mapped
    COPY fixture alone.
 9. M0130/W0131 is Active after the capability ABI stages at

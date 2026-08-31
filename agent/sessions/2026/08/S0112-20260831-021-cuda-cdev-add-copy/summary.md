@@ -10,7 +10,9 @@ validation. The cdev worker now resolves primary-entry launch descriptors and
 region COPY argument blocks through explicit generation-bound resolvers, drives
 the CPU backend through the mapped payload or independent backend memory
 handles, and gates all bound calls with an explicit synchronous operation lease.
-Registered-memory DMA integration and production resolver wiring remain open.
+Region COPY uses the shared object identity contract (`target_id` is the
+argument-block ID and `arguments[0]` its generation); registered-memory DMA
+integration and production resolver wiring remain open.
 
 ## Durable changes
 
@@ -32,6 +34,8 @@ Registered-memory DMA integration and production resolver wiring remain open.
 - `transports/cdev/worker/tests/worker_test.cpp` and its CMake target: fake
   resolver/error, region COPY, and operation-lease coverage, plus real CPU
   canonical-KIR Add through cdev.
+- `transports/cdev/client/include/metaflux/transport/cdev.h` and `src/cdev.c`:
+  region COPY descriptor and submit helpers using argument-block object identity.
 - `transports/cdev/README.md`: region COPY resolution, synchronous
   backend-operation lease boundary, and asynchronous ownership limitation.
 
@@ -43,7 +47,7 @@ Registered-memory DMA integration and production resolver wiring remain open.
 | Focused CPU/backend/cdev tests | Passed 3/3 |
 | Full development CTest | Passed 84/84 |
 | clang-format and `git diff --check` | Passed |
-| Agent record validator | Passed: 57 sessions / 387 events / 331 Markdown files |
+| Agent record validator | Passed: 57 sessions / 388 events / 332 Markdown files |
 
 ## Cleanup
 
@@ -68,6 +72,9 @@ Registered-memory DMA integration and production resolver wiring remain open.
 - Region COPY object-table semantics remain resolver-owned. The worker receives
   independent backend memory handles and range values, validates them, and does
   not retain the resolution after the synchronous copy returns.
+- Region descriptors do not use queue generation as their target identity. The
+  resolver validates the argument-block generation, while legacy cdev COPY and
+  LAUNCH continue to use the queue-generation target check.
 
 ## roast
 
@@ -98,6 +105,6 @@ Registered-memory DMA integration and production resolver wiring remain open.
 ## Handoff
 
 Read `agent/plan/M0110-kernel-guest-transport/work/W0112-local-cdev.md`, the
-backend dispatch seam, and P064. Resume at `7bdcedf`; keep the cdev worker
+backend dispatch seam, and P065. Resume at `301c379`; keep the cdev worker
 backend-agnostic and connect registered-memory DMA to the lease before daemon
 replacement or asynchronous completion.

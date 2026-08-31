@@ -68,8 +68,9 @@ and arithmetic operation is validated.
   `MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1`. The resolver maps argument-block
   object references to independent backend memory handles and ranges; the worker
   validates the result and holds the synchronous operation lease across
-  resolution and copy. Real registered-memory DMA mapping and device
-  qualification remain open.
+  resolution and copy. The cdev descriptor carries the argument-block ID in
+  `target_id` and its generation in `arguments[0]`; real registered-memory DMA
+  mapping and device qualification remain open.
 - [x] Require a synchronous backend-operation lease for every bound COPY or
   LAUNCH. The worker holds the lease across resolver access and the backend ABI
   call, surfaces lease rejection in the completion status, and releases it only
