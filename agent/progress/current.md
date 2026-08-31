@@ -253,6 +253,24 @@ promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
 remains the unallocated `v0.2.0` support expansion. M0100 keeps the measured
 performance targets provisional and uses AMD x86_64 as its reference host.
 
+## Execution Priority
+
+Milestone dependencies and remaining release gates determine the next coherent
+work unit; locally available hardware is verification capacity, not scheduling
+authority. The verified W0132 AMD/RADV staging and Tier 3 copy increments remain
+valid, but RADV availability alone does not justify another M0130 expansion
+while M0110 transport and M0120 integration gates remain open.
+
+Prioritize the remaining host-independent and locally reproducible M0110/W0112,
+M0110/W0113, and M0120 transport/lifecycle work. CPU-backed CUDA Add/Copy,
+cdev/vfio-user implementation, and lifecycle integration do not require a
+physical NVIDIA GPU. Live `/dev/metafluxctl` qualification requires a compatible
+kernel or VM, module/device-node activation, and the relevant privileges; keep
+that environment requirement separate from M1000 physical NVIDIA
+binding-performance qualification. Resume M0130 work when it consumes or
+validates the stabilized transport/lifecycle boundary, not merely because the
+current AMD host can execute RADV tests.
+
 ## Recorded M0100 Evidence
 
 | Gate | Recorded result |
@@ -382,7 +400,7 @@ Linux 9.8.
 | W0132 CTest after physical staging stage | `.#vulkan-runtime` full CTest passed 90/90, including `metaflux.backend.vulkan-device`; changed-file clang-format check and `git diff --check` passed |
 | W0132 Tier 3 device-local copy | `d050de2`; source-local host-visible/device-local buffers, `vkCmdCopyBuffer` upload/download, generation-bound timeline submit/wait, and byte-for-byte AMD/RADV round trip; stable C ABI unchanged |
 | W0132 CTest after Tier 3 copy stage | `.#vulkan-runtime` full CTest passed 90/90; direct device-copy test reported `queue-family=0 timeline=4` |
-| W0132 current boundary | Backend admission, suballocation, external-handle import, command-buffer/pipeline composition, cross-process synchronization, lifecycle drain, non-coherent-only physical fixture, and driver qualification remain open |
+| W0132 current boundary | Backend admission, suballocation, external-handle import, command-buffer/pipeline composition, cross-process synchronization, lifecycle drain, non-coherent-only physical fixture, and driver qualification remain open; another W0132 expansion is not the default next unit while M0110/M0120 transport and lifecycle gates remain open |
 
 ## Recorded M0130 W0133 Evidence
 
