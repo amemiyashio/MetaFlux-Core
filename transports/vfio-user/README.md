@@ -48,12 +48,17 @@ correlation fixture. It permits one pending command, requires the matching
 `device-added` or `device-deleted` event, and emits a normalized request only
 after that match. A failed remove emits the existing QMP transport-loss
 operation so the coordinator can publish `LOST`; a failed add emits no device
-request. The adapter owns no generation or epoch allocation and does not yet
-implement a QMP socket or production producer wiring. Callers that already own
-the coordinator can use `complete_and_submit` to complete the correlation and
-submit the captured event through the stateless lifecycle ingress in one step;
-the `QmpResult` reports correlation status while `ResultDetails` reports the
-coordinator's authoritative outcome.
+request. `QmpSocket` now supplies the bounded live Unix-stream layer: it owns a
+connected `SOCK_STREAM` fd, sends one command object with a non-zero numeric ID,
+frames one top-level JSON object up to 64 KiB, and classifies QMP greetings,
+replies, errors, device events, closure, and malformed input. It does not own
+lifecycle identity, generation/epoch allocation, command retry, or event
+publication. Callers compose `receive_lifecycle_reply` with the existing
+`QmpLifecycleAdapter`; callers that already own the coordinator can use
+`complete_and_submit` to complete the correlation and submit the captured event
+through the stateless lifecycle ingress in one step. The `QmpResult` reports
+correlation status while `ResultDetails` reports the coordinator's authoritative
+outcome. Production QEMU producer wiring and qualification remain open.
 
 The W0114 bounded fault matrix covers short and flag-invalid packets, payload
 size mismatches, stale exact unmaps, DMA address overflow, duplicate ranges,

@@ -133,6 +133,14 @@ recovery target-bank validation are recorded at
 W0122's snapshot-bound producer metadata capture for QMP and vfio-user
 disconnect paths is recorded at
 [P20260831-034](checkpoints/2026/P20260831-034-m0120-snapshot-bound-event-metadata.md).
+W0122's bounded live QMP Unix-stream command/event adapter is now implemented
+in the active S0122 stage. `QmpSocket` frames one top-level JSON object up to
+64 KiB, sends validated command objects, classifies greeting, reply, error,
+device-add, device-delete, closure, malformed, and unexpected messages, and
+composes with the existing QMP lifecycle correlation adapter. Its focused
+socket regression and the full Vulkan preset pass 91/91. QEMU producer wiring,
+restart metadata binding, provider freeze, fault injection, and live
+qualification remain open.
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -359,7 +367,7 @@ Linux 9.8.
 | W0122 vfio-user disconnect ingress | `ee0ecab`; EOF/error handoff marks the local server lost and submits a captured `Disconnect` event through the stateless ingress; focused server/dispatch 2/2 and full dev CTest 79/79 passed |
 | W0122 vfio-user process ingress | `699cff8`; `process_once` overload invokes the disconnect handoff only for `Closed`, preserving ordinary message results; focused server/dispatch 2/2 and full dev CTest 79/79 passed |
 | W0122 snapshot-bound event metadata | QMP command factory and vfio-user `process_once` capture logical device, daemon, identity, generation, epoch, and deadline from the authority snapshot; stale completion remains `Stale`; focused normalizer/QMP/server tests passed 3/3 |
-| W0122 current boundary | Live QMP/socket command transport, reset/restart producer metadata binding, production memfd worker wiring, provider freeze, fault injection, and qualification remain open; QMP and vfio-user disconnect capture are covered by the snapshot-bound helper |
+| W0122 current boundary | Bounded live QMP/socket command transport is recorded; reset/restart producer metadata binding, production memfd worker wiring, provider freeze, fault injection, and qualification remain open; QMP and vfio-user disconnect capture are covered by the snapshot-bound helper |
 
 ## Recorded M0120 W0123 Evidence
 

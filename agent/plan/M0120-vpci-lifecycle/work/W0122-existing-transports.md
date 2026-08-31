@@ -70,18 +70,20 @@ only.
   open.
 - [x] Add the vfio-user QMP command/event correlation fixture. It keeps one
   pending command, requires a matching add/delete event, and emits QMP loss on
-  failed removal without changing the transport wire contract. Live QMP socket
-  integration remains open.
+  failed removal without changing the transport wire contract. The bounded
+  `QmpSocket` Unix-stream adapter now supplies live command/event framing and
+  classification; lifecycle producer wiring remains open.
 - [x] Provide a QMP completion-to-ingress helper that snapshots the correlated
   event, maps failed remove to `QmpFailure`, and calls
-  `submit_external_event`; live QMP socket and non-QMP producer wiring remain
-  open.
+  `submit_external_event`; callers can now feed it replies from `QmpSocket`,
+  while non-QMP producer wiring remains open.
 - [x] Provide a vfio-user EOF/error handoff that marks the local server lost and
   submits a captured `Disconnect` event through `submit_external_event`; the
   caller still owns lifecycle tuple capture and event-request allocation.
 - [x] Bind the vfio-user `process_once` EOF/error result to that handoff through
   an overload that leaves ordinary message results unchanged; live QMP command
-  transport and restart producer wiring remain open.
+  transport is now covered by the bounded `QmpSocket`; restart producer wiring
+  remains open.
 - [x] Bind source metadata capture to an authority snapshot helper. QMP commands
   and vfio-user `process_once` can now capture logical device, daemon incarnation,
   identity record, generation, epoch, and deadline at observation time; the
@@ -122,6 +124,18 @@ This stage is a preparation for the real adapter and qualification work below;
 it does not claim those gates complete. The cdev and vfio-user transport tests
 additionally exercise reset/loss callbacks and retired-generation rejection at
 their protocol boundaries.
+
+The live-control stage adds `metaflux::transport::vfio_user::QmpSocket`, a
+host-independent Unix-stream adapter. It bounds each top-level JSON object to
+64 KiB, rejects invalid command IDs and argument objects before sending,
+classifies QMP greeting/reply/error/device events, and returns stable results
+for timeout, closure, malformed input, and unexpected lifecycle messages. The
+adapter is deliberately transport-only: it does not allocate lifecycle
+identity, mutate generation/epoch state, retry commands, or submit events.
+`QmpLifecycleAdapter` remains the composition point for correlation and
+`Coordinator` remains the authority for state transitions. Its focused test
+uses `socketpair` plus a pathname Unix listener and is included in the Vulkan
+CTest preset.
 
 ## Exit Gate
 
