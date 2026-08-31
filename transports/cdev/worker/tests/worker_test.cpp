@@ -1536,6 +1536,57 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
+
+  metaflux::transport::cdev::CdevWorker queue_only_table_worker(
+      {.submission = submission.header,
+       .completion = completion.header,
+       .payload = nullptr,
+       .payload_size = 0U,
+       .generation = 4U},
+      {.api = cpu_api,
+       .instance = cpu_instance,
+       .queue = cpu_queue,
+       .memory = 0U,
+       .completion_event = 0U,
+       .copy_resolver = metaflux::transport::cdev::CdevObjectTableResolver::callback,
+       .copy_context = &table_resolver,
+       .lease_acquire = fixture_lease_acquire,
+       .lease_release = fixture_lease_release,
+       .lease_context = &table_lease});
+  request.request_id = 48U;
+  std::fill(table_destination.begin(), table_destination.end(), 0U);
+  if (!queue_only_table_worker.backend_bound() ||
+      mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      queue_only_table_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      object_table.calls != 6U || table_import.calls != 4U || table_lease.lease_acquires != 2U ||
+      table_lease.lease_releases != 2U || table_refs.retains != 4U || table_refs.releases != 4U ||
+      table_refs.active != 0U ||
+      std::memcmp(table_destination.data() + 16U, table_source.data() + 32U, 64U) != 0 ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
+    for (const auto imported : table_import.imported) {
+      if (imported != 0U && cpu_api->free_memory != nullptr) {
+        cpu_api->free_memory(cpu_instance, imported);
+      }
+    }
+    if (cpu_api->free_memory != nullptr) {
+      cpu_api->free_memory(cpu_instance, region_destination_memory);
+      cpu_api->free_memory(cpu_instance, region_source_memory);
+      cpu_api->free_memory(cpu_instance, cpu_memory);
+    }
+    if (cpu_api->destroy_queue != nullptr) {
+      cpu_api->destroy_queue(cpu_instance, cpu_queue);
+    }
+    if (cpu_api->destroy_context != nullptr) {
+      cpu_api->destroy_context(cpu_instance, cpu_context);
+    }
+    if (cpu_api->destroy_instance != nullptr) {
+      cpu_api->destroy_instance(cpu_instance);
+    }
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
   for (const auto imported : table_import.imported) {
     if (imported != 0U && cpu_api->free_memory != nullptr) {
       cpu_api->free_memory(cpu_instance, imported);

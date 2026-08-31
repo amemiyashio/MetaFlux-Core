@@ -858,8 +858,7 @@ WorkerResult CdevWorker::progress_pending() noexcept {
 
 WorkerResult CdevWorker::consume_once() noexcept {
   mf_ring_descriptor_v1 request{};
-  if (!valid_queue(view_.submission) || !valid_queue(view_.completion) ||
-      view_.payload == nullptr || view_.payload_size == 0U) {
+  if (!valid_queue(view_.submission) || !valid_queue(view_.completion)) {
     return WorkerResult::Malformed;
   }
   if (pending_.active) {
@@ -891,6 +890,10 @@ WorkerResult CdevWorker::consume_once() noexcept {
   }
   const bool region_copy = request.opcode == MF_RING_OPCODE_COPY &&
                            request.flags == MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1;
+  const bool payload_available = view_.payload != nullptr && view_.payload_size != 0U;
+  if (!payload_available && request.opcode != MF_RING_OPCODE_NOOP && !region_copy) {
+    return complete(request, MF_SHARED_NOT_SUPPORTED);
+  }
   if (!region_copy && request.target_id != view_.generation) {
     return complete(request, MF_SHARED_STALE_HANDLE);
   }
@@ -1024,9 +1027,12 @@ bool CdevWorker::drain_lifecycle() noexcept {
 bool CdevWorker::lifecycle_prepare(
     void* context, const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept {
   auto* worker = static_cast<CdevWorker*>(context);
+  const bool payload_available = worker != nullptr && worker->view_.payload != nullptr &&
+                                 worker->view_.payload_size != 0U;
+  const bool region_backend_available = worker != nullptr &&
+                                        valid_region_copy_backend(worker->backend_);
   if (worker == nullptr || !valid_queue(worker->view_.submission) ||
-      !valid_queue(worker->view_.completion) || worker->view_.payload == nullptr ||
-      worker->view_.payload_size == 0U) {
+      !valid_queue(worker->view_.completion) || (!payload_available && !region_backend_available)) {
     return false;
   }
   if (event.request.operation != metaflux::runtime::lifecycle::Operation::Add &&
