@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0132-20260831-020-vulkan-device-context",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.3.2",
+  "started_at": "2026-08-31",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0130/W0132 Vulkan device-context implementer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0130",
+      "title": "Vulkan Execution Backend",
+      "status": "active",
+      "event_seqs": [1, 2, 3]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0132",
+      "milestone_id": "M0130",
+      "title": "Vulkan device memory",
+      "status": "active"
+    }
+  ],
+  "base_revision": "e0cdb6c85db167ec8d5ea3306cef9d8156c38b2d",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

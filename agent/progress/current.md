@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0130
-workstream: W0131
-checkpoint: P20260831-059
+workstream: W0132
+checkpoint: P20260831-060
 ---
 
 # Current Progress
@@ -179,6 +179,15 @@ W0131's on-demand Vulkan runtime profile is now recorded at
 smoke/probe execution, while the two-driver-family matrix and physical NVIDIA
 qualification remain open.
 
+W0132's private Vulkan device context is now recorded at
+[P20260831-060](checkpoints/2026/P20260831-060-m0130-vulkan-device-context.md).
+It binds a successful capability profile to an exact Vulkan 1.3 physical device,
+compute queue, enabled baseline feature chain, and timeline semaphore, and its
+empty `vkQueueSubmit2` signals/waits/polls pass on the current AMD RADV host.
+Physical allocation, mapped visibility, external-handle import, command-buffer
+and pipeline composition, device-loss injection, and driver-family
+qualification remain open.
+
 Intel x86_64 support qualification and physical NVIDIA binding-performance
 promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
 remains the unallocated `v0.2.0` support expansion. M0100 keeps the measured
@@ -293,7 +302,9 @@ Linux 9.8.
 | W0132 CTest | Full `vulkan` preset passed 84/84, including `metaflux.backend.vulkan-memory` |
 | W0132 visibility ledger | `96d3a55`; generation-bound host/device dirty ranges, atom-size range checks, explicit flush/invalidate, timeline admission, and in-flight teardown guards |
 | W0132 CTest after visibility stage | Full `vulkan` preset passed 88/88, including coherent/non-coherent and partial-range visibility fixtures |
-| W0132 current boundary | Physical `VkDeviceMemory`, mapped Vulkan flush/invalidate, external-handle import, cross-process synchronization, lifecycle drain, and driver qualification remain open |
+| W0132 device context | `8afbe2a`; private profile-matched Vulkan 1.3 instance/device/compute queue/timeline context with generation-checked empty `vkQueueSubmit2` signals, waits, polls, and reset |
+| W0132 CTest after device-context stage | Lean Vulkan preset passed 89/89; explicit RADV runtime device CTest passed 1/1 with queue-family=0 and timeline=2 |
+| W0132 current boundary | Physical `VkDeviceMemory`, mapped Vulkan flush/invalidate, external-handle import, command-buffer/pipeline composition, cross-process synchronization, lifecycle drain, and driver qualification remain open |
 
 ## Recorded M0130 W0133 Evidence
 
@@ -474,6 +485,12 @@ Linux 9.8.
     [P20260831-059](checkpoints/2026/P20260831-059-m0130-vulkan-runtime-tools.md).
     Use it for local RADV/lavapipe smoke and capability probes; keep the exact
     two-driver-family baseline and physical NVIDIA qualification open.
+27. M0130/W0132 is Active after the private Vulkan device-context stage at
+    [P20260831-060](checkpoints/2026/P20260831-060-m0130-vulkan-device-context.md).
+    Continue by attaching the context to the staging ledger and real
+    `VkDeviceMemory` allocation, mapped flush/invalidate, and M0110 completion
+    operations; keep external-handle, device-loss, command-buffer, and
+    two-driver qualification gates open.
 
 ## Tool Boundary
 
