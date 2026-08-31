@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-069
+checkpoint: P20260831-070
 ---
 
 # Current Progress
@@ -29,6 +29,9 @@ async completion/lease stage recorded at
 production local cdev activation remains open. W0112 also has its first local
 cdev stage recorded at
 [P20260830-016](checkpoints/2026/P20260830-016-m0110-local-cdev.md).
+The registered-memory SG-to-DMA mapping stage is now recorded at
+[P20260831-070](checkpoints/2026/P20260831-070-m0110-cdev-dma-map.md); backend
+memory import and in-flight device references remain open.
 W0113 is Active with its static vfio-user control-plane stage recorded at
 [P20260830-017](checkpoints/2026/P20260830-017-m0110-static-vfio-user.md).
 M0120 is now Active for lifecycle implementation. W0121's model stage is
@@ -264,6 +267,7 @@ Linux 9.8.
 | W0113 guest ring adapter | `9a5cb6b`; paired generated rings, registry/generation/capacity checks, payload bounds, completion polling/waits, and success-only BAR2 callback; focused guest CTest and full dev CTest 84/84 |
 | W0111 transport negotiation | `fa515bb`; generated vfio-user negotiation message, guest request/response codec, server major/minor and feature selection, identity/limit publication, unsupported-version completion, and no-FD control validation; focused transport/schema/component/lifecycle gates 8/8 and full dev CTest 84/84 |
 | W0112 asynchronous completion stage | `7f3b8f3`; nonzero backend events are polled through `query_event`, completion is published exactly once, the lease remains held until completion, query errors are mapped, and completion-ring backpressure preserves pending state and timeline; focused cdev/client/component tests 3/3 and full CTest 84/84 |
+| W0112 registered-memory DMA mapping | `a7dfea2`; one generation-bound SG table is direction-mapped through the data cdev DMA device, map failure is unpublished, and all retirement paths unmap before SG/free, dirty-unpin, memlock, and mm release; Linux 6.18.42 GCC Kbuild and full CTest 84/84 |
 | W0113 current boundary | Static PCI binder and host-independent guest ring seam are recorded; pinned QEMU/libvfio-user, actual BAR2 MMIO/MSI-X, generation-bound DMA lifetime, Add/Copy path, drain/tombstone faults, and package qualification remain open |
 | W0114 bounded transport fault matrix | `700b7c8`; cdev COPY disposition checks and completion backpressure/FIFO retry, plus vfio-user malformed framing, stale unmap, duplicate-range, and DMA-overflow regressions; focused transport tests 2/2 and full dev CTest 82/82 |
 | W0114 current boundary | Malformed and recoverable userspace/socketpair faults are recorded; kernel ioctl/BAR fuzzing, MSI-X, live DMA/backend references, ownership-death injection, native/compat negotiation, and the base ABI freeze remain open |

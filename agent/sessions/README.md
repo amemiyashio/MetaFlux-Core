@@ -116,6 +116,7 @@ copies canonical content.
 | [S0113-20260831-022-vfio-user-guest-ring](2026/08/S0113-20260831-022-vfio-user-guest-ring/summary.md) | 2026-08-31 | Exact | In progress | W0113 host-independent paired guest-ring adapter with BAR2 doorbell callback; live QEMU/PCI qualification remains open |
 | [S0111-20260831-023-vfio-user-negotiation](2026/08/S0111-20260831-023-vfio-user-negotiation/summary.md) | 2026-08-31 | Exact | In progress | W0111 vfio-user transport ABI 0.x negotiation with generated guest/server codec and feature selection; live transport activation remains open |
 | [S0112-20260831-024-cdev-async-lease](2026/08/S0112-20260831-024-cdev-async-lease/summary.md) | 2026-08-31 | Exact | In progress | W0112 cdev async completion retains backend lease through event completion and ring backpressure; production DMA, replacement, and fault qualification remain open |
+| [S0113-20260831-025-cdev-dma-map](2026/08/S0113-20260831-025-cdev-dma-map/summary.md) | 2026-08-31 | Exact | In progress | W0112 registered-memory SG is direction-mapped through the cdev DMA device with reverse-order teardown; backend import, references, replacement, and physical qualification remain open |
 
 ## Fidelity and retention
 
