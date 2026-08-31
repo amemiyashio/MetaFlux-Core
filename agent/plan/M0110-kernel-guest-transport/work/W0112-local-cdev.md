@@ -57,25 +57,27 @@ and arithmetic operation is validated.
   for the generation with `-EBUSY`.
 - [x] Register one bounded caller-owned range with `FOLL_LONGTERM`/`FOLL_WRITE`
   pinning, normal memlock accounting, an SG table, partial-pin unwind, dirty
-  unpin, and owner-close or explicit unregister revocation. Backend DMA mapping,
-  multi-region quota, and in-flight device references remain open.
+  unpin, owner-close or explicit unregister revocation, and direction-aware
+  `dma_map_sg`/`dma_unmap_sg` lifetime through the data cdev DMA device. Multi-
+  region quota and backend in-flight device references remain open.
 - [x] Add a worker-side `mf_backend_api_v1` COPY dispatch seam with sized-table,
   capability, handle, offset, and backend-status validation. An unbound worker
   retains the local fixture copy path; a malformed bound API returns
-  `MF_SHARED_NOT_SUPPORTED` without fallback. Registered-memory DMA mapping and
-  asynchronous backend ownership remain open.
+  `MF_SHARED_NOT_SUPPORTED` without fallback. Registered-memory backend import
+  and asynchronous generation ownership remain open.
 - [x] Expose a backend-agnostic `CdevCopyResolver` for
   `MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1`. The resolver maps argument-block
   object references to independent backend memory handles and ranges; the worker
   validates the result and holds the synchronous operation lease across
   resolution and copy. The cdev descriptor carries the argument-block ID in
-  `target_id` and its generation in `arguments[0]`; real registered-memory DMA
-  mapping and device qualification remain open.
+  `target_id` and its generation in `arguments[0]`; backend memory import and
+  device qualification remain open.
 - [x] Require a synchronous backend-operation lease for every bound COPY or
   LAUNCH. The worker holds the lease across resolver access and the backend ABI
   call, surfaces lease rejection in the completion status, and releases it only
-  after the synchronous call returns. Asynchronous completion and real DMA
-  mapping remain separate qualification work.
+  after the synchronous call returns. Nonzero event completion retains the
+  lease and exact backend binding until observed completion; physical DMA
+  qualification remains separate work.
 - [x] Expose the CPU backend's transport-facing COPY and synchronous launch
   subset (instance, context, queue, caller-owned host-memory import, canonical
   KIR module load/unload, and memory-handle argument blocks). The CPU backend
@@ -86,7 +88,7 @@ and arithmetic operation is validated.
   argument-block object references into payload-relative backend argument bytes;
   the worker validates the range and 2D launch shape, then invokes the backend
   submit ABI. The real CPU backend Add fixture now passes through this cdev
-  worker path; asynchronous events and backend DMA remain open.
+  worker path; backend memory import and physical DMA remain open.
 - [x] Retain an offline queue mapping as a VMA tombstone after module teardown
   and reclaim its backing under the cdev lock when the final queue VMA closes.
 - [x] Mark the current generation offline and wake waiters when the queue owner
@@ -103,11 +105,12 @@ and arithmetic operation is validated.
   drain beyond the queue and payload kref/tombstone graphs. The payload and
   queue VMA tombstones, owner-death transition, eventfd references, and bounded
   registered-memory lifetime are implemented for the current fixture.
-- [ ] Extend the leased worker/backend binding from the synchronous Add/launch
-  descriptor path to production registered-memory import and DMA mapping, and
-  prove Add/Copy with those references through the mapped payload arena. The
-  current lease is host-independent and synchronous; an asynchronous backend
-  must retain it until an observed completion before memory teardown.
+- [ ] Connect the leased worker/backend binding to production registered-memory
+  import and in-flight references, and prove Add/Copy with those references
+  through the mapped payload arena. Kernel-side DMA mapping, host-independent
+  asynchronous lease retention, and replacement-safe pending binding snapshots
+  are implemented; backend import, generation drain, and physical device
+  qualification remain open.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak.
 

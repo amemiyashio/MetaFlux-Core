@@ -93,7 +93,9 @@ this primary-entry layout. Resolver failures and backend statuses remain
 visible in the completion record, with no silent fallback. Nonzero completion
 events and daemon generation replacement are still outside this synchronous
 descriptor stage; the worker's asynchronous event contract extends the lease
-until observed completion, while backend memory import remains open.
+until observed completion and snapshots the exact backend binding so a later
+replacement cannot query or release the old operation through the new binding.
+Backend memory import remains open.
 
 The W0114 bounded fault matrix now treats unknown COPY flags as malformed,
 known direct-host flags as unsupported on this worker, and zero-length COPY as
