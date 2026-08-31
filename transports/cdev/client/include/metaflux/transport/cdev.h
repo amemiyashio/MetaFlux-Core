@@ -57,6 +57,12 @@ typedef struct mf_cdev_copy_v0 {
   uint64_t byte_count;
 } mf_cdev_copy_v0;
 
+/* Region COPY references an immutable argument block in the shared object table. */
+typedef struct mf_cdev_copy_region_v0 {
+  uint64_t argument_block_id;
+  uint64_t argument_block_generation;
+} mf_cdev_copy_region_v0;
+
 /* Primary-entry launch object references used by the local cdev worker. */
 typedef struct mf_cdev_launch_v0 {
   uint64_t module_id;
@@ -102,6 +108,12 @@ mf_shared_status_v1 mf_cdev_copy_descriptor_v0(uint64_t request_id,
 
 mf_shared_status_v1 mf_cdev_submit_copy_v0(mf_cdev_session_v0* session, uint64_t request_id,
                                            const mf_cdev_copy_v0* copy);
+
+mf_shared_status_v1 mf_cdev_copy_region_descriptor_v0(
+    uint64_t request_id, const mf_cdev_copy_region_v0* copy, mf_ring_descriptor_v1* out_descriptor);
+
+mf_shared_status_v1 mf_cdev_submit_copy_region_v0(mf_cdev_session_v0* session, uint64_t request_id,
+                                                  const mf_cdev_copy_region_v0* copy);
 
 /* Encode or submit a primary-entry launch against the session generation. */
 mf_shared_status_v1 mf_cdev_launch_descriptor_v0(uint64_t request_id, uint64_t generation,

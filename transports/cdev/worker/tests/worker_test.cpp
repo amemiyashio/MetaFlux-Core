@@ -93,9 +93,9 @@ struct CopyResolutionFixture final {
 mf_shared_status_v1 resolve_copy(void* context, const mf_ring_descriptor_v1* request,
                                  metaflux::transport::cdev::CdevCopyResolution* out) noexcept {
   auto* fixture = static_cast<CopyResolutionFixture*>(context);
-  if (fixture == nullptr || request == nullptr || out == nullptr || request->target_id != 4U ||
-      request->arguments[0] != 71U || request->arguments[1] != 73U ||
-      request->arguments[2] != 77U || request->arguments[3] != 79U) {
+  if (fixture == nullptr || request == nullptr || out == nullptr || request->target_id != 71U ||
+      request->arguments[0] != 73U || request->arguments[1] != 0U || request->arguments[2] != 0U ||
+      request->arguments[3] != 0U) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
   ++fixture->calls;
@@ -311,10 +311,11 @@ int main() {
   request.opcode = MF_RING_OPCODE_COPY;
   request.flags = MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1;
   request.request_id = 431U;
-  request.arguments[0] = 71U;
-  request.arguments[1] = 73U;
-  request.arguments[2] = 77U;
-  request.arguments[3] = 79U;
+  request.target_id = 71U;
+  request.arguments[0] = 73U;
+  request.arguments[1] = 0U;
+  request.arguments[2] = 0U;
+  request.arguments[3] = 0U;
   const auto region_submit = mf_client_ring_try_submit_v1(&submission, &request);
   const auto region_result = region_worker.consume_once();
   const auto region_completion = mf_client_ring_try_consume_v1(&completion, &result);
@@ -331,6 +332,20 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
+  request.request_id = 433U;
+  request.arguments[2] = 1U;
+  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      region_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      copy_resolution.calls != 1U || backend_fixture.calls != 3U ||
+      backend_fixture.lease_acquires != 4U || backend_fixture.lease_releases != 3U ||
+      backend_fixture.lease_active ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_MALFORMED)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  request.arguments[2] = 0U;
   copy_resolution.result = MF_SHARED_STALE_HANDLE;
   request.request_id = 432U;
   if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||

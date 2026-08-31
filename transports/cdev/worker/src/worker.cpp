@@ -268,7 +268,9 @@ WorkerResult CdevWorker::consume_once() noexcept {
   if (!consume(view_.submission, &request)) {
     return WorkerResult::Idle;
   }
-  if (request.target_id != view_.generation) {
+  const bool region_copy = request.opcode == MF_RING_OPCODE_COPY &&
+                           request.flags == MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1;
+  if (!region_copy && request.target_id != view_.generation) {
     return complete(request, MF_SHARED_STALE_HANDLE);
   }
   if (request.opcode == MF_RING_OPCODE_NOOP) {
@@ -297,6 +299,10 @@ WorkerResult CdevWorker::consume_once() noexcept {
     return complete(request, MF_SHARED_NOT_SUPPORTED);
   }
   if (request.flags == MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1) {
+    if (request.target_id == 0U || request.arguments[0] == 0U || request.arguments[2] != 0U ||
+        request.arguments[3] != 0U) {
+      return complete(request, MF_SHARED_MALFORMED);
+    }
     if (!valid_region_copy_backend(backend_)) {
       return complete(request, MF_SHARED_NOT_SUPPORTED);
     }

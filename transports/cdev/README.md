@@ -72,6 +72,12 @@ worker. This is the backend import/resolution seam; registered-memory
 `dma_map_sg`, asynchronous ownership, and physical-device qualification remain
 open.
 
+The region descriptor uses the argument-block object ID as `target_id`, its
+generation in `arguments[0]`, and zero in `arguments[1..3]`; the resolver must
+reject stale object-table generations. The cdev client exposes this encoding as
+`mf_cdev_copy_region_descriptor_v0` and
+`mf_cdev_submit_copy_region_v0`.
+
 For the bounded LAUNCH subset, the binding additionally supplies a
 `CdevLaunchResolver`. The resolver owns daemon/object-table semantics and maps
 the cdev descriptor's generation, module ID/generation, and argument-block
