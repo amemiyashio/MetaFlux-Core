@@ -135,6 +135,7 @@ copies canonical content.
 | [S0123-20260831-041-lifecycle-node-policy](2026/08/S0123-20260831-041-lifecycle-node-policy/summary.md) | 2026-08-31 | Exact | Complete | W0123 canonical cdev udev/node policy, Daemon installation, and package lifecycle assertions; live/kernel qualification remains open |
 | [S0122-20260831-042-qmp-socket-lifecycle-bridge](2026/08/S0122-20260831-042-qmp-socket-lifecycle-bridge/summary.md) | 2026-08-31 | Exact | Complete | W0122 QMP socket-to-Coordinator completion bridge with separate transport/lifecycle outcomes and pending/error containment |
 | [S0122-20260831-043-provider-view-freeze](2026/08/S0122-20260831-043-provider-view-freeze/summary.md) | 2026-08-31 | Exact | Complete | W0122 provider-view revision validation and CUDA/NVML enumeration-freeze regressions |
+| [S0123-20260831-044-m0120-producer-ingress](2026/08/S0123-20260831-044-m0120-producer-ingress/summary.md) | 2026-08-31 | Exact | Complete | W0122 immediate producer capture/submit ingress with strict event routing and stale-observation regression |
 
 ## Fidelity and retention
 

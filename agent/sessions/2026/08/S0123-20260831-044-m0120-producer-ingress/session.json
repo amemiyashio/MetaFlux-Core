@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0123-20260831-044-m0120-producer-ingress",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.2.3",
+  "started_at": "2026-08-31",
+  "ended_at": "2026-08-31",
+  "time_precision": "date",
+  "status": "complete",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "runtime lifecycle producer and fault-path implementer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0120",
+      "title": "Lifecycle and vPCI Presentation",
+      "status": "active",
+      "event_seqs": [1]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0122",
+      "milestone_id": "M0120",
+      "title": "Lifecycle on Existing Transports",
+      "status": "active"
+    }
+  ],
+  "base_revision": "ca97b9015b33c1f79dc955e10d9e1ed263407b4d",
+  "final_revision": "6152efa7d9ca8f0b28e6ec9ed6d9617e8377fb67",
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
