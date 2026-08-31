@@ -242,6 +242,7 @@ typedef struct mf_cuda_state {
   uint32_t transport_error;
   uint32_t* visible_devices;
   uint32_t visible_count;
+  uint64_t process_view_revision;
   uint32_t initialized;
   uint32_t closing;
   uint32_t direct_host_copy_ready;
@@ -1434,6 +1435,7 @@ static void mf_cuda_close_locked(void) {
   (void)memset(mf_cuda_global.copy_cache, 0, sizeof(mf_cuda_global.copy_cache));
   mf_cuda_global.visible_devices = (uint32_t*)0;
   mf_cuda_global.visible_count = UINT32_C(0);
+  mf_cuda_global.process_view_revision = UINT64_C(0);
   mf_cuda_global.direct_host_copy_ready = UINT32_C(0);
   mf_atomic_store_u32_release(&mf_cuda_global.transport_error, (uint32_t)CUDA_SUCCESS);
   mf_cuda_global.initialized = UINT32_C(0);
@@ -1521,6 +1523,12 @@ static CUresult mf_cuda_initialize_locked(void) {
   if (result != CUDA_SUCCESS) {
     mf_cuda_close_locked();
     return result;
+  }
+  mf_cuda_global.process_view_revision =
+      mf_client_registry_process_view_revision_v1(&mf_cuda_global.registry);
+  if (mf_cuda_global.process_view_revision == UINT64_C(0)) {
+    mf_cuda_close_locked();
+    return CUDA_ERROR_INVALID_VALUE;
   }
   result = mf_cuda_build_visible_devices_locked();
   if (result != CUDA_SUCCESS) {
@@ -2433,6 +2441,14 @@ int mf_cuda_provider_test_set_direct_registration_v1(uint32_t local_unavailable,
 
 uint32_t mf_cuda_provider_test_managed_is_pristine_v1(void) {
   return mf_cuda_provider_managed_is_pristine_v1() == INT32_C(1) ? UINT32_C(1) : UINT32_C(0);
+}
+
+uint64_t mf_cuda_provider_test_process_view_revision_v1(void) {
+  uint64_t revision = UINT64_C(0);
+  mf_cuda_lock();
+  revision = mf_cuda_global.process_view_revision;
+  mf_cuda_unlock();
+  return revision;
 }
 
 int mf_cuda_provider_test_set_next_request_v1(uint64_t next_request) {

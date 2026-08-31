@@ -23,6 +23,15 @@ Close shuts down the socket first so the daemon can release session state, then
 unmaps completion, submission, and registry state. The canonical registry view
 itself remains live for other sessions until daemon shutdown.
 
+Registry attach validates one nonzero `process_view_revision` in both the
+registry header and view-control record, then captures that revision in the
+process-local handle. `mf_client_registry_process_view_revision_v1` returns the
+captured value; it does not reread mutable provider state. A provider's
+membership snapshot therefore remains tied to its initialization epoch and the
+exact view revision it joined. A later mapping or a later zero-to-one provider
+initialization may capture a newer revision, while an already initialized
+provider keeps its prior membership and ordinal set.
+
 Control calls are serialized request/response pairs. Payload helpers retain their
 own mapping and FD after a send; immutable payloads are write-sealed, while
 writable host payloads remain shared and size-sealed. Ring submission is

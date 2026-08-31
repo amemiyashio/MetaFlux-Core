@@ -77,6 +77,7 @@ mf_cuda_provider_test_install_transport_v1(const mf_cuda_provider_test_transport
 MF_CUDA_PROVIDER_API int mf_cuda_provider_test_set_direct_registration_v1(
     uint32_t local_unavailable, mf_shared_status_v1 transport_status, uint32_t control_status);
 MF_CUDA_PROVIDER_API uint32_t mf_cuda_provider_test_managed_is_pristine_v1(void);
+MF_CUDA_PROVIDER_API uint64_t mf_cuda_provider_test_process_view_revision_v1(void);
 MF_CUDA_PROVIDER_API int
 mf_cuda_provider_test_install_passthrough_policy_v1(const mf_cuda_passthrough_policy_v1* policy);
 MF_CUDA_PROVIDER_API void mf_cuda_provider_test_force_dirty_rollback_v1(uint32_t enabled);

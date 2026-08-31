@@ -47,6 +47,7 @@ typedef struct mf_client_registry_v1 {
   mf_registry_view_id_v1 registry_view_id;
   int32_t owned_fd;
   uint32_t device_count;
+  uint64_t process_view_revision;
 } mf_client_registry_v1;
 
 typedef struct mf_client_fence_snapshot_v1 {
@@ -197,6 +198,8 @@ void mf_client_registry_close_v1(mf_client_registry_v1* registry);
 int32_t mf_client_registry_borrow_fd_v1(const mf_client_registry_v1* registry);
 
 uint32_t mf_client_registry_device_count_v1(const mf_client_registry_v1* registry);
+
+uint64_t mf_client_registry_process_view_revision_v1(const mf_client_registry_v1* registry);
 
 mf_shared_status_v1 mf_client_registry_identity_v1(const mf_client_registry_v1* registry,
                                                    uint32_t device_index,

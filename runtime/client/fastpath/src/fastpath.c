@@ -1135,6 +1135,7 @@ mf_shared_status_v1 mf_client_registry_attach_v1(int32_t fd,
       header->magic != MF_SHARED_REGISTRY_MAGIC ||
       header->abi_version != MF_SHARED_DEVICE_ABI_VERSION_1 ||
       header->header_size != sizeof(*header) || header->total_size != mapping_size ||
+      header->process_view_revision == UINT64_C(0) ||
       (header->flags & ~MF_SHARED_REGISTRY_KNOWN_FLAGS_V1) != UINT32_C(0) ||
       header->telemetry_row_count != header->device_count ||
       !mf_client_registry_offsets_valid(header, bytes, mapping_size)) {
@@ -1170,11 +1171,14 @@ mf_shared_status_v1 mf_client_registry_attach_v1(int32_t fd,
   out_registry->registry_view_id = header->registry_view_id;
   out_registry->owned_fd = duplicate_fd;
   out_registry->device_count = header->device_count;
+  out_registry->process_view_revision = header->process_view_revision;
 
   if (!mf_registry_view_id_equal_v1(out_registry->view_admission->registry_view_id,
                                     expected_view_id) ||
       !mf_registry_view_id_equal_v1(out_registry->view_control->registry_view_id,
-                                    expected_view_id)) {
+                                    expected_view_id) ||
+      out_registry->view_control->process_view_revision !=
+          out_registry->process_view_revision) {
     mf_client_registry_close_v1(out_registry);
     return MF_SHARED_MALFORMED;
   }
@@ -1212,6 +1216,11 @@ int32_t mf_client_registry_borrow_fd_v1(const mf_client_registry_v1* registry) {
 
 uint32_t mf_client_registry_device_count_v1(const mf_client_registry_v1* registry) {
   return registry == (const mf_client_registry_v1*)0 ? UINT32_C(0) : registry->device_count;
+}
+
+uint64_t mf_client_registry_process_view_revision_v1(const mf_client_registry_v1* registry) {
+  return registry == (const mf_client_registry_v1*)0 ? UINT64_C(0)
+                                                     : registry->process_view_revision;
 }
 
 mf_shared_status_v1 mf_client_registry_identity_v1(const mf_client_registry_v1* registry,

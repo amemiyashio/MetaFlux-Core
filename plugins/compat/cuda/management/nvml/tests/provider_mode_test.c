@@ -331,6 +331,7 @@ static int mf_registry_fixture_create(mf_mode_registry_fixture* fixture) {
   view_admission->registry_view_id = fixture->view_id;
   view_admission->state_generation = mf_view_admission_pack_v1(UINT64_C(1), MF_VIEW_ADMISSION_OPEN);
   view_control->registry_view_id = fixture->view_id;
+  view_control->process_view_revision = UINT64_C(1);
   view_control->gate_state = MF_VIEW_GATE_OPEN;
   telemetry_control->snapshot_sequence = UINT64_C(1);
   telemetry_control->active_bank_state =

@@ -57,6 +57,7 @@ typedef struct mf_nvml_provider_test_mode_snapshot_v1 {
 
 MF_NVML_PROVIDER_API int
 mf_nvml_provider_test_install_transport_v1(const mf_nvml_provider_test_transport_v1* transport);
+MF_NVML_PROVIDER_API uint64_t mf_nvml_provider_test_process_view_revision_v1(void);
 MF_NVML_PROVIDER_API int
 mf_nvml_provider_test_install_passthrough_policy_v1(const mf_cuda_passthrough_policy_v1* policy);
 MF_NVML_PROVIDER_API void mf_nvml_provider_test_force_dirty_rollback_v1(uint32_t enabled);

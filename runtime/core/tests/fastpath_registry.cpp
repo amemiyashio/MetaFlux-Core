@@ -58,7 +58,8 @@ namespace {
   client.owned_fd = -1;
   const mf_shared_status_v1 attached = mf_client_registry_attach_v1(fd, view_id, &client);
   const bool valid = attached == MF_SHARED_SUCCESS &&
-                     mf_client_registry_device_count_v1(&client) == (zero ? 0U : 1U);
+                     mf_client_registry_device_count_v1(&client) == (zero ? 0U : 1U) &&
+                     mf_client_registry_process_view_revision_v1(&client) == serial;
   mf_client_registry_close_v1(&client);
   return valid;
 }
@@ -102,8 +103,11 @@ int main() {
       }
       auto* extension = reinterpret_cast<mf_shared_registry_extension_header_v1*>(
           static_cast<std::uint8_t*>(mapping) + legacy_size);
+      auto* view_control = reinterpret_cast<mf_registry_view_control_v1*>(
+          static_cast<std::uint8_t*>(mapping) + header->view_control_offset);
       const mf_shared_registry_header_v1 saved_header = *header;
       const mf_shared_registry_extension_header_v1 saved_extension = *extension;
+      const mf_registry_view_control_v1 saved_view_control = *view_control;
       const mf_registry_view_id_v1 view_id{UINT64_C(0xf45), UINT64_C(2)};
       header->flags |= UINT32_C(0x80000000);
       if (attach_status(fd, view_id) != MF_SHARED_MALFORMED) {
@@ -130,6 +134,16 @@ int main() {
         return 35;
       }
       *header = saved_header;
+      header->process_view_revision = UINT64_C(0);
+      if (attach_status(fd, view_id) != MF_SHARED_MALFORMED) {
+        return 36;
+      }
+      *header = saved_header;
+      view_control->process_view_revision = UINT64_C(3);
+      if (attach_status(fd, view_id) != MF_SHARED_MALFORMED) {
+        return 37;
+      }
+      *view_control = saved_view_control;
     }
     (void)munmap(mapping, static_cast<std::size_t>(size));
     (void)close(fd);

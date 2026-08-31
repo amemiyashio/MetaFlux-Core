@@ -794,6 +794,7 @@ static int mf_test_registry_create(mf_cuda_fixture* fixture) {
   view_admission->registry_view_id = fixture->view_id;
   view_admission->state_generation = mf_view_admission_pack_v1(UINT64_C(1), MF_VIEW_ADMISSION_OPEN);
   view_control->registry_view_id = fixture->view_id;
+  view_control->process_view_revision = UINT64_C(1);
   view_control->gate_state = MF_VIEW_GATE_OPEN;
   telemetry_control->snapshot_sequence = UINT64_C(1);
   telemetry_control->active_bank_state =
@@ -830,6 +831,16 @@ static int mf_test_registry_create(mf_cuda_fixture* fixture) {
   }
   return offset + ((uint64_t)MF_TEST_DEVICE_COUNT * sizeof(*bank1)) == fixture->registry_size ? 0
                                                                                               : -1;
+}
+
+static void mf_test_registry_set_process_view_revision(mf_cuda_fixture* fixture,
+                                                        uint64_t revision) {
+  mf_shared_registry_header_v1* header = (mf_shared_registry_header_v1*)fixture->registry_mapping;
+  mf_registry_view_control_v1* view_control =
+      (mf_registry_view_control_v1*)((uint8_t*)fixture->registry_mapping +
+                                     header->view_control_offset);
+  header->process_view_revision = revision;
+  view_control->process_view_revision = revision;
 }
 
 static mf_shared_status_v1 mf_test_launch(mf_cuda_fixture* fixture,
@@ -1373,6 +1384,7 @@ int main(void) {
       atomic_load_explicit(&fixture.argument_register_calls, memory_order_relaxed);
   MF_TEST_REQUIRE(mf_cuda_provider_test_install_transport_v1(&transport) == 0 &&
                       cuInit(UINT32_C(0)) == CUDA_SUCCESS &&
+                      mf_cuda_provider_test_process_view_revision_v1() == UINT64_C(1) &&
                       cuDeviceGet(&device, 0) == CUDA_SUCCESS &&
                       cuCtxCreate_v2(&context, UINT32_C(0), device) == CUDA_SUCCESS &&
                       cuMemAlloc_v2(&device_left, sizeof(left_values)) == CUDA_SUCCESS,
@@ -1405,6 +1417,10 @@ int main(void) {
                       major == 8 && minor == 0 && setenv("CUDA_VISIBLE_DEVICES", "1", 1) == 0 &&
                       cuDeviceGetCount(&count) == CUDA_SUCCESS && count == 2,
                   5);
+  mf_test_registry_set_process_view_revision(&fixture, UINT64_C(2));
+  MF_TEST_REQUIRE(cuDeviceGetCount(&count) == CUDA_SUCCESS && count == 2 &&
+                      mf_cuda_provider_test_process_view_revision_v1() == UINT64_C(1),
+                  160);
   MF_TEST_REQUIRE(cuGetProcAddress_v2("cuLaunchKernel", &resolved, MF_CUDA_DRIVER_API_VERSION,
                                       CU_GET_PROC_ADDRESS_PER_THREAD_DEFAULT_STREAM,
                                       &query_status) == CUDA_SUCCESS &&
@@ -2055,9 +2071,11 @@ int main(void) {
   device_right = (CUdeviceptr)0;
   device_output = (CUdeviceptr)0;
   MF_TEST_REQUIRE(
-      setenv("CUDA_VISIBLE_DEVICES", "0", 1) == 0 &&
+          setenv("CUDA_VISIBLE_DEVICES", "0", 1) == 0 &&
           mf_cuda_provider_test_install_transport_v1(&transport) == 0 &&
-          cuInit(UINT32_C(0)) == CUDA_SUCCESS && cuDeviceGet(&device, 0) == CUDA_SUCCESS &&
+          cuInit(UINT32_C(0)) == CUDA_SUCCESS &&
+          mf_cuda_provider_test_process_view_revision_v1() == UINT64_C(2) &&
+          cuDeviceGet(&device, 0) == CUDA_SUCCESS &&
           cuCtxCreate_v2(&context, UINT32_C(0), device) == CUDA_SUCCESS &&
           cuMemAlloc_v2(&device_left, sizeof(left_values)) == CUDA_SUCCESS &&
           cuMemAlloc_v2(&device_right, sizeof(right_values)) == CUDA_SUCCESS &&

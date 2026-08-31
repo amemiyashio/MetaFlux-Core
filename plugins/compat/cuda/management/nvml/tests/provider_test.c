@@ -134,6 +134,7 @@ static int mf_nvml_fixture_create(mf_nvml_registry_fixture* fixture, uint32_t de
   view_admission->registry_view_id = fixture->view_id;
   view_admission->state_generation = mf_view_admission_pack_v1(UINT64_C(1), MF_VIEW_ADMISSION_OPEN);
   view_control->registry_view_id = fixture->view_id;
+  view_control->process_view_revision = UINT64_C(1);
   view_control->gate_state = MF_VIEW_GATE_OPEN;
   telemetry_control->snapshot_sequence = UINT64_C(1);
   telemetry_control->active_bank_state =
@@ -191,6 +192,15 @@ static void mf_nvml_fixture_destroy(mf_nvml_registry_fixture* fixture) {
   if (fixture->fd >= 0) {
     (void)close(fixture->fd);
   }
+}
+
+static void mf_nvml_fixture_set_process_view_revision(mf_nvml_registry_fixture* fixture,
+                                                       uint64_t revision) {
+  mf_shared_registry_header_v1* header = (mf_shared_registry_header_v1*)fixture->mapping;
+  mf_registry_view_control_v1* view_control =
+      (mf_registry_view_control_v1*)((uint8_t*)fixture->mapping + header->view_control_offset);
+  header->process_view_revision = revision;
+  view_control->process_view_revision = revision;
 }
 
 static int mf_nvml_test_device_count(uint32_t expected_count) {
@@ -303,6 +313,7 @@ int main(void) {
   transport.process_data_available = UINT32_C(1);
   if (mf_nvml_provider_test_install_transport_v1(&transport) != 0 ||
       nvmlInit_v2() != NVML_SUCCESS || nvmlInit() != NVML_SUCCESS ||
+      mf_nvml_provider_test_process_view_revision_v1() != UINT64_C(1) ||
       nvmlDeviceGetCount_v2(&count) != NVML_SUCCESS || count != UINT32_C(1) ||
       nvmlDeviceGetHandleByIndex_v2(0, &device) != NVML_SUCCESS ||
       nvmlDeviceGetName(device, name, sizeof(name)) != NVML_SUCCESS ||
@@ -317,6 +328,11 @@ int main(void) {
       nvmlSystemGetCudaDriverVersion_v2(&cuda_driver_version) != NVML_SUCCESS ||
       cuda_driver_version != 13030) {
     return 2;
+  }
+  mf_nvml_fixture_set_process_view_revision(&fixture, UINT64_C(2));
+  if (nvmlDeviceGetCount_v2(&count) != NVML_SUCCESS || count != UINT32_C(1) ||
+      mf_nvml_provider_test_process_view_revision_v1() != UINT64_C(1)) {
+    return 19;
   }
   if (nvmlInternalGetExportTable((const void**)0, export_table_id) != NVML_ERROR_INVALID_ARGUMENT ||
       nvmlInternalGetExportTable(&export_table, unknown_export_table_id) !=
@@ -485,6 +501,8 @@ int main(void) {
     return 9;
   }
   if (mf_nvml_run_init_threads() != 0 || nvmlInit_v2() != NVML_SUCCESS ||
+      mf_nvml_provider_test_process_view_revision_v1() != UINT64_C(2) ||
+      nvmlDeviceGetCount_v2(&count) != NVML_SUCCESS || count != UINT32_C(1) ||
       nvmlDeviceGetIndex(device, &count) != NVML_ERROR_INVALID_ARGUMENT ||
       nvmlShutdown() != NVML_SUCCESS) {
     return 10;

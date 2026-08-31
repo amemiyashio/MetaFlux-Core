@@ -109,6 +109,7 @@ typedef struct mf_nvml_state {
   uint32_t process_count;
   uint32_t reference_count;
   uint32_t initialization_generation;
+  uint64_t process_view_revision;
 } mf_nvml_state;
 
 static mf_nvml_state mf_nvml_global = {.lock = ATOMIC_FLAG_INIT,
@@ -371,6 +372,7 @@ static void mf_nvml_close_locked(void) {
   for (index = UINT32_C(0); index < MF_NVML_EVENT_SET_CAPACITY; ++index) {
     mf_nvml_global.event_sets[index].active = UINT32_C(0);
   }
+  mf_nvml_global.process_view_revision = UINT64_C(0);
 }
 
 uint32_t mf_nvml_provider_bootstrap_abi_version(void) {
@@ -441,6 +443,14 @@ void mf_nvml_provider_test_reset_managed_v1(void) {
   mf_nvml_global.reference_count = UINT32_C(0);
   mf_nvml_unlock();
 }
+
+uint64_t mf_nvml_provider_test_process_view_revision_v1(void) {
+  uint64_t revision = UINT64_C(0);
+  mf_nvml_lock();
+  revision = mf_nvml_global.process_view_revision;
+  mf_nvml_unlock();
+  return revision;
+}
 #endif
 
 nvmlReturn_t nvmlInitWithFlags(unsigned int flags) {
@@ -466,6 +476,13 @@ nvmlReturn_t nvmlInitWithFlags(unsigned int flags) {
     status = mf_client_observer_connect_default_v1(&mf_nvml_global.session);
     if (status == MF_SHARED_SUCCESS) {
       mf_nvml_take_session_registry_locked();
+    }
+  }
+  if (status == MF_SHARED_SUCCESS) {
+    mf_nvml_global.process_view_revision =
+        mf_client_registry_process_view_revision_v1(&mf_nvml_global.registry);
+    if (mf_nvml_global.process_view_revision == UINT64_C(0)) {
+      status = MF_SHARED_MALFORMED;
     }
   }
   if (status == MF_SHARED_SUCCESS) {

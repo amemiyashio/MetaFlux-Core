@@ -93,9 +93,15 @@ only.
   through `QmpLifecycleAdapter` and `Coordinator`, keeps wrong-kind events
   pending, and leaves malformed/timeout/closed socket errors outside authority
   state mutation.
+- [x] Capture and validate the provider view revision at Registry attach. The
+  header and view-control revision must be nonzero and identical; CUDA and NVML
+  retain the captured revision for their initialization epoch, keep membership
+  frozen while initialized, and accept a newer revision only after a later
+  zero-to-one initialization. Regressions cover before/during/after replacement
+  plus malformed revision metadata.
 - [ ] Integrate every reset/disconnect/restart source and inject failure at each
   staging, commit, DMA, completion, and teardown step.
-- [ ] Verify provider enumeration freeze before, during, and after replacement.
+- [x] Verify provider enumeration freeze before, during, and after replacement.
 
 ## Implemented stage
 
@@ -145,6 +151,15 @@ socket receive with that correlation and ingress, reports a separate
 `QmpLifecycleSocketOutcome`, preserves pending state for an unrelated or
 wrong-kind event, and does not submit malformed, timeout, or closed-socket
 results.
+
+The provider-view stage now makes `process_view_revision` an explicit captured
+part of the client Registry handle. Attach rejects zero or mismatched header and
+view-control revisions. CUDA and NVML store the revision observed at their
+zero-to-one initialization boundary; count and ordinal queries continue to use
+that initialized membership while the backing fixture is changed, and a later
+initialization captures the newer revision. This stage is intentionally
+host-independent and does not claim live QMP, kernel, or physical-driver
+qualification.
 
 ## Exit Gate
 
