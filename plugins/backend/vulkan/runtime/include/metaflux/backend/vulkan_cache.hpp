@@ -2,11 +2,14 @@
 #define METAFLUX_BACKEND_VULKAN_CACHE_HPP
 
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -114,14 +117,21 @@ private:
 // host-independent repository boundary.
 class PersistentCacheRepository final {
 public:
-  explicit PersistentCacheRepository(std::filesystem::path root, std::size_t max_entries = 64U,
-                                     std::size_t max_payload_bytes = 64U * 1024U * 1024U)
-      : catalog_(max_entries), files_(std::move(root), max_payload_bytes) {}
+  explicit PersistentCacheRepository(
+      std::filesystem::path root, std::size_t max_entries = 64U,
+      std::size_t max_payload_bytes = 64U * 1024U * 1024U,
+      std::chrono::milliseconds key_lock_timeout = std::chrono::milliseconds(30000))
+      : catalog_(max_entries), files_(std::move(root), max_payload_bytes),
+        key_lock_timeout_(key_lock_timeout) {}
+
+  using Producer = std::function<std::optional<std::string>()>;
 
   [[nodiscard]] CacheStatus publish(std::string_view key, std::string_view payload,
                                     bool device_bound);
   [[nodiscard]] CacheStatus lookup(std::string_view key, bool device_bound,
                                    std::string* out_payload);
+  [[nodiscard]] CacheStatus lookup_or_publish(std::string_view key, bool device_bound,
+                                              const Producer& producer, std::string* out_payload);
   [[nodiscard]] CacheStatus pin(std::string_view key) noexcept;
   [[nodiscard]] CacheStatus unpin(std::string_view key) noexcept;
   [[nodiscard]] CacheStatus invalidate_device(std::string_view key);
@@ -133,6 +143,7 @@ private:
   mutable std::mutex mutex_;
   CacheCatalog catalog_;
   CacheFileStore files_;
+  std::chrono::milliseconds key_lock_timeout_;
 };
 
 [[nodiscard]] const char* cache_status_string(CacheStatus status) noexcept;

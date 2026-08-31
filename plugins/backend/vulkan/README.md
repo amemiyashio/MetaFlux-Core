@@ -78,5 +78,7 @@ durable envelope, so pinned entries and a fully pinned quota never overwrite
 their existing file. Reads check the resident entry first; a validated file hit
 hydrates the bounded catalog and participates in its LRU policy. Pin/unpin and
 device invalidation are serialized with these transitions. Cross-process
-stampede coordination and pipeline-bound driver invalidation still require the
+single-key misses use `lookup_or_publish`: a stable per-key advisory lock is
+held across the second lookup, producer, and publication, and waiters recheck
+after release. Pipeline-bound device/driver invalidation still requires the
 later Vulkan pipeline stage.

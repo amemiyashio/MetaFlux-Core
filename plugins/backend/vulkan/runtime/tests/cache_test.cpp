@@ -1,11 +1,16 @@
 #include "metaflux/backend/vulkan_cache.hpp"
 
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <optional>
 #include <string>
+#include <sys/wait.h>
+#include <thread>
 #include <unistd.h>
 
 namespace {
@@ -287,6 +292,80 @@ bool persistent_repository_hydrates_and_preserves_pins() {
          metaflux::backend::vulkan::CacheStatus::miss;
 }
 
+bool persistent_repository_coalesces_process_misses() {
+  TemporaryDirectory temporary;
+  if (!temporary.valid()) {
+    return false;
+  }
+  int start_pipe[2] = {-1, -1};
+  int result_pipe[2] = {-1, -1};
+  if (::pipe(start_pipe) != 0 || ::pipe(result_pipe) != 0) {
+    if (start_pipe[0] >= 0) {
+      static_cast<void>(::close(start_pipe[0]));
+      static_cast<void>(::close(start_pipe[1]));
+    }
+    return false;
+  }
+  const auto key = identity().device_key();
+  const auto marker = temporary.path() / "producer-once";
+  const auto producer = [&marker]() -> std::optional<std::string> {
+    const int descriptor = ::open(marker.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+    if (descriptor < 0) {
+      return std::nullopt;
+    }
+    static_cast<void>(::close(descriptor));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    return std::string("pipeline");
+  };
+
+  const pid_t child = ::fork();
+  if (child < 0) {
+    static_cast<void>(::close(start_pipe[0]));
+    static_cast<void>(::close(start_pipe[1]));
+    static_cast<void>(::close(result_pipe[0]));
+    static_cast<void>(::close(result_pipe[1]));
+    return false;
+  }
+  if (child == 0) {
+    static_cast<void>(::close(start_pipe[1]));
+    static_cast<void>(::close(result_pipe[0]));
+    char start = 0;
+    const auto started = ::read(start_pipe[0], &start, sizeof(start));
+    static_cast<void>(::close(start_pipe[0]));
+    if (started != 1) {
+      _exit(2);
+    }
+    metaflux::backend::vulkan::PersistentCacheRepository repository(temporary.path() / "cache", 1U,
+                                                                    1024U, std::chrono::seconds(5));
+    std::string payload;
+    const auto status = repository.lookup_or_publish(key, true, producer, &payload);
+    const char result =
+        status == metaflux::backend::vulkan::CacheStatus::hit && payload == "pipeline" ? '0' : '1';
+    static_cast<void>(::write(result_pipe[1], &result, sizeof(result)));
+    static_cast<void>(::close(result_pipe[1]));
+    _exit(result == '0' ? 0 : 1);
+  }
+
+  static_cast<void>(::close(start_pipe[0]));
+  static_cast<void>(::close(result_pipe[1]));
+  const char start = '1';
+  const bool start_sent = ::write(start_pipe[1], &start, sizeof(start)) == 1;
+  static_cast<void>(::close(start_pipe[1]));
+  metaflux::backend::vulkan::PersistentCacheRepository repository(temporary.path() / "cache", 1U,
+                                                                  1024U, std::chrono::seconds(5));
+  std::string payload;
+  const auto status = start_sent ? repository.lookup_or_publish(key, true, producer, &payload)
+                                 : metaflux::backend::vulkan::CacheStatus::io_error;
+  char child_result = 0;
+  const bool result_received = ::read(result_pipe[0], &child_result, sizeof(child_result)) == 1;
+  static_cast<void>(::close(result_pipe[0]));
+  int child_status = 0;
+  const bool child_reaped = ::waitpid(child, &child_status, 0) == child;
+  return status == metaflux::backend::vulkan::CacheStatus::hit && payload == "pipeline" &&
+         result_received && child_result == '0' && child_reaped && WIFEXITED(child_status) &&
+         WEXITSTATUS(child_status) == 0 && std::filesystem::exists(marker);
+}
+
 } // namespace
 
 int main() {
@@ -294,7 +373,8 @@ int main() {
                   filesystem_round_trip_and_atomic_replace() &&
                   filesystem_corruption_is_removed() &&
                   filesystem_device_invalidation_and_inputs() &&
-                  persistent_repository_hydrates_and_preserves_pins();
+                  persistent_repository_hydrates_and_preserves_pins() &&
+                  persistent_repository_coalesces_process_misses();
   std::printf("vulkan cache model: %s\n", ok ? "pass" : "fail");
   return ok ? 0 : 1;
 }

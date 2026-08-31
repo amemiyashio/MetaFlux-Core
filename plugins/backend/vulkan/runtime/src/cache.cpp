@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cerrno>
 #include <charconv>
+#include <chrono>
 #include <cstddef>
 #include <cstdio>
 #include <fcntl.h>
@@ -12,8 +13,11 @@
 #include <limits>
 #include <sstream>
 #include <string_view>
+#include <sys/file.h>
 #include <system_error>
+#include <thread>
 #include <unistd.h>
+#include <utility>
 
 namespace metaflux::backend::vulkan {
 
@@ -24,6 +28,66 @@ constexpr std::size_t kMaxKeyBytes = 1024U;
 constexpr std::size_t kEnvelopeOverhead = 2048U;
 constexpr std::uint64_t kFnvOffset = UINT64_C(1469598103934665603);
 constexpr std::uint64_t kFnvPrime = UINT64_C(1099511628211);
+
+class ScopedDescriptor final {
+public:
+  explicit ScopedDescriptor(int descriptor) noexcept : descriptor_(descriptor) {}
+  ~ScopedDescriptor() {
+    if (descriptor_ >= 0) {
+      static_cast<void>(::close(descriptor_));
+    }
+  }
+  ScopedDescriptor(const ScopedDescriptor&) = delete;
+  ScopedDescriptor& operator=(const ScopedDescriptor&) = delete;
+  ScopedDescriptor(ScopedDescriptor&& other) noexcept
+      : descriptor_(std::exchange(other.descriptor_, -1)) {}
+  ScopedDescriptor& operator=(ScopedDescriptor&& other) noexcept {
+    if (this != &other) {
+      if (descriptor_ >= 0) {
+        static_cast<void>(::close(descriptor_));
+      }
+      descriptor_ = std::exchange(other.descriptor_, -1);
+    }
+    return *this;
+  }
+
+  [[nodiscard]] int get() const noexcept { return descriptor_; }
+
+private:
+  int descriptor_ = -1;
+};
+
+std::optional<ScopedDescriptor> acquire_cache_key_lock(const std::filesystem::path& path,
+                                                       std::chrono::milliseconds timeout) {
+  std::error_code error;
+  std::filesystem::create_directories(path.parent_path(), error);
+  if (error) {
+    return std::nullopt;
+  }
+  ScopedDescriptor descriptor(
+      ::open(path.c_str(), O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600));
+  if (descriptor.get() < 0) {
+    return std::nullopt;
+  }
+  const auto wait = std::max(timeout, std::chrono::milliseconds::zero());
+  const auto deadline = std::chrono::steady_clock::now() + wait;
+  for (;;) {
+    if (::flock(descriptor.get(), LOCK_EX | LOCK_NB) == 0) {
+      return std::optional<ScopedDescriptor>(std::move(descriptor));
+    }
+    if (errno == EINTR) {
+      continue;
+    }
+    if (errno != EWOULDBLOCK && errno != EAGAIN) {
+      return std::nullopt;
+    }
+    const auto now = std::chrono::steady_clock::now();
+    if (now >= deadline) {
+      return std::nullopt;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+}
 
 std::uint64_t fnv1a(std::string_view value, std::uint64_t seed) noexcept {
   std::uint64_t result = seed;
@@ -528,6 +592,54 @@ CacheStatus PersistentCacheRepository::lookup(std::string_view key, bool device_
     return hydrated;
   }
   *out_payload = std::move(persisted_payload);
+  return CacheStatus::hit;
+}
+
+CacheStatus PersistentCacheRepository::lookup_or_publish(std::string_view key, bool device_bound,
+                                                         const Producer& producer,
+                                                         std::string* out_payload) {
+  if (out_payload == nullptr || !producer) {
+    return CacheStatus::invalid_argument;
+  }
+  out_payload->clear();
+  auto status = lookup(key, device_bound, out_payload);
+  if (status == CacheStatus::hit) {
+    return status;
+  }
+  if (status != CacheStatus::miss && status != CacheStatus::corrupt) {
+    return status;
+  }
+
+  const std::string owned_key(key);
+  const auto lock_path = files_.entry_path(owned_key, device_bound).string() + ".lock";
+  auto key_lock = acquire_cache_key_lock(lock_path, key_lock_timeout_);
+  if (!key_lock.has_value()) {
+    return CacheStatus::io_error;
+  }
+
+  status = lookup(key, device_bound, out_payload);
+  if (status == CacheStatus::hit) {
+    return status;
+  }
+  if (status == CacheStatus::corrupt) {
+    status = CacheStatus::miss;
+  }
+  if (status != CacheStatus::miss) {
+    return status;
+  }
+
+  const auto produced = producer();
+  if (!produced.has_value()) {
+    return CacheStatus::miss;
+  }
+  if (produced->empty()) {
+    return CacheStatus::invalid_argument;
+  }
+  status = publish(key, *produced, device_bound);
+  if (status != CacheStatus::success) {
+    return status;
+  }
+  *out_payload = *produced;
   return CacheStatus::hit;
 }
 
