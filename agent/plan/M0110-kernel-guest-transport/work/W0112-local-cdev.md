@@ -73,8 +73,10 @@ and arithmetic operation is validated.
   the result, retains both references, and holds them through synchronous copy
   or asynchronous completion/backpressure while also holding the operation
   lease. The cdev descriptor carries the argument-block ID in `target_id` and
-  its generation in `arguments[0]`; production backend memory import and device
-  qualification remain open.
+  its generation in `arguments[0]`; the resolver-side
+  `CdevBackendMemoryImporter` seam now converts a generation-checked,
+  caller-owned registered range into that referenced backend handle. The
+  daemon object-table adapter and physical-device qualification remain open.
 - [x] Require a synchronous backend-operation lease for every bound COPY or
   LAUNCH. The worker holds the lease across resolver access and the backend ABI
   call, surfaces lease rejection in the completion status, and releases it only
@@ -122,14 +124,14 @@ and arithmetic operation is validated.
   drain beyond the queue and payload kref/tombstone graphs. The payload and
   queue VMA tombstones, owner-death transition, eventfd references, and bounded
   registered-memory lifetime are implemented for the current fixture.
-- [ ] Connect the leased worker/backend binding to production registered-memory
-  import and in-flight device references, and prove Add/Copy with those
-  references through the mapped payload arena. Kernel-side DMA mapping,
-  host-independent asynchronous lease and resolved-memory reference retention,
-  capability-gated lifecycle-loss cancellation and reset/remove drain, and
-  replacement-safe pending binding snapshots are implemented; production
-  backend import, generation replacement, and physical device qualification
-  remain open.
+- [ ] Connect the daemon object table and leased worker/backend binding to the
+  cdev registered-memory handles, invoking `CdevBackendMemoryImporter` only
+  after generation/range validation, and prove Add/Copy with those references
+  through the mapped payload arena. Kernel-side DMA mapping, host-independent
+  asynchronous lease and resolved-memory reference retention, capability-gated
+  lifecycle-loss cancellation and reset/remove drain, and replacement-safe
+  pending binding snapshots are implemented; daemon activation, generation
+  replacement, and physical device qualification remain open.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak.
 

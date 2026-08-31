@@ -91,9 +91,11 @@ calling `mf_backend_api_v1.copy`, and releases them after synchronous completion
 or after an asynchronous event is observed and its completion is published.
 References remain held while the completion ring applies backpressure. Direct-
 host COPY flags remain unsupported on this worker. This is the backend
-import/reference seam; production backend memory import and physical-device
-qualification remain open; the reference callback is the worker-side owner
-boundary for a production imported handle.
+import/reference seam; a resolver may use `CdevBackendMemoryImporter` after its
+object-table generation and range checks to turn a registered caller-owned
+range into a backend handle. The importer returns the complete reference pair,
+and the worker-side reference callback remains the owner boundary for that
+imported handle. Physical-device qualification remains open.
 
 The region descriptor uses the argument-block object ID as `target_id`, its
 generation in `arguments[0]`, and zero in `arguments[1..3]`; the resolver must

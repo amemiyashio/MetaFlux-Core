@@ -52,6 +52,16 @@ struct CdevBackendMemoryReference final {
   void* context = nullptr;
 };
 
+/*
+ * Resolver-side import seam for a daemon-owned registered range. The resolver
+ * validates the object identity and range before invoking this callback. The
+ * returned reference must keep the imported backend handle alive until its
+ * release callback runs; the caller-owned range must outlive that reference.
+ */
+using CdevBackendMemoryImporter = mf_shared_status_v1 (*)(
+    void* context, mf_backend_instance_v1 instance, mf_backend_context_v1 backend_context,
+    void* address, std::uint64_t byte_count, CdevBackendMemoryReference* out) noexcept;
+
 /* Object-table result for a region COPY argument block. */
 struct CdevCopyResolution final {
   mf_backend_memory_v1 destination = 0U;

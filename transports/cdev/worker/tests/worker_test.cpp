@@ -152,6 +152,41 @@ void release_memory_reference(void* context, mf_backend_memory_v1 memory) noexce
   }
 }
 
+#if defined(METAFLUX_CPU_BACKEND)
+struct CpuMemoryImportFixture final {
+  mf_backend_instance_v1 instance = 0U;
+  mf_backend_context_v1 context = 0U;
+  MemoryReferenceFixture* references = nullptr;
+  std::uint32_t calls = 0U;
+};
+
+mf_shared_status_v1 import_cpu_memory(void* context, mf_backend_instance_v1 instance,
+                                      mf_backend_context_v1 backend_context, void* address,
+                                      std::uint64_t byte_count,
+                                      metaflux::transport::cdev::CdevBackendMemoryReference* out)
+    noexcept {
+  auto* fixture = static_cast<CpuMemoryImportFixture*>(context);
+  if (fixture == nullptr || out == nullptr || instance != fixture->instance ||
+      backend_context != fixture->context || address == nullptr || byte_count == 0U ||
+      fixture->references == nullptr) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  *out = {};
+  ++fixture->calls;
+  mf_backend_memory_v1 handle = 0U;
+  const mf_backend_status_v1 status = mf_cpu_backend_import_host_memory_v1(
+      instance, backend_context, address, byte_count, &handle);
+  if (status != MF_BACKEND_SUCCESS || handle == 0U) {
+    return status == MF_BACKEND_SUCCESS ? MF_SHARED_SYSTEM_ERROR : MF_SHARED_NOT_SUPPORTED;
+  }
+  *out = {.handle = handle,
+          .retain = retain_memory_reference,
+          .release = release_memory_reference,
+          .context = fixture->references};
+  return MF_SHARED_SUCCESS;
+}
+#endif
+
 mf_shared_status_v1 resolve_copy(void* context, const mf_ring_descriptor_v1* request,
                                  metaflux::transport::cdev::CdevCopyResolution* out) noexcept {
   auto* fixture = static_cast<CopyResolutionFixture*>(context);
@@ -1207,14 +1242,22 @@ int main() {
   for (std::size_t index = 0U; index < region_source.size(); ++index) {
     region_source[index] = static_cast<std::uint8_t>(index + 3U);
   }
+  MemoryReferenceFixture cpu_region_refs{};
+  CpuMemoryImportFixture cpu_memory_import{.instance = cpu_instance,
+                                           .context = cpu_context,
+                                           .references = &cpu_region_refs};
+  const metaflux::transport::cdev::CdevBackendMemoryImporter memory_importer = import_cpu_memory;
+  metaflux::transport::cdev::CdevBackendMemoryReference region_destination_reference{};
+  metaflux::transport::cdev::CdevBackendMemoryReference region_source_reference{};
   mf_backend_memory_v1 region_destination_memory = 0U;
   mf_backend_memory_v1 region_source_memory = 0U;
-  if (mf_cpu_backend_import_host_memory_v1(cpu_instance, cpu_context, region_destination.data(),
-                                           region_destination.size(),
-                                           &region_destination_memory) != MF_BACKEND_SUCCESS ||
-      mf_cpu_backend_import_host_memory_v1(cpu_instance, cpu_context, region_source.data(),
-                                           region_source.size(),
-                                           &region_source_memory) != MF_BACKEND_SUCCESS) {
+  if (memory_importer(&cpu_memory_import, cpu_instance, cpu_context, region_destination.data(),
+                      region_destination.size(), &region_destination_reference) !=
+          MF_SHARED_SUCCESS ||
+      memory_importer(&cpu_memory_import, cpu_instance, cpu_context, region_source.data(),
+                      region_source.size(), &region_source_reference) != MF_SHARED_SUCCESS) {
+    region_destination_memory = region_destination_reference.handle;
+    region_source_memory = region_source_reference.handle;
     if (region_destination_memory != 0U && cpu_api->free_memory != nullptr) {
       cpu_api->free_memory(cpu_instance, region_destination_memory);
     }
@@ -1237,24 +1280,15 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
+  region_destination_memory = region_destination_reference.handle;
+  region_source_memory = region_source_reference.handle;
   CopyResolutionFixture cpu_region_resolution{};
   cpu_region_resolution.resolution.destination = region_destination_memory;
   cpu_region_resolution.resolution.destination_offset = 16U;
-  MemoryReferenceFixture cpu_region_refs{};
-  cpu_region_resolution.resolution.destination_reference = {
-      .handle = region_destination_memory,
-      .retain = retain_memory_reference,
-      .release = release_memory_reference,
-      .context = &cpu_region_refs,
-  };
+  cpu_region_resolution.resolution.destination_reference = region_destination_reference;
   cpu_region_resolution.resolution.source = region_source_memory;
   cpu_region_resolution.resolution.source_offset = 32U;
-  cpu_region_resolution.resolution.source_reference = {
-      .handle = region_source_memory,
-      .retain = retain_memory_reference,
-      .release = release_memory_reference,
-      .context = &cpu_region_refs,
-  };
+  cpu_region_resolution.resolution.source_reference = region_source_reference;
   cpu_region_resolution.resolution.byte_count = 64U;
   BackendFixture cpu_region_lease{};
   metaflux::transport::cdev::CdevWorker cpu_region_worker({.submission = submission.header,
@@ -1282,7 +1316,8 @@ int main() {
   if (!cpu_region_worker.backend_bound() ||
       mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
       cpu_region_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
-      cpu_region_resolution.calls != 1U || cpu_region_lease.lease_acquires != 1U ||
+      cpu_memory_import.calls != 2U || cpu_region_resolution.calls != 1U ||
+      cpu_region_lease.lease_acquires != 1U ||
       cpu_region_lease.lease_releases != 1U || cpu_region_lease.lease_active ||
       cpu_region_refs.retains != 2U || cpu_region_refs.releases != 2U ||
       cpu_region_refs.active != 0U ||
