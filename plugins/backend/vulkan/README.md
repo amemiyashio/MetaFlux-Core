@@ -46,6 +46,15 @@ address-space flags, and subgroup assumptions. It produces stable diagnostics
 for mismatches and unsupported semantics; it does not yet perform MLIR
 conversion or SPIR-V validation.
 
+W0133 also defines a host-independent `SpirvReflection` contract for the
+post-conversion boundary. Its verifier requires a compute entry point, exact
+target digest, workgroup and feature/address-space parity with preflight,
+`LocalInvocationId` coverage, Workgroup storage parity, and a packed argument
+block whose size follows the versioned 64-byte header plus 48-byte entry layout.
+Malformed or mismatched observations are rejected before shader-module creation.
+The contract is ready for a future MLIR/SPIR-V reflection producer; it does not
+claim module emission or `spirv-val` execution.
+
 The runtime also contains a host-independent stream graph planner. It assigns
 monotonic timeline values, preserves same-stream FIFO, requires cross-stream
 waits to be explicit, and validates transfer/compute stage-access masks before

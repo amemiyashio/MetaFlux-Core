@@ -1,10 +1,13 @@
 #include "metaflux/backend/vulkan_target.hpp"
 
+#include "metaflux/backend/vulkan_arguments.h"
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <string_view>
 
 namespace metaflux::backend::vulkan {
 
@@ -19,17 +22,29 @@ bool digest_present(const std::uint8_t* digest, std::size_t size) noexcept {
   return false;
 }
 
+bool valid_entry_point(std::string_view name) noexcept {
+  if (name.empty() || name.size() > 255U) {
+    return false;
+  }
+  return std::all_of(name.begin(), name.end(), [](char character) {
+    const auto byte = static_cast<unsigned char>(character);
+    return byte >= 0x21U && byte <= 0x7eU;
+  });
+}
+
 } // namespace
 
 TargetStatus validate_target_profile(const mf_vulkan_capability_profile_v1& profile,
                                      std::uint32_t required_features) noexcept {
   if (profile.struct_size != sizeof(profile) ||
       profile.abi_version != MF_VULKAN_CAPABILITY_ABI_VERSION_1 ||
-      profile.status != MF_VULKAN_PROBE_SUCCESS || profile.api_version < MF_VULKAN_API_VERSION_1_3 ||
-      profile.queue_count == 0U || profile.max_compute_workgroup_invocations == 0U ||
+      profile.status != MF_VULKAN_PROBE_SUCCESS ||
+      profile.api_version < MF_VULKAN_API_VERSION_1_3 || profile.queue_count == 0U ||
+      profile.max_compute_workgroup_invocations == 0U ||
       profile.max_compute_workgroup_size[0] == 0U || profile.max_compute_workgroup_size[1] == 0U ||
       profile.max_compute_workgroup_size[2] == 0U || profile.subgroup_size_min == 0U ||
-      profile.subgroup_size_min > profile.subgroup_size_max || profile.target_environment[0] == '\0' ||
+      profile.subgroup_size_min > profile.subgroup_size_max ||
+      profile.target_environment[0] == '\0' ||
       !digest_present(profile.target_digest, sizeof(profile.target_digest))) {
     return TargetStatus::invalid_profile;
   }
@@ -55,12 +70,12 @@ TargetStatus validate_spirv_module(const mf_vulkan_capability_profile_v1& profil
     return TargetStatus::invalid_module;
   }
   if (module.requires_buffer_device_address &&
-      (module.required_features & MF_VULKAN_FEATURE_BUFFER_DEVICE_ADDRESS) == 0U) {
+      ((module.required_features & MF_VULKAN_FEATURE_BUFFER_DEVICE_ADDRESS) == 0U ||
+       (module.address_space_flags & kAddressStorageBuffer) == 0U)) {
     return TargetStatus::invalid_module;
   }
-  if (module.subgroup_width != 0U &&
-      (profile.subgroup_size_min != profile.subgroup_size_max ||
-       module.subgroup_width != profile.subgroup_size_min)) {
+  if (module.subgroup_width != 0U && (profile.subgroup_size_min != profile.subgroup_size_max ||
+                                      module.subgroup_width != profile.subgroup_size_min)) {
     return TargetStatus::unsupported_semantics;
   }
   std::uint64_t invocations = 1U;
@@ -74,6 +89,40 @@ TargetStatus validate_spirv_module(const mf_vulkan_capability_profile_v1& profil
   }
   if (invocations > profile.max_compute_workgroup_invocations) {
     return TargetStatus::limit_exceeded;
+  }
+  return TargetStatus::success;
+}
+
+TargetStatus validate_spirv_reflection(const mf_vulkan_capability_profile_v1& profile,
+                                       const SpirvModuleRequirements& module,
+                                       const SpirvReflection& reflection) noexcept {
+  const auto module_status = validate_spirv_module(profile, module);
+  if (module_status != TargetStatus::success) {
+    return module_status;
+  }
+  if (!valid_entry_point(reflection.entry_point) ||
+      reflection.execution_model != kSpirvExecutionModelGlCompute ||
+      reflection.required_features != module.required_features ||
+      reflection.address_space_flags != module.address_space_flags ||
+      reflection.workgroup_size != module.workgroup_size ||
+      (reflection.builtin_flags & ~kKnownReflectionBuiltinFlags) != 0U ||
+      (reflection.builtin_flags & kReflectionBuiltinLocalInvocationId) == 0U) {
+    return TargetStatus::invalid_module;
+  }
+  if (std::memcmp(reflection.argument_target_digest.data(), profile.target_digest,
+                  reflection.argument_target_digest.size()) != 0) {
+    return TargetStatus::target_mismatch;
+  }
+  std::uint64_t expected_argument_size = 0U;
+  if (mf_vulkan_argument_block_size_v1(reflection.argument_count, &expected_argument_size) !=
+          MF_VULKAN_ARGUMENT_VALID ||
+      expected_argument_size > std::numeric_limits<std::uint32_t>::max() ||
+      reflection.argument_block_size != static_cast<std::uint32_t>(expected_argument_size)) {
+    return TargetStatus::invalid_module;
+  }
+  const bool requires_workgroup_storage = (module.address_space_flags & kAddressWorkgroup) != 0U;
+  if (reflection.has_workgroup_storage != requires_workgroup_storage) {
+    return TargetStatus::invalid_module;
   }
   return TargetStatus::success;
 }
