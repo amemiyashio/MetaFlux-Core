@@ -126,6 +126,7 @@ copies canonical content.
 | [S0118-20260831-032-cdev-memory-import](2026/08/S0118-20260831-032-cdev-memory-import/summary.md) | 2026-08-31 | Exact | In progress | W0112 resolver-side registered-memory importer exercised with the real CPU backend; daemon object-table activation remains open |
 | [S0119-20260831-033-cdev-worker-lease](2026/08/S0119-20260831-033-cdev-worker-lease/summary.md) | 2026-08-31 | Exact | In progress | W0112 generation/view-bound cdev worker lease activation, paired queue mapping, and deterministic UAPI status handling; daemon object-table activation remains open |
 | [S01110-20260831-034-cdev-object-table-resolver](2026/08/S01110-20260831-034-cdev-object-table-resolver/summary.md) | 2026-08-31 | Exact | In progress | W0112 daemon-compatible cdev object-table resolver validates exact COPY blocks and imports checked subranges; live daemon activation and replacement remain open |
+| [S01111-20260831-035-cdev-generation-control-plane](2026/08/S01111-20260831-035-cdev-generation-control-plane/summary.md) | 2026-08-31 | Exact | Complete | Audited fixed cdev identity; deferred replacement control to M0120 |
 
 ## Fidelity and retention
 
