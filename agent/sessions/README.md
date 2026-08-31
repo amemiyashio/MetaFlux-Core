@@ -120,6 +120,7 @@ copies canonical content.
 | [S0112-20260831-026-cdev-backend-reference](2026/08/S0112-20260831-026-cdev-backend-reference/summary.md) | 2026-08-31 | Exact | In progress | W0112 pending operations retain the exact backend binding through replacement and completion; backend import and daemon generation drain remain open |
 | [S0113-20260831-027-cdev-memory-reference](2026/08/S0113-20260831-027-cdev-memory-reference/summary.md) | 2026-08-31 | Exact | In progress | W0112 region COPY retains resolver-owned source/destination memory references through completion and backpressure; production import remains open |
 | [S0114-20260831-028-cdev-lifecycle-cancel](2026/08/S0114-20260831-028-cdev-lifecycle-cancel/summary.md) | 2026-08-31 | Exact | In progress | W0112 capability-gated pending cancellation maps transport loss to device-lost completion; production generation drain remains open |
+| [S0115-20260831-029-cdev-lifecycle-drain-cancel](2026/08/S0115-20260831-029-cdev-lifecycle-drain-cancel/summary.md) | 2026-08-31 | Exact | In progress | W0112 lifecycle drain processes pending backend work before retirement; non-cancellable quiesce remains rejected |
 
 ## Fidelity and retention
 

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0115-20260831-029-cdev-lifecycle-drain-cancel",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.1.5",
+  "started_at": "2026-08-31",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "session owner"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0110",
+      "title": "Kernel and Guest Transport",
+      "status": "active",
+      "event_seqs": [1]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0112",
+      "milestone_id": "M0110",
+      "title": "Local cdev Vertical Slice",
+      "status": "active"
+    }
+  ],
+  "base_revision": "01467f727c1b0ab77325b7b497dead31b9745894",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
