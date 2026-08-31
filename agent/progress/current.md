@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0120
-workstream: W0123
-checkpoint: P20260831-085
+workstream: W0122
+checkpoint: P20260831-086
 ---
 
 # Current Progress
@@ -144,6 +144,10 @@ restart metadata binding, provider freeze, fault injection, and live
 qualification remain open. The socket-to-Coordinator completion bridge now
 returns separate transport/lifecycle outcomes and keeps socket errors outside
 authority mutation.
+That bridge is recorded at
+[P20260831-086](checkpoints/2026/P20260831-086-m0120-qmp-lifecycle-bridge.md);
+wrong-kind events remain pending and malformed/closed socket results do not
+mutate lifecycle state.
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
