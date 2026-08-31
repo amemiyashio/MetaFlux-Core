@@ -27,9 +27,10 @@ struct CdevWorkerLeaseView final {
 };
 
 /*
- * Owns one generation-bound worker lease and its paired shared queue mapping.
- * The control descriptor is closed by close(), which revokes the kernel lease;
- * payload memory remains an independent data-plane mapping owned by the caller.
+ * Owns one generation-bound worker lease, paired shared queue mapping, and the
+ * optional payload mapping granted by that lease. The data-plane payload
+ * remains owned by its data fd; close() releases the worker-side mappings and
+ * then revokes the kernel lease through the control descriptor.
  */
 class CdevWorkerSession final {
 public:
@@ -45,18 +46,35 @@ public:
                                   mf_registry_view_id_v1 expected_view_id,
                                   std::uint64_t expected_generation,
                                   CdevWorkerSession& out) noexcept;
+  static mf_shared_status_v1 open_current(const char* control_path,
+                                          CdevWorkerSession& out) noexcept;
 
   void close() noexcept;
+  [[nodiscard]] mf_shared_status_v1 map_payload(std::uint64_t mapping_size) noexcept;
   [[nodiscard]] bool is_open() const noexcept { return control_fd_ >= 0; }
   [[nodiscard]] int control_fd() const noexcept { return control_fd_; }
   [[nodiscard]] const CdevWorkerLeaseView& lease() const noexcept { return lease_; }
+  [[nodiscard]] std::uint8_t* payload_mapping() const noexcept {
+    return static_cast<std::uint8_t*>(payload_mapping_);
+  }
+  [[nodiscard]] std::uint64_t payload_mapping_size() const noexcept {
+    return payload_mapping_size_;
+  }
   [[nodiscard]] WorkerQueueView queue_view(std::uint8_t* payload = nullptr,
                                             std::uint64_t payload_size = 0U) const noexcept;
 
 private:
+  static mf_shared_status_v1 open_internal(const char* control_path,
+                                           mf_registry_view_id_v1 expected_view_id,
+                                           std::uint64_t expected_generation,
+                                           bool discover_current,
+                                           CdevWorkerSession& out) noexcept;
+
   int control_fd_ = -1;
   void* mapping_ = nullptr;
   std::uint64_t mapping_size_ = 0U;
+  void* payload_mapping_ = nullptr;
+  std::uint64_t payload_mapping_size_ = 0U;
   CdevWorkerLeaseView lease_{};
 };
 

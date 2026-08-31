@@ -48,15 +48,20 @@ freed. Eventfd attachment is a notification primitive only; descriptors and
 payload remain shared-memory fast-path data.
 
 `CdevWorkerSession` is the C++ worker-side activation wrapper for this lease.
-It opens `/dev/metafluxctl`, submits the generation- and `registry_view_id`-bound
-`MF_UAPI_IOCTL_WORKER_LEASE`, validates the returned identity, lease, exact
-paired-ring size, queue IDs, and ring metadata, then maps the queue through the
-leased control fd. `close()` unmaps the rings before closing the fd, so the
-kernel release revokes the lease. The wrapper deliberately does not map the
-payload arena: that data-plane mapping and the daemon object-table ranges stay
-owned by their respective clients. `ENOENT`/`ENODEV`/`ENOTTY` and unsupported
-ioctls map to `MF_SHARED_NOT_SUPPORTED`; stale, busy, permission, resource,
-and malformed responses remain distinct statuses.
+`open_current()` negotiates the current `registry_view_id` and generation on the
+same `/dev/metafluxctl` fd that receives `MF_UAPI_IOCTL_WORKER_LEASE`; the
+expected-value overload remains available for a caller that already owns the
+authority record. Both paths validate the returned identity, lease, exact
+paired-ring size, queue IDs, and ring metadata, then map the queue through the
+leased control fd. After the data-plane owner has allocated its exact,
+page-aligned payload arena, `map_payload()` maps that arena through the same
+leased control fd. The data fd remains the payload owner; the worker lease only
+grants a generation-bound mapping, and the VMA reference keeps the offline
+tombstone alive until its final close. `close()` unmaps payload first, then the
+rings, before closing the fd so the kernel release revokes the lease. `ENOENT`/
+`ENODEV`/`ENOTTY` and unsupported ioctls map to `MF_SHARED_NOT_SUPPORTED`;
+stale, busy, permission, resource, and malformed responses remain distinct
+statuses.
 
 The C++ worker can register a `metaflux::runtime::lifecycle::Mirror` with the
 M0120 coordinator. Quiesce stops ordinary queue consumption, the lifecycle

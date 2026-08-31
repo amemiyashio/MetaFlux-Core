@@ -48,9 +48,11 @@ and arithmetic operation is validated.
   and `/dev/metaflux0`, negotiate the fixed candidate UAPI, map the paired rings,
   and enforce one worker lease per generation.
 - [x] Add `CdevWorkerSession` to activate a generation/view-bound worker lease,
-  validate the exact paired-ring mapping, and close the leased control fd after
-  unmapping. The kernel control fops now expose the queue mmap at offset zero;
-  payload mapping remains a separate data-plane ownership boundary.
+  discover the current view on the same control fd, validate the exact
+  paired-ring mapping, and close the leased control fd after unmapping. The
+  kernel control fops expose the queue mmap at offset zero and allow the leased
+  control fd to map the exact payload arena after its data-file owner allocates
+  it; payload ownership remains with the data fd.
 - [x] Add `CdevObjectTableResolver` as the daemon-facing region COPY adapter.
   It validates the exact argument block, resolves generation- and
   permission-bound object views, checks both ranges before importing, and

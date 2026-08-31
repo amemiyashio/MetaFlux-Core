@@ -41,8 +41,10 @@ active wait/poll reference graph; the payload backing has root, owner, VMA, and
 active allocation-operation references. Offline queue and payload mappings are
 retained as tombstones until their last references close, then their backing is
 reclaimed under the cdev lock. Worker leases are exclusive per generation, and
-the leased control fd may map the paired queue at offset zero while the data fd
-maps the payload arena. Closing either the queue owner or worker lease marks the
+the leased control fd may map both the paired queue at offset zero and the exact
+payload arena at `MF_UAPI_MMAP_PAYLOAD_V0` after a data-file owner has allocated
+it. The data fd remains the payload owner; a worker lease is the only second
+mapping authority. Closing either the queue owner or worker lease marks the
 generation offline and wakes waiters.
 Unknown ioctls return `-ENOTTY`, and malformed/short records are rejected before
 any allocation or reference acquisition.

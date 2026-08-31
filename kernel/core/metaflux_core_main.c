@@ -974,9 +974,12 @@ static int mf_cdev_mmap(struct file *file_pointer, struct vm_area_struct *vma)
 		return -EINVAL;
 	length = vma->vm_end - vma->vm_start;
 	if (vma->vm_pgoff == MF_CDEV_PAYLOAD_PGOFF_V0) {
+		bool worker_lease;
 		mutex_lock(&mf_cdev_lock);
+		worker_lease = file->control && file->lease;
 		if (!mf_cdev_payload.online || mf_cdev_payload.mapping == NULL ||
-		    mf_cdev_payload.owner != file || length != mf_cdev_payload.byte_count) {
+		    (mf_cdev_payload.owner != file && !worker_lease) ||
+		    length != mf_cdev_payload.byte_count) {
 			mutex_unlock(&mf_cdev_lock);
 			return mf_cdev_payload.online ? -EINVAL : -ENODEV;
 		}

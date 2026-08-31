@@ -392,6 +392,9 @@ int main() {
           MF_SHARED_NOT_SUPPORTED ||
       worker_session.is_open() || worker_session.control_fd() != -1 ||
       metaflux::transport::cdev::CdevWorkerSession::open(nullptr, {}, 4U, worker_session) !=
+          MF_SHARED_INVALID_ARGUMENT ||
+      metaflux::transport::cdev::CdevWorkerSession::open_current("/dev/null", worker_session) !=
+          MF_SHARED_NOT_SUPPORTED || worker_session.map_payload(4096U) !=
           MF_SHARED_INVALID_ARGUMENT) {
     return 1;
   }
