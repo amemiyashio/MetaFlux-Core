@@ -2,7 +2,7 @@
 id: SC0007
 status: Active
 created: 2026-08-31
-updated: 2026-08-31
+updated: 2026-09-01
 decision: D0029
 session: S0100-20260831-047-breaking-governance-epoch
 scope: breaking-governance-epoch
@@ -40,27 +40,27 @@ superseded_by: null
 
 | Surface | Class | Disposition | Evidence |
 | --- | --- | --- | --- |
-| `AGENTS.md` | Current | Pending | Require the current D0029 epoch before any durable task and prohibit legacy-session continuation |
-| `CLAUDE.md` | Current | Pending | Route Claude work only through the epoch-bearing focus owner |
-| `.claude/README.md` | Current | Pending | Document the breaking bridge boundary and removal of legacy authority |
-| `.claude/hooks/session_start.py` | Tooling | Pending | Emit the exact current governance epoch and owner at session start |
-| `.claude/hooks/pre_edit.py` | Tooling | Pending | Reject missing or mismatched focus/session governance epochs before edit routing |
-| `.githooks/pre-commit` | Tooling | Pending | Reject candidates whose focus or owner does not declare the exact D0029 epoch |
-| `agent/README.md` | Current | Pending | Make current governed files, not prior session context, the work-start authority |
-| `agent/memory/constraints.md` | Current | Pending | Record the no-compatibility D0029 epoch as a durable constraint |
-| `agent/memory/decisions-index.md` | Current | Pending | Keep D0029 resolvable to the strengthened canonical decision |
-| `agent/progress/README.md` | Current | Pending | Define epoch-bearing focus projection and successor-only handoff semantics |
+| `AGENTS.md` | Current | Migrated | Revision `8247105` requires the current D0029 epoch and prohibits legacy-session continuation |
+| `CLAUDE.md` | Current | Migrated | Revision `47bab19` routes Claude work only through the epoch-bearing focus owner |
+| `.claude/README.md` | Current | Migrated | Revision `47bab19` documents the breaking bridge boundary and removal of legacy authority |
+| `.claude/hooks/session_start.py` | Tooling | Migrated | Revision `47bab19` emits the exact current governance epoch and rejects legacy resumption at session start |
+| `.claude/hooks/pre_edit.py` | Tooling | Migrated | Revision `47bab19` rejects missing or mismatched focus/session governance epochs before edit routing |
+| `.githooks/pre-commit` | Tooling | Migrated | Revision `47bab19` removed the one-time cutover permit and rejects non-D0029 focus, owners, and closes |
+| `agent/README.md` | Current | Migrated | Revision `8247105` makes current governed files, not prior session context, the work-start authority |
+| `agent/memory/constraints.md` | Current | Migrated | Revision `8247105` records the destructive, no-compatibility D0029 epoch constraint |
+| `agent/memory/decisions-index.md` | Current | Migrated | Revision `8247105` keeps D0029 resolvable to the strengthened canonical decision |
+| `agent/progress/README.md` | Current | Migrated | Revision `8247105` defines epoch-bearing focus projection and successor-only handoff semantics |
 | `agent/progress/current.md` | Current | Pending | Activation candidate projects SC0007 governance; final migration adds the exact epoch |
-| `agent/progress/focus.json` | Current | Pending | Activation candidate transfers authority to SC0007; behavior migration adds the exact epoch key |
+| `agent/progress/focus.json` | Current | Migrated | Revision `8247105` atomically adds the exact schema version 2 and D0029 epoch keys |
 | `agent/sessions/README.md` | Current | Pending | Activation candidate closes S0112-046 and indexes the migration owner; final text removes legacy resume semantics |
 | `agent/semantic-changes/README.md` | Current | Migrated | Activation candidate indexes SC0007 as Active |
 | `agent/semantic-changes/SC0007-breaking-governance-epoch.md` | Current | Migrated | This Active permit records the exact breaking replacement, inventory, and handoff |
-| `agent/skills/start-work/SKILL.md` | Current | Pending | Require epoch validation and a newly scaffolded successor before content work |
-| `agent/skills/record-session/SKILL.md` | Current | Pending | Forbid terminal legacy records from serving as future handoff owners |
+| `agent/skills/start-work/SKILL.md` | Current | Migrated | Revision `8247105` requires epoch validation and a newly scaffolded successor before content work |
+| `agent/skills/record-session/SKILL.md` | Current | Migrated | Revision `8247105` forbids legacy records from serving as handoff owners and defines destructive settlement |
 | `docs/architecture/execution-focus-governance.md` | Current | Pending | Mark D0029 as breaking/destructive and define zero compatibility |
 | `tools/check-agent-records.py` | Tooling | Pending | Validate exact focus epoch and reject a focus owner without the same epoch |
 | `tools/test-check-agent-records.py` | Tooling | Pending | Prove missing, mismatched, and legacy-owner epochs fail in focus, hook, and Claude paths |
-| `tools/new-session.py` | Tooling | Pending | Scaffold the exact current governance epoch on every future session |
+| `tools/new-session.py` | Tooling | Migrated | Revision `8247105` scaffolds the exact current governance epoch on every future session |
 | `tools/README.md` | Current | Pending | Document successor-only continuation and candidate epoch checks |
 | `agent/sessions/2026/08/S0100-20260831-047-breaking-governance-epoch/session.json` | Active session | Migrated | Activation candidate declares governance_epoch D0029 on the sole migration owner |
 | `agent/sessions/2026/08/S0100-20260831-047-breaking-governance-epoch/events.jsonl` | Active session | Migrated | Objective records breaking classification, zero compatibility, and epoch enforcement |

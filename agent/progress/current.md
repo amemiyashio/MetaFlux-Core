@@ -1,12 +1,12 @@
 ---
 status: Active
-updated: 2026-08-31
+updated: 2026-09-01
 governance_epoch: D0029
 focus_mode: governance
 focus_owner: S0100-20260831-047-breaking-governance-epoch
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-090
+checkpoint: P20260901-091
 ---
 
 # Current Progress
@@ -82,6 +82,7 @@ default scheduling authority while M0110 is incomplete.
 
 ## Evidence Pointers
 
+- [P091 destructive governance epoch](checkpoints/2026/P20260901-091-destructive-governance-epoch.md)
 - [P090 execution-focus governance](checkpoints/2026/P20260831-090-execution-focus-governance.md)
 - [P089 immediate producer ingress](checkpoints/2026/P20260831-089-m0120-producer-ingress.md)
 - [P081 queue-only cdev region COPY](checkpoints/2026/P20260831-081-m0110-cdev-queue-only-region-copy.md)
