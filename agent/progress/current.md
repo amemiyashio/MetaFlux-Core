@@ -1,9 +1,9 @@
 ---
 status: Active
 updated: 2026-08-31
-milestone: M0110
-workstream: W0112
-checkpoint: P20260831-083
+milestone: M0120
+workstream: W0122
+checkpoint: P20260831-084
 ---
 
 # Current Progress
@@ -133,8 +133,9 @@ recovery target-bank validation are recorded at
 W0122's snapshot-bound producer metadata capture for QMP and vfio-user
 disconnect paths is recorded at
 [P20260831-034](checkpoints/2026/P20260831-034-m0120-snapshot-bound-event-metadata.md).
-W0122's bounded live QMP Unix-stream command/event adapter is now implemented
-in the active S0122 stage. `QmpSocket` frames one top-level JSON object up to
+W0122's bounded live QMP Unix-stream command/event adapter is now recorded at
+[P20260831-084](checkpoints/2026/P20260831-084-m0120-qmp-socket-transport.md).
+`QmpSocket` frames one top-level JSON object up to
 64 KiB, sends validated command objects, classifies greeting, reply, error,
 device-add, device-delete, closure, malformed, and unexpected messages, and
 composes with the existing QMP lifecycle correlation adapter. Its focused

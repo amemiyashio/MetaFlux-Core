@@ -4,9 +4,9 @@
   "repository": "MetaFlux-Core",
   "delivery": "0.1.2.2",
   "started_at": "2026-08-31",
-  "ended_at": null,
+  "ended_at": "2026-08-31",
   "time_precision": "date",
-  "status": "in_progress",
+  "status": "complete",
   "fidelity": "exact",
   "agents": [
     {
@@ -19,7 +19,7 @@
       "id": "M0120",
       "title": "Lifecycle and vPCI Presentation",
       "status": "active",
-      "event_seqs": [1]
+      "event_seqs": [1, 2, 3]
     }
   ],
   "work_items": [
@@ -31,7 +31,7 @@
     }
   ],
   "base_revision": "881087b0013c1d09d958556c787ae2bfbc142ab7",
-  "final_revision": null,
+  "final_revision": "0c57d1f59c5238e6d6c2f06f64607a826a67cc66",
   "event_log": "events.jsonl",
   "summary": "summary.md",
   "notes": "notes.md"
