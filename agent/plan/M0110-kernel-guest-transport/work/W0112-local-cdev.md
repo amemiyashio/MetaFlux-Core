@@ -87,6 +87,11 @@ and arithmetic operation is validated.
   `MF_SHARED_DEVICE_LOST` through the normal completion path and preserves the
   lease/reference/backpressure ordering; backends without cancellation retain
   their event contract.
+- [x] Allow a bound direct COPY payload handle to carry a complete
+  `CdevBackendMemoryReference`; retain it before backend dispatch and release it
+  after synchronous completion or asynchronous completion/cancellation and
+  completion-ring backpressure. Partial callback sets are rejected; existing
+  no-reference fixtures remain valid.
 - [x] Reset and Remove quiesce reject a pending asynchronous operation when its
   backend lacks cancellation capability; supported cancellation is processed by
   lifecycle drain before the submission ring is considered empty.

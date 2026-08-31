@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-075
+checkpoint: P20260831-076
 ---
 
 # Current Progress
@@ -41,6 +41,8 @@ Reset/Remove pending drain ordering is now recorded at
 [P20260831-074](checkpoints/2026/P20260831-074-m0110-cdev-lifecycle-drain-cancel.md);
 the bounded multi-region registered-memory table is now recorded at
 [P20260831-075](checkpoints/2026/P20260831-075-m0110-cdev-multi-region.md);
+the direct backend-memory reference lifetime is now recorded at
+[P20260831-076](checkpoints/2026/P20260831-076-m0110-cdev-memory-reference.md);
 production backend import, daemon generation replacement, and non-cancellable
 backend wait policy remain open.
 W0113 is Active with its static vfio-user control-plane stage recorded at
@@ -284,6 +286,7 @@ Linux 9.8.
 | W0112 lifecycle-loss cancellation stage | `89c6bb4`; pending async work invokes the generation-bound `cancel_queue` only for advertised cancellation capability, then emits device-lost through the existing completion path; focused cdev/lifecycle/component tests 6/6 and full CTest 84/84 |
 | W0112 lifecycle drain stage | `1a3ed18`; Reset/Remove drain processes pending asynchronous work before checking ring emptiness and rejects quiesce for a pending backend without cancellation; focused cdev/lifecycle/component tests 5/5 and full CTest 84/84 |
 | W0112 registered-memory multi-region stage | `a6df246`; kernel-private four-slot table with unique generation-bound handles (`3`-`6`), independent pin/SG/DMA/mm teardown, `max_regions=4`, and 256 MiB aggregate quota; Linux 6.18.42 GCC Kbuild and full CTest 84/84 |
+| W0112 direct backend-memory reference stage | `b03c4f3`; optional complete binding reference is retained before direct COPY and released after synchronous completion or asynchronous completion/cancellation/backpressure; focused cdev/component tests 2/2 and full CTest 84/84 |
 | W0113 current boundary | Static PCI binder and host-independent guest ring seam are recorded; pinned QEMU/libvfio-user, actual BAR2 MMIO/MSI-X, generation-bound DMA lifetime, Add/Copy path, drain/tombstone faults, and package qualification remain open |
 | W0114 bounded transport fault matrix | `700b7c8`; cdev COPY disposition checks and completion backpressure/FIFO retry, plus vfio-user malformed framing, stale unmap, duplicate-range, and DMA-overflow regressions; focused transport tests 2/2 and full dev CTest 82/82 |
 | W0114 current boundary | Malformed and recoverable userspace/socketpair faults are recorded; kernel ioctl/BAR fuzzing, MSI-X, live DMA/backend references, ownership-death injection, native/compat negotiation, and the base ABI freeze remain open |
