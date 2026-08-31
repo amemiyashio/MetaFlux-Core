@@ -64,6 +64,11 @@ and arithmetic operation is validated.
   retains the local fixture copy path; a malformed bound API returns
   `MF_SHARED_NOT_SUPPORTED` without fallback. Backend memory import and cdev
   descriptor-to-launch wiring remain open.
+- [x] Require a synchronous backend-operation lease for every bound COPY or
+  LAUNCH. The worker holds the lease across resolver access and the backend ABI
+  call, surfaces lease rejection in the completion status, and releases it only
+  after the synchronous call returns. Asynchronous completion and real DMA
+  mapping remain separate qualification work.
 - [x] Expose the CPU backend's transport-facing COPY and synchronous launch
   subset (instance, context, queue, caller-owned host-memory import, canonical
   KIR module load/unload, and memory-handle argument blocks). The CPU backend
@@ -93,7 +98,9 @@ and arithmetic operation is validated.
   registered-memory lifetime are implemented for the current fixture.
 - [ ] Extend the leased worker/backend binding from the synchronous Add/launch
   descriptor path to production registered-memory import and DMA mapping, and
-  prove Add/Copy with those references through the mapped payload arena.
+  prove Add/Copy with those references through the mapped payload arena. The
+  current lease is host-independent and synchronous; an asynchronous backend
+  must retain it until an observed completion before memory teardown.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak.
 

@@ -19,7 +19,7 @@
       "id": "M0110",
       "title": "Kernel and Guest Transport",
       "status": "active",
-      "event_seqs": [1]
+      "event_seqs": [1, 2, 3, 4, 5]
     }
   ],
   "work_items": [

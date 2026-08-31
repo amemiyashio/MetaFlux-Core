@@ -8,8 +8,9 @@ The stage delivered a bounded synchronous `load_module`/`submit` path with a
 private fixed-width argument block and strict ownership, range, and dimension
 validation. The cdev worker now also resolves the primary-entry descriptor
 through an explicit generation-bound resolver and drives the same CPU backend
-submit path through the mapped payload. Registered-memory DMA integration and
-production resolver wiring remain open.
+submit path through the mapped payload. Bound requests now also use an explicit
+synchronous operation lease. Registered-memory DMA integration and production
+resolver wiring remain open.
 
 ## Durable changes
 
@@ -28,7 +29,10 @@ production resolver wiring remain open.
 - `transports/cdev/worker/include/metaflux/transport/cdev_worker.hpp` and
   `src/worker.cpp`: generation-bound resolver and synchronous launch dispatch.
 - `transports/cdev/worker/tests/worker_test.cpp` and its CMake target: fake
-  resolver/error coverage and real CPU canonical-KIR Add through cdev.
+  resolver/error and operation-lease coverage, plus real CPU canonical-KIR Add
+  through cdev.
+- `transports/cdev/README.md`: synchronous backend-operation lease boundary and
+  asynchronous ownership limitation.
 
 ## Verification
 
@@ -38,7 +42,7 @@ production resolver wiring remain open.
 | Focused CPU/backend/cdev tests | Passed 3/3 |
 | Full development CTest | Passed 84/84 |
 | clang-format and `git diff --check` | Passed |
-| Agent record validator | Passed before checkpoint commit |
+| Agent record validator | Passed: 57 sessions / 385 events / 329 Markdown files |
 
 ## Cleanup
 
@@ -56,6 +60,10 @@ production resolver wiring remain open.
   not physical NVIDIA or asynchronous transport qualification.
 - The resolver returns a payload-relative backend argument block; the worker
   does not inspect daemon object tables or retain the block after submit.
+- A bound synchronous request acquires a backend-operation lease before
+  resolver/API access and releases it after the ABI call. Lease rejection is a
+  completion status and never selects the local COPY fallback. An asynchronous
+  backend must extend ownership until observed completion.
 
 ## roast
 
@@ -79,12 +87,13 @@ production resolver wiring remain open.
 
 ## Unresolved items
 
-- W0112: bind a production resolver to registered-memory DMA and add in-flight
-  backend reference drain, generation replacement, asynchronous completion, and
-  fault qualification.
+- W0112: bind a production resolver to registered-memory DMA and extend the
+  operation lease through asynchronous completion; generation replacement and
+  fault qualification remain open.
 
 ## Handoff
 
 Read `agent/plan/M0110-kernel-guest-transport/work/W0112-local-cdev.md`, the
-backend dispatch seam, and P062. Resume at `6f047f4`; keep the cdev worker
-backend-agnostic and prove registered-memory lifetime before DMA work.
+backend dispatch seam, and P063. Resume at `fcdcbbd`; keep the cdev worker
+backend-agnostic and connect registered-memory DMA to the lease before daemon
+replacement or asynchronous completion.
