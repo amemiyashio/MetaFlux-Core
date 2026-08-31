@@ -49,6 +49,10 @@ memory or host heap object.
   admission model. It consumes the capability profile's truthful staging
   budget, enforces power-of-two alignment and non-overlap, and rejects stale
   generations or completions outside the submitted timeline.
+- [x] Add a host-independent visibility ledger for staging allocations. It
+  tracks host/device dirty ranges, non-coherent atom-size alignment, explicit
+  flush/invalidate operations, submission completion, and in-flight teardown
+  rejection without owning Vulkan handles.
 - [ ] Implement instance/device/queue discovery and actual enabled feature,
   property, limit, and capability capture behind `mf_backend_api_v1`.
 - [ ] Implement allocation/suballocation, staging, optional direct tiers,
