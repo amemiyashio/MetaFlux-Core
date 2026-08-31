@@ -705,6 +705,100 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
+  std::array<std::uint8_t, 128> region_destination{};
+  std::array<std::uint8_t, 128> region_source{};
+  for (std::size_t index = 0U; index < region_source.size(); ++index) {
+    region_source[index] = static_cast<std::uint8_t>(index + 3U);
+  }
+  mf_backend_memory_v1 region_destination_memory = 0U;
+  mf_backend_memory_v1 region_source_memory = 0U;
+  if (mf_cpu_backend_import_host_memory_v1(cpu_instance, cpu_context, region_destination.data(),
+                                           region_destination.size(),
+                                           &region_destination_memory) != MF_BACKEND_SUCCESS ||
+      mf_cpu_backend_import_host_memory_v1(cpu_instance, cpu_context, region_source.data(),
+                                           region_source.size(),
+                                           &region_source_memory) != MF_BACKEND_SUCCESS) {
+    if (region_destination_memory != 0U && cpu_api->free_memory != nullptr) {
+      cpu_api->free_memory(cpu_instance, region_destination_memory);
+    }
+    if (region_source_memory != 0U && cpu_api->free_memory != nullptr) {
+      cpu_api->free_memory(cpu_instance, region_source_memory);
+    }
+    if (cpu_api->free_memory != nullptr) {
+      cpu_api->free_memory(cpu_instance, cpu_memory);
+    }
+    if (cpu_api->destroy_queue != nullptr) {
+      cpu_api->destroy_queue(cpu_instance, cpu_queue);
+    }
+    if (cpu_api->destroy_context != nullptr) {
+      cpu_api->destroy_context(cpu_instance, cpu_context);
+    }
+    if (cpu_api->destroy_instance != nullptr) {
+      cpu_api->destroy_instance(cpu_instance);
+    }
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  CopyResolutionFixture cpu_region_resolution{};
+  cpu_region_resolution.resolution.destination = region_destination_memory;
+  cpu_region_resolution.resolution.destination_offset = 16U;
+  cpu_region_resolution.resolution.source = region_source_memory;
+  cpu_region_resolution.resolution.source_offset = 32U;
+  cpu_region_resolution.resolution.byte_count = 64U;
+  BackendFixture cpu_region_lease{};
+  metaflux::transport::cdev::CdevWorker cpu_region_worker({.submission = submission.header,
+                                                           .completion = completion.header,
+                                                           .payload = payload.data(),
+                                                           .payload_size = payload.size(),
+                                                           .generation = 4U},
+                                                          {.api = cpu_api,
+                                                           .instance = cpu_instance,
+                                                           .queue = cpu_queue,
+                                                           .memory = 0U,
+                                                           .completion_event = 0U,
+                                                           .copy_resolver = resolve_copy,
+                                                           .copy_context = &cpu_region_resolution,
+                                                           .lease_acquire = fixture_lease_acquire,
+                                                           .lease_release = fixture_lease_release,
+                                                           .lease_context = &cpu_region_lease});
+  request.flags = MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1;
+  request.request_id = 46U;
+  request.target_id = 71U;
+  request.arguments[0] = 73U;
+  request.arguments[1] = 0U;
+  request.arguments[2] = 0U;
+  request.arguments[3] = 0U;
+  if (!cpu_region_worker.backend_bound() ||
+      mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      cpu_region_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      cpu_region_resolution.calls != 1U || cpu_region_lease.lease_acquires != 1U ||
+      cpu_region_lease.lease_releases != 1U || cpu_region_lease.lease_active ||
+      std::memcmp(region_destination.data() + 16U, region_source.data() + 32U, 64U) != 0 ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
+    if (cpu_api->free_memory != nullptr) {
+      cpu_api->free_memory(cpu_instance, region_destination_memory);
+      cpu_api->free_memory(cpu_instance, region_source_memory);
+      cpu_api->free_memory(cpu_instance, cpu_memory);
+    }
+    if (cpu_api->destroy_queue != nullptr) {
+      cpu_api->destroy_queue(cpu_instance, cpu_queue);
+    }
+    if (cpu_api->destroy_context != nullptr) {
+      cpu_api->destroy_context(cpu_instance, cpu_context);
+    }
+    if (cpu_api->destroy_instance != nullptr) {
+      cpu_api->destroy_instance(cpu_instance);
+    }
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  if (cpu_api->free_memory != nullptr) {
+    cpu_api->free_memory(cpu_instance, region_destination_memory);
+    cpu_api->free_memory(cpu_instance, region_source_memory);
+  }
   if (cpu_api->free_memory != nullptr) {
     cpu_api->free_memory(cpu_instance, cpu_memory);
   }
