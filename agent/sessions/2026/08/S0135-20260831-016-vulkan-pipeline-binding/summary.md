@@ -29,7 +29,7 @@ live. This is a host-independent repository contract and does not claim actual
 | `nix develop .#vulkan --command ctest --preset vulkan --output-on-failure` | Passed: 88/88 |
 | `clang-format` and `git diff --check` | Passed |
 | Product identity | `c37d312`; Agent Harness (codex) as Author and Committer |
-| Agent records | Pending separate checkpoint record commit |
+| Agent records | Recorded in separate checkpoint commit `a245c34` |
 
 ## Cleanup
 
@@ -61,7 +61,7 @@ live. This is a host-independent repository contract and does not claim actual
 ## session-only
 
 - Actual `VkPipeline` creation, warm-launch compiler/allocation exclusion, and
-  physical driver qualification - reason: this checkpoint only exercises the
+  physical driver qualification - reason: this session only exercises the
   host-independent cache repository and the current host has no physical
   Vulkan qualification evidence
 
@@ -73,6 +73,6 @@ live. This is a host-independent repository contract and does not claim actual
 
 ## Handoff
 
-Resume with `nix develop .#vulkan --command ctest --preset vulkan`, then read
+The session is complete. Resume W0135 with `nix develop .#vulkan --command ctest --preset vulkan`, then read
 W0135 and the Vulkan cache/device-loss reference before adding actual pipeline
 ownership or warm-launch tracing.
