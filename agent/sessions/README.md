@@ -109,7 +109,7 @@ copies canonical content.
 | [S0123-20260831-015-lifecycle-concurrent-authority](2026/08/S0123-20260831-015-lifecycle-concurrent-authority/summary.md) | 2026-08-31 | Exact | In progress | TODO: one-line summary |
 | [S0135-20260831-016-vulkan-pipeline-binding](2026/08/S0135-20260831-016-vulkan-pipeline-binding/summary.md) | 2026-08-31 | Exact | Complete | W0135 generation-scoped cache pipeline binding; actual Vulkan pipeline and warm-launch qualification remain open |
 | [S0135-20260831-017-vulkan-warm-path](2026/08/S0135-20260831-017-vulkan-warm-path/summary.md) | 2026-08-31 | Exact | Complete | W0135 identity mutation miss matrix and host-independent warm trace admission; real ICD trace and physical qualification remain open |
-| [S0134-20260831-018-vulkan-submit-admission](2026/08/S0134-20260831-018-vulkan-submit-admission/summary.md) | 2026-08-31 | Exact | In progress | W0134 transactional queue-submission ledger with generation-bound completion and completion-gated recycling; real Vulkan queue adapter remains open |
+| [S0134-20260831-018-vulkan-submit-admission](2026/08/S0134-20260831-018-vulkan-submit-admission/summary.md) | 2026-08-31 | Exact | Complete | W0134 transactional queue-submission ledger with generation-bound completion and completion-gated recycling; real Vulkan queue adapter remains open |
 
 ## Fidelity and retention
 
