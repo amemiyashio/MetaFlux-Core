@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-081
+checkpoint: P20260831-082
 ---
 
 # Current Progress
@@ -231,9 +231,15 @@ W0132's private Vulkan device context is now recorded at
 It binds a successful capability profile to an exact Vulkan 1.3 physical device,
 compute queue, enabled baseline feature chain, and timeline semaphore, and its
 empty `vkQueueSubmit2` signals/waits/polls pass on the current AMD RADV host.
-Physical allocation, mapped visibility, external-handle import, command-buffer
-and pipeline composition, device-loss injection, and driver-family
-qualification remain open.
+W0132's source-local physical host-visible staging allocation adapter is now
+recorded at
+[P20260831-082](checkpoints/2026/P20260831-082-m0130-vulkan-staging-allocation.md).
+It creates and binds a generation-local `VkBuffer`/`VkDeviceMemory`, selects a
+host-visible memory type, maps it, and exercises coherent and range-guarded
+flush/invalidate behavior on the current AMD RADV host. Backend admission,
+device-local copies, suballocation, external-handle import, command-buffer and
+pipeline composition, device-loss injection, and driver-family qualification
+remain open.
 
 Intel x86_64 support qualification and physical NVIDIA binding-performance
 promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
@@ -365,7 +371,9 @@ Linux 9.8.
 | W0132 CTest after visibility stage | Full `vulkan` preset passed 88/88, including coherent/non-coherent and partial-range visibility fixtures |
 | W0132 device context | `8afbe2a`; private profile-matched Vulkan 1.3 instance/device/compute queue/timeline context with generation-checked empty `vkQueueSubmit2` signals, waits, polls, and reset |
 | W0132 CTest after device-context stage | Lean Vulkan preset passed 89/89; explicit RADV runtime device CTest passed 1/1 with queue-family=0 and timeline=2 |
-| W0132 current boundary | Physical `VkDeviceMemory`, mapped Vulkan flush/invalidate, external-handle import, command-buffer/pipeline composition, cross-process synchronization, lifecycle drain, and driver qualification remain open |
+| W0132 physical staging adapter | `a9ba189`; source-local host-visible `VkBuffer`/`VkDeviceMemory` allocation, memory-type selection, mapping, range validation, and coherent/non-coherent flush/invalidate hooks; stable C ABI unchanged |
+| W0132 CTest after physical staging stage | `.#vulkan-runtime` full CTest passed 90/90, including `metaflux.backend.vulkan-device`; changed-file clang-format check and `git diff --check` passed |
+| W0132 current boundary | Backend admission, device-local copies, suballocation, external-handle import, command-buffer/pipeline composition, cross-process synchronization, lifecycle drain, non-coherent physical fixture, and driver qualification remain open |
 
 ## Recorded M0130 W0133 Evidence
 

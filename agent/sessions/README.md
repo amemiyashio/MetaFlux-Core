@@ -128,6 +128,7 @@ copies canonical content.
 | [S01110-20260831-034-cdev-object-table-resolver](2026/08/S01110-20260831-034-cdev-object-table-resolver/summary.md) | 2026-08-31 | Exact | In progress | W0112 daemon-compatible cdev object-table resolver validates exact COPY blocks and imports checked subranges; live daemon activation and replacement remain open |
 | [S01111-20260831-035-cdev-generation-control-plane](2026/08/S01111-20260831-035-cdev-generation-control-plane/summary.md) | 2026-08-31 | Exact | Complete | Audited fixed cdev identity; deferred replacement control to M0120 |
 | [S01112-20260831-036-cdev-daemon-object-activation](2026/08/S01112-20260831-036-cdev-daemon-object-activation/summary.md) | 2026-08-31 | Exact | In progress | Daemon object-table region COPY plus queue-only cdev worker boundary; live lease and registered-memory attachment remain open |
+| [S01322-20260831-037-vulkan-staging-allocation](2026/08/S01322-20260831-037-vulkan-staging-allocation/summary.md) | 2026-08-31 | Exact | In progress | W0132 physical host-visible Vulkan staging allocation, mapping, and flush/invalidate range boundary on AMD/RADV; backend admission and device-local copy remain open |
 
 ## Fidelity and retention
 
