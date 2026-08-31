@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0113-20260831-027-cdev-memory-reference",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.1.3",
+  "started_at": "2026-08-31",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "session owner"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0110",
+      "title": "Kernel and Guest Transport",
+      "status": "active",
+      "event_seqs": [1]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0112",
+      "milestone_id": "M0110",
+      "title": "Local cdev Vertical Slice",
+      "status": "active"
+    }
+  ],
+  "base_revision": "676ea41c8dd329528c2078becb10dce59d5d4840",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
