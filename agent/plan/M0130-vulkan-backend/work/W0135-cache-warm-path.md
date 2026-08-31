@@ -39,9 +39,10 @@ where available; other platforms use traces and a separate p99 creation budget.
   and digest; publish uses a process-unique temporary file, `fsync`, and atomic
   rename, while malformed, truncated, or mismatched entries are removed and
   device-bound entries can be explicitly invalidated.
-- [ ] Integrate `CacheFileStore` with `CacheCatalog` for live-reference
-  pinning, quota/eviction, cross-process stampede control, and device/driver
-  invalidation at the pipeline boundary.
+- [x] Integrate `CacheFileStore` with `CacheCatalog` for process-local
+  residency, validated hydration, live-reference pinning, and quota/eviction.
+- [ ] Add cross-process stampede control and bind device/driver invalidation to
+  the pipeline boundary.
 - [ ] Verify every key mutation causes a miss and provisional extension revisions
   deterministically invalidate incompatible entries.
 - [ ] Prove warm launch invokes no MLIR/SPIR-V compiler or validator, creates no

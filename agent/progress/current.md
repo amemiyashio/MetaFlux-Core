@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0130
-workstream: W0134
-checkpoint: P20260831-050
+workstream: W0135
+checkpoint: P20260831-051
 ---
 
 # Current Progress
@@ -278,7 +278,9 @@ Linux 9.8.
 | W0135 CTest | Full `vulkan` preset passed 87/87, including `metaflux.backend.vulkan-cache-model` |
 | W0135 filesystem publication | `4959da6`; portable/device-bound envelopes use complete-key, mode, length, and digest validation with fsync/atomic rename; malformed entries are removed and device invalidation is explicit |
 | W0135 CTest after filesystem stage | Full `vulkan` preset passed 88/88, including filesystem corruption and invalidation regressions |
-| W0135 current boundary | CacheFileStore persistence is recorded; CacheCatalog/filesystem residency and quota integration, cross-process stampede control, opaque `VkPipelineCache`, pipeline creation, warm-launch no-compiler trace, and pipeline-bound device/driver invalidation remain open |
+| W0135 persistent repository | `e1288c1`; resident-first lookup hydrates validated disk entries, catalog admission protects pinned/quota files, and serialized pin/unpin/device invalidation keep both layers consistent |
+| W0135 CTest after repository stage | Full `vulkan` preset passed 88/88, including cross-instance hydration, quota, pin, and invalidation regressions |
+| W0135 current boundary | Cross-process stampede control, opaque `VkPipelineCache`, pipeline creation, warm-launch no-compiler trace, and pipeline-bound device/driver invalidation remain open |
 
 ## Versioned Next Work
 
@@ -372,6 +374,11 @@ Linux 9.8.
     Continue by binding completion-gated resources to pipeline creation and
     actual `vkQueueSubmit2` timeline submission; do not claim physical Vulkan
     execution or driver qualification from the pool fixture.
+18. M0130/W0135 is Active after process-local repository integration at
+    [P20260831-051](checkpoints/2026/P20260831-051-m0130-vulkan-cache-catalog.md).
+    Continue with cross-process single-key coordination and pipeline-bound
+    device/driver invalidation; do not claim warm-launch qualification from
+    catalog/file hydration tests.
 
 ## Tool Boundary
 

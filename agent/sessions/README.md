@@ -102,6 +102,7 @@ copies canonical content.
 | [S0123-20260831-008-lifecycle-core-qualification](2026/08/S0123-20260831-008-lifecycle-core-qualification/summary.md) | 2026-08-31 | Exact | In progress | W0123 host-independent 1,000-cycle lifecycle authority qualification; concurrent transport and kernel gates remain open |
 | [S0135-20260831-009-vulkan-cache-filesystem](2026/08/S0135-20260831-009-vulkan-cache-filesystem/summary.md) | 2026-08-31 | Exact | In progress | W0135 atomic Vulkan cache file store with envelope validation, corruption cleanup, and device invalidation; pipeline integration remains open |
 | [S0134-20260831-010-vulkan-command-recycling](2026/08/S0134-20260831-010-vulkan-command-recycling/summary.md) | 2026-08-31 | Exact | In progress | W0134 host-independent command-resource pool with completion-gated recycling and generation guards; queue submission remains open |
+| [S0135-20260831-011-vulkan-cache-catalog](2026/08/S0135-20260831-011-vulkan-cache-catalog/summary.md) | 2026-08-31 | Exact | In progress | W0135 persistent cache repository with disk hydration, pin/quota authority, and device invalidation; cross-process pipeline integration remains open |
 
 ## Fidelity and retention
 
