@@ -68,8 +68,13 @@ and arithmetic operation is validated.
   subset (instance, context, queue, caller-owned host-memory import, canonical
   KIR module load/unload, and memory-handle argument blocks). The CPU backend
   executes the Add fixture through `mf_backend_api_v1.submit` with strict
-  dimensions, ranges, ownership, and typed status mapping; asynchronous
-  events, cdev descriptor launch wiring, and backend DMA remain open.
+  dimensions, ranges, ownership, and typed status mapping.
+- [x] Add cdev launch descriptor helpers and a backend-agnostic,
+  generation-bound `CdevLaunchResolver`. The resolver translates module and
+  argument-block object references into payload-relative backend argument bytes;
+  the worker validates the range and 2D launch shape, then invokes the backend
+  submit ABI. The real CPU backend Add fixture now passes through this cdev
+  worker path; asynchronous events and backend DMA remain open.
 - [x] Retain an offline queue mapping as a VMA tombstone after module teardown
   and reclaim its backing under the cdev lock when the final queue VMA closes.
 - [x] Mark the current generation offline and wake waiters when the queue owner
@@ -86,11 +91,9 @@ and arithmetic operation is validated.
   drain beyond the queue and payload kref/tombstone graphs. The payload and
   queue VMA tombstones, owner-death transition, eventfd references, and bounded
   registered-memory lifetime are implemented for the current fixture.
-- [ ] Extend the leased worker/backend binding from the verified COPY subset to
-  the unmodified CPU Add/launch descriptor path and prove Add/Copy end to end
-  through the mapped payload arena. The CPU backend submit prerequisite is now
-  implemented; production registered-memory import and DMA mapping remain
-  separate prerequisites.
+- [ ] Extend the leased worker/backend binding from the synchronous Add/launch
+  descriptor path to production registered-memory import and DMA mapping, and
+  prove Add/Copy with those references through the mapped payload arena.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak.
 

@@ -6,8 +6,10 @@ Advance M0110/W0112 on the CUDA critical path by proving that the CPU backend's
 versioned C ABI can execute a pre-serialized canonical Kernel IR Add module.
 The stage delivered a bounded synchronous `load_module`/`submit` path with a
 private fixed-width argument block and strict ownership, range, and dimension
-validation. The cdev worker still needs descriptor-to-launch resolution and
-registered-memory DMA integration.
+validation. The cdev worker now also resolves the primary-entry descriptor
+through an explicit generation-bound resolver and drives the same CPU backend
+submit path through the mapped payload. Registered-memory DMA integration and
+production resolver wiring remain open.
 
 ## Durable changes
 
@@ -21,6 +23,12 @@ registered-memory DMA integration.
   bounded ABI and CPU subset documentation.
 - `tests/unit/backend_cpu_launch.cpp` and `tests/CMakeLists.txt`: canonical Add
   fixture and CTest registration.
+- `transports/cdev/client/include/metaflux/transport/cdev.h` and `src/cdev.c`:
+  primary-entry launch descriptor and submit helpers.
+- `transports/cdev/worker/include/metaflux/transport/cdev_worker.hpp` and
+  `src/worker.cpp`: generation-bound resolver and synchronous launch dispatch.
+- `transports/cdev/worker/tests/worker_test.cpp` and its CMake target: fake
+  resolver/error coverage and real CPU canonical-KIR Add through cdev.
 
 ## Verification
 
@@ -42,9 +50,12 @@ registered-memory DMA integration.
 ## Decisions and experience
 
 - Backend ownership remains backend-local: cdev descriptor/object resolution is
-  outside the stable backend ABI and is the next W0112 slice.
+  outside the stable backend ABI and is now isolated behind the worker resolver;
+  registered-memory DMA is the next W0112 slice.
 - The synchronous CPU subset is evidence for the CUDA-compatible execution seam,
   not physical NVIDIA or asynchronous transport qualification.
+- The resolver returns a payload-relative backend argument block; the worker
+  does not inspect daemon object tables or retain the block after submit.
 
 ## roast
 
@@ -68,11 +79,12 @@ registered-memory DMA integration.
 
 ## Unresolved items
 
-- W0112: resolve generation-bound cdev LAUNCH descriptors into a prepared
-  backend launch record, then add registered-memory DMA and fault qualification.
+- W0112: bind a production resolver to registered-memory DMA and add in-flight
+  backend reference drain, generation replacement, asynchronous completion, and
+  fault qualification.
 
 ## Handoff
 
 Read `agent/plan/M0110-kernel-guest-transport/work/W0112-local-cdev.md`, the
-backend dispatch seam, and P061. Resume at `b7dbabf`; keep the cdev worker
-backend-agnostic and prove malformed/stale launch rejection before DMA work.
+backend dispatch seam, and P062. Resume at `6f047f4`; keep the cdev worker
+backend-agnostic and prove registered-memory lifetime before DMA work.

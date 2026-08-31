@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-061
+checkpoint: P20260831-062
 ---
 
 # Current Progress
@@ -236,8 +236,8 @@ Linux 9.8.
 | W0112 focused transport tests | C17/C++20 schema fixtures and cdev client/worker tests passed 5/5 |
 | W0112 kernel compile | Linux 6.18.42 default GCC built `metaflux_core.ko` with modpost success |
 | W0112 registered-memory stage | `4465732`; one generation-bound range uses `FOLL_LONGTERM`/`FOLL_WRITE` pinning, memlock accounting, SG construction, partial unwind, dirty-unpin, explicit unregister, and owner-close revocation; focused cdev/lifecycle tests 4/4, full CTest 79/79, and Linux 6.18.42 GCC Kbuild passed |
-| W0112 backend dispatch seam | Worker-side `CdevBackendBinding` validates `mf_backend_api_v1` size/capability/handles, translates payload COPY to `mf_backend_copy_v1`, maps backend statuses, and rejects malformed bound APIs without fallback; the CPU backend now exposes synchronous canonical-KIR module load/submit with a memory-handle argument block and Add regression. cdev descriptor-to-launch wiring, backend DMA mapping, and daemon replacement remain open |
-| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, owner-death offline queue/payload tombstones, queue root/owner/lease/VMA/active-operation krefs, payload root/owner/VMA/active-allocation-operation krefs, eventfd ownership, bounded registered-memory lifetime, checked backend COPY dispatch, and CPU backend synchronous Add/Copy submit are implemented; cdev descriptor launch wiring, registered-memory DMA mapping, daemon replacement, and fault qualification remain open |
+| W0112 backend dispatch seam | Worker-side `CdevBackendBinding` validates `mf_backend_api_v1` size/capability/handles, translates payload COPY to `mf_backend_copy_v1`, and maps backend statuses; the generation-bound `CdevLaunchResolver` translates primary-entry launch descriptors to payload-relative argument bytes and invokes the CPU backend `submit` ABI. Malformed flags, resolver failures, payload bounds, and 2D dimensions are covered at `6f047f4`; registered-memory DMA and daemon replacement remain open |
+| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, owner-death offline queue/payload tombstones, queue root/owner/lease/VMA/active-operation krefs, payload root/owner/VMA/active-allocation-operation krefs, eventfd ownership, bounded registered-memory lifetime, checked backend COPY dispatch, CPU backend synchronous Add/Copy submit, and cdev worker CPU Add launch are implemented; registered-memory DMA mapping, backend reference drain, daemon replacement, asynchronous completion, and fault qualification remain open |
 | W0113 transport schema and component graph | Schema validator passed 5 definitions/15 records; graph passed 17 components/18 edges |
 | W0113 focused transport tests | Schema, cdev, guest, and server tests passed 7/7; full dev CTest passed 72/72 |
 | W0113 static vfio-user control fixture | Generated GET_INFO reply, static BAR0/BAR2/BAR4 profile, generation/epoch DMA map ledger, overlap and reset rejection, and `No_reply` unmap passed |
@@ -394,12 +394,14 @@ Linux 9.8.
    The CPU backend's synchronous COPY subset now consumes an imported mapped
    payload and the payload kref stage at
    [P20260831-039](checkpoints/2026/P20260831-039-m0110-payload-krefs.md);
-   continue with cdev descriptor-to-launch mapping, generation-bound
-   registered-memory/DMA mapping, backend references, replacement generations,
-   and lifecycle/fault qualification. The CPU backend's standalone synchronous
-   Add/Copy submit is recorded at [P20260831-061](checkpoints/2026/P20260831-061-m0110-cpu-backend-launch.md);
-   do not claim the cdev exit gate from that backend test or the mapped COPY
-   fixture alone.
+   continue with generation-bound registered-memory/DMA mapping, backend
+   references, replacement generations, asynchronous completion, and
+   lifecycle/fault qualification. The CPU backend's standalone synchronous
+   Add/Copy submit is recorded at [P20260831-061](checkpoints/2026/P20260831-061-m0110-cpu-backend-launch.md),
+   and cdev worker launch routing is recorded at
+   [P20260831-062](checkpoints/2026/P20260831-062-m0110-cdev-launch.md);
+   do not claim the cdev exit gate from these synchronous paths or the mapped
+   COPY fixture alone.
 9. M0130/W0131 is Active after the capability ABI stages at
    [P20260831-041](checkpoints/2026/P20260831-041-m0130-vulkan-capability.md) and
    [P20260831-042](checkpoints/2026/P20260831-042-m0130-vulkan-abi-profiles.md).
