@@ -58,6 +58,13 @@ default scheduling authority while M0110 is incomplete.
   ioctl, mmap, and poll read of mutable per-file negotiation, lease, queue, and
   registered-memory authorization state; the full 85-test suite and Linux
   6.18 Kbuild remain green.
+- The live product path is still absent: `Session::serve()` starts only the
+  Unix-ring `EmbeddedCpuWorker`; the cdev client region descriptors refer to a
+  daemon object table that the standalone cdev client does not create or bind,
+  and the CPU backend currently imports host virtual ranges rather than kernel
+  registered-memory handles. The open M0110 decision on provider cdev
+  selection and M0100 fallback diagnostics therefore remains a hard gate before
+  provider wiring.
 - P089 records the runtime-owned immediate producer ingress at `6152efa`: admin
   reset, VFIO-user reset, disconnect, and daemon restart capture one authority
   snapshot; wrong-route QMP, malformed, unknown, and stale observations are
@@ -70,12 +77,14 @@ default scheduling authority while M0110 is incomplete.
 
 ## Next Actions
 
-1. Connect the current daemon object table and leased worker/backend binding to
+1. Resolve and record the provider cdev selection/fallback boundary and the
+   kernel registered-memory to backend import contract before provider wiring.
+2. Connect the current daemon object table and leased worker/backend binding to
    live cdev registered-memory handles using the current W0112 source and tests;
    the worker-side payload mapping slice is complete.
-2. Prove unmodified Add/Copy through `/dev/metafluxN`, including
-   replacement-generation isolation and fd/VMA tombstone behavior.
-3. Execute the W0112 fault matrix with KUnit, KASAN, KCSAN, lockdep, and
+3. Prove unmodified Add/Copy through `/dev/metafluxN`, including
+   replacement-generation isolation and fd/VMA tombstone behavior, then
+   execute the W0112 fault matrix with KUnit, KASAN, KCSAN, lockdep, and
    kmemleak on Linux 6.12 and 6.18.
 
 ## Blockers

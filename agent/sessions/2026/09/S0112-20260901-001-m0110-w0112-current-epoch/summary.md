@@ -44,6 +44,13 @@ The product Exit Gate remains open.
 - `transports/cdev/README.md`, `kernel/core/README.md`, and the W0112 plan:
   record the new mapping boundary and keep daemon live lease/import,
   generation replacement, and kernel qualification explicitly open.
+- The current source audit confirms the live product seam is still unconnected:
+  `Session::serve()` selects only `EmbeddedCpuWorker`, standalone cdev region
+  descriptors require a daemon object table that the cdev client does not
+  create or bind, and the CPU backend import helper consumes host virtual
+  ranges rather than kernel registered-memory handles. The open M0110 provider
+  cdev selection/fallback decision is therefore a hard gate before provider
+  wiring.
 
 ## Verification
 
@@ -127,6 +134,9 @@ The product Exit Gate remains open.
   daemon-side lease/import wiring, and Linux 6.12/6.18 fault qualification
   remain open; the worker-side payload-size query and cdev per-file state
   serialization are now available.
+- The next product boundary is decision closure for provider cdev selection,
+  M0100 fallback diagnostics, and the registered-memory/backend import contract;
+  no provider wiring should be promoted before that boundary is canonical.
 
 ## Handoff
 
