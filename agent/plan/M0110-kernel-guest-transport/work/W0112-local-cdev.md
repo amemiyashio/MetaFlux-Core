@@ -47,6 +47,10 @@ and arithmetic operation is validated.
 - [x] Build `metaflux_core.ko` through target Kbuild; register `/dev/metafluxctl`
   and `/dev/metaflux0`, negotiate the fixed candidate UAPI, map the paired rings,
   and enforce one worker lease per generation.
+- [x] Add `CdevWorkerSession` to activate a generation/view-bound worker lease,
+  validate the exact paired-ring mapping, and close the leased control fd after
+  unmapping. The kernel control fops now expose the queue mmap at offset zero;
+  payload mapping remains a separate data-plane ownership boundary.
 - [x] Keep cdev fallback limited to `ENOENT`/`ENODEV`/explicit ABI incompatibility
   in the userspace client; permission and malformed states remain visible.
 - [x] Allocate one generation-bound, page-aligned driver payload arena through

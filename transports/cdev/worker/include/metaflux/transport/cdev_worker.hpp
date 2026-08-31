@@ -18,6 +18,48 @@ struct WorkerQueueView final {
   std::uint64_t generation = 0U;
 };
 
+struct CdevWorkerLeaseView final {
+  mf_registry_view_id_v1 registry_view_id{};
+  std::uint64_t identity_record_id = 0U;
+  std::uint64_t generation = 0U;
+  std::uint64_t lease_id = 0U;
+  std::uint64_t mapping_size = 0U;
+};
+
+/*
+ * Owns one generation-bound worker lease and its paired shared queue mapping.
+ * The control descriptor is closed by close(), which revokes the kernel lease;
+ * payload memory remains an independent data-plane mapping owned by the caller.
+ */
+class CdevWorkerSession final {
+public:
+  CdevWorkerSession() noexcept = default;
+  ~CdevWorkerSession();
+
+  CdevWorkerSession(const CdevWorkerSession&) = delete;
+  CdevWorkerSession& operator=(const CdevWorkerSession&) = delete;
+  CdevWorkerSession(CdevWorkerSession&& other) noexcept;
+  CdevWorkerSession& operator=(CdevWorkerSession&& other) noexcept;
+
+  static mf_shared_status_v1 open(const char* control_path,
+                                  mf_registry_view_id_v1 expected_view_id,
+                                  std::uint64_t expected_generation,
+                                  CdevWorkerSession& out) noexcept;
+
+  void close() noexcept;
+  [[nodiscard]] bool is_open() const noexcept { return control_fd_ >= 0; }
+  [[nodiscard]] int control_fd() const noexcept { return control_fd_; }
+  [[nodiscard]] const CdevWorkerLeaseView& lease() const noexcept { return lease_; }
+  [[nodiscard]] WorkerQueueView queue_view(std::uint8_t* payload = nullptr,
+                                            std::uint64_t payload_size = 0U) const noexcept;
+
+private:
+  int control_fd_ = -1;
+  void* mapping_ = nullptr;
+  std::uint64_t mapping_size_ = 0U;
+  CdevWorkerLeaseView lease_{};
+};
+
 /*
  * A resolver owns cdev object-table semantics. It returns a backend-neutral
  * launch description whose argument bytes are already encoded in the worker's

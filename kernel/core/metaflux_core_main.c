@@ -970,7 +970,7 @@ static int mf_cdev_mmap(struct file *file_pointer, struct vm_area_struct *vma)
 	unsigned long length;
 	int result;
 
-	if (file == NULL || file->control || vma == NULL)
+	if (file == NULL || vma == NULL)
 		return -EINVAL;
 	length = vma->vm_end - vma->vm_start;
 	if (vma->vm_pgoff == MF_CDEV_PAYLOAD_PGOFF_V0) {
@@ -993,7 +993,7 @@ static int mf_cdev_mmap(struct file *file_pointer, struct vm_area_struct *vma)
 		mutex_unlock(&mf_cdev_lock);
 		return result;
 	}
-	if (!file->queue_created || vma->vm_pgoff != 0U)
+	if ((!file->queue_created && !file->lease) || vma->vm_pgoff != 0U)
 		return -EINVAL;
 	if (length != mf_cdev_queue.mapping_size)
 		return -EINVAL;
@@ -1122,6 +1122,7 @@ static const struct file_operations mf_cdev_control_fops = {
 	.release = mf_cdev_release,
 	.unlocked_ioctl = mf_cdev_ioctl,
 	.compat_ioctl = mf_cdev_ioctl,
+	.mmap = mf_cdev_mmap,
 };
 
 static const struct file_operations mf_cdev_data_fops = {

@@ -276,6 +276,15 @@ make_cpu_argument_block(std::span<const mf_cpu_backend_argument_v1> entries) {
 
 int main() {
   mf_registry_view_id_v1 view{.daemon_incarnation = 7U, .view_serial = 9U};
+  metaflux::transport::cdev::CdevWorkerSession worker_session;
+  if (metaflux::transport::cdev::CdevWorkerSession::open("/dev/null", view, 4U,
+                                                         worker_session) !=
+          MF_SHARED_NOT_SUPPORTED ||
+      worker_session.is_open() || worker_session.control_fd() != -1 ||
+      metaflux::transport::cdev::CdevWorkerSession::open(nullptr, {}, 4U, worker_session) !=
+          MF_SHARED_INVALID_ARGUMENT) {
+    return 1;
+  }
   mf_client_ring_v1 submission{};
   mf_client_ring_v1 completion{};
   if (mf_client_ring_create_v1(8U, view, 1U, 4U, &submission) != MF_SHARED_SUCCESS ||

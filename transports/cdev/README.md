@@ -47,6 +47,17 @@ the supplied descriptor numbers unchanged. A second owner is rejected with
 freed. Eventfd attachment is a notification primitive only; descriptors and
 payload remain shared-memory fast-path data.
 
+`CdevWorkerSession` is the C++ worker-side activation wrapper for this lease.
+It opens `/dev/metafluxctl`, submits the generation- and `registry_view_id`-bound
+`MF_UAPI_IOCTL_WORKER_LEASE`, validates the returned identity, lease, exact
+paired-ring size, queue IDs, and ring metadata, then maps the queue through the
+leased control fd. `close()` unmaps the rings before closing the fd, so the
+kernel release revokes the lease. The wrapper deliberately does not map the
+payload arena: that data-plane mapping and the daemon object-table ranges stay
+owned by their respective clients. `ENOENT`/`ENODEV`/`ENOTTY` and unsupported
+ioctls map to `MF_SHARED_NOT_SUPPORTED`; stale, busy, permission, resource,
+and malformed responses remain distinct statuses.
+
 The C++ worker can register a `metaflux::runtime::lifecycle::Mirror` with the
 M0120 coordinator. Quiesce stops ordinary queue consumption, the lifecycle
 drain consumes only already-published descriptors, and a committed generation
