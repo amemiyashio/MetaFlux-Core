@@ -37,6 +37,10 @@ The product Exit Gate remains open.
   `MF_UAPI_IOCTL_MEMORY_QUERY` now execute under `mf_cdev_lock`, matching the
   release path that clears those fields and removing a KCSAN-visible read/write
   window.
+- `kernel/core/metaflux_core_main.c`: all cdev ioctl, mmap, and poll reads of
+  mutable per-file negotiation, lease, queue, and registered-memory
+  authorization state now execute under `mf_cdev_lock`, matching close and
+  teardown updates while preserving errno and resource-unwind behavior.
 - `transports/cdev/README.md`, `kernel/core/README.md`, and the W0112 plan:
   record the new mapping boundary and keep daemon live lease/import,
   generation replacement, and kernel qualification explicitly open.
@@ -52,6 +56,7 @@ The product Exit Gate remains open.
 | Lease-bound payload query content commit | Passed: `5050915992771444398879212e37529b44b704ce` |
 | Manifest closure checkpoint commit | Passed: `cd8d06d` |
 | Query lease-check serialization content commit | Passed: `c9682ff` |
+| Per-file cdev state serialization content commit | Passed: `780222c` |
 | Development build | Passed with `METAFLUX_DAEMON_CDEV_BACKEND=1` |
 | Focused cdev/daemon CTest | Passed: 6/6 |
 | Full development CTest | Passed: 85/85 |
@@ -81,6 +86,10 @@ The product Exit Gate remains open.
 - Payload size is queried through the canonical fixed memory record on the
   lease fd; worker mapping does not depend on an environment or local-size
   convention.
+- Mutable cdev file authorization state is read under the same lock used by
+  close and teardown. Long pin/map operations still unwind outside the lock,
+  and commit-time checks prevent an authorization or generation decision from
+  crossing the publication boundary.
 
 ## roast
 
@@ -100,6 +109,9 @@ The product Exit Gate remains open.
   `contracts/uapi/linux/v1/schema/uapi.json`
   (`5050915992771444398879212e37529b44b704ce`; schema/lifecycle checks, full
   CTest 85/85, Linux 6.18 Kbuild)
+- Cdev per-file authorization checks serialized with close/teardown ->
+  `kernel/core/metaflux_core_main.c` (`780222c`; full CTest 85/85, Linux 6.18
+  Kbuild)
 
 ### dark roasts
 
@@ -113,7 +125,8 @@ The product Exit Gate remains open.
 
 - W0112: live `/dev/metafluxN` Add/Copy, replacement-generation isolation,
   daemon-side lease/import wiring, and Linux 6.12/6.18 fault qualification
-  remain open; the worker-side payload-size query is now available.
+  remain open; the worker-side payload-size query and cdev per-file state
+  serialization are now available.
 
 ## Handoff
 

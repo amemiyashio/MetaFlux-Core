@@ -144,6 +144,10 @@ and arithmetic operation is validated.
   worker obtains the current payload handle, generation, exact page-aligned
   size, and mmap offset without a local size convention; mmap rechecks the
   owner and exact length under the cdev lock.
+- [x] Serialize all cdev ioctl, mmap, and poll reads of mutable per-file
+  negotiation, lease, queue, and registered-memory authorization state under
+  `mf_cdev_lock`, preserving errno and resource-unwind behavior across close
+  and teardown races.
 
 ## Remaining work
 
