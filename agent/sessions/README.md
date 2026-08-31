@@ -127,7 +127,7 @@ copies canonical content.
 | [S0119-20260831-033-cdev-worker-lease](2026/08/S0119-20260831-033-cdev-worker-lease/summary.md) | 2026-08-31 | Exact | In progress | W0112 generation/view-bound cdev worker lease activation, paired queue mapping, and deterministic UAPI status handling; daemon object-table activation remains open |
 | [S01110-20260831-034-cdev-object-table-resolver](2026/08/S01110-20260831-034-cdev-object-table-resolver/summary.md) | 2026-08-31 | Exact | In progress | W0112 daemon-compatible cdev object-table resolver validates exact COPY blocks and imports checked subranges; live daemon activation and replacement remain open |
 | [S01111-20260831-035-cdev-generation-control-plane](2026/08/S01111-20260831-035-cdev-generation-control-plane/summary.md) | 2026-08-31 | Exact | Complete | Audited fixed cdev identity; deferred replacement control to M0120 |
-| [S01112-20260831-036-cdev-daemon-object-activation](2026/08/S01112-20260831-036-cdev-daemon-object-activation/summary.md) | 2026-08-31 | Exact | In progress | TODO: one-line summary |
+| [S01112-20260831-036-cdev-daemon-object-activation](2026/08/S01112-20260831-036-cdev-daemon-object-activation/summary.md) | 2026-08-31 | Exact | In progress | Daemon object-table region COPY plus queue-only cdev worker boundary; live lease and registered-memory attachment remain open |
 
 ## Fidelity and retention
 

@@ -3,8 +3,9 @@
 ## Objective and outcome
 
 The daemon now activates its authoritative object table for embedded CPU region
-COPY through the cdev resolver and backend C ABI. This session remains active
-for the next W0112 slice.
+COPY through the cdev resolver and backend C ABI. The worker also accepts a
+queue-only view for that resolver path while keeping direct COPY and LAUNCH
+payload-bound. This session remains active for the next W0112 slice.
 
 ## Durable changes
 
@@ -13,9 +14,10 @@ for the next W0112 slice.
 - `services/metafluxd/server.cpp`: per-session CPU backend lifecycle, object
   lookup/import callbacks, and resolver-backed region COPY.
 - `transports/cdev/worker/src/worker.cpp`: classify range violations as
-  `MF_SHARED_INVALID_ARGUMENT` while retaining malformed identity checks.
-- `transports/cdev/README.md` and W0112 plan: record the daemon activation
-  boundary and live cdev work still open.
+  `MF_SHARED_INVALID_ARGUMENT` while retaining malformed identity checks;
+  permit queue-only object-table region COPY views.
+- `transports/cdev/README.md` and W0112 plan: record the daemon activation and
+  queue-only worker boundaries while live cdev work remains open.
 
 ## Verification
 
@@ -25,7 +27,7 @@ for the next W0112 slice.
 | Full development CTest | Passed: 84/84 |
 | cdev-disabled daemon configure/build | Passed |
 | Diff checks | Passed: `git diff --check` |
-| Content identity | `4bddd92`; Agent Harness (codex) as Author and Committer |
+| Content identity | `c3227c9`, `8095713`; Agent Harness (codex) as Author and Committer |
 
 ## Cleanup
 
@@ -44,11 +46,15 @@ for the next W0112 slice.
 
 - Daemon object lookup/import and synchronous CPU COPY ->
   `services/metafluxd/server.cpp` (`4bddd92`; focused/full CTest)
+- Queue-only object-table region COPY ->
+  `transports/cdev/worker/src/worker.cpp` (`c3227c9`; focused/full CTest)
 
 ### medium roasts
 
 - W0112 embedded daemon object-table activation ->
   `agent/plan/M0110-kernel-guest-transport/work/W0112-local-cdev.md` (P080)
+- Queue-only cdev worker boundary ->
+  `agent/plan/M0110-kernel-guest-transport/work/W0112-local-cdev.md` (P081)
 
 ### dark roasts
 
@@ -66,5 +72,6 @@ for the next W0112 slice.
 
 ## Handoff
 
-Resume from `4bddd92` and P080; read the cdev UAPI lease, resolver callbacks,
-and daemon object ownership before attempting live device activation.
+Resume from `8095713` and P081; read the cdev resolver, queue-only worker,
+daemon callback bridge, and live UAPI ownership records before attempting live
+device activation.

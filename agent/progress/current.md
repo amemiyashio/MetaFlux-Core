@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-080
+checkpoint: P20260831-081
 ---
 
 # Current Progress
@@ -53,6 +53,8 @@ reference path are now recorded at
 [P20260831-079](checkpoints/2026/P20260831-079-m0110-cdev-object-table-resolver.md);
 daemon object-table activation for embedded CPU region COPY is now recorded at
 [P20260831-080](checkpoints/2026/P20260831-080-m0110-cdev-daemon-object-activation.md);
+the queue-only cdev worker region COPY boundary is now recorded at
+[P20260831-081](checkpoints/2026/P20260831-081-m0110-cdev-queue-only-region-copy.md);
 live `/dev/metafluxctl` lease attachment, generation replacement, and
 non-cancellable backend wait policy remain open.
 W0113 is Active with its static vfio-user control-plane stage recorded at
@@ -300,6 +302,7 @@ Linux 9.8.
 | W0112 registered-memory import seam | `c40c0e3`; resolver-side `CdevBackendMemoryImporter` is exercised with the CPU backend for two caller-owned ranges before the existing source/destination reference retention path; focused cdev/component tests 2/2 and full CTest 84/84 |
 | W0112 daemon object-table resolver | `f7f45a7`; `CdevObjectTableResolver` validates exact region COPY blocks, generation/kind/access/range ownership, imports checked host subranges, and composes with worker reference retention; focused cdev worker test 1/1 and full CTest 84/84 |
 | W0112 daemon object-table activation | `4bddd92`; daemon sessions own a CPU backend instance/context/queue, region COPY resolves through the authoritative object table and cdev importer before `mf_backend_api_v1.copy`, and imported handles are released; focused cdev/daemon tests 2/2, full dev CTest 84/84, and cdev-disabled configure/build passed |
+| W0112 queue-only region COPY worker | `c3227c9`, `8095713`; bound object-table region COPY can consume a leased queue without a payload arena, while direct COPY/LAUNCH remain payload-bound; focused cdev/daemon tests 2/2 and full dev CTest 84/84 |
 | W0113 current boundary | Static PCI binder and host-independent guest ring seam are recorded; pinned QEMU/libvfio-user, actual BAR2 MMIO/MSI-X, generation-bound DMA lifetime, Add/Copy path, drain/tombstone faults, and package qualification remain open |
 | W0114 bounded transport fault matrix | `700b7c8`; cdev COPY disposition checks and completion backpressure/FIFO retry, plus vfio-user malformed framing, stale unmap, duplicate-range, and DMA-overflow regressions; focused transport tests 2/2 and full dev CTest 82/82 |
 | W0114 current boundary | Malformed and recoverable userspace/socketpair faults are recorded; kernel ioctl/BAR fuzzing, MSI-X, live DMA/backend references, ownership-death injection, native/compat negotiation, and the base ABI freeze remain open |
