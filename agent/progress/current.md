@@ -1,9 +1,9 @@
 ---
 status: Active
 updated: 2026-08-31
-milestone: M0120
-workstream: W0123
-checkpoint: P20260831-055
+milestone: M0130
+workstream: W0135
+checkpoint: P20260831-056
 ---
 
 # Current Progress
@@ -152,6 +152,11 @@ W0123's Coordinator control-plane serialization and concurrent replay/observer
 evidence is now recorded at
 [P20260831-055](checkpoints/2026/P20260831-055-m0120-lifecycle-concurrent-authority.md);
 live memfd/cdev/guest-QMP qualification and kernel fault evidence remain open.
+
+W0135's generation-scoped cache pipeline binding boundary is now recorded at
+[P20260831-056](checkpoints/2026/P20260831-056-m0130-vulkan-pipeline-binding.md);
+actual Vulkan pipeline ownership, identity-mutation misses, warm-launch
+exclusion traces, and physical driver qualification remain open.
 
 Intel x86_64 support qualification and physical NVIDIA binding-performance
 promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
@@ -303,7 +308,9 @@ Linux 9.8.
 | W0135 CTest after repository stage | Full `vulkan` preset passed 88/88, including cross-instance hydration, quota, pin, and invalidation regressions |
 | W0135 cross-process coordination | `246f84b`; stable per-key `flock` plus second lookup coalesces concurrent producers across processes; lock timeout is explicit `io-error` |
 | W0135 CTest after stampede stage | Cache CTest passed five repeat runs; full `vulkan` preset passed 88/88 |
-| W0135 current boundary | Opaque `VkPipelineCache`, pipeline creation, warm-launch no-compiler trace, and pipeline-bound device/driver invalidation remain open |
+| W0135 pipeline binding | `c37d312`; resident device-bound hits have one generation-scoped pipeline binding, stale/duplicate generations are rejected, and release gates device invalidation |
+| W0135 CTest after pipeline binding | Full `vulkan` preset passed 88/88, including `metaflux.backend.vulkan-cache-model` |
+| W0135 current boundary | Opaque `VkPipelineCache`, actual pipeline ownership, identity-mutation misses, warm-launch no-compiler/allocation trace, and physical driver qualification remain open |
 
 ## Versioned Next Work
 
@@ -421,6 +428,11 @@ Linux 9.8.
     Continue by binding the envelope to real memfd/cdev/guest-QMP activity,
     worker and process-death faults, and kernel qualification; do not claim the
     lifecycle extension freeze from host-independent API tests.
+23. M0130/W0135 is Active after generation-scoped cache pipeline binding at
+    [P20260831-056](checkpoints/2026/P20260831-056-m0130-vulkan-pipeline-binding.md).
+    Continue with actual Vulkan pipeline identity, key-mutation miss proofs,
+    and warm-launch compiler/validator/module/pipeline/allocation exclusion;
+    do not claim physical driver qualification from the repository contract.
 
 ## Tool Boundary
 
