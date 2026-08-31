@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0130
-workstream: W0134
-checkpoint: P20260831-058
+workstream: W0131
+checkpoint: P20260831-059
 ---
 
 # Current Progress
@@ -173,6 +173,12 @@ W0134's host-independent queue-submission admission boundary is now recorded at
 real command-buffer/pipeline ownership, `vkQueueSubmit2` timeline submission,
 provider/runtime composition, and physical driver qualification remain open.
 
+W0131's on-demand Vulkan runtime profile is now recorded at
+[P20260831-059](checkpoints/2026/P20260831-059-m0130-vulkan-runtime-tools.md);
+`.#vulkan-runtime` provides pinned Mesa ICD and validation layers for host
+smoke/probe execution, while the two-driver-family matrix and physical NVIDIA
+qualification remain open.
+
 Intel x86_64 support qualification and physical NVIDIA binding-performance
 promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
 remains the unallocated `v0.2.0` support expansion. M0100 keeps the measured
@@ -274,6 +280,7 @@ Linux 9.8.
 | Vulkan packed arguments and memory profiles | `21ed444`; 64-byte/48-byte target-digest-bound argument layout and 96-byte external-memory 0.x tier profile; positive and negative C fixtures passed |
 | Vulkan host probe | Optional C++20 probe requires Vulkan 1.3 compute, timeline semaphores, Synchronization2, buffer device address, and a compute queue; unavailable host reports `no-device` without qualification |
 | Vulkan tool epoch | `toolchains/vulkan-1.json` and `.#vulkan` expose Vulkan headers/loader/tools, glslang, and SPIR-V Tools at the locked nixpkgs versions |
+| Vulkan runtime smoke profile | `836c6e3`/`6c7c3ff`; `vulkan-runtime-1.json`, `vulkan-runtime.nix`, and `.#vulkan-runtime` expose Mesa 26.1.8 plus Khronos validation layers for local RADV/lavapipe smoke without changing the lean tool shell |
 | Vulkan CTest | Full `vulkan` preset passed 81/81, including ABI and capability regressions |
 | W0131 current boundary | Exact feature/limit minimums, two driver families, packed BDA/external-memory fixtures, lowering, execution, caches, and lifecycle integration remain open |
 
@@ -463,6 +470,10 @@ Linux 9.8.
     Continue with real command-buffer/pipeline ownership, `vkQueueSubmit2`
     timeline signaling, and M0110 completion integration; preserve the boundary
     against physical Vulkan claims until a qualification host is available.
+26. M0130/W0131 is Active after the on-demand `vulkan-runtime` profile at
+    [P20260831-059](checkpoints/2026/P20260831-059-m0130-vulkan-runtime-tools.md).
+    Use it for local RADV/lavapipe smoke and capability probes; keep the exact
+    two-driver-family baseline and physical NVIDIA qualification open.
 
 ## Tool Boundary
 

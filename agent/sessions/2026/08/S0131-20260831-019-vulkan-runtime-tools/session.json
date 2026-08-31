@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0131-20260831-019-vulkan-runtime-tools",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.3.1",
+  "started_at": "2026-08-31",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0130/W0131 Vulkan runtime-toolchain maintainer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0130",
+      "title": "Vulkan Execution Backend",
+      "status": "active",
+      "event_seqs": [1, 2]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0131",
+      "milestone_id": "M0130",
+      "title": "Vulkan capability and ABI/tool inputs",
+      "status": "active"
+    }
+  ],
+  "base_revision": "64f0b4d3ddd0cf9965df1f4715ecff1d6ea5422d",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
