@@ -1,28 +1,22 @@
 ---
 status: Active
 updated: 2026-08-31
-focus_mode: governance
-focus_owner: S0100-20260831-045-execution-focus-governance
+focus_mode: product
+focus_owner: S0112-20260831-046-live-cdev-exit-gate
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-089
+checkpoint: P20260831-090
 ---
 
 # Current Progress
 
 ## Execution Focus
 
-D0029 and Active SC0006 are replacing global active-session commit coverage
-with one machine-readable execution focus. The current owner is
-`S0100-20260831-045-execution-focus-governance`. This migration must pass the
-focus schema, exact-owner pre-commit, handoff/close, Claude bridge, residual
-search, and Agent-record gates before it is applied.
-
-An `in_progress` session that is not named by
-[`focus.json`](focus.json) remains a factual work record but has no content
-commit authority. Thirty-five affected session owners have a published guidance
-packet for their next control boundary. Existing commits and factual evidence
-remain valid.
+D0029 and Applied SC0006 establish one machine-readable product focus. The
+current owner is `S0112-20260831-046-live-cdev-exit-gate`; the exact target is
+M0110/W0112 and its canonical Exit Gate. An `in_progress` session that is not
+named by [`focus.json`](focus.json) remains a factual work record but has no
+content-commit authority. Existing commits and factual evidence remain valid.
 
 ## Product Resume Target
 
@@ -58,10 +52,10 @@ default scheduling authority while M0110 is incomplete.
 
 ## Next Actions
 
-1. Complete and verify D0029/SC0006, then atomically hand focus to one new W0112
-   owner session.
-2. Bring up the live local cdev path in a compatible kernel or VM and execute
+1. Bring up the live local cdev path in a compatible kernel or VM and execute
    unmodified CPU-backed CUDA Add/Copy through canonical device nodes.
+2. Connect the daemon lease/object table to live registered-memory handles and
+   prove the mapped payload/backend-reference path without fixture fallback.
 3. Qualify generation replacement, old-object `DEVICE_LOST`, non-cancellable
    backend wait policy, owner death, and kernel fault paths before claiming the
    W0112 Exit Gate.
@@ -79,6 +73,7 @@ default scheduling authority while M0110 is incomplete.
 
 ## Evidence Pointers
 
+- [P090 execution-focus governance](checkpoints/2026/P20260831-090-execution-focus-governance.md)
 - [P089 immediate producer ingress](checkpoints/2026/P20260831-089-m0120-producer-ingress.md)
 - [P081 queue-only cdev region COPY](checkpoints/2026/P20260831-081-m0110-cdev-queue-only-region-copy.md)
 - [P080 daemon object-table activation](checkpoints/2026/P20260831-080-m0110-cdev-daemon-object-activation.md)

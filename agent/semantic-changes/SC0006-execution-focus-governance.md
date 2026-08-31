@@ -1,13 +1,13 @@
 ---
 id: SC0006
-status: Active
+status: Applied
 created: 2026-08-31
 updated: 2026-08-31
 decision: D0029
 session: S0100-20260831-045-execution-focus-governance
 scope: execution-focus-governance
 history_sync: automatic
-effective_revision: null
+effective_revision: 51e0c7551ff8a41e241f952b8bea30e411bdc7d9
 superseded_by: null
 ---
 
@@ -34,33 +34,33 @@ superseded_by: null
 
 | Surface | Class | Disposition | Evidence |
 | --- | --- | --- | --- |
-| `AGENTS.md` | Current | Pending | Replace global candidate-session wording with D0029 focus ownership |
-| `CLAUDE.md` | Current | Pending | Align bridge summary with exact focus owner and protected history |
-| `.claude/README.md` | Current | Pending | Align repository-local bridge description with the focus gate |
-| `.claude/hooks/session_start.py` | Tooling | Pending | Banner must route agents through current focus before editing |
-| `.claude/hooks/pre_edit.py` | Tooling | Pending | Pre-edit guard must resolve the focus owner instead of any active session |
-| `.githooks/pre-commit` | Tooling | Pending | Replace global active-session coverage with exact candidate focus authorization |
-| `agent/README.md` | Current | Pending | Add focus to precedence, daily read order, and session authority |
-| `agent/memory/constraints.md` | Current | Pending | Record the D0029 single-focus durable constraint |
-| `agent/memory/decisions-index.md` | Current | Pending | Resolve D0029 and later mark the applied Verified source |
-| `agent/progress/README.md` | Current | Pending | Index machine focus and compact human resume roles |
-| `agent/progress/current.md` | Current | Pending | Replace cumulative next-work archive with one target and at most three actions |
-| `agent/progress/focus.json` | Current | Pending | New machine-readable owner, mode, Exit Gate, and resume target |
-| `agent/sessions/README.md` | Current | Pending | Distinguish active record lifecycle from focus-owned content authority |
-| `agent/semantic-changes/README.md` | Current | Pending | Index SC0006 through Active and Applied states |
-| `agent/semantic-changes/SC0006-execution-focus-governance.md` | Current | Pending | Resolve inventory, handoffs, evidence locks, and effective revision |
-| `agent/skills/start-work/SKILL.md` | Current | Pending | Require focus inspection and explicit session declaration for commits |
-| `agent/skills/record-session/SKILL.md` | Current | Pending | Make checkpoint/close and focus handoff ownership explicit |
-| `docs/architecture/README.md` | Current | Pending | Resolve D0029 and SC0006 in the architecture index |
-| `docs/architecture/execution-focus-governance.md` | Current | Pending | Promote the implemented decision from Proposed to Verified |
-| `tools/check-agent-records.py` | Tooling | Pending | Validate focus shape, owner, dependencies, authority, and Exit Gate |
-| `tools/test-check-agent-records.py` | Tooling | Pending | Prove unrelated-session rejection, owner commits, closes, and handoffs |
-| `tools/new-session.py` | Tooling | Pending | Explain that scaffolding does not itself claim execution focus |
-| `tools/README.md` | Current | Pending | Document focus validation and candidate authorization behavior |
-| `agent/sessions/2026/08/S0100-20260831-045-execution-focus-governance/session.json` | Active session | Pending | Migration owner lifecycle and final content revision |
-| `agent/sessions/2026/08/S0100-20260831-045-execution-focus-governance/events.jsonl` | Active session | Pending | Compact decision, handoff, implementation, and verification outcomes |
-| `agent/sessions/2026/08/S0100-20260831-045-execution-focus-governance/summary.md` | Active session | Pending | Cleanup, roast, unresolved boundary, and handoff |
-| `agent/sessions/2026/08/S0100-20260831-045-execution-focus-governance/notes.md` | Active session | Pending | Migration inventory and rejected loopholes |
+| `AGENTS.md` | Current | Migrated | `47d5735` requires focus inspection, exact owner declaration, bounded close, and atomic handoff |
+| `CLAUDE.md` | Current | Migrated | `47d5735` distinguishes edit routing from candidate-tree commit authority |
+| `.claude/README.md` | Current | Migrated | `47d5735` documents the repository-local execution-focus bridge |
+| `.claude/hooks/session_start.py` | Tooling | Migrated | `47d5735` banner routes agents through focus before durable work |
+| `.claude/hooks/pre_edit.py` | Tooling | Migrated | `47d5735` resolves one exact in-progress focus owner and rejects declared-owner drift |
+| `.githooks/pre-commit` | Tooling | Migrated | `47d5735` enforces candidate owner, exact non-owner close, and atomic record-only handoff |
+| `agent/README.md` | Current | Migrated | `47d5735` adds focus precedence, directory role, daily read order, and authority boundary |
+| `agent/memory/constraints.md` | Current | Migrated | `47d5735` records the D0029 single-focus durable constraint |
+| `agent/memory/decisions-index.md` | Current | Migrated | `51e0c75` resolves D0029 to the Verified architecture source |
+| `agent/progress/README.md` | Current | Migrated | `47d5735` separates machine focus, compact current projection, and historical checkpoints |
+| `agent/progress/current.md` | Current | Migrated | Handoff candidate projects only S0112-046 at M0110/W0112 with three actions |
+| `agent/progress/focus.json` | Current | Migrated | Handoff candidate installs product owner S0112-046 and the canonical W0112 Exit Gate |
+| `agent/sessions/README.md` | Current | Migrated | `47d5735` separates lifecycle from authority; handoff candidate records old/new owner states |
+| `agent/semantic-changes/README.md` | Current | Migrated | Handoff candidate indexes SC0006 as Applied |
+| `agent/semantic-changes/SC0006-execution-focus-governance.md` | Current | Migrated | Applied record binds the complete inventory to `51e0c75` and the record-only handoff |
+| `agent/skills/start-work/SKILL.md` | Current | Migrated | `47d5735` requires focus inspection, explicit owner declaration, and handoff before redirection |
+| `agent/skills/record-session/SKILL.md` | Current | Migrated | `47d5735` bounds checkpoints, closes, compact current state, and focus transfer |
+| `docs/architecture/README.md` | Current | Migrated | `ec345f8` indexes D0029 as the execution-focus authority |
+| `docs/architecture/execution-focus-governance.md` | Current | Migrated | `51e0c75` promotes the implemented D0029 decision to Verified |
+| `tools/check-agent-records.py` | Tooling | Migrated | `47d5735` validates focus shape, owner, dependencies, authority, Exit Gate, and projection |
+| `tools/test-check-agent-records.py` | Tooling | Migrated | `47d5735` passes 184 cases covering focus modes, failures, commit paths, and Claude guard |
+| `tools/new-session.py` | Tooling | Migrated | `47d5735` reports that scaffolding leaves focus with the existing owner |
+| `tools/README.md` | Current | Migrated | `47d5735` documents exact candidate authorization and session scaffolding semantics |
+| `agent/sessions/2026/08/S0100-20260831-045-execution-focus-governance/session.json` | Active session | Migrated | Handoff candidate closes the migration owner at final content revision `51e0c75` |
+| `agent/sessions/2026/08/S0100-20260831-045-execution-focus-governance/events.jsonl` | Active session | Migrated | Four compact events record objective, D0029, implementation, verification, and handoff |
+| `agent/sessions/2026/08/S0100-20260831-045-execution-focus-governance/summary.md` | Active session | Migrated | Terminal summary records cleanup, roast routing, W0112 boundary, and successor command |
+| `agent/sessions/2026/08/S0100-20260831-045-execution-focus-governance/notes.md` | Active session | Migrated | Terminal notes record enforced decisions, rejected loopholes, and nine Historical blob IDs |
 | `agent/progress/checkpoints/2026/P20260828-006-agent-guidance-hardening.md` | Historical | Retained evidence | Preserve the original non-agent change/session-coverage observation byte-for-byte |
 | `agent/progress/checkpoints/2026/P20260828-007-claude-bridge.md` | Historical | Retained evidence | Preserve the original Claude bridge behavior and test evidence byte-for-byte |
 | `agent/progress/checkpoints/2026/P20260830-013-m0100-closure-consistency.md` | Historical | Retained evidence | Preserve candidate-index gate evidence and revisions byte-for-byte |
@@ -133,9 +133,10 @@ close the old owner and install the new owner atomically.
 | --- | --- |
 | User decision authority | Passed: the user explicitly requested engineering governance adjustment after the read-only diagnosis |
 | Active-session handoff | Passed at activation boundary: 35 target sessions have published execution-focus packets; the migration owner is excluded |
-| Active authorization | Pending activation commit |
-| Focus schema and dependency validation | Pending implementation and self-tests |
-| Candidate owner and handoff gate | Pending implementation and isolated pre-commit self-tests |
-| Claude bridge and workflow routing | Pending migration and focused checks |
-| Historical evidence lock and residual search | Pending blob audit and exact old-marker classification |
-| Agent records and full relevant tests | Pending |
+| Active authorization | Passed: activation revision `ec345f85879936391c432d57d76999cf61d5d41f` committed D0029 plus Active SC0006 before behavior changes |
+| Focus schema and dependency validation | Passed: `47d5735` and the 184-case self-test cover product/governance modes, owner scope, dependencies, Exit Gate, and current projection |
+| Candidate owner and handoff gate | Passed: isolated tests reject unstaged/unrelated/missing owners and content piggyback while accepting exact owner, non-owner close, and atomic handoff |
+| Claude bridge and workflow routing | Passed: Claude guard cases, skill-routing 89-case corpus, 34/34 routing self-test, and current workflow residual search |
+| Historical evidence lock and residual search | Passed: all nine Historical working blobs match their recorded HEAD object IDs; old global-coverage markers remain only in registered evidence or SC0006 old-meaning prose |
+| Agent records and full relevant tests | Passed: checkout/candidate Agent gates, semantic-change 21/21, guidance 20/20, convergence 15/15, commit identity 7/7, and focused architecture CTest 7/7 |
+| Atomic product-focus handoff | Passed in the candidate tree: S0100-045 closes, S0112-046 remains in progress at M0110/W0112, and focus/current agree |
