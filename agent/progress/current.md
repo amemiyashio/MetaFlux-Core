@@ -258,8 +258,8 @@ Linux 9.8.
 | W0112 focused transport tests | C17/C++20 schema fixtures and cdev client/worker tests passed 5/5 |
 | W0112 kernel compile | Linux 6.18.42 default GCC built `metaflux_core.ko` with modpost success |
 | W0112 registered-memory stage | `4465732`; one generation-bound range uses `FOLL_LONGTERM`/`FOLL_WRITE` pinning, memlock accounting, SG construction, partial unwind, dirty-unpin, explicit unregister, and owner-close revocation; focused cdev/lifecycle tests 4/4, full CTest 79/79, and Linux 6.18.42 GCC Kbuild passed |
-| W0112 backend dispatch seam | Worker-side `CdevBackendBinding` validates `mf_backend_api_v1` size/capability/handles, translates payload COPY to `mf_backend_copy_v1`, and maps backend statuses; the generation-bound `CdevLaunchResolver` translates primary-entry launch descriptors to payload-relative argument bytes and invokes the CPU backend `submit` ABI. Malformed flags, resolver failures, payload bounds, 2D dimensions, and synchronous lease rejection are covered at `fcdcbbd`; registered-memory DMA and daemon replacement remain open |
-| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, owner-death offline queue/payload tombstones, queue root/owner/lease/VMA/active-operation krefs, payload root/owner/VMA/active-allocation-operation krefs, eventfd ownership, bounded registered-memory lifetime, checked backend COPY dispatch, CPU backend synchronous Add/Copy submit, cdev worker CPU Add launch, synchronous backend-operation lease admission, and host-independent asynchronous completion polling with lease retention and ring-backpressure retry are implemented; production registered-memory DMA mapping, backend references/replacement generations, lifecycle-loss cancellation, daemon replacement, and fault qualification remain open |
+| W0112 backend dispatch seam | Worker-side `CdevBackendBinding` validates `mf_backend_api_v1` size/capability/handles, translates payload COPY to `mf_backend_copy_v1`, and maps backend statuses; the generation-bound `CdevLaunchResolver` translates primary-entry launch descriptors to payload-relative argument bytes and invokes the CPU backend `submit` ABI. Malformed flags, resolver failures, payload bounds, 2D dimensions, and synchronous lease rejection are covered at `fcdcbbd`; backend memory import, in-flight references, and daemon replacement remain open |
+| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, owner-death offline queue/payload tombstones, queue root/owner/lease/VMA/active-operation krefs, payload root/owner/VMA/active-allocation-operation krefs, eventfd ownership, bounded registered-memory lifetime, direction-aware registered-memory DMA mapping, checked backend COPY dispatch, CPU backend synchronous Add/Copy submit, cdev worker CPU Add launch, synchronous backend-operation lease admission, and host-independent asynchronous completion polling with lease retention and ring-backpressure retry are implemented; backend memory import, in-flight references, replacement generations, lifecycle-loss cancellation, daemon replacement, and fault qualification remain open |
 | W0113 transport schema and component graph | Schema validator passed 5 definitions/15 records; graph passed 17 components/18 edges |
 | W0113 focused transport tests | Schema, cdev, guest, and server tests passed 7/7; full dev CTest passed 72/72 |
 | W0113 static vfio-user control fixture | Generated GET_INFO reply, static BAR0/BAR2/BAR4 profile, generation/epoch DMA map ledger, overlap and reset rejection, and `No_reply` unmap passed |
@@ -421,9 +421,10 @@ Linux 9.8.
    The CPU backend's synchronous COPY subset now consumes an imported mapped
    payload and the payload kref stage at
    [P20260831-039](checkpoints/2026/P20260831-039-m0110-payload-krefs.md);
-   continue with production generation-bound registered-memory/DMA mapping,
-   backend references, replacement generations, lifecycle-loss cancellation,
-   and lifecycle/fault qualification. The CPU backend's standalone synchronous
+   continue with backend memory import and in-flight references for the
+   generation-bound registered-memory/DMA mapping, replacement generations,
+   lifecycle-loss cancellation, and lifecycle/fault qualification. The CPU
+   backend's standalone synchronous
    Add/Copy submit is recorded at [P20260831-061](checkpoints/2026/P20260831-061-m0110-cpu-backend-launch.md),
    and cdev worker launch routing is recorded at
    [P20260831-062](checkpoints/2026/P20260831-062-m0110-cdev-launch.md);
@@ -434,12 +435,15 @@ Linux 9.8.
    the worker's host-independent asynchronous completion and lease-retention
    boundary is recorded at
    [P20260831-069](checkpoints/2026/P20260831-069-m0110-cdev-async-lease.md);
+   the kernel's direction-aware registered-memory DMA mapping and reverse-order
+   teardown are recorded at
+   [P20260831-070](checkpoints/2026/P20260831-070-m0110-cdev-dma-map.md);
    the shared object-identity correction and cdev helpers are recorded at
    [P20260831-065](checkpoints/2026/P20260831-065-m0110-cdev-region-identity.md);
    real CPU backend region COPY through independent imported handles is recorded
    at [P20260831-066](checkpoints/2026/P20260831-066-m0110-cdev-cpu-region-copy.md);
-   do not claim the cdev exit gate from these synchronous paths or the mapped
-   COPY fixture alone.
+   do not claim the cdev exit gate from these host-independent paths or the
+   mapped COPY fixture alone.
 9. M0130/W0131 is Active after the capability ABI stages at
    [P20260831-041](checkpoints/2026/P20260831-041-m0130-vulkan-capability.md) and
    [P20260831-042](checkpoints/2026/P20260831-042-m0130-vulkan-abi-profiles.md).
