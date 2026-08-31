@@ -1,6 +1,7 @@
 ---
 status: Active
 updated: 2026-08-31
+governance_epoch: D0029
 focus_mode: governance
 focus_owner: S0100-20260831-047-breaking-governance-epoch
 milestone: M0110
@@ -59,12 +60,12 @@ default scheduling authority while M0110 is incomplete.
 
 ## Next Actions
 
-1. Add the exact D0029 governance epoch to focus, session scaffolding, candidate
-   authorization, and the Claude edit guard.
-2. Reject legacy-session focus ownership and document the breaking,
-   no-compatibility boundary on every current workflow surface.
-3. Pass the complete governance regression set, apply SC0007, and atomically
-   transfer M0110/W0112 to a newly scaffolded epoch-bearing owner.
+1. Harden candidate commit authorization and the Claude edit guard to require
+   the exact schema version 2 / D0029 focus-owner pair.
+2. Commit SC0007's exact old-epoch liquidation inventory and verify that every
+   retained medium/dark claim already resolves to its canonical owner.
+3. Delete legacy session details, run the residual audit, apply SC0007, and
+   atomically transfer M0110/W0112 to a newly scaffolded epoch-bearing owner.
 
 ## Blockers
 

@@ -61,9 +61,13 @@ ROAST_REQUIRED_FROM = "2026-08-28"
 CLEANUP_REQUIRED_FROM = "2026-08-29"
 STALENESS_WARNING_DAYS = 14
 EXECUTION_FOCUS_DECISION = "D0029"
+EXECUTION_GOVERNANCE_EPOCH = "D0029"
+CURRENT_SESSION_SCHEMA_VERSION = 2
+CURRENT_FOCUS_SCHEMA_VERSION = 2
 EXECUTION_FOCUS_MODES = {"product", "governance"}
 EXECUTION_FOCUS_KEYS = {
     "schema_version",
+    "governance_epoch",
     "updated",
     "mode",
     "owner_session",
@@ -399,8 +403,21 @@ class Validator:
             self.add_error(session_file, f"missing required fields: {', '.join(sorted(missing))}")
 
         schema_version = session.get("schema_version")
-        if not self.is_int(schema_version) or schema_version < 1:
-            self.add_error(session_file, "schema_version must be a positive integer")
+        if not self.is_int(schema_version) or schema_version not in {1, 2}:
+            self.add_error(session_file, "schema_version must be supported version 1 or 2")
+        governance_epoch = session.get("governance_epoch")
+        if schema_version == CURRENT_SESSION_SCHEMA_VERSION:
+            if governance_epoch != EXECUTION_GOVERNANCE_EPOCH:
+                self.add_error(
+                    session_file,
+                    "schema_version 2 sessions must declare governance_epoch "
+                    f"{EXECUTION_GOVERNANCE_EPOCH!r}",
+                )
+        elif schema_version == 1 and "governance_epoch" in session:
+            self.add_error(
+                session_file,
+                "schema_version 1 is legacy evidence and must not declare governance_epoch",
+            )
 
         session_id = session.get("id")
         session_id_match = (
@@ -1564,6 +1581,18 @@ class Validator:
                 focus_path,
                 f"owner_session {session_id} must be in_progress with ended_at null",
             )
+        if session.get("schema_version") != CURRENT_SESSION_SCHEMA_VERSION:
+            self.add_error(
+                focus_path,
+                f"owner_session {session_id} must use current session schema_version "
+                f"{CURRENT_SESSION_SCHEMA_VERSION}; legacy sessions are evidence only",
+            )
+        if session.get("governance_epoch") != EXECUTION_GOVERNANCE_EPOCH:
+            self.add_error(
+                focus_path,
+                f"owner_session {session_id} must declare governance_epoch "
+                f"{EXECUTION_GOVERNANCE_EPOCH!r}",
+            )
         return session_path, session
 
     def validate_product_focus_target(
@@ -1666,6 +1695,7 @@ class Validator:
     def validate_current_focus_projection(
         self,
         focus_path: Path,
+        governance_epoch: str,
         mode: str,
         owner_session: str,
         product_target: tuple[str, str] | None,
@@ -1674,6 +1704,7 @@ class Validator:
         if not current.is_file() or product_target is None:
             return
         for field, expected in (
+            ("governance_epoch", governance_epoch),
             ("focus_mode", mode),
             ("focus_owner", owner_session),
             ("milestone", product_target[0]),
@@ -1720,11 +1751,20 @@ class Validator:
         if set(loaded) != EXECUTION_FOCUS_KEYS:
             self.add_error(
                 focus_path,
-                "must contain exactly schema_version, updated, mode, owner_session, "
-                "authority, target, and resume_target",
+                "must contain exactly schema_version, governance_epoch, updated, mode, "
+                "owner_session, authority, target, and resume_target",
             )
-        if loaded.get("schema_version") != 1:
-            self.add_error(focus_path, "schema_version must equal 1")
+        if loaded.get("schema_version") != CURRENT_FOCUS_SCHEMA_VERSION:
+            self.add_error(
+                focus_path,
+                f"schema_version must equal {CURRENT_FOCUS_SCHEMA_VERSION}",
+            )
+        governance_epoch = loaded.get("governance_epoch")
+        if governance_epoch != EXECUTION_GOVERNANCE_EPOCH:
+            self.add_error(
+                focus_path,
+                f"governance_epoch must equal {EXECUTION_GOVERNANCE_EPOCH!r}",
+            )
         updated = loaded.get("updated")
         if not isinstance(updated, str):
             self.add_error(focus_path, "updated must be an ISO-8601 date")
@@ -1800,7 +1840,11 @@ class Validator:
 
         if isinstance(owner_id, str):
             self.validate_current_focus_projection(
-                focus_path, mode, owner_id, product_target
+                focus_path,
+                EXECUTION_GOVERNANCE_EPOCH,
+                mode,
+                owner_id,
+                product_target,
             )
 
     def validate_current_progress(self) -> None:

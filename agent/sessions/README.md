@@ -29,10 +29,23 @@ sessions record the date or timestamp when work stopped.
 Lifecycle is not execution authority. Under D0029, only the session named by
 `agent/progress/focus.json.owner_session` may create durable content, and each
 commit declares that identity through `METAFLUX_SESSION_ID`. Scaffolding another
-session creates only a ledger. A non-owner active session may preserve its facts
-and terminally close itself through the exact record-only path. Transferring
-content authority is a record-only commit that closes the old focus owner,
-installs one new in-progress owner, and updates the focus atomically.
+session creates only a ledger. Current focus and owner records use schema
+version 2 and declare `governance_epoch: D0029`; schema version 1 sessions can
+never be selected, upgraded, grandfathered, or used as fallback task context. A
+non-owner active session may preserve its facts and terminally close itself
+through the exact record-only path only until its decision-authorized
+liquidation. Transferring content authority is a record-only commit that closes
+the old focus owner, installs one new current-epoch in-progress owner, and
+updates the focus atomically.
+
+Active SC0007 is a destructive governance migration. Before product work
+resumes, it removes every schema version 1 session's metadata, events, notes,
+summary, outputs, and transient guidance from the current tree. `$roast`
+preserves only already-promoted medium and dark claims in their existing
+canonical owners; no light roast, session-only detail, or duplicate knowledge
+archive survives. A compact liquidation manifest may retain IDs, the source Git
+revision, and settlement status solely to resolve durable references. It is not
+a session, resume point, or compatibility layer.
 
 ## Temporary guidance inbox
 

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "id": "S0100-20260831-047-breaking-governance-epoch",
   "repository": "MetaFlux-Core",
   "delivery": "0.1.0.0",

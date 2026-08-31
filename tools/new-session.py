@@ -5,7 +5,8 @@ Allocates the next semantic-scope session id for today, creates the session
 directory with a validator-clean skeleton (session.json, events.jsonl,
 summary.md, notes.md), appends the index row to agent/sessions/README.md, and
 prints the next steps. Scaffolding creates a ledger; it does not claim D0029
-execution focus or content-commit authority. Run from the repository root:
+execution focus or content-commit authority. New ledgers use schema version 2
+and declare the D0029 governance epoch. Run from the repository root:
 
     python3 tools/new-session.py 0.1.0.1 my-session-slug
 
@@ -25,6 +26,8 @@ import sys
 from pathlib import Path
 
 SESSION_ID_TEMPLATE = "S{delivery}-{date}-{sequence:03d}-{slug}"
+CURRENT_SESSION_SCHEMA_VERSION = 2
+EXECUTION_GOVERNANCE_EPOCH = "D0029"
 SESSION_ID_RE = re.compile(
     r"^S(?P<delivery>\d{4,})-(?P<date>\d{8})-"
     r"(?P<sequence>\d{3})-[a-z0-9][a-z0-9-]*$"
@@ -201,7 +204,8 @@ def main() -> int:
     session_dir.mkdir()
 
     session_document = {
-        "schema_version": 1,
+        "schema_version": CURRENT_SESSION_SCHEMA_VERSION,
+        "governance_epoch": EXECUTION_GOVERNANCE_EPOCH,
         "id": session_id,
         "repository": arguments.repository,
         "delivery": arguments.delivery,
@@ -224,7 +228,7 @@ def main() -> int:
     )
 
     first_event = {
-        "schema_version": 1,
+        "schema_version": CURRENT_SESSION_SCHEMA_VERSION,
         "seq": 1,
         "timestamp": f"{today:%Y-%m-%d}",
         "type": "objective",
@@ -301,6 +305,10 @@ def main() -> int:
             f"focus: {focus_owner} remains owner; this scaffold does not claim "
             "execution focus"
         )
+    print(
+        "governance: new sessions use schema_version 2 and governance_epoch "
+        f"{EXECUTION_GOVERNANCE_EPOCH}"
+    )
     print("next: fill the objective event, update session.json agents/milestones,")
     print("      obtain a record-only focus handoff before content work if needed,")
     print("      record decisions and results as events, then run:")

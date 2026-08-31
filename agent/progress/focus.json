@@ -1,5 +1,6 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "governance_epoch": "D0029",
   "updated": "2026-08-31",
   "mode": "governance",
   "owner_session": "S0100-20260831-047-breaking-governance-epoch",

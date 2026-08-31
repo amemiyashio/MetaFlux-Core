@@ -3,7 +3,8 @@
 ## Before changing anything
 
 1. Read the machine [execution focus](progress/focus.json) before selecting
-   durable work. Resume its exact owner and Exit Gate.
+   durable work. Require schema version 2 and `governance_epoch: D0029` on both
+   focus and owner, then resume its exact Exit Gate or governance authority.
 2. If a task matches an [expert skill](skills/README.md), follow it verbatim.
 3. Scaffold a session before durable work when a new ledger is needed:
    `python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>`. A session is
@@ -26,6 +27,14 @@ one `in_progress` owner and either one dependency-valid product Exit Gate or one
 decision-authorized governance migration. `progress/current.md` is its compact
 human projection. Other active sessions remain factual ledgers; they do not
 compete as scheduling or content-commit authority.
+
+D0029 is a breaking governance epoch. Current focus and owner sessions use
+schema version 2 and declare the exact D0029 epoch. Schema version 1 and
+pre-epoch sessions cannot receive focus or be upgraded in place. SC0007 removes
+their detailed ledgers from the current tree after `$roast` verifies that every
+retained medium/dark claim already lives in one canonical owner. A compact
+liquidation tombstone may resolve old IDs, but it is not task context,
+knowledge storage, or compatibility authority.
 
 Decision-authorized replacements of established meaning are indexed under
 [`semantic-changes/`](semantic-changes/README.md). An SC is migration authority
@@ -56,7 +65,7 @@ contract. Agent records link to canonical material instead of copying it.
 | `memory/` | Stable project, constraints, ownership, terminology, and decision index | Change only when canonical sources change |
 | `semantic-changes/` | Decision-bound breaking migration permits and durable reminders | Activate before protected history changes; apply only after complete synchronization |
 | `experience/` | Reusable procedures supported by evidence | Validate before relying on them; supersede instead of silently rewriting conclusions |
-| `progress/focus.json` | Machine execution owner, mode, and canonical product Exit Gate | Change only through a record-only current-owner update or atomic focus handoff |
+| `progress/focus.json` | Schema 2 machine execution owner, D0029 epoch, mode, and canonical product Exit Gate | Change only through a record-only current-owner update or atomic handoff to a new epoch-bearing successor |
 | `progress/current.md` | Compact human projection of the execution focus | Keep the same owner/target, current boundary, blockers, and one to three next actions |
 | `progress/checkpoints/` | Protected historical handoffs | Append corrections by default; exact D0025/SC migrations preserve factual evidence |
 | `sessions/` | Curated task objective, material decisions/results, cleanup, and resume summary | Keep compact; Git owns source history, and disposable failed-route artifacts are removed at handoff |
@@ -172,7 +181,7 @@ Use this fixed order for routine work:
 1. This `agent/README.md`.
 2. [`memory/README.md`](memory/README.md) and the indexed durable memory.
 3. [`progress/focus.json`](progress/focus.json), which selects the exact owner
-   and product Exit Gate or governance authority.
+   and product Exit Gate or governance authority; reject schema or epoch drift.
 4. The [`semantic-changes`](semantic-changes/README.md) index; load only an
    `Active` record or an `Applied` record relevant to the task.
 5. [`progress/current.md`](progress/current.md) and its latest checkpoint when
@@ -184,7 +193,8 @@ Use this fixed order for routine work:
 
 Then inspect Git status and current files before editing. Session records are
 project evidence for audits or reconstruction; do not load them by default.
-Load the focus owner's compact session record to resume it; inspect only whether
+Load the focus owner's current-schema compact session record to resume it;
+inspect only whether
 its guidance inbox has a ready packet at the control boundaries above and load
 the packet on demand. A new scaffold is not authority. If the task does not fit
 the current focus, stop before content edits and route a record-only focus

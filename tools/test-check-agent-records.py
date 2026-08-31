@@ -301,6 +301,18 @@ def with_in_progress_session(files: dict[str, str]) -> dict[str, str]:
 
 def with_product_execution_focus(files: dict[str, str]) -> dict[str, str]:
     mutated = with_in_progress_session(files)
+    session_path = f"{SESSION_DIR}/session.json"
+    session = json.loads(mutated[session_path])
+    session["schema_version"] = 2
+    session["governance_epoch"] = "D0029"
+    mutated[session_path] = json.dumps(session, indent=2) + "\n"
+    event_path = f"{SESSION_DIR}/events.jsonl"
+    events = []
+    for line in mutated[event_path].splitlines():
+        event = json.loads(line)
+        event["schema_version"] = 2
+        events.append(json.dumps(event, sort_keys=True))
+    mutated[event_path] = "\n".join(events) + "\n"
     milestone_path = "agent/plan/M0100-fixture/plan.md"
     work_path = "agent/plan/M0100-fixture/work/W0101-fixture.md"
     mutated[milestone_path] = mutated[milestone_path].replace(
@@ -316,7 +328,8 @@ def with_product_execution_focus(files: dict[str, str]) -> dict[str, str]:
     )
     mutated["agent/progress/focus.json"] = json.dumps(
         {
-            "schema_version": 1,
+            "schema_version": 2,
+            "governance_epoch": "D0029",
             "updated": "2026-08-28",
             "mode": "product",
             "owner_session": SESSION_ID,
@@ -335,6 +348,7 @@ def with_product_execution_focus(files: dict[str, str]) -> dict[str, str]:
         "status: Active\n"
         "updated: 2026-08-28\n"
         "checkpoint: P20260828-001\n"
+        "governance_epoch: D0029\n"
         "focus_mode: product\n"
         f"focus_owner: {SESSION_ID}\n"
         "milestone: M0100\n"
@@ -355,6 +369,17 @@ def update_focus_document(
     focus = json.loads(mutated[focus_path])
     focus.update(updates)
     mutated[focus_path] = json.dumps(focus, indent=2) + "\n"
+    return mutated
+
+
+def update_session_document(
+    files: dict[str, str], **updates: object
+) -> dict[str, str]:
+    mutated = dict(files)
+    session_path = f"{SESSION_DIR}/session.json"
+    session = json.loads(mutated[session_path])
+    session.update(updates)
+    mutated[session_path] = json.dumps(session, indent=2) + "\n"
     return mutated
 
 
@@ -427,6 +452,19 @@ def check_new_session_skeleton(root: Path) -> list[str]:
         problems.append("generated in-progress session has a non-null ended_at")
     if session.get("delivery") != "0.1.0.0":
         problems.append("generated session does not retain its delivery coordinate")
+    if session.get("schema_version") != 2:
+        problems.append("generated session does not use current schema_version 2")
+    if session.get("governance_epoch") != "D0029":
+        problems.append("generated session does not declare governance_epoch D0029")
+    try:
+        first_event = json.loads(
+            (session_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()[0]
+        )
+    except (OSError, json.JSONDecodeError, IndexError) as exc:
+        problems.append(f"generated event is unreadable: {exc}")
+    else:
+        if first_event.get("schema_version") != 2:
+            problems.append("generated event does not match session schema_version 2")
     if not summary.startswith("# Session Summary\n\n## Objective and outcome\n"):
         problems.append("generated summary does not use the current section shape")
     roast_skeleton = (
@@ -805,11 +843,41 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
     focus_path = Path("agent/progress/focus.json")
     agent_path = Path("agent/README.md")
     product_path = Path("src/fixture.txt")
-    active_session = '{"status":"in_progress"}\n'
-    complete_session = '{"status":"complete"}\n'
+    active_session = (
+        '{"schema_version":2,"governance_epoch":"D0029",'
+        '"status":"in_progress"}\n'
+    )
+    complete_session = (
+        '{"schema_version":2,"governance_epoch":"D0029",'
+        '"status":"complete"}\n'
+    )
+    legacy_active_session = (
+        '{"schema_version":1,"governance_epoch":"D0029",'
+        '"status":"in_progress"}\n'
+    )
 
     def focus_document(owner: str) -> str:
-        return json.dumps({"owner_session": owner}) + "\n"
+        return json.dumps(
+            {
+                "schema_version": 2,
+                "governance_epoch": "D0029",
+                "owner_session": owner,
+            }
+        ) + "\n"
+
+    def cutover_focus_document(schema_version: int, *, updated: str = "2026-08-28") -> str:
+        document: dict[str, object] = {
+            "schema_version": schema_version,
+            "updated": updated,
+            "mode": "governance",
+            "owner_session": session_id,
+            "authority": {"decision": "D0029", "semantic_change": "SC0007"},
+            "target": None,
+            "resume_target": {"milestone": "M0110", "work_item": "W0112"},
+        }
+        if schema_version == 2:
+            document["governance_epoch"] = "D0029"
+        return json.dumps(document) + "\n"
 
     def prepare_repository(*, bypass_python_gates: bool = True) -> dict[str, str]:
         if root.exists():
@@ -940,6 +1008,34 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 
+    environment = prepare_repository()
+    stage(session_path, legacy_active_session)
+    stage(focus_path, cutover_focus_document(1))
+    commit_staged("legacy SC0007 governance owner fixture")
+    stage(session_path, active_session)
+    stage(focus_path, cutover_focus_document(2))
+    stage(product_path, "atomic D0029 cutover fixture\n")
+    result = run_hook(environment)
+    if result.returncode != 0:
+        problems.append(
+            "exact atomic D0029 cutover was rejected: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_repository()
+    stage(session_path, legacy_active_session)
+    stage(focus_path, cutover_focus_document(1))
+    commit_staged("legacy SC0007 drift fixture")
+    stage(session_path, active_session)
+    stage(focus_path, cutover_focus_document(2, updated="2026-08-29"))
+    stage(product_path, "drifting D0029 cutover fixture\n")
+    result = run_hook(environment)
+    if result.returncode == 0 or "record-only" not in result.stderr:
+        problems.append(
+            "D0029 cutover accepted unrelated focus drift: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
     environment = prepare_active_head()
     stage(other_path, active_session)
     commit_staged("unrelated active session fixture")
@@ -1038,7 +1134,8 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
     environment = prepare_repository()
     stage(
         session_path,
-        '{"status":"complete","milestones":[{"status":"in_progress"}]}\n',
+        '{"schema_version":2,"governance_epoch":"D0029",'
+        '"status":"complete","milestones":[{"status":"in_progress"}]}\n',
     )
     stage(focus_path, focus_document(session_id))
     result = run_hook(environment)
@@ -1104,7 +1201,13 @@ def check_claude_focus_guard(root: Path) -> list[str]:
             root,
             session_path,
             json.dumps(
-                {"id": owner, "status": status, "ended_at": ended_at},
+                {
+                    "schema_version": 2,
+                    "governance_epoch": "D0029",
+                    "id": owner,
+                    "status": status,
+                    "ended_at": ended_at,
+                },
                 indent=2,
             )
             + "\n",
@@ -1114,7 +1217,15 @@ def check_claude_focus_guard(root: Path) -> list[str]:
         write_fixture_entry(
             root,
             "agent/progress/focus.json",
-            json.dumps({"owner_session": owner}, indent=2) + "\n",
+            json.dumps(
+                {
+                    "schema_version": 2,
+                    "governance_epoch": "D0029",
+                    "owner_session": owner,
+                },
+                indent=2,
+            )
+            + "\n",
         )
 
     def run_guard(
@@ -1696,6 +1807,34 @@ FOCUS_CASES: list[tuple[str, dict[str, str | None], bool, str]] = [
     ("valid product execution focus", PRODUCT_FOCUS_FILES, False, ""),
     ("valid governance execution focus", GOVERNANCE_FOCUS_FILES, False, ""),
     (
+        "execution focus requires schema version 2",
+        update_focus_document(PRODUCT_FOCUS_FILES, schema_version=1),
+        True,
+        "schema_version must equal 2",
+    ),
+    (
+        "execution focus requires the D0029 governance epoch",
+        update_focus_document(PRODUCT_FOCUS_FILES, governance_epoch="D0028"),
+        True,
+        "governance_epoch must equal 'D0029'",
+    ),
+    (
+        "legacy session cannot own execution focus",
+        update_session_document(
+            PRODUCT_FOCUS_FILES,
+            schema_version=1,
+            governance_epoch=None,
+        ),
+        True,
+        "must use current session schema_version 2; legacy sessions are evidence only",
+    ),
+    (
+        "focus owner requires the D0029 governance epoch",
+        update_session_document(PRODUCT_FOCUS_FILES, governance_epoch="D0028"),
+        True,
+        "must declare governance_epoch 'D0029'",
+    ),
+    (
         "execution focus owner must be in progress",
         replace(
             PRODUCT_FOCUS_FILES,
@@ -1769,6 +1908,17 @@ FOCUS_CASES: list[tuple[str, dict[str, str | None], bool, str]] = [
         ),
         True,
         "frontmatter focus_owner must match execution focus value",
+    ),
+    (
+        "current progress projects the governance epoch",
+        replace(
+            PRODUCT_FOCUS_FILES,
+            "agent/progress/current.md",
+            "governance_epoch: D0029",
+            "governance_epoch: D0028",
+        ),
+        True,
+        "frontmatter governance_epoch must match execution focus value",
     ),
     (
         "current progress bounds next actions",

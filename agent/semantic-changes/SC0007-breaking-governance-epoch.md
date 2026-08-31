@@ -31,8 +31,10 @@ superseded_by: null
   migrated by this SC.
 - Compatibility consequence: none. There is no compatibility mode, grandfather
   rule, fallback parser, old-session upgrade in place, or old-file execution
-  route. Earlier commits and records remain immutable factual evidence only;
-  evidence retention does not make their workflow executable.
+  route. Earlier commits retain original bytes as Git history only. Every schema
+  version 1 detailed ledger is removed from the current tree after its exact
+  migration inventory is committed; a compact ID tombstone does not make the
+  old workflow executable.
 
 ## Migration inventory
 
@@ -75,12 +77,15 @@ superseded_by: null
 | `agent/sessions/2026/08/S0100-20260831-045-execution-focus-governance/summary.md` | Historical | Retained evidence | Preserve the original SC0006 outcome and handoff wording byte-for-byte |
 | `agent/sessions/2026/08/S0100-20260831-045-execution-focus-governance/notes.md` | Historical | Retained evidence | Preserve original design evidence; it supplies no post-SC0007 execution authority |
 
-The other 35 affected pre-epoch active session ledgers are retained unchanged
-and named exactly in the handoff table below. Their absence of
-`governance_epoch: D0029` is intentional evidence of legacy state and becomes a
-machine rejection condition, not a compatibility case. S0112-046 receives no
-packet because its current owner directly closes it in the same atomic
-activation handoff.
+The other 35 affected pre-epoch active session ledgers are named exactly in the
+handoff table below and remain only as bounded pre-liquidation input while the
+exact protected-file inventory is prepared. Their absence of
+`governance_epoch: D0029` is intentional legacy state and becomes a machine
+rejection condition, not a compatibility case. They are not resumed or closed
+individually: their detailed directories and transient packets are deleted by
+SC0007 after inventory authorization. S0112-046 received no packet because its
+current owner directly closed it in the atomic activation handoff; its terminal
+legacy directory is liquidated with the rest.
 
 ## Active-session handoff
 
@@ -124,19 +129,25 @@ activation handoff.
 
 ## Evidence preservation
 
-Git remains the sole owner of prior bytes. The six Historical rows above stay
-unchanged and retain only revision-bound factual claims. The 35 target ledgers
-and their earlier commits also remain untouched. SC0007 changes whether a
-record can authorize future work; it does not relabel prior evidence as a pass
-under the new epoch.
+Git remains the sole owner of prior session bytes at the settlement source
+revision. The current tree retains no schema version 1 metadata, event log,
+notes, summary, output, guidance, light roast, or session-only detail after
+application. `$roast` keeps only claims already promoted as medium or dark in
+their existing canonical owners; SC0007 creates no replacement roast archive.
+A compact settlement manifest retains only canonical IDs, the source revision,
+and liquidation status so old durable references resolve as non-executable
+tombstones. This preserves factual history without relabeling old evidence as a
+pass under the new epoch.
 
 ## Future-agent reminder
 
 This governance is breaking. Read the current `AGENTS.md`,
 `agent/progress/focus.json`, `agent/progress/current.md`, matching skill, and
-current tool gates. A pre-SC0007 session is never a content owner. Scaffold a
-new session, confirm that it and focus both declare `governance_epoch: D0029`,
-and obtain an atomic handoff before continuing any old objective.
+current tool gates. A pre-SC0007 session is never a content owner or task-context
+source; its detailed current-tree ledger is liquidated. Scaffold a new session,
+confirm that it and focus both declare `governance_epoch: D0029`, and obtain an
+atomic handoff before continuing any old objective from current canonical
+project files.
 
 ## Verification
 
@@ -144,5 +155,6 @@ and obtain an atomic handoff before continuing any old objective.
 | --- | --- |
 | User breaking-change authority | Passed: explicit instruction requires destructive governance, zero compatibility, and mandatory new engineering files for later sessions |
 | Current owner convergence | Activation candidate terminally closes unstarted S0112-046 and installs one epoch-bearing SC0007 migration owner |
-| Active-session handoff | Passed at activation boundary: 35 superseding packets are Published; the directly closing owner and migration owner are excluded |
+| Active-session handoff | Activation boundary published 35 superseding packets; SC0007 now owns their deletion with the legacy ledgers instead of individual resumption |
+| Legacy liquidation | Exact protected-file inventory, medium/dark owner audit, compact tombstone, deletion, and residual check remain required before application |
 | Behavior and residual gates | Migration must still enforce the epoch in validator, hook, Claude bridge, scaffold, documentation, and regression tests before application |

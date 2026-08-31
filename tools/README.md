@@ -20,10 +20,11 @@ and independent session-only contract;
 structured guidance dispositions and terminal guidance cleanup; staleness and
 milestone mapping for terminal guidance dispositions; terminal-note cleanup;
 resolvable full session references; status-drift warnings; current-progress
-freshness; the D0029 execution-focus schema, owner lifecycle, product
-dependencies, canonical Exit Gate, governance authority, and compact current
-projection; exact skill catalog rows; domain section order; and the repository's
-restricted `agents/openai.yaml` interface and invocation-policy schema.
+freshness; the schema version 2 D0029 execution-governance epoch, owner
+lifecycle, product dependencies, canonical Exit Gate, governance authority,
+legacy-owner rejection, and compact current projection; exact skill catalog
+rows; domain section order; and the repository's restricted `agents/openai.yaml`
+interface and invocation-policy schema.
 
 ```sh
 python3 tools/check-agent-records.py .
@@ -40,10 +41,12 @@ cannot validate different code.
 Every non-empty durable commit declares `METAFLUX_SESSION_ID`. For ordinary
 content or records, that value must equal the candidate
 `agent/progress/focus.json.owner_session`, and the exact session must remain
-top-level `in_progress` with `ended_at: null`. Creating another session does not
-supply coverage. A focus metadata update with the same owner is record-only. A
-focus handoff is also record-only, is declared by the `HEAD` owner, terminally
-closes exactly that owner, and installs one resolvable in-progress candidate
+top-level `in_progress` with `ended_at: null`; focus and owner must both use
+schema version 2 and declare `governance_epoch: D0029`. Creating another session
+does not supply coverage, and a legacy session cannot become a fallback owner. A
+focus metadata update with the same owner is record-only. A focus handoff is
+also record-only, is declared by the `HEAD` owner, terminally closes exactly
+that owner, and installs one resolvable current-epoch in-progress candidate
 owner. An active non-owner has one narrower path: a record-only commit may
 terminally close exactly the session named by `METAFLUX_SESSION_ID` while
 leaving focus unchanged. None of these paths authorizes product, plan, memory,

@@ -58,6 +58,13 @@ identity and provisioning boundaries live in
   dependency-valid resume target. Session scaffolding and local testability do
   not claim or redirect focus. Content commits declare the exact owner through
   `METAFLUX_SESSION_ID`; focus transfer is an atomic record-only close/install.
+- The current execution-governance epoch is D0029. Focus and its owner use
+  schema version 2 and declare that exact epoch. Schema version 1 and pre-epoch
+  sessions cannot own focus, be upgraded in place, or provide fallback task
+  context. SC0007 liquidates their detailed ledgers from the current tree after
+  `$roast` verifies that only already-promoted medium and dark claims remain in
+  their canonical owners; a compact ID tombstone is administrative resolution,
+  not compatibility or knowledge storage.
 - A tool newly required by a repeatable workflow is versioned in the Nix-provided
   tool environment before use; this does not transfer workflow semantics or
   outputs to Nix. D0022 supersedes the broader D0021 wording.

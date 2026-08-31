@@ -35,11 +35,14 @@ honor an explicit user request to keep work uncommitted.
 ## Steps
 
 1. Resume the exact owner from `agent/progress/focus.json`. When a new ledger is
-   needed, scaffold it before its first durable edit with `python3
+   needed, first require schema version 2 and `governance_epoch: D0029` on the
+   focus and owner, then scaffold it before its first durable edit with `python3
    tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>`, use the narrowest
    useful delivery scope, and replace the objective immediately. Scaffolding
    does not claim execution focus: checkpoint/content mode belongs only to the
-   named owner, while a non-owner may only use its exact record-only close path.
+   named current-epoch owner, while a non-owner may only use its exact
+   record-only close path. A legacy ledger is not resumed or upgraded; a
+   continuing objective receives a newly scaffolded successor.
 2. Record only material decisions, non-obvious commands, verification results,
    and findings needed to resume or reproduce the outcome. Omit routine command
    chatter and raw output that does not change a decision.
@@ -118,7 +121,22 @@ A handoff commit contains records only. It terminally closes the owner from
 `progress/focus.json.owner_session` to that successor, and refreshes
 `progress/current.md` to match. The commit is declared with
 `METAFLUX_SESSION_ID` equal to the old owner because that owner authorizes the
-transfer. Product or tooling content never rides in the handoff commit.
+transfer. The successor must already use schema version 2 and the exact D0029
+epoch. Product or tooling content never rides in the handoff commit, and a
+legacy ledger cannot be installed as successor.
+
+## Destructive Epoch Settlement
+
+When an Active semantic change explicitly declares a destructive governance
+epoch, settle superseded sessions through that migration rather than preserving
+their detailed ledgers as a compatibility surface. Invoke `$roast`, verify that
+every retained medium and dark claim already has one live canonical owner, and
+then remove the old session metadata, events, notes, summaries, outputs, and
+guidance listed by the committed migration inventory. Retain no light roast,
+session-only detail, or duplicate roast archive. A compact manifest may keep
+only canonical IDs, the source Git revision, and the liquidation fact so old
+durable references resolve; it does not authorize resumption or supply task
+context. Git history owns recovery of the deleted bytes.
 
 ## Cleanup Boundaries
 

@@ -3,15 +3,19 @@
 ## Objective and outcome
 
 Own Active SC0007 and replace the remaining pre-D0029 handoff loophole with a
-breaking governance epoch. This activation record does not claim completion;
-the migration remains in progress until focus, session scaffolding, candidate
-commit gates, the Claude bridge, documentation, and tests all enforce the same
-no-compatibility boundary.
+breaking, destructive governance epoch. This activation record does not claim
+completion; the migration remains in progress until focus, session scaffolding,
+candidate commit gates, the Claude bridge, documentation, and tests all enforce
+the same no-compatibility boundary, every legacy ledger is liquidated, and only
+already-promoted medium/dark knowledge remains in canonical owners.
 
 ## Durable changes
 
 - Activation records: SC0007, the governance focus handoff, and the explicit
   D0029 epoch on this migration session.
+- Current migration policy: schema version 1 details are deleted after exact
+  inventory and roast-owner verification; Git history, compact ID tombstones,
+  and existing medium/dark canonical owners are the only retained surfaces.
 
 ## Verification
 
@@ -22,13 +26,14 @@ no-compatibility boundary.
 ## Cleanup
 
 - Removed: none at activation.
-- Retained: published transient guidance for 35 legacy active sessions; it is
-  processed by each target owner and never committed.
+- Retained temporarily: published transient guidance for 35 legacy active
+  sessions, pending deletion with the detailed old-epoch ledgers. It is not
+  committed and supplies no post-migration authority.
 
 ## Decisions and experience
 
 - D0029 remains the canonical execution-focus decision; SC0007 owns its
-  breaking, no-compatibility migration.
+  breaking, destructive, no-compatibility migration and legacy liquidation.
 
 ## roast
 

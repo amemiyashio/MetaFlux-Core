@@ -8,7 +8,9 @@ description: Cold-start repository work so rules and execution focus are read, t
 Use at the beginning of every task. A read-only inspection loads the required
 context but does not create a session. A changing task resumes the exact
 execution-focus owner when its objective matches. A newly scaffolded session is
-only a ledger until the current owner transfers focus to it.
+only a ledger until the current owner transfers focus to it. Current execution
+requires schema version 2 and `governance_epoch: D0029` on both focus and owner;
+a schema version 1 or pre-epoch ledger is evidence, never resumable authority.
 
 ## Steps
 
@@ -28,11 +30,14 @@ only a ledger until the current owner transfers focus to it.
    affected edit. If it resolves a ledger row, compose `close-decision`. A
    compatible implementation correction does not create an SC.
 4. Compare the requested durable outcome with `progress/focus.json`. If it fits
-   the named target or governance authority, resume the exact owner session. If
-   it does not fit, stop before content edits: the current owner must route a
-   record-only focus handoff before the new direction begins. An unrelated
-   `in_progress` session and an easily testable local increment do not redirect
-   focus.
+   the named target or governance authority, require the exact current schema
+   and epoch on both focus and owner, then resume that owner session. If it does
+   not fit, stop before content edits: the current owner must route a record-only
+   focus handoff before the new direction begins. An unrelated `in_progress`
+   session, a legacy objective, and an easily testable local increment do not
+   redirect focus. Continuing a legacy objective requires a newly scaffolded
+   current-epoch successor; never upgrade, reactivate, or fall back to the old
+   ledger.
 5. When a new ledger is needed, scaffold it before its first durable change:
 
    ```sh
@@ -41,9 +46,10 @@ only a ledger until the current owner transfers focus to it.
 
    Use the narrowest useful delivery scope from
    [`docs/release-versioning.md`](../../../docs/release-versioning.md). For a
-   read-only task, do not create an empty session. Scaffolding does not claim
-   execution focus or content-commit authority; a successor becomes owner only
-   through an atomic record-only handoff from the current owner.
+   read-only task, do not create an empty session. The scaffolder emits the
+   current schema version and D0029 epoch. Scaffolding does not claim execution
+   focus or content-commit authority; a successor becomes owner only through an
+   atomic record-only handoff from the current owner.
 6. When resuming an active session, inspect only whether its `guidance/` inbox
    contains a ready packet. Do not load guidance as routine session context. If
    one exists, or the user explicitly requests guidance publication or
@@ -146,6 +152,6 @@ python3 tools/check-agent-records.py .
 ```
 
 Passing means existing records, decision identities, indexes, and skill packages
-meet the repository gates. A changing task additionally needs its exact
-in-progress focus owner and a matching `METAFLUX_SESSION_ID`; a read-only task
-intentionally leaves no new record.
+meet the repository gates. A changing task additionally needs its exact schema
+version 2, D0029, in-progress focus owner and a matching
+`METAFLUX_SESSION_ID`; a read-only task intentionally leaves no new record.

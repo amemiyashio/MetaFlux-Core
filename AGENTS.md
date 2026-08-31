@@ -10,6 +10,9 @@ enforced by repository checks.
    [current progress](agent/progress/current.md), the focused milestone/work
    item and its Exit Gate, and the matching
    [expert skill](agent/skills/README.md) if one exists.
+   The current contract is D0029 schema version 2. The focus and its owner
+   session must both declare `governance_epoch: D0029`; a schema version 1 or
+   pre-epoch session is never resumed for durable work.
 2. **Scaffold a session before the first durable change.**
 
    ```sh
@@ -22,7 +25,9 @@ enforced by repository checks.
    `agent/progress/focus.json`, and that session must remain `in_progress`.
    A non-owner may only terminally close itself through the exact record-only
    path. A focus handoff is record-only and atomically closes the old owner,
-   installs one new in-progress owner, and updates the focus. Sessions close by
+   installs one newly scaffolded schema version 2 owner with the D0029 epoch,
+   and updates the focus. There is no legacy-session upgrade, compatibility,
+   fallback, or grandfather handoff. Sessions close by
    cleaning disposable work, not by archiving a copy of the worktree.
    Product and delivery identities follow
    [`docs/release-versioning.md`](docs/release-versioning.md).
@@ -60,6 +65,11 @@ enforced by repository checks.
    depth; keep `session-only` as an independent disposition. Record
    session-owned cleanup (`## Cleanup`), refresh `progress/current.md`, and
    checkpoint material handoffs with `record-session`.
+9. **Liquidate the legacy epoch.** SC0007 is destructive governance. Before it
+   applies, remove every schema version 1 session's detailed ledger from the
+   current tree. Preserve only already promoted medium/dark knowledge in its
+   existing canonical owner plus a non-executable settlement tombstone; do not
+   retain light/session-only detail or a compatibility archive.
 
 Product boundaries live in `contracts/README.md` and
 `docs/architecture/repo-layout.md`; the language wall and dependency

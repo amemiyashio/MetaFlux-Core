@@ -173,6 +173,61 @@ session_is_terminal_in_index() {
     || session_json_has_status index "$1" abandoned
 }
 
+# SC0007 needs one atomic bootstrap from the already-active schema-1 governance
+# owner to its strict schema-2 form. This is not a compatibility path: the
+# candidate focus and owner may differ from HEAD only by the exact D0029 epoch
+# fields, and the condition becomes unreachable immediately after that commit.
+is_exact_d0029_cutover() {
+  local head_owner_path="$1"
+  local candidate_owner_path="$2"
+  local head_focus_path="$candidate_root/.metaflux-head-focus.json"
+  local head_owner_state_path="$candidate_root/.metaflux-head-owner.json"
+
+  git show HEAD:agent/progress/focus.json > "$head_focus_path" 2>/dev/null \
+    || return 1
+  git show "HEAD:$head_owner_path" > "$head_owner_state_path" 2>/dev/null \
+    || return 1
+
+  python3 -c '
+import json
+import sys
+
+try:
+    head_focus = json.load(open(sys.argv[1], encoding="utf-8"))
+    candidate_focus = json.load(open(sys.argv[2], encoding="utf-8"))
+    head_owner = json.load(open(sys.argv[3], encoding="utf-8"))
+    candidate_owner = json.load(open(sys.argv[4], encoding="utf-8"))
+except (OSError, json.JSONDecodeError):
+    raise SystemExit(1)
+
+expected_focus = dict(head_focus)
+expected_focus["schema_version"] = 2
+expected_focus["governance_epoch"] = "D0029"
+expected_owner = dict(head_owner)
+expected_owner["schema_version"] = 2
+expected_owner["governance_epoch"] = "D0029"
+
+valid = (
+    head_focus.get("schema_version") == 1
+    and "governance_epoch" not in head_focus
+    and candidate_focus == expected_focus
+    and candidate_focus.get("mode") == "governance"
+    and candidate_focus.get("authority")
+        == {"decision": "D0029", "semantic_change": "SC0007"}
+    and head_owner.get("schema_version") == 1
+    and head_owner.get("governance_epoch") == "D0029"
+    and candidate_owner == expected_owner
+    and candidate_owner.get("status") == "in_progress"
+    and candidate_owner.get("ended_at") is None
+)
+raise SystemExit(0 if valid else 1)
+' \
+    "$head_focus_path" \
+    "$candidate_root/agent/progress/focus.json" \
+    "$head_owner_state_path" \
+    "$candidate_root/$candidate_owner_path"
+}
+
 if [[ "$has_staged_changes" == true ]]; then
   commit_session="${METAFLUX_SESSION_ID:-}"
   if [[ ! "$commit_session" =~ ^S[0-9]{4,}-[0-9]{8}-[0-9]{3}-[a-z0-9][a-z0-9-]*$ ]]; then
@@ -223,9 +278,18 @@ if [[ "$has_staged_changes" == true ]]; then
       echo "error: HEAD execution-focus owner $head_focus_owner does not resolve once." >&2
       exit 1
     fi
+    exact_d0029_cutover=false
+    if [[ "$candidate_focus_owner" == "$head_focus_owner" ]] \
+        && is_exact_d0029_cutover "$head_owner_path" "$candidate_owner_path"; then
+      exact_d0029_cutover=true
+    fi
     if [[ "$candidate_focus_owner" == "$head_focus_owner" ]]; then
+      if [[ "$commit_session" != "$head_focus_owner" ]]; then
+        echo "error: execution-focus metadata changes must be a record-only commit by the current owner." >&2
+        exit 1
+      fi
       if [[ "$staged_changes_are_closing_records" != true \
-            || "$commit_session" != "$head_focus_owner" ]]; then
+            && "$exact_d0029_cutover" != true ]]; then
         echo "error: execution-focus metadata changes must be a record-only commit by the current owner." >&2
         exit 1
       fi

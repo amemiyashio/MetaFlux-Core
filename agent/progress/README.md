@@ -1,11 +1,14 @@
 # Progress Records
 
 [`focus.json`](focus.json) is the machine-readable execution authority under
-D0029. It names exactly one in-progress owner and either one dependency-valid
+D0029. The current contract is schema version 2: both focus and its in-progress
+owner declare `governance_epoch: D0029`. It names either one dependency-valid
 product Exit Gate or one decision-authorized governance migration with a product
 resume target. [`current.md`](current.md) is its replaceable human projection:
-the same owner and target, the current boundary, explicit blockers, and one to
-three next actions. It is not a cumulative work queue.
+the same epoch, owner and target, the current boundary, explicit blockers, and
+one to three next actions. It is not a cumulative work queue. Schema version 1
+sessions are legacy evidence pending SC0007 liquidation and cannot be selected,
+upgraded, grandfathered, or used as fallback execution context.
 
 Historical checkpoints are protected and grouped by year under
 `checkpoints/YYYY/`.
