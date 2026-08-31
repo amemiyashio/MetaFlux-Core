@@ -110,7 +110,7 @@ copies canonical content.
 | [S0135-20260831-016-vulkan-pipeline-binding](2026/08/S0135-20260831-016-vulkan-pipeline-binding/summary.md) | 2026-08-31 | Exact | Complete | W0135 generation-scoped cache pipeline binding; actual Vulkan pipeline and warm-launch qualification remain open |
 | [S0135-20260831-017-vulkan-warm-path](2026/08/S0135-20260831-017-vulkan-warm-path/summary.md) | 2026-08-31 | Exact | Complete | W0135 identity mutation miss matrix and host-independent warm trace admission; real ICD trace and physical qualification remain open |
 | [S0134-20260831-018-vulkan-submit-admission](2026/08/S0134-20260831-018-vulkan-submit-admission/summary.md) | 2026-08-31 | Exact | Complete | W0134 transactional queue-submission ledger with generation-bound completion and completion-gated recycling; real Vulkan queue adapter remains open |
-| [S0131-20260831-019-vulkan-runtime-tools](2026/08/S0131-20260831-019-vulkan-runtime-tools/summary.md) | 2026-08-31 | Exact | In progress | W0131 on-demand Mesa Vulkan ICD and validation-layer runtime profile; physical NVIDIA and dual-driver qualification remain open |
+| [S0131-20260831-019-vulkan-runtime-tools](2026/08/S0131-20260831-019-vulkan-runtime-tools/summary.md) | 2026-08-31 | Exact | Complete | W0131 on-demand Mesa Vulkan ICD and validation-layer runtime profile; physical NVIDIA and dual-driver qualification remain open |
 
 ## Fidelity and retention
 
