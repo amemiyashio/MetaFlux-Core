@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0130
 workstream: W0135
-checkpoint: P20260831-051
+checkpoint: P20260831-052
 ---
 
 # Current Progress
@@ -280,7 +280,9 @@ Linux 9.8.
 | W0135 CTest after filesystem stage | Full `vulkan` preset passed 88/88, including filesystem corruption and invalidation regressions |
 | W0135 persistent repository | `e1288c1`; resident-first lookup hydrates validated disk entries, catalog admission protects pinned/quota files, and serialized pin/unpin/device invalidation keep both layers consistent |
 | W0135 CTest after repository stage | Full `vulkan` preset passed 88/88, including cross-instance hydration, quota, pin, and invalidation regressions |
-| W0135 current boundary | Cross-process stampede control, opaque `VkPipelineCache`, pipeline creation, warm-launch no-compiler trace, and pipeline-bound device/driver invalidation remain open |
+| W0135 cross-process coordination | `246f84b`; stable per-key `flock` plus second lookup coalesces concurrent producers across processes; lock timeout is explicit `io-error` |
+| W0135 CTest after stampede stage | Cache CTest passed five repeat runs; full `vulkan` preset passed 88/88 |
+| W0135 current boundary | Opaque `VkPipelineCache`, pipeline creation, warm-launch no-compiler trace, and pipeline-bound device/driver invalidation remain open |
 
 ## Versioned Next Work
 
@@ -379,6 +381,10 @@ Linux 9.8.
     Continue with cross-process single-key coordination and pipeline-bound
     device/driver invalidation; do not claim warm-launch qualification from
     catalog/file hydration tests.
+19. M0130/W0135 is Active after cross-process miss coalescing at
+    [P20260831-052](checkpoints/2026/P20260831-052-m0130-vulkan-cache-stampede.md).
+    Continue by binding invalidation to a real pipeline identity and proving the
+    warm path's compiler/validator/allocation exclusions.
 
 ## Tool Boundary
 

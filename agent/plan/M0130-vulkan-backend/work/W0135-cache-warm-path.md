@@ -41,8 +41,10 @@ where available; other platforms use traces and a separate p99 creation budget.
   device-bound entries can be explicitly invalidated.
 - [x] Integrate `CacheFileStore` with `CacheCatalog` for process-local
   residency, validated hydration, live-reference pinning, and quota/eviction.
-- [ ] Add cross-process stampede control and bind device/driver invalidation to
-  the pipeline boundary.
+- [x] Add cross-process single-key stampede control. `lookup_or_publish` uses a
+  stable per-key advisory lock, rechecks resident and durable stores after
+  acquisition, and invokes the producer only for a true miss.
+- [ ] Bind device/driver invalidation to the pipeline boundary.
 - [ ] Verify every key mutation causes a miss and provisional extension revisions
   deterministically invalidate incompatible entries.
 - [ ] Prove warm launch invokes no MLIR/SPIR-V compiler or validator, creates no
