@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0119-20260831-033-cdev-worker-lease",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.1.9",
+  "started_at": "2026-08-31",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "session owner"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0110",
+      "title": "Kernel and Guest Transport",
+      "status": "active",
+      "event_seqs": [1, 2]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0112",
+      "milestone_id": "M0110",
+      "title": "Local cdev Vertical Slice",
+      "status": "active"
+    }
+  ],
+  "base_revision": "eb253f3e47cd8b3d832f0dcd16e7bf83cabcef44",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

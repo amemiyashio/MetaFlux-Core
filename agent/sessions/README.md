@@ -124,6 +124,7 @@ copies canonical content.
 | [S0116-20260831-030-cdev-multi-region](2026/08/S0116-20260831-030-cdev-multi-region/summary.md) | 2026-08-31 | Exact | In progress | W0112 kernel-private four-slot registered-memory table with unique generation-bound handles, aggregate quota, and per-owner teardown; production backend import remains open |
 | [S0117-20260831-031-cdev-memory-reference](2026/08/S0117-20260831-031-cdev-memory-reference/summary.md) | 2026-08-31 | Exact | In progress | W0112 cdev direct backend-memory reference retained through sync/async completion, cancellation, and backpressure; production registered-memory import remains open |
 | [S0118-20260831-032-cdev-memory-import](2026/08/S0118-20260831-032-cdev-memory-import/summary.md) | 2026-08-31 | Exact | In progress | W0112 resolver-side registered-memory importer exercised with the real CPU backend; daemon object-table activation remains open |
+| [S0119-20260831-033-cdev-worker-lease](2026/08/S0119-20260831-033-cdev-worker-lease/summary.md) | 2026-08-31 | Exact | In progress | W0112 generation/view-bound cdev worker lease activation, paired queue mapping, and deterministic UAPI status handling; daemon object-table activation remains open |
 
 ## Fidelity and retention
 

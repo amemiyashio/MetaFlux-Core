@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-077
+checkpoint: P20260831-078
 ---
 
 # Current Progress
@@ -44,7 +44,10 @@ the bounded multi-region registered-memory table is now recorded at
 the direct backend-memory reference lifetime is recorded at
 [P20260831-076](checkpoints/2026/P20260831-076-m0110-cdev-memory-reference.md),
 and the resolver-side registered-memory importer seam is now recorded at
-[P20260831-077](checkpoints/2026/P20260831-077-m0110-cdev-memory-import.md);
+[P20260831-077](checkpoints/2026/P20260831-077-m0110-cdev-memory-import.md).
+The generation/view-bound `CdevWorkerSession`, control-fd paired queue mapping,
+and deterministic UAPI status boundary are now recorded at
+[P20260831-078](checkpoints/2026/P20260831-078-m0110-cdev-worker-lease.md);
 daemon object-table activation, generation replacement, and non-cancellable
 backend wait policy remain open.
 W0113 is Active with its static vfio-user control-plane stage recorded at
