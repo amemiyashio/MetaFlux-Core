@@ -23,3 +23,7 @@ The verified replacement of static agent identity mappings with agent-provided
 harness-subject derivation is recorded in
 [`agent-harness-commit-identity.md`](agent-harness-commit-identity.md) (D0028);
 SC0004 owns its synchronized migration.
+The proposed replacement of global active-session commit coverage with one
+Exit-Gate-bound execution focus is recorded in
+[`execution-focus-governance.md`](execution-focus-governance.md) (D0029);
+SC0006 owns the active migration.
