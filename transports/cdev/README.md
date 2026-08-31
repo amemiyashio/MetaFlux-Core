@@ -119,6 +119,11 @@ reference is released if source resolution fails. The adapter does not own or
 infer object lifetime, so its lookup owner must keep the view valid until the
 worker finishes its reference callbacks.
 
+The worker view may intentionally omit the payload arena when a bound backend
+uses `CdevObjectTableResolver` for region COPY. Queue-only views still reject
+direct payload COPY and LAUNCH with `MF_SHARED_NOT_SUPPORTED`; the payload
+mapping remains an independent caller-owned data-plane resource.
+
 `metafluxd` now composes this adapter in its embedded CPU region-COPY path. A
 session creates a CPU backend instance/context/queue, exposes its authoritative
 object table through the lookup callback, imports only validated subranges, and

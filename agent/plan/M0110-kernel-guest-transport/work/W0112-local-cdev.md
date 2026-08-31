@@ -123,6 +123,10 @@ and arithmetic operation is validated.
   permissions, and ranges, and validated subranges are imported through the
   backend C ABI before COPY. Imported handles are released on every completion
   path; the public completion and copy-accounting records remain unchanged.
+- [x] Permit a queue-only worker view for daemon-owned region COPY. The worker
+  requires a payload arena for direct COPY and LAUNCH, while a bound
+  object-table resolver may consume the leased queue without mapping the
+  caller-owned payload arena.
 - [x] Retain an offline queue mapping as a VMA tombstone after module teardown
   and reclaim its backing under the cdev lock when the final queue VMA closes.
 - [x] Mark the current generation offline and wake waiters when the queue owner
