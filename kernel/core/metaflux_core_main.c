@@ -33,7 +33,10 @@
 #define MF_CDEV_MAPPING_SIZE (MF_CDEV_SINGLE_MAPPING_SIZE * (size_t)2)
 #define MF_CDEV_PAYLOAD_PGOFF_V0 2UL
 #define MF_CDEV_PAYLOAD_MAX_SIZE (UINT64_C(67108864))
-#define MF_CDEV_REGISTERED_MEMORY_HANDLE UINT64_C(3)
+#define MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS 4U
+#define MF_CDEV_REGISTERED_MEMORY_MAX_BYTES \
+	(MF_CDEV_PAYLOAD_MAX_SIZE * (u64)MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS)
+#define MF_CDEV_REGISTERED_MEMORY_FIRST_HANDLE UINT64_C(3)
 
 struct mf_cdev_file {
 	bool control;
@@ -99,7 +102,8 @@ struct mf_cdev_registered_memory {
 static DEFINE_MUTEX(mf_cdev_lock);
 static struct mf_cdev_queue mf_cdev_queue;
 static struct mf_cdev_memory mf_cdev_payload;
-static struct mf_cdev_registered_memory mf_cdev_registered;
+static struct mf_cdev_registered_memory
+	mf_cdev_registered[MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS];
 static struct miscdevice mf_cdev_data_device;
 
 static void mf_cdev_queue_release(struct kref *reference)
@@ -258,13 +262,43 @@ static void mf_cdev_registered_memory_destroy(struct mf_cdev_registered_memory *
 static bool mf_cdev_registered_memory_take_locked(struct mf_cdev_file *owner, u64 handle,
 							  struct mf_cdev_registered_memory *out_memory)
 {
-	if (out_memory == NULL || !mf_cdev_registered.online ||
-	    (owner != NULL && mf_cdev_registered.owner != owner) ||
-	    (handle != 0U && mf_cdev_registered.handle != handle))
+	unsigned int index;
+
+	if (out_memory == NULL)
 		return false;
-	*out_memory = mf_cdev_registered;
-	memset(&mf_cdev_registered, 0, sizeof(mf_cdev_registered));
-	return true;
+	for (index = 0; index < MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS; ++index) {
+		struct mf_cdev_registered_memory *memory = &mf_cdev_registered[index];
+
+		if (!memory->online || (owner != NULL && memory->owner != owner) ||
+		    (handle != 0U && memory->handle != handle))
+			continue;
+		*out_memory = *memory;
+		memset(memory, 0, sizeof(*memory));
+		return true;
+	}
+	return false;
+}
+
+static bool mf_cdev_registered_memory_has_owner_locked(const struct mf_cdev_file *owner)
+{
+	unsigned int index;
+
+	for (index = 0; index < MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS; ++index) {
+		if (mf_cdev_registered[index].online && mf_cdev_registered[index].owner == owner)
+			return true;
+	}
+	return false;
+}
+
+static bool mf_cdev_registered_memory_handle_exists_locked(u64 handle)
+{
+	unsigned int index;
+
+	for (index = 0; index < MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS; ++index) {
+		if (mf_cdev_registered[index].online && mf_cdev_registered[index].handle == handle)
+			return true;
+	}
+	return false;
 }
 
 static int mf_cdev_memory_alloc(struct mf_cdev_file *file, void __user *argument)
@@ -373,6 +407,8 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 	long pinned;
 	int result;
 	bool reap_registered = false;
+	unsigned int slot_index = MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS;
+	u64 registered_handle = 0U;
 
 	memset(&sg_table, 0, sizeof(sg_table));
 	memset(&retired, 0, sizeof(retired));
@@ -392,15 +428,17 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 		    request.alignment != 0U || request.offset != 0U || request.fd != -1)
 			return -EINVAL;
 		mutex_lock(&mf_cdev_lock);
-		if (!mf_cdev_registered.online || mf_cdev_registered.owner != file ||
-		    mf_cdev_registered.handle != request.handle) {
-			bool was_online = mf_cdev_registered.online;
+		if (!mf_cdev_registered_memory_handle_exists_locked(request.handle)) {
+			mutex_unlock(&mf_cdev_lock);
+			return -ENOENT;
+		}
+		if (!mf_cdev_registered_memory_take_locked(file, request.handle, &retired)) {
 
 			mutex_unlock(&mf_cdev_lock);
-			return was_online ? -EPERM : -ENOENT;
+			return -EPERM;
 		}
-		reap_registered = mf_cdev_registered_memory_take_locked(file, request.handle, &retired);
-		file->memory_registered = false;
+		reap_registered = true;
+		file->memory_registered = mf_cdev_registered_memory_has_owner_locked(file);
 		mutex_unlock(&mf_cdev_lock);
 		if (reap_registered)
 			mf_cdev_registered_memory_destroy(&retired);
@@ -487,29 +525,58 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 							     dma_direction, dma_nents, mm, request.flags);
 		return -ENODEV;
 	}
-	if (mf_cdev_registered.online || mf_cdev_registered.pages != NULL) {
-		mutex_unlock(&mf_cdev_lock);
-		mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,
+	{
+		u64 registered_bytes = 0U;
+		unsigned int index;
+
+		for (index = 0; index < MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS; ++index) {
+			struct mf_cdev_registered_memory *memory = &mf_cdev_registered[index];
+
+			if (memory->online || memory->pages != NULL) {
+				if (registered_bytes > MF_CDEV_REGISTERED_MEMORY_MAX_BYTES ||
+				    memory->byte_count > MF_CDEV_REGISTERED_MEMORY_MAX_BYTES - registered_bytes) {
+					mutex_unlock(&mf_cdev_lock);
+					mf_cdev_registered_resources_release(pages, page_count, &sg_table,
+								     dma_device, dma_direction, dma_nents, mm,
+								     request.flags);
+					return -EBUSY;
+				}
+				registered_bytes += memory->byte_count;
+				continue;
+			}
+			if (slot_index == MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS)
+				slot_index = index;
+		}
+		if (slot_index == MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS ||
+		    request.byte_count > MF_CDEV_REGISTERED_MEMORY_MAX_BYTES - registered_bytes) {
+			mutex_unlock(&mf_cdev_lock);
+			mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,
 							     dma_direction, dma_nents, mm, request.flags);
-		return -EBUSY;
+			return -EBUSY;
+		}
 	}
-	mf_cdev_registered.pages = pages;
-	mf_cdev_registered.page_count = page_count;
-	mf_cdev_registered.sg_table = sg_table;
-	mf_cdev_registered.dma_device = dma_device;
-	mf_cdev_registered.dma_direction = dma_direction;
-	mf_cdev_registered.dma_nents = dma_nents;
-	mf_cdev_registered.mm = mm;
-	mf_cdev_registered.user_address = request.offset;
-	mf_cdev_registered.byte_count = request.byte_count;
-	mf_cdev_registered.handle = MF_CDEV_REGISTERED_MEMORY_HANDLE;
-	mf_cdev_registered.generation = mf_cdev_queue.generation;
-	mf_cdev_registered.flags = request.flags;
-	mf_cdev_registered.owner = file;
-	mf_cdev_registered.online = true;
+	{
+		struct mf_cdev_registered_memory *memory = &mf_cdev_registered[slot_index];
+
+		memory->pages = pages;
+		memory->page_count = page_count;
+		memory->sg_table = sg_table;
+		memory->dma_device = dma_device;
+		memory->dma_direction = dma_direction;
+		memory->dma_nents = dma_nents;
+		memory->mm = mm;
+		memory->user_address = request.offset;
+		memory->byte_count = request.byte_count;
+		memory->handle = MF_CDEV_REGISTERED_MEMORY_FIRST_HANDLE + slot_index;
+		memory->generation = mf_cdev_queue.generation;
+		memory->flags = request.flags;
+		memory->owner = file;
+		memory->online = true;
+		registered_handle = memory->handle;
+	}
 	file->memory_registered = true;
-	request.handle = mf_cdev_registered.handle;
-	request.generation = mf_cdev_registered.generation;
+	request.handle = registered_handle;
+	request.generation = mf_cdev_queue.generation;
 	request.alignment = PAGE_SIZE;
 	request.fd = -1;
 	memset(&sg_table, 0, sizeof(sg_table));
@@ -517,13 +584,8 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 
 	if (copy_to_user(argument, &request, sizeof(request)) != 0) {
 		mutex_lock(&mf_cdev_lock);
-		if (mf_cdev_registered.owner == file &&
-		    mf_cdev_registered.handle == MF_CDEV_REGISTERED_MEMORY_HANDLE) {
-			reap_registered = mf_cdev_registered_memory_take_locked(file,
-										 MF_CDEV_REGISTERED_MEMORY_HANDLE,
-										 &retired);
-			file->memory_registered = false;
-		}
+		reap_registered = mf_cdev_registered_memory_take_locked(file, registered_handle, &retired);
+		file->memory_registered = mf_cdev_registered_memory_has_owner_locked(file);
 		mutex_unlock(&mf_cdev_lock);
 		if (reap_registered)
 			mf_cdev_registered_memory_destroy(&retired);
@@ -559,7 +621,7 @@ static int mf_cdev_negotiate(struct mf_cdev_file *file, void __user *argument)
 	request.descriptor_size = sizeof(mf_ring_descriptor_v1);
 	request.ring_order = ilog2(MF_CDEV_RING_CAPACITY);
 	request.max_queues = 1U;
-	request.max_regions = 1U;
+	request.max_regions = MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS;
 	request.max_inflight = MF_CDEV_RING_CAPACITY;
 	request.dma_width = 64U;
 	request.dma_alignment = PAGE_SIZE;
@@ -1004,12 +1066,12 @@ static int mf_cdev_open_data(struct inode *inode, struct file *file_pointer)
 static int mf_cdev_release(struct inode *inode, struct file *file_pointer)
 {
 	struct mf_cdev_file *file = file_pointer->private_data;
-	struct mf_cdev_registered_memory retired;
-	bool reap_registered = false;
+	struct mf_cdev_registered_memory retired[MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS];
+	unsigned int retired_count = 0U;
 
 	if (file == NULL)
 		return 0;
-	memset(&retired, 0, sizeof(retired));
+	memset(retired, 0, sizeof(retired));
 	mutex_lock(&mf_cdev_lock);
 	if (file->queue_created) {
 		if (mf_cdev_queue.queue_owner == file)
@@ -1041,13 +1103,15 @@ static int mf_cdev_release(struct inode *inode, struct file *file_pointer)
 			kref_put(&mf_cdev_payload.refs, mf_cdev_payload_release);
 		}
 	}
-	if (mf_cdev_registered.owner == file) {
-		reap_registered = mf_cdev_registered_memory_take_locked(file, 0U, &retired);
-		file->memory_registered = false;
-	}
+	while (retired_count < MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS &&
+	       mf_cdev_registered_memory_take_locked(file, 0U, &retired[retired_count]))
+		++retired_count;
+	file->memory_registered = false;
 	mutex_unlock(&mf_cdev_lock);
-	if (reap_registered)
-		mf_cdev_registered_memory_destroy(&retired);
+	while (retired_count > 0U) {
+		--retired_count;
+		mf_cdev_registered_memory_destroy(&retired[retired_count]);
+	}
 	kfree(file);
 	return 0;
 }
@@ -1135,10 +1199,10 @@ fail_mapping:
 
 static void __exit mf_cdev_exit(void)
 {
-	struct mf_cdev_registered_memory retired;
-	bool reap_registered;
+	struct mf_cdev_registered_memory retired[MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS];
+	unsigned int retired_count = 0U;
 
-	memset(&retired, 0, sizeof(retired));
+	memset(retired, 0, sizeof(retired));
 	misc_deregister(&mf_cdev_data_device);
 	misc_deregister(&mf_cdev_control_device);
 	mutex_lock(&mf_cdev_lock);
@@ -1169,14 +1233,14 @@ static void __exit mf_cdev_exit(void)
 			kref_put(&mf_cdev_payload.refs, mf_cdev_payload_release);
 		}
 	}
-	reap_registered = mf_cdev_registered.pages != NULL;
-	if (reap_registered) {
-		retired = mf_cdev_registered;
-		memset(&mf_cdev_registered, 0, sizeof(mf_cdev_registered));
-	}
+	while (retired_count < MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS &&
+	       mf_cdev_registered_memory_take_locked(NULL, 0U, &retired[retired_count]))
+		++retired_count;
 	mutex_unlock(&mf_cdev_lock);
-	if (reap_registered)
-		mf_cdev_registered_memory_destroy(&retired);
+	while (retired_count > 0U) {
+		--retired_count;
+		mf_cdev_registered_memory_destroy(&retired[retired_count]);
+	}
 }
 
 module_init(mf_cdev_init);

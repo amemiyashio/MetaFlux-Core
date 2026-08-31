@@ -15,19 +15,22 @@ returned `offset` is the `MF_UAPI_MMAP_PAYLOAD_V0` mapping offset and `fd` remai
 offline; existing VMAs and an in-flight allocation retain a tombstone until
 their final references close.
 
-`MEMORY_REGISTER` accepts one caller-owned range up to 64 MiB. The C17 client
-passes the virtual address in `offset`, the exact byte count in `byte_count`,
-`fd=-1`, and `READ`/`WRITE` direction flags. The kernel charges the current
-process's memlock quota, pins full pages with `pin_user_pages_fast()` using
-`FOLL_LONGTERM` and optional `FOLL_WRITE`, and builds an SG table. A returned
-kind-`REGISTERED` memory record is generation-bound; `mf_cdev_memory_close_v0`
-issues the matching unregister request, while owner close also revokes the
-registration. The kernel maps the SG table with one direction derived from
-the READ/WRITE flags through the data cdev's DMA device, and every unregister,
-owner-close, module-exit, and map-failure path unmaps before SG teardown,
-dirty-unpin for device-written pages, and memlock release. This stage does not
-expose backend memory import or in-flight worker references, and it does not
-qualify a physical GPU DMA master; those remain W0112/W0114 work.
+`MEMORY_REGISTER` accepts up to four caller-owned ranges, each up to 64 MiB,
+with a 256 MiB aggregate quota per module generation. The C17 client passes the
+virtual address in `offset`, the exact byte count in `byte_count`, `fd=-1`, and
+`READ`/`WRITE` direction flags. The kernel charges the current process's
+memlock quota, pins full pages with `pin_user_pages_fast()` using
+`FOLL_LONGTERM` and optional `FOLL_WRITE`, and builds an independent SG table
+per slot. Each returned kind-`REGISTERED` memory record has a unique
+generation-bound handle (`3` through `6`); `mf_cdev_memory_close_v0` issues the
+matching unregister request, while owner close revokes every slot owned by the
+file. A fifth slot or an aggregate quota overflow returns `-EBUSY`. The kernel
+maps each SG table with one direction derived from the READ/WRITE flags through
+the data cdev's DMA device, and every unregister, owner-close, module-exit, and
+map-failure path unmaps before SG teardown, dirty-unpin for device-written
+pages, and memlock release. This stage does not expose backend memory import or
+in-flight worker references, and it does not qualify a physical GPU DMA master;
+those remain W0112/W0114 work.
 
 Closing the queue owner or worker lease transitions the current generation to an
 offline tombstone before waking waiters. Existing queue VMAs remain mapped until

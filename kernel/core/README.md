@@ -13,17 +13,18 @@ connected.
 `MF_UAPI_MMAP_PAYLOAD_V0`; owner close transitions it to an offline tombstone and
 the backing is reclaimed only after the root, owner, VMA, and active allocation
 references all drain. `MEMORY_REGISTER` accepts
-one caller-owned range up to the same bound, charges the current process's
+up to four caller-owned ranges, each up to 64 MiB, with a 256 MiB aggregate
+quota per generation. It charges the current process's
 memlock quota, pins full pages with `pin_user_pages_fast()` using
-`FOLL_LONGTERM` and optional `FOLL_WRITE`, and builds an SG table. The SG table
-is direction-mapped through the data cdev's DMA device. Unregister and owner
-close remove the live object under the cdev lock, then unmap the SG table, free
-it, dirty-unpin device-written pages, release the memlock charge, and drop the
-mm reference outside the lock. A map failure unwinds in the same order before
-publication. The generated registration handle is a deterministic fixture
-handle (`3`) for the current generation. This proves the kernel pin/map
-lifetime only; a physical GPU DMA master, backend memory import, and worker
-references remain unqualified. Queue creation and worker leasing
+`FOLL_LONGTERM` and optional `FOLL_WRITE`, and builds an independent SG table
+per slot. Each SG table is direction-mapped through the data cdev's DMA device.
+Unregister and owner close remove live slots under the cdev lock, then unmap
+each SG table, free it, dirty-unpin device-written pages, release the memlock
+charge, and drop the mm reference outside the lock. A map failure unwinds in
+the same order before publication. Registration handles are unique per slot
+(`3` through `6`) and generation-bound. This proves the kernel pin/map lifetime
+only; a physical GPU DMA master, backend memory import, and worker references
+remain unqualified. Queue creation and worker leasing
 accept optional eventfd descriptors, retain kernel references, and reject a second
 eventfd owner for the same generation.
 
