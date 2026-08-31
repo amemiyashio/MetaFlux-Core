@@ -136,6 +136,7 @@ copies canonical content.
 | [S0122-20260831-042-qmp-socket-lifecycle-bridge](2026/08/S0122-20260831-042-qmp-socket-lifecycle-bridge/summary.md) | 2026-08-31 | Exact | Complete | W0122 QMP socket-to-Coordinator completion bridge with separate transport/lifecycle outcomes and pending/error containment |
 | [S0122-20260831-043-provider-view-freeze](2026/08/S0122-20260831-043-provider-view-freeze/summary.md) | 2026-08-31 | Exact | Complete | W0122 provider-view revision validation and CUDA/NVML enumeration-freeze regressions |
 | [S0123-20260831-044-m0120-producer-ingress](2026/08/S0123-20260831-044-m0120-producer-ingress/summary.md) | 2026-08-31 | Exact | Complete | W0122 immediate producer capture/submit ingress with strict event routing and stale-observation regression |
+| [S0100-20260831-045-execution-focus-governance](2026/08/S0100-20260831-045-execution-focus-governance/summary.md) | 2026-08-31 | Exact | In progress | TODO: one-line summary |
 
 ## Fidelity and retention
 

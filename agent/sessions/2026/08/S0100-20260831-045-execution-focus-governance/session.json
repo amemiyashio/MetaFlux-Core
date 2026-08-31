@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "id": "S0100-20260831-045-execution-focus-governance",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.0.0",
+  "started_at": "2026-08-31",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "repository execution-focus governance implementer"
+    }
+  ],
+  "milestones": [],
+  "work_items": [],
+  "base_revision": "6dcee5d53dea9b0d4f44d52d778faadacc4f785d",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
