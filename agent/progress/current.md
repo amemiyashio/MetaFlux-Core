@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0110
-workstream: W0112
-checkpoint: P20260831-066
+workstream: W0113
+checkpoint: P20260831-067
 ---
 
 # Current Progress
@@ -67,6 +67,9 @@ W0112's payload root/owner/VMA/active-allocation-operation kref graph is
 recorded at [P20260831-039](checkpoints/2026/P20260831-039-m0110-payload-krefs.md).
 W0113's compile-checked static guest PCI resource binder is recorded at
 [P20260831-040](checkpoints/2026/P20260831-040-m0110-static-guest-pci.md).
+W0113's host-independent paired guest-ring adapter and success-only BAR2
+doorbell callback are recorded at
+[P20260831-067](checkpoints/2026/P20260831-067-m0110-vfio-user-guest-ring.md).
 M0130 is now Active; W0131's Vulkan capability ABI, opt-in tool epoch, and
 truthful host probe are recorded at
 [P20260831-041](checkpoints/2026/P20260831-041-m0130-vulkan-capability.md).
@@ -252,7 +255,8 @@ Linux 9.8.
 | W0113 focused transport tests | Schema, cdev, guest, and server tests passed 7/7; full dev CTest passed 72/72 |
 | W0113 static vfio-user control fixture | Generated GET_INFO reply, static BAR0/BAR2/BAR4 profile, generation/epoch DMA map ledger, overlap and reset rejection, and `No_reply` unmap passed |
 | W0113 static guest PCI binder | `cb118f1`; Linux 6.18.42 GCC Kbuild built `metaflux_pci.ko`, validating CI VID/DID/class and BAR0/BAR2/BAR4 sizes, mapping BAR0/BAR2, reserving two MSI-X vectors, and reversing teardown |
-| W0113 current boundary | The static PCI resource binder is recorded; pinned QEMU/libvfio-user, BAR doorbell/MSI-X steady state, guest rings/DMA lifetime, Add/Copy path, drain/tombstone faults, and package qualification remain open |
+| W0113 guest ring adapter | `9a5cb6b`; paired generated rings, registry/generation/capacity checks, payload bounds, completion polling/waits, and success-only BAR2 callback; focused guest CTest and full dev CTest 84/84 |
+| W0113 current boundary | Static PCI binder and host-independent guest ring seam are recorded; pinned QEMU/libvfio-user, actual BAR2 MMIO/MSI-X, generation-bound DMA lifetime, Add/Copy path, drain/tombstone faults, and package qualification remain open |
 | W0114 bounded transport fault matrix | `700b7c8`; cdev COPY disposition checks and completion backpressure/FIFO retry, plus vfio-user malformed framing, stale unmap, duplicate-range, and DMA-overflow regressions; focused transport tests 2/2 and full dev CTest 82/82 |
 | W0114 current boundary | Malformed and recoverable userspace/socketpair faults are recorded; kernel ioctl/BAR fuzzing, MSI-X, live DMA/backend references, ownership-death injection, native/compat negotiation, and the base ABI freeze remain open |
 | W0121 lifecycle model | Extension manifest imports the frozen M0110 root by hash; bounded checker passed 949 states/4,012 transitions/326 complete sequences and 15 direct boundary checks, including CUDA/NVML membership, loss, and reinitialization invariants |
