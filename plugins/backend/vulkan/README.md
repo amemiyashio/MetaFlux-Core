@@ -79,6 +79,15 @@ generation are stale and are not reused by identity. The pool is an ownership
 and admission model only: Vulkan command buffers, queue submission, pipeline
 creation, and driver timing still belong to the later integration stage.
 
+The `QueueSubmissionLedger` composes that pool with the stream graph behind one
+mutex-protected admission boundary. It acquires a finite resource before graph
+validation, cancels the resource when validation rejects the plan, assigns a
+monotonic generation-bound completion value only after both admissions succeed,
+and recycles only through an observed completion. Reconfiguration resets the
+graph and resource generation together and rejects in-flight work. The ledger
+returns a complete host-independent plan/resource/completion tuple; it does not
+create Vulkan objects or claim `vkQueueSubmit2` execution.
+
 The cache model defines deterministic portable and device-bound identities from
 Kernel IR, compiler/lowering/tool epochs, target and specialization digests,
 argument/backend ABI, and physical device/driver UUIDs. Its bounded catalog

@@ -39,6 +39,10 @@ a capability diagnostic and never switch an established context to CPU.
   resources are acquired per generation/stream, submitted with a monotonic
   completion timeline, recycled only after observed completion, and rejected
   across generation changes or while in flight.
+- [x] Compose stream planning and resource ownership in a host-independent
+  `QueueSubmissionLedger`: failed graph validation returns the acquired resource,
+  successful admission yields one generation-bound completion tuple, and
+  reconfiguration resets both authorities only after in-flight work drains.
 - [ ] Bind the resource model to pipeline creation, batching, and
   `vkQueueSubmit2` timeline completion into the M0110 timeline.
 - [ ] Implement Graph IR FIFO/cross-stream dependencies, copy visibility,

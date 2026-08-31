@@ -195,12 +195,30 @@ CommandResourceStatus CommandResourcePool::submit(const CommandResource& resourc
   return CommandResourceStatus::success;
 }
 
+CommandResourceStatus CommandResourcePool::cancel(const CommandResource& resource) noexcept {
+  if (resource.generation == 0U || resource.generation != generation_) {
+    return CommandResourceStatus::stale_generation;
+  }
+  Slot* slot = find_slot(resource);
+  if (slot == nullptr) {
+    return CommandResourceStatus::not_found;
+  }
+  if (slot->state != SlotState::acquired) {
+    return slot->state == SlotState::submitted ? CommandResourceStatus::busy
+                                               : CommandResourceStatus::not_found;
+  }
+  slot->state = SlotState::available;
+  slot->resource = CommandResource{};
+  return CommandResourceStatus::success;
+}
+
 CommandResourceStatus CommandResourcePool::recycle(std::uint64_t generation,
                                                    std::uint64_t completed_value) noexcept {
   if (generation == 0U || generation != generation_) {
     return CommandResourceStatus::stale_generation;
   }
-  if (completed_value < last_completed_timeline_ || completed_value > last_submission_timeline_) {
+  if (completed_value == 0U || completed_value < last_completed_timeline_ ||
+      completed_value > last_submission_timeline_) {
     return CommandResourceStatus::invalid_timeline;
   }
   last_completed_timeline_ = completed_value;
@@ -287,6 +305,184 @@ const char* command_resource_status_string(CommandResourceStatus status) noexcep
     return "resource-id-exhausted";
   case CommandResourceStatus::timeline_exhausted:
     return "timeline-exhausted";
+  }
+  return "unknown";
+}
+
+QueueSubmissionStatus QueueSubmissionLedger::map(StreamStatus status) noexcept {
+  switch (status) {
+  case StreamStatus::success:
+    return QueueSubmissionStatus::success;
+  case StreamStatus::invalid_argument:
+    return QueueSubmissionStatus::invalid_argument;
+  case StreamStatus::stale_generation:
+    return QueueSubmissionStatus::stale_generation;
+  case StreamStatus::unknown_stream:
+    return QueueSubmissionStatus::unknown_stream;
+  case StreamStatus::invalid_visibility:
+    return QueueSubmissionStatus::invalid_visibility;
+  case StreamStatus::dependency_not_ready:
+    return QueueSubmissionStatus::dependency_not_ready;
+  case StreamStatus::duplicate_dependency:
+    return QueueSubmissionStatus::duplicate_dependency;
+  case StreamStatus::too_many_dependencies:
+    return QueueSubmissionStatus::too_many_dependencies;
+  case StreamStatus::timeline_exhausted:
+    return QueueSubmissionStatus::timeline_exhausted;
+  }
+  return QueueSubmissionStatus::invalid_argument;
+}
+
+QueueSubmissionStatus QueueSubmissionLedger::map(CommandResourceStatus status) noexcept {
+  switch (status) {
+  case CommandResourceStatus::success:
+    return QueueSubmissionStatus::success;
+  case CommandResourceStatus::invalid_argument:
+    return QueueSubmissionStatus::invalid_argument;
+  case CommandResourceStatus::stale_generation:
+    return QueueSubmissionStatus::stale_generation;
+  case CommandResourceStatus::exhausted:
+    return QueueSubmissionStatus::resource_exhausted;
+  case CommandResourceStatus::busy:
+    return QueueSubmissionStatus::busy;
+  case CommandResourceStatus::not_found:
+    return QueueSubmissionStatus::not_found;
+  case CommandResourceStatus::invalid_timeline:
+    return QueueSubmissionStatus::invalid_timeline;
+  case CommandResourceStatus::resource_id_exhausted:
+    return QueueSubmissionStatus::resource_exhausted;
+  case CommandResourceStatus::timeline_exhausted:
+    return QueueSubmissionStatus::timeline_exhausted;
+  }
+  return QueueSubmissionStatus::invalid_argument;
+}
+
+QueueSubmissionStatus QueueSubmissionLedger::create_stream(std::uint64_t stream_id) {
+  std::lock_guard lock(mutex_);
+  return map(graph_.create_stream(stream_id));
+}
+
+QueueSubmissionStatus QueueSubmissionLedger::submit(std::uint64_t generation,
+                                                    std::uint64_t stream_id, OperationKind kind,
+                                                    Visibility visibility,
+                                                    std::span<const Dependency> dependencies,
+                                                    QueueSubmission* out_submission) {
+  if (out_submission == nullptr) {
+    return QueueSubmissionStatus::invalid_argument;
+  }
+  std::lock_guard lock(mutex_);
+  if (generation == 0U) {
+    return QueueSubmissionStatus::invalid_argument;
+  }
+  if (generation != generation_) {
+    return QueueSubmissionStatus::stale_generation;
+  }
+  if (next_completion_value_ == std::numeric_limits<std::uint64_t>::max()) {
+    return QueueSubmissionStatus::timeline_exhausted;
+  }
+
+  CommandResource resource{};
+  const auto acquired = resources_.acquire(generation, stream_id, &resource);
+  if (acquired != CommandResourceStatus::success) {
+    return map(acquired);
+  }
+  SubmissionPlan plan{};
+  const auto planned = graph_.submit(generation, stream_id, kind, visibility, dependencies, &plan);
+  if (planned != StreamStatus::success) {
+    static_cast<void>(resources_.cancel(resource));
+    return map(planned);
+  }
+  const auto completion_value = next_completion_value_;
+  const auto submitted = resources_.submit(resource, completion_value);
+  if (submitted != CommandResourceStatus::success) {
+    static_cast<void>(resources_.cancel(resource));
+    return map(submitted);
+  }
+  out_submission->plan = plan;
+  out_submission->resource = resource;
+  out_submission->completion_value = completion_value;
+  ++next_completion_value_;
+  return QueueSubmissionStatus::success;
+}
+
+QueueSubmissionStatus QueueSubmissionLedger::complete(std::uint64_t generation,
+                                                      std::uint64_t completed_value) noexcept {
+  std::lock_guard lock(mutex_);
+  if (generation == 0U) {
+    return QueueSubmissionStatus::invalid_argument;
+  }
+  return map(resources_.recycle(generation, completed_value));
+}
+
+QueueSubmissionStatus QueueSubmissionLedger::reconfigure(std::uint64_t generation) noexcept {
+  std::lock_guard lock(mutex_);
+  if (generation == 0U) {
+    return QueueSubmissionStatus::invalid_argument;
+  }
+  if (generation <= generation_) {
+    return QueueSubmissionStatus::stale_generation;
+  }
+  if (resources_.in_flight_count() != 0U) {
+    return QueueSubmissionStatus::busy;
+  }
+  const auto status = resources_.reconfigure(generation);
+  if (status != CommandResourceStatus::success) {
+    return map(status);
+  }
+  graph_ = StreamGraph(generation);
+  generation_ = generation;
+  next_completion_value_ = 1U;
+  return QueueSubmissionStatus::success;
+}
+
+std::size_t QueueSubmissionLedger::available_count() const noexcept {
+  std::lock_guard lock(mutex_);
+  return resources_.available_count();
+}
+
+std::size_t QueueSubmissionLedger::in_flight_count() const noexcept {
+  std::lock_guard lock(mutex_);
+  return resources_.in_flight_count();
+}
+
+std::uint64_t QueueSubmissionLedger::generation() const noexcept {
+  std::lock_guard lock(mutex_);
+  return generation_;
+}
+
+std::uint64_t QueueSubmissionLedger::next_completion_value() const noexcept {
+  std::lock_guard lock(mutex_);
+  return next_completion_value_;
+}
+
+const char* queue_submission_status_string(QueueSubmissionStatus status) noexcept {
+  switch (status) {
+  case QueueSubmissionStatus::success:
+    return "success";
+  case QueueSubmissionStatus::invalid_argument:
+    return "invalid-argument";
+  case QueueSubmissionStatus::stale_generation:
+    return "stale-generation";
+  case QueueSubmissionStatus::unknown_stream:
+    return "unknown-stream";
+  case QueueSubmissionStatus::invalid_visibility:
+    return "invalid-visibility";
+  case QueueSubmissionStatus::dependency_not_ready:
+    return "dependency-not-ready";
+  case QueueSubmissionStatus::duplicate_dependency:
+    return "duplicate-dependency";
+  case QueueSubmissionStatus::too_many_dependencies:
+    return "too-many-dependencies";
+  case QueueSubmissionStatus::resource_exhausted:
+    return "resource-exhausted";
+  case QueueSubmissionStatus::busy:
+    return "busy";
+  case QueueSubmissionStatus::invalid_timeline:
+    return "invalid-timeline";
+  case QueueSubmissionStatus::timeline_exhausted:
+    return "timeline-exhausted";
+  case QueueSubmissionStatus::not_found:
+    return "not-found";
   }
   return "unknown";
 }

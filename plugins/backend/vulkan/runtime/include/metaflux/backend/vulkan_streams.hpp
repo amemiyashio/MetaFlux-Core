@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 #include <span>
 #include <vector>
 
@@ -114,6 +115,7 @@ public:
                                               CommandResource* out_resource) noexcept;
   [[nodiscard]] CommandResourceStatus submit(const CommandResource& resource,
                                              std::uint64_t completion_value) noexcept;
+  [[nodiscard]] CommandResourceStatus cancel(const CommandResource& resource) noexcept;
   [[nodiscard]] CommandResourceStatus recycle(std::uint64_t generation,
                                               std::uint64_t completed_value) noexcept;
   [[nodiscard]] CommandResourceStatus reconfigure(std::uint64_t generation) noexcept;
@@ -144,6 +146,63 @@ private:
 
 [[nodiscard]] const char* stream_status_string(StreamStatus status) noexcept;
 [[nodiscard]] const char* command_resource_status_string(CommandResourceStatus status) noexcept;
+
+enum class QueueSubmissionStatus : std::uint32_t {
+  success = 0,
+  invalid_argument = 1,
+  stale_generation = 2,
+  unknown_stream = 3,
+  invalid_visibility = 4,
+  dependency_not_ready = 5,
+  duplicate_dependency = 6,
+  too_many_dependencies = 7,
+  resource_exhausted = 8,
+  busy = 9,
+  invalid_timeline = 10,
+  timeline_exhausted = 11,
+  not_found = 12,
+};
+
+struct QueueSubmission final {
+  SubmissionPlan plan{};
+  CommandResource resource{};
+  std::uint64_t completion_value = 0;
+};
+
+// Host-independent transaction boundary for a planned graph operation and one
+// finite command resource. A later adapter translates an accepted tuple to
+// Vulkan command recording and vkQueueSubmit2.
+class QueueSubmissionLedger final {
+public:
+  explicit QueueSubmissionLedger(std::size_t resource_capacity = 0U,
+                                 std::uint64_t generation = 0U) noexcept
+      : graph_(generation), resources_(resource_capacity, generation), generation_(generation) {}
+
+  [[nodiscard]] QueueSubmissionStatus create_stream(std::uint64_t stream_id);
+  [[nodiscard]] QueueSubmissionStatus submit(std::uint64_t generation, std::uint64_t stream_id,
+                                             OperationKind kind, Visibility visibility,
+                                             std::span<const Dependency> dependencies,
+                                             QueueSubmission* out_submission);
+  [[nodiscard]] QueueSubmissionStatus complete(std::uint64_t generation,
+                                               std::uint64_t completed_value) noexcept;
+  [[nodiscard]] QueueSubmissionStatus reconfigure(std::uint64_t generation) noexcept;
+  [[nodiscard]] std::size_t available_count() const noexcept;
+  [[nodiscard]] std::size_t in_flight_count() const noexcept;
+  [[nodiscard]] std::uint64_t generation() const noexcept;
+  [[nodiscard]] std::uint64_t next_completion_value() const noexcept;
+
+private:
+  [[nodiscard]] static QueueSubmissionStatus map(StreamStatus status) noexcept;
+  [[nodiscard]] static QueueSubmissionStatus map(CommandResourceStatus status) noexcept;
+
+  mutable std::mutex mutex_;
+  StreamGraph graph_;
+  CommandResourcePool resources_;
+  std::uint64_t generation_ = 0;
+  std::uint64_t next_completion_value_ = 1;
+};
+
+[[nodiscard]] const char* queue_submission_status_string(QueueSubmissionStatus status) noexcept;
 
 } // namespace metaflux::backend::vulkan
 
