@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "updated": "2026-08-31",
+  "mode": "governance",
+  "owner_session": "S0100-20260831-045-execution-focus-governance",
+  "authority": {
+    "decision": "D0029",
+    "semantic_change": "SC0006"
+  },
+  "target": null,
+  "resume_target": {
+    "milestone": "M0110",
+    "work_item": "W0112",
+    "exit_gate": "agent/plan/M0110-kernel-guest-transport/work/W0112-local-cdev.md#exit-gate"
+  }
+}

@@ -6,20 +6,24 @@ enforced by repository checks.
 1. **Read before changing.** Follow the daily read order in
    [`agent/README.md`](agent/README.md): agent rules, durable memory
    (constraints + [open decisions](agent/memory/open-decisions.md)),
-   [current progress](agent/progress/current.md), the active milestone, and
-   the matching [expert skill](agent/skills/README.md) if one exists.
+   the machine [execution focus](agent/progress/focus.json),
+   [current progress](agent/progress/current.md), the focused milestone/work
+   item and its Exit Gate, and the matching
+   [expert skill](agent/skills/README.md) if one exists.
 2. **Scaffold a session before the first durable change.**
 
    ```sh
    python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>
    ```
 
-   The pre-commit hook rejects every durable change unless the candidate index
-   contains an in-progress session. The narrow exception is a commit limited to
-   session, progress, checkpoint, and semantic-change closing records that
-   terminally closes a session which is in progress at `HEAD`. The session
-   closes by cleaning its disposable work, not by archiving a copy of the
-   worktree.
+   Scaffolding creates a ledger and cleanup boundary; it does not claim
+   execution focus. Durable content commits require
+   `METAFLUX_SESSION_ID` to name the exact `owner_session` in the candidate
+   `agent/progress/focus.json`, and that session must remain `in_progress`.
+   A non-owner may only terminally close itself through the exact record-only
+   path. A focus handoff is record-only and atomically closes the old owner,
+   installs one new in-progress owner, and updates the focus. Sessions close by
+   cleaning disposable work, not by archiving a copy of the worktree.
    Product and delivery identities follow
    [`docs/release-versioning.md`](docs/release-versioning.md).
 3. **Process session guidance at control boundaries.** On session resume, a
@@ -46,7 +50,8 @@ enforced by repository checks.
    is being resolved.
 6. **Verify before committing.** `python3 tools/check-agent-records.py .` must
    pass; run the relevant CTest preset for build-affecting changes. Content
-   and records are committed separately.
+   and records are committed separately. Every agent-created commit declares
+   both `METAFLUX_AGENT_HARNESS` and the exact `METAFLUX_SESSION_ID`.
 7. **Keep tool ownership narrow.** Follow `manage-toolchain` for versions,
    manifests, shells, and Nix. Nix pins and provides tools only; Git, CMake,
    CTest, packaging, tests, and sessions keep their own semantics.

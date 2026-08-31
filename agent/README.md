@@ -2,11 +2,14 @@
 
 ## Before changing anything
 
-1. If a task matches an [expert skill](skills/README.md), follow it verbatim.
-2. Scaffold a session first for durable work: `python3 tools/new-session.py
-   <MAJOR.MINOR.PATCH.WORK> <slug>`. A session is a curated ledger and cleanup
-   boundary, not a snapshot.
-3. Never relax a durable constraint in [`memory/constraints.md`](memory/constraints.md)
+1. Read the machine [execution focus](progress/focus.json) before selecting
+   durable work. Resume its exact owner and Exit Gate.
+2. If a task matches an [expert skill](skills/README.md), follow it verbatim.
+3. Scaffold a session before durable work when a new ledger is needed:
+   `python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>`. A session is
+   a curated ledger and cleanup boundary, not a snapshot, and scaffolding does
+   not claim execution focus.
+4. Never relax a durable constraint in [`memory/constraints.md`](memory/constraints.md)
    without a recorded decision.
 
 This directory serves only the `MetaFlux-Core` repository. It preserves project
@@ -16,6 +19,13 @@ Agent configuration, cross-project memory, or conversation transcripts.
 
 Product truth remains in source, tests, verified architecture records,
 contracts, and approved milestone plans.
+
+Execution selection and durable commit authority are separate from product
+truth. Under D0029, [`progress/focus.json`](progress/focus.json) names exactly
+one `in_progress` owner and either one dependency-valid product Exit Gate or one
+decision-authorized governance migration. `progress/current.md` is its compact
+human projection. Other active sessions remain factual ledgers; they do not
+compete as scheduling or content-commit authority.
 
 Decision-authorized replacements of established meaning are indexed under
 [`semantic-changes/`](semantic-changes/README.md). An SC is migration authority
@@ -46,7 +56,8 @@ contract. Agent records link to canonical material instead of copying it.
 | `memory/` | Stable project, constraints, ownership, terminology, and decision index | Change only when canonical sources change |
 | `semantic-changes/` | Decision-bound breaking migration permits and durable reminders | Activate before protected history changes; apply only after complete synchronization |
 | `experience/` | Reusable procedures supported by evidence | Validate before relying on them; supersede instead of silently rewriting conclusions |
-| `progress/current.md` | Replaceable resume point | Refresh after material state changes |
+| `progress/focus.json` | Machine execution owner, mode, and canonical product Exit Gate | Change only through a record-only current-owner update or atomic focus handoff |
+| `progress/current.md` | Compact human projection of the execution focus | Keep the same owner/target, current boundary, blockers, and one to three next actions |
 | `progress/checkpoints/` | Protected historical handoffs | Append corrections by default; exact D0025/SC migrations preserve factual evidence |
 | `sessions/` | Curated task objective, material decisions/results, cleanup, and resume summary | Keep compact; Git owns source history, and disposable failed-route artifacts are removed at handoff |
 | `skills/` | Codex skill packages for repository-specific work | Load on demand; keep `SKILL.md` standard-compatible and verify repository-changing procedures proportionately |
@@ -90,13 +101,13 @@ candidate against current project authority, architecture, contracts, records,
 and verification gates. Checkpoint and close provide a fallback when an earlier
 delivery boundary was missed.
 
-The active integration session may directly repair only its own exact increment
-or a completed batch explicitly handed to it. Source or records owned by another
-`in_progress` session receive transient `session-guidance`; ambiguous or
-concurrent material stays unchanged. An approved breaking replacement composes
-`govern-semantic-change`. Do not infer ownership from paths, Git identity,
-timestamps, processes, or a dirty worktree, and do not retain a review archive
-or source snapshot.
+The focus-owning integration session may directly repair only its own exact
+increment or a completed batch explicitly handed to it. Source or records owned
+by another `in_progress` session receive transient `session-guidance`;
+ambiguous or concurrent material stays unchanged. An approved breaking
+replacement composes `govern-semantic-change`. Do not infer ownership from
+paths, Git identity, timestamps, processes, or a dirty worktree, and do not
+retain a review archive or source snapshot.
 
 ## Stable identifiers
 
@@ -160,17 +171,23 @@ Use this fixed order for routine work:
 
 1. This `agent/README.md`.
 2. [`memory/README.md`](memory/README.md) and the indexed durable memory.
-3. The [`semantic-changes`](semantic-changes/README.md) index; load only an
+3. [`progress/focus.json`](progress/focus.json), which selects the exact owner
+   and product Exit Gate or governance authority.
+4. The [`semantic-changes`](semantic-changes/README.md) index; load only an
    `Active` record or an `Applied` record relevant to the task.
-4. [`progress/current.md`](progress/current.md) and its latest checkpoint when
+5. [`progress/current.md`](progress/current.md) and its latest checkpoint when
    historical evidence is needed.
-5. The active milestone and relevant workstream under [`plan/`](plan/).
-6. Only the related validated records from
+6. The focused milestone/work item and its canonical Exit Gate under
+   [`plan/`](plan/).
+7. Only the related validated records from
    [`experience/`](experience/README.md).
 
 Then inspect Git status and current files before editing. Session records are
 project evidence for audits or reconstruction; do not load them by default.
-For an active session, inspect only whether its guidance inbox has a ready packet
-at the control boundaries above and load the packet on demand. Record new
-MetaFlux evidence, refresh current progress, and create a checkpoint at a
-material handoff boundary.
+Load the focus owner's compact session record to resume it; inspect only whether
+its guidance inbox has a ready packet at the control boundaries above and load
+the packet on demand. A new scaffold is not authority. If the task does not fit
+the current focus, stop before content edits and route a record-only focus
+handoff through the current owner. Record new MetaFlux evidence, refresh current
+progress, and create a checkpoint at a material handoff boundary within the
+focused Exit Gate.

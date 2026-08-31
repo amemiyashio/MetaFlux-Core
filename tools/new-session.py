@@ -4,7 +4,8 @@
 Allocates the next semantic-scope session id for today, creates the session
 directory with a validator-clean skeleton (session.json, events.jsonl,
 summary.md, notes.md), appends the index row to agent/sessions/README.md, and
-prints the next steps. Run from the repository root:
+prints the next steps. Scaffolding creates a ledger; it does not claim D0029
+execution focus or content-commit authority. Run from the repository root:
 
     python3 tools/new-session.py 0.1.0.1 my-session-slug
 
@@ -105,6 +106,22 @@ def git_revision(repo_root: Path) -> str | None:
     except (OSError, subprocess.CalledProcessError):
         return None
     return result.stdout.strip() or None
+
+
+def execution_focus_owner(repo_root: Path) -> str | None:
+    """Return the current focus owner for an informational scaffold message."""
+    try:
+        document = json.loads(
+            (repo_root / "agent" / "progress" / "focus.json").read_text(
+                encoding="utf-8"
+            )
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    owner = document.get("owner_session") if isinstance(document, dict) else None
+    if isinstance(owner, str) and SESSION_ID_RE.fullmatch(owner):
+        return owner
+    return None
 
 
 def main() -> int:
@@ -276,7 +293,16 @@ def main() -> int:
 
     print(f"created {session_dir.relative_to(repo_root)}")
     print(f"index row appended to {index_path.relative_to(repo_root)}")
+    focus_owner = execution_focus_owner(repo_root)
+    if focus_owner is None:
+        print("focus: this scaffold does not claim execution focus")
+    else:
+        print(
+            f"focus: {focus_owner} remains owner; this scaffold does not claim "
+            "execution focus"
+        )
     print("next: fill the objective event, update session.json agents/milestones,")
+    print("      obtain a record-only focus handoff before content work if needed,")
     print("      record decisions and results as events, then run:")
     print("      python3 tools/check-agent-records.py .")
     return 0

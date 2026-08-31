@@ -60,6 +60,19 @@ MAX_INLINE_TEXT_BYTES = 65_536
 ROAST_REQUIRED_FROM = "2026-08-28"
 CLEANUP_REQUIRED_FROM = "2026-08-29"
 STALENESS_WARNING_DAYS = 14
+EXECUTION_FOCUS_DECISION = "D0029"
+EXECUTION_FOCUS_MODES = {"product", "governance"}
+EXECUTION_FOCUS_KEYS = {
+    "schema_version",
+    "updated",
+    "mode",
+    "owner_session",
+    "authority",
+    "target",
+    "resume_target",
+}
+PRODUCT_FOCUS_KEYS = {"milestone", "work_item", "exit_gate"}
+GOVERNANCE_AUTHORITY_KEYS = {"decision", "semantic_change"}
 SESSION_ID_RE = re.compile(
     r"^S(?P<delivery>\d{4,})-(?P<date>\d{8})-"
     r"(?P<ordinal>\d{3})-(?P<slug>[a-z0-9][a-z0-9-]*)$"
@@ -1505,6 +1518,290 @@ class Validator:
             if record_id and status:
                 statuses[record_id.group(1)] = status.group(1)
         return statuses
+
+    @staticmethod
+    def parse_inline_id_list(value: str) -> list[str] | None:
+        raw = value.strip()
+        if raw == "[]":
+            return []
+        if not raw.startswith("[") or not raw.endswith("]"):
+            return None
+        body = raw[1:-1].strip()
+        if not body:
+            return []
+        result: list[str] = []
+        for item in body.split(","):
+            normalized = item.strip().strip("'\"")
+            if not MILESTONE_ID_RE.fullmatch(normalized):
+                return None
+            result.append(normalized)
+        return result
+
+    def execution_focus_session(
+        self, focus_path: Path, session_id: object
+    ) -> tuple[Path, dict[str, object]] | None:
+        if not isinstance(session_id, str) or SESSION_ID_RE.fullmatch(session_id) is None:
+            self.add_error(focus_path, "owner_session must be one complete session id")
+            return None
+        matches = sorted(self.sessions_root.glob(f"*/*/{session_id}/session.json"))
+        if len(matches) != 1:
+            self.add_error(
+                focus_path,
+                f"owner_session {session_id} must resolve to exactly one session.json",
+            )
+            return None
+        session_path = matches[0]
+        try:
+            session = json.loads(session_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            self.add_error(focus_path, f"owner_session {session_id} is not readable JSON")
+            return None
+        if not isinstance(session, dict):
+            self.add_error(focus_path, f"owner_session {session_id} is not a JSON object")
+            return None
+        if session.get("status") != "in_progress" or session.get("ended_at") is not None:
+            self.add_error(
+                focus_path,
+                f"owner_session {session_id} must be in_progress with ended_at null",
+            )
+        return session_path, session
+
+    def validate_product_focus_target(
+        self,
+        focus_path: Path,
+        target: object,
+        label: str,
+        *,
+        owner_session: dict[str, object] | None = None,
+    ) -> tuple[str, str] | None:
+        if not isinstance(target, dict) or set(target) != PRODUCT_FOCUS_KEYS:
+            self.add_error(
+                focus_path,
+                f"{label} must contain exactly milestone, work_item, and exit_gate",
+            )
+            return None
+        milestone = target.get("milestone")
+        work_item = target.get("work_item")
+        exit_gate = target.get("exit_gate")
+        if not isinstance(milestone, str) or MILESTONE_ID_RE.fullmatch(milestone) is None:
+            self.add_error(focus_path, f"{label}.milestone must be one stable M id")
+            return None
+        if not isinstance(work_item, str) or WORK_ITEM_ID_RE.fullmatch(work_item) is None:
+            self.add_error(focus_path, f"{label}.work_item must be one stable W id")
+            return None
+        milestone_path = self.agent_record_ids.get(milestone)
+        work_item_path = self.agent_record_ids.get(work_item)
+        if milestone_path is None:
+            self.add_error(focus_path, f"{label}.milestone {milestone} does not resolve")
+            return None
+        if work_item_path is None:
+            self.add_error(focus_path, f"{label}.work_item {work_item} does not resolve")
+            return None
+        if self.work_item_parents.get(work_item) != milestone:
+            self.add_error(
+                focus_path,
+                f"{label}.work_item {work_item} does not belong to {milestone}",
+            )
+
+        statuses = self.plan_statuses()
+        if statuses.get(milestone) != "Active":
+            self.add_error(focus_path, f"{label}.milestone {milestone} must be Active")
+        if statuses.get(work_item) != "Active":
+            self.add_error(focus_path, f"{label}.work_item {work_item} must be Active")
+
+        dependency_values, dependency_error = self.read_frontmatter_values(
+            milestone_path, "depends_on"
+        )
+        if dependency_error is not None:
+            self.add_error(milestone_path, dependency_error)
+        elif dependency_values:
+            if len(dependency_values) != 1:
+                self.add_error(milestone_path, "depends_on must appear exactly once")
+            else:
+                dependencies = self.parse_inline_id_list(dependency_values[0])
+                if dependencies is None:
+                    self.add_error(milestone_path, "depends_on must be an inline M-id list")
+                else:
+                    for dependency in dependencies:
+                        if statuses.get(dependency) != "Complete":
+                            self.add_error(
+                                focus_path,
+                                f"{label}.milestone dependency {dependency} must be Complete",
+                            )
+
+        expected_exit_gate = (
+            f"{work_item_path.relative_to(self.repo_root).as_posix()}#exit-gate"
+        )
+        if exit_gate != expected_exit_gate:
+            self.add_error(
+                focus_path,
+                f"{label}.exit_gate must be {expected_exit_gate!r}",
+            )
+        else:
+            try:
+                work_text = work_item_path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                work_text = ""
+            if re.search(r"(?m)^## Exit Gate\s*$", work_text) is None:
+                self.add_error(work_item_path, "focused work item has no canonical Exit Gate")
+
+        if owner_session is not None:
+            milestone_ids = {
+                item.get("id")
+                for item in owner_session.get("milestones", [])
+                if isinstance(item, dict)
+            }
+            work_item_ids = {
+                item.get("id")
+                for item in owner_session.get("work_items", [])
+                if isinstance(item, dict)
+            }
+            if milestone not in milestone_ids or work_item not in work_item_ids:
+                self.add_error(
+                    focus_path,
+                    "product owner session must reference the focused milestone and work item",
+                )
+        return milestone, work_item
+
+    def validate_current_focus_projection(
+        self,
+        focus_path: Path,
+        mode: str,
+        owner_session: str,
+        product_target: tuple[str, str] | None,
+    ) -> None:
+        current = self.agent_root / "progress" / "current.md"
+        if not current.is_file() or product_target is None:
+            return
+        for field, expected in (
+            ("focus_mode", mode),
+            ("focus_owner", owner_session),
+            ("milestone", product_target[0]),
+            ("workstream", product_target[1]),
+        ):
+            values, error = self.read_frontmatter_values(current, field)
+            if error is not None or values != [expected]:
+                self.add_error(
+                    current,
+                    f"frontmatter {field} must match execution focus value {expected!r}",
+                )
+        try:
+            text = current.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return
+        if "## Versioned Next Work" in text:
+            self.add_error(current, "must not retain the cumulative Versioned Next Work archive")
+        sections = text.split("## Next Actions")
+        if len(sections) != 2:
+            self.add_error(current, "requires exactly one '## Next Actions' section")
+            return
+        next_body = sections[1].split("\n## ", 1)[0]
+        actions = re.findall(r"(?m)^\d+\.\s+\S", next_body)
+        if not 1 <= len(actions) <= 3:
+            self.add_error(current, "Next Actions must contain between one and three items")
+
+    def validate_execution_focus(self) -> None:
+        focus_path = self.agent_root / "progress" / "focus.json"
+        decisions_index = self.agent_root / "memory" / "decisions-index.md"
+        try:
+            decisions_text = decisions_index.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            decisions_text = ""
+        required = re.search(
+            rf"(?m)^\|\s*{EXECUTION_FOCUS_DECISION}\s*\|", decisions_text
+        ) is not None
+        if not focus_path.is_file():
+            if required:
+                self.add_error(focus_path, f"is required by {EXECUTION_FOCUS_DECISION}")
+            return
+        loaded = self.load_json(focus_path)
+        if not isinstance(loaded, dict):
+            return
+        if set(loaded) != EXECUTION_FOCUS_KEYS:
+            self.add_error(
+                focus_path,
+                "must contain exactly schema_version, updated, mode, owner_session, "
+                "authority, target, and resume_target",
+            )
+        if loaded.get("schema_version") != 1:
+            self.add_error(focus_path, "schema_version must equal 1")
+        updated = loaded.get("updated")
+        if not isinstance(updated, str):
+            self.add_error(focus_path, "updated must be an ISO-8601 date")
+        else:
+            try:
+                dt.date.fromisoformat(updated)
+            except ValueError:
+                self.add_error(focus_path, "updated must be an ISO-8601 date")
+        mode = loaded.get("mode")
+        if mode not in EXECUTION_FOCUS_MODES:
+            self.add_error(focus_path, "mode must be product or governance")
+            return
+        owner_id = loaded.get("owner_session")
+        owner = self.execution_focus_session(focus_path, owner_id)
+        owner_document = owner[1] if owner is not None else None
+        product_target: tuple[str, str] | None = None
+
+        if mode == "product":
+            if loaded.get("authority") is not None:
+                self.add_error(focus_path, "product focus authority must be null")
+            if loaded.get("resume_target") is not None:
+                self.add_error(focus_path, "product focus resume_target must be null")
+            product_target = self.validate_product_focus_target(
+                focus_path,
+                loaded.get("target"),
+                "target",
+                owner_session=owner_document,
+            )
+        else:
+            if loaded.get("target") is not None:
+                self.add_error(focus_path, "governance focus target must be null")
+            authority = loaded.get("authority")
+            if not isinstance(authority, dict) or set(authority) != GOVERNANCE_AUTHORITY_KEYS:
+                self.add_error(
+                    focus_path,
+                    "governance authority must contain exactly decision and semantic_change",
+                )
+            else:
+                decision = authority.get("decision")
+                semantic_change = authority.get("semantic_change")
+                if decision != EXECUTION_FOCUS_DECISION:
+                    self.add_error(
+                        focus_path,
+                        f"governance decision must be {EXECUTION_FOCUS_DECISION}",
+                    )
+                if (
+                    not isinstance(semantic_change, str)
+                    or SEMANTIC_CHANGE_ID_RE.fullmatch(semantic_change) is None
+                ):
+                    self.add_error(focus_path, "governance semantic_change must be one SC id")
+                else:
+                    sc_path = self.agent_record_ids.get(semantic_change)
+                    if sc_path is None:
+                        self.add_error(
+                            focus_path,
+                            f"governance semantic_change {semantic_change} does not resolve",
+                        )
+                    else:
+                        for field, expected in (
+                            ("status", "Active"),
+                            ("decision", decision),
+                            ("session", owner_id),
+                        ):
+                            values, error = self.read_frontmatter_values(sc_path, field)
+                            if error is not None or values != [expected]:
+                                self.add_error(
+                                    focus_path,
+                                    f"governance semantic change {field} must be {expected!r}",
+                                )
+            product_target = self.validate_product_focus_target(
+                focus_path, loaded.get("resume_target"), "resume_target"
+            )
+
+        if isinstance(owner_id, str):
+            self.validate_current_focus_projection(
+                focus_path, mode, owner_id, product_target
+            )
 
     def validate_current_progress(self) -> None:
         current = self.agent_root / "progress" / "current.md"
@@ -3086,6 +3383,7 @@ class Validator:
         self.validate_session_reference_forms()
         self.validate_progress_health()
         self.validate_current_progress()
+        self.validate_execution_focus()
         self.validate_status_consistency()
         self.validate_skills()
         self.validate_entry_points()

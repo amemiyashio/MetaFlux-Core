@@ -34,9 +34,12 @@ honor an explicit user request to keep work uncommitted.
 
 ## Steps
 
-1. Scaffold before the first durable edit with
-   `python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>`. Use the
-   narrowest useful delivery scope and replace the objective immediately.
+1. Resume the exact owner from `agent/progress/focus.json`. When a new ledger is
+   needed, scaffold it before its first durable edit with `python3
+   tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>`, use the narrowest
+   useful delivery scope, and replace the objective immediately. Scaffolding
+   does not claim execution focus: checkpoint/content mode belongs only to the
+   named owner, while a non-owner may only use its exact record-only close path.
 2. Record only material decisions, non-obvious commands, verification results,
    and findings needed to resume or reproduce the outcome. Omit routine command
    chatter and raw output that does not change a decision.
@@ -62,14 +65,18 @@ honor an explicit user request to keep work uncommitted.
    focused verification. Stage only that coherent content and create an
    outcome-named Git commit. The pre-commit hook validates the attempt; it does
    not decide when a breakthrough exists or invoke `git commit` itself.
+   A passing local fixture can justify a checkpoint inside the current Exit
+   Gate; it does not authorize a focus change or dependency-invalid work.
    In an agent-run session, create every content, checkpoint, and closing-record
    commit through the [`start-work`](../start-work/SKILL.md) harness-identity
-   helper; human-created commits retain the user's normal Git identity.
+   helper with `METAFLUX_SESSION_ID` set to the exact authorized session; human-
+   created commits retain the user's normal Git identity.
 7. After the content commit, append its revision and verification result to the
-   active session. Refresh `progress/current.md` and add a compact checkpoint
-   only when the commit is also a material handoff boundary. Commit these
-   session/checkpoint records separately from content. If work continues, keep
-   `status: in_progress`, `ended_at: null`, and `final_revision: null`.
+   focus-owner session. Refresh `progress/current.md` as a compact projection of
+   the same owner/target with one to three next actions, and add a compact
+   checkpoint only when the commit is also a material handoff boundary. Commit
+   these session/checkpoint records separately from content. If work continues,
+   keep `status: in_progress`, `ended_at: null`, and `final_revision: null`.
 8. Before close or handoff, invoke `$roast` explicitly: split material outcomes
    into independent claims; route unresolved choices to their canonical owner;
    retain bounded local material under the independent `session-only`
@@ -98,7 +105,20 @@ honor an explicit user request to keep work uncommitted.
 11. Fill `session.json` from current facts: agents, honest milestone/work-item
    statuses, the final content revision, end time, and terminal status. Update
    the sessions index with a one-line outcome, validate the records, and create
-   the separate closing record commit.
+   the separate closing record commit. A non-owner closes exactly itself while
+   leaving focus unchanged. The focus owner cannot become terminal while still
+   named by `focus.json`; close it only through an atomic record-only handoff
+   that installs one successor owner and updates `current.md` to the same
+   target.
+
+## Focus Handoff
+
+A handoff commit contains records only. It terminally closes the owner from
+`HEAD`, adds or activates exactly one successor session, changes
+`progress/focus.json.owner_session` to that successor, and refreshes
+`progress/current.md` to match. The commit is declared with
+`METAFLUX_SESSION_ID` equal to the old owner because that owner authorizes the
+transfer. Product or tooling content never rides in the handoff commit.
 
 ## Cleanup Boundaries
 

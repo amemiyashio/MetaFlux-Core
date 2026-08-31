@@ -20,7 +20,9 @@ and independent session-only contract;
 structured guidance dispositions and terminal guidance cleanup; staleness and
 milestone mapping for terminal guidance dispositions; terminal-note cleanup;
 resolvable full session references; status-drift warnings; current-progress
-freshness; exact skill catalog rows; domain section order; and the repository's
+freshness; the D0029 execution-focus schema, owner lifecycle, product
+dependencies, canonical Exit Gate, governance authority, and compact current
+projection; exact skill catalog rows; domain section order; and the repository's
 restricted `agents/openai.yaml` interface and invocation-policy schema.
 
 ```sh
@@ -31,22 +33,26 @@ python3 tools/check-agent-records.py . --cached
 The ordinary command validates the checkout; `--cached` materializes and checks
 the exact Git index tree. CTest uses the checkout mode and the pre-commit hook
 uses the staged mode. Nix only provides the fixed Python tool used to execute
-it. The hook also parses each candidate-index `session.json` and derives
-coverage from its top-level status rather than the working tree or a nested
-status string: every non-empty durable commit requires an `in_progress` session
-in the candidate tree. The hook materializes that tree and executes its staged
-semantic-change gate, record validator, and validator self-test, so partially
-staged gate edits cannot validate different code. The narrow final-close
-exception accepts only session, progress, checkpoint, and semantic-change
-records whose staged `session.json` changes a session from `in_progress` in
-`HEAD` to `complete`, `blocked`, or `abandoned`; it never authorizes product,
-plan, memory, template, or skill content in the closing commit. This lets the
-first session scaffold establish coverage and lets the last record commit close
-it without leaving a synthetic activity record behind. Session records are
-limited to `session.json`, `events.jsonl`, `summary.md`, `notes.md`, valid
-`outputs/NNNN.txt`, and staged guidance deletions. Checkpoints must use the
-canonical `PYYYYMMDD-NNN-slug.md` shape; unknown descendants are not closing
-records.
+it. The hook materializes that tree and executes its staged semantic-change
+gate, record validator, and validator self-test, so partially staged gate edits
+cannot validate different code.
+
+Every non-empty durable commit declares `METAFLUX_SESSION_ID`. For ordinary
+content or records, that value must equal the candidate
+`agent/progress/focus.json.owner_session`, and the exact session must remain
+top-level `in_progress` with `ended_at: null`. Creating another session does not
+supply coverage. A focus metadata update with the same owner is record-only. A
+focus handoff is also record-only, is declared by the `HEAD` owner, terminally
+closes exactly that owner, and installs one resolvable in-progress candidate
+owner. An active non-owner has one narrower path: a record-only commit may
+terminally close exactly the session named by `METAFLUX_SESSION_ID` while
+leaving focus unchanged. None of these paths authorizes product, plan, memory,
+template, or skill content in a close/handoff commit.
+
+Session records are limited to `session.json`, `events.jsonl`, `summary.md`,
+`notes.md`, valid `outputs/NNNN.txt`, and staged guidance deletions. Checkpoints
+must use the canonical `PYYYYMMDD-NNN-slug.md` shape; unknown descendants are
+not closing records.
 
 `check-semantic-change-edits.py` is the staged-diff hard gate for D0025. It
 reads only `Active` SC permits already committed to `HEAD`, requires their bound
@@ -141,7 +147,10 @@ concatenating the four decimal components. Fill the TODO fields as the session
 progresses. New sessions have
 `status: in_progress` and `ended_at: null`; closing the session records the end
 date and a terminal status. The skeleton passes `check-agent-records.py`
-immediately after creation.
+immediately after creation. The command reports the existing focus owner when
+one resolves and always states that scaffolding does not claim execution focus;
+the current owner must perform a record-only handoff before the new session can
+commit content.
 
 ## Validator self-test
 
@@ -151,9 +160,10 @@ event sequencing, guidance disposition and terminal cleanup, roast depth,
 single-owner resolution and session-only structure, index completeness,
 decision identity and references,
 skill catalog/interface/policy rules, staleness and status drift, Markdown
-links, checkpoint identity, and current-progress freshness. It builds fixtures
-in a temporary directory and loads the validator by path without writing
-bytecode.
+links, checkpoint identity, execution-focus product/governance modes, dependency
+and Exit Gate failures, current projection bounds, exact owner commits,
+non-owner closes, and atomic handoffs. It builds fixtures in a temporary
+directory and loads the validator by path without writing bytecode.
 
 ```sh
 python3 tools/test-check-agent-records.py

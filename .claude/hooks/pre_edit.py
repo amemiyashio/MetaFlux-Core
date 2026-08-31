@@ -5,27 +5,71 @@ Blocks the edit tools before a rule-skipping change lands:
 
 - existing checkpoints and terminal-session files require an exact Historical
   row in a committed Active SC; new checkpoints remain writable;
-- any edit outside agent/ requires an in-progress session record.
+- any edit outside agent/ requires one resolvable in-progress execution-focus
+  owner; an explicit METAFLUX_SESSION_ID must match that owner.
 
-Fails open on any parse or environment error: this guard is a convenience
-bridge, and the pre-commit hook plus repository validators and owner-specific
-tests remain the hard gates for every contributor regardless of tooling.
+Malformed hook input and paths outside the repository fail open. Missing or
+malformed repository focus state fails closed for edits in scope. This guard is
+a convenience bridge; the pre-commit hook plus repository validators and
+owner-specific tests remain the hard gates for every contributor.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 DENIED_MARKER = "MetaFlux guard:"
+SESSION_ID_RE = re.compile(
+    r"^S\d{4,}-(?P<year>\d{4})(?P<month>\d{2})\d{2}-"
+    r"\d{3}-[a-z0-9][a-z0-9-]*$"
+)
 
 
 def deny(message: str) -> int:
     print(f"{DENIED_MARKER} {message}", file=sys.stderr)
     return 2
+
+
+def execution_focus_owner(repo_root: Path) -> str | None:
+    focus_path = repo_root / "agent" / "progress" / "focus.json"
+    try:
+        focus = json.loads(focus_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(focus, dict):
+        return None
+    owner = focus.get("owner_session")
+    if not isinstance(owner, str):
+        return None
+    match = SESSION_ID_RE.fullmatch(owner)
+    if match is None:
+        return None
+    session_path = (
+        repo_root
+        / "agent"
+        / "sessions"
+        / match.group("year")
+        / match.group("month")
+        / owner
+        / "session.json"
+    )
+    try:
+        session = json.loads(session_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if (
+        not isinstance(session, dict)
+        or session.get("id") != owner
+        or session.get("status") != "in_progress"
+        or session.get("ended_at") is not None
+    ):
+        return None
+    return owner
 
 
 def main() -> int:
@@ -67,19 +111,19 @@ def main() -> int:
             return deny(detail or "protected history requires a committed Active SC")
 
     if parts and parts[0] != "agent":
-        sessions_root = repo_root / "agent" / "sessions"
-        for session_file in sessions_root.glob("*/*/*/session.json"):
-            try:
-                document = json.loads(session_file.read_text(encoding="utf-8"))
-            except Exception:
-                continue
-            if isinstance(document, dict) and document.get("status") == "in_progress":
-                return 0
-        return deny(
-            "changes outside agent/ require an in-progress session. Scaffold "
-            "one first: python3 tools/new-session.py "
-            "<MAJOR.MINOR.PATCH.WORK> <slug>  (see AGENTS.md)"
-        )
+        owner = execution_focus_owner(repo_root)
+        if owner is None:
+            return deny(
+                "changes outside agent/ require one valid in-progress owner in "
+                "agent/progress/focus.json (see AGENTS.md)"
+            )
+        declared_session = os.environ.get("METAFLUX_SESSION_ID")
+        if declared_session and declared_session != owner:
+            return deny(
+                f"METAFLUX_SESSION_ID {declared_session!r} does not match "
+                f"execution-focus owner {owner!r}"
+            )
+        return 0
 
     return 0
 

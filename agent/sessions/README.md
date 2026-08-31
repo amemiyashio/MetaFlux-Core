@@ -26,6 +26,14 @@ resequenced; Git retains its earlier forms.
 An `in_progress` session has `ended_at: null`. Complete, blocked, and abandoned
 sessions record the date or timestamp when work stopped.
 
+Lifecycle is not execution authority. Under D0029, only the session named by
+`agent/progress/focus.json.owner_session` may create durable content, and each
+commit declares that identity through `METAFLUX_SESSION_ID`. Scaffolding another
+session creates only a ledger. A non-owner active session may preserve its facts
+and terminally close itself through the exact record-only path. Transferring
+content authority is a record-only commit that closes the old focus owner,
+installs one new in-progress owner, and updates the focus atomically.
+
 ## Temporary guidance inbox
 
 An active session may also contain a temporary `guidance/` inbox. A specialist

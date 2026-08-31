@@ -11,8 +11,8 @@ session-to-plan resolution, Codex
 skill-package compatibility and
 discovery, open-decision identity, decision-index references, staleness warnings,
 markdown link existence, checkpoint id/path agreement, current-progress freshness,
-latest-session status consistency, the staged-guidance gate, and candidate-index session
-coverage at pre-commit.
+latest-session status consistency, execution-focus projection, the staged-guidance gate,
+and exact focus-owner authorization at pre-commit.
 
 Run from anywhere:
 
@@ -40,6 +40,7 @@ TOOLS_DIR = Path(__file__).resolve().parent
 VALIDATOR_PATH = TOOLS_DIR / "check-agent-records.py"
 NEW_SESSION_PATH = TOOLS_DIR / "new-session.py"
 PRE_COMMIT_PATH = TOOLS_DIR.parent / ".githooks/pre-commit"
+CLAUDE_PRE_EDIT_PATH = TOOLS_DIR.parent / ".claude/hooks/pre_edit.py"
 
 spec = importlib.util.spec_from_file_location("check_agent_records", VALIDATOR_PATH)
 assert spec is not None and spec.loader is not None
@@ -298,6 +299,65 @@ def with_in_progress_session(files: dict[str, str]) -> dict[str, str]:
     return mutated
 
 
+def with_product_execution_focus(files: dict[str, str]) -> dict[str, str]:
+    mutated = with_in_progress_session(files)
+    milestone_path = "agent/plan/M0100-fixture/plan.md"
+    work_path = "agent/plan/M0100-fixture/work/W0101-fixture.md"
+    mutated[milestone_path] = mutated[milestone_path].replace(
+        "status: Active\n", "status: Active\ndepends_on: []\n", 1
+    )
+    mutated[work_path] += "\n## Exit Gate\n\nPass the focused fixture.\n"
+    mutated["docs/architecture/execution-focus-governance.md"] = (
+        "# Execution Focus Governance\n\nD0029 establishes one exact owner.\n"
+    )
+    mutated["agent/memory/decisions-index.md"] += (
+        "| D0029 | Execution focus governance | "
+        "[focus](../../docs/architecture/execution-focus-governance.md) | Verified |\n"
+    )
+    mutated["agent/progress/focus.json"] = json.dumps(
+        {
+            "schema_version": 1,
+            "updated": "2026-08-28",
+            "mode": "product",
+            "owner_session": SESSION_ID,
+            "authority": None,
+            "target": {
+                "milestone": "M0100",
+                "work_item": "W0101",
+                "exit_gate": f"{work_path}#exit-gate",
+            },
+            "resume_target": None,
+        },
+        indent=2,
+    ) + "\n"
+    mutated["agent/progress/current.md"] = (
+        "---\n"
+        "status: Active\n"
+        "updated: 2026-08-28\n"
+        "checkpoint: P20260828-001\n"
+        "focus_mode: product\n"
+        f"focus_owner: {SESSION_ID}\n"
+        "milestone: M0100\n"
+        "workstream: W0101\n"
+        "---\n\n"
+        "# Current Progress\n\n"
+        "## Next Actions\n\n"
+        "1. Pass the focused fixture Exit Gate.\n"
+    )
+    return mutated
+
+
+def update_focus_document(
+    files: dict[str, str], **updates: object
+) -> dict[str, str]:
+    mutated = dict(files)
+    focus_path = "agent/progress/focus.json"
+    focus = json.loads(mutated[focus_path])
+    focus.update(updates)
+    mutated[focus_path] = json.dumps(focus, indent=2) + "\n"
+    return mutated
+
+
 def with_guidance_artifacts(files: dict[str, str], *filenames: str) -> dict[str, str]:
     mutated = dict(files)
     for filename in filenames:
@@ -345,6 +405,8 @@ def check_new_session_skeleton(root: Path) -> list[str]:
     if result.returncode != 0:
         problems.append(f"scaffolder exited {result.returncode}: {result.stderr.strip()}")
         return problems
+    if "this scaffold does not claim execution focus" not in result.stdout:
+        problems.append("scaffolder did not distinguish session creation from focus ownership")
 
     generated = list(sessions_root.glob("*/*/S*-lifecycle-fixture"))
     if len(generated) != 1:
@@ -462,6 +524,7 @@ def check_guidance_inbox_isolation(root: Path) -> list[str]:
 
 def check_pre_commit_guidance_gate(root: Path) -> list[str]:
     problems: list[str] = []
+    active_session_id = "S0100-20260828-001-selftest"
 
     def prepare_repository() -> dict[str, str]:
         if root.exists():
@@ -486,14 +549,16 @@ def check_pre_commit_guidance_gate(root: Path) -> list[str]:
         fake_python.chmod(0o755)
         environment = os.environ.copy()
         environment["PATH"] = f"{fake_bin}{os.pathsep}{environment.get('PATH', '')}"
+        environment["METAFLUX_SESSION_ID"] = active_session_id
         return environment
 
     guidance_path = Path(
         "agent/sessions/2026/08/S0100-20260828-001-selftest/guidance/G001-fixture.ready.md"
     )
     active_session_path = Path(
-        "agent/sessions/2026/08/S0100-20260828-001-selftest/session.json"
+        f"agent/sessions/2026/08/{active_session_id}/session.json"
     )
+    focus_path = Path("agent/progress/focus.json")
 
     def stage_active_session() -> None:
         write_fixture_entry(
@@ -503,6 +568,18 @@ def check_pre_commit_guidance_gate(root: Path) -> list[str]:
         )
         subprocess.run(
             ["git", "add", "--", active_session_path.as_posix()],
+            cwd=root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        write_fixture_entry(
+            root,
+            focus_path.as_posix(),
+            json.dumps({"owner_session": active_session_id}) + "\n",
+        )
+        subprocess.run(
+            ["git", "add", "--", focus_path.as_posix()],
             cwd=root,
             check=True,
             capture_output=True,
@@ -717,13 +794,22 @@ def check_pre_commit_guidance_gate(root: Path) -> list[str]:
 
 def check_pre_commit_session_gate(root: Path) -> list[str]:
     problems: list[str] = []
+    session_id = "S0100-20260828-001-selftest"
+    successor_id = "S0100-20260828-002-successor"
+    other_id = "S0100-20260828-003-other"
     session_path = Path(
-        "agent/sessions/2026/08/S0100-20260828-001-selftest/session.json"
+        f"agent/sessions/2026/08/{session_id}/session.json"
     )
+    successor_path = Path(f"agent/sessions/2026/08/{successor_id}/session.json")
+    other_path = Path(f"agent/sessions/2026/08/{other_id}/session.json")
+    focus_path = Path("agent/progress/focus.json")
     agent_path = Path("agent/README.md")
     product_path = Path("src/fixture.txt")
     active_session = '{"status":"in_progress"}\n'
     complete_session = '{"status":"complete"}\n'
+
+    def focus_document(owner: str) -> str:
+        return json.dumps({"owner_session": owner}) + "\n"
 
     def prepare_repository(*, bypass_python_gates: bool = True) -> dict[str, str]:
         if root.exists():
@@ -737,6 +823,7 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
             text=True,
         )
         environment = os.environ.copy()
+        environment["METAFLUX_SESSION_ID"] = session_id
         if bypass_python_gates:
             fake_bin = root / "fake-bin"
             fake_bin.mkdir()
@@ -773,9 +860,7 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
             check=False,
         )
 
-    def prepare_active_head() -> dict[str, str]:
-        environment = prepare_repository()
-        stage(session_path, active_session)
+    def commit_staged(message: str) -> None:
         subprocess.run(
             [
                 "git",
@@ -786,36 +871,49 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
                 "commit",
                 "--no-verify",
                 "-qm",
-                "active session fixture",
+                message,
             ],
             cwd=root,
             check=True,
             capture_output=True,
             text=True,
         )
+
+    def prepare_active_head() -> dict[str, str]:
+        environment = prepare_repository()
+        stage(session_path, active_session)
+        stage(focus_path, focus_document(session_id))
+        commit_staged("active session fixture")
         return environment
+
+    def stage_focus_handoff() -> None:
+        stage(session_path, complete_session)
+        stage(successor_path, active_session)
+        stage(focus_path, focus_document(successor_id))
 
     environment = prepare_repository()
     stage(agent_path, "# Agent fixture\n")
     result = run_hook(environment)
-    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+    if result.returncode == 0 or "focus.json" not in result.stderr:
         problems.append(
-            "agent-only durable change without an active session was not rejected: "
+            "durable change without an execution focus was not rejected: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 
     environment = prepare_repository()
     stage(product_path, "product fixture\n")
+    stage(focus_path, focus_document(session_id))
     write_fixture_entry(root, session_path.as_posix(), active_session)
     result = run_hook(environment)
-    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+    if result.returncode == 0 or "execution-focus owner" not in result.stderr:
         problems.append(
-            "unstaged active session incorrectly covered a product commit: "
+            "unstaged focus owner incorrectly covered a product commit: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 
     environment = prepare_repository()
     stage(session_path, active_session)
+    stage(focus_path, focus_document(session_id))
     result = run_hook(environment)
     if result.returncode != 0:
         problems.append(
@@ -824,16 +922,51 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
         )
 
     environment = prepare_active_head()
+    environment.pop("METAFLUX_SESSION_ID", None)
     stage(product_path, "product fixture\n")
     result = run_hook(environment)
-    if result.returncode != 0:
+    if result.returncode == 0 or "METAFLUX_SESSION_ID" not in result.stderr:
         problems.append(
-            "product commit covered by the active candidate session was rejected: "
+            "product commit without an explicit session declaration was not rejected: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 
     environment = prepare_active_head()
-    stage(session_path, complete_session)
+    stage(product_path, "product fixture\n")
+    result = run_hook(environment)
+    if result.returncode != 0:
+        problems.append(
+            "product commit by the exact focus owner was rejected: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_active_head()
+    stage(other_path, active_session)
+    commit_staged("unrelated active session fixture")
+    stage(product_path, "product fixture\n")
+    environment["METAFLUX_SESSION_ID"] = other_id
+    result = run_hook(environment)
+    if result.returncode == 0 or "does not own" not in result.stderr:
+        problems.append(
+            "unrelated active session incorrectly covered a product commit: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_active_head()
+    stage(other_path, active_session)
+    commit_staged("non-owner active session fixture")
+    stage(other_path, complete_session)
+    stage(Path("agent/sessions/README.md"), "# Non-owner close fixture\n")
+    environment["METAFLUX_SESSION_ID"] = other_id
+    result = run_hook(environment)
+    if result.returncode != 0:
+        problems.append(
+            "exact record-only non-owner close was rejected: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_active_head()
+    stage_focus_handoff()
     stage(Path("agent/sessions/README.md"), "# Closing record fixture\n")
     stage(
         Path(
@@ -849,43 +982,54 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
         )
 
     environment = prepare_active_head()
-    stage(session_path, complete_session)
+    stage(successor_path, active_session)
+    stage(focus_path, focus_document(successor_id))
+    stage(Path("agent/sessions/README.md"), "# Incomplete handoff fixture\n")
+    result = run_hook(environment)
+    if result.returncode == 0 or "terminally close" not in result.stderr:
+        problems.append(
+            "focus handoff without terminally closing the old owner was not rejected: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    environment = prepare_active_head()
+    stage_focus_handoff()
     stage(product_path, "product fixture\n")
     result = run_hook(environment)
-    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+    if result.returncode == 0 or "record-only" not in result.stderr:
         problems.append(
             "product content piggybacked on a final session close: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 
     environment = prepare_active_head()
-    stage(session_path, complete_session)
+    stage_focus_handoff()
     stage(Path("agent/skills/fixture/SKILL.md"), "# Skill fixture\n")
     result = run_hook(environment)
-    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+    if result.returncode == 0 or "record-only" not in result.stderr:
         problems.append(
             "agent skill content piggybacked on a final session close: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 
     environment = prepare_active_head()
-    stage(session_path, complete_session)
+    stage_focus_handoff()
     stage(
         Path("agent/sessions/2026/08/S0100-20260828-001-selftest/extra.py"),
         "raise SystemExit(0)\n",
     )
     result = run_hook(environment)
-    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+    if result.returncode == 0 or "record-only" not in result.stderr:
         problems.append(
             "unknown session descendant piggybacked on a final session close: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 
     environment = prepare_active_head()
-    stage(session_path, complete_session)
+    stage_focus_handoff()
     stage(Path("agent/progress/checkpoints/2026/extra.bin"), "fixture\n")
     result = run_hook(environment)
-    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+    if result.returncode == 0 or "record-only" not in result.stderr:
         problems.append(
             "noncanonical checkpoint descendant piggybacked on a final close: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
@@ -896,8 +1040,9 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
         session_path,
         '{"status":"complete","milestones":[{"status":"in_progress"}]}\n',
     )
+    stage(focus_path, focus_document(session_id))
     result = run_hook(environment)
-    if result.returncode == 0 or "candidate Git index" not in result.stderr:
+    if result.returncode == 0 or "not one in-progress session" not in result.stderr:
         problems.append(
             "nested in-progress status incorrectly covered a newly added terminal session: "
             f"exit={result.returncode} stderr={result.stderr.strip()!r}"
@@ -915,6 +1060,7 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
     stage(Path("tools/check-agent-records.py"), strong_validator)
     stage(Path("tools/test-check-agent-records.py"), candidate_probe)
     stage(session_path, active_session)
+    stage(focus_path, focus_document(session_id))
     subprocess.run(
         [
             "git",
@@ -938,6 +1084,105 @@ def check_pre_commit_session_gate(root: Path) -> list[str]:
     if result.returncode == 0:
         problems.append(
             "partially staged validator executed the stronger working-tree code"
+        )
+
+    return problems
+
+
+def check_claude_focus_guard(root: Path) -> list[str]:
+    problems: list[str] = []
+    owner = "S0100-20260828-001-selftest"
+    session_path = f"agent/sessions/2026/08/{owner}/session.json"
+
+    def reset() -> None:
+        if root.exists():
+            shutil.rmtree(root)
+        root.mkdir(parents=True)
+
+    def write_owner(*, status: str = "in_progress", ended_at: str | None = None) -> None:
+        write_fixture_entry(
+            root,
+            session_path,
+            json.dumps(
+                {"id": owner, "status": status, "ended_at": ended_at},
+                indent=2,
+            )
+            + "\n",
+        )
+
+    def write_focus() -> None:
+        write_fixture_entry(
+            root,
+            "agent/progress/focus.json",
+            json.dumps({"owner_session": owner}, indent=2) + "\n",
+        )
+
+    def run_guard(
+        relative_path: str, *, declared_session: str | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        environment = os.environ.copy()
+        environment.pop("METAFLUX_SESSION_ID", None)
+        if declared_session is not None:
+            environment["METAFLUX_SESSION_ID"] = declared_session
+        payload = {
+            "cwd": str(root),
+            "tool_input": {"file_path": str(root / relative_path)},
+        }
+        return subprocess.run(
+            [sys.executable, "-B", str(CLAUDE_PRE_EDIT_PATH)],
+            input=json.dumps(payload),
+            cwd=root,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    reset()
+    write_owner()
+    result = run_guard("src/fixture.cpp")
+    if result.returncode != 2 or "focus.json" not in result.stderr:
+        problems.append(
+            "an unrelated active session covered a Claude product edit without focus: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    reset()
+    write_owner()
+    write_focus()
+    result = run_guard("src/fixture.cpp")
+    if result.returncode != 0:
+        problems.append(
+            "the valid focus owner did not cover a Claude product edit: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    result = run_guard(
+        "src/fixture.cpp",
+        declared_session="S0100-20260828-002-unrelated",
+    )
+    if result.returncode != 2 or "does not match" not in result.stderr:
+        problems.append(
+            "an explicit mismatched Claude session was not rejected: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    reset()
+    write_owner(status="complete", ended_at="2026-08-28")
+    write_focus()
+    result = run_guard("src/fixture.cpp")
+    if result.returncode != 2 or "focus.json" not in result.stderr:
+        problems.append(
+            "a terminal focus owner covered a Claude product edit: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
+        )
+
+    reset()
+    result = run_guard("agent/sessions/fixture/session.json")
+    if result.returncode != 0:
+        problems.append(
+            "the Claude guard blocked agent scaffolding before focus existed: "
+            f"exit={result.returncode} stderr={result.stderr.strip()!r}"
         )
 
     return problems
@@ -1407,6 +1652,162 @@ def with_semantic_change(
         + f"| [SC0001](SC0001-fixture.md) | {status} | {decision} | fixture-governance | 2026-08-28 |\n"
     )
     return mutated
+
+
+def with_governance_execution_focus(files: dict[str, str]) -> dict[str, str]:
+    mutated = with_semantic_change(
+        with_product_execution_focus(files), decision="D0029"
+    )
+    product_focus = json.loads(mutated["agent/progress/focus.json"])
+    mutated = update_focus_document(
+        mutated,
+        mode="governance",
+        authority={"decision": "D0029", "semantic_change": "SC0001"},
+        target=None,
+        resume_target=product_focus["target"],
+    )
+    mutated["agent/progress/current.md"] = mutated[
+        "agent/progress/current.md"
+    ].replace("focus_mode: product", "focus_mode: governance")
+    return mutated
+
+
+PRODUCT_FOCUS_FILES = with_product_execution_focus(BASE_FILES)
+GOVERNANCE_FOCUS_FILES = with_governance_execution_focus(BASE_FILES)
+
+FOCUS_CASES: list[tuple[str, dict[str, str | None], bool, str]] = [
+    (
+        "D0029 requires an execution focus record",
+        mutate(
+            {
+                "docs/architecture/execution-focus-governance.md": (
+                    "# Execution Focus Governance\n\nD0029 establishes one exact owner.\n"
+                ),
+                "agent/memory/decisions-index.md": BASE_FILES[
+                    "agent/memory/decisions-index.md"
+                ]
+                + "| D0029 | Execution focus governance | "
+                "[focus](../../docs/architecture/execution-focus-governance.md) | Verified |\n",
+            }
+        ),
+        True,
+        "is required by D0029",
+    ),
+    ("valid product execution focus", PRODUCT_FOCUS_FILES, False, ""),
+    ("valid governance execution focus", GOVERNANCE_FOCUS_FILES, False, ""),
+    (
+        "execution focus owner must be in progress",
+        replace(
+            PRODUCT_FOCUS_FILES,
+            f"{SESSION_DIR}/session.json",
+            '"status": "in_progress"',
+            '"status": "complete"',
+        ),
+        True,
+        "must be in_progress with ended_at null",
+    ),
+    (
+        "product owner must cover the focused work",
+        mutate(
+            {
+                **PRODUCT_FOCUS_FILES,
+                f"{SESSION_DIR}/session.json": json.dumps(
+                    {
+                        **json.loads(PRODUCT_FOCUS_FILES[f"{SESSION_DIR}/session.json"]),
+                        "work_items": [],
+                    },
+                    indent=2,
+                )
+                + "\n",
+            }
+        ),
+        True,
+        "product owner session must reference the focused milestone and work item",
+    ),
+    (
+        "focused milestone dependencies must be complete",
+        replace(
+            PRODUCT_FOCUS_FILES,
+            "agent/plan/M0100-fixture/plan.md",
+            "depends_on: []",
+            "depends_on: [M0100]",
+        ),
+        True,
+        "milestone dependency M0100 must be Complete",
+    ),
+    (
+        "focus exit gate path is canonical",
+        update_focus_document(
+            PRODUCT_FOCUS_FILES,
+            target={
+                "milestone": "M0100",
+                "work_item": "W0101",
+                "exit_gate": "agent/plan/M0100-fixture/work/W0101-fixture.md#other",
+            },
+        ),
+        True,
+        "target.exit_gate must be",
+    ),
+    (
+        "focused work item requires an Exit Gate heading",
+        replace(
+            PRODUCT_FOCUS_FILES,
+            "agent/plan/M0100-fixture/work/W0101-fixture.md",
+            "## Exit Gate",
+            "## Completion Boundary",
+        ),
+        True,
+        "focused work item has no canonical Exit Gate",
+    ),
+    (
+        "current progress owner projects the focus",
+        replace(
+            PRODUCT_FOCUS_FILES,
+            "agent/progress/current.md",
+            f"focus_owner: {SESSION_ID}",
+            "focus_owner: S0100-20260828-999-drift",
+        ),
+        True,
+        "frontmatter focus_owner must match execution focus value",
+    ),
+    (
+        "current progress bounds next actions",
+        mutate(
+            {
+                **PRODUCT_FOCUS_FILES,
+                "agent/progress/current.md": PRODUCT_FOCUS_FILES[
+                    "agent/progress/current.md"
+                ]
+                + "2. Second action.\n3. Third action.\n4. Fourth action.\n",
+            }
+        ),
+        True,
+        "Next Actions must contain between one and three items",
+    ),
+    (
+        "current progress rejects the cumulative next-work archive",
+        mutate(
+            {
+                **PRODUCT_FOCUS_FILES,
+                "agent/progress/current.md": PRODUCT_FOCUS_FILES[
+                    "agent/progress/current.md"
+                ]
+                + "\n## Versioned Next Work\n\n1. Competing work.\n",
+            }
+        ),
+        True,
+        "must not retain the cumulative Versioned Next Work archive",
+    ),
+    (
+        "governance focus resolves its active semantic change",
+        update_focus_document(
+            GOVERNANCE_FOCUS_FILES,
+            authority={"decision": "D0029", "semantic_change": "SC9999"},
+        ),
+        True,
+        "governance semantic_change SC9999 does not resolve",
+    ),
+]
 
 
 CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
@@ -3040,6 +3441,20 @@ def main() -> int:
                 print(f"  exit={code} errors={errors} warnings={warnings}", file=sys.stderr)
             else:
                 print(f"ok: {name}")
+        for name, files, expect_failure, needle in FOCUS_CASES:
+            if root.exists():
+                shutil.rmtree(root)
+            root.mkdir(parents=True)
+            write_tree(root, files)  # type: ignore[arg-type]
+            code, errors, warnings = run_validator(root)
+            failed = (code != 0) != expect_failure
+            wrong_error = bool(needle) and not any(needle in error for error in errors)
+            if failed or wrong_error or warnings:
+                failures += 1
+                print(f"FAIL: {name}", file=sys.stderr)
+                print(f"  exit={code} errors={errors} warnings={warnings}", file=sys.stderr)
+            else:
+                print(f"ok: {name}")
         for name, files, expect_failure, needle in SC_CASES:
             if root.exists():
                 shutil.rmtree(root)
@@ -3084,11 +3499,19 @@ def main() -> int:
         session_gate_problems = check_pre_commit_session_gate(root)
         if session_gate_problems:
             failures += 1
-            print("FAIL: pre-commit session coverage gate", file=sys.stderr)
+            print("FAIL: pre-commit execution focus gate", file=sys.stderr)
             for problem in session_gate_problems:
                 print(f"  {problem}", file=sys.stderr)
         else:
-            print("ok: pre-commit session coverage gate")
+            print("ok: pre-commit execution focus gate")
+        claude_guard_problems = check_claude_focus_guard(root)
+        if claude_guard_problems:
+            failures += 1
+            print("FAIL: Claude execution focus guard", file=sys.stderr)
+            for problem in claude_guard_problems:
+                print(f"  {problem}", file=sys.stderr)
+        else:
+            print("ok: Claude execution focus guard")
         cached_problems = check_cached_tree_validation(root)
         if cached_problems:
             failures += 1
@@ -3102,7 +3525,7 @@ def main() -> int:
         return 1
     print(
         "agent-records self-test: "
-        f"{len(CASES) + len(SC_CASES) + 5} case(s) passed"
+        f"{len(CASES) + len(FOCUS_CASES) + len(SC_CASES) + 6} case(s) passed"
     )
     return 0
 

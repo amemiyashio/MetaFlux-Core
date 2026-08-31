@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-08-30
+updated: 2026-08-31
 ---
 
 # Durable Constraints
@@ -52,6 +52,12 @@ identity and provisioning boundaries live in
   The current checkout synchronizes every affected record, while historical
   commands, outputs, counts, revisions, hashes, provenance, and observed facts
   remain unchanged. Terminal sessions and checkpoints are otherwise protected.
+- Durable work has one machine execution focus (D0029). It names one exact
+  `in_progress` owner and either one dependency-valid product work item with its
+  canonical Exit Gate or one decision-authorized governance migration with a
+  dependency-valid resume target. Session scaffolding and local testability do
+  not claim or redirect focus. Content commits declare the exact owner through
+  `METAFLUX_SESSION_ID`; focus transfer is an atomic record-only close/install.
 - A tool newly required by a repeatable workflow is versioned in the Nix-provided
   tool environment before use; this does not transfer workflow semantics or
   outputs to Nix. D0022 supersedes the broader D0021 wording.
