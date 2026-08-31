@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0120
 workstream: W0122
-checkpoint: P20260831-087
+checkpoint: P20260831-088
 ---
 
 # Current Progress
@@ -149,6 +149,10 @@ That bridge is recorded at
 wrong-kind events remain pending and malformed/closed socket results do not
 mutate lifecycle state. Its exact content identity is corrected at
 [P20260831-087](checkpoints/2026/P20260831-087-m0120-qmp-lifecycle-bridge-identity-correction.md).
+The provider-view freeze stage now validates and captures a nonzero shared
+`process_view_revision` at Registry attach, with CUDA/NVML freeze and
+zero-to-one reinitialization regressions recorded at
+[P20260831-088](checkpoints/2026/P20260831-088-m0120-provider-view-freeze.md).
 
 Repository-wide replacements of established meaning follow
 [D0025](../memory/decisions-index.md). SC0001 remains Applied for that governance
@@ -376,7 +380,8 @@ Linux 9.8.
 | W0122 vfio-user process ingress | `699cff8`; `process_once` overload invokes the disconnect handoff only for `Closed`, preserving ordinary message results; focused server/dispatch 2/2 and full dev CTest 79/79 passed |
 | W0122 snapshot-bound event metadata | QMP command factory and vfio-user `process_once` capture logical device, daemon, identity, generation, epoch, and deadline from the authority snapshot; stale completion remains `Stale`; focused normalizer/QMP/server tests passed 3/3 |
 | W0122 QMP socket lifecycle bridge | `QmpLifecycleAdapter::receive_and_submit` returns separate transport/lifecycle outcomes, keeps wrong-kind events pending, and submits only correlated socket replies; focused socket bridge regression passed 1/1 |
-| W0122 current boundary | Bounded live QMP/socket command transport is recorded; reset/restart producer metadata binding, production memfd worker wiring, provider freeze, fault injection, and qualification remain open; QMP and vfio-user disconnect capture are covered by the snapshot-bound helper |
+| W0122 provider-view freeze | Registry attach validates/captures a nonzero matching header/view-control `process_view_revision`; CUDA/NVML retain their initialization snapshot during backing-view mutation and capture a newer revision only after zero-to-one reinitialization; focused regressions passed 3/3 |
+| W0122 current boundary | Bounded live QMP/socket command transport and provider-view freeze are recorded; reset/restart producer metadata binding, production memfd worker wiring, fault injection, and qualification remain open; QMP and vfio-user disconnect capture are covered by the snapshot-bound helper |
 
 ## Recorded M0120 W0123 Evidence
 
@@ -492,9 +497,10 @@ The canonical cdev node policy is recorded at
    handoff, automatic process ingress, and runtime ingress are recorded, but
    they do not satisfy the lifecycle Definition of Done; continue with live
    QMP/socket command transport, reset/restart producer metadata binding,
-   production memfd integration, provider freeze, and qualification while
-   preserving the M0110 root. Resume from
-   [P20260831-030](checkpoints/2026/P20260831-030-m0120-vfio-process-ingress.md).
+   production memfd integration, fault injection, and qualification while
+   preserving the M0110 root. The provider-view freeze stage is recorded at
+   [P20260831-088](checkpoints/2026/P20260831-088-m0120-provider-view-freeze.md);
+   resume from that checkpoint.
 7. M0120/W0121's bounded model remains Active. Provider-view invariants and
    CUDA/NVML reinitialization checks are recorded at
    [P20260831-031](checkpoints/2026/P20260831-031-m0120-provider-view-invariants.md),
