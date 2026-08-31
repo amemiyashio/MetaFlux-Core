@@ -53,9 +53,14 @@ public:
 
   [[nodiscard]] CacheStatus publish(std::string key, std::string payload, bool device_bound);
   [[nodiscard]] CacheStatus lookup(const std::string& key, std::string* out_payload);
+  [[nodiscard]] CacheStatus lookup(const std::string& key, bool device_bound,
+                                   std::string* out_payload);
+  [[nodiscard]] CacheStatus admit_publish(const std::string& key) const noexcept;
   [[nodiscard]] CacheStatus mark_corrupt(const std::string& key) noexcept;
   [[nodiscard]] CacheStatus pin(const std::string& key) noexcept;
   [[nodiscard]] CacheStatus unpin(const std::string& key) noexcept;
+  [[nodiscard]] CacheStatus admit_remove(const std::string& key, bool device_bound) const noexcept;
+  [[nodiscard]] CacheStatus remove(const std::string& key, bool device_bound) noexcept;
   [[nodiscard]] CacheStatus evict_one() noexcept;
   [[nodiscard]] std::size_t size() const noexcept { return entries_.size(); }
   [[nodiscard]] std::size_t max_entries() const noexcept { return max_entries_; }
@@ -102,6 +107,32 @@ private:
   std::filesystem::path root_;
   std::size_t max_payload_bytes_ = 0;
   mutable std::mutex mutex_;
+};
+
+// One in-process authority for durable cache files and bounded resident entries.
+// Cross-process stampede coordination and pipeline ownership remain above this
+// host-independent repository boundary.
+class PersistentCacheRepository final {
+public:
+  explicit PersistentCacheRepository(std::filesystem::path root, std::size_t max_entries = 64U,
+                                     std::size_t max_payload_bytes = 64U * 1024U * 1024U)
+      : catalog_(max_entries), files_(std::move(root), max_payload_bytes) {}
+
+  [[nodiscard]] CacheStatus publish(std::string_view key, std::string_view payload,
+                                    bool device_bound);
+  [[nodiscard]] CacheStatus lookup(std::string_view key, bool device_bound,
+                                   std::string* out_payload);
+  [[nodiscard]] CacheStatus pin(std::string_view key) noexcept;
+  [[nodiscard]] CacheStatus unpin(std::string_view key) noexcept;
+  [[nodiscard]] CacheStatus invalidate_device(std::string_view key);
+  [[nodiscard]] std::size_t size() const noexcept;
+  [[nodiscard]] std::size_t max_entries() const noexcept;
+  [[nodiscard]] const std::filesystem::path& root() const noexcept { return files_.root(); }
+
+private:
+  mutable std::mutex mutex_;
+  CacheCatalog catalog_;
+  CacheFileStore files_;
 };
 
 [[nodiscard]] const char* cache_status_string(CacheStatus status) noexcept;

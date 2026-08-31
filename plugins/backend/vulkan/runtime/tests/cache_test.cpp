@@ -229,12 +229,72 @@ bool filesystem_device_invalidation_and_inputs() {
              metaflux::backend::vulkan::CacheStatus::invalid_argument;
 }
 
+bool persistent_repository_hydrates_and_preserves_pins() {
+  TemporaryDirectory temporary;
+  if (!temporary.valid()) {
+    return false;
+  }
+  const auto base = identity();
+  const auto key_a = base.portable_key();
+  auto changed = base;
+  changed.fp_mode = 17U;
+  const auto key_b = changed.portable_key();
+  auto device_identity = base;
+  device_identity.device_id += 1U;
+  const auto device_key = device_identity.device_key();
+
+  metaflux::backend::vulkan::PersistentCacheRepository repository(temporary.path() / "cache", 1U,
+                                                                  1024U);
+  std::string payload;
+  if (repository.publish(key_a, "portable-a", false) !=
+          metaflux::backend::vulkan::CacheStatus::success ||
+      repository.pin(key_a) != metaflux::backend::vulkan::CacheStatus::success ||
+      repository.publish(key_a, "portable-a-replaced", false) !=
+          metaflux::backend::vulkan::CacheStatus::pinned ||
+      repository.lookup(key_a, false, &payload) != metaflux::backend::vulkan::CacheStatus::hit ||
+      payload != "portable-a" ||
+      repository.publish(key_b, "portable-b", false) !=
+          metaflux::backend::vulkan::CacheStatus::quota_exceeded ||
+      repository.unpin(key_a) != metaflux::backend::vulkan::CacheStatus::success ||
+      repository.publish(key_b, "portable-b", false) !=
+          metaflux::backend::vulkan::CacheStatus::success ||
+      repository.size() != 1U) {
+    return false;
+  }
+
+  metaflux::backend::vulkan::PersistentCacheRepository reopened(temporary.path() / "cache", 1U,
+                                                                1024U);
+  if (reopened.lookup(key_a, false, &payload) != metaflux::backend::vulkan::CacheStatus::hit ||
+      payload != "portable-a" || reopened.size() != 1U ||
+      reopened.lookup(key_b, false, &payload) != metaflux::backend::vulkan::CacheStatus::hit ||
+      payload != "portable-b") {
+    return false;
+  }
+
+  if (reopened.pin(key_b) != metaflux::backend::vulkan::CacheStatus::success ||
+      reopened.publish(device_key, "device", true) !=
+          metaflux::backend::vulkan::CacheStatus::quota_exceeded ||
+      reopened.unpin(key_b) != metaflux::backend::vulkan::CacheStatus::success ||
+      reopened.publish(device_key, "device", true) !=
+          metaflux::backend::vulkan::CacheStatus::success ||
+      reopened.pin(device_key) != metaflux::backend::vulkan::CacheStatus::success ||
+      reopened.invalidate_device(device_key) != metaflux::backend::vulkan::CacheStatus::pinned ||
+      reopened.unpin(device_key) != metaflux::backend::vulkan::CacheStatus::success ||
+      reopened.invalidate_device(device_key) != metaflux::backend::vulkan::CacheStatus::success) {
+    return false;
+  }
+  return reopened.lookup(device_key, true, &payload) ==
+         metaflux::backend::vulkan::CacheStatus::miss;
+}
+
 } // namespace
 
 int main() {
   const bool ok = key_partitioning() && catalog_lifecycle() && pinned_quota() &&
                   filesystem_round_trip_and_atomic_replace() &&
-                  filesystem_corruption_is_removed() && filesystem_device_invalidation_and_inputs();
+                  filesystem_corruption_is_removed() &&
+                  filesystem_device_invalidation_and_inputs() &&
+                  persistent_repository_hydrates_and_preserves_pins();
   std::printf("vulkan cache model: %s\n", ok ? "pass" : "fail");
   return ok ? 0 : 1;
 }

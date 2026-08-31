@@ -147,12 +147,47 @@ CacheStatus CacheCatalog::publish(std::string key, std::string payload, bool dev
   return CacheStatus::success;
 }
 
+CacheStatus CacheCatalog::admit_publish(const std::string& key) const noexcept {
+  if (key.empty() || max_entries_ == 0U) {
+    return CacheStatus::invalid_argument;
+  }
+  const auto existing = entries_.find(key);
+  if (existing != entries_.end()) {
+    return existing->second.live_references == 0U ? CacheStatus::success : CacheStatus::pinned;
+  }
+  if (entries_.size() < max_entries_) {
+    return CacheStatus::success;
+  }
+  const auto evictable = std::find_if(entries_.begin(), entries_.end(), [](const auto& entry) {
+    return entry.second.live_references == 0U;
+  });
+  return evictable == entries_.end() ? CacheStatus::quota_exceeded : CacheStatus::success;
+}
+
 CacheStatus CacheCatalog::lookup(const std::string& key, std::string* out_payload) {
   if (key.empty() || out_payload == nullptr) {
     return CacheStatus::invalid_argument;
   }
   const auto position = entries_.find(key);
   if (position == entries_.end()) {
+    return CacheStatus::miss;
+  }
+  if (position->second.corrupt) {
+    entries_.erase(position);
+    return CacheStatus::corrupt;
+  }
+  position->second.last_use = ++clock_;
+  *out_payload = position->second.payload;
+  return CacheStatus::hit;
+}
+
+CacheStatus CacheCatalog::lookup(const std::string& key, bool device_bound,
+                                 std::string* out_payload) {
+  if (key.empty() || out_payload == nullptr) {
+    return CacheStatus::invalid_argument;
+  }
+  const auto position = entries_.find(key);
+  if (position == entries_.end() || position->second.device_bound != device_bound) {
     return CacheStatus::miss;
   }
   if (position->second.corrupt) {
@@ -199,6 +234,29 @@ CacheStatus CacheCatalog::unpin(const std::string& key) noexcept {
   }
   --position->second.live_references;
   position->second.last_use = ++clock_;
+  return CacheStatus::success;
+}
+
+CacheStatus CacheCatalog::admit_remove(const std::string& key, bool device_bound) const noexcept {
+  if (key.empty()) {
+    return CacheStatus::invalid_argument;
+  }
+  const auto position = entries_.find(key);
+  if (position == entries_.end()) {
+    return CacheStatus::not_found;
+  }
+  if (position->second.device_bound != device_bound) {
+    return CacheStatus::invalid_argument;
+  }
+  return position->second.live_references == 0U ? CacheStatus::success : CacheStatus::pinned;
+}
+
+CacheStatus CacheCatalog::remove(const std::string& key, bool device_bound) noexcept {
+  const auto admission = admit_remove(key, device_bound);
+  if (admission != CacheStatus::success) {
+    return admission;
+  }
+  entries_.erase(key);
   return CacheStatus::success;
 }
 
@@ -420,6 +478,96 @@ CacheStatus CacheFileStore::invalidate_device(std::string_view key) {
   std::error_code error;
   return std::filesystem::remove(entry_path(key, true), error) && !error ? CacheStatus::success
                                                                          : CacheStatus::io_error;
+}
+
+CacheStatus PersistentCacheRepository::publish(std::string_view key, std::string_view payload,
+                                               bool device_bound) {
+  const std::string owned_key(key);
+  const std::string owned_payload(payload);
+  std::lock_guard lock(mutex_);
+  const auto admission = catalog_.admit_publish(owned_key);
+  if (admission != CacheStatus::success) {
+    return admission;
+  }
+  const auto persisted = files_.publish(owned_key, owned_payload, device_bound);
+  if (persisted != CacheStatus::success) {
+    return persisted;
+  }
+  return catalog_.publish(owned_key, owned_payload, device_bound);
+}
+
+CacheStatus PersistentCacheRepository::lookup(std::string_view key, bool device_bound,
+                                              std::string* out_payload) {
+  if (out_payload == nullptr) {
+    return CacheStatus::invalid_argument;
+  }
+  const std::string owned_key(key);
+  std::lock_guard lock(mutex_);
+  const auto resident = catalog_.lookup(owned_key, device_bound, out_payload);
+  if (resident == CacheStatus::hit) {
+    return resident;
+  }
+  if (resident != CacheStatus::miss && resident != CacheStatus::corrupt) {
+    return resident;
+  }
+
+  std::string persisted_payload;
+  const auto persisted = files_.lookup(owned_key, device_bound, &persisted_payload);
+  if (persisted != CacheStatus::hit) {
+    out_payload->clear();
+    return persisted;
+  }
+  const auto admission = catalog_.admit_publish(owned_key);
+  if (admission != CacheStatus::success) {
+    out_payload->clear();
+    return admission;
+  }
+  const auto hydrated = catalog_.publish(owned_key, persisted_payload, device_bound);
+  if (hydrated != CacheStatus::success) {
+    out_payload->clear();
+    return hydrated;
+  }
+  *out_payload = std::move(persisted_payload);
+  return CacheStatus::hit;
+}
+
+CacheStatus PersistentCacheRepository::pin(std::string_view key) noexcept {
+  const std::string owned_key(key);
+  std::lock_guard lock(mutex_);
+  return catalog_.pin(owned_key);
+}
+
+CacheStatus PersistentCacheRepository::unpin(std::string_view key) noexcept {
+  const std::string owned_key(key);
+  std::lock_guard lock(mutex_);
+  return catalog_.unpin(owned_key);
+}
+
+CacheStatus PersistentCacheRepository::invalidate_device(std::string_view key) {
+  const std::string owned_key(key);
+  std::lock_guard lock(mutex_);
+  const auto admission = catalog_.admit_remove(owned_key, true);
+  if (admission == CacheStatus::pinned || admission == CacheStatus::invalid_argument) {
+    return admission;
+  }
+  if (admission == CacheStatus::not_found) {
+    return files_.invalidate_device(owned_key);
+  }
+  const auto persisted = files_.invalidate_device(owned_key);
+  if (persisted != CacheStatus::success && persisted != CacheStatus::miss) {
+    return persisted;
+  }
+  return catalog_.remove(owned_key, true);
+}
+
+std::size_t PersistentCacheRepository::size() const noexcept {
+  std::lock_guard lock(mutex_);
+  return catalog_.size();
+}
+
+std::size_t PersistentCacheRepository::max_entries() const noexcept {
+  std::lock_guard lock(mutex_);
+  return catalog_.max_entries();
 }
 
 } // namespace metaflux::backend::vulkan

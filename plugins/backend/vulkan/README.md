@@ -71,3 +71,12 @@ payload digest, process-unique temporary file, `fsync`, and atomic rename;
 truncated or mismatched entries are removed before returning `corrupt`, and a
 device-bound key can be explicitly invalidated. Cross-process stampede control,
 opaque `VkPipelineCache` data, and warm-launch tracing remain open.
+
+`PersistentCacheRepository` is the current host-independent integration
+boundary. It admits a publish against the resident catalog before writing the
+durable envelope, so pinned entries and a fully pinned quota never overwrite
+their existing file. Reads check the resident entry first; a validated file hit
+hydrates the bounded catalog and participates in its LRU policy. Pin/unpin and
+device invalidation are serialized with these transitions. Cross-process
+stampede coordination and pipeline-bound driver invalidation still require the
+later Vulkan pipeline stage.
