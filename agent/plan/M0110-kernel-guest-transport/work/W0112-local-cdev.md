@@ -120,9 +120,11 @@ and arithmetic operation is validated.
 - [x] Activate the daemon's authoritative object table for region COPY in the
   embedded CPU worker path. Each daemon session owns a CPU backend
   instance/context/queue, the cdev resolver validates object identity,
-  permissions, and ranges, and validated subranges are imported through the
-  backend C ABI before COPY. Imported handles are released on every completion
-  path; the public completion and copy-accounting records remain unchanged.
+  permissions, and ranges, and each object is bound once to a full-range
+  backend memory handle before COPY. Operation references are retained and
+  released around the backend call; retired object handles drain before backend
+  reclamation, and the public completion and copy-accounting records remain
+  unchanged.
 - [x] Permit a queue-only worker view for daemon-owned region COPY. The worker
   requires a payload arena for direct COPY and LAUNCH, while a bound
   object-table resolver may consume the leased queue without mapping the
@@ -140,9 +142,10 @@ and arithmetic operation is validated.
 ## Remaining work
 
 - [ ] Complete daemon-controlled generation replacement and backend reference
-  drain beyond the queue and payload kref/tombstone graphs. The payload and
-  queue VMA tombstones, owner-death transition, eventfd references, and bounded
-  registered-memory lifetime are implemented for the current fixture.
+  drain beyond the queue and payload kref/tombstone graphs. Embedded daemon
+  object handles now have persistent operation-reference draining; the payload
+  and queue VMA tombstones, owner-death transition, eventfd references, and
+  bounded registered-memory lifetime are implemented for the current fixture.
 - [ ] Connect the daemon object table and leased worker/backend binding to the
   live cdev registered-memory handles and prove Add/Copy through the mapped
   payload arena. The embedded CPU daemon path now invokes

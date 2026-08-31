@@ -126,12 +126,15 @@ mapping remains an independent caller-owned data-plane resource.
 
 `metafluxd` now composes this adapter in its embedded CPU region-COPY path. A
 session creates a CPU backend instance/context/queue, exposes its authoritative
-object table through the lookup callback, imports only validated subranges, and
-dispatches the resulting handles through `mf_backend_api_v1.copy`. Imported
-handles are released after the synchronous backend call, while the existing
-completion and copy-accounting records stay unchanged. This proves daemon
-object-table activation without claiming a live `/dev/metafluxctl` lease or
-physical DMA qualification; those remain the live cdev stage.
+object table through the lookup callback, imports each memory object once as a
+full-range backend handle, validates each requested subrange as an offset into
+that handle, and dispatches through `mf_backend_api_v1.copy`. Persistent object
+handles carry operation references; object retirement marks them offline and
+reclaims them only after active references drain. Resolver-created temporary
+handles use the same retain/release callbacks and are reclaimed after the
+operation. This proves daemon object-table/backend lifetime without claiming a
+live `/dev/metafluxctl` lease, kernel registered-memory import, or physical DMA
+qualification; those remain the live cdev stage.
 
 The region descriptor uses the argument-block object ID as `target_id`, its
 generation in `arguments[0]`, and zero in `arguments[1..3]`; the resolver must
@@ -154,7 +157,7 @@ events and daemon generation replacement are still outside this synchronous
 descriptor stage; the worker's asynchronous event contract extends the lease
 until observed completion and snapshots the exact backend binding so a later
 replacement cannot query or release the old operation through the new binding.
-Production backend memory import remains open; the host-independent reference
+Live cdev backend memory import remains open; the host-independent reference
 lifetime contract, including direct payload-memory retain/release, and
 capability-gated pending-operation cancellation are implemented by the worker
 binding and lifecycle callbacks.
