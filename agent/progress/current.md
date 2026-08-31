@@ -1,9 +1,9 @@
 ---
 status: Active
 updated: 2026-08-31
-milestone: M0130
-workstream: W0132
-checkpoint: P20260831-054
+milestone: M0120
+workstream: W0123
+checkpoint: P20260831-055
 ---
 
 # Current Progress
@@ -148,6 +148,11 @@ W0132's host-independent staging memory visibility contract is now recorded at
 physical Vulkan allocation, mapped flush/invalidate, external-handle import,
 and driver qualification remain open.
 
+W0123's Coordinator control-plane serialization and concurrent replay/observer
+evidence is now recorded at
+[P20260831-055](checkpoints/2026/P20260831-055-m0120-lifecycle-concurrent-authority.md);
+live memfd/cdev/guest-QMP qualification and kernel fault evidence remain open.
+
 Intel x86_64 support qualification and physical NVIDIA binding-performance
 promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
 remains the unallocated `v0.2.0` support expansion. M0100 keeps the measured
@@ -237,6 +242,8 @@ Linux 9.8.
 | Lifecycle core long run | `72025af`; 1,000 reset/remove/add cycles passed, with 2,000 retired generations resolving as `DeviceLost`, exact high-water/epoch checks, all three mirror streams, and replay/conflict checks |
 | Focused lifecycle tests | Four lifecycle, long-run, normalizer, and dispatch tests passed |
 | Full development CTest | 83/83 passed |
+| W0123 authority serialization | `f8a786a`; public Coordinator mutation/read APIs share one reentrant mutex; move construction preserves existing factories |
+| W0123 concurrent replay/activity | `f8a786a`; four-way duplicate reset race plus open/mmap/submit-replay/telemetry observers over 128 reset/remove/add cycles passed |
 | W0123 current boundary | Core authority long-run evidence is recorded; concurrent memfd/local-cdev/guest-QMP activity, old-object/worker-death faults, kernel sanitizer/fuzz/soak, canonical nodes, and lifecycle ABI freeze remain open |
 
 ## Recorded M0130 W0131 Evidence
@@ -408,6 +415,12 @@ Linux 9.8.
     Continue by binding the ledger to qualified-device allocation and mapped
     flush/invalidate calls; do not claim physical Vulkan or external-memory
     qualification from the model fixtures.
+22. M0120/W0123 is Active after Coordinator control-plane serialization and
+    concurrent replay/observer evidence at
+    [P20260831-055](checkpoints/2026/P20260831-055-m0120-lifecycle-concurrent-authority.md).
+    Continue by binding the envelope to real memfd/cdev/guest-QMP activity,
+    worker and process-death faults, and kernel qualification; do not claim the
+    lifecycle extension freeze from host-independent API tests.
 
 ## Tool Boundary
 

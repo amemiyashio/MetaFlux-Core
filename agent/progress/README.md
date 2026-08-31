@@ -4,7 +4,7 @@
 checkpoints are protected and grouped by year under `checkpoints/YYYY/`.
 
 Latest checkpoint:
-[P20260831-054](checkpoints/2026/P20260831-054-m0130-vulkan-memory-visibility.md).
+[P20260831-055](checkpoints/2026/P20260831-055-m0120-lifecycle-concurrent-authority.md).
 
 A checkpoint records observed state and verification evidence; it is not a Git
 revision unless its metadata names one. Create a checkpoint at a material

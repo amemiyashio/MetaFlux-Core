@@ -106,6 +106,7 @@ copies canonical content.
 | [S0135-20260831-012-vulkan-cache-stampede](2026/08/S0135-20260831-012-vulkan-cache-stampede/summary.md) | 2026-08-31 | Exact | In progress | W0135 cross-process single-key cache miss coalescing; pipeline-bound invalidation and warm launch remain open |
 | [S0133-20260831-013-vulkan-module-reflection](2026/08/S0133-20260831-013-vulkan-module-reflection/summary.md) | 2026-08-31 | Exact | In progress | W0133 host-independent SPIR-V reflection and packed-BDA verifier; MLIR emission and module validation remain open |
 | [S0132-20260831-014-vulkan-memory-visibility](2026/08/S0132-20260831-014-vulkan-memory-visibility/summary.md) | 2026-08-31 | Exact | In progress | TODO: one-line summary |
+| [S0123-20260831-015-lifecycle-concurrent-authority](2026/08/S0123-20260831-015-lifecycle-concurrent-authority/summary.md) | 2026-08-31 | Exact | In progress | TODO: one-line summary |
 
 ## Fidelity and retention
 
