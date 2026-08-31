@@ -4,9 +4,9 @@
   "repository": "MetaFlux-Core",
   "delivery": "0.1.1.0",
   "started_at": "2026-08-31",
-  "ended_at": null,
+  "ended_at": "2026-08-31",
   "time_precision": "date",
-  "status": "in_progress",
+  "status": "complete",
   "fidelity": "exact",
   "agents": [
     {
@@ -19,19 +19,19 @@
       "id": "M0110",
       "title": "Kernel and Guest Transport",
       "status": "active",
-      "event_seqs": [1]
+      "event_seqs": [1, 2]
     },
     {
       "id": "M0120",
       "title": "Lifecycle and vPCI Presentation",
       "status": "active",
-      "event_seqs": [1]
+      "event_seqs": [1, 2]
     },
     {
       "id": "M0130",
       "title": "Vulkan Execution Backend",
       "status": "active",
-      "event_seqs": [1]
+      "event_seqs": [1, 2]
     }
   ],
   "work_items": [
@@ -55,7 +55,7 @@
     }
   ],
   "base_revision": "4f224b4ef8b8e753a2d0e477384ed9dce20a092c",
-  "final_revision": null,
+  "final_revision": "d503ef61783204e949d5e79cfe80bee61972293f",
   "event_log": "events.jsonl",
   "summary": "summary.md",
   "notes": "notes.md"
