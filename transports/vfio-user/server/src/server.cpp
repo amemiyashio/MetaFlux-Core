@@ -42,7 +42,13 @@ bool bytes_zero(const std::uint8_t* bytes, std::size_t count) noexcept {
 
 VfioUserServer::VfioUserServer(int fd, ServerConfig config) noexcept : fd_(fd), config_(config) {
   if (fd_ < 0 || config_.device_generation == 0U || config_.mapping_epoch == 0U ||
-      config_.max_mappings == 0U || config_.address_width == 0U || config_.address_width > 63U) {
+      config_.max_mappings == 0U || config_.address_width == 0U || config_.address_width > 63U ||
+      config_.transport_major != MF_TRANSPORT_MAJOR_V0 || config_.transport_minor == 0U ||
+      config_.transport_features == 0U || config_.daemon_incarnation == 0U ||
+      config_.view_serial == 0U || config_.descriptor_version == 0U ||
+      config_.ring_version == 0U || config_.max_queues == 0U || config_.ring_order == 0U ||
+      config_.dma_alignment == 0U || config_.max_regions == 0U ||
+      config_.max_inflight == 0U || config_.max_bytes == 0U) {
     state_ = ServerState::Lost;
     lifecycle_online_ = false;
     lifecycle_accepting_ = false;
@@ -138,11 +144,74 @@ ServerResult VfioUserServer::reply(std::uint64_t message_id, std::uint16_t reque
     return ServerResult::Closed;
   }
   completion.status = status_code(status);
+  completion.request_id = message_id;
   completion.device_generation = config_.device_generation;
   if (result_size != 0U) {
     std::memcpy(completion.result, result, result_size);
   }
   return reply_payload(message_id, request_type, &completion, sizeof(completion), no_reply);
+}
+
+ServerResult VfioUserServer::handle_negotiate(const mf_transport_message_header_v0& header,
+                                              const std::uint8_t* payload,
+                                              std::size_t payload_size, int received_fd,
+                                              bool no_reply) noexcept {
+  mf_transport_negotiate_v0 request{};
+  mf_transport_negotiate_v0 response{};
+  if (received_fd >= 0) {
+    (void)::close(received_fd);
+  }
+  if (!lifecycle_online_ || !lifecycle_accepting_ || state_ == ServerState::Lost ||
+      state_ == ServerState::Closed) {
+    return reply(header.message_id, header.message_type, MF_SHARED_DEVICE_LOST, nullptr, 0U,
+                 no_reply);
+  }
+  if (payload == nullptr || payload_size != sizeof(request)) {
+    return reply(header.message_id, header.message_type, MF_SHARED_INVALID_ARGUMENT, nullptr, 0U,
+                 no_reply);
+  }
+  std::memcpy(&request, payload, sizeof(request));
+  if (request.magic != MF_TRANSPORT_MAGIC_V0 || request.struct_size != sizeof(request) ||
+      request.flags != 0U || !bytes_zero(request.logical_device_uuid,
+                                           sizeof(request.logical_device_uuid)) ||
+      request.daemon_incarnation != 0U || request.view_serial != 0U ||
+      request.device_generation != 0U || request.descriptor_version != 0U ||
+      request.ring_version != 0U || request.max_queues != 0U || request.ring_order != 0U ||
+      request.dma_width != 0U || request.dma_alignment != 0U || request.max_regions != 0U ||
+      request.max_inflight != 0U || request.max_bytes != 0U ||
+      !bytes_zero(request.reserved, sizeof(request.reserved))) {
+    return reply(header.message_id, header.message_type, MF_SHARED_INVALID_ARGUMENT, nullptr, 0U,
+                 no_reply);
+  }
+  if (request.major != config_.transport_major || request.minor == 0U ||
+      request.minor > config_.transport_minor ||
+      (request.required_features & ~config_.transport_features) != 0U) {
+    return reply(header.message_id, header.message_type, MF_SHARED_NOT_SUPPORTED, nullptr, 0U,
+                 no_reply);
+  }
+  response.magic = MF_TRANSPORT_MAGIC_V0;
+  response.major = config_.transport_major;
+  response.minor = request.minor;
+  response.struct_size = sizeof(response);
+  response.required_features = request.required_features;
+  response.optional_features = request.optional_features & config_.transport_features;
+  response.daemon_incarnation = config_.daemon_incarnation;
+  response.view_serial = config_.view_serial;
+  std::memcpy(response.logical_device_uuid, config_.logical_device_uuid.data(),
+              sizeof(response.logical_device_uuid));
+  response.device_generation = config_.device_generation;
+  response.descriptor_version = config_.descriptor_version;
+  response.ring_version = config_.ring_version;
+  response.max_queues = config_.max_queues;
+  response.ring_order = config_.ring_order;
+  response.dma_width = config_.address_width;
+  response.dma_alignment = config_.dma_alignment;
+  response.max_regions = config_.max_regions;
+  response.max_inflight = config_.max_inflight;
+  response.max_bytes = config_.max_bytes;
+  negotiated_ = true;
+  state_ = ServerState::Configuring;
+  return reply_payload(header.message_id, header.message_type, &response, sizeof(response), no_reply);
 }
 
 ServerResult VfioUserServer::handle_get_info(const mf_transport_message_header_v0& header,
@@ -276,6 +345,8 @@ ServerResult VfioUserServer::handle_message(const mf_transport_message_header_v0
                                             const std::uint8_t* payload, std::size_t payload_size,
                                             int received_fd, bool no_reply) noexcept {
   switch (header.message_type) {
+  case MF_VFIO_USER_MESSAGE_NEGOTIATE_V0:
+    return handle_negotiate(header, payload, payload_size, received_fd, no_reply);
   case MF_VFIO_USER_MESSAGE_GET_INFO_V0:
     if (received_fd >= 0) {
       (void)::close(received_fd);

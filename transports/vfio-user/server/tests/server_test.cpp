@@ -70,6 +70,24 @@ bool receive_info(int fd, std::uint64_t message_id, mf_vfio_user_get_info_reply_
   return true;
 }
 
+bool receive_negotiate(int fd, std::uint64_t message_id, mf_transport_negotiate_v0* out) {
+  std::array<std::uint8_t,
+             sizeof(mf_transport_message_header_v0) + sizeof(mf_transport_negotiate_v0)>
+      packet{};
+  const ssize_t received = ::recv(fd, packet.data(), packet.size(), 0);
+  mf_transport_negotiate_v0 negotiation{};
+  if (received != static_cast<ssize_t>(packet.size()) ||
+      mf_vfio_user_guest_decode_negotiate_v0(
+          packet.data(), static_cast<std::uint32_t>(received), message_id, &negotiation) !=
+          MF_SHARED_SUCCESS) {
+    return false;
+  }
+  if (out != nullptr) {
+    *out = negotiation;
+  }
+  return true;
+}
+
 int make_memfd() {
   const long fd = syscall(SYS_memfd_create, "metaflux-vfio-test", MFD_CLOEXEC);
   if (fd < 0 || fd > INT_MAX || ftruncate(static_cast<int>(fd), 4096) != 0) {
@@ -91,6 +109,48 @@ int main() {
   metaflux::transport::vfio_user::VfioUserServer server(sockets[1]);
   std::array<std::uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> packet{};
   std::uint32_t packet_size = 0;
+
+  mf_transport_negotiate_v0 negotiation{};
+  negotiation.magic = MF_TRANSPORT_MAGIC_V0;
+  negotiation.major = MF_TRANSPORT_MAJOR_V0;
+  negotiation.minor = MF_TRANSPORT_MINOR_V0 + 1U;
+  negotiation.struct_size = sizeof(negotiation);
+  negotiation.required_features = MF_TRANSPORT_FEATURE_VFIO_USER_V0;
+  if (mf_vfio_user_guest_encode_negotiate_v0(6U, &negotiation, packet.data(), packet.size(),
+                                             &packet_size) != MF_SHARED_SUCCESS ||
+      !send_packet(sockets[0], packet.data(), packet_size) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+      !receive_completion(sockets[0], 6U, MF_VFIO_USER_MESSAGE_NEGOTIATE_V0,
+                          MF_SHARED_NOT_SUPPORTED)) {
+    return 1;
+  }
+
+  negotiation.minor = MF_TRANSPORT_MINOR_V0;
+  negotiation.required_features = MF_TRANSPORT_FEATURE_VFIO_USER_V0 |
+                                  MF_TRANSPORT_FEATURE_SHARED_MEMORY_V0;
+  negotiation.optional_features = MF_TRANSPORT_FEATURE_IOEVENTFD_V0 |
+                                  MF_TRANSPORT_FEATURE_MSIX_V0 |
+                                  MF_TRANSPORT_FEATURE_CDEV_V0;
+  if (mf_vfio_user_guest_encode_negotiate_v0(7U, &negotiation, packet.data(), packet.size(),
+                                             &packet_size) != MF_SHARED_SUCCESS ||
+      !send_packet(sockets[0], packet.data(), packet_size) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied) {
+    return 1;
+  }
+  mf_transport_negotiate_v0 negotiated{};
+  if (!receive_negotiate(sockets[0], 7U, &negotiated) ||
+      negotiated.required_features != negotiation.required_features ||
+      negotiated.optional_features !=
+          (MF_TRANSPORT_FEATURE_IOEVENTFD_V0 | MF_TRANSPORT_FEATURE_MSIX_V0) ||
+      negotiated.daemon_incarnation == 0U || negotiated.view_serial == 0U ||
+      negotiated.device_generation != 1U || negotiated.descriptor_version != 1U ||
+      negotiated.ring_version != 1U || negotiated.max_queues != 2U ||
+      negotiated.ring_order != 8U || negotiated.dma_width != 48U ||
+      negotiated.dma_alignment != 4096U || negotiated.max_regions != 64U ||
+      negotiated.max_inflight != 256U || negotiated.max_bytes != 0x10000000U ||
+      server.state() != metaflux::transport::vfio_user::ServerState::Configuring) {
+    return 1;
+  }
 
   if (mf_vfio_user_guest_encode_get_info_v0(7U, packet.data(), packet.size(), &packet_size) !=
           MF_SHARED_SUCCESS ||

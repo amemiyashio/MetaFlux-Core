@@ -60,6 +60,10 @@ mf_shared_status_v1 mf_vfio_user_guest_encode_get_info_v0(uint64_t message_id,
                                                            uint32_t buffer_capacity,
                                                            uint32_t* out_size);
 
+mf_shared_status_v1 mf_vfio_user_guest_encode_negotiate_v0(
+    uint64_t message_id, const mf_transport_negotiate_v0* request, uint8_t* buffer,
+    uint32_t buffer_capacity, uint32_t* out_size);
+
 mf_shared_status_v1 mf_vfio_user_guest_encode_dma_map_v0(
     uint64_t message_id, const mf_vfio_user_dma_map_v0* request, uint8_t* buffer,
     uint32_t buffer_capacity, uint32_t* out_size);
@@ -75,6 +79,10 @@ mf_shared_status_v1 mf_vfio_user_guest_decode_completion_v0(
 mf_shared_status_v1 mf_vfio_user_guest_decode_get_info_v0(
     const uint8_t* buffer, uint32_t buffer_size, uint64_t expected_message_id,
     mf_vfio_user_get_info_reply_v0* out_reply);
+
+mf_shared_status_v1 mf_vfio_user_guest_decode_negotiate_v0(
+    const uint8_t* buffer, uint32_t buffer_size, uint64_t expected_message_id,
+    mf_transport_negotiate_v0* out_reply);
 
 #ifdef __cplusplus
 }

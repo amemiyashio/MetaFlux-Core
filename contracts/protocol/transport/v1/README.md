@@ -8,6 +8,16 @@ projections are emitted into the build tree; this directory contains no second
 hand-maintained layout. The candidate remains ABI `0.x` until W0114 evidence
 freezes the extension namespace as `v1`.
 
+The vfio-user fixture uses `MF_VFIO_USER_MESSAGE_NEGOTIATE_V0` as the
+transport-level capability exchange. A request carries only the supported
+major/minor candidate and required or optional feature bits; identity,
+generation, queue, DMA, and limit fields are zero. The server returns the
+selected minor and feature set together with its registry identity and
+published limits. Unsupported versions or required features use the common
+`mf_transport_completion_v0` status reply, while a successful negotiation
+returns the canonical `mf_transport_negotiate_v0` record. No file descriptor
+is accepted on this control message.
+
 M0120 lifecycle semantics live in the one-way extension at
 `schema/extensions/lifecycle/v1/`. Its manifest imports this base by content
 hash and the lifecycle model owns generation-candidate, epoch-retirement,

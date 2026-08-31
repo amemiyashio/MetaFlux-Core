@@ -155,11 +155,41 @@ static mf_shared_status_v1 encode_packet(uint64_t message_id, uint16_t message_t
   return MF_SHARED_SUCCESS;
 }
 
+static int bytes_zero(const uint8_t* bytes, size_t count) {
+  if (bytes == NULL) {
+    return 0;
+  }
+  for (size_t index = 0; index < count; ++index) {
+    if (bytes[index] != 0U) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
 mf_shared_status_v1 mf_vfio_user_guest_encode_get_info_v0(uint64_t message_id, uint8_t* buffer,
                                                            uint32_t buffer_capacity,
                                                            uint32_t* out_size) {
   return encode_packet(message_id, MF_VFIO_USER_MESSAGE_GET_INFO_V0, UINT16_C(0), NULL,
                        UINT32_C(0), buffer, buffer_capacity, out_size);
+}
+
+mf_shared_status_v1 mf_vfio_user_guest_encode_negotiate_v0(
+    uint64_t message_id, const mf_transport_negotiate_v0* request, uint8_t* buffer,
+    uint32_t buffer_capacity, uint32_t* out_size) {
+  if (request == NULL || request->magic != MF_TRANSPORT_MAGIC_V0 ||
+      request->struct_size != sizeof(*request) || request->flags != 0U ||
+      !bytes_zero(request->logical_device_uuid, sizeof(request->logical_device_uuid)) ||
+      request->daemon_incarnation != UINT64_C(0) || request->view_serial != UINT64_C(0) ||
+      request->device_generation != UINT64_C(0) || request->descriptor_version != 0U ||
+      request->ring_version != 0U || request->max_queues != 0U || request->ring_order != 0U ||
+      request->dma_width != 0U || request->dma_alignment != 0U || request->max_regions != 0U ||
+      request->max_inflight != 0U || request->max_bytes != UINT64_C(0) ||
+      !bytes_zero(request->reserved, sizeof(request->reserved))) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  return encode_packet(message_id, MF_VFIO_USER_MESSAGE_NEGOTIATE_V0, UINT16_C(0), request,
+                       (uint32_t)sizeof(*request), buffer, buffer_capacity, out_size);
 }
 
 mf_shared_status_v1 mf_vfio_user_guest_encode_dma_map_v0(
@@ -218,5 +248,38 @@ mf_shared_status_v1 mf_vfio_user_guest_decode_get_info_v0(
     return MF_SHARED_MALFORMED;
   }
   (void)memcpy(out_reply, buffer + sizeof(*header), sizeof(*out_reply));
+  return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1 mf_vfio_user_guest_decode_negotiate_v0(
+    const uint8_t* buffer, uint32_t buffer_size, uint64_t expected_message_id,
+    mf_transport_negotiate_v0* out_reply) {
+  const mf_transport_message_header_v0* header;
+  const uint64_t expected_size =
+      (uint64_t)sizeof(*header) + (uint64_t)sizeof(*out_reply);
+  if (buffer == NULL || out_reply == NULL || expected_message_id == UINT64_C(0) ||
+      buffer_size != expected_size) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  header = (const mf_transport_message_header_v0*)buffer;
+  if (header->message_id != expected_message_id ||
+      header->message_type !=
+          (uint16_t)(MF_VFIO_USER_MESSAGE_NEGOTIATE_V0 | MF_VFIO_USER_REPLY_FLAG_V0) ||
+      header->flags != UINT16_C(0) || header->payload_size != sizeof(*out_reply)) {
+    return MF_SHARED_MALFORMED;
+  }
+  (void)memcpy(out_reply, buffer + sizeof(*header), sizeof(*out_reply));
+  if (out_reply->magic != MF_TRANSPORT_MAGIC_V0 ||
+      out_reply->struct_size != sizeof(*out_reply) || out_reply->flags != 0U ||
+      out_reply->major != MF_TRANSPORT_MAJOR_V0 || out_reply->minor == 0U ||
+      out_reply->daemon_incarnation == UINT64_C(0) || out_reply->view_serial == UINT64_C(0) ||
+      out_reply->device_generation == UINT64_C(0) || out_reply->descriptor_version == 0U ||
+      out_reply->ring_version == 0U || out_reply->max_queues == 0U ||
+      out_reply->ring_order == 0U || out_reply->dma_width == 0U ||
+      out_reply->dma_alignment == 0U || out_reply->max_regions == 0U ||
+      out_reply->max_inflight == 0U || out_reply->max_bytes == UINT64_C(0) ||
+      !bytes_zero(out_reply->reserved, sizeof(out_reply->reserved))) {
+    return MF_SHARED_MALFORMED;
+  }
   return MF_SHARED_SUCCESS;
 }
