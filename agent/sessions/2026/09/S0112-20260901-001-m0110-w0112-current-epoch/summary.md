@@ -13,6 +13,13 @@ The product Exit Gate remains open.
   schema version 2, D0029 owner.
 - `agent/progress/current.md`: current W0112 boundary and next actions replace
   the completed governance migration sequence.
+- `services/metafluxd/server.cpp`: embedded daemon object-table memory objects
+  now bind to persistent full-range CPU backend handles; resolver imports have
+  explicit retain/release accounting, object retirement drains active
+  references, and daemon teardown reclaims remaining handles.
+- `transports/cdev/README.md` and the W0112 plan: record the embedded lifetime
+  boundary and keep live cdev lease/import and kernel qualification explicitly
+  open.
 
 ## Verification
 
@@ -20,6 +27,11 @@ The product Exit Gate remains open.
 | --- | --- |
 | D0029 handoff record gate | Passed before the atomic owner transfer commit |
 | Current focus projection | Passed for M0110/W0112 and its canonical Exit Gate |
+| Daemon cdev backend content commit | Passed: `0bba77f87c8f0737513a6873eb8325af54ff4852` |
+| Development build | Passed with `METAFLUX_DAEMON_CDEV_BACKEND=1` |
+| Focused cdev/daemon CTest | Passed: 6/6 |
+| Full development CTest | Passed: 85/85 |
+| Agent records | Passed before checkpoint-record commit |
 
 ## Cleanup
 
@@ -31,6 +43,11 @@ The product Exit Gate remains open.
 
 - D0029 and Applied SC0007 require all work to use current canonical files and
   the one current focus owner.
+- The embedded daemon object table owns one full-range backend memory handle
+  per object; operation references are explicit, temporary resolver handles
+  are reclaimed after the operation, and retired persistent handles reclaim
+  only after active references drain. This does not establish live `/dev`
+  cdev import or kernel qualification.
 
 ## roast
 
@@ -40,7 +57,9 @@ The product Exit Gate remains open.
 
 ### medium roasts
 
-- none.
+- Embedded daemon object-table backend handles with operation-reference
+  draining -> `services/metafluxd/server.cpp` (`0bba77f`; focused CTest 6/6,
+  full CTest 85/85)
 
 ### dark roasts
 
