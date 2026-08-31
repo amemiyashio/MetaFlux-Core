@@ -1,8 +1,8 @@
 ---
 status: Active
 updated: 2026-08-31
-focus_mode: product
-focus_owner: S0112-20260831-046-live-cdev-exit-gate
+focus_mode: governance
+focus_owner: S0100-20260831-047-breaking-governance-epoch
 milestone: M0110
 workstream: W0112
 checkpoint: P20260831-090
@@ -12,11 +12,18 @@ checkpoint: P20260831-090
 
 ## Execution Focus
 
-D0029 and Applied SC0006 establish one machine-readable product focus. The
-current owner is `S0112-20260831-046-live-cdev-exit-gate`; the exact target is
-M0110/W0112 and its canonical Exit Gate. An `in_progress` session that is not
-named by [`focus.json`](focus.json) remains a factual work record but has no
-content-commit authority. Existing commits and factual evidence remain valid.
+D0029 and Active SC0007 are making execution-focus governance explicitly
+breaking. The current owner is
+`S0100-20260831-047-breaking-governance-epoch`; only this bounded migration may
+change durable content until the candidate focus, owner session, commit gate,
+Claude bridge, and scaffold all require the same D0029 governance epoch.
+
+There is no compatibility, grandfather, fallback, or direct reactivation path
+for pre-SC0007 sessions. They remain factual evidence and may close through the
+record-only boundary, but continuing their objectives requires a newly
+scaffolded epoch-bearing successor and an atomic focus handoff. Thirty-five
+affected active sessions have received superseding guidance for their next
+control boundary.
 
 ## Product Resume Target
 
@@ -52,13 +59,12 @@ default scheduling authority while M0110 is incomplete.
 
 ## Next Actions
 
-1. Bring up the live local cdev path in a compatible kernel or VM and execute
-   unmodified CPU-backed CUDA Add/Copy through canonical device nodes.
-2. Connect the daemon lease/object table to live registered-memory handles and
-   prove the mapped payload/backend-reference path without fixture fallback.
-3. Qualify generation replacement, old-object `DEVICE_LOST`, non-cancellable
-   backend wait policy, owner death, and kernel fault paths before claiming the
-   W0112 Exit Gate.
+1. Add the exact D0029 governance epoch to focus, session scaffolding, candidate
+   authorization, and the Claude edit guard.
+2. Reject legacy-session focus ownership and document the breaking,
+   no-compatibility boundary on every current workflow surface.
+3. Pass the complete governance regression set, apply SC0007, and atomically
+   transfer M0110/W0112 to a newly scaffolded epoch-bearing owner.
 
 ## Blockers
 
@@ -68,6 +74,8 @@ default scheduling authority while M0110 is incomplete.
 - W0112 remains incomplete until live device-node Add/Copy and kernel fault
   evidence exist. Host-independent fixtures and mapped COPY alone do not close
   it.
+- Product work remains paused until SC0007 has no Pending migration row and the
+  new epoch-bearing W0112 owner is installed atomically.
 - M0120 and M0130 content work waits for an explicit focus handoff after the
   M0110 dependency boundary advances.
 

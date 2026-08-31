@@ -2,28 +2,33 @@
 
 ## Objective and outcome
 
-Own the dependency-valid M0110/W0112 product focus after SC0006. Product work
-has not started at this handoff boundary; the session begins from the verified
-D0029 governance revision and the existing host-independent cdev stages.
+Owned the dependency-valid M0110/W0112 product focus after SC0006. Product work
+did not start before the user authorized the stronger SC0007 breaking-governance
+boundary. This ledger is therefore abandoned at the governance handoff rather
+than carried forward as a compatible execution owner.
 
 ## Durable changes
 
-- none yet; this record is the successor installed by the governance handoff.
+- No product content change. The terminal record preserves the unstarted W0112
+  objective for a new epoch-bearing successor.
 
 ## Verification
 
 | Command/gate | Result |
 | --- | --- |
-| D0029 successor shape | M0110/W0112 scope and canonical Exit Gate resolve in the candidate record tree |
+| Preemption boundary | No product source change followed the SC0006 handoff |
+| SC0007 transfer shape | Candidate tree closes this owner and installs one dedicated governance owner atomically |
 
 ## Cleanup
 
 - Removed: none.
-- Retained: no session-owned artifact beyond this compact active ledger.
+- Retained: this compact terminal ledger as factual evidence of the unstarted
+  product handoff.
 
 ## Decisions and experience
 
-- D0029 fixes execution-focus ownership; SC0006 applies the migration.
+- SC0007 makes the D0029 boundary breaking and intentionally does not carry this
+  pre-governance session forward as executable authority.
 
 ## roast
 
@@ -47,11 +52,11 @@ D0029 governance revision and the existing host-independent cdev stages.
 
 - W0112 remains Active. Live cdev qualification requires a Linux 6.12 or 6.18
   kernel/VM with module loading, canonical device nodes, and the required
-  privileges.
+  privileges; a new D0029-epoch session must own that work after SC0007.
 
 ## Handoff
 
-Read `agent/progress/focus.json`, `agent/progress/current.md`, and the W0112
-Exit Gate. Confirm the target kernel/device-node environment before changing
-source, then run the smallest live Add/Copy path that can expose the next real
-boundary.
+Do not resume this ledger as a content owner. Read
+`agent/progress/focus.json`, Active SC0007, and the W0112 Exit Gate. After the
+migration applies, continue only through the newly scaffolded epoch-bearing
+W0112 successor named by focus.

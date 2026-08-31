@@ -8,3 +8,7 @@ authority while the W0112 Exit Gate is incomplete.
 Do not convert existing host-independent queue, resolver, lifecycle, or Vulkan
 fixtures into a live cdev qualification claim. The first boundary is the real
 `/dev/metafluxctl` and `/dev/metafluxN` path on Linux 6.12 or 6.18.
+
+SC0007 preempted this session before that first product step. The record is
+evidence only and is not an execution-compatibility route under the new
+governance epoch.

@@ -4,9 +4,9 @@
   "repository": "MetaFlux-Core",
   "delivery": "0.1.1.2",
   "started_at": "2026-08-31",
-  "ended_at": null,
+  "ended_at": "2026-08-31",
   "time_precision": "date",
-  "status": "in_progress",
+  "status": "abandoned",
   "fidelity": "exact",
   "agents": [
     {
@@ -20,7 +20,8 @@
       "title": "Kernel and Guest Transport",
       "status": "active",
       "event_seqs": [
-        1
+        1,
+        2
       ]
     }
   ],
@@ -33,7 +34,7 @@
     }
   ],
   "base_revision": "51e0c7551ff8a41e241f952b8bea30e411bdc7d9",
-  "final_revision": null,
+  "final_revision": "c47a676f8e1d3c497c86ddd3a7bcf34c56995366",
   "event_log": "events.jsonl",
   "summary": "summary.md",
   "notes": "notes.md"

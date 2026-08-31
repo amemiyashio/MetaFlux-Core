@@ -145,7 +145,8 @@ copies canonical content.
 | [S0122-20260831-043-provider-view-freeze](2026/08/S0122-20260831-043-provider-view-freeze/summary.md) | 2026-08-31 | Exact | Complete | W0122 provider-view revision validation and CUDA/NVML enumeration-freeze regressions |
 | [S0123-20260831-044-m0120-producer-ingress](2026/08/S0123-20260831-044-m0120-producer-ingress/summary.md) | 2026-08-31 | Exact | Complete | W0122 immediate producer capture/submit ingress with strict event routing and stale-observation regression |
 | [S0100-20260831-045-execution-focus-governance](2026/08/S0100-20260831-045-execution-focus-governance/summary.md) | 2026-08-31 | Exact | Complete | D0029 single execution focus, exact owner gate, compact current projection, and atomic W0112 handoff |
-| [S0112-20260831-046-live-cdev-exit-gate](2026/08/S0112-20260831-046-live-cdev-exit-gate/summary.md) | 2026-08-31 | Exact | In progress | Own M0110/W0112 live cdev Add/Copy, generation isolation, and kernel fault qualification through the Exit Gate |
+| [S0112-20260831-046-live-cdev-exit-gate](2026/08/S0112-20260831-046-live-cdev-exit-gate/summary.md) | 2026-08-31 | Exact | Abandoned | Preempted before product work by SC0007; W0112 transfers only to a new D0029-epoch successor |
+| [S0100-20260831-047-breaking-governance-epoch](2026/08/S0100-20260831-047-breaking-governance-epoch/summary.md) | 2026-08-31 | Exact | In progress | Apply SC0007 breaking governance, reject pre-epoch execution authority, and return W0112 to an epoch-bearing successor |
 
 ## Fidelity and retention
 

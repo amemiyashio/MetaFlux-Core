@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "S0100-20260831-047-breaking-governance-epoch",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.0.0",
+  "started_at": "2026-08-31",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "governance_epoch": "D0029",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "breaking execution-governance implementer"
+    }
+  ],
+  "milestones": [],
+  "work_items": [],
+  "base_revision": "c47a676f8e1d3c497c86ddd3a7bcf34c56995366",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
