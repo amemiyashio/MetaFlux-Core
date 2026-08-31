@@ -36,8 +36,12 @@ fallback inside a Vulkan context.
   target digest. It rejects missing required features, mismatched target
   identity, out-of-range workgroups, unknown address spaces, and unproved
   subgroup-width assumptions before any future module creation.
-- [ ] Implement target-constrained Kernel IR to MLIR SPIR-V lowering and packed
-  BDA reflection/verification.
+- [x] Add the host-independent packed-BDA reflection contract and verifier. It
+  checks the compute entry point, target digest, workgroup, required features,
+  address spaces, builtins, Workgroup storage, and versioned argument-block
+  size after target preflight.
+- [ ] Implement target-constrained Kernel IR to MLIR SPIR-V lowering and actual
+  SPIR-V emission.
 - [ ] Validate every module against Vulkan 1.3 and the actually enabled target.
 - [ ] Cover FP edges, limits, missing features, address spaces, barriers,
   malformed modules, and stable negative diagnostics.

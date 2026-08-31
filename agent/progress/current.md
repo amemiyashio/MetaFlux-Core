@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0130
-workstream: W0135
-checkpoint: P20260831-052
+workstream: W0133
+checkpoint: P20260831-053
 ---
 
 # Current Progress
@@ -138,6 +138,11 @@ The following items are not `v0.1.0` blockers:
 The host-independent W0134 command-resource ownership and completion-gated
 recycling model is recorded; actual Vulkan queue submission remains open.
 
+W0133's host-independent SPIR-V reflection and packed-BDA admission contract
+is now recorded at [P20260831-053](checkpoints/2026/P20260831-053-m0130-vulkan-module-reflection.md);
+actual Kernel IR to MLIR conversion, binary emission/validation, pipeline
+creation, and driver execution remain open.
+
 Intel x86_64 support qualification and physical NVIDIA binding-performance
 promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
 remains the unallocated `v0.2.0` support expansion. M0100 keeps the measured
@@ -256,7 +261,9 @@ Linux 9.8.
 | W0133 target preflight | `86441c7`; queried profile, required features, target digest, workgroup limits, known address spaces, BDA intent, and subgroup constraints are validated before module creation |
 | W0133 diagnostics | Stable statuses cover invalid profile/module, unsupported features/semantics, target mismatch, and limit exceeded; positive and negative fixtures pass |
 | W0133 CTest | Full `vulkan` preset passed 85/85, including `metaflux.backend.vulkan-target-preflight` |
-| W0133 current boundary | MLIR conversion, SPIR-V validation/reflection, pipeline creation, execution, and dual-driver differential evidence remain open |
+| W0133 reflection contract | `d25617a`; compute entry/model, target digest, workgroup, feature/address-space parity, LocalInvocationId, Workgroup storage, and packed-BDA size are checked before shader-module creation |
+| W0133 CTest after reflection stage | Full `vulkan` preset passed 88/88, including target-preflight reflection and BDA negatives |
+| W0133 current boundary | Kernel IR to MLIR SPIR-V conversion/emission, actual `spirv-val`, pipeline creation, execution, and dual-driver differential evidence remain open |
 
 ## Recorded M0130 W0134 Evidence
 
@@ -385,6 +392,10 @@ Linux 9.8.
     [P20260831-052](checkpoints/2026/P20260831-052-m0130-vulkan-cache-stampede.md).
     Continue by binding invalidation to a real pipeline identity and proving the
     warm path's compiler/validator/allocation exclusions.
+20. M0130/W0133 is Active after the host-independent reflection/packed-BDA stage
+    at [P20260831-053](checkpoints/2026/P20260831-053-m0130-vulkan-module-reflection.md).
+    Continue with Kernel IR to MLIR SPIR-V lowering and exact binary validation;
+    do not claim shader emission or driver qualification from reflection fixtures.
 
 ## Tool Boundary
 
