@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <limits>
+#include <mutex>
 #include <string_view>
 
 namespace metaflux::runtime::lifecycle {
@@ -156,8 +157,12 @@ public:
   static constexpr std::uint32_t kTombstoneCapacity = 2048;
 
   explicit Coordinator(Config config = {}) noexcept;
+  Coordinator(const Coordinator&) = delete;
+  Coordinator& operator=(const Coordinator&) = delete;
+  Coordinator(Coordinator&& other) noexcept;
+  Coordinator& operator=(Coordinator&& other) = delete;
 
-  [[nodiscard]] bool valid() const noexcept { return valid_; }
+  [[nodiscard]] bool valid() const noexcept;
 
   [[nodiscard]] bool register_mirror(const Mirror& mirror) noexcept;
 
@@ -171,9 +176,9 @@ public:
 
   [[nodiscard]] bool generation_consumed(std::uint64_t generation) const noexcept;
 
-  [[nodiscard]] std::uint32_t mirror_count() const noexcept { return mirror_count_; }
+  [[nodiscard]] std::uint32_t mirror_count() const noexcept;
 
-  [[nodiscard]] std::uint32_t tombstone_count() const noexcept { return tombstone_count_; }
+  [[nodiscard]] std::uint32_t tombstone_count() const noexcept;
 
 private:
   struct RequestRecord final {
@@ -209,7 +214,8 @@ private:
   [[nodiscard]] RequestRecord* find_request(std::uint64_t request_id) noexcept;
   [[nodiscard]] const RequestRecord* find_request(std::uint64_t request_id) const noexcept;
   [[nodiscard]] RequestRecord* free_request() noexcept;
-  void remember_request(const Request& request, Result result, const ResultDetails& details) noexcept;
+  void remember_request(const Request& request, Result result,
+                        const ResultDetails& details) noexcept;
 
   [[nodiscard]] bool reserve_candidate(Candidate& out) noexcept;
   [[nodiscard]] bool reserve_epoch(std::uint64_t& out_epoch) const noexcept;
@@ -219,16 +225,15 @@ private:
 
   [[nodiscard]] bool invoke(Transaction& transaction, MirrorStage stage,
                             MirrorCallback callback) noexcept;
-  [[nodiscard]] State event_state(const Transaction& transaction,
-                                  MirrorStage stage) const noexcept;
+  [[nodiscard]] State event_state(const Transaction& transaction, MirrorStage stage) const noexcept;
   void abort(Transaction& transaction) noexcept;
   void publish_lost(const Transaction& transaction) noexcept;
-  void fill_details(Result result, const Transaction& transaction, ResultDetails& out) const noexcept;
+  void fill_details(Result result, const Transaction& transaction,
+                    ResultDetails& out) const noexcept;
 
   [[nodiscard]] Result apply_add(const Request& request, ResultDetails& out) noexcept;
   [[nodiscard]] Result apply_remove(const Request& request, ResultDetails& out) noexcept;
-  [[nodiscard]] Result apply_reset_or_recover(const Request& request,
-                                              ResultDetails& out) noexcept;
+  [[nodiscard]] Result apply_reset_or_recover(const Request& request, ResultDetails& out) noexcept;
   [[nodiscard]] Result apply_transport_loss(const Request& request, ResultDetails& out) noexcept;
 
   Config config_{};
@@ -246,6 +251,7 @@ private:
   std::array<RequestRecord, kRequestCapacity> requests_{};
   std::array<Tombstone, kTombstoneCapacity> tombstones_{};
   std::uint32_t tombstone_count_ = 0;
+  mutable std::recursive_mutex mutex_;
 };
 
 } // namespace metaflux::runtime::lifecycle

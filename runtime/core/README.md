@@ -45,6 +45,13 @@ reset/remove/add run consumes 3,000 request records, 2,000 tombstones, and
 `ResourceExhausted`; there is no eviction or implicit garbage collection that
 could make a replay or an old object ambiguous.
 
+The Coordinator serializes its public control-plane operations with one
+reentrant authority mutex. This protects lifecycle state, replay records, and
+tombstones when reset/remove/add requests race with read-only open, mmap, and
+telemetry observations or duplicate submit replays. Mirror callbacks run inside
+the same authority transaction and may take a consistent snapshot; transport
+payloads and provider fence payloads retain their own synchronization owners.
+
 Telemetry publication is bound to the same authority. A producer row must carry
 the current identity and exact stable lifecycle sequence while device admission
 is `OPEN` and the fence is `ONLINE`. The runtime checks that tuple before taking

@@ -1,9 +1,11 @@
 #include "metaflux/runtime/lifecycle.hpp"
 
 #include <array>
+#include <atomic>
 #include <cstdint>
 #include <iostream>
 #include <string_view>
+#include <thread>
 
 using metaflux::runtime::lifecycle::Config;
 using metaflux::runtime::lifecycle::Coordinator;
@@ -176,6 +178,149 @@ bool qualifies_one_thousand_reset_remove_add_cycles() {
   return true;
 }
 
+bool qualifies_concurrent_observers_and_replay() {
+  constexpr std::uint32_t kConcurrentCycles = 128U;
+  MirrorAudit memfd{};
+  MirrorAudit cdev{};
+  MirrorAudit vfio{};
+  Config config{};
+  config.logical_device_id = 7U;
+  config.daemon_incarnation = 11U;
+  config.initial_identity_record_id = 1U;
+  config.initial_generation = 1U;
+  config.initial_epoch = 1U;
+  config.generation_terminal = 4096U;
+  config.identity_record_terminal = 4096U;
+  config.epoch_terminal = 4096U;
+  Coordinator coordinator(config);
+  REQUIRE(coordinator.valid());
+  REQUIRE(coordinator.register_mirror(make_mirror(MirrorKind::Memfd, "memfd", memfd)));
+  REQUIRE(coordinator.register_mirror(make_mirror(MirrorKind::Cdev, "cdev", cdev)));
+  REQUIRE(coordinator.register_mirror(make_mirror(MirrorKind::VfioUser, "vfio-user", vfio)));
+
+  const Request replay =
+      make_request(9001U, Operation::Reset, coordinator.snapshot(), Source::Admin);
+  std::array<Result, 4> replay_results{};
+  std::array<std::thread, 4> replayers{};
+  for (std::size_t index = 0; index < replayers.size(); ++index) {
+    replayers[index] = std::thread([&, index] {
+      ResultDetails details{};
+      replay_results[index] = coordinator.apply(replay, details);
+    });
+  }
+  for (auto& thread : replayers) {
+    thread.join();
+  }
+  std::size_t accepted = 0U;
+  std::size_t duplicate = 0U;
+  for (const Result result : replay_results) {
+    accepted += result == Result::Accepted ? 1U : 0U;
+    duplicate += result == Result::Duplicate ? 1U : 0U;
+  }
+  REQUIRE(accepted == 1U);
+  REQUIRE(duplicate == replay_results.size() - 1U);
+  REQUIRE(coordinator.snapshot().generation == 2U);
+
+  std::atomic<bool> stop{false};
+  std::atomic<bool> failed{false};
+  auto mark_invalid = [&failed](const Snapshot& snapshot) {
+    const auto state = static_cast<std::uint8_t>(snapshot.state);
+    if (snapshot.logical_device_id != 7U || snapshot.daemon_incarnation != 11U ||
+        state > static_cast<std::uint8_t>(State::Lost)) {
+      failed.store(true, std::memory_order_relaxed);
+    }
+  };
+  std::thread open_activity([&] {
+    while (!stop.load(std::memory_order_relaxed)) {
+      if (!coordinator.valid() || coordinator.mirror_count() != 3U) {
+        failed.store(true, std::memory_order_relaxed);
+      }
+      std::this_thread::yield();
+    }
+  });
+  std::thread mmap_activity([&] {
+    while (!stop.load(std::memory_order_relaxed)) {
+      mark_invalid(coordinator.snapshot());
+      std::this_thread::yield();
+    }
+  });
+  std::thread telemetry_activity([&] {
+    while (!stop.load(std::memory_order_relaxed)) {
+      const Snapshot snapshot = coordinator.snapshot();
+      mark_invalid(snapshot);
+      const auto resolved = coordinator.resolve(snapshot.generation);
+      if (resolved != ResolveResult::Online && resolved != ResolveResult::DeviceLost &&
+          resolved != ResolveResult::Absent && resolved != ResolveResult::Unknown) {
+        failed.store(true, std::memory_order_relaxed);
+      }
+      if (snapshot.generation != 0U && !coordinator.generation_consumed(snapshot.generation)) {
+        failed.store(true, std::memory_order_relaxed);
+      }
+      std::this_thread::yield();
+    }
+  });
+  std::thread submit_activity([&] {
+    while (!stop.load(std::memory_order_relaxed)) {
+      ResultDetails details{};
+      if (coordinator.apply(replay, details) != Result::Duplicate) {
+        failed.store(true, std::memory_order_relaxed);
+      }
+      std::this_thread::yield();
+    }
+  });
+
+  std::uint64_t request_id = 10000U;
+  bool writer_ok = true;
+  for (std::uint32_t cycle = 0U; cycle < kConcurrentCycles; ++cycle) {
+    const Snapshot before_reset = coordinator.snapshot();
+    ResultDetails details{};
+    if (coordinator.apply(make_request(request_id++, Operation::Reset, before_reset, Source::Admin),
+                          details) != Result::Accepted) {
+      writer_ok = false;
+      break;
+    }
+    const Snapshot after_reset = coordinator.snapshot();
+    if (after_reset.state != State::Online ||
+        coordinator.apply(make_request(request_id++, Operation::Remove, after_reset, Source::Cdev),
+                          details) != Result::Accepted) {
+      writer_ok = false;
+      break;
+    }
+    const Snapshot after_remove = coordinator.snapshot();
+    if (after_remove.state != State::Absent ||
+        coordinator.apply(
+            make_request(request_id++, Operation::Add, after_remove, Source::VfioUser), details) !=
+            Result::Accepted ||
+        coordinator.snapshot().state != State::Online) {
+      writer_ok = false;
+      break;
+    }
+  }
+
+  stop.store(true, std::memory_order_relaxed);
+  open_activity.join();
+  mmap_activity.join();
+  telemetry_activity.join();
+  submit_activity.join();
+  REQUIRE(writer_ok);
+  REQUIRE(!failed.load(std::memory_order_relaxed));
+
+  const Snapshot final = coordinator.snapshot();
+  REQUIRE(final.state == State::Online);
+  REQUIRE(final.generation == 2U + 2U * kConcurrentCycles);
+  REQUIRE(final.identity_record_id == final.generation);
+  REQUIRE(final.epoch == final.generation);
+  REQUIRE(coordinator.tombstone_count() == 2U * kConcurrentCycles + 1U);
+  REQUIRE(coordinator.resolve(1U) == ResolveResult::DeviceLost);
+  REQUIRE(coordinator.resolve(2U) == ResolveResult::DeviceLost);
+  return true;
+}
+
 } // namespace
 
-int main() { return qualifies_one_thousand_reset_remove_add_cycles() ? 0 : 1; }
+int main() {
+  return qualifies_one_thousand_reset_remove_add_cycles() &&
+                 qualifies_concurrent_observers_and_replay()
+             ? 0
+             : 1;
+}

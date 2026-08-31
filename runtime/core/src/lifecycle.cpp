@@ -50,6 +50,28 @@ Coordinator::Coordinator(Config config) noexcept : config_(config) {
   valid_ = terminals_valid && initial_values_valid && state_values_valid && high_water_valid;
 }
 
+Coordinator::Coordinator(Coordinator&& other) noexcept {
+  std::lock_guard<std::recursive_mutex> lock(other.mutex_);
+  config_ = other.config_;
+  valid_ = other.valid_;
+  state_ = other.state_;
+  logical_device_id_ = other.logical_device_id_;
+  daemon_incarnation_ = other.daemon_incarnation_;
+  identity_record_id_ = other.identity_record_id_;
+  generation_ = other.generation_;
+  epoch_ = other.epoch_;
+  identity_high_water_ = other.identity_high_water_;
+  generation_high_water_ = other.generation_high_water_;
+  mirrors_ = other.mirrors_;
+  mirror_count_ = other.mirror_count_;
+  requests_ = other.requests_;
+  tombstones_ = other.tombstones_;
+  tombstone_count_ = other.tombstone_count_;
+  other.valid_ = false;
+  other.mirror_count_ = 0;
+  other.tombstone_count_ = 0;
+}
+
 State Coordinator::event_state(const Transaction& transaction, MirrorStage stage) const noexcept {
   if (stage == MirrorStage::Abort) {
     return transaction.target_state;
@@ -103,6 +125,7 @@ State Coordinator::event_state(const Transaction& transaction, MirrorStage stage
 }
 
 bool Coordinator::register_mirror(const Mirror& mirror) noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (!valid_ || mirror_count_ >= kMaxMirrors || !is_valid_mirror_kind(mirror.kind) ||
       mirror.name.empty()) {
     return false;
@@ -223,7 +246,7 @@ void Coordinator::append_tombstone(std::uint64_t generation, std::uint64_t ident
 }
 
 bool Coordinator::invoke(Transaction& transaction, MirrorStage stage,
-                          MirrorCallback callback) noexcept {
+                         MirrorCallback callback) noexcept {
   bool success = true;
   for (std::uint32_t index = 0; index < mirror_count_; ++index) {
     Mirror& mirror = mirrors_[index];
@@ -268,8 +291,7 @@ bool Coordinator::invoke(Transaction& transaction, MirrorStage stage,
 void Coordinator::abort(Transaction& transaction) noexcept {
   for (std::uint32_t index = 0; index < mirror_count_; ++index) {
     const std::uint32_t bit = UINT32_C(1) << index;
-    if ((transaction.touched_mask & bit) == 0U ||
-        (transaction.committed_mask & bit) != 0U) {
+    if ((transaction.touched_mask & bit) == 0U || (transaction.committed_mask & bit) != 0U) {
       continue;
     }
     Mirror& mirror = mirrors_[index];
@@ -517,6 +539,7 @@ Result Coordinator::apply_transport_loss(const Request& request, ResultDetails& 
 }
 
 Result Coordinator::apply(const Request& request, ResultDetails& out) noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   out = ResultDetails{};
   if (!valid_) {
     out.result = Result::Invalid;
@@ -580,11 +603,18 @@ Result Coordinator::apply(const Request& request, ResultDetails& out) noexcept {
 }
 
 Result Coordinator::apply(const Request& request) noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   ResultDetails details{};
   return apply(request, details);
 }
 
+bool Coordinator::valid() const noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  return valid_;
+}
+
 Snapshot Coordinator::snapshot() const noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   return Snapshot{
       .state = state_,
       .logical_device_id = logical_device_id_,
@@ -598,6 +628,7 @@ Snapshot Coordinator::snapshot() const noexcept {
 }
 
 ResolveResult Coordinator::resolve(std::uint64_t generation) const noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (generation == 0U) {
     return ResolveResult::Absent;
   }
@@ -613,7 +644,18 @@ ResolveResult Coordinator::resolve(std::uint64_t generation) const noexcept {
 }
 
 bool Coordinator::generation_consumed(std::uint64_t generation) const noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   return generation != 0U && generation <= generation_high_water_;
+}
+
+std::uint32_t Coordinator::mirror_count() const noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  return mirror_count_;
+}
+
+std::uint32_t Coordinator::tombstone_count() const noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  return tombstone_count_;
 }
 
 } // namespace metaflux::runtime::lifecycle

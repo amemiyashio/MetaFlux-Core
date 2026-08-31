@@ -22,6 +22,11 @@ freeze `mf_admin_lifecycle_v1` from one schema.
   generations as `DEVICE_LOST`, checks the three mirror callback streams, and
   verifies replay/conflict behavior after the run. The static authority bounds
   are 4,096 request records and 2,048 tombstones; no eviction is introduced.
+- [x] Serialize the Coordinator's public control-plane operations with one
+  reentrant authority mutex and qualify concurrent duplicate replay alongside
+  open, mmap, submit, and telemetry-style observations. The fixture proves one
+  accepted replay, idempotent duplicates, legal intermediate states, and final
+  generation/tombstone invariants without changing the transport ABI.
 - [ ] Implement and qualify canonical MetaFlux udev/node policy for existing
   transports; the optional namespace launcher and NVIDIA-named aliases belong
   only to W0124.
