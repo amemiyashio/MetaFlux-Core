@@ -7,7 +7,8 @@ existing capability profile to an instance, physical device, logical compute
 queue, and private timeline semaphore. The context remains an internal C++20
 adapter and is verified with the optional runtime profile on the current AMD
 host; it does not claim allocation, external-memory import, dual-driver, or
-release qualification.
+release qualification. A staging-allocation follow-up was explored but
+deferred when the project priority returned to the CUDA/M0110 critical path.
 
 ## Durable changes
 
@@ -29,8 +30,9 @@ release qualification.
 
 ## Cleanup
 
-- Removed: none; no build tree, source snapshot, or temporary download was
-  copied into the session.
+- Removed: the uncommitted staging-allocation source exploration in
+  `vulkan_device.hpp/.cpp` was restored before close; no build tree, source
+  snapshot, or temporary download was copied into the session.
 - Retained: external CMake build output under the build workflow's ownership;
   source, tests, and compact progress records remain in Git.
 
@@ -39,6 +41,8 @@ release qualification.
 - Content revision `8afbe2a` binds the capability profile to the private context;
   W0132 device-context boundary remains below allocation and external-handle
   qualification gates.
+- The seq4 staging-allocation route remains an unresolved W0132 follow-up and
+  produced no content revision; the next active work unit is CUDA/M0110 W0112.
 
 ## roast
 
@@ -64,9 +68,11 @@ release qualification.
 
 - W0132: physical allocation, external-memory ownership, lifecycle loss, and
   driver-family qualification remain open after this context stage.
+- W0112: return to the cdev CPU Add/Copy path; production Add/launch and fault
+  qualification remain open.
 
 ## Handoff
 
-Resume from the W0132 device-context checkpoint, then read the Vulkan capability
-profile and memory-synchronization references before adding allocation or import
-behavior. Use `nix develop .#vulkan-runtime` for local AMD/RADV smoke only.
+Resume from the W0132 device-context checkpoint for the deferred staging route;
+the project critical path now resumes at W0112 cdev CPU Add/Copy. Use
+`nix develop .#vulkan-runtime` for local AMD/RADV smoke only.
