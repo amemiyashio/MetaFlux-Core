@@ -6,11 +6,11 @@ Advance M0110/W0112 on the CUDA critical path by proving that the CPU backend's
 versioned C ABI can execute a pre-serialized canonical Kernel IR Add module.
 The stage delivered a bounded synchronous `load_module`/`submit` path with a
 private fixed-width argument block and strict ownership, range, and dimension
-validation. The cdev worker now also resolves the primary-entry descriptor
-through an explicit generation-bound resolver and drives the same CPU backend
-submit path through the mapped payload. Bound requests now also use an explicit
-synchronous operation lease. Registered-memory DMA integration and production
-resolver wiring remain open.
+validation. The cdev worker now resolves primary-entry launch descriptors and
+region COPY argument blocks through explicit generation-bound resolvers, drives
+the CPU backend through the mapped payload or independent backend memory
+handles, and gates all bound calls with an explicit synchronous operation lease.
+Registered-memory DMA integration and production resolver wiring remain open.
 
 ## Durable changes
 
@@ -27,12 +27,13 @@ resolver wiring remain open.
 - `transports/cdev/client/include/metaflux/transport/cdev.h` and `src/cdev.c`:
   primary-entry launch descriptor and submit helpers.
 - `transports/cdev/worker/include/metaflux/transport/cdev_worker.hpp` and
-  `src/worker.cpp`: generation-bound resolver and synchronous launch dispatch.
+  `src/worker.cpp`: generation-bound launch and region-COPY resolvers with
+  synchronous backend dispatch.
 - `transports/cdev/worker/tests/worker_test.cpp` and its CMake target: fake
-  resolver/error and operation-lease coverage, plus real CPU canonical-KIR Add
-  through cdev.
-- `transports/cdev/README.md`: synchronous backend-operation lease boundary and
-  asynchronous ownership limitation.
+  resolver/error, region COPY, and operation-lease coverage, plus real CPU
+  canonical-KIR Add through cdev.
+- `transports/cdev/README.md`: region COPY resolution, synchronous
+  backend-operation lease boundary, and asynchronous ownership limitation.
 
 ## Verification
 
@@ -42,7 +43,7 @@ resolver wiring remain open.
 | Focused CPU/backend/cdev tests | Passed 3/3 |
 | Full development CTest | Passed 84/84 |
 | clang-format and `git diff --check` | Passed |
-| Agent record validator | Passed: 57 sessions / 385 events / 329 Markdown files |
+| Agent record validator | Passed: 57 sessions / 387 events / 331 Markdown files |
 
 ## Cleanup
 
@@ -64,6 +65,9 @@ resolver wiring remain open.
   resolver/API access and releases it after the ABI call. Lease rejection is a
   completion status and never selects the local COPY fallback. An asynchronous
   backend must extend ownership until observed completion.
+- Region COPY object-table semantics remain resolver-owned. The worker receives
+  independent backend memory handles and range values, validates them, and does
+  not retain the resolution after the synchronous copy returns.
 
 ## roast
 
@@ -87,13 +91,13 @@ resolver wiring remain open.
 
 ## Unresolved items
 
-- W0112: bind a production resolver to registered-memory DMA and extend the
-  operation lease through asynchronous completion; generation replacement and
-  fault qualification remain open.
+- W0112: bind the region resolver to generation-bound registered-memory DMA and
+  extend the operation lease through asynchronous completion; generation
+  replacement and fault qualification remain open.
 
 ## Handoff
 
 Read `agent/plan/M0110-kernel-guest-transport/work/W0112-local-cdev.md`, the
-backend dispatch seam, and P063. Resume at `fcdcbbd`; keep the cdev worker
+backend dispatch seam, and P064. Resume at `7bdcedf`; keep the cdev worker
 backend-agnostic and connect registered-memory DMA to the lease before daemon
 replacement or asynchronous completion.

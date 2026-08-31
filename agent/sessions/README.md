@@ -112,7 +112,7 @@ copies canonical content.
 | [S0134-20260831-018-vulkan-submit-admission](2026/08/S0134-20260831-018-vulkan-submit-admission/summary.md) | 2026-08-31 | Exact | Complete | W0134 transactional queue-submission ledger with generation-bound completion and completion-gated recycling; real Vulkan queue adapter remains open |
 | [S0131-20260831-019-vulkan-runtime-tools](2026/08/S0131-20260831-019-vulkan-runtime-tools/summary.md) | 2026-08-31 | Exact | Complete | W0131 on-demand Mesa Vulkan ICD and validation-layer runtime profile; physical NVIDIA and dual-driver qualification remain open |
 | [S0132-20260831-020-vulkan-device-context](2026/08/S0132-20260831-020-vulkan-device-context/summary.md) | 2026-08-31 | Exact | Complete | W0132 private Vulkan 1.3 device/queue/timeline context with generation-checked RADV smoke; staging allocation is deferred to the existing W0132 boundary |
-| [S0112-20260831-021-cuda-cdev-add-copy](2026/08/S0112-20260831-021-cuda-cdev-add-copy/summary.md) | 2026-08-31 | Exact | In progress | W0112 CPU backend and cdev primary-entry launch with synchronous operation lease; registered-memory DMA and replacement remain open |
+| [S0112-20260831-021-cuda-cdev-add-copy](2026/08/S0112-20260831-021-cuda-cdev-add-copy/summary.md) | 2026-08-31 | Exact | In progress | W0112 CPU backend, cdev launch and region COPY resolvers with synchronous lease; registered-memory DMA and replacement remain open |
 
 ## Fidelity and retention
 

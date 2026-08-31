@@ -62,8 +62,14 @@ and arithmetic operation is validated.
 - [x] Add a worker-side `mf_backend_api_v1` COPY dispatch seam with sized-table,
   capability, handle, offset, and backend-status validation. An unbound worker
   retains the local fixture copy path; a malformed bound API returns
-  `MF_SHARED_NOT_SUPPORTED` without fallback. Backend memory import and cdev
-  descriptor-to-launch wiring remain open.
+  `MF_SHARED_NOT_SUPPORTED` without fallback. Registered-memory DMA mapping and
+  asynchronous backend ownership remain open.
+- [x] Expose a backend-agnostic `CdevCopyResolver` for
+  `MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1`. The resolver maps argument-block
+  object references to independent backend memory handles and ranges; the worker
+  validates the result and holds the synchronous operation lease across
+  resolution and copy. Real registered-memory DMA mapping and device
+  qualification remain open.
 - [x] Require a synchronous backend-operation lease for every bound COPY or
   LAUNCH. The worker holds the lease across resolver access and the backend ABI
   call, surfaces lease rejection in the completion status, and releases it only
