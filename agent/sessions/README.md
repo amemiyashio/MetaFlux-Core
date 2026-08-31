@@ -131,6 +131,7 @@ copies canonical content.
 | [S01322-20260831-037-vulkan-staging-allocation](2026/08/S01322-20260831-037-vulkan-staging-allocation/summary.md) | 2026-08-31 | Exact | In progress | W0132 physical host-visible Vulkan staging allocation, mapping, and flush/invalidate range boundary on AMD/RADV; backend admission and device-local copy remain open |
 | [S01323-20260831-038-vulkan-device-local-copy](2026/08/S01323-20260831-038-vulkan-device-local-copy/summary.md) | 2026-08-31 | Exact | In progress | W0132 source-local Tier 3 host-to-device/device-to-host copy through the generation-bound Vulkan timeline on AMD/RADV; backend admission and external memory remain open |
 | [S0110-20260831-039-execution-priority-convergence](2026/08/S0110-20260831-039-execution-priority-convergence/summary.md) | 2026-08-31 | Exact | Complete | Preserved valid Vulkan evidence and restored M0110/M0120 non-NVIDIA execution priority |
+| [S0122-20260831-040-live-qmp-socket-transport](2026/08/S0122-20260831-040-live-qmp-socket-transport/summary.md) | 2026-08-31 | Exact | In progress | W0122 bounded QMP Unix-stream command/event transport |
 
 ## Fidelity and retention
 
