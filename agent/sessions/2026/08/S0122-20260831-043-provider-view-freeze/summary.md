@@ -55,10 +55,10 @@ zero-to-one initialization.
 ## Unresolved items
 
 - W0122 remains Active. Producer-side reset/restart integration, staged fault
-  injection, and live qualification remain open.
+  injection, and live qualification remain open for a subsequent session.
 
 ## Handoff
 
-Resume from `a2c7a95889f1996246237eb77e1555f4b35d36a9` and this checkpoint.
+Resume from `a2c7a95889f1996246237eb77e1555f4b35d36a9` and checkpoint P088.
 Read W0122, the fastpath README, and the provider-view sections before taking
 the next unit; preserve the stable C ABI and keep v1.0 hardware gates deferred.

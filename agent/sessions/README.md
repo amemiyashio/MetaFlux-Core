@@ -134,7 +134,7 @@ copies canonical content.
 | [S0122-20260831-040-live-qmp-socket-transport](2026/08/S0122-20260831-040-live-qmp-socket-transport/summary.md) | 2026-08-31 | Exact | Complete | W0122 bounded QMP Unix-stream command/event transport; producer wiring and qualification remain open |
 | [S0123-20260831-041-lifecycle-node-policy](2026/08/S0123-20260831-041-lifecycle-node-policy/summary.md) | 2026-08-31 | Exact | Complete | W0123 canonical cdev udev/node policy, Daemon installation, and package lifecycle assertions; live/kernel qualification remains open |
 | [S0122-20260831-042-qmp-socket-lifecycle-bridge](2026/08/S0122-20260831-042-qmp-socket-lifecycle-bridge/summary.md) | 2026-08-31 | Exact | Complete | W0122 QMP socket-to-Coordinator completion bridge with separate transport/lifecycle outcomes and pending/error containment |
-| [S0122-20260831-043-provider-view-freeze](2026/08/S0122-20260831-043-provider-view-freeze/summary.md) | 2026-08-31 | Exact | In progress | W0122 provider-view revision validation and CUDA/NVML enumeration-freeze regressions |
+| [S0122-20260831-043-provider-view-freeze](2026/08/S0122-20260831-043-provider-view-freeze/summary.md) | 2026-08-31 | Exact | Complete | W0122 provider-view revision validation and CUDA/NVML enumeration-freeze regressions |
 
 ## Fidelity and retention
 

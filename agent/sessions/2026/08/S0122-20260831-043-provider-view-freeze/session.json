@@ -4,9 +4,9 @@
   "repository": "MetaFlux-Core",
   "delivery": "0.1.2.2",
   "started_at": "2026-08-31",
-  "ended_at": null,
+  "ended_at": "2026-08-31",
   "time_precision": "date",
-  "status": "in_progress",
+  "status": "complete",
   "fidelity": "exact",
   "agents": [
     {
@@ -31,7 +31,7 @@
     }
   ],
   "base_revision": "79018c7d95c2d673c83dc7e18b104215de8f2ca4",
-  "final_revision": null,
+  "final_revision": "a2c7a95889f1996246237eb77e1555f4b35d36a9",
   "event_log": "events.jsonl",
   "summary": "summary.md",
   "notes": "notes.md"
