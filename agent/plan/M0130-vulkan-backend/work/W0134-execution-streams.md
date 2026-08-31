@@ -35,7 +35,11 @@ a capability diagnostic and never switch an established context to CPU.
   per-stream FIFO, adds the prior same-stream timeline edge, requires explicit
   cross-stream waits, validates copy/launch stage/access masks, and rejects
   stale or future dependencies before `vkQueueSubmit2` integration.
-- [ ] Implement pipeline creation, command recycling, batching, and
+- [x] Implement the host-independent command-resource ownership model: finite
+  resources are acquired per generation/stream, submitted with a monotonic
+  completion timeline, recycled only after observed completion, and rejected
+  across generation changes or while in flight.
+- [ ] Bind the resource model to pipeline creation, batching, and
   `vkQueueSubmit2` timeline completion into the M0110 timeline.
 - [ ] Implement Graph IR FIFO/cross-stream dependencies, copy visibility,
   concurrent submission, and bounded error propagation; verify composed

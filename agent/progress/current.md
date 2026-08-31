@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0130
-workstream: W0135
-checkpoint: P20260831-049
+workstream: W0134
+checkpoint: P20260831-050
 ---
 
 # Current Progress
@@ -135,6 +135,9 @@ The following items are not `v0.1.0` blockers:
 - Native NixOS VM/package qualification.
 - Vulkan driver-family qualification and the remaining M0130 execution path.
 
+The host-independent W0134 command-resource ownership and completion-gated
+recycling model is recorded; actual Vulkan queue submission remains open.
+
 Intel x86_64 support qualification and physical NVIDIA binding-performance
 promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
 remains the unallocated `v0.2.0` support expansion. M0100 keeps the measured
@@ -262,7 +265,9 @@ Linux 9.8.
 | W0134 stream graph | `c3b8c5e`; monotonic plans preserve per-stream FIFO, keep independent streams unordered, and require explicit cross-stream waits |
 | W0134 visibility | Copy plans require transfer masks; launch plans require compute masks; invalid masks and unknown operations are rejected |
 | W0134 CTest | Full `vulkan` preset passed 86/86, including `metaflux.backend.vulkan-stream-graph` |
-| W0134 current boundary | Command-resource recycling, `vkQueueSubmit2`, timeline completion, composed provider/runtime dependencies, validation, and driver-family execution remain open |
+| W0134 command-resource pool | `d9e1ef9`; finite generation-bound resources use monotonic identities and completion timelines; recycling waits for observed completion and reconfigure rejects in-flight resources |
+| W0134 CTest after command-resource stage | Full `vulkan` preset passed 88/88, including `metaflux.backend.vulkan-stream-graph` |
+| W0134 current boundary | `vkQueueSubmit2`, pipeline creation, timeline semaphore wiring, composed provider/runtime dependencies, validation, and driver-family execution remain open |
 
 ## Recorded M0130 W0135 Evidence
 
@@ -362,6 +367,11 @@ Linux 9.8.
     Continue by integrating `CacheFileStore` with catalog residency and quota,
     then add cross-process stampede and pipeline-bound device invalidation;
     do not claim Vulkan pipeline or warm-launch qualification from file tests.
+17. M0130/W0134 is Active after the host-independent command-resource stage at
+    [P20260831-050](checkpoints/2026/P20260831-050-m0130-vulkan-command-recycling.md).
+    Continue by binding completion-gated resources to pipeline creation and
+    actual `vkQueueSubmit2` timeline submission; do not claim physical Vulkan
+    execution or driver qualification from the pool fixture.
 
 ## Tool Boundary
 

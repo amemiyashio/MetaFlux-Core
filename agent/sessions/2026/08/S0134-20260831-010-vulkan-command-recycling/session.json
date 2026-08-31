@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0134-20260831-010-vulkan-command-recycling",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.3.4",
+  "started_at": "2026-08-31",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0130/W0134 Vulkan command-resource implementer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0130",
+      "title": "Vulkan Execution Backend",
+      "status": "active",
+      "event_seqs": [1, 2, 3, 4]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0134",
+      "milestone_id": "M0130",
+      "title": "Execution, streams, and events",
+      "status": "active"
+    }
+  ],
+  "base_revision": "36513b2d1ee0c2d35ec960d24c41ab02bf43d8d4",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
