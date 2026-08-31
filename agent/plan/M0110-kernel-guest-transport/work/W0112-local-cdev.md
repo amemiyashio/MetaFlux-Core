@@ -51,6 +51,11 @@ and arithmetic operation is validated.
   validate the exact paired-ring mapping, and close the leased control fd after
   unmapping. The kernel control fops now expose the queue mmap at offset zero;
   payload mapping remains a separate data-plane ownership boundary.
+- [x] Add `CdevObjectTableResolver` as the daemon-facing region COPY adapter.
+  It validates the exact argument block, resolves generation- and
+  permission-bound object views, checks both ranges before importing, and
+  balances destination cleanup when source resolution fails. The CPU backend
+  regression exercises two imported subranges through the real worker.
 - [x] Keep cdev fallback limited to `ENOENT`/`ENODEV`/explicit ABI incompatibility
   in the userspace client; permission and malformed states remain visible.
 - [x] Allocate one generation-bound, page-aligned driver payload arena through

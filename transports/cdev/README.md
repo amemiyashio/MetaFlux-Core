@@ -108,6 +108,17 @@ range into a backend handle. The importer returns the complete reference pair,
 and the worker-side reference callback remains the owner boundary for that
 imported handle. Physical-device qualification remains open.
 
+`CdevObjectTableResolver` is the concrete adapter contract for that daemon
+boundary. The daemon supplies a borrowed lookup view for argument blocks and
+memory objects; the adapter validates the exact region block, resolves both
+memory IDs with generation and read/write intent, checks each requested range,
+and invokes the importer on the validated subrange. A lookup-provided backend
+reference is accepted only when its retain/release pair is complete. Import
+failure or a stale/invalid lookup is returned unchanged, and a destination
+reference is released if source resolution fails. The adapter does not own or
+infer object lifetime, so its lookup owner must keep the view valid until the
+worker finishes its reference callbacks.
+
 The region descriptor uses the argument-block object ID as `target_id`, its
 generation in `arguments[0]`, and zero in `arguments[1..3]`; the resolver must
 reject stale object-table generations. The cdev client exposes this encoding as

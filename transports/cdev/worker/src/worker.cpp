@@ -28,6 +28,60 @@ constexpr std::uint64_t kCdevSubmissionQueueId = 1U;
 constexpr std::uint64_t kCdevCompletionQueueId = 2U;
 constexpr std::uint64_t kPageSize = 4096U;
 
+bool complete_memory_reference(const CdevBackendMemoryReference& reference) noexcept {
+  return reference.handle != 0U && reference.retain != nullptr && reference.release != nullptr;
+}
+
+bool empty_memory_reference(const CdevBackendMemoryReference& reference) noexcept {
+  return reference.handle == 0U && reference.retain == nullptr && reference.release == nullptr &&
+         reference.context == nullptr;
+}
+
+void release_memory_reference_now(const CdevBackendMemoryReference& reference) noexcept {
+  if (complete_memory_reference(reference)) {
+    reference.release(reference.context, reference.handle);
+  }
+}
+
+bool valid_copy_region_argument_block(const std::uint8_t* bytes, std::uint64_t byte_count,
+                                      const mf_argument_entry_v1** out_entries) noexcept {
+  if (out_entries == nullptr || bytes == nullptr || byte_count > SIZE_MAX ||
+      reinterpret_cast<std::uintptr_t>(bytes) % alignof(mf_argument_block_header_v1) != 0U ||
+      byte_count != sizeof(mf_argument_block_header_v1) +
+                        3U * sizeof(mf_argument_entry_v1)) {
+    return false;
+  }
+  const auto* header = reinterpret_cast<const mf_argument_block_header_v1*>(bytes);
+  if (header->magic != MF_SHARED_ARGUMENT_BLOCK_MAGIC ||
+      header->abi_version != MF_SHARED_DEVICE_ABI_VERSION_1 ||
+      header->header_size != sizeof(mf_argument_block_header_v1) ||
+      header->entry_size != sizeof(mf_argument_entry_v1) ||
+      header->entry_count != MF_COPY_REGION_ARGUMENT_ENTRY_COUNT_V1 ||
+      header->flags != MF_ARGUMENT_BLOCK_FLAG_COPY_REGION_V1 || header->total_size != byte_count) {
+    return false;
+  }
+  for (const auto reserved : header->reserved) {
+    if (reserved != 0U) {
+      return false;
+    }
+  }
+  const auto* entries = reinterpret_cast<const mf_argument_entry_v1*>(
+      bytes + sizeof(mf_argument_block_header_v1));
+  const auto& destination = entries[MF_COPY_REGION_DESTINATION_INDEX_V1];
+  const auto& source = entries[MF_COPY_REGION_SOURCE_INDEX_V1];
+  const auto& count = entries[MF_COPY_REGION_BYTE_COUNT_INDEX_V1];
+  if (destination.kind != MF_ARGUMENT_KIND_BUFFER || destination.flags != MF_ARGUMENT_BUFFER_WRITE ||
+      destination.object_id == 0U || destination.object_generation == 0U ||
+      source.kind != MF_ARGUMENT_KIND_BUFFER || source.flags != MF_ARGUMENT_BUFFER_READ ||
+      source.object_id == 0U || source.object_generation == 0U || count.kind != MF_ARGUMENT_KIND_U64 ||
+      count.flags != 0U || count.object_id != 0U || count.object_generation != 0U ||
+      count.value == 0U) {
+    return false;
+  }
+  *out_entries = entries;
+  return true;
+}
+
 bool bytes_zero(const std::uint8_t* bytes, std::size_t size) noexcept {
   if (bytes == nullptr) {
     return false;
@@ -254,6 +308,139 @@ WorkerQueueView CdevWorkerSession::queue_view(std::uint8_t* payload,
   view.payload_size = payload_size;
   view.generation = lease_.generation;
   return view;
+}
+
+CdevObjectTableResolver::CdevObjectTableResolver(
+    void* object_context, CdevObjectTableLookup lookup, void* importer_context,
+    CdevBackendMemoryImporter importer, mf_backend_instance_v1 instance,
+    mf_backend_context_v1 backend_context) noexcept {
+  configure(object_context, lookup, importer_context, importer, instance, backend_context);
+}
+
+void CdevObjectTableResolver::configure(void* object_context, CdevObjectTableLookup lookup,
+                                        void* importer_context,
+                                        CdevBackendMemoryImporter importer,
+                                        mf_backend_instance_v1 instance,
+                                        mf_backend_context_v1 backend_context) noexcept {
+  object_context_ = object_context;
+  lookup_ = lookup;
+  importer_context_ = importer_context;
+  importer_ = importer;
+  instance_ = instance;
+  backend_context_ = backend_context;
+}
+
+mf_shared_status_v1 CdevObjectTableResolver::resolve_memory(
+    const mf_argument_entry_v1& entry, bool for_write, std::uint64_t byte_count,
+    CdevBackendMemoryReference* out_reference, std::uint64_t* out_offset) const noexcept {
+  if (out_reference == nullptr || out_offset == nullptr || lookup_ == nullptr ||
+      entry.kind != MF_ARGUMENT_KIND_BUFFER || entry.object_id == 0U ||
+      entry.object_generation == 0U || byte_count == 0U) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  *out_reference = {};
+  *out_offset = entry.value;
+  CdevObjectTableView object{};
+  const mf_shared_status_v1 lookup_status = lookup_(
+      object_context_, entry.object_id, entry.object_generation, 0U, for_write, &object);
+  if (lookup_status != MF_SHARED_SUCCESS) {
+    return lookup_status;
+  }
+  if (object.object_id != entry.object_id || object.object_generation != entry.object_generation ||
+      object.byte_size == 0U || entry.value > object.byte_size ||
+      byte_count > object.byte_size - entry.value ||
+      (object.object_kind != MF_OBJECT_TYPE_DEVICE_MEMORY &&
+       object.object_kind != MF_OBJECT_TYPE_HOST_MEMORY)) {
+    return MF_SHARED_MALFORMED;
+  }
+  if (object.object_kind == MF_OBJECT_TYPE_HOST_MEMORY) {
+    const std::uint32_t required = for_write ? MF_ARGUMENT_BUFFER_WRITE : MF_ARGUMENT_BUFFER_READ;
+    if ((object.access_flags & required) == 0U) {
+      return MF_SHARED_INVALID_ARGUMENT;
+    }
+  }
+  if (!empty_memory_reference(object.backend_reference)) {
+    if (!complete_memory_reference(object.backend_reference)) {
+      return MF_SHARED_MALFORMED;
+    }
+    *out_reference = object.backend_reference;
+    return MF_SHARED_SUCCESS;
+  }
+  if (importer_ == nullptr || object.address == nullptr || instance_ == 0U ||
+      backend_context_ == 0U) {
+    return MF_SHARED_NOT_SUPPORTED;
+  }
+  auto* address = static_cast<std::uint8_t*>(object.address) + entry.value;
+  const mf_shared_status_v1 import_status = importer_(
+      importer_context_, instance_, backend_context_, address, byte_count, out_reference);
+  if (import_status != MF_SHARED_SUCCESS) {
+    return import_status;
+  }
+  if (!complete_memory_reference(*out_reference)) {
+    *out_reference = {};
+    return MF_SHARED_MALFORMED;
+  }
+  *out_offset = 0U;
+  return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1 CdevObjectTableResolver::resolve_copy(
+    const mf_ring_descriptor_v1* request, CdevCopyResolution* out) const noexcept {
+  if (request == nullptr || out == nullptr || request->opcode != MF_RING_OPCODE_COPY ||
+      request->flags != MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1 || request->target_id == 0U ||
+      request->arguments[0] == 0U || request->arguments[1] != 0U || request->arguments[2] != 0U ||
+      request->arguments[3] != 0U || lookup_ == nullptr) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  *out = {};
+  CdevObjectTableView argument_block{};
+  const mf_shared_status_v1 lookup_status = lookup_(
+      object_context_, request->target_id, request->arguments[0], MF_OBJECT_TYPE_ARGUMENT_BLOCK,
+      false, &argument_block);
+  if (lookup_status != MF_SHARED_SUCCESS) {
+    return lookup_status;
+  }
+  if (argument_block.object_id != request->target_id ||
+      argument_block.object_generation != request->arguments[0] ||
+      argument_block.object_kind != MF_OBJECT_TYPE_ARGUMENT_BLOCK || argument_block.data == nullptr ||
+      argument_block.byte_size == 0U) {
+    return MF_SHARED_MALFORMED;
+  }
+  const mf_argument_entry_v1* entries = nullptr;
+  if (!valid_copy_region_argument_block(argument_block.data, argument_block.byte_size, &entries)) {
+    return MF_SHARED_MALFORMED;
+  }
+  const std::uint64_t byte_count = entries[MF_COPY_REGION_BYTE_COUNT_INDEX_V1].value;
+  CdevBackendMemoryReference destination_reference{};
+  CdevBackendMemoryReference source_reference{};
+  std::uint64_t destination_offset = 0U;
+  std::uint64_t source_offset = 0U;
+  mf_shared_status_v1 status = resolve_memory(
+      entries[MF_COPY_REGION_DESTINATION_INDEX_V1], true, byte_count, &destination_reference,
+      &destination_offset);
+  if (status != MF_SHARED_SUCCESS) {
+    return status;
+  }
+  status = resolve_memory(entries[MF_COPY_REGION_SOURCE_INDEX_V1], false, byte_count,
+                          &source_reference, &source_offset);
+  if (status != MF_SHARED_SUCCESS) {
+    release_memory_reference_now(destination_reference);
+    return status;
+  }
+  out->destination = destination_reference.handle;
+  out->destination_offset = destination_offset;
+  out->destination_reference = destination_reference;
+  out->source = source_reference.handle;
+  out->source_offset = source_offset;
+  out->source_reference = source_reference;
+  out->byte_count = byte_count;
+  return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1 CdevObjectTableResolver::callback(
+    void* context, const mf_ring_descriptor_v1* request, CdevCopyResolution* out) noexcept {
+  auto* resolver = static_cast<CdevObjectTableResolver*>(context);
+  return resolver == nullptr ? MF_SHARED_INVALID_ARGUMENT : resolver->resolve_copy(request, out);
 }
 
 bool CdevWorker::valid_copy_backend(const CdevBackendBinding& backend) noexcept {

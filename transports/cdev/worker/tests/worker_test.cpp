@@ -158,6 +158,7 @@ struct CpuMemoryImportFixture final {
   mf_backend_context_v1 context = 0U;
   MemoryReferenceFixture* references = nullptr;
   std::uint32_t calls = 0U;
+  std::array<mf_backend_memory_v1, 4> imported{};
 };
 
 mf_shared_status_v1 import_cpu_memory(void* context, mf_backend_instance_v1 instance,
@@ -183,7 +184,116 @@ mf_shared_status_v1 import_cpu_memory(void* context, mf_backend_instance_v1 inst
           .retain = retain_memory_reference,
           .release = release_memory_reference,
           .context = fixture->references};
+  for (auto& imported : fixture->imported) {
+    if (imported == 0U) {
+      imported = handle;
+      break;
+    }
+  }
   return MF_SHARED_SUCCESS;
+}
+
+struct CopyRegionArgumentBlock final {
+  mf_argument_block_header_v1 header{};
+  mf_argument_entry_v1 entries[MF_COPY_REGION_ARGUMENT_ENTRY_COUNT_V1]{};
+};
+
+void initialize_copy_region_argument_block(CopyRegionArgumentBlock& block,
+                                           std::uint64_t destination_id,
+                                           std::uint64_t source_id, std::uint64_t generation,
+                                           std::uint64_t byte_count) {
+  block = {};
+  block.header.magic = MF_SHARED_ARGUMENT_BLOCK_MAGIC;
+  block.header.abi_version = MF_SHARED_DEVICE_ABI_VERSION_1;
+  block.header.header_size = sizeof(block.header);
+  block.header.entry_size = sizeof(mf_argument_entry_v1);
+  block.header.entry_count = MF_COPY_REGION_ARGUMENT_ENTRY_COUNT_V1;
+  block.header.flags = MF_ARGUMENT_BLOCK_FLAG_COPY_REGION_V1;
+  block.header.total_size = sizeof(block.header) +
+                            MF_COPY_REGION_ARGUMENT_ENTRY_COUNT_V1 * sizeof(mf_argument_entry_v1);
+  block.entries[MF_COPY_REGION_DESTINATION_INDEX_V1] = {
+      .kind = MF_ARGUMENT_KIND_BUFFER,
+      .flags = MF_ARGUMENT_BUFFER_WRITE,
+      .object_id = destination_id,
+      .object_generation = generation,
+      .value = 16U,
+  };
+  block.entries[MF_COPY_REGION_SOURCE_INDEX_V1] = {
+      .kind = MF_ARGUMENT_KIND_BUFFER,
+      .flags = MF_ARGUMENT_BUFFER_READ,
+      .object_id = source_id,
+      .object_generation = generation,
+      .value = 32U,
+  };
+  block.entries[MF_COPY_REGION_BYTE_COUNT_INDEX_V1] = {
+      .kind = MF_ARGUMENT_KIND_U64,
+      .flags = 0U,
+      .object_id = 0U,
+      .object_generation = 0U,
+      .value = byte_count,
+  };
+}
+
+struct ObjectTableFixture final {
+  const CopyRegionArgumentBlock* argument_block = nullptr;
+  void* destination = nullptr;
+  std::uint64_t destination_size = 0U;
+  void* source = nullptr;
+  std::uint64_t source_size = 0U;
+  std::uint64_t argument_id = 700U;
+  std::uint64_t destination_id = 701U;
+  std::uint64_t source_id = 702U;
+  std::uint64_t generation = 5U;
+  std::uint32_t calls = 0U;
+};
+
+mf_shared_status_v1 lookup_object_table(void* context, std::uint64_t object_id,
+                                        std::uint64_t object_generation,
+                                        std::uint32_t expected_kind, bool for_write,
+                                        metaflux::transport::cdev::CdevObjectTableView* out) noexcept {
+  auto* fixture = static_cast<ObjectTableFixture*>(context);
+  if (fixture == nullptr || out == nullptr || object_generation != fixture->generation ||
+      (expected_kind != 0U && expected_kind != MF_OBJECT_TYPE_ARGUMENT_BLOCK)) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  ++fixture->calls;
+  *out = {};
+  if (object_id == fixture->argument_id) {
+    if (expected_kind != MF_OBJECT_TYPE_ARGUMENT_BLOCK || fixture->argument_block == nullptr) {
+      return MF_SHARED_INVALID_ARGUMENT;
+    }
+    out->object_id = object_id;
+    out->object_generation = object_generation;
+    out->object_kind = MF_OBJECT_TYPE_ARGUMENT_BLOCK;
+    out->data = reinterpret_cast<const std::uint8_t*>(fixture->argument_block);
+    out->byte_size = sizeof(fixture->argument_block->header) +
+                     MF_COPY_REGION_ARGUMENT_ENTRY_COUNT_V1 * sizeof(mf_argument_entry_v1);
+    return MF_SHARED_SUCCESS;
+  }
+  if (expected_kind != 0U || for_write != (object_id == fixture->destination_id)) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  if (object_id == fixture->destination_id && fixture->destination != nullptr) {
+    out->object_id = object_id;
+    out->object_generation = object_generation;
+    out->object_kind = MF_OBJECT_TYPE_HOST_MEMORY;
+    out->access_flags = MF_ARGUMENT_BUFFER_WRITE;
+    out->data = static_cast<const std::uint8_t*>(fixture->destination);
+    out->address = fixture->destination;
+    out->byte_size = fixture->destination_size;
+    return MF_SHARED_SUCCESS;
+  }
+  if (object_id == fixture->source_id && fixture->source != nullptr) {
+    out->object_id = object_id;
+    out->object_generation = object_generation;
+    out->object_kind = MF_OBJECT_TYPE_HOST_MEMORY;
+    out->access_flags = MF_ARGUMENT_BUFFER_READ;
+    out->data = static_cast<const std::uint8_t*>(fixture->source);
+    out->address = fixture->source;
+    out->byte_size = fixture->source_size;
+    return MF_SHARED_SUCCESS;
+  }
+  return MF_SHARED_STALE_HANDLE;
 }
 #endif
 
@@ -1350,6 +1460,86 @@ int main() {
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
     return 1;
+  }
+  std::array<std::uint8_t, 128> table_destination{};
+  std::array<std::uint8_t, 128> table_source{};
+  for (std::size_t index = 0U; index < table_source.size(); ++index) {
+    table_source[index] = static_cast<std::uint8_t>(index + 17U);
+  }
+  CopyRegionArgumentBlock table_argument_block{};
+  initialize_copy_region_argument_block(table_argument_block, 701U, 702U, 5U, 64U);
+  ObjectTableFixture object_table{.argument_block = &table_argument_block,
+                                  .destination = table_destination.data(),
+                                  .destination_size = table_destination.size(),
+                                  .source = table_source.data(),
+                                  .source_size = table_source.size()};
+  MemoryReferenceFixture table_refs{};
+  CpuMemoryImportFixture table_import{.instance = cpu_instance,
+                                      .context = cpu_context,
+                                      .references = &table_refs};
+  metaflux::transport::cdev::CdevObjectTableResolver table_resolver(
+      &object_table, lookup_object_table, &table_import, import_cpu_memory, cpu_instance,
+      cpu_context);
+  BackendFixture table_lease{};
+  metaflux::transport::cdev::CdevWorker table_worker({.submission = submission.header,
+                                                      .completion = completion.header,
+                                                      .payload = payload.data(),
+                                                      .payload_size = payload.size(),
+                                                      .generation = 4U},
+                                                     {.api = cpu_api,
+                                                      .instance = cpu_instance,
+                                                      .queue = cpu_queue,
+                                                      .memory = 0U,
+                                                      .completion_event = 0U,
+                                                      .copy_resolver =
+                                                          metaflux::transport::cdev::CdevObjectTableResolver::callback,
+                                                      .copy_context = &table_resolver,
+                                                      .lease_acquire = fixture_lease_acquire,
+                                                      .lease_release = fixture_lease_release,
+                                                      .lease_context = &table_lease});
+  request.flags = MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1;
+  request.request_id = 47U;
+  request.target_id = object_table.argument_id;
+  request.arguments[0] = object_table.generation;
+  request.arguments[1] = 0U;
+  request.arguments[2] = 0U;
+  request.arguments[3] = 0U;
+  if (!table_worker.backend_bound() ||
+      mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      table_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      object_table.calls != 3U || table_import.calls != 2U || table_lease.lease_acquires != 1U ||
+      table_lease.lease_releases != 1U || table_refs.retains != 2U || table_refs.releases != 2U ||
+      table_refs.active != 0U ||
+      std::memcmp(table_destination.data() + 16U, table_source.data() + 32U, 64U) != 0 ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
+    for (const auto imported : table_import.imported) {
+      if (imported != 0U && cpu_api->free_memory != nullptr) {
+        cpu_api->free_memory(cpu_instance, imported);
+      }
+    }
+    if (cpu_api->free_memory != nullptr) {
+      cpu_api->free_memory(cpu_instance, region_destination_memory);
+      cpu_api->free_memory(cpu_instance, region_source_memory);
+      cpu_api->free_memory(cpu_instance, cpu_memory);
+    }
+    if (cpu_api->destroy_queue != nullptr) {
+      cpu_api->destroy_queue(cpu_instance, cpu_queue);
+    }
+    if (cpu_api->destroy_context != nullptr) {
+      cpu_api->destroy_context(cpu_instance, cpu_context);
+    }
+    if (cpu_api->destroy_instance != nullptr) {
+      cpu_api->destroy_instance(cpu_instance);
+    }
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  for (const auto imported : table_import.imported) {
+    if (imported != 0U && cpu_api->free_memory != nullptr) {
+      cpu_api->free_memory(cpu_instance, imported);
+    }
   }
   if (cpu_api->free_memory != nullptr) {
     cpu_api->free_memory(cpu_instance, region_destination_memory);

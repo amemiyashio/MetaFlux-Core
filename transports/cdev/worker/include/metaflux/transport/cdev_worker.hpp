@@ -104,6 +104,67 @@ using CdevBackendMemoryImporter = mf_shared_status_v1 (*)(
     void* context, mf_backend_instance_v1 instance, mf_backend_context_v1 backend_context,
     void* address, std::uint64_t byte_count, CdevBackendMemoryReference* out) noexcept;
 
+/* Borrowed object-table view returned after ID, generation, kind, and access checks. */
+struct CdevObjectTableView final {
+  std::uint64_t object_id = 0U;
+  std::uint64_t object_generation = 0U;
+  std::uint32_t object_kind = 0U;
+  std::uint32_t access_flags = 0U;
+  const std::uint8_t* data = nullptr;
+  void* address = nullptr;
+  std::uint64_t byte_size = 0U;
+  CdevBackendMemoryReference backend_reference{};
+};
+
+/*
+ * The daemon supplies this lookup from its authoritative object table. A
+ * zero expected_kind accepts either device or host memory; every other value
+ * requires an exact object kind in the returned view.
+ */
+using CdevObjectTableLookup = mf_shared_status_v1 (*)(
+    void* context, std::uint64_t object_id, std::uint64_t object_generation,
+    std::uint32_t expected_kind, bool for_write, CdevObjectTableView* out) noexcept;
+
+struct CdevCopyResolution;
+
+/*
+ * Converts a daemon object-table region COPY into the worker's backend-neutral
+ * resolution. It is stateless with respect to objects: returned pointers and
+ * backend references are borrowed until the worker's retain/release contract
+ * completes the operation.
+ */
+class CdevObjectTableResolver final {
+public:
+  CdevObjectTableResolver() noexcept = default;
+  CdevObjectTableResolver(void* object_context, CdevObjectTableLookup lookup,
+                          void* importer_context, CdevBackendMemoryImporter importer,
+                          mf_backend_instance_v1 instance,
+                          mf_backend_context_v1 backend_context) noexcept;
+
+  void configure(void* object_context, CdevObjectTableLookup lookup, void* importer_context,
+                 CdevBackendMemoryImporter importer, mf_backend_instance_v1 instance,
+                 mf_backend_context_v1 backend_context) noexcept;
+
+  [[nodiscard]] mf_shared_status_v1 resolve_copy(const mf_ring_descriptor_v1* request,
+                                                 CdevCopyResolution* out) const noexcept;
+  [[nodiscard]] static mf_shared_status_v1 callback(void* context,
+                                                    const mf_ring_descriptor_v1* request,
+                                                    CdevCopyResolution* out) noexcept;
+
+private:
+  [[nodiscard]] mf_shared_status_v1 resolve_memory(const mf_argument_entry_v1& entry,
+                                                   bool for_write, std::uint64_t byte_count,
+                                                   CdevBackendMemoryReference* out_reference,
+                                                   std::uint64_t* out_offset) const noexcept;
+
+  void* object_context_ = nullptr;
+  CdevObjectTableLookup lookup_ = nullptr;
+  void* importer_context_ = nullptr;
+  CdevBackendMemoryImporter importer_ = nullptr;
+  mf_backend_instance_v1 instance_ = 0U;
+  mf_backend_context_v1 backend_context_ = 0U;
+};
+
 /* Object-table result for a region COPY argument block. */
 struct CdevCopyResolution final {
   mf_backend_memory_v1 destination = 0U;
