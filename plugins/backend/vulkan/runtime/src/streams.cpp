@@ -22,18 +22,16 @@ StreamStatus StreamGraph::create_stream(std::uint64_t stream_id) {
 }
 
 StreamGraph::StreamState* StreamGraph::find_stream(std::uint64_t stream_id) noexcept {
-  const auto position = std::find_if(
-      streams_.begin(), streams_.end(), [stream_id](const StreamState& stream) {
-        return stream.id == stream_id;
-      });
+  const auto position =
+      std::find_if(streams_.begin(), streams_.end(),
+                   [stream_id](const StreamState& stream) { return stream.id == stream_id; });
   return position == streams_.end() ? nullptr : &*position;
 }
 
 const StreamGraph::StreamState* StreamGraph::find_stream(std::uint64_t stream_id) const noexcept {
-  const auto position = std::find_if(
-      streams_.begin(), streams_.end(), [stream_id](const StreamState& stream) {
-        return stream.id == stream_id;
-      });
+  const auto position =
+      std::find_if(streams_.begin(), streams_.end(),
+                   [stream_id](const StreamState& stream) { return stream.id == stream_id; });
   return position == streams_.end() ? nullptr : &*position;
 }
 
@@ -59,7 +57,7 @@ StreamStatus StreamGraph::submit(std::uint64_t generation, std::uint64_t stream_
                                  SubmissionPlan* out_plan) {
   if (out_plan == nullptr || generation == 0U || generation != generation_) {
     return generation != generation_ && generation != 0U ? StreamStatus::stale_generation
-                                                          : StreamStatus::invalid_argument;
+                                                         : StreamStatus::invalid_argument;
   }
   auto* stream = find_stream(stream_id);
   if (stream == nullptr) {
@@ -127,6 +125,124 @@ StreamStatus StreamGraph::submit(std::uint64_t generation, std::uint64_t stream_
   return StreamStatus::success;
 }
 
+CommandResourcePool::Slot*
+CommandResourcePool::find_slot(const CommandResource& resource) noexcept {
+  const auto position = std::find_if(slots_.begin(), slots_.end(), [&resource](const Slot& slot) {
+    return slot.resource.id == resource.id && slot.resource.generation == resource.generation &&
+           slot.resource.stream_id == resource.stream_id &&
+           slot.resource.sequence == resource.sequence;
+  });
+  return position == slots_.end() ? nullptr : &*position;
+}
+
+const CommandResourcePool::Slot*
+CommandResourcePool::find_slot(const CommandResource& resource) const noexcept {
+  const auto position = std::find_if(slots_.begin(), slots_.end(), [&resource](const Slot& slot) {
+    return slot.resource.id == resource.id && slot.resource.generation == resource.generation &&
+           slot.resource.stream_id == resource.stream_id &&
+           slot.resource.sequence == resource.sequence;
+  });
+  return position == slots_.end() ? nullptr : &*position;
+}
+
+CommandResourceStatus CommandResourcePool::acquire(std::uint64_t generation,
+                                                   std::uint64_t stream_id,
+                                                   CommandResource* out_resource) noexcept {
+  if (out_resource == nullptr || generation == 0U || generation != generation_ || stream_id == 0U) {
+    return generation != generation_ && generation != 0U ? CommandResourceStatus::stale_generation
+                                                         : CommandResourceStatus::invalid_argument;
+  }
+  if (next_id_ == std::numeric_limits<std::uint64_t>::max()) {
+    return CommandResourceStatus::resource_id_exhausted;
+  }
+  if (next_sequence_ == std::numeric_limits<std::uint64_t>::max()) {
+    return CommandResourceStatus::timeline_exhausted;
+  }
+  for (Slot& slot : slots_) {
+    if (slot.state != SlotState::available) {
+      continue;
+    }
+    slot.state = SlotState::acquired;
+    slot.resource = CommandResource{
+        .id = next_id_++,
+        .generation = generation_,
+        .stream_id = stream_id,
+        .sequence = next_sequence_++,
+        .completion_value = 0U,
+    };
+    *out_resource = slot.resource;
+    return CommandResourceStatus::success;
+  }
+  return CommandResourceStatus::exhausted;
+}
+
+CommandResourceStatus CommandResourcePool::submit(const CommandResource& resource,
+                                                  std::uint64_t completion_value) noexcept {
+  if (resource.generation == 0U || resource.generation != generation_) {
+    return CommandResourceStatus::stale_generation;
+  }
+  if (completion_value == 0U || completion_value <= last_submission_timeline_ ||
+      completion_value < last_completed_timeline_) {
+    return CommandResourceStatus::invalid_timeline;
+  }
+  Slot* slot = find_slot(resource);
+  if (slot == nullptr || slot->state != SlotState::acquired) {
+    return CommandResourceStatus::not_found;
+  }
+  slot->resource.completion_value = completion_value;
+  slot->state = SlotState::submitted;
+  last_submission_timeline_ = completion_value;
+  return CommandResourceStatus::success;
+}
+
+CommandResourceStatus CommandResourcePool::recycle(std::uint64_t generation,
+                                                   std::uint64_t completed_value) noexcept {
+  if (generation == 0U || generation != generation_) {
+    return CommandResourceStatus::stale_generation;
+  }
+  if (completed_value < last_completed_timeline_ || completed_value > last_submission_timeline_) {
+    return CommandResourceStatus::invalid_timeline;
+  }
+  last_completed_timeline_ = completed_value;
+  for (Slot& slot : slots_) {
+    if (slot.state == SlotState::submitted && slot.resource.completion_value <= completed_value) {
+      slot.state = SlotState::available;
+      slot.resource = CommandResource{};
+    }
+  }
+  return CommandResourceStatus::success;
+}
+
+CommandResourceStatus CommandResourcePool::reconfigure(std::uint64_t generation) noexcept {
+  if (generation == 0U) {
+    return CommandResourceStatus::invalid_argument;
+  }
+  if (generation <= generation_) {
+    return CommandResourceStatus::stale_generation;
+  }
+  if (in_flight_count() != 0U) {
+    return CommandResourceStatus::busy;
+  }
+  generation_ = generation;
+  last_submission_timeline_ = 0U;
+  last_completed_timeline_ = 0U;
+  for (Slot& slot : slots_) {
+    slot.state = SlotState::available;
+    slot.resource = CommandResource{};
+  }
+  return CommandResourceStatus::success;
+}
+
+std::size_t CommandResourcePool::available_count() const noexcept {
+  return static_cast<std::size_t>(std::count_if(slots_.begin(), slots_.end(), [](const Slot& slot) {
+    return slot.state == SlotState::available;
+  }));
+}
+
+std::size_t CommandResourcePool::in_flight_count() const noexcept {
+  return slots_.size() - available_count();
+}
+
 const char* stream_status_string(StreamStatus status) noexcept {
   switch (status) {
   case StreamStatus::success:
@@ -146,6 +262,30 @@ const char* stream_status_string(StreamStatus status) noexcept {
   case StreamStatus::too_many_dependencies:
     return "too-many-dependencies";
   case StreamStatus::timeline_exhausted:
+    return "timeline-exhausted";
+  }
+  return "unknown";
+}
+
+const char* command_resource_status_string(CommandResourceStatus status) noexcept {
+  switch (status) {
+  case CommandResourceStatus::success:
+    return "success";
+  case CommandResourceStatus::invalid_argument:
+    return "invalid-argument";
+  case CommandResourceStatus::stale_generation:
+    return "stale-generation";
+  case CommandResourceStatus::exhausted:
+    return "exhausted";
+  case CommandResourceStatus::busy:
+    return "busy";
+  case CommandResourceStatus::not_found:
+    return "not-found";
+  case CommandResourceStatus::invalid_timeline:
+    return "invalid-timeline";
+  case CommandResourceStatus::resource_id_exhausted:
+    return "resource-id-exhausted";
+  case CommandResourceStatus::timeline_exhausted:
     return "timeline-exhausted";
   }
   return "unknown";

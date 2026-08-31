@@ -3,9 +3,12 @@
 #include <array>
 #include <cstdint>
 #include <cstdio>
+#include <string_view>
 
 namespace {
 
+using metaflux::backend::vulkan::CommandResourcePool;
+using metaflux::backend::vulkan::CommandResourceStatus;
 using metaflux::backend::vulkan::Dependency;
 using metaflux::backend::vulkan::OperationKind;
 using metaflux::backend::vulkan::StreamGraph;
@@ -74,17 +77,55 @@ bool negative_paths() {
     return false;
   }
   const std::array<Dependency, 2> duplicate{{Dependency{.stream_id = 1U, .timeline_value = 1U},
-                                              Dependency{.stream_id = 1U, .timeline_value = 1U}}};
+                                             Dependency{.stream_id = 1U, .timeline_value = 1U}}};
   return graph.submit(4U, 1U, OperationKind::copy,
                       Visibility{.stage_mask = metaflux::backend::vulkan::kStageTransfer,
                                  .access_mask = metaflux::backend::vulkan::kAccessTransferWrite},
                       duplicate, &plan) == StreamStatus::duplicate_dependency;
 }
 
+bool command_resources_recycle_only_after_completion() {
+  CommandResourcePool pool(2U, 9U);
+  if (pool.capacity() != 2U || pool.generation() != 9U || pool.available_count() != 2U) {
+    return false;
+  }
+  metaflux::backend::vulkan::CommandResource first{};
+  metaflux::backend::vulkan::CommandResource second{};
+  if (pool.acquire(9U, 1U, &first) != CommandResourceStatus::success ||
+      pool.acquire(9U, 2U, &second) != CommandResourceStatus::success ||
+      pool.acquire(9U, 3U, &first) != CommandResourceStatus::exhausted || first.id == 0U ||
+      second.id == 0U || first.sequence == second.sequence) {
+    return false;
+  }
+  const auto first_copy = first;
+  if (pool.submit(first_copy, 4U) != CommandResourceStatus::success ||
+      pool.submit(second, 5U) != CommandResourceStatus::success || pool.in_flight_count() != 2U ||
+      pool.recycle(9U, 3U) != CommandResourceStatus::success || pool.available_count() != 0U ||
+      pool.recycle(9U, 4U) != CommandResourceStatus::success || pool.available_count() != 1U ||
+      pool.acquire(9U, 3U, &first) != CommandResourceStatus::success || first.id == first_copy.id ||
+      pool.submit(first_copy, 6U) != CommandResourceStatus::not_found ||
+      pool.submit(first, 7U) != CommandResourceStatus::success) {
+    return false;
+  }
+  if (pool.reconfigure(10U) != CommandResourceStatus::busy ||
+      pool.recycle(9U, 7U) != CommandResourceStatus::success ||
+      pool.reconfigure(10U) != CommandResourceStatus::success || pool.available_count() != 2U ||
+      pool.in_flight_count() != 0U ||
+      pool.submit(second, 1U) != CommandResourceStatus::stale_generation ||
+      pool.recycle(9U, 0U) != CommandResourceStatus::stale_generation ||
+      pool.reconfigure(10U) != CommandResourceStatus::stale_generation) {
+    return false;
+  }
+  return pool.acquire(10U, 1U, &first) == CommandResourceStatus::success &&
+         metaflux::backend::vulkan::command_resource_status_string(CommandResourceStatus::busy) ==
+             std::string_view("busy");
+}
+
 } // namespace
 
 int main() {
-  const bool ok = fifo_and_cross_stream_dependencies() && negative_paths();
+  const bool ok = fifo_and_cross_stream_dependencies() && negative_paths() &&
+                  command_resources_recycle_only_after_completion();
   std::printf("vulkan stream graph: %s\n", ok ? "pass" : "fail");
   return ok ? 0 : 1;
 }

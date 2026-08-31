@@ -52,6 +52,16 @@ waits to be explicit, and validates transfer/compute stage-access masks before
 future `vkQueueSubmit2` submission. It does not claim queue submission,
 pipeline execution, or device timing.
 
+W0134 also provides a host-independent command-resource pool. A finite pool
+assigns each acquired resource a monotonic identity, generation, stream, and
+sequence. Submission records a strictly increasing completion timeline; a
+resource remains in flight until an observed completion reaches that value.
+Recycling never releases an incomplete resource, and generation reconfiguration
+is rejected while any resource is acquired or submitted. Handles from a retired
+generation are stale and are not reused by identity. The pool is an ownership
+and admission model only: Vulkan command buffers, queue submission, pipeline
+creation, and driver timing still belong to the later integration stage.
+
 The cache model defines deterministic portable and device-bound identities from
 Kernel IR, compiler/lowering/tool epochs, target and specialization digests,
 argument/backend ABI, and physical device/driver UUIDs. Its bounded catalog
