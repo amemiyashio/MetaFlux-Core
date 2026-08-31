@@ -1,0 +1,1 @@
+{"schema_version": 1, "seq": 1, "timestamp": "2026-08-31", "type": "objective", "actor": "A001", "content": "Add a transport-only bridge that consumes one QmpSocket lifecycle reply and submits the already-captured event through QmpLifecycleAdapter and Coordinator, preserving pending state for unrelated wire events and keeping socket errors separate from lifecycle authority."}
