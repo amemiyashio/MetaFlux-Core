@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-070
+checkpoint: P20260831-071
 ---
 
 # Current Progress
@@ -30,8 +30,11 @@ production local cdev activation remains open. W0112 also has its first local
 cdev stage recorded at
 [P20260830-016](checkpoints/2026/P20260830-016-m0110-local-cdev.md).
 The registered-memory SG-to-DMA mapping stage is now recorded at
-[P20260831-070](checkpoints/2026/P20260831-070-m0110-cdev-dma-map.md); backend
-memory import and in-flight device references remain open.
+[P20260831-070](checkpoints/2026/P20260831-070-m0110-cdev-dma-map.md). The
+replacement-safe pending backend binding stage is now recorded at
+[P20260831-071](checkpoints/2026/P20260831-071-m0110-cdev-backend-reference.md);
+backend memory import, daemon generation drain, and lifecycle-loss cancellation
+remain open.
 W0113 is Active with its static vfio-user control-plane stage recorded at
 [P20260830-017](checkpoints/2026/P20260830-017-m0110-static-vfio-user.md).
 M0120 is now Active for lifecycle implementation. W0121's model stage is
@@ -259,7 +262,7 @@ Linux 9.8.
 | W0112 kernel compile | Linux 6.18.42 default GCC built `metaflux_core.ko` with modpost success |
 | W0112 registered-memory stage | `4465732`; one generation-bound range uses `FOLL_LONGTERM`/`FOLL_WRITE` pinning, memlock accounting, SG construction, partial unwind, dirty-unpin, explicit unregister, and owner-close revocation; focused cdev/lifecycle tests 4/4, full CTest 79/79, and Linux 6.18.42 GCC Kbuild passed |
 | W0112 backend dispatch seam | Worker-side `CdevBackendBinding` validates `mf_backend_api_v1` size/capability/handles, translates payload COPY to `mf_backend_copy_v1`, and maps backend statuses; the generation-bound `CdevLaunchResolver` translates primary-entry launch descriptors to payload-relative argument bytes and invokes the CPU backend `submit` ABI. Malformed flags, resolver failures, payload bounds, 2D dimensions, and synchronous lease rejection are covered at `fcdcbbd`; backend memory import, in-flight references, and daemon replacement remain open |
-| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, owner-death offline queue/payload tombstones, queue root/owner/lease/VMA/active-operation krefs, payload root/owner/VMA/active-allocation-operation krefs, eventfd ownership, bounded registered-memory lifetime, direction-aware registered-memory DMA mapping, checked backend COPY dispatch, CPU backend synchronous Add/Copy submit, cdev worker CPU Add launch, synchronous backend-operation lease admission, and host-independent asynchronous completion polling with lease retention and ring-backpressure retry are implemented; backend memory import, in-flight references, replacement generations, lifecycle-loss cancellation, daemon replacement, and fault qualification remain open |
+| W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, owner-death offline queue/payload tombstones, queue root/owner/lease/VMA/active-operation krefs, payload root/owner/VMA/active-allocation-operation krefs, eventfd ownership, bounded registered-memory lifetime, direction-aware registered-memory DMA mapping, checked backend COPY dispatch, CPU backend synchronous Add/Copy submit, cdev worker CPU Add launch, synchronous backend-operation lease admission, host-independent asynchronous completion polling with lease retention and ring-backpressure retry, and generation-bound pending backend binding snapshots for replacement-safe query/release are implemented; backend memory import, in-flight references, replacement generations, lifecycle-loss cancellation, daemon replacement, and fault qualification remain open |
 | W0113 transport schema and component graph | Schema validator passed 5 definitions/15 records; graph passed 17 components/18 edges |
 | W0113 focused transport tests | Schema, cdev, guest, and server tests passed 7/7; full dev CTest passed 72/72 |
 | W0113 static vfio-user control fixture | Generated GET_INFO reply, static BAR0/BAR2/BAR4 profile, generation/epoch DMA map ledger, overlap and reset rejection, and `No_reply` unmap passed |
@@ -268,6 +271,7 @@ Linux 9.8.
 | W0111 transport negotiation | `fa515bb`; generated vfio-user negotiation message, guest request/response codec, server major/minor and feature selection, identity/limit publication, unsupported-version completion, and no-FD control validation; focused transport/schema/component/lifecycle gates 8/8 and full dev CTest 84/84 |
 | W0112 asynchronous completion stage | `7f3b8f3`; nonzero backend events are polled through `query_event`, completion is published exactly once, the lease remains held until completion, query errors are mapped, and completion-ring backpressure preserves pending state and timeline; focused cdev/client/component tests 3/3 and full CTest 84/84 |
 | W0112 registered-memory DMA mapping | `a7dfea2`; one generation-bound SG table is direction-mapped through the data cdev DMA device, map failure is unpublished, and all retirement paths unmap before SG/free, dirty-unpin, memlock, and mm release; Linux 6.18.42 GCC Kbuild and full CTest 84/84 |
+| W0112 backend binding reference stage | `3140df7`; pending asynchronous operations snapshot the admitting backend binding, so replacement cannot query or release the old event through the new binding; focused cdev/client/component tests 3/3 and full CTest 84/84; production backend import and daemon generation drain remain open |
 | W0113 current boundary | Static PCI binder and host-independent guest ring seam are recorded; pinned QEMU/libvfio-user, actual BAR2 MMIO/MSI-X, generation-bound DMA lifetime, Add/Copy path, drain/tombstone faults, and package qualification remain open |
 | W0114 bounded transport fault matrix | `700b7c8`; cdev COPY disposition checks and completion backpressure/FIFO retry, plus vfio-user malformed framing, stale unmap, duplicate-range, and DMA-overflow regressions; focused transport tests 2/2 and full dev CTest 82/82 |
 | W0114 current boundary | Malformed and recoverable userspace/socketpair faults are recorded; kernel ioctl/BAR fuzzing, MSI-X, live DMA/backend references, ownership-death injection, native/compat negotiation, and the base ABI freeze remain open |
@@ -437,8 +441,12 @@ Linux 9.8.
    [P20260831-069](checkpoints/2026/P20260831-069-m0110-cdev-async-lease.md);
    the kernel's direction-aware registered-memory DMA mapping and reverse-order
    teardown are recorded at
-   [P20260831-070](checkpoints/2026/P20260831-070-m0110-cdev-dma-map.md);
-   the shared object-identity correction and cdev helpers are recorded at
+   [P20260831-070](checkpoints/2026/P20260831-070-m0110-cdev-dma-map.md), and
+   the replacement-safe pending backend binding snapshot is recorded at
+   [P20260831-071](checkpoints/2026/P20260831-071-m0110-cdev-backend-reference.md);
+   continue with production backend memory import and in-flight references,
+   daemon generation drain, lifecycle-loss cancellation, and lifecycle/fault
+   qualification. The shared object-identity correction and cdev helpers are recorded at
    [P20260831-065](checkpoints/2026/P20260831-065-m0110-cdev-region-identity.md);
    real CPU backend region COPY through independent imported handles is recorded
    at [P20260831-066](checkpoints/2026/P20260831-066-m0110-cdev-cpu-region-copy.md);
