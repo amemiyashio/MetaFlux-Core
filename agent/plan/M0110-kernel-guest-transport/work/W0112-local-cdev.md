@@ -62,12 +62,14 @@ and arithmetic operation is validated.
 - [x] Add a worker-side `mf_backend_api_v1` COPY dispatch seam with sized-table,
   capability, handle, offset, and backend-status validation. An unbound worker
   retains the local fixture copy path; a malformed bound API returns
-  `MF_SHARED_NOT_SUPPORTED` without fallback. Backend memory import and the
-  production CPU Add/Copy wiring remain open.
-- [x] Expose the CPU backend's transport-facing COPY subset (instance, context,
-  queue, and caller-owned host-memory import) and exercise it through the cdev
-  worker's mapped payload, including invalid event and range rejection. The
-  backend remains synchronous and advertises no launch, event, or DMA feature.
+  `MF_SHARED_NOT_SUPPORTED` without fallback. Backend memory import and cdev
+  descriptor-to-launch wiring remain open.
+- [x] Expose the CPU backend's transport-facing COPY and synchronous launch
+  subset (instance, context, queue, caller-owned host-memory import, canonical
+  KIR module load/unload, and memory-handle argument blocks). The CPU backend
+  executes the Add fixture through `mf_backend_api_v1.submit` with strict
+  dimensions, ranges, ownership, and typed status mapping; asynchronous
+  events, cdev descriptor launch wiring, and backend DMA remain open.
 - [x] Retain an offline queue mapping as a VMA tombstone after module teardown
   and reclaim its backing under the cdev lock when the final queue VMA closes.
 - [x] Mark the current generation offline and wake waiters when the queue owner
@@ -85,9 +87,10 @@ and arithmetic operation is validated.
   queue VMA tombstones, owner-death transition, eventfd references, and bounded
   registered-memory lifetime are implemented for the current fixture.
 - [ ] Extend the leased worker/backend binding from the verified COPY subset to
-  the unmodified CPU Add/launch path and prove Add/Copy end to end through the
-  mapped payload arena. Production registered-memory import and DMA mapping
-  remain separate prerequisites.
+  the unmodified CPU Add/launch descriptor path and prove Add/Copy end to end
+  through the mapped payload arena. The CPU backend submit prerequisite is now
+  implemented; production registered-memory import and DMA mapping remain
+  separate prerequisites.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak.
 
