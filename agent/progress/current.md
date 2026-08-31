@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0130
-workstream: W0133
-checkpoint: P20260831-053
+workstream: W0132
+checkpoint: P20260831-054
 ---
 
 # Current Progress
@@ -143,6 +143,11 @@ is now recorded at [P20260831-053](checkpoints/2026/P20260831-053-m0130-vulkan-m
 actual Kernel IR to MLIR conversion, binary emission/validation, pipeline
 creation, and driver execution remain open.
 
+W0132's host-independent staging memory visibility contract is now recorded at
+[P20260831-054](checkpoints/2026/P20260831-054-m0130-vulkan-memory-visibility.md);
+physical Vulkan allocation, mapped flush/invalidate, external-handle import,
+and driver qualification remain open.
+
 Intel x86_64 support qualification and physical NVIDIA binding-performance
 promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
 remains the unallocated `v0.2.0` support expansion. M0100 keeps the measured
@@ -252,7 +257,9 @@ Linux 9.8.
 | W0132 staging ledger | `67eaf28`; capability-backed first-fit suballocation with power-of-two alignment, non-overlap, release/reuse, and generation-bound validation |
 | W0132 timeline model | `67eaf28`; monotonic submit/complete/wait admission with stale-generation and future-value rejection |
 | W0132 CTest | Full `vulkan` preset passed 84/84, including `metaflux.backend.vulkan-memory` |
-| W0132 current boundary | Physical `VkDeviceMemory`, non-coherent flush/invalidate, external-handle import, cross-process synchronization, lifecycle drain, and driver qualification remain open |
+| W0132 visibility ledger | `96d3a55`; generation-bound host/device dirty ranges, atom-size range checks, explicit flush/invalidate, timeline admission, and in-flight teardown guards |
+| W0132 CTest after visibility stage | Full `vulkan` preset passed 88/88, including coherent/non-coherent and partial-range visibility fixtures |
+| W0132 current boundary | Physical `VkDeviceMemory`, mapped Vulkan flush/invalidate, external-handle import, cross-process synchronization, lifecycle drain, and driver qualification remain open |
 
 ## Recorded M0130 W0133 Evidence
 
@@ -396,6 +403,11 @@ Linux 9.8.
     at [P20260831-053](checkpoints/2026/P20260831-053-m0130-vulkan-module-reflection.md).
     Continue with Kernel IR to MLIR SPIR-V lowering and exact binary validation;
     do not claim shader emission or driver qualification from reflection fixtures.
+21. M0130/W0132 is Active after the host-independent visibility stage at
+    [P20260831-054](checkpoints/2026/P20260831-054-m0130-vulkan-memory-visibility.md).
+    Continue by binding the ledger to qualified-device allocation and mapped
+    flush/invalidate calls; do not claim physical Vulkan or external-memory
+    qualification from the model fixtures.
 
 ## Tool Boundary
 
