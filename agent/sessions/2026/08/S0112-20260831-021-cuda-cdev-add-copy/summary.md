@@ -47,7 +47,8 @@ integration and production resolver wiring remain open.
 | Focused CPU/backend/cdev tests | Passed 3/3 |
 | Full development CTest | Passed 84/84 |
 | clang-format and `git diff --check` | Passed |
-| Agent record validator | Passed: 57 sessions / 388 events / 332 Markdown files |
+| Agent record validator | Passed: 57 sessions / 389 events / 333 Markdown files |
+| Real CPU region COPY through cdev | Passed: two independent imported backend memory handles, checked offsets, lease ordering, completion, and data result |
 
 ## Cleanup
 
