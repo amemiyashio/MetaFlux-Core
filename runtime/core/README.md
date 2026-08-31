@@ -13,14 +13,22 @@ admin add/remove/reset, VFIO-user reset, QMP add/remove, disconnect, and daemon
 restart to the existing `Request` source/operation pair. It validates the
 request envelope and returns an unsupported result for unknown event kinds. The
 normalizer has no state and does not reserve candidates, advance epochs, or
-publish lifecycle state. `lifecycle_dispatch.hpp` provides the single ingress
-function that normalizes an event and submits only the resulting request to the
-Coordinator; malformed or unknown events stop before authority state is
-changed. `capture_external_event` copies the authority snapshot tuple at the
-producer observation point, while the producer still supplies the request ID,
-event kind, and optional deadline. A later authority advance therefore leaves
-the captured event stale and visible to normal request validation instead of
-silently rebinding it.
+publish lifecycle state. `submit_external_event` is the canonical ingress that
+normalizes an event and submits only the resulting request to the Coordinator;
+malformed or unknown events stop before authority state is changed.
+`capture_external_event` copies the authority snapshot tuple at the producer
+observation point, while the producer still supplies the request ID, event kind,
+and optional deadline. A later authority advance therefore leaves the captured
+event stale and visible to normal request validation instead of silently
+rebinding it.
+
+Immediate producers use `capture_and_submit_external_event`. It captures the
+tuple and submits it through the same ingress in one producer call for admin
+reset, VFIO-user reset, disconnect, and daemon restart. Other event kinds return
+`Unsupported` before authority mutation. Delayed QMP completions continue to use
+the pre-captured event overload so command correlation retains the
+observation-time identity. A concurrent authority advance is reported as
+`Stale`; the helper never recaptures against the replacement generation.
 
 Transport implementations register at most one bounded `Mirror` for each of
 `memfd`, `cdev`, and `vfio-user`. The coordinator invokes all registered mirrors
