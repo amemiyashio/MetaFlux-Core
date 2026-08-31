@@ -65,9 +65,13 @@ W0132 also includes a host-independent memory visibility ledger for the staging
 baseline. It binds each allocation to a generation and submission timeline,
 tracks host/device dirty ranges, requires explicit flush before non-coherent
 device access and invalidate before host access, rounds ranges to the queried
-non-coherent atom size, and rejects in-flight or stale teardown. This model is
-ready for a future Vulkan allocation adapter; it does not claim physical
-`VkDeviceMemory`, external-handle import, or driver qualification.
+non-coherent atom size, and rejects in-flight or stale teardown. The runtime now
+adds a source-local host-visible `VkBuffer`/`VkDeviceMemory` staging adapter. It
+selects a compatible host-visible memory type, prefers host-coherent memory,
+maps the allocation, and normalizes non-coherent flush/invalidate ranges. This
+is physical allocation and mapping evidence on the current AMD/RADV host only;
+device-local copies, external-handle import, backend admission, device-loss
+drain, and driver qualification remain open.
 
 W0134 also provides a host-independent command-resource pool. A finite pool
 assigns each acquired resource a monotonic identity, generation, stream, and

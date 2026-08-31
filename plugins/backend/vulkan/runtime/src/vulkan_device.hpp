@@ -55,6 +55,13 @@ public:
   [[nodiscard]] std::uint32_t queue_family_index() const noexcept { return queue_family_index_; }
   [[nodiscard]] std::uint64_t last_submitted_value() const noexcept { return last_submitted_; }
   [[nodiscard]] std::uint64_t last_completed_value() const noexcept { return last_completed_; }
+  [[nodiscard]] VkPhysicalDevice physical_device_handle() const noexcept {
+    return physical_device_;
+  }
+  [[nodiscard]] VkDevice device_handle() const noexcept { return device_; }
+  [[nodiscard]] VkDeviceSize non_coherent_atom_size() const noexcept {
+    return non_coherent_atom_size_;
+  }
 
 private:
   [[nodiscard]] static DeviceStatus map_initialization_result(VkResult result) noexcept;
@@ -70,6 +77,7 @@ private:
   std::uint64_t generation_ = 0U;
   std::uint64_t last_submitted_ = 0U;
   std::uint64_t last_completed_ = 0U;
+  VkDeviceSize non_coherent_atom_size_ = 1U;
   bool lost_ = false;
 };
 

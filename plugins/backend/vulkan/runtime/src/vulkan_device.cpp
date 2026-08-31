@@ -181,6 +181,7 @@ void VulkanDeviceContext::destroy_handles() noexcept {
   queue_ = VK_NULL_HANDLE;
   physical_device_ = VK_NULL_HANDLE;
   queue_family_index_ = UINT32_MAX;
+  non_coherent_atom_size_ = 1U;
   if (instance_ != VK_NULL_HANDLE) {
     vkDestroyInstance(instance_, nullptr);
   }
@@ -276,6 +277,10 @@ VulkanDeviceContext::initialize(const mf_vulkan_capability_profile_v1& profile) 
       return status;
     }
     queue_family_index_ = profile.queue_family_index;
+    VkPhysicalDeviceProperties selected_properties{};
+    vkGetPhysicalDeviceProperties(physical_device_, &selected_properties);
+    non_coherent_atom_size_ =
+        std::max<VkDeviceSize>(selected_properties.limits.nonCoherentAtomSize, 1U);
 
     const float queue_priority = 1.0F;
     VkDeviceQueueCreateInfo queue_info{};

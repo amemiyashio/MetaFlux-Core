@@ -57,6 +57,11 @@ memory or host heap object.
   instance/device/compute queue/timeline context. The context rechecks the
   selected device's identity, properties, limits, queue, and required feature
   chain before enabling it; no Vulkan handle crosses `mf_backend_api_v1`.
+- [x] Add a source-local physical host-visible staging adapter. It creates a
+  generation-bound `VkBuffer` and `VkDeviceMemory`, selects a required
+  host-visible memory type while preferring host-coherent memory, maps the
+  allocation, and applies queried non-coherent atom-size range normalization to
+  flush/invalidate operations without changing `mf_backend_api_v1`.
 - [ ] Expose the context through the backend admission path without changing
   the stable C ABI, then implement allocation/suballocation, staging, optional
   direct tiers, non-coherent flush/invalidate, and timeline synchronization.

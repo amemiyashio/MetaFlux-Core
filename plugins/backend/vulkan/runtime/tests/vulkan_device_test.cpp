@@ -1,4 +1,5 @@
 #include "../src/vulkan_device.hpp"
+#include "../src/vulkan_staging.hpp"
 
 #include "metaflux/backend/vulkan_capability.hpp"
 
@@ -66,9 +67,26 @@ int main() {
     return 6;
   }
 
+  {
+    metaflux::backend::vulkan::VulkanStagingBuffer staging(context);
+    if (staging.allocate(4096U, 256U) != metaflux::backend::vulkan::AllocationStatus::success ||
+        staging.allocation().buffer == VK_NULL_HANDLE ||
+        staging.allocation().memory == VK_NULL_HANDLE ||
+        staging.map() != metaflux::backend::vulkan::AllocationStatus::success ||
+        staging.allocation().mapped == nullptr ||
+        staging.flush(0U, 256U) != metaflux::backend::vulkan::AllocationStatus::success ||
+        staging.invalidate(128U, 128U) != metaflux::backend::vulkan::AllocationStatus::success ||
+        staging.flush(4096U, 1U) !=
+            metaflux::backend::vulkan::AllocationStatus::range_out_of_bounds ||
+        staging.allocate(0U, 256U) !=
+            metaflux::backend::vulkan::AllocationStatus::invalid_argument) {
+      return 7;
+    }
+  }
+
   std::printf("vulkan device context: success queue-family=%u timeline=%llu\n",
               context.queue_family_index(),
               static_cast<unsigned long long>(context.last_completed_value()));
   context.reset();
-  return !context.ready() && context.submit_signal(42U, 3U) == DeviceStatus::not_ready ? 0 : 7;
+  return !context.ready() && context.submit_signal(42U, 3U) == DeviceStatus::not_ready ? 0 : 8;
 }
