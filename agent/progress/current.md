@@ -6,7 +6,7 @@ focus_mode: product
 focus_owner: S0112-20260901-001-m0110-w0112-current-epoch
 milestone: M0110
 workstream: W0112
-checkpoint: P20260901-093
+checkpoint: P20260901-094
 ---
 
 # Current Progress
@@ -48,7 +48,9 @@ default scheduling authority while M0110 is incomplete.
   completion, generation-bound references, daemon object-table activation, and
   queue-only region COPY stages recorded through P081. The current epoch also
   binds embedded daemon memory objects to persistent CPU backend handles with
-  explicit operation-reference draining; live cdev lease/import remains open.
+  explicit operation-reference draining. P094 adds same-fd current cdev view /
+  generation discovery and lease-bound mapping of the data-owner payload;
+  daemon-side live lease/import remains open.
 - P089 records the runtime-owned immediate producer ingress at `6152efa`: admin
   reset, VFIO-user reset, disconnect, and daemon restart capture one authority
   snapshot; wrong-route QMP, malformed, unknown, and stale observations are
@@ -63,7 +65,7 @@ default scheduling authority while M0110 is incomplete.
 
 1. Connect the current daemon object table and leased worker/backend binding to
    live cdev registered-memory handles using the current W0112 source and tests;
-   the embedded object-handle lifetime slice is complete.
+   the worker-side payload mapping slice is complete.
 2. Prove unmodified Add/Copy through `/dev/metafluxN`, including
    replacement-generation isolation and fd/VMA tombstone behavior.
 3. Execute the W0112 fault matrix with KUnit, KASAN, KCSAN, lockdep, and
@@ -83,6 +85,7 @@ default scheduling authority while M0110 is incomplete.
 ## Evidence Pointers
 
 - [P093 daemon cdev backend reference drain](checkpoints/2026/P20260901-093-m0110-daemon-cdev-reference-drain.md)
+- [P094 current cdev worker payload mapping](checkpoints/2026/P20260901-094-m0110-cdev-worker-payload-mapping.md)
 - [P092 breaking governance applied](checkpoints/2026/P20260901-092-breaking-governance-applied.md)
 - [P091 destructive governance epoch](checkpoints/2026/P20260901-091-destructive-governance-epoch.md)
 - [P090 execution-focus governance](checkpoints/2026/P20260831-090-execution-focus-governance.md)
