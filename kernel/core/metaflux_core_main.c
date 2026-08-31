@@ -309,13 +309,12 @@ static int mf_cdev_memory_alloc(struct mf_cdev_file *file, void __user *argument
 	int result;
 	bool operation_ref = false;
 
-	if (file == NULL || file->control || !file->negotiated)
+	if (file == NULL || file->control)
 		return -EPERM;
 	if (copy_from_user(&request, argument, sizeof(request)) != 0)
 		return -EFAULT;
 	if (mf_cdev_validate_size(request.struct_size, sizeof(request)) != 0 || request.flags != 0U ||
 	    request.handle != 0U || request.byte_count == 0U ||
-	    (request.generation != 0U && request.generation != mf_cdev_queue.generation) ||
 	    request.byte_count > MF_CDEV_PAYLOAD_MAX_SIZE || request.alignment < PAGE_SIZE ||
 	    (request.alignment & (request.alignment - 1U)) != 0U || request.offset != 0U ||
 	    request.fd != -1 || !mf_cdev_bytes_zero(request.reserved, sizeof(request.reserved)))
@@ -329,10 +328,20 @@ static int mf_cdev_memory_alloc(struct mf_cdev_file *file, void __user *argument
 		return -ENOMEM;
 
 	mutex_lock(&mf_cdev_lock);
+	if (!file->negotiated) {
+		mutex_unlock(&mf_cdev_lock);
+		vfree(mapping);
+		return -EPERM;
+	}
 	if (!mf_cdev_queue.online) {
 		mutex_unlock(&mf_cdev_lock);
 		vfree(mapping);
 		return -ENODEV;
+	}
+	if (request.generation != 0U && request.generation != mf_cdev_queue.generation) {
+		mutex_unlock(&mf_cdev_lock);
+		vfree(mapping);
+		return -EINVAL;
 	}
 	if (mf_cdev_payload.online || mf_cdev_payload.mapping != NULL) {
 		mutex_unlock(&mf_cdev_lock);
@@ -452,10 +461,8 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 
 	memset(&sg_table, 0, sizeof(sg_table));
 	memset(&retired, 0, sizeof(retired));
-	if (file == NULL || file->control || !file->negotiated)
+	if (file == NULL || file->control)
 		return -EPERM;
-	if ((file->negotiated_features & MF_UAPI_FEATURE_REGISTERED_MEMORY_V0) == 0U)
-		return -EOPNOTSUPP;
 	if (copy_from_user(&request, argument, sizeof(request)) != 0)
 		return -EFAULT;
 	if (mf_cdev_validate_size(request.struct_size, sizeof(request)) != 0 ||
@@ -463,11 +470,14 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 		return -EINVAL;
 
 	if (request.handle != 0U) {
-		if (request.flags != 0U || request.generation == 0U ||
-		    request.generation != mf_cdev_queue.generation || request.byte_count != 0U ||
+		if (request.flags != 0U || request.generation == 0U || request.byte_count != 0U ||
 		    request.alignment != 0U || request.offset != 0U || request.fd != -1)
 			return -EINVAL;
 		mutex_lock(&mf_cdev_lock);
+		if (request.generation != mf_cdev_queue.generation) {
+			mutex_unlock(&mf_cdev_lock);
+			return -EINVAL;
+		}
 		if (!mf_cdev_registered_memory_handle_exists_locked(request.handle)) {
 			mutex_unlock(&mf_cdev_lock);
 			return -ENOENT;
@@ -492,7 +502,6 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 	    (request.flags & (MF_UAPI_MEMORY_REGISTER_FLAG_READ_V0 |
                        MF_UAPI_MEMORY_REGISTER_FLAG_WRITE_V0)) == 0U ||
 	    request.byte_count == 0U || request.byte_count > MF_CDEV_PAYLOAD_MAX_SIZE ||
-	    (request.generation != 0U && request.generation != mf_cdev_queue.generation) ||
 	    request.alignment < PAGE_SIZE ||
 	    (request.alignment & (request.alignment - 1U)) != 0U || request.offset == 0U ||
 	    request.offset > (u64)ULONG_MAX || request.byte_count > (u64)ULONG_MAX || request.fd != -1)
@@ -559,6 +568,24 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 	}
 
 	mutex_lock(&mf_cdev_lock);
+	if (!file->negotiated) {
+		mutex_unlock(&mf_cdev_lock);
+		mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,
+							     dma_direction, dma_nents, mm, request.flags);
+		return -EPERM;
+	}
+	if ((file->negotiated_features & MF_UAPI_FEATURE_REGISTERED_MEMORY_V0) == 0U) {
+		mutex_unlock(&mf_cdev_lock);
+		mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,
+							     dma_direction, dma_nents, mm, request.flags);
+		return -EOPNOTSUPP;
+	}
+	if (request.generation != 0U && request.generation != mf_cdev_queue.generation) {
+		mutex_unlock(&mf_cdev_lock);
+		mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,
+							     dma_direction, dma_nents, mm, request.flags);
+		return -EINVAL;
+	}
 	if (!mf_cdev_queue.online) {
 		mutex_unlock(&mf_cdev_lock);
 		mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,
@@ -681,8 +708,6 @@ static int mf_cdev_queue_create(struct mf_cdev_file *file, void __user *argument
 	s32 completion_descriptor;
 	int result;
 
-	if (file->control || !file->negotiated)
-		return -EPERM;
 	if (copy_from_user(&request, argument, sizeof(request)) != 0)
 		return -EFAULT;
 	if (mf_cdev_validate_size(request.struct_size, sizeof(request)) != 0 || request.flags != 0U ||
@@ -691,8 +716,6 @@ static int mf_cdev_queue_create(struct mf_cdev_file *file, void __user *argument
 	    (request.submission_eventfd < 0) != (request.completion_eventfd < 0) ||
 	    !mf_cdev_bytes_zero(request.reserved, sizeof(request.reserved)))
 		return -EINVAL;
-	if (file->queue_created)
-		return -EBUSY;
 	submission_descriptor = request.submission_eventfd;
 	completion_descriptor = request.completion_eventfd;
 	result = mf_cdev_eventfd_get(request.submission_eventfd, &submission_eventfd);
@@ -705,6 +728,18 @@ static int mf_cdev_queue_create(struct mf_cdev_file *file, void __user *argument
 	}
 
 	mutex_lock(&mf_cdev_lock);
+	if (!file->negotiated) {
+		mutex_unlock(&mf_cdev_lock);
+		mf_cdev_eventfd_put(&submission_eventfd);
+		mf_cdev_eventfd_put(&completion_eventfd);
+		return -EPERM;
+	}
+	if (file->queue_created) {
+		mutex_unlock(&mf_cdev_lock);
+		mf_cdev_eventfd_put(&submission_eventfd);
+		mf_cdev_eventfd_put(&completion_eventfd);
+		return -EBUSY;
+	}
 	if (!mf_cdev_queue.online) {
 		mutex_unlock(&mf_cdev_lock);
 		mf_cdev_eventfd_put(&submission_eventfd);
@@ -774,8 +809,6 @@ static int mf_cdev_worker_lease(struct mf_cdev_file *file, void __user *argument
 
 	if (!file->control)
 		return -EPERM;
-	if (file->lease)
-		return -EBUSY;
 	if (copy_from_user(&request, argument, sizeof(request)) != 0)
 		return -EFAULT;
 	if (mf_cdev_validate_size(request.struct_size, sizeof(request)) != 0 || request.flags != 0U ||
@@ -793,6 +826,12 @@ static int mf_cdev_worker_lease(struct mf_cdev_file *file, void __user *argument
 	}
 
 	mutex_lock(&mf_cdev_lock);
+	if (file->lease) {
+		mutex_unlock(&mf_cdev_lock);
+		mf_cdev_eventfd_put(&kick_eventfd);
+		mf_cdev_eventfd_put(&completion_eventfd);
+		return -EBUSY;
+	}
 	if (!mf_cdev_queue.online) {
 		mutex_unlock(&mf_cdev_lock);
 		mf_cdev_eventfd_put(&kick_eventfd);
@@ -873,8 +912,6 @@ static long mf_cdev_wait(struct mf_cdev_file *file, void __user *argument)
 	long result;
 	long final_result;
 
-	if (!file->queue_created)
-		return -EPERM;
 	if (copy_from_user(&request, argument, sizeof(request)) != 0)
 		return -EFAULT;
 	if (mf_cdev_validate_size(request.struct_size, sizeof(request)) != 0 || request.flags != 0U ||
@@ -890,7 +927,11 @@ static long mf_cdev_wait(struct mf_cdev_file *file, void __user *argument)
 		timeout = MAX_SCHEDULE_TIMEOUT;
 
 	mutex_lock(&mf_cdev_lock);
-	if (!file->queue_created || mf_cdev_queue.mapping == NULL) {
+	if (!file->queue_created) {
+		mutex_unlock(&mf_cdev_lock);
+		return -EPERM;
+	}
+	if (mf_cdev_queue.mapping == NULL) {
 		mutex_unlock(&mf_cdev_lock);
 		return -ENODEV;
 	}
@@ -1039,11 +1080,13 @@ static int mf_cdev_mmap(struct file *file_pointer, struct vm_area_struct *vma)
 		mutex_unlock(&mf_cdev_lock);
 		return result;
 	}
-	if ((!file->queue_created && !file->lease) || vma->vm_pgoff != 0U)
-		return -EINVAL;
-	if (length != mf_cdev_queue.mapping_size)
+	if (vma->vm_pgoff != 0U)
 		return -EINVAL;
 	mutex_lock(&mf_cdev_lock);
+	if ((!file->queue_created && !file->lease) || length != mf_cdev_queue.mapping_size) {
+		mutex_unlock(&mf_cdev_lock);
+		return -EINVAL;
+	}
 	if (!mf_cdev_queue.online || mf_cdev_queue.mapping == NULL) {
 		mutex_unlock(&mf_cdev_lock);
 		return -ENODEV;
@@ -1068,11 +1111,12 @@ static __poll_t mf_cdev_poll(struct file *file_pointer, poll_table *wait)
 	struct mf_ring_header_v1 *completion;
 	__poll_t mask = 0;
 
-	if (file == NULL || file->control || !file->queue_created)
+	if (file == NULL)
 		return EPOLLERR;
 	poll_wait(file_pointer, &mf_cdev_queue.wait, wait);
 	mutex_lock(&mf_cdev_lock);
-	if (!file->queue_created || !mf_cdev_queue.online || mf_cdev_queue.mapping == NULL) {
+	if (file->control || !file->queue_created || !mf_cdev_queue.online ||
+	    mf_cdev_queue.mapping == NULL) {
 		mask = EPOLLHUP | EPOLLERR;
 	} else {
 		kref_get(&mf_cdev_queue.refs);
