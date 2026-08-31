@@ -392,7 +392,7 @@ static int mf_cdev_memory_query(struct mf_cdev_file *file, void __user *argument
 {
 	mf_uapi_memory_v0 request;
 
-	if (file == NULL || !file->control || !file->lease || !file->negotiated)
+	if (file == NULL || !file->control)
 		return -EPERM;
 	if (copy_from_user(&request, argument, sizeof(request)) != 0)
 		return -EFAULT;
@@ -403,6 +403,10 @@ static int mf_cdev_memory_query(struct mf_cdev_file *file, void __user *argument
 		return -EINVAL;
 
 	mutex_lock(&mf_cdev_lock);
+	if (!file->lease || !file->negotiated) {
+		mutex_unlock(&mf_cdev_lock);
+		return -EPERM;
+	}
 	if (!mf_cdev_queue.online) {
 		mutex_unlock(&mf_cdev_lock);
 		return -ENODEV;
