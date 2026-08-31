@@ -25,6 +25,7 @@ extern "C" {
 #define MF_BACKEND_CAP_CANCELLATION (UINT64_C(1) << 3U)
 #define MF_BACKEND_CAP_METRICS (UINT64_C(1) << 4U)
 #define MF_BACKEND_CAP_POLICY (UINT64_C(1) << 5U)
+#define MF_BACKEND_CAP_LAUNCH (UINT64_C(1) << 6U)
 
 typedef int32_t mf_backend_status_v1;
 typedef uint64_t mf_backend_instance_v1;

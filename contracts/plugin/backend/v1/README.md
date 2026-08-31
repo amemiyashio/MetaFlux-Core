@@ -19,6 +19,13 @@ than the last function they require. No exception, STL object, compiler class,
 ecosystem handle, language boolean, or allocator ownership crosses this C ABI.
 v1 remains pre-stable until the CPU vertical slice and ABI qualification pass.
 
+`MF_BACKEND_CAP_LAUNCH` gates the synchronous `submit` group. A backend may
+define a target-local argument-byte encoding while keeping the function-table
+layout unchanged; the CPU backend's encoding is documented by
+`metaflux/backend/cpu.h` and carries only opaque backend memory handles and
+fixed-width scalar values. A launch with a nonzero completion event is outside
+the synchronous subset and must return a typed unsupported status.
+
 The Vulkan extension headers are versioned independently inside this plugin
 boundary. `vulkan_arguments.h` defines the 64-byte header and 48-byte entry
 layout for a target-digest-bound packed scalar/device-address block; every

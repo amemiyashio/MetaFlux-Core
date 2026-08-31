@@ -6,12 +6,16 @@ runtime side of the compiled-kernel ABI.
 
 The versioned backend table now exposes the first transport-facing CPU subset:
 one device, instance/context/queue handles, caller-owned host-memory import,
-and synchronous, overlap-safe COPY. Imported ranges remain owned by the caller;
-the backend only retains their address and length until the matching memory
-handle is released. The cdev worker uses this table for mapped-payload COPY
-dispatch. Launch/Add, asynchronous events, backend DMA mapping, and policy or
-metrics operations remain outside this subset until their corresponding
-transport and lifecycle contracts are qualified.
+synchronous, overlap-safe COPY, and synchronous launch of pre-serialized
+canonical Kernel IR. Imported ranges remain owned by the caller; the backend
+only retains their address and length until the matching memory handle is
+released. A loaded module owns a copy of the canonical KIR, and `submit`
+accepts the private `mf_cpu_backend_argument_block_v1` encoding of memory
+handles and scalar values. The cdev worker uses this table for mapped-payload
+COPY dispatch; descriptor-to-argument launch wiring, asynchronous events,
+backend DMA mapping, and policy or metrics operations remain outside this
+subset until their corresponding transport and lifecycle contracts are
+qualified.
 
 Compiler-side and runtime-side code are separate build targets. The compiler
 accepts verified canonical Kernel IR v2, emits LLVM-dialect MLIR, translates it
