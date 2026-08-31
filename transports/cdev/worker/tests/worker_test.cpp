@@ -356,6 +356,7 @@ int main() {
   backend_fixture.result = MF_BACKEND_SUCCESS;
 
   BackendFixture async_fixture{};
+  MemoryReferenceFixture async_memory_refs{};
   const auto async_api = make_async_fixture_api();
   async_fixture.expected_completion_event = 99U;
   BackendFixture replacement_fixture{};
@@ -367,6 +368,11 @@ int main() {
           static_cast<mf_backend_instance_v1>(reinterpret_cast<std::uintptr_t>(&async_fixture)),
       .queue = 17U,
       .memory = 23U,
+      .memory_reference =
+          {.handle = 23U,
+           .retain = retain_memory_reference,
+           .release = release_memory_reference,
+           .context = &async_memory_refs},
       .completion_event = async_fixture.expected_completion_event,
       .lease_acquire = fixture_lease_acquire,
       .lease_release = fixture_lease_release,
@@ -403,6 +409,8 @@ int main() {
       async_consume != metaflux::transport::cdev::WorkerResult::Idle ||
       !async_worker.backend_operation_pending() || !async_fixture.lease_active ||
       async_fixture.calls != 1U || async_fixture.query_calls != 0U ||
+      async_memory_refs.retains != 1U || async_memory_refs.releases != 0U ||
+      async_memory_refs.active != 1U ||
       async_empty != MF_SHARED_WOULD_BLOCK) {
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
@@ -422,6 +430,8 @@ int main() {
   if (async_done != metaflux::transport::cdev::WorkerResult::Completed ||
       async_worker.backend_operation_pending() || async_fixture.query_calls != 2U ||
       async_fixture.lease_acquires != 1U || async_fixture.lease_releases != 1U ||
+      async_memory_refs.retains != 1U || async_memory_refs.releases != 1U ||
+      async_memory_refs.active != 0U ||
       async_fixture.lease_active || replacement_fixture.query_calls != 0U ||
       replacement_fixture.lease_releases != 0U ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
@@ -442,6 +452,8 @@ int main() {
       async_error_start != metaflux::transport::cdev::WorkerResult::Idle ||
       async_error_done != metaflux::transport::cdev::WorkerResult::Completed ||
       async_worker.backend_operation_pending() || async_fixture.lease_releases != 2U ||
+      async_memory_refs.retains != 2U || async_memory_refs.releases != 2U ||
+      async_memory_refs.active != 0U ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
       result.request_id != 45U ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_TIMEOUT)) {
@@ -477,6 +489,8 @@ int main() {
       async_filler_consume != MF_SHARED_SUCCESS ||
       async_retry != metaflux::transport::cdev::WorkerResult::Completed ||
       async_worker.backend_operation_pending() || async_fixture.lease_releases != 3U ||
+      async_memory_refs.retains != 3U || async_memory_refs.releases != 3U ||
+      async_memory_refs.active != 0U ||
       async_fixture.lease_active ||
       async_result != MF_SHARED_SUCCESS ||
       result.request_id != 46U ||

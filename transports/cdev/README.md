@@ -73,8 +73,13 @@ before resolving or dispatching a bound request and releases it after the
 synchronous backend call returns; lease rejection is surfaced in the completion
 record and never falls back to the local path. A payload COPY is translated to
 one `mf_backend_copy_v1` record with checked base-relative offsets; backend
-status is mapped to the shared status vocabulary. With no binding, the fixture
-keeps its local `memmove` path.
+status is mapped to the shared status vocabulary. A binding may additionally
+provide a complete `CdevBackendMemoryReference` for its payload-memory handle;
+the worker retains that handle before dispatch and holds it through asynchronous
+completion, cancellation, and completion-ring backpressure, then releases it
+after publishing the terminal completion. Partial reference callbacks are
+rejected as an invalid binding. With no binding, the fixture keeps its local
+`memmove` path.
 
 The worker also accepts `MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1` when the
 binding supplies a `CdevCopyResolver`. The resolver owns daemon/object-table
@@ -87,7 +92,8 @@ or after an asynchronous event is observed and its completion is published.
 References remain held while the completion ring applies backpressure. Direct-
 host COPY flags remain unsupported on this worker. This is the backend
 import/reference seam; production backend memory import and physical-device
-qualification remain open.
+qualification remain open; the reference callback is the worker-side owner
+boundary for a production imported handle.
 
 The region descriptor uses the argument-block object ID as `target_id`, its
 generation in `arguments[0]`, and zero in `arguments[1..3]`; the resolver must
@@ -111,8 +117,9 @@ descriptor stage; the worker's asynchronous event contract extends the lease
 until observed completion and snapshots the exact backend binding so a later
 replacement cannot query or release the old operation through the new binding.
 Production backend memory import remains open; the host-independent reference
-lifetime contract and capability-gated pending-operation cancellation are
-implemented by the resolver and lifecycle callbacks.
+lifetime contract, including direct payload-memory retain/release, and
+capability-gated pending-operation cancellation are implemented by the worker
+binding and lifecycle callbacks.
 
 The W0114 bounded fault matrix now treats unknown COPY flags as malformed,
 known direct-host flags as unsupported on this worker, and zero-length COPY as
