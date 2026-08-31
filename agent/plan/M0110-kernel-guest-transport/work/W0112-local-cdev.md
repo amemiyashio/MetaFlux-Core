@@ -55,11 +55,12 @@ and arithmetic operation is validated.
 - [x] Attach one complete caller-owned eventfd pair to either the data queue or
   worker lease, retain kernel `eventfd_ctx` references, and reject a second owner
   for the generation with `-EBUSY`.
-- [x] Register one bounded caller-owned range with `FOLL_LONGTERM`/`FOLL_WRITE`
-  pinning, normal memlock accounting, an SG table, partial-pin unwind, dirty
-  unpin, owner-close or explicit unregister revocation, and direction-aware
-  `dma_map_sg`/`dma_unmap_sg` lifetime through the data cdev DMA device. Multi-
-  region quota and backend in-flight device references remain open.
+- [x] Register a bounded table of up to four caller-owned ranges, each with
+  `FOLL_LONGTERM`/`FOLL_WRITE` pinning, normal memlock accounting, an independent
+  SG table, partial-pin unwind, dirty unpin, owner-close or explicit unregister
+  revocation, and direction-aware `dma_map_sg`/`dma_unmap_sg` lifetime through
+  the data cdev DMA device. Enforce unique generation-bound handles and a 256
+  MiB aggregate quota; backend in-flight device references remain open.
 - [x] Add a worker-side `mf_backend_api_v1` COPY dispatch seam with sized-table,
   capability, handle, offset, and backend-status validation. An unbound worker
   retains the local fixture copy path; a malformed bound API returns

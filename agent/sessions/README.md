@@ -121,6 +121,7 @@ copies canonical content.
 | [S0113-20260831-027-cdev-memory-reference](2026/08/S0113-20260831-027-cdev-memory-reference/summary.md) | 2026-08-31 | Exact | In progress | W0112 region COPY retains resolver-owned source/destination memory references through completion and backpressure; production import remains open |
 | [S0114-20260831-028-cdev-lifecycle-cancel](2026/08/S0114-20260831-028-cdev-lifecycle-cancel/summary.md) | 2026-08-31 | Exact | In progress | W0112 capability-gated pending cancellation maps transport loss to device-lost completion; production generation drain remains open |
 | [S0115-20260831-029-cdev-lifecycle-drain-cancel](2026/08/S0115-20260831-029-cdev-lifecycle-drain-cancel/summary.md) | 2026-08-31 | Exact | In progress | W0112 lifecycle drain processes pending backend work before retirement; non-cancellable quiesce remains rejected |
+| [S0116-20260831-030-cdev-multi-region](2026/08/S0116-20260831-030-cdev-multi-region/summary.md) | 2026-08-31 | Exact | In progress | W0112 kernel-private four-slot registered-memory table with unique generation-bound handles, aggregate quota, and per-owner teardown; production backend import remains open |
 
 ## Fidelity and retention
 

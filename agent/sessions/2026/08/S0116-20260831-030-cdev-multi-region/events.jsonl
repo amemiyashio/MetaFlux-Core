@@ -1,0 +1,1 @@
+{"schema_version": 1, "seq": 1, "timestamp": "2026-08-31", "type": "objective", "actor": "A001", "content": "Extend W0112 kernel MEMORY_REGISTER from one global region to a bounded multi-region table with unique generation-bound handles, per-owner teardown, max_regions negotiation, and aggregate byte quota without changing the fixed UAPI record shape."}
