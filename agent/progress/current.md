@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-082
+checkpoint: P20260831-083
 ---
 
 # Current Progress
@@ -240,6 +240,13 @@ flush/invalidate behavior on the current AMD RADV host. Backend admission,
 device-local copies, suballocation, external-handle import, command-buffer and
 pipeline composition, device-loss injection, and driver-family qualification
 remain open.
+W0132's source-local Tier 3 device-local copy round trip is now recorded at
+[P20260831-083](checkpoints/2026/P20260831-083-m0130-vulkan-device-local-copy.md).
+It pairs the host-visible staging allocation with a device-local transfer
+buffer, submits upload/download commands through the generation-bound timeline,
+and verifies the bytes after a physical AMD/RADV round trip. Backend admission,
+suballocation, external-handle import, device-loss injection, and driver-family
+qualification remain open.
 
 Intel x86_64 support qualification and physical NVIDIA binding-performance
 promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
@@ -373,7 +380,9 @@ Linux 9.8.
 | W0132 CTest after device-context stage | Lean Vulkan preset passed 89/89; explicit RADV runtime device CTest passed 1/1 with queue-family=0 and timeline=2 |
 | W0132 physical staging adapter | `a9ba189`; source-local host-visible `VkBuffer`/`VkDeviceMemory` allocation, memory-type selection, mapping, range validation, and coherent/non-coherent flush/invalidate hooks; stable C ABI unchanged |
 | W0132 CTest after physical staging stage | `.#vulkan-runtime` full CTest passed 90/90, including `metaflux.backend.vulkan-device`; changed-file clang-format check and `git diff --check` passed |
-| W0132 current boundary | Backend admission, device-local copies, suballocation, external-handle import, command-buffer/pipeline composition, cross-process synchronization, lifecycle drain, non-coherent physical fixture, and driver qualification remain open |
+| W0132 Tier 3 device-local copy | `d050de2`; source-local host-visible/device-local buffers, `vkCmdCopyBuffer` upload/download, generation-bound timeline submit/wait, and byte-for-byte AMD/RADV round trip; stable C ABI unchanged |
+| W0132 CTest after Tier 3 copy stage | `.#vulkan-runtime` full CTest passed 90/90; direct device-copy test reported `queue-family=0 timeline=4` |
+| W0132 current boundary | Backend admission, suballocation, external-handle import, command-buffer/pipeline composition, cross-process synchronization, lifecycle drain, non-coherent-only physical fixture, and driver qualification remain open |
 
 ## Recorded M0130 W0133 Evidence
 

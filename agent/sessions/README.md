@@ -129,6 +129,7 @@ copies canonical content.
 | [S01111-20260831-035-cdev-generation-control-plane](2026/08/S01111-20260831-035-cdev-generation-control-plane/summary.md) | 2026-08-31 | Exact | Complete | Audited fixed cdev identity; deferred replacement control to M0120 |
 | [S01112-20260831-036-cdev-daemon-object-activation](2026/08/S01112-20260831-036-cdev-daemon-object-activation/summary.md) | 2026-08-31 | Exact | In progress | Daemon object-table region COPY plus queue-only cdev worker boundary; live lease and registered-memory attachment remain open |
 | [S01322-20260831-037-vulkan-staging-allocation](2026/08/S01322-20260831-037-vulkan-staging-allocation/summary.md) | 2026-08-31 | Exact | In progress | W0132 physical host-visible Vulkan staging allocation, mapping, and flush/invalidate range boundary on AMD/RADV; backend admission and device-local copy remain open |
+| [S01323-20260831-038-vulkan-device-local-copy](2026/08/S01323-20260831-038-vulkan-device-local-copy/summary.md) | 2026-08-31 | Exact | In progress | W0132 source-local Tier 3 host-to-device/device-to-host copy through the generation-bound Vulkan timeline on AMD/RADV; backend admission and external memory remain open |
 
 ## Fidelity and retention
 
