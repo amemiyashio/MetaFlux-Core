@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Proposed |
+| Status | Verified |
 | Decision | D0029 |
 | Applies to | Default work selection, session ownership, and durable commit authorization |
 
@@ -53,7 +53,14 @@ change the execution focus.
 
 ## Verification State
 
-SC0006 owns the synchronized migration. This record becomes `Verified` only
-after the focus validator, candidate-index pre-commit tests, Claude bridge,
-session handoffs, compact progress projection, residual searches, and Agent
-record gates pass on the applied revision.
+Behavior revision `47d5735cb363129ac5877d084d0af1c4326c5421` installs the
+focus schema and dependency/Exit-Gate validator, exact candidate-owner and
+record-only handoff gate, Claude focus guard, compact progress projection, and
+workflow/tool routing. The candidate pre-commit passed with the new focus in
+the staged tree; the Agent-record self-test passed 184 cases; the focused
+architecture CTest selection passed 7/7; current-authority residual searches
+found no global session-coverage rule; and the SC0006 Historical inventory
+remained byte-for-byte unchanged.
+
+SC0006 owns the final migration inventory, effective revision, and atomic
+handoff from the governance owner to the dependency-valid W0112 product owner.
