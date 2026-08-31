@@ -10,6 +10,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -36,6 +37,27 @@ struct CacheIdentity {
 
   [[nodiscard]] std::string portable_key() const;
   [[nodiscard]] std::string device_key() const;
+};
+
+enum class WarmLaunchEvent : std::uint32_t {
+  cache_lookup = 0,
+  pipeline_binding = 1,
+  argument_binding = 2,
+  submit = 3,
+  compiler = 4,
+  validator = 5,
+  shader_module_creation = 6,
+  pipeline_creation = 7,
+  vulkan_allocation = 8,
+  metaflux_allocation = 9,
+};
+
+enum class WarmLaunchStatus : std::uint32_t {
+  success = 0,
+  invalid_argument = 1,
+  invalid_order = 2,
+  forbidden_event = 3,
+  missing_event = 4,
 };
 
 enum class CacheStatus : std::uint32_t {
@@ -152,6 +174,9 @@ private:
 };
 
 [[nodiscard]] const char* cache_status_string(CacheStatus status) noexcept;
+[[nodiscard]] WarmLaunchStatus
+validate_warm_launch_trace(std::span<const WarmLaunchEvent> events) noexcept;
+[[nodiscard]] const char* warm_launch_status_string(WarmLaunchStatus status) noexcept;
 
 } // namespace metaflux::backend::vulkan
 

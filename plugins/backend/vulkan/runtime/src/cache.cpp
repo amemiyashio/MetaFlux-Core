@@ -185,6 +185,48 @@ std::string CacheIdentity::portable_key() const { return canonical_key(*this, fa
 
 std::string CacheIdentity::device_key() const { return canonical_key(*this, true); }
 
+WarmLaunchStatus validate_warm_launch_trace(std::span<const WarmLaunchEvent> events) noexcept {
+  constexpr std::array<WarmLaunchEvent, 4> expected{
+      WarmLaunchEvent::cache_lookup,
+      WarmLaunchEvent::pipeline_binding,
+      WarmLaunchEvent::argument_binding,
+      WarmLaunchEvent::submit,
+  };
+  if (events.empty()) {
+    return WarmLaunchStatus::missing_event;
+  }
+  for (std::size_t index = 0U; index < events.size(); ++index) {
+    const auto raw = static_cast<std::uint32_t>(events[index]);
+    if (raw > static_cast<std::uint32_t>(WarmLaunchEvent::metaflux_allocation)) {
+      return WarmLaunchStatus::invalid_argument;
+    }
+    if (raw >= static_cast<std::uint32_t>(WarmLaunchEvent::compiler)) {
+      return WarmLaunchStatus::forbidden_event;
+    }
+    if (index >= expected.size() || events[index] != expected[index]) {
+      return WarmLaunchStatus::invalid_order;
+    }
+  }
+  return events.size() == expected.size() ? WarmLaunchStatus::success
+                                          : WarmLaunchStatus::missing_event;
+}
+
+const char* warm_launch_status_string(WarmLaunchStatus status) noexcept {
+  switch (status) {
+  case WarmLaunchStatus::success:
+    return "success";
+  case WarmLaunchStatus::invalid_argument:
+    return "invalid-argument";
+  case WarmLaunchStatus::invalid_order:
+    return "invalid-order";
+  case WarmLaunchStatus::forbidden_event:
+    return "forbidden-event";
+  case WarmLaunchStatus::missing_event:
+    return "missing-event";
+  }
+  return "unknown";
+}
+
 CacheStatus CacheCatalog::publish(std::string key, std::string payload, bool device_bound) {
   if (key.empty() || payload.empty() || max_entries_ == 0U) {
     return CacheStatus::invalid_argument;

@@ -101,4 +101,9 @@ after release. A resident device-bound hit can now be acquired as one
 generation-scoped pipeline binding; duplicate generations report `pinned`,
 stale generations report `stale_generation`, and release is required before
 device invalidation can remove the entry. This is a lifecycle contract for the
-cache repository, not creation or qualification of a `VkPipeline`.
+cache repository, not creation or qualification of a `VkPipeline`. The cache
+tests mutate every portable and device-bound identity field and require a miss
+for each changed key. A host-independent warm-launch trace validator accepts
+only cache lookup, pipeline binding, argument binding, and submit in order; it
+rejects compiler, validator, module/pipeline creation, and allocation events.
+An actual ICD trace is still required for the warm-launch gate.

@@ -1,5 +1,6 @@
 #include "metaflux/backend/vulkan_cache.hpp"
 
+#include <array>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -80,6 +81,133 @@ bool key_partitioning() {
   changed = base;
   changed.device_uuid[0] ^= 0xffU;
   return changed.portable_key() == portable && changed.device_key() != device;
+}
+
+bool every_cache_identity_mutation_misses() {
+  const auto base = identity();
+  const auto portable_key = base.portable_key();
+  const auto device_key = base.device_key();
+  TemporaryDirectory temporary;
+  if (!temporary.valid()) {
+    return false;
+  }
+  metaflux::backend::vulkan::PersistentCacheRepository repository(temporary.path() / "cache", 64U,
+                                                                  1024U);
+  if (repository.publish(portable_key, "portable", false) !=
+          metaflux::backend::vulkan::CacheStatus::success ||
+      repository.publish(device_key, "device", true) !=
+          metaflux::backend::vulkan::CacheStatus::success) {
+    return false;
+  }
+  std::string payload;
+  const auto portable_mutation_misses = [&](auto mutate) {
+    auto changed = base;
+    mutate(changed);
+    return changed.portable_key() != portable_key && changed.device_key() != device_key &&
+           repository.lookup(changed.portable_key(), false, &payload) ==
+               metaflux::backend::vulkan::CacheStatus::miss &&
+           repository.lookup(changed.device_key(), true, &payload) ==
+               metaflux::backend::vulkan::CacheStatus::miss;
+  };
+  const auto device_mutation_misses = [&](auto mutate) {
+    auto changed = base;
+    mutate(changed);
+    return changed.portable_key() == portable_key && changed.device_key() != device_key &&
+           repository.lookup(portable_key, false, &payload) ==
+               metaflux::backend::vulkan::CacheStatus::hit &&
+           repository.lookup(changed.device_key(), true, &payload) ==
+               metaflux::backend::vulkan::CacheStatus::miss;
+  };
+
+  return portable_mutation_misses(
+             [](auto& changed) { changed.kernel_ir_digest[0] ^= static_cast<std::uint8_t>(1U); }) &&
+         portable_mutation_misses(
+             [](auto& changed) { changed.target_digest[0] ^= static_cast<std::uint8_t>(1U); }) &&
+         portable_mutation_misses([](auto& changed) { ++changed.compiler_epoch; }) &&
+         portable_mutation_misses([](auto& changed) { ++changed.lowering_epoch; }) &&
+         portable_mutation_misses([](auto& changed) { ++changed.spirv_tools_epoch; }) &&
+         portable_mutation_misses([](auto& changed) { ++changed.fp_mode; }) &&
+         portable_mutation_misses([](auto& changed) { ++changed.argument_abi; }) &&
+         portable_mutation_misses([](auto& changed) { ++changed.backend_abi; }) &&
+         portable_mutation_misses([](auto& changed) {
+           changed.specialization_digest[0] ^= static_cast<std::uint8_t>(1U);
+         }) &&
+         device_mutation_misses([](auto& changed) { ++changed.vendor_id; }) &&
+         device_mutation_misses([](auto& changed) { ++changed.device_id; }) &&
+         device_mutation_misses([](auto& changed) { ++changed.driver_version; }) &&
+         device_mutation_misses(
+             [](auto& changed) { changed.device_uuid[0] ^= static_cast<std::uint8_t>(1U); }) &&
+         device_mutation_misses(
+             [](auto& changed) { changed.driver_uuid[0] ^= static_cast<std::uint8_t>(1U); }) &&
+         device_mutation_misses([](auto& changed) {
+           changed.pipeline_cache_uuid[0] ^= static_cast<std::uint8_t>(1U);
+         });
+}
+
+bool warm_launch_trace_rejects_producers_and_allocations() {
+  using metaflux::backend::vulkan::WarmLaunchEvent;
+  using metaflux::backend::vulkan::WarmLaunchStatus;
+  const std::array<WarmLaunchEvent, 4> accepted{
+      WarmLaunchEvent::cache_lookup,
+      WarmLaunchEvent::pipeline_binding,
+      WarmLaunchEvent::argument_binding,
+      WarmLaunchEvent::submit,
+  };
+  if (metaflux::backend::vulkan::validate_warm_launch_trace(accepted) !=
+          WarmLaunchStatus::success ||
+      metaflux::backend::vulkan::validate_warm_launch_trace(std::span<const WarmLaunchEvent>{}) !=
+          WarmLaunchStatus::missing_event ||
+      std::string(metaflux::backend::vulkan::warm_launch_status_string(
+          WarmLaunchStatus::success)) != "success") {
+    return false;
+  }
+  const std::array<WarmLaunchEvent, 4> wrong_order{
+      WarmLaunchEvent::cache_lookup,
+      WarmLaunchEvent::argument_binding,
+      WarmLaunchEvent::pipeline_binding,
+      WarmLaunchEvent::submit,
+  };
+  if (metaflux::backend::vulkan::validate_warm_launch_trace(wrong_order) !=
+      WarmLaunchStatus::invalid_order) {
+    return false;
+  }
+  constexpr std::array<WarmLaunchEvent, 6> forbidden{
+      WarmLaunchEvent::compiler,
+      WarmLaunchEvent::validator,
+      WarmLaunchEvent::shader_module_creation,
+      WarmLaunchEvent::pipeline_creation,
+      WarmLaunchEvent::vulkan_allocation,
+      WarmLaunchEvent::metaflux_allocation,
+  };
+  for (const auto event : forbidden) {
+    const std::array<WarmLaunchEvent, 5> trace{
+        WarmLaunchEvent::cache_lookup,     event,
+        WarmLaunchEvent::pipeline_binding, WarmLaunchEvent::argument_binding,
+        WarmLaunchEvent::submit,
+    };
+    if (metaflux::backend::vulkan::validate_warm_launch_trace(trace) !=
+        WarmLaunchStatus::forbidden_event) {
+      return false;
+    }
+  }
+  const std::array<WarmLaunchEvent, 1> incomplete{WarmLaunchEvent::cache_lookup};
+  const std::array<WarmLaunchEvent, 5> duplicate{
+      WarmLaunchEvent::cache_lookup,     WarmLaunchEvent::pipeline_binding,
+      WarmLaunchEvent::argument_binding, WarmLaunchEvent::submit,
+      WarmLaunchEvent::submit,
+  };
+  const std::array<WarmLaunchEvent, 4> unknown{
+      WarmLaunchEvent::cache_lookup,
+      static_cast<WarmLaunchEvent>(99U),
+      WarmLaunchEvent::argument_binding,
+      WarmLaunchEvent::submit,
+  };
+  return metaflux::backend::vulkan::validate_warm_launch_trace(incomplete) ==
+             WarmLaunchStatus::missing_event &&
+         metaflux::backend::vulkan::validate_warm_launch_trace(duplicate) ==
+             WarmLaunchStatus::invalid_order &&
+         metaflux::backend::vulkan::validate_warm_launch_trace(unknown) ==
+             WarmLaunchStatus::invalid_argument;
 }
 
 bool catalog_lifecycle() {
@@ -401,8 +529,9 @@ bool persistent_repository_coalesces_process_misses() {
 } // namespace
 
 int main() {
-  const bool ok = key_partitioning() && catalog_lifecycle() && pinned_quota() &&
-                  filesystem_round_trip_and_atomic_replace() &&
+  const bool ok = key_partitioning() && every_cache_identity_mutation_misses() &&
+                  warm_launch_trace_rejects_producers_and_allocations() && catalog_lifecycle() &&
+                  pinned_quota() && filesystem_round_trip_and_atomic_replace() &&
                   filesystem_corruption_is_removed() &&
                   filesystem_device_invalidation_and_inputs() &&
                   persistent_repository_hydrates_and_preserves_pins() &&

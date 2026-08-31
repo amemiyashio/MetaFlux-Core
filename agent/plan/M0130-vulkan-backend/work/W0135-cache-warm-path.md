@@ -48,8 +48,13 @@ where available; other platforms use traces and a separate p99 creation budget.
   device-bound hit is pinned under one generation-scoped binding; duplicate or
   stale generations are rejected and release is required before device
   invalidation can remove the entry. Actual `VkPipeline` creation remains open.
-- [ ] Verify every key mutation causes a miss and provisional extension revisions
-  deterministically invalidate incompatible entries.
+- [x] Verify every portable and device-bound identity field causes a miss for
+  its changed key while unchanged key partitions remain hits. Provisional
+  extension revisions still require their producer and release evidence.
+- [x] Add a host-independent warm-launch trace admission contract. It accepts
+  only cache lookup, pipeline binding, argument binding, and submit in order,
+  and rejects compiler, validator, shader-module, pipeline, Vulkan-allocation,
+  and MetaFlux-allocation events. Actual trace capture remains open.
 - [ ] Prove warm launch invokes no MLIR/SPIR-V compiler or validator, creates no
   shader module/pipeline/Vulkan allocation, and performs no MetaFlux-owned heap
   allocation.
