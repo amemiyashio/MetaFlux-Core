@@ -150,6 +150,20 @@ tests, and qualification remain owned by M0130/CMake/CTest. A host probe is
 local evidence for the detected driver and does not satisfy the dual-driver
 qualification gate.
 
+## Vulkan Runtime Smoke Profile
+
+[`vulkan-runtime-1.json`](vulkan-runtime-1.json) pins the Mesa Vulkan ICD and
+Khronos validation layers used for an on-demand host smoke/probe environment.
+Nix exposes the profile only as `vulkan-runtime` and `.#vulkan-runtime`; it is
+separate from the lean `vulkan-tools` output so ordinary Vulkan builds do not
+fetch the software ICD closure. The shell adds the runtime library, ICD, and
+layer search paths but does not force a particular device; callers may select a
+specific ICD with the Vulkan loader's normal environment variables.
+
+This profile proves provisioning and can enable local RADV or lavapipe smoke
+tests. Mesa is not a physical NVIDIA reference, and a single host smoke run
+does not satisfy M0130's two-driver-family, performance, or release gates.
+
 ## Artifact Download Routing (D0020)
 
 Downloads first try a mirror in the current execution environment's configured
@@ -174,6 +188,7 @@ frozen hash.
 | `nvidia-headers-1.json`, `nvidia-headers/` | CUDA Driver/NVML ABI input manifests |
 | `nvidia-tools-1.json`, `nvidia-tools/` | Stock compatibility-tool manifests |
 | `pytorch-cuda-clients-1.json`, `pytorch-cuda-clients/` | On-demand PyTorch CUDA client profiles and complete wheel locks |
+| `vulkan-runtime-1.json` | On-demand Mesa ICD and Vulkan validation-layer profile for host smoke tests |
 | `ubuntu-20.04-target-sdk-provenance.json` | Generic Linux target SDK input provenance |
 | `tests/` | Verification helpers for the declared inputs |
 

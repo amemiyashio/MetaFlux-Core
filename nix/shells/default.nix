@@ -104,4 +104,20 @@ in
       export LD_LIBRARY_PATH="${toolPackages.vulkan-tools}/lib:${toolPackages.toolchain}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     '';
   };
+
+  vulkan-runtime = mkClangShell {
+    name = "metaflux-vulkan-runtime-tools";
+    prependPackages = [
+      toolPackages.vulkan-tools
+      toolPackages.vulkan-runtime
+    ];
+    extraShellHook = ''
+      export VULKAN_SDK="${toolPackages.vulkan-tools}"
+      export VULKAN_RUNTIME="${toolPackages.vulkan-runtime}"
+      export CMAKE_PREFIX_PATH="${toolPackages.vulkan-tools}''${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
+      export VK_LAYER_PATH="${toolPackages.vulkan-runtime}/share/vulkan/explicit_layer.d"
+      export XDG_DATA_DIRS="${toolPackages.vulkan-runtime}/share''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+      export LD_LIBRARY_PATH="${toolPackages.vulkan-runtime}/lib:${toolPackages.vulkan-tools}/lib:${toolPackages.toolchain}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    '';
+  };
 }

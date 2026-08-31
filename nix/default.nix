@@ -51,6 +51,9 @@ let
   vulkanTools = import ./toolchains/vulkan.nix {
     inherit lib pkgs;
   };
+  vulkanRuntime = import ./toolchains/vulkan-runtime.nix {
+    inherit lib pkgs;
+  };
   pytorchBaseline = import ./toolchains/pytorch-cuda-client.nix {
     inherit lib pkgs;
     profileName = "baseline";
@@ -67,6 +70,7 @@ let
     "ubuntu-20.04-target-sdk" = targetSdk;
     nvidia-stock-tools = providerTools;
     vulkan-tools = vulkanTools;
+    vulkan-runtime = vulkanRuntime;
     pytorch-baseline = pytorchBaseline;
     pytorch-frontier = pytorchFrontier;
   };

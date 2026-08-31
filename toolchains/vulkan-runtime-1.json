@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "epoch": 1,
+  "purpose": "vulkan-host-smoke",
+  "packages": {
+    "mesa": {
+      "nix_attribute": "mesa",
+      "version": "26.1.8"
+    },
+    "vulkan_validation_layers": {
+      "nix_attribute": "vulkan-validation-layers",
+      "version": "1.4.341.0"
+    }
+  }
+}
