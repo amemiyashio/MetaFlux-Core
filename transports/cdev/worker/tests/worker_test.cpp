@@ -316,21 +316,36 @@ int main() {
   BackendFixture async_fixture{};
   const auto async_api = make_async_fixture_api();
   async_fixture.expected_completion_event = 99U;
+  BackendFixture replacement_fixture{};
+  const auto replacement_api = make_async_fixture_api();
+  replacement_fixture.expected_completion_event = 100U;
+  const metaflux::transport::cdev::CdevBackendBinding async_binding{
+      .api = &async_api,
+      .instance =
+          static_cast<mf_backend_instance_v1>(reinterpret_cast<std::uintptr_t>(&async_fixture)),
+      .queue = 17U,
+      .memory = 23U,
+      .completion_event = async_fixture.expected_completion_event,
+      .lease_acquire = fixture_lease_acquire,
+      .lease_release = fixture_lease_release,
+      .lease_context = &async_fixture};
+  const metaflux::transport::cdev::CdevBackendBinding replacement_binding{
+      .api = &replacement_api,
+      .instance = static_cast<mf_backend_instance_v1>(
+          reinterpret_cast<std::uintptr_t>(&replacement_fixture)),
+      .queue = 17U,
+      .memory = 23U,
+      .completion_event = replacement_fixture.expected_completion_event,
+      .lease_acquire = fixture_lease_acquire,
+      .lease_release = fixture_lease_release,
+      .lease_context = &replacement_fixture};
   metaflux::transport::cdev::CdevWorker async_worker(
       {.submission = submission.header,
        .completion = completion.header,
        .payload = payload.data(),
        .payload_size = payload.size(),
        .generation = 4U},
-      {.api = &async_api,
-       .instance =
-           static_cast<mf_backend_instance_v1>(reinterpret_cast<std::uintptr_t>(&async_fixture)),
-       .queue = 17U,
-       .memory = 23U,
-       .completion_event = async_fixture.expected_completion_event,
-       .lease_acquire = fixture_lease_acquire,
-       .lease_release = fixture_lease_release,
-       .lease_context = &async_fixture});
+      async_binding);
   request.flags = 0U;
   request.request_id = 44U;
   request.target_id = 4U;
@@ -359,12 +374,14 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
+  async_worker.bind_backend(replacement_binding);
   async_fixture.event_complete = true;
   const auto async_done = async_worker.consume_once();
   if (async_done != metaflux::transport::cdev::WorkerResult::Completed ||
       async_worker.backend_operation_pending() || async_fixture.query_calls != 2U ||
       async_fixture.lease_acquires != 1U || async_fixture.lease_releases != 1U ||
-      async_fixture.lease_active ||
+      async_fixture.lease_active || replacement_fixture.query_calls != 0U ||
+      replacement_fixture.lease_releases != 0U ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
       result.request_id != 44U ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
@@ -372,6 +389,7 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
+  async_worker.bind_backend(async_binding);
   async_fixture.event_complete = false;
   async_fixture.query_result = MF_BACKEND_TIMEOUT;
   request.request_id = 45U;

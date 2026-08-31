@@ -140,6 +140,7 @@ private:
                                                     mf_shared_status_v1 status) noexcept;
   [[nodiscard]] WorkerResult progress_pending() noexcept;
   [[nodiscard]] mf_shared_status_v1 acquire_backend_lease() const noexcept;
+  void release_backend_lease(const CdevBackendBinding& backend) const noexcept;
   void release_backend_lease() const noexcept;
   bool drain_lifecycle() noexcept;
   WorkerResult complete(const mf_ring_descriptor_v1& request, std::int32_t status) noexcept;
@@ -152,6 +153,7 @@ private:
   struct PendingOperation final {
     bool active = false;
     mf_ring_descriptor_v1 request{};
+    CdevBackendBinding backend{};
     mf_backend_event_v1 event = 0U;
   } pending_{};
 };

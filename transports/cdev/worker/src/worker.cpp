@@ -189,8 +189,12 @@ mf_shared_status_v1 CdevWorker::acquire_backend_lease() const noexcept {
 }
 
 void CdevWorker::release_backend_lease() const noexcept {
-  if (backend_.api != nullptr && valid_backend_lease(backend_)) {
-    backend_.lease_release(backend_.lease_context);
+  release_backend_lease(backend_);
+}
+
+void CdevWorker::release_backend_lease(const CdevBackendBinding& backend) const noexcept {
+  if (backend.api != nullptr && valid_backend_lease(backend)) {
+    backend.lease_release(backend.lease_context);
   }
 }
 
@@ -265,6 +269,7 @@ WorkerResult CdevWorker::finish_backend_request(const mf_ring_descriptor_v1& req
   }
   pending_.active = true;
   pending_.request = request;
+  pending_.backend = backend_;
   pending_.event = backend_.completion_event;
   return WorkerResult::Idle;
 }
@@ -273,16 +278,17 @@ WorkerResult CdevWorker::progress_pending() noexcept {
   if (!pending_.active) {
     return WorkerResult::Idle;
   }
-  if (!valid_backend(backend_) || backend_.completion_event != pending_.event ||
-      backend_.api->query_event == nullptr) {
+  const CdevBackendBinding pending_backend = pending_.backend;
+  if (!valid_backend(pending_backend) || pending_backend.completion_event != pending_.event ||
+      pending_backend.api->query_event == nullptr) {
     const mf_ring_descriptor_v1 request = pending_.request;
     pending_ = {};
-    release_backend_lease();
+    release_backend_lease(pending_backend);
     return complete(request, MF_SHARED_NOT_SUPPORTED);
   }
   std::uint32_t complete_flag = 0U;
   const mf_backend_status_v1 query_status =
-      backend_.api->query_event(backend_.instance, pending_.event, &complete_flag);
+      pending_backend.api->query_event(pending_backend.instance, pending_.event, &complete_flag);
   if ((query_status == MF_BACKEND_SUCCESS && complete_flag == 0U) ||
       query_status == MF_BACKEND_BUSY) {
     return WorkerResult::Idle;
@@ -293,7 +299,7 @@ WorkerResult CdevWorker::progress_pending() noexcept {
   const WorkerResult result = complete(request, status);
   if (result != WorkerResult::Backpressure) {
     pending_ = {};
-    release_backend_lease();
+    release_backend_lease(pending_backend);
   }
   return result;
 }
