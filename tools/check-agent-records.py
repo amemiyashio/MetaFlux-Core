@@ -64,6 +64,26 @@ EXECUTION_FOCUS_DECISION = "D0029"
 EXECUTION_GOVERNANCE_EPOCH = "D0029"
 CURRENT_SESSION_SCHEMA_VERSION = 2
 CURRENT_FOCUS_SCHEMA_VERSION = 2
+LIQUIDATED_SESSION_MANIFEST = "liquidated-v1.json"
+LIQUIDATED_SESSION_MANIFEST_KEYS = {
+    "schema_version",
+    "record_kind",
+    "governance_epoch",
+    "settled_session_schema_version",
+    "status",
+    "settled_at",
+    "source_revision",
+    "liquidated_session_count",
+    "removed_tracked_file_count",
+    "removed_transient_guidance_count",
+    "rewritten_checkpoint_file_count",
+    "rewritten_checkpoint_link_count",
+    "retained_medium_mapping_count",
+    "retained_dark_mapping_count",
+    "session_ids",
+    "retained_medium_owners",
+    "retained_dark_owners",
+}
 EXECUTION_FOCUS_MODES = {"product", "governance"}
 EXECUTION_FOCUS_KEYS = {
     "schema_version",
@@ -261,6 +281,8 @@ class Validator:
         self.errors: list[str] = []
         self.warnings: list[str] = []
         self.session_ids: set[str] = set()
+        self.liquidated_session_ids: set[str] = set()
+        self.has_liquidation_manifest = False
         self.session_count = 0
         self.event_count = 0
         self.markdown_count = 0
@@ -405,6 +427,12 @@ class Validator:
         schema_version = session.get("schema_version")
         if not self.is_int(schema_version) or schema_version not in {1, 2}:
             self.add_error(session_file, "schema_version must be supported version 1 or 2")
+        elif schema_version == 1 and self.has_liquidation_manifest:
+            self.add_error(
+                session_file,
+                "liquidated-v1.json forbids schema_version 1 session directories "
+                "in the current tree",
+            )
         governance_epoch = session.get("governance_epoch")
         if schema_version == CURRENT_SESSION_SCHEMA_VERSION:
             if governance_epoch != EXECUTION_GOVERNANCE_EPOCH:
@@ -957,6 +985,175 @@ class Validator:
                     f"experience index references nonexistent records: {', '.join(stale)}",
                 )
 
+    def validate_liquidated_sessions_manifest(self) -> None:
+        """Validate the non-executable tombstone for the destructively settled epoch."""
+
+        path = self.sessions_root / LIQUIDATED_SESSION_MANIFEST
+        if not path.exists():
+            return
+        self.has_liquidation_manifest = True
+        if not path.is_file() or path.is_symlink():
+            self.add_error(path, "must be one regular JSON file")
+            return
+
+        loaded = self.load_json(path)
+        if not isinstance(loaded, dict):
+            if loaded is not None:
+                self.add_error(path, "top-level value must be an object")
+            return
+
+        keys = set(loaded)
+        missing = LIQUIDATED_SESSION_MANIFEST_KEYS - keys
+        extra = keys - LIQUIDATED_SESSION_MANIFEST_KEYS
+        if missing:
+            self.add_error(path, f"missing required fields: {', '.join(sorted(missing))}")
+        if extra:
+            self.add_error(
+                path,
+                "contains fields outside the administrative tombstone schema: "
+                f"{', '.join(sorted(extra))}",
+            )
+
+        exact_values = {
+            "schema_version": 1,
+            "record_kind": "session_epoch_liquidation",
+            "governance_epoch": EXECUTION_GOVERNANCE_EPOCH,
+            "settled_session_schema_version": 1,
+            "status": "liquidated",
+        }
+        for field, expected in exact_values.items():
+            if loaded.get(field) != expected:
+                self.add_error(path, f"{field} must equal {expected!r}")
+
+        settled_at = loaded.get("settled_at")
+        if not isinstance(settled_at, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", settled_at):
+            self.add_error(path, "settled_at must be YYYY-MM-DD")
+        else:
+            try:
+                settled_date = dt.date.fromisoformat(settled_at)
+            except ValueError:
+                self.add_error(path, "settled_at is not a calendar date")
+            else:
+                if settled_date > dt.date.today():
+                    self.add_error(path, "settled_at must not be in the future")
+
+        source_revision = loaded.get("source_revision")
+        if not isinstance(source_revision, str) or not FULL_GIT_REVISION_RE.fullmatch(
+            source_revision
+        ):
+            self.add_error(path, "source_revision must be one full hexadecimal Git revision")
+
+        count_fields = (
+            "liquidated_session_count",
+            "removed_tracked_file_count",
+            "removed_transient_guidance_count",
+            "rewritten_checkpoint_file_count",
+            "rewritten_checkpoint_link_count",
+            "retained_medium_mapping_count",
+            "retained_dark_mapping_count",
+        )
+        for field in count_fields:
+            value = loaded.get(field)
+            if not self.is_int(value) or value < 0:
+                self.add_error(path, f"{field} must be a non-negative integer")
+
+        raw_session_ids = loaded.get("session_ids")
+        if not isinstance(raw_session_ids, list):
+            self.add_error(path, "session_ids must be a sorted non-empty array")
+            session_ids: list[str] = []
+        else:
+            session_ids = raw_session_ids
+            if not session_ids:
+                self.add_error(path, "session_ids must be a sorted non-empty array")
+            if any(not isinstance(item, str) for item in session_ids):
+                self.add_error(path, "session_ids entries must be strings")
+            elif session_ids != sorted(set(session_ids)):
+                self.add_error(path, "session_ids must be sorted and unique")
+            for session_id in session_ids:
+                if isinstance(session_id, str) and not SESSION_ID_RE.fullmatch(session_id):
+                    self.add_error(path, f"session_ids contains a non-canonical ID: {session_id!r}")
+            self.liquidated_session_ids.update(
+                session_id
+                for session_id in session_ids
+                if isinstance(session_id, str) and SESSION_ID_RE.fullmatch(session_id)
+            )
+        if (
+            self.is_int(loaded.get("liquidated_session_count"))
+            and loaded.get("liquidated_session_count") != len(session_ids)
+        ):
+            self.add_error(path, "liquidated_session_count must equal len(session_ids)")
+
+        for field, mapping_count_field in (
+            ("retained_medium_owners", "retained_medium_mapping_count"),
+            ("retained_dark_owners", "retained_dark_mapping_count"),
+        ):
+            raw_owners = loaded.get(field)
+            if not isinstance(raw_owners, list) or not raw_owners:
+                self.add_error(path, f"{field} must be a sorted non-empty array")
+                continue
+            if any(not isinstance(owner, str) or not owner for owner in raw_owners):
+                self.add_error(path, f"{field} entries must be non-empty strings")
+                continue
+            if raw_owners != sorted(set(raw_owners)):
+                self.add_error(path, f"{field} must be sorted and unique")
+            mapping_count = loaded.get(mapping_count_field)
+            if self.is_int(mapping_count) and mapping_count < len(set(raw_owners)):
+                self.add_error(
+                    path,
+                    f"{mapping_count_field} must cover every unique owner in {field}",
+                )
+            for owner in raw_owners:
+                if SESSION_ID_RE.fullmatch(owner):
+                    self.add_error(path, f"{field} must not retain a session as owner: {owner!r}")
+                    continue
+                if STABLE_AGENT_ID_RE.fullmatch(owner):
+                    if owner not in self.agent_record_ids:
+                        self.add_error(path, f"{field} owner does not resolve: {owner!r}")
+                    continue
+                pure_owner = PurePosixPath(owner)
+                if (
+                    pure_owner.is_absolute()
+                    or "\\" in owner
+                    or owner in {".", ".."}
+                    or ".." in pure_owner.parts
+                ):
+                    self.add_error(path, f"{field} contains an unsafe owner path: {owner!r}")
+                    continue
+                if (
+                    len(pure_owner.parts) >= 2
+                    and pure_owner.parts[:2] == ("agent", "sessions")
+                    and owner != "agent/sessions/README.md"
+                ):
+                    self.add_error(path, f"{field} points into settled session detail: {owner!r}")
+                    continue
+                owner_path = self.repo_root.joinpath(*pure_owner.parts)
+                if not owner_path.exists() or owner_path.is_symlink():
+                    self.add_error(path, f"{field} owner does not resolve: {owner!r}")
+
+        if self.is_int(loaded.get("removed_tracked_file_count")) and loaded.get(
+            "removed_tracked_file_count"
+        ) == 0:
+            self.add_error(path, "removed_tracked_file_count must record a destructive settlement")
+
+    def validate_liquidated_session_absence(self) -> None:
+        """Reject any current-tree detail container for a settled session ID."""
+
+        for session_id in sorted(self.liquidated_session_ids):
+            match = SESSION_ID_RE.fullmatch(session_id)
+            assert match is not None
+            date_digits = match.group("date")
+            session_dir = (
+                self.sessions_root
+                / date_digits[:4]
+                / date_digits[4:6]
+                / session_id
+            )
+            if session_dir.exists() or session_dir.is_symlink():
+                self.add_error(
+                    session_dir,
+                    "liquidated session detail must remain absent from the current tree",
+                )
+
     @staticmethod
     def numbered_decisions(markdown: str) -> list[str]:
         """Return full numbered items from the Decisions to Close section."""
@@ -1206,7 +1403,10 @@ class Validator:
                         )
                 for match in SESSION_ID_SEARCH_RE.finditer(line):
                     session_id = match.group(0)
-                    if session_id not in self.session_ids:
+                    if (
+                        session_id not in self.session_ids
+                        and session_id not in self.liquidated_session_ids
+                    ):
                         self.add_error(
                             path,
                             f"line {line_no}: full session reference "
@@ -2260,6 +2460,8 @@ class Validator:
         return match.group(1) if match else value.strip()
 
     def semantic_change_session_status(self, session_id: str) -> str | None:
+        if session_id in self.liquidated_session_ids:
+            return "liquidated"
         matches = list(self.sessions_root.glob(f"*/*/{session_id}/session.json"))
         if len(matches) != 1:
             return None
@@ -2424,7 +2626,14 @@ class Validator:
                     target_status = self.semantic_change_session_status(target)
                     if target_status is None:
                         self.add_error(entry, f"handoff Session does not resolve: {target}")
-                    elif handoff_status == "Published" and target_status != "in_progress":
+                    elif (
+                        handoff_status == "Published"
+                        and target_status != "in_progress"
+                        and not (
+                            status in {"Applied", "Superseded"}
+                            and target_status == "liquidated"
+                        )
+                    ):
                         self.add_error(entry, "Published handoff requires an in-progress target session")
                 if target == session_id:
                     self.add_error(entry, "semantic-change migration owner must not receive self-guidance")
@@ -3400,6 +3609,7 @@ class Validator:
     def run(self) -> int:
         self.validate_agent_frontmatter_ids()
         self.validate_plan_delivery_graph()
+        self.validate_liquidated_sessions_manifest()
         actual_session_ids: set[str] = set()
         if not self.repo_root.is_dir():
             self.add_error(self.repo_root, "repository root is not a directory")
@@ -3419,6 +3629,15 @@ class Validator:
                 self.validate_session(session_file.parent)
                 if SESSION_ID_RE.fullmatch(session_file.parent.name):
                     actual_session_ids.add(session_file.parent.name)
+
+        overlap = actual_session_ids & self.liquidated_session_ids
+        if overlap:
+            self.add_error(
+                self.sessions_root / LIQUIDATED_SESSION_MANIFEST,
+                "liquidated session IDs also have live directories: "
+                + ", ".join(sorted(overlap)),
+            )
+        self.validate_liquidated_session_absence()
 
         self.validate_semantic_changes()
         self.validate_index_completeness(actual_session_ids)
@@ -3444,6 +3663,11 @@ class Validator:
             "agent records: ok "
             f"({self.session_count} session(s), {self.event_count} event(s), "
             f"{self.markdown_count} Markdown file(s)"
+            + (
+                f", {len(self.liquidated_session_ids)} liquidated session tombstone(s)"
+                if self.liquidated_session_ids
+                else ""
+            )
             + (f", {len(self.warnings)} warning(s)" if self.warnings else "")
             + ")"
         )

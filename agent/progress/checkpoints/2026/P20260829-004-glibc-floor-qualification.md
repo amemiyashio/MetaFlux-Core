@@ -67,4 +67,4 @@ additional SDKs or glibc targets.
    only their compact result in the session and progress records.
 
 Related work record:
-[S0100-20260829-005-m0100-vertical-slice](../../../sessions/2026/08/S0100-20260829-005-m0100-vertical-slice/summary.md).
+[S0100-20260829-005-m0100-vertical-slice](../../../sessions/liquidated-v1.json).

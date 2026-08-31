@@ -59,4 +59,4 @@ implementation.
    qualification.
 
 Related work record:
-[S0101-20260828-008-codex-entry-points](../../../sessions/2026/08/S0101-20260828-008-codex-entry-points/summary.md).
+[S0101-20260828-008-codex-entry-points](../../../sessions/liquidated-v1.json).

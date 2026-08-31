@@ -13,7 +13,7 @@ workspace: session migration and lifecycle tooling committed; compact record clo
 
 Active milestone: [M0100](../../../plan/M0100-core-foundation/plan.md). Active
 implementation record:
-[S0100-20260828-013-m0100-foundation](../../../sessions/2026/08/S0100-20260828-013-m0100-foundation/summary.md).
+[S0100-20260828-013-m0100-foundation](../../../sessions/liquidated-v1.json).
 
 ## Engineering state
 
@@ -61,4 +61,4 @@ raw facts. Skill discovery and task-based skill loading are unchanged.
 3. Use `manage-toolchain` only when tool identity or materialization changes.
 
 Related work record:
-[S0100-20260829-004-implementation-session-current-standard](../../../sessions/2026/08/S0100-20260829-004-implementation-session-current-standard/summary.md).
+[S0100-20260829-004-implementation-session-current-standard](../../../sessions/liquidated-v1.json).

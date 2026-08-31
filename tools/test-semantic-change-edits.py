@@ -21,6 +21,7 @@ CHECKPOINT = "agent/progress/checkpoints/2026/P20260830-001-fixture.md"
 RENAMED_CHECKPOINT = "agent/progress/checkpoints/2026/P20260830-002-renamed.md"
 TERMINAL_SUMMARY = f"agent/sessions/2026/08/{TERMINAL_SESSION}/summary.md"
 TERMINAL_NOTES = f"agent/sessions/2026/08/{TERMINAL_SESSION}/notes.md"
+LIQUIDATION_MANIFEST = "agent/sessions/liquidated-v1.json"
 
 
 def run(root: Path, *arguments: str, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
@@ -116,6 +117,7 @@ def build_repo(
     sc_disposition: str = "Pending",
     migration_status: str = "in_progress",
     duplicate: bool = False,
+    liquidation_manifest: bool = False,
 ) -> None:
     initialized = run(root, "git", "init", "-q")
     if initialized.returncode != 0:
@@ -151,6 +153,8 @@ def build_repo(
         "| ID | Status | Decision | Scope | Updated |\n"
         "| --- | --- | --- | --- | --- |\n",
     )
+    if liquidation_manifest:
+        write(root, LIQUIDATION_MANIFEST, '{"status": "liquidated"}\n')
     (root / "tools").mkdir(parents=True, exist_ok=True)
     shutil.copy2(GATE, root / "tools" / GATE.name)
     (root / ".claude" / "hooks").mkdir(parents=True, exist_ok=True)
@@ -274,6 +278,30 @@ def main() -> int:
         build_repo(root)
         stage_modified(root, TERMINAL_SUMMARY, "changed\n")
         expect("terminal denied", cached_gate(root), False, "lacks a committed Active SC")
+        passed += 1
+
+        root = base / "liquidation-manifest-denied"
+        root.mkdir()
+        build_repo(root, liquidation_manifest=True)
+        stage_modified(root, LIQUIDATION_MANIFEST, '{"status": "rewritten"}\n')
+        expect(
+            "liquidation manifest denied",
+            cached_gate(root),
+            False,
+            "lacks a committed Active SC",
+        )
+        passed += 1
+
+        root = base / "liquidation-manifest-authorized"
+        root.mkdir()
+        build_repo(
+            root,
+            sc_status="Active",
+            sc_surfaces=[LIQUIDATION_MANIFEST],
+            liquidation_manifest=True,
+        )
+        stage_modified(root, LIQUIDATION_MANIFEST, '{"status": "migrated"}\n')
+        expect("liquidation manifest authorized", cached_gate(root), True)
         passed += 1
 
         root = base / "same-commit"

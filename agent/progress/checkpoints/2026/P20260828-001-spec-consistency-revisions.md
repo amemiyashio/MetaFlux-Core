@@ -63,4 +63,4 @@ because no compile or link input changed.
    next checkpoint.
 
 Related work record:
-[S0100-20260828-001-spec-consistency](../../../sessions/2026/08/S0100-20260828-001-spec-consistency/summary.md).
+[S0100-20260828-001-spec-consistency](../../../sessions/liquidated-v1.json).

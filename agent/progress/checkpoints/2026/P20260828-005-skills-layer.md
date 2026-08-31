@@ -55,4 +55,4 @@ procedural playbooks, machine-enforced like the rest.
    checkpoint.
 
 Related work record:
-[S0100-20260828-005-skills-layer](../../../sessions/2026/08/S0100-20260828-005-skills-layer/summary.md).
+[S0100-20260828-005-skills-layer](../../../sessions/liquidated-v1.json).

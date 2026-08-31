@@ -78,6 +78,6 @@ implementation remains active and is not release-qualified by this cleanup.
    session-owned paths after recording compact results.
 
 Related work records:
-[S0100-20260829-002-cleanup-stale-routes](../../../sessions/2026/08/S0100-20260829-002-cleanup-stale-routes/summary.md)
+[S0100-20260829-002-cleanup-stale-routes](../../../sessions/liquidated-v1.json)
 and
-[S0100-20260828-013-m0100-foundation](../../../sessions/2026/08/S0100-20260828-013-m0100-foundation/summary.md).
+[S0100-20260828-013-m0100-foundation](../../../sessions/liquidated-v1.json).

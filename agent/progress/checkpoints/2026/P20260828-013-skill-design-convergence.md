@@ -77,4 +77,4 @@ implemented or release-qualified.
    evidence classes.
 
 Related work record:
-[S0100-20260828-011-skill-design-convergence](../../../sessions/2026/08/S0100-20260828-011-skill-design-convergence/summary.md).
+[S0100-20260828-011-skill-design-convergence](../../../sessions/liquidated-v1.json).

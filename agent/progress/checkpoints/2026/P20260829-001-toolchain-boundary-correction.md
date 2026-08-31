@@ -84,6 +84,6 @@ release qualification.
    handoff.
 
 Related work records:
-[S0101-20260829-001-toolchain-boundary-correction](../../../sessions/2026/08/S0101-20260829-001-toolchain-boundary-correction/summary.md)
+[S0101-20260829-001-toolchain-boundary-correction](../../../sessions/liquidated-v1.json)
 and
-[S0100-20260828-013-m0100-foundation](../../../sessions/2026/08/S0100-20260828-013-m0100-foundation/summary.md).
+[S0100-20260828-013-m0100-foundation](../../../sessions/liquidated-v1.json).

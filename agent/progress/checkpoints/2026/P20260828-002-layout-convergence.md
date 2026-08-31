@@ -65,4 +65,4 @@ ELF/SONAME gates and prior P20260827-001 build evidence remain standing.
    checkpoint.
 
 Related work record:
-[S0100-20260828-002-layout-convergence](../../../sessions/2026/08/S0100-20260828-002-layout-convergence/summary.md).
+[S0100-20260828-002-layout-convergence](../../../sessions/liquidated-v1.json).

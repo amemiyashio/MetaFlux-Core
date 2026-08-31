@@ -52,4 +52,4 @@ checks are the backstop.
    checkpoint.
 
 Related work record:
-[S0100-20260828-006-agent-guidance-hardening](../../../sessions/2026/08/S0100-20260828-006-agent-guidance-hardening/summary.md).
+[S0100-20260828-006-agent-guidance-hardening](../../../sessions/liquidated-v1.json).

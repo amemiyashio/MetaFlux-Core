@@ -75,4 +75,4 @@ durable constraint, open decision, milestone status, or fixture maturity changed
    NVML, compiler, kernel, guest, PCI, lifecycle, or Vulkan evidence.
 
 Related work record:
-[S0100-20260828-010-domain-expert-skills](../../../sessions/2026/08/S0100-20260828-010-domain-expert-skills/summary.md).
+[S0100-20260828-010-domain-expert-skills](../../../sessions/liquidated-v1.json).

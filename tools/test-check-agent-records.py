@@ -51,6 +51,8 @@ Validator = check_agent_records.Validator
 SESSION_ID = "S0100-20260828-001-selftest"
 SESSION_DIR = f"agent/sessions/2026/08/{SESSION_ID}"
 SUMMARY_PATH = f"{SESSION_DIR}/summary.md"
+LIQUIDATED_SESSION_ID = "S0100-20260827-999-liquidated-fixture"
+LIQUIDATION_MANIFEST_PATH = "agent/sessions/liquidated-v1.json"
 SYMLINK_PREFIX = "SYMLINK->"
 ROAST_BLOCK = (
     "## roast\n\n"
@@ -296,6 +298,55 @@ def with_in_progress_session(files: dict[str, str]) -> dict[str, str]:
     session["status"] = "in_progress"
     session["ended_at"] = None
     mutated[session_path] = json.dumps(session, indent=2) + "\n"
+    return mutated
+
+
+def liquidation_manifest_document(**updates: object) -> dict[str, object]:
+    document: dict[str, object] = {
+        "schema_version": 1,
+        "record_kind": "session_epoch_liquidation",
+        "governance_epoch": "D0029",
+        "settled_session_schema_version": 1,
+        "status": "liquidated",
+        "settled_at": "2026-08-28",
+        "source_revision": "a" * 40,
+        "liquidated_session_count": 1,
+        "removed_tracked_file_count": 4,
+        "removed_transient_guidance_count": 0,
+        "rewritten_checkpoint_file_count": 1,
+        "rewritten_checkpoint_link_count": 1,
+        "retained_medium_mapping_count": 1,
+        "retained_dark_mapping_count": 1,
+        "session_ids": [LIQUIDATED_SESSION_ID],
+        "retained_medium_owners": ["agent/memory/project.md"],
+        "retained_dark_owners": ["docs/architecture/fixture.md"],
+    }
+    document.update(updates)
+    return document
+
+
+def with_liquidation_manifest(
+    files: dict[str, str], **manifest_updates: object
+) -> dict[str, str]:
+    mutated = dict(files)
+    session_path = f"{SESSION_DIR}/session.json"
+    session = json.loads(mutated[session_path])
+    session["schema_version"] = 2
+    session["governance_epoch"] = "D0029"
+    mutated[session_path] = json.dumps(session, indent=2) + "\n"
+
+    event_path = f"{SESSION_DIR}/events.jsonl"
+    events = []
+    for line in mutated[event_path].splitlines():
+        event = json.loads(line)
+        event["schema_version"] = 2
+        events.append(json.dumps(event, sort_keys=True))
+    mutated[event_path] = "\n".join(events) + "\n"
+
+    manifest = liquidation_manifest_document(**manifest_updates)
+    mutated[LIQUIDATION_MANIFEST_PATH] = json.dumps(manifest, indent=2) + "\n"
+    checkpoint_path = "agent/progress/checkpoints/2026/P20260828-001-fixture.md"
+    mutated[checkpoint_path] += f"\nSettled predecessor: {LIQUIDATED_SESSION_ID}.\n"
     return mutated
 
 
@@ -1836,6 +1887,18 @@ def with_semantic_change(
     return mutated
 
 
+def with_liquidated_semantic_handoff(
+    files: dict[str, str], *, status: str
+) -> dict[str, str]:
+    mutated = with_semantic_change(with_liquidation_manifest(files), status=status)
+    path = "agent/semantic-changes/SC0001-fixture.md"
+    mutated[path] = mutated[path].replace(
+        "| none | none | Not required | no other active fixture session |",
+        f"| `{LIQUIDATED_SESSION_ID}` | `G001` | Published | historical fixture handoff |",
+    )
+    return mutated
+
+
 def with_governance_execution_focus(files: dict[str, str]) -> dict[str, str]:
     mutated = with_semantic_change(
         with_product_execution_focus(files), decision="D0029"
@@ -2104,6 +2167,58 @@ CASES: list[tuple[str, dict[str, str | None], bool, bool]] = [
                 + "\nUnknown reference S0100-20260828-999-missing is invalid.\n"
             }
         ),
+        True,
+        False,
+    ),
+    (
+        "valid destructive epoch liquidation tombstone",
+        with_liquidation_manifest(BASE_FILES),
+        False,
+        False,
+    ),
+    (
+        "liquidation tombstone rejects live legacy session directories",
+        {
+            **with_liquidation_manifest(BASE_FILES),
+            f"{SESSION_DIR}/session.json": BASE_FILES[f"{SESSION_DIR}/session.json"],
+            f"{SESSION_DIR}/events.jsonl": BASE_FILES[f"{SESSION_DIR}/events.jsonl"],
+        },
+        True,
+        False,
+    ),
+    (
+        "liquidation tombstone rejects a live and settled ID overlap",
+        with_liquidation_manifest(
+            BASE_FILES,
+            session_ids=[SESSION_ID, LIQUIDATED_SESSION_ID],
+            liquidated_session_count=2,
+        ),
+        True,
+        False,
+    ),
+    (
+        "liquidation tombstone rejects narrative compatibility fields",
+        with_liquidation_manifest(BASE_FILES, resume_action="continue legacy session"),
+        True,
+        False,
+    ),
+    (
+        "liquidation tombstone rejects retained session-detail owners",
+        with_liquidation_manifest(
+            BASE_FILES,
+            retained_medium_owners=[f"{SESSION_DIR}/summary.md"],
+        ),
+        True,
+        False,
+    ),
+    (
+        "liquidation tombstone rejects orphaned settled-session detail",
+        {
+            **with_liquidation_manifest(BASE_FILES),
+            f"agent/sessions/2026/08/{LIQUIDATED_SESSION_ID}/notes.md": (
+                "# Reintroduced legacy detail\n"
+            ),
+        },
         True,
         False,
     ),
@@ -3457,6 +3572,18 @@ SC_CASES: list[tuple[str, dict[str, str | None], bool, str]] = [
         with_semantic_change(BASE_FILES, status="Applied"),
         False,
         "",
+    ),
+    (
+        "terminal semantic change retains a published liquidated handoff",
+        with_liquidated_semantic_handoff(BASE_FILES, status="Applied"),
+        False,
+        "",
+    ),
+    (
+        "Active semantic change rejects a published liquidated handoff",
+        with_liquidated_semantic_handoff(BASE_FILES, status="Active"),
+        True,
+        "Published handoff requires an in-progress target session",
     ),
     (
         "semantic-change index missing row",

@@ -54,4 +54,4 @@ changed in this checkpoint.
    release closure before closing the W0101 sysroot gate.
 
 Related work record:
-[S0101-20260828-012-ubuntu-2004-glibc-floor](../../../sessions/2026/08/S0101-20260828-012-ubuntu-2004-glibc-floor/summary.md).
+[S0101-20260828-012-ubuntu-2004-glibc-floor](../../../sessions/liquidated-v1.json).

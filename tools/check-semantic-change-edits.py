@@ -2,9 +2,9 @@
 """Authorize edits to protected Agent history from committed Active SC records.
 
 The hard gate reads permits only from HEAD. A staged SC cannot authorize history
-changes in the same commit. Existing checkpoints and files below terminal
-sessions are protected; a newly added checkpoint and an in-progress session are
-ordinary record writes.
+changes in the same commit. Existing checkpoints, the committed epoch-
+liquidation tombstone, and files below terminal sessions are protected; a newly
+added checkpoint and an in-progress session are ordinary record writes.
 """
 
 from __future__ import annotations
@@ -353,6 +353,8 @@ def terminal_session_for_path(repo_root: Path, relative_path: str) -> bool:
 
 def protected_in_head(repo_root: Path, relative_path: str) -> bool:
     parts = PurePosixPath(relative_path).parts
+    if relative_path == "agent/sessions/liquidated-v1.json":
+        return head_has_path(repo_root, relative_path)
     if parts[:3] == ("agent", "progress", "checkpoints"):
         return head_has_path(repo_root, relative_path)
     return terminal_session_for_path(repo_root, relative_path)

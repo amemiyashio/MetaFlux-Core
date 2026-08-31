@@ -52,4 +52,4 @@ chosen to invoke `git commit`.
    session active.
 
 Related work record:
-[S0100-20260829-006-stage-breakthrough-commits](../../../sessions/2026/08/S0100-20260829-006-stage-breakthrough-commits/summary.md).
+[S0100-20260829-006-stage-breakthrough-commits](../../../sessions/liquidated-v1.json).

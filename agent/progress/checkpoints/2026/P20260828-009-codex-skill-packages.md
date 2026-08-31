@@ -65,4 +65,4 @@ or backend fixture to functional implementation. W0101 remains active.
    qualification.
 
 Related work record:
-[S0101-20260828-009-implementation-readiness-skill](../../../sessions/2026/08/S0101-20260828-009-implementation-readiness-skill/summary.md).
+[S0101-20260828-009-implementation-readiness-skill](../../../sessions/liquidated-v1.json).

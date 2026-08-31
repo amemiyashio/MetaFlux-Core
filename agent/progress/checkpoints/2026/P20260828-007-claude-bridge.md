@@ -50,4 +50,4 @@ edit-time guards, entirely within the repository:
    checkpoint.
 
 Related work record:
-[S0100-20260828-007-claude-bridge](../../../sessions/2026/08/S0100-20260828-007-claude-bridge/summary.md).
+[S0100-20260828-007-claude-bridge](../../../sessions/liquidated-v1.json).

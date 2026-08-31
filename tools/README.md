@@ -22,9 +22,12 @@ milestone mapping for terminal guidance dispositions; terminal-note cleanup;
 resolvable full session references; status-drift warnings; current-progress
 freshness; the schema version 2 D0029 execution-governance epoch, owner
 lifecycle, product dependencies, canonical Exit Gate, governance authority,
-legacy-owner rejection, and compact current projection; exact skill catalog
-rows; domain section order; and the repository's restricted `agents/openai.yaml`
-interface and invocation-policy schema.
+legacy-owner rejection, compact current projection, and the destructive epoch
+liquidation tombstone; exact skill catalog rows; domain section order; and the
+repository's restricted `agents/openai.yaml` interface and invocation-policy
+schema. Once `agent/sessions/liquidated-v1.json` exists, schema version 1
+session directories, live/tombstoned ID overlap, session-detail knowledge
+owners, and narrative compatibility fields are hard errors.
 
 ```sh
 python3 tools/check-agent-records.py .
@@ -47,10 +50,10 @@ does not supply coverage, and a legacy session cannot become a fallback owner. A
 focus metadata update with the same owner is record-only. A focus handoff is
 also record-only, is declared by the `HEAD` owner, terminally closes exactly
 that owner, and installs one resolvable current-epoch in-progress candidate
-owner. An active non-owner has one narrower path: a record-only commit may
-terminally close exactly the session named by `METAFLUX_SESSION_ID` while
-leaving focus unchanged. None of these paths authorizes product, plan, memory,
-template, or skill content in a close/handoff commit.
+owner. A current-epoch non-owner may only terminally close its exact ledger in
+a record-only commit; liquidated and other pre-epoch IDs have no such path.
+Neither close nor handoff authorizes product, plan, memory, template, or skill
+content.
 
 Session records are limited to `session.json`, `events.jsonl`, `summary.md`,
 `notes.md`, valid `outputs/NNNN.txt`, and staged guidance deletions. Checkpoints
@@ -60,8 +63,9 @@ not closing records.
 `check-semantic-change-edits.py` is the staged-diff hard gate for D0025. It
 reads only `Active` SC permits already committed to `HEAD`, requires their bound
 migration session to remain in progress, and rejects unlisted edits to recorded
-checkpoints or terminal-session files. New checkpoints and in-progress sessions
-remain ordinary record writes. Its focused regression suite is:
+checkpoints, the committed liquidation tombstone, or terminal-session files.
+New checkpoints and in-progress sessions remain ordinary record writes. Its
+focused regression suite is:
 
 ```sh
 python3 tools/test-semantic-change-edits.py
@@ -149,11 +153,12 @@ The dotted `delivery` value is authoritative; its compact body is derived by
 concatenating the four decimal components. Fill the TODO fields as the session
 progresses. New sessions have
 `status: in_progress` and `ended_at: null`; closing the session records the end
-date and a terminal status. The skeleton passes `check-agent-records.py`
-immediately after creation. The command reports the existing focus owner when
-one resolves and always states that scaffolding does not claim execution focus;
-the current owner must perform a record-only handoff before the new session can
-commit content.
+date and a terminal status. Every scaffold uses schema version 2 and
+`governance_epoch: D0029`; no old session can be upgraded or reused. The
+skeleton passes `check-agent-records.py` immediately after creation. The command
+reports the existing focus owner when one resolves and always states that
+scaffolding does not claim execution focus; the current owner must perform a
+record-only handoff before the new session can commit content.
 
 ## Validator self-test
 
@@ -165,8 +170,10 @@ decision identity and references,
 skill catalog/interface/policy rules, staleness and status drift, Markdown
 links, checkpoint identity, execution-focus product/governance modes, dependency
 and Exit Gate failures, current projection bounds, exact owner commits,
-non-owner closes, and atomic handoffs. It builds fixtures in a temporary
-directory and loads the validator by path without writing bytecode.
+legacy and non-owner rejection, atomic handoffs, strict liquidation tombstones,
+schema version 1 coexistence rejection, and settled-reference resolution. It
+builds fixtures in a temporary directory and loads the validator by path
+without writing bytecode.
 
 ```sh
 python3 tools/test-check-agent-records.py

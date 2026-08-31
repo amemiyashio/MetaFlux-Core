@@ -56,4 +56,4 @@ not yet demanded.
    checkpoint.
 
 Related work record:
-[S0100-20260828-004-record-gate-hardening](../../../sessions/2026/08/S0100-20260828-004-record-gate-hardening/summary.md).
+[S0100-20260828-004-record-gate-hardening](../../../sessions/liquidated-v1.json).

@@ -16,15 +16,15 @@ checkpoint: P20260901-091
 D0029 and Active SC0007 are making execution-focus governance explicitly
 breaking. The current owner is
 `S0100-20260831-047-breaking-governance-epoch`; only this bounded migration may
-change durable content until the candidate focus, owner session, commit gate,
-Claude bridge, and scaffold all require the same D0029 governance epoch.
+change durable content until the destructive settlement is committed and
+SC0007 is applied.
 
 There is no compatibility, grandfather, fallback, or direct reactivation path
-for pre-SC0007 sessions. They remain factual evidence and may close through the
-record-only boundary, but continuing their objectives requires a newly
-scaffolded epoch-bearing successor and an atomic focus handoff. Thirty-five
-affected active sessions have received superseding guidance for their next
-control boundary.
+for pre-SC0007 sessions. All 82 schema version 1 ledgers and 72 transient
+guidance files have been removed from the candidate current tree. Their compact
+IDs resolve only through `agent/sessions/liquidated-v1.json`; continuing an old
+objective requires current canonical files, a newly scaffolded epoch-bearing
+successor, and an atomic focus handoff.
 
 ## Product Resume Target
 
@@ -60,12 +60,12 @@ default scheduling authority while M0110 is incomplete.
 
 ## Next Actions
 
-1. Harden candidate commit authorization and the Claude edit guard to require
-   the exact schema version 2 / D0029 focus-owner pair.
-2. Commit SC0007's exact old-epoch liquidation inventory and verify that every
-   retained medium/dark claim already resolves to its canonical owner.
-3. Delete legacy session details, run the residual audit, apply SC0007, and
-   atomically transfer M0110/W0112 to a newly scaffolded epoch-bearing owner.
+1. Complete the candidate residual audit and all record, semantic-change,
+   identity, hook, and Claude gateway regressions.
+2. Commit the destructive liquidation, then mark SC0007 Applied against that
+   exact effective revision.
+3. Scaffold a current-epoch W0112 successor and atomically transfer product
+   focus before resuming implementation.
 
 ## Blockers
 
@@ -75,8 +75,8 @@ default scheduling authority while M0110 is incomplete.
 - W0112 remains incomplete until live device-node Add/Copy and kernel fault
   evidence exist. Host-independent fixtures and mapped COPY alone do not close
   it.
-- Product work remains paused until SC0007 has no Pending migration row and the
-  new epoch-bearing W0112 owner is installed atomically.
+- Product work remains paused until the liquidation commit is verified, SC0007
+  is Applied, and the new epoch-bearing W0112 owner is installed atomically.
 - M0120 and M0130 content work waits for an explicit focus handoff after the
   M0110 dependency boundary advances.
 

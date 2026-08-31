@@ -58,4 +58,4 @@ No product code, contract, or build semantic changed in this round.
    checkpoint.
 
 Related work record:
-[S0100-20260828-003-agent-record-convergence](../../../sessions/2026/08/S0100-20260828-003-agent-record-convergence/summary.md).
+[S0100-20260828-003-agent-record-convergence](../../../sessions/liquidated-v1.json).
