@@ -2,29 +2,28 @@
 status: Active
 updated: 2026-09-01
 governance_epoch: D0029
-focus_mode: governance
-focus_owner: S0100-20260831-047-breaking-governance-epoch
+focus_mode: product
+focus_owner: S0112-20260901-001-m0110-w0112-current-epoch
 milestone: M0110
 workstream: W0112
-checkpoint: P20260901-091
+checkpoint: P20260901-092
 ---
 
 # Current Progress
 
 ## Execution Focus
 
-D0029 and Active SC0007 are making execution-focus governance explicitly
-breaking. The current owner is
-`S0100-20260831-047-breaking-governance-epoch`; only this bounded migration may
-change durable content until the destructive settlement is committed and
-SC0007 is applied.
+SC0007 is Applied at effective revision
+`97248239d507028309df07aaa4d1f462388cf4b6`. D0029 execution governance is
+explicitly breaking and destructive. The sole product owner is
+`S0112-20260901-001-m0110-w0112-current-epoch`, a schema version 2 session that
+declares the current D0029 epoch.
 
-There is no compatibility, grandfather, fallback, or direct reactivation path
-for pre-SC0007 sessions. All 82 schema version 1 ledgers and 72 transient
-guidance files have been removed from the candidate current tree. Their compact
-IDs resolve only through `agent/sessions/liquidated-v1.json`; continuing an old
-objective requires current canonical files, a newly scaffolded epoch-bearing
-successor, and an atomic focus handoff.
+There is no compatibility, grandfather, fallback, upgrade, or direct
+reactivation path for pre-SC0007 sessions. All 82 schema version 1 ledgers and
+72 transient guidance files are absent from the current tree. Their IDs resolve
+only through `agent/sessions/liquidated-v1.json` as administrative tombstones.
+Work proceeds from current canonical repository files only.
 
 ## Product Resume Target
 
@@ -60,12 +59,12 @@ default scheduling authority while M0110 is incomplete.
 
 ## Next Actions
 
-1. Complete the candidate residual audit and all record, semantic-change,
-   identity, hook, and Claude gateway regressions.
-2. Commit the destructive liquidation, then mark SC0007 Applied against that
-   exact effective revision.
-3. Scaffold a current-epoch W0112 successor and atomically transfer product
-   focus before resuming implementation.
+1. Connect the current daemon object table and leased worker/backend binding to
+   live cdev registered-memory handles using the current W0112 source and tests.
+2. Prove unmodified Add/Copy through `/dev/metafluxN`, including
+   replacement-generation isolation and fd/VMA tombstone behavior.
+3. Execute the W0112 fault matrix with KUnit, KASAN, KCSAN, lockdep, and
+   kmemleak on Linux 6.12 and 6.18.
 
 ## Blockers
 
@@ -75,13 +74,12 @@ default scheduling authority while M0110 is incomplete.
 - W0112 remains incomplete until live device-node Add/Copy and kernel fault
   evidence exist. Host-independent fixtures and mapped COPY alone do not close
   it.
-- Product work remains paused until the liquidation commit is verified, SC0007
-  is Applied, and the new epoch-bearing W0112 owner is installed atomically.
 - M0120 and M0130 content work waits for an explicit focus handoff after the
   M0110 dependency boundary advances.
 
 ## Evidence Pointers
 
+- [P092 breaking governance applied](checkpoints/2026/P20260901-092-breaking-governance-applied.md)
 - [P091 destructive governance epoch](checkpoints/2026/P20260901-091-destructive-governance-epoch.md)
 - [P090 execution-focus governance](checkpoints/2026/P20260831-090-execution-focus-governance.md)
 - [P089 immediate producer ingress](checkpoints/2026/P20260831-089-m0120-producer-ingress.md)

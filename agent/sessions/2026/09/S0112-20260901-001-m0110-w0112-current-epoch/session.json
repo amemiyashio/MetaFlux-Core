@@ -1,0 +1,41 @@
+{
+  "schema_version": 2,
+  "governance_epoch": "D0029",
+  "id": "S0112-20260901-001-m0110-w0112-current-epoch",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.1.2",
+  "started_at": "2026-09-01",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0110 W0112 implementation owner"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0110",
+      "title": "Kernel and Guest Transport",
+      "status": "active",
+      "event_seqs": [
+        1
+      ]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0112",
+      "milestone_id": "M0110",
+      "title": "Local cdev Vertical Slice",
+      "status": "active"
+    }
+  ],
+  "base_revision": "97248239d507028309df07aaa4d1f462388cf4b6",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

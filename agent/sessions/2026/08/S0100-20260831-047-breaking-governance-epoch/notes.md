@@ -8,8 +8,12 @@ schema version 1 detailed ledger is liquidated from the current tree after the
 committed inventory and roast-owner audit. Old bytes remain only in Git history;
 a compact ID tombstone is administrative resolution, not task context.
 
-The transition state is bounded by Active SC0007. It is migration state, not a
-compatibility mode: only this epoch-bearing governance owner may change durable
-content, and the migration must end by retaining only existing medium/dark
-canonical owners, deleting legacy details, and installing an epoch-bearing
-product successor.
+SC0007 is settled at effective revision
+`97248239d507028309df07aaa4d1f462388cf4b6`. The current tree contains no
+schema version 1 session details or transient guidance. The tombstone carries
+administrative resolution only; the 72 medium and 24 dark mappings continue in
+62 existing canonical owners and were not copied into a roast archive.
+
+The governance owner closes in the same record commit that installs
+`S0112-20260901-001-m0110-w0112-current-epoch` as the D0029 product owner. All
+later work begins from current canonical repository files.
