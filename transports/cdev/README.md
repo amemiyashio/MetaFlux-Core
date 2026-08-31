@@ -49,8 +49,15 @@ M0120 coordinator. Quiesce stops ordinary queue consumption, the lifecycle
 drain consumes only already-published descriptors, and a committed generation
 is the sole value accepted by the worker. Requests observed while the mirror is
 `LOST` complete with `MF_SHARED_DEVICE_LOST`; descriptors for a retired
-generation complete with `MF_SHARED_STALE_HANDLE`. This mirror changes no ring,
-ioctl, mmap, or BAR record.
+generation complete with `MF_SHARED_STALE_HANDLE`. When a pending asynchronous
+backend operation observes transport loss, the mirror asks the generation-bound
+backend binding to cancel its queue only if `MF_BACKEND_CAP_CANCELLATION` and
+`cancel_queue` are both advertised. A successful cancellation converts the
+pending operation to `MF_SHARED_DEVICE_LOST` through the normal completion path;
+lease and memory references remain held through completion-ring backpressure.
+Backends without the capability retain their existing event/lease contract until
+the backend reports completion. This mirror changes no ring, ioctl, mmap, or BAR
+record.
 
 The worker also exposes an explicit `CdevBackendBinding` for worker-side
 `mf_backend_api_v1` calls. A COPY binding must advertise
@@ -99,7 +106,8 @@ descriptor stage; the worker's asynchronous event contract extends the lease
 until observed completion and snapshots the exact backend binding so a later
 replacement cannot query or release the old operation through the new binding.
 Production backend memory import remains open; the host-independent reference
-lifetime contract is implemented by the region resolver callbacks.
+lifetime contract and capability-gated pending-operation cancellation are
+implemented by the resolver and lifecycle callbacks.
 
 The W0114 bounded fault matrix now treats unknown COPY flags as malformed,
 known direct-host flags as unsupported on this worker, and zero-length COPY as

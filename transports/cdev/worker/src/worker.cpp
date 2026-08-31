@@ -12,6 +12,8 @@ constexpr std::uint32_t kBackendCopyRequiredSize = static_cast<std::uint32_t>(
     offsetof(mf_backend_api_v1, copy) + sizeof(((mf_backend_api_v1*)nullptr)->copy));
 constexpr std::uint32_t kBackendLaunchRequiredSize = static_cast<std::uint32_t>(
     offsetof(mf_backend_api_v1, submit) + sizeof(((mf_backend_api_v1*)nullptr)->submit));
+constexpr std::uint32_t kBackendCancellationRequiredSize = static_cast<std::uint32_t>(
+    offsetof(mf_backend_api_v1, cancel_queue) + sizeof(((mf_backend_api_v1*)nullptr)->cancel_queue));
 
 bool valid_queue(const mf_ring_header_v1* header) noexcept {
   if (header == nullptr) {
@@ -71,6 +73,13 @@ bool CdevWorker::valid_copy_resolution(const CdevCopyResolution& resolution) noe
          resolution.destination_offset <= UINT64_MAX - resolution.byte_count &&
          resolution.source_offset <= UINT64_MAX - resolution.byte_count &&
          resolution.reserved_word == 0U;
+}
+
+bool CdevWorker::valid_backend_cancellation(const CdevBackendBinding& backend) noexcept {
+  return backend.api != nullptr &&
+         mf_backend_api_validate_v1(backend.api, kBackendCancellationRequiredSize,
+                                    MF_BACKEND_CAP_CANCELLATION) == MF_BACKEND_SUCCESS &&
+         backend.api->cancel_queue != nullptr;
 }
 
 bool CdevWorker::valid_launch_backend(const CdevBackendBinding& backend) noexcept {
@@ -233,6 +242,23 @@ mf_shared_status_v1 CdevWorker::acquire_backend_lease() const noexcept {
   return backend_.lease_acquire(backend_.lease_context);
 }
 
+bool CdevWorker::cancel_pending() noexcept {
+  if (!pending_.active || pending_.cancellation_requested) {
+    return pending_.cancellation_requested;
+  }
+  const CdevBackendBinding pending_backend = pending_.backend;
+  if (!valid_backend_cancellation(pending_backend)) {
+    return false;
+  }
+  const mf_backend_status_v1 status = pending_backend.api->cancel_queue(
+      pending_backend.instance, pending_backend.queue);
+  if (status == MF_BACKEND_SUCCESS || status == MF_BACKEND_DEVICE_LOST) {
+    pending_.cancellation_requested = true;
+    return true;
+  }
+  return false;
+}
+
 void CdevWorker::release_backend_lease() const noexcept {
   release_backend_lease(backend_);
 }
@@ -332,6 +358,20 @@ WorkerResult CdevWorker::progress_pending() noexcept {
     return WorkerResult::Idle;
   }
   const CdevBackendBinding pending_backend = pending_.backend;
+  if (pending_.cancellation_requested) {
+    const mf_ring_descriptor_v1 request = pending_.request;
+    const WorkerResult result = complete(request, MF_SHARED_DEVICE_LOST);
+    if (result != WorkerResult::Backpressure) {
+      const bool has_memory_references = pending_.has_memory_references;
+      const CdevCopyResolution pending_resolution = pending_.resolution;
+      pending_ = {};
+      if (has_memory_references) {
+        release_copy_references(pending_resolution);
+      }
+      release_backend_lease(pending_backend);
+    }
+    return result;
+  }
   if (!valid_backend(pending_backend) || pending_backend.completion_event != pending_.event ||
       pending_backend.api->query_event == nullptr) {
     const mf_ring_descriptor_v1 request = pending_.request;
@@ -585,6 +625,7 @@ void CdevWorker::lifecycle_lost(void* context,
   if (worker != nullptr) {
     worker->lifecycle_online_ = false;
     worker->lifecycle_accepting_ = false;
+    (void)worker->cancel_pending();
   }
 }
 

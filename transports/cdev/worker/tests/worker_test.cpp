@@ -35,6 +35,8 @@ struct BackendFixture final {
   std::uint32_t query_calls = 0U;
   bool event_complete = false;
   mf_backend_status_v1 query_result = MF_BACKEND_SUCCESS;
+  std::uint32_t cancel_calls = 0U;
+  mf_backend_status_v1 cancel_result = MF_BACKEND_SUCCESS;
 };
 
 mf_shared_status_v1 fixture_lease_acquire(void* context) noexcept {
@@ -97,6 +99,16 @@ mf_backend_status_v1 fixture_query_event(mf_backend_instance_v1 instance,
   }
   *out_complete = fixture->event_complete ? 1U : 0U;
   return MF_BACKEND_SUCCESS;
+}
+
+mf_backend_status_v1 fixture_cancel_queue(mf_backend_instance_v1 instance,
+                                          mf_backend_queue_v1 queue) {
+  auto* fixture = reinterpret_cast<BackendFixture*>(static_cast<std::uintptr_t>(instance));
+  if (fixture == nullptr || queue != 17U) {
+    return MF_BACKEND_INVALID_ARGUMENT;
+  }
+  ++fixture->cancel_calls;
+  return fixture->cancel_result;
 }
 
 struct LaunchResolutionFixture final {
@@ -184,8 +196,9 @@ mf_backend_api_v1 make_fixture_api() {
 
 mf_backend_api_v1 make_async_fixture_api() {
   auto api = make_fixture_api();
-  api.header.capabilities |= MF_BACKEND_CAP_EVENTS;
+  api.header.capabilities |= MF_BACKEND_CAP_EVENTS | MF_BACKEND_CAP_CANCELLATION;
   api.query_event = fixture_query_event;
+  api.cancel_queue = fixture_cancel_queue;
   return api;
 }
 
@@ -648,6 +661,68 @@ int main() {
   } while (async_region_result == MF_SHARED_SUCCESS && result.request_id != 434U);
   if (async_region_result != MF_SHARED_SUCCESS || result.request_id != 434U ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+
+  BackendFixture cancel_fixture{};
+  const auto cancel_api = make_async_fixture_api();
+  cancel_fixture.expected_completion_event = 102U;
+  metaflux::transport::cdev::CdevWorker cancel_worker(
+      {.submission = submission.header,
+       .completion = completion.header,
+       .payload = payload.data(),
+       .payload_size = payload.size(),
+       .generation = 4U},
+      {.api = &cancel_api,
+       .instance = static_cast<mf_backend_instance_v1>(
+           reinterpret_cast<std::uintptr_t>(&cancel_fixture)),
+       .queue = 17U,
+       .memory = 23U,
+       .completion_event = cancel_fixture.expected_completion_event,
+       .lease_acquire = fixture_lease_acquire,
+       .lease_release = fixture_lease_release,
+       .lease_context = &cancel_fixture});
+  request.flags = 0U;
+  request.opcode = MF_RING_OPCODE_COPY;
+  request.request_id = 435U;
+  request.target_id = 4U;
+  request.arguments[0] = 320U;
+  request.arguments[1] = 128U;
+  request.arguments[2] = 32U;
+  request.arguments[3] = 16U;
+  metaflux::runtime::lifecycle::Config cancel_config{};
+  cancel_config.logical_device_id = 7U;
+  cancel_config.daemon_incarnation = 7U;
+  cancel_config.initial_identity_record_id = 4U;
+  cancel_config.initial_generation = 4U;
+  cancel_config.initial_epoch = 1U;
+  metaflux::runtime::lifecycle::Coordinator cancel_coordinator(cancel_config);
+  const metaflux::runtime::lifecycle::Request cancel_loss{
+      .request_id = 436U,
+      .logical_device_id = 7U,
+      .daemon_incarnation = 7U,
+      .expected_identity_record_id = 4U,
+      .expected_generation = 4U,
+      .expected_epoch = 1U,
+      .source = metaflux::runtime::lifecycle::Source::Disconnect,
+      .operation = metaflux::runtime::lifecycle::Operation::TransportLoss,
+  };
+  if (!cancel_worker.backend_bound() ||
+      mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      cancel_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Idle ||
+      !cancel_worker.backend_operation_pending() || !cancel_fixture.lease_active ||
+      !cancel_worker.attach_lifecycle(cancel_coordinator) ||
+      cancel_coordinator.apply(cancel_loss) != metaflux::runtime::lifecycle::Result::Accepted ||
+      cancel_worker.lifecycle_online() || cancel_fixture.cancel_calls != 1U ||
+      !cancel_worker.backend_operation_pending() || !cancel_fixture.lease_active ||
+      cancel_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      cancel_worker.backend_operation_pending() || cancel_fixture.lease_releases != 1U ||
+      cancel_fixture.lease_active ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.request_id != 435U ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_DEVICE_LOST)) {
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
     return 1;

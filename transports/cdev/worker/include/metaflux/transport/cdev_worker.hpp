@@ -144,6 +144,7 @@ private:
   static bool valid_memory_reference(mf_backend_memory_v1 memory,
                                      const CdevBackendMemoryReference& reference) noexcept;
   static bool valid_copy_resolution(const CdevCopyResolution& resolution) noexcept;
+  static bool valid_backend_cancellation(const CdevBackendBinding& backend) noexcept;
   static bool valid_launch_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_backend_lease(const CdevBackendBinding& backend) noexcept;
   static mf_shared_status_v1 retain_copy_references(CdevCopyResolution& resolution) noexcept;
@@ -161,6 +162,7 @@ private:
                                                     const CdevCopyResolution* resolution = nullptr) noexcept;
   [[nodiscard]] WorkerResult progress_pending() noexcept;
   [[nodiscard]] mf_shared_status_v1 acquire_backend_lease() const noexcept;
+  bool cancel_pending() noexcept;
   void release_backend_lease(const CdevBackendBinding& backend) const noexcept;
   void release_backend_lease() const noexcept;
   bool drain_lifecycle() noexcept;
@@ -177,6 +179,7 @@ private:
     CdevBackendBinding backend{};
     CdevCopyResolution resolution{};
     bool has_memory_references = false;
+    bool cancellation_requested = false;
     mf_backend_event_v1 event = 0U;
   } pending_{};
 };

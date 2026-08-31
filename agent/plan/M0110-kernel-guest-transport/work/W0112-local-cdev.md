@@ -80,6 +80,12 @@ and arithmetic operation is validated.
   after the synchronous call returns. Nonzero event completion retains the
   lease, exact backend binding, and resolved memory references until observed
   completion; physical DMA qualification remains separate work.
+- [x] When a pending asynchronous operation's lifecycle mirror receives
+  transport loss, invoke the generation-bound backend `cancel_queue` only when
+  `MF_BACKEND_CAP_CANCELLATION` is advertised. A successful cancellation emits
+  `MF_SHARED_DEVICE_LOST` through the normal completion path and preserves the
+  lease/reference/backpressure ordering; backends without cancellation retain
+  their event contract.
 - [x] Expose the CPU backend's transport-facing COPY and synchronous launch
   subset (instance, context, queue, caller-owned host-memory import, canonical
   KIR module load/unload, and memory-handle argument blocks). The CPU backend
@@ -111,9 +117,9 @@ and arithmetic operation is validated.
   import and in-flight device references, and prove Add/Copy with those
   references through the mapped payload arena. Kernel-side DMA mapping,
   host-independent asynchronous lease and resolved-memory reference retention,
-  and replacement-safe pending binding snapshots are implemented; production
-  backend import, generation drain, and physical device qualification remain
-  open.
+  capability-gated lifecycle-loss cancellation, and replacement-safe pending
+  binding snapshots are implemented; production backend import, generation
+  drain, and physical device qualification remain open.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak.
 
