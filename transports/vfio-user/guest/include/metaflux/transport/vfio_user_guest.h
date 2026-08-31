@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <metaflux/client/fastpath.h>
 #include <metaflux/transport/generated.h>
 
 #ifdef __cplusplus
@@ -12,6 +13,47 @@ extern "C" {
 
 #define MF_VFIO_USER_REPLY_FLAG_V0 UINT16_C(0x8000)
 #define MF_VFIO_USER_MAX_PACKET_SIZE_V0 UINT32_C(512)
+
+typedef void (*mf_vfio_user_guest_doorbell_v0)(void* context, uint32_t value);
+
+typedef struct mf_vfio_user_guest_ring_v0 {
+  mf_client_ring_v1 submission;
+  mf_client_ring_v1 completion;
+  void* payload_mapping;
+  uint64_t payload_size;
+  mf_vfio_user_guest_doorbell_v0 doorbell;
+  void* doorbell_context;
+  uint32_t doorbell_value;
+  uint32_t reserved;
+} mf_vfio_user_guest_ring_v0;
+
+/*
+ * Attach the two shared-memory queues advertised by the vfio-user device.
+ * The caller retains ownership of the source FDs and payload mapping; the
+ * returned ring owns duplicated queue FDs until close.
+ */
+mf_shared_status_v1 mf_vfio_user_guest_ring_attach_v0(
+    int32_t submission_fd, int32_t completion_fd, mf_registry_view_id_v1 expected_view_id,
+    uint64_t expected_queue_generation, void* payload_mapping, uint64_t payload_size,
+    mf_vfio_user_guest_doorbell_v0 doorbell, void* doorbell_context, uint32_t doorbell_value,
+    mf_vfio_user_guest_ring_v0* out_ring);
+
+void mf_vfio_user_guest_ring_close_v0(mf_vfio_user_guest_ring_v0* ring);
+
+mf_shared_status_v1 mf_vfio_user_guest_ring_payload_contains_v0(
+    const mf_vfio_user_guest_ring_v0* ring, uint64_t offset, uint64_t byte_count);
+
+mf_shared_status_v1 mf_vfio_user_guest_ring_submit_v0(
+    mf_vfio_user_guest_ring_v0* ring, const mf_ring_descriptor_v1* descriptor);
+
+mf_shared_status_v1 mf_vfio_user_guest_ring_try_consume_v0(
+    mf_vfio_user_guest_ring_v0* ring, mf_ring_descriptor_v1* out_descriptor);
+
+mf_shared_status_v1 mf_vfio_user_guest_ring_wait_submission_v0(
+    mf_vfio_user_guest_ring_v0* ring, uint64_t timeout_ns);
+
+mf_shared_status_v1 mf_vfio_user_guest_ring_wait_completion_v0(
+    mf_vfio_user_guest_ring_v0* ring, uint64_t timeout_ns);
 
 mf_shared_status_v1 mf_vfio_user_guest_encode_get_info_v0(uint64_t message_id,
                                                            uint8_t* buffer,

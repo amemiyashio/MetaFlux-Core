@@ -3,6 +3,143 @@
 #include <stdint.h>
 #include <string.h>
 
+typedef struct doorbell_fixture {
+  uint32_t count;
+  uint32_t last_value;
+} doorbell_fixture;
+
+static void record_doorbell(void* context, uint32_t value) {
+  doorbell_fixture* fixture = (doorbell_fixture*)context;
+  fixture->count += UINT32_C(1);
+  fixture->last_value = value;
+}
+
+static int run_ring_test(void) {
+  const mf_registry_view_id_v1 view_id = {UINT64_C(37), UINT64_C(41)};
+  mf_client_ring_v1 submission_owner;
+  mf_client_ring_v1 completion_owner;
+  mf_client_ring_v1 mismatched_completion;
+  mf_vfio_user_guest_ring_v0 guest;
+  mf_vfio_user_guest_ring_v0 probe;
+  mf_ring_descriptor_v1 descriptor;
+  mf_ring_descriptor_v1 completion;
+  uint8_t payload[32];
+  doorbell_fixture doorbell = {0};
+  uint32_t index = 0;
+
+  (void)memset(&submission_owner, 0, sizeof(submission_owner));
+  (void)memset(&completion_owner, 0, sizeof(completion_owner));
+  (void)memset(&mismatched_completion, 0, sizeof(mismatched_completion));
+  (void)memset(&guest, 0, sizeof(guest));
+  (void)memset(&probe, 0, sizeof(probe));
+  submission_owner.owned_fd = -1;
+  completion_owner.owned_fd = -1;
+  mismatched_completion.owned_fd = -1;
+  guest.submission.owned_fd = -1;
+  guest.completion.owned_fd = -1;
+  probe.submission.owned_fd = -1;
+  probe.completion.owned_fd = -1;
+  if (mf_client_ring_create_v1(UINT32_C(2), view_id, MF_CLIENT_SUBMISSION_QUEUE_ID_V1, UINT64_C(9),
+                               &submission_owner) != MF_SHARED_SUCCESS ||
+      mf_client_ring_create_v1(UINT32_C(2), view_id, MF_CLIENT_COMPLETION_QUEUE_ID_V1, UINT64_C(9),
+                               &completion_owner) != MF_SHARED_SUCCESS ||
+      mf_client_ring_create_v1(UINT32_C(2), view_id, MF_CLIENT_COMPLETION_QUEUE_ID_V1, UINT64_C(10),
+                               &mismatched_completion) != MF_SHARED_SUCCESS ||
+      mf_vfio_user_guest_ring_attach_v0(mf_client_ring_borrow_fd_v1(&submission_owner),
+                                        mf_client_ring_borrow_fd_v1(&completion_owner), view_id,
+                                        UINT64_C(9), payload, sizeof(payload), record_doorbell,
+                                        &doorbell, UINT32_C(0x42), &guest) != MF_SHARED_SUCCESS) {
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&mismatched_completion);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 1;
+  }
+  if (mf_vfio_user_guest_ring_attach_v0(mf_client_ring_borrow_fd_v1(&submission_owner),
+                                        mf_client_ring_borrow_fd_v1(&mismatched_completion),
+                                        view_id, UINT64_C(9), payload, sizeof(payload),
+                                        record_doorbell, &doorbell, UINT32_C(0x42),
+                                        &probe) != MF_SHARED_MALFORMED ||
+      mf_vfio_user_guest_ring_attach_v0(mf_client_ring_borrow_fd_v1(&submission_owner),
+                                        mf_client_ring_borrow_fd_v1(&completion_owner), view_id,
+                                        UINT64_C(9), NULL, UINT64_C(1), record_doorbell, &doorbell,
+                                        UINT32_C(0x42), &probe) != MF_SHARED_INVALID_ARGUMENT) {
+    mf_vfio_user_guest_ring_close_v0(&probe);
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&mismatched_completion);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 2;
+  }
+  mf_vfio_user_guest_ring_close_v0(&probe);
+  mf_client_ring_close_v1(&mismatched_completion);
+  if (mf_vfio_user_guest_ring_payload_contains_v0(&guest, UINT64_C(4), UINT64_C(8)) !=
+          MF_SHARED_SUCCESS ||
+      mf_vfio_user_guest_ring_payload_contains_v0(&guest, UINT64_C(28), UINT64_C(5)) !=
+          MF_SHARED_INVALID_ARGUMENT ||
+      mf_vfio_user_guest_ring_payload_contains_v0(&guest, UINT64_MAX, UINT64_C(2)) !=
+          MF_SHARED_OVERFLOW) {
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 3;
+  }
+  (void)memset(&descriptor, 0, sizeof(descriptor));
+  descriptor.opcode = MF_RING_OPCODE_COPY;
+  descriptor.request_id = UINT64_C(1);
+  descriptor.target_id = UINT64_C(2);
+  if (mf_vfio_user_guest_ring_submit_v0(&guest, &descriptor) != MF_SHARED_SUCCESS) {
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 4;
+  }
+  descriptor.opcode = MF_RING_OPCODE_COMPLETION;
+  if (mf_vfio_user_guest_ring_submit_v0(&guest, &descriptor) != MF_SHARED_INVALID_ARGUMENT ||
+      doorbell.count != UINT32_C(1)) {
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 5;
+  }
+  descriptor.opcode = MF_RING_OPCODE_COPY;
+  if (mf_vfio_user_guest_ring_submit_v0(&guest, &descriptor) != MF_SHARED_SUCCESS ||
+      doorbell.count != UINT32_C(2) || doorbell.last_value != UINT32_C(0x42) ||
+      mf_vfio_user_guest_ring_submit_v0(&guest, &descriptor) != MF_SHARED_WOULD_BLOCK ||
+      doorbell.count != UINT32_C(2)) {
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 6;
+  }
+  if (mf_client_ring_try_consume_v1(&submission_owner, &completion) != MF_SHARED_SUCCESS ||
+      mf_vfio_user_guest_ring_wait_submission_v0(&guest, UINT64_C(0)) != MF_SHARED_SUCCESS) {
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 7;
+  }
+  (void)memset(&completion, 0, sizeof(completion));
+  completion.opcode = MF_RING_OPCODE_COMPLETION;
+  completion.request_id = UINT64_C(1);
+  completion.target_id = UINT64_C(2);
+  for (index = 0; index < UINT32_C(1); ++index) {
+    if (mf_client_ring_try_submit_v1(&completion_owner, &completion) != MF_SHARED_SUCCESS ||
+        mf_vfio_user_guest_ring_wait_completion_v0(&guest, UINT64_C(0)) != MF_SHARED_SUCCESS ||
+        mf_vfio_user_guest_ring_try_consume_v0(&guest, &descriptor) != MF_SHARED_SUCCESS ||
+        descriptor.opcode != MF_RING_OPCODE_COMPLETION || descriptor.request_id != UINT64_C(1)) {
+      mf_vfio_user_guest_ring_close_v0(&guest);
+      mf_client_ring_close_v1(&completion_owner);
+      mf_client_ring_close_v1(&submission_owner);
+      return 8;
+    }
+  }
+  mf_vfio_user_guest_ring_close_v0(&guest);
+  mf_client_ring_close_v1(&completion_owner);
+  mf_client_ring_close_v1(&submission_owner);
+  return 0;
+}
+
 int main(void) {
   uint8_t packet[MF_VFIO_USER_MAX_PACKET_SIZE_V0];
   uint32_t packet_size = 0;
@@ -38,5 +175,5 @@ int main(void) {
       MF_SHARED_INVALID_ARGUMENT) {
     return 1;
   }
-  return 0;
+  return run_ring_test();
 }

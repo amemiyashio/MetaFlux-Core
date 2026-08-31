@@ -6,6 +6,15 @@ negotiates a static Type-0 profile, reports BAR0 (64 KiB), BAR2 (4 KiB), and BAR
 (4 KiB with two MSI-X vectors), and owns a generation/epoch-bound DMA mapping
 ledger.
 
+The guest ring adapter now attaches the paired shared-memory submission and
+completion queues through `mf_vfio_user_guest_ring_attach_v0`. It reuses the
+generated `mf_ring_header_v1` layout and fastpath atomic publication, checks
+queue IDs, registry-view identity, generation, and equal capacity, and exposes
+payload-bound checks plus completion polling/waits. A successful submission
+invokes the injected BAR2 doorbell callback; backpressure and malformed input
+never publish a doorbell. The callback is a host-independent seam for the
+future kernel MMIO path, not physical NVIDIA or QEMU qualification.
+
 The server keeps vfio-user framing at the boundary and never treats its message
 IDs as unique. IDs are echoed on every reply, may be reused, and `No_reply`
 suppresses only the reply. DMA maps require page-aligned, mmap-capable file
