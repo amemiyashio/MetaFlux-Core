@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0120
-workstream: W0122
-checkpoint: P20260831-084
+workstream: W0123
+checkpoint: P20260831-085
 ---
 
 # Current Progress
@@ -371,6 +371,9 @@ Linux 9.8.
 | W0122 current boundary | Bounded live QMP/socket command transport is recorded; reset/restart producer metadata binding, production memfd worker wiring, provider freeze, fault injection, and qualification remain open; QMP and vfio-user disconnect capture are covered by the snapshot-bound helper |
 
 ## Recorded M0120 W0123 Evidence
+
+The canonical cdev node policy is recorded at
+[P20260831-085](checkpoints/2026/P20260831-085-m0120-cdev-node-policy.md).
 
 | Gate | Recorded result |
 | --- | --- |
