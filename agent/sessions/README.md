@@ -108,6 +108,8 @@ copies canonical content.
 | [S0132-20260831-014-vulkan-memory-visibility](2026/08/S0132-20260831-014-vulkan-memory-visibility/summary.md) | 2026-08-31 | Exact | In progress | TODO: one-line summary |
 | [S0123-20260831-015-lifecycle-concurrent-authority](2026/08/S0123-20260831-015-lifecycle-concurrent-authority/summary.md) | 2026-08-31 | Exact | In progress | TODO: one-line summary |
 | [S0135-20260831-016-vulkan-pipeline-binding](2026/08/S0135-20260831-016-vulkan-pipeline-binding/summary.md) | 2026-08-31 | Exact | Complete | W0135 generation-scoped cache pipeline binding; actual Vulkan pipeline and warm-launch qualification remain open |
+| [S0135-20260831-017-vulkan-warm-path](2026/08/S0135-20260831-017-vulkan-warm-path/summary.md) | 2026-08-31 | Exact | In progress | W0135 identity mutation miss matrix and host-independent warm trace admission; real ICD trace and physical qualification remain open |
+| [S0135-20260831-017-vulkan-warm-path](2026/08/S0135-20260831-017-vulkan-warm-path/summary.md) | 2026-08-31 | Exact | In progress | TODO: one-line summary |
 
 ## Fidelity and retention
 

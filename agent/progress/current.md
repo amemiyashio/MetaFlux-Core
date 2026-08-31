@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0130
 workstream: W0135
-checkpoint: P20260831-056
+checkpoint: P20260831-057
 ---
 
 # Current Progress
@@ -158,6 +158,12 @@ W0135's generation-scoped cache pipeline binding boundary is now recorded at
 actual Vulkan pipeline ownership, identity-mutation misses, warm-launch
 exclusion traces, and physical driver qualification remain open.
 
+W0135's complete identity-mutation miss matrix and host-independent warm trace
+ admission contract are now recorded at
+[P20260831-057](checkpoints/2026/P20260831-057-m0130-vulkan-warm-path.md);
+real ICD trace capture, pipeline creation, and physical warm-launch
+qualification remain open.
+
 Intel x86_64 support qualification and physical NVIDIA binding-performance
 promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
 remains the unallocated `v0.2.0` support expansion. M0100 keeps the measured
@@ -310,7 +316,9 @@ Linux 9.8.
 | W0135 CTest after stampede stage | Cache CTest passed five repeat runs; full `vulkan` preset passed 88/88 |
 | W0135 pipeline binding | `c37d312`; resident device-bound hits have one generation-scoped pipeline binding, stale/duplicate generations are rejected, and release gates device invalidation |
 | W0135 CTest after pipeline binding | Full `vulkan` preset passed 88/88, including `metaflux.backend.vulkan-cache-model` |
-| W0135 current boundary | Opaque `VkPipelineCache`, actual pipeline ownership, identity-mutation misses, warm-launch no-compiler/allocation trace, and physical driver qualification remain open |
+| W0135 identity mutation and warm trace | `5b1a304`; all portable/device-bound identity fields miss when changed, and the exact four-event warm allowlist rejects producer/validation/module/pipeline/allocation events |
+| W0135 CTest after warm trace stage | Focused cache CTest passed 1/1; full `vulkan` preset passed 88/88 |
+| W0135 current boundary | Opaque `VkPipelineCache`, actual pipeline ownership, ICD warm trace, and physical driver qualification remain open |
 
 ## Versioned Next Work
 
@@ -433,6 +441,11 @@ Linux 9.8.
     Continue with actual Vulkan pipeline identity, key-mutation miss proofs,
     and warm-launch compiler/validator/module/pipeline/allocation exclusion;
     do not claim physical driver qualification from the repository contract.
+24. M0130/W0135 is Active after the complete identity-mutation and
+    host-independent warm-trace stage at
+    [P20260831-057](checkpoints/2026/P20260831-057-m0130-vulkan-warm-path.md).
+    Continue with a real ICD trace around `VkPipeline` ownership and preserve
+    the explicit physical-driver qualification boundary.
 
 ## Tool Boundary
 

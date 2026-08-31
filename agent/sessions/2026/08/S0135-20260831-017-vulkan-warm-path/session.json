@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "id": "S0135-20260831-017-vulkan-warm-path",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.3.5",
+  "started_at": "2026-08-31",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "M0130/W0135 warm-path contract implementer"
+    }
+  ],
+  "milestones": [
+    {
+      "id": "M0130",
+      "title": "Vulkan Execution Backend",
+      "status": "active",
+      "event_seqs": [1, 2, 3, 4]
+    }
+  ],
+  "work_items": [
+    {
+      "id": "W0135",
+      "milestone_id": "M0130",
+      "title": "Vulkan cache and warm path",
+      "status": "active"
+    }
+  ],
+  "base_revision": "315d5923f316861e75ea4c93f731987dc1cde3e1",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
