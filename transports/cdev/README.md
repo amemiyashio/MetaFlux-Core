@@ -56,8 +56,10 @@ backend binding to cancel its queue only if `MF_BACKEND_CAP_CANCELLATION` and
 pending operation to `MF_SHARED_DEVICE_LOST` through the normal completion path;
 lease and memory references remain held through completion-ring backpressure.
 Backends without the capability retain their existing event/lease contract until
-the backend reports completion. This mirror changes no ring, ioctl, mmap, or BAR
-record.
+the backend reports completion. Reset and Remove quiesce also reject when a
+pending operation cannot be cancelled; when cancellation is supported, drain
+first completes the pending operation before inspecting the submission ring.
+This mirror changes no ring, ioctl, mmap, or BAR record.
 
 The worker also exposes an explicit `CdevBackendBinding` for worker-side
 `mf_backend_api_v1` calls. A COPY binding must advertise

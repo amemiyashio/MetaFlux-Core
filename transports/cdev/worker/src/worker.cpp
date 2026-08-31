@@ -543,6 +543,10 @@ bool CdevWorker::drain_lifecycle() noexcept {
   }
   const bool accepting = lifecycle_accepting_;
   lifecycle_accepting_ = true;
+  if (pending_.active && consume_once() != WorkerResult::Completed) {
+    lifecycle_accepting_ = accepting;
+    return false;
+  }
   const std::uint32_t capacity = view_.submission->metadata.capacity;
   for (std::uint32_t count = 0U; count < capacity; ++count) {
     if (!queue_readable(view_.submission)) {
@@ -583,7 +587,10 @@ bool CdevWorker::lifecycle_quiesce(
     return false;
   }
   worker->lifecycle_accepting_ = false;
-  return true;
+  if (!worker->pending_.active) {
+    return true;
+  }
+  return worker->cancel_pending();
 }
 
 bool CdevWorker::lifecycle_drain(void* context,
