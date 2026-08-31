@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-076
+checkpoint: P20260831-077
 ---
 
 # Current Progress
@@ -41,9 +41,11 @@ Reset/Remove pending drain ordering is now recorded at
 [P20260831-074](checkpoints/2026/P20260831-074-m0110-cdev-lifecycle-drain-cancel.md);
 the bounded multi-region registered-memory table is now recorded at
 [P20260831-075](checkpoints/2026/P20260831-075-m0110-cdev-multi-region.md);
-the direct backend-memory reference lifetime is now recorded at
-[P20260831-076](checkpoints/2026/P20260831-076-m0110-cdev-memory-reference.md);
-production backend import, daemon generation replacement, and non-cancellable
+the direct backend-memory reference lifetime is recorded at
+[P20260831-076](checkpoints/2026/P20260831-076-m0110-cdev-memory-reference.md),
+and the resolver-side registered-memory importer seam is now recorded at
+[P20260831-077](checkpoints/2026/P20260831-077-m0110-cdev-memory-import.md);
+daemon object-table activation, generation replacement, and non-cancellable
 backend wait policy remain open.
 W0113 is Active with its static vfio-user control-plane stage recorded at
 [P20260830-017](checkpoints/2026/P20260830-017-m0110-static-vfio-user.md).
@@ -271,7 +273,7 @@ Linux 9.8.
 | W0112 focused transport tests | C17/C++20 schema fixtures and cdev client/worker tests passed 5/5 |
 | W0112 kernel compile | Linux 6.18.42 default GCC built `metaflux_core.ko` with modpost success |
 | W0112 registered-memory stage | `4465732`; one generation-bound range uses `FOLL_LONGTERM`/`FOLL_WRITE` pinning, memlock accounting, SG construction, partial unwind, dirty-unpin, explicit unregister, and owner-close revocation; focused cdev/lifecycle tests 4/4, full CTest 79/79, and Linux 6.18.42 GCC Kbuild passed |
-| W0112 backend dispatch seam | Worker-side `CdevBackendBinding` validates `mf_backend_api_v1` size/capability/handles, translates payload COPY to `mf_backend_copy_v1`, and maps backend statuses; the generation-bound `CdevLaunchResolver` translates primary-entry launch descriptors to payload-relative argument bytes and invokes the CPU backend `submit` ABI. Malformed flags, resolver failures, payload bounds, 2D dimensions, and synchronous lease rejection are covered at `fcdcbbd`; backend memory import, in-flight references, and daemon replacement remain open |
+| W0112 backend dispatch seam | Worker-side `CdevBackendBinding` validates `mf_backend_api_v1` size/capability/handles, translates payload COPY to `mf_backend_copy_v1`, and maps backend statuses; the generation-bound `CdevLaunchResolver` translates primary-entry launch descriptors to payload-relative argument bytes and invokes the CPU backend `submit` ABI. The resolver-side `CdevBackendMemoryImporter` now turns a generation-checked caller-owned range into a referenced backend handle, with real CPU import coverage at `c40c0e3`; daemon object-table activation, in-flight replacement drain, and physical qualification remain open |
 | W0112 current boundary | Paired rings, negotiation, mapping, wait/poll, VMA ref tracking, exclusive lease, generation-bound payload arena, owner-death offline queue/payload tombstones, queue root/owner/lease/VMA/active-operation krefs, payload root/owner/VMA/active-allocation-operation krefs, eventfd ownership, bounded four-slot registered-memory table with unique handles and aggregate quota, direction-aware registered-memory DMA mapping, checked backend COPY dispatch, CPU backend synchronous Add/Copy submit, cdev worker CPU Add launch, synchronous backend-operation lease admission, host-independent asynchronous completion polling with lease retention and ring-backpressure retry, generation-bound pending backend binding snapshots for replacement-safe query/release, resolver-owned source/destination memory reference retention through completion/backpressure, capability-gated cancellation of pending work on transport loss, and pending-operation processing before Reset/Remove drain are implemented; production backend memory import, in-flight device references, replacement generations, non-cancellable backend wait policy, daemon replacement, and fault qualification remain open |
 | W0113 transport schema and component graph | Schema validator passed 5 definitions/15 records; graph passed 17 components/18 edges |
 | W0113 focused transport tests | Schema, cdev, guest, and server tests passed 7/7; full dev CTest passed 72/72 |
@@ -287,6 +289,7 @@ Linux 9.8.
 | W0112 lifecycle drain stage | `1a3ed18`; Reset/Remove drain processes pending asynchronous work before checking ring emptiness and rejects quiesce for a pending backend without cancellation; focused cdev/lifecycle/component tests 5/5 and full CTest 84/84 |
 | W0112 registered-memory multi-region stage | `a6df246`; kernel-private four-slot table with unique generation-bound handles (`3`-`6`), independent pin/SG/DMA/mm teardown, `max_regions=4`, and 256 MiB aggregate quota; Linux 6.18.42 GCC Kbuild and full CTest 84/84 |
 | W0112 direct backend-memory reference stage | `b03c4f3`; optional complete binding reference is retained before direct COPY and released after synchronous completion or asynchronous completion/cancellation/backpressure; focused cdev/component tests 2/2 and full CTest 84/84 |
+| W0112 registered-memory import seam | `c40c0e3`; resolver-side `CdevBackendMemoryImporter` is exercised with the CPU backend for two caller-owned ranges before the existing source/destination reference retention path; focused cdev/component tests 2/2 and full CTest 84/84 |
 | W0113 current boundary | Static PCI binder and host-independent guest ring seam are recorded; pinned QEMU/libvfio-user, actual BAR2 MMIO/MSI-X, generation-bound DMA lifetime, Add/Copy path, drain/tombstone faults, and package qualification remain open |
 | W0114 bounded transport fault matrix | `700b7c8`; cdev COPY disposition checks and completion backpressure/FIFO retry, plus vfio-user malformed framing, stale unmap, duplicate-range, and DMA-overflow regressions; focused transport tests 2/2 and full dev CTest 82/82 |
 | W0114 current boundary | Malformed and recoverable userspace/socketpair faults are recorded; kernel ioctl/BAR fuzzing, MSI-X, live DMA/backend references, ownership-death injection, native/compat negotiation, and the base ABI freeze remain open |
