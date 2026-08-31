@@ -119,6 +119,7 @@ copies canonical content.
 | [S0113-20260831-025-cdev-dma-map](2026/08/S0113-20260831-025-cdev-dma-map/summary.md) | 2026-08-31 | Exact | In progress | W0112 registered-memory SG is direction-mapped through the cdev DMA device with reverse-order teardown; backend import, references, replacement, and physical qualification remain open |
 | [S0112-20260831-026-cdev-backend-reference](2026/08/S0112-20260831-026-cdev-backend-reference/summary.md) | 2026-08-31 | Exact | In progress | W0112 pending operations retain the exact backend binding through replacement and completion; backend import and daemon generation drain remain open |
 | [S0113-20260831-027-cdev-memory-reference](2026/08/S0113-20260831-027-cdev-memory-reference/summary.md) | 2026-08-31 | Exact | In progress | W0112 region COPY retains resolver-owned source/destination memory references through completion and backpressure; production import remains open |
+| [S0114-20260831-028-cdev-lifecycle-cancel](2026/08/S0114-20260831-028-cdev-lifecycle-cancel/summary.md) | 2026-08-31 | Exact | In progress | W0112 capability-gated pending cancellation maps transport loss to device-lost completion; production generation drain remains open |
 
 ## Fidelity and retention
 
