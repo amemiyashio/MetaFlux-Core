@@ -132,7 +132,7 @@ copies canonical content.
 | [S01323-20260831-038-vulkan-device-local-copy](2026/08/S01323-20260831-038-vulkan-device-local-copy/summary.md) | 2026-08-31 | Exact | In progress | W0132 source-local Tier 3 host-to-device/device-to-host copy through the generation-bound Vulkan timeline on AMD/RADV; backend admission and external memory remain open |
 | [S0110-20260831-039-execution-priority-convergence](2026/08/S0110-20260831-039-execution-priority-convergence/summary.md) | 2026-08-31 | Exact | Complete | Preserved valid Vulkan evidence and restored M0110/M0120 non-NVIDIA execution priority |
 | [S0122-20260831-040-live-qmp-socket-transport](2026/08/S0122-20260831-040-live-qmp-socket-transport/summary.md) | 2026-08-31 | Exact | Complete | W0122 bounded QMP Unix-stream command/event transport; producer wiring and qualification remain open |
-| [S0123-20260831-041-lifecycle-node-policy](2026/08/S0123-20260831-041-lifecycle-node-policy/summary.md) | 2026-08-31 | Exact | In progress | TODO: one-line summary |
+| [S0123-20260831-041-lifecycle-node-policy](2026/08/S0123-20260831-041-lifecycle-node-policy/summary.md) | 2026-08-31 | Exact | Complete | W0123 canonical cdev udev/node policy, Daemon installation, and package lifecycle assertions; live/kernel qualification remains open |
 
 ## Fidelity and retention
 
