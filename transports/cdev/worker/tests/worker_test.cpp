@@ -31,6 +31,10 @@ struct BackendFixture final {
   std::uint32_t lease_releases = 0U;
   bool lease_active = false;
   mf_shared_status_v1 lease_result = MF_SHARED_SUCCESS;
+  mf_backend_event_v1 expected_completion_event = 0U;
+  std::uint32_t query_calls = 0U;
+  bool event_complete = false;
+  mf_backend_status_v1 query_result = MF_BACKEND_SUCCESS;
 };
 
 mf_shared_status_v1 fixture_lease_acquire(void* context) noexcept {
@@ -58,7 +62,8 @@ mf_backend_status_v1 fixture_copy(mf_backend_instance_v1 instance, mf_backend_qu
                                   const mf_backend_copy_v1* copy,
                                   mf_backend_event_v1 completion_event) {
   auto* fixture = reinterpret_cast<BackendFixture*>(static_cast<std::uintptr_t>(instance));
-  if (fixture == nullptr || queue != 17U || completion_event != 0U || copy == nullptr) {
+  if (fixture == nullptr || queue != 17U ||
+      completion_event != fixture->expected_completion_event || copy == nullptr) {
     return MF_BACKEND_INVALID_ARGUMENT;
   }
   ++fixture->calls;
@@ -70,12 +75,28 @@ mf_backend_status_v1 fixture_submit(mf_backend_instance_v1 instance, mf_backend_
                                     const mf_backend_launch_v1* launch,
                                     mf_backend_event_v1 completion_event) {
   auto* fixture = reinterpret_cast<BackendFixture*>(static_cast<std::uintptr_t>(instance));
-  if (fixture == nullptr || queue != 17U || completion_event != 0U || launch == nullptr) {
+  if (fixture == nullptr || queue != 17U ||
+      completion_event != fixture->expected_completion_event || launch == nullptr) {
     return MF_BACKEND_INVALID_ARGUMENT;
   }
   ++fixture->launch_calls;
   fixture->last_launch = *launch;
   return fixture->result;
+}
+
+mf_backend_status_v1 fixture_query_event(mf_backend_instance_v1 instance,
+                                         mf_backend_event_v1 event,
+                                         std::uint32_t* out_complete) {
+  auto* fixture = reinterpret_cast<BackendFixture*>(static_cast<std::uintptr_t>(instance));
+  if (fixture == nullptr || event != fixture->expected_completion_event || out_complete == nullptr) {
+    return MF_BACKEND_INVALID_ARGUMENT;
+  }
+  ++fixture->query_calls;
+  if (fixture->query_result != MF_BACKEND_SUCCESS) {
+    return fixture->query_result;
+  }
+  *out_complete = fixture->event_complete ? 1U : 0U;
+  return MF_BACKEND_SUCCESS;
 }
 
 struct LaunchResolutionFixture final {
@@ -129,6 +150,13 @@ mf_backend_api_v1 make_fixture_api() {
   api.header.capabilities = MF_BACKEND_CAP_COPY | MF_BACKEND_CAP_LAUNCH;
   api.submit = fixture_submit;
   api.copy = fixture_copy;
+  return api;
+}
+
+mf_backend_api_v1 make_async_fixture_api() {
+  auto api = make_fixture_api();
+  api.header.capabilities |= MF_BACKEND_CAP_EVENTS;
+  api.query_event = fixture_query_event;
   return api;
 }
 
@@ -284,6 +312,119 @@ int main() {
   }
   backend_fixture.lease_result = MF_SHARED_SUCCESS;
   backend_fixture.result = MF_BACKEND_SUCCESS;
+
+  BackendFixture async_fixture{};
+  const auto async_api = make_async_fixture_api();
+  async_fixture.expected_completion_event = 99U;
+  metaflux::transport::cdev::CdevWorker async_worker(
+      {.submission = submission.header,
+       .completion = completion.header,
+       .payload = payload.data(),
+       .payload_size = payload.size(),
+       .generation = 4U},
+      {.api = &async_api,
+       .instance =
+           static_cast<mf_backend_instance_v1>(reinterpret_cast<std::uintptr_t>(&async_fixture)),
+       .queue = 17U,
+       .memory = 23U,
+       .completion_event = async_fixture.expected_completion_event,
+       .lease_acquire = fixture_lease_acquire,
+       .lease_release = fixture_lease_release,
+       .lease_context = &async_fixture});
+  request.flags = 0U;
+  request.request_id = 44U;
+  request.target_id = 4U;
+  request.arguments[0] = 320U;
+  request.arguments[1] = 128U;
+  request.arguments[2] = 32U;
+  request.arguments[3] = 16U;
+  const auto async_bound = async_worker.backend_bound();
+  const auto async_submit = mf_client_ring_try_submit_v1(&submission, &request);
+  const auto async_consume = async_worker.consume_once();
+  const auto async_empty = mf_client_ring_try_consume_v1(&completion, &result);
+  if (!async_bound || async_submit != MF_SHARED_SUCCESS ||
+      async_consume != metaflux::transport::cdev::WorkerResult::Idle ||
+      !async_worker.backend_operation_pending() || !async_fixture.lease_active ||
+      async_fixture.calls != 1U || async_fixture.query_calls != 0U ||
+      async_empty != MF_SHARED_WOULD_BLOCK) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  const auto async_wait = async_worker.consume_once();
+  if (async_wait != metaflux::transport::cdev::WorkerResult::Idle ||
+      async_fixture.query_calls != 1U || async_fixture.lease_releases != 0U ||
+      !async_fixture.lease_active) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  async_fixture.event_complete = true;
+  const auto async_done = async_worker.consume_once();
+  if (async_done != metaflux::transport::cdev::WorkerResult::Completed ||
+      async_worker.backend_operation_pending() || async_fixture.query_calls != 2U ||
+      async_fixture.lease_acquires != 1U || async_fixture.lease_releases != 1U ||
+      async_fixture.lease_active ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.request_id != 44U ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  async_fixture.event_complete = false;
+  async_fixture.query_result = MF_BACKEND_TIMEOUT;
+  request.request_id = 45U;
+  const auto async_error_submit = mf_client_ring_try_submit_v1(&submission, &request);
+  const auto async_error_start = async_worker.consume_once();
+  const auto async_error_done = async_worker.consume_once();
+  if (async_error_submit != MF_SHARED_SUCCESS ||
+      async_error_start != metaflux::transport::cdev::WorkerResult::Idle ||
+      async_error_done != metaflux::transport::cdev::WorkerResult::Completed ||
+      async_worker.backend_operation_pending() || async_fixture.lease_releases != 2U ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.request_id != 45U ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_TIMEOUT)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  async_fixture.query_result = MF_BACKEND_SUCCESS;
+  request.request_id = 46U;
+  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      async_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Idle) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  mf_ring_descriptor_v1 async_filler{};
+  async_filler.opcode = MF_RING_OPCODE_COMPLETION;
+  async_filler.request_id = 100U;
+  while (mf_client_ring_try_submit_v1(&completion, &async_filler) == MF_SHARED_SUCCESS) {
+  }
+  async_fixture.event_complete = true;
+  const auto async_full = async_worker.consume_once();
+  const bool async_pending_after_full = async_worker.backend_operation_pending();
+  const bool async_lease_after_full = async_fixture.lease_active;
+  const auto async_filler_consume = mf_client_ring_try_consume_v1(&completion, &async_filler);
+  const auto async_retry = async_worker.consume_once();
+  auto async_result = MF_SHARED_WOULD_BLOCK;
+  do {
+    async_result = mf_client_ring_try_consume_v1(&completion, &result);
+  } while (async_result == MF_SHARED_SUCCESS && result.request_id != 46U);
+  if (async_full != metaflux::transport::cdev::WorkerResult::Backpressure ||
+      !async_pending_after_full || !async_lease_after_full ||
+      async_filler_consume != MF_SHARED_SUCCESS ||
+      async_retry != metaflux::transport::cdev::WorkerResult::Completed ||
+      async_worker.backend_operation_pending() || async_fixture.lease_releases != 3U ||
+      async_fixture.lease_active ||
+      async_result != MF_SHARED_SUCCESS ||
+      result.request_id != 46U ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
 
   CopyResolutionFixture copy_resolution{};
   copy_resolution.resolution.destination = 31U;

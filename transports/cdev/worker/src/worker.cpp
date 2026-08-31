@@ -43,6 +43,7 @@ const mf_ring_descriptor_v1* descriptor_at(const mf_ring_header_v1* header,
 bool CdevWorker::valid_copy_backend(const CdevBackendBinding& backend) noexcept {
   return backend.api != nullptr && backend.instance != 0U && backend.queue != 0U &&
          backend.memory != 0U &&
+         valid_backend_event(backend) &&
          mf_backend_api_validate_v1(backend.api, kBackendCopyRequiredSize, MF_BACKEND_CAP_COPY) ==
              MF_BACKEND_SUCCESS &&
          backend.api->copy != nullptr;
@@ -51,6 +52,7 @@ bool CdevWorker::valid_copy_backend(const CdevBackendBinding& backend) noexcept 
 bool CdevWorker::valid_region_copy_backend(const CdevBackendBinding& backend) noexcept {
   return backend.api != nullptr && backend.instance != 0U && backend.queue != 0U &&
          backend.copy_resolver != nullptr &&
+         valid_backend_event(backend) &&
          mf_backend_api_validate_v1(backend.api, kBackendCopyRequiredSize, MF_BACKEND_CAP_COPY) ==
              MF_BACKEND_SUCCESS &&
          backend.api->copy != nullptr;
@@ -59,6 +61,7 @@ bool CdevWorker::valid_region_copy_backend(const CdevBackendBinding& backend) no
 bool CdevWorker::valid_launch_backend(const CdevBackendBinding& backend) noexcept {
   return backend.api != nullptr && backend.instance != 0U && backend.queue != 0U &&
          backend.memory != 0U && backend.launch_resolver != nullptr &&
+         valid_backend_event(backend) &&
          mf_backend_api_validate_v1(backend.api, kBackendLaunchRequiredSize,
                                     MF_BACKEND_CAP_LAUNCH) == MF_BACKEND_SUCCESS &&
          backend.api->submit != nullptr;
@@ -66,6 +69,15 @@ bool CdevWorker::valid_launch_backend(const CdevBackendBinding& backend) noexcep
 
 bool CdevWorker::valid_backend_lease(const CdevBackendBinding& backend) noexcept {
   return backend.lease_acquire != nullptr && backend.lease_release != nullptr;
+}
+
+bool CdevWorker::valid_backend_event(const CdevBackendBinding& backend) noexcept {
+  return backend.completion_event == 0U ||
+         (backend.api != nullptr &&
+          mf_backend_api_validate_v1(backend.api, offsetof(mf_backend_api_v1, query_event) +
+                                                   sizeof(backend.api->query_event),
+                                     MF_BACKEND_CAP_EVENTS) == MF_BACKEND_SUCCESS &&
+          backend.api->query_event != nullptr);
 }
 
 bool CdevWorker::valid_backend(const CdevBackendBinding& backend) noexcept {
@@ -229,13 +241,61 @@ bool CdevWorker::produce(mf_ring_header_v1* header,
 WorkerResult CdevWorker::complete(const mf_ring_descriptor_v1& request,
                                   std::int32_t status) noexcept {
   mf_ring_descriptor_v1 completion{};
+  if (timeline_ == UINT64_MAX) {
+    return WorkerResult::Malformed;
+  }
+  const std::uint64_t next_timeline = timeline_ + 1U;
   completion.opcode = kCompletionOpcode;
   completion.request_id = request.request_id;
   completion.target_id = request.target_id;
   completion.arguments[0] = static_cast<std::uint64_t>(static_cast<std::uint32_t>(status));
-  completion.arguments[1] = ++timeline_;
-  return produce(view_.completion, completion) ? WorkerResult::Completed
-                                               : WorkerResult::Backpressure;
+  completion.arguments[1] = next_timeline;
+  if (!produce(view_.completion, completion)) {
+    return WorkerResult::Backpressure;
+  }
+  timeline_ = next_timeline;
+  return WorkerResult::Completed;
+}
+
+WorkerResult CdevWorker::finish_backend_request(const mf_ring_descriptor_v1& request,
+                                                mf_shared_status_v1 status) noexcept {
+  if (status != MF_SHARED_SUCCESS || backend_.completion_event == 0U) {
+    release_backend_lease();
+    return complete(request, status);
+  }
+  pending_.active = true;
+  pending_.request = request;
+  pending_.event = backend_.completion_event;
+  return WorkerResult::Idle;
+}
+
+WorkerResult CdevWorker::progress_pending() noexcept {
+  if (!pending_.active) {
+    return WorkerResult::Idle;
+  }
+  if (!valid_backend(backend_) || backend_.completion_event != pending_.event ||
+      backend_.api->query_event == nullptr) {
+    const mf_ring_descriptor_v1 request = pending_.request;
+    pending_ = {};
+    release_backend_lease();
+    return complete(request, MF_SHARED_NOT_SUPPORTED);
+  }
+  std::uint32_t complete_flag = 0U;
+  const mf_backend_status_v1 query_status =
+      backend_.api->query_event(backend_.instance, pending_.event, &complete_flag);
+  if ((query_status == MF_BACKEND_SUCCESS && complete_flag == 0U) ||
+      query_status == MF_BACKEND_BUSY) {
+    return WorkerResult::Idle;
+  }
+  const mf_shared_status_v1 status =
+      query_status == MF_BACKEND_SUCCESS ? MF_SHARED_SUCCESS : map_backend_status(query_status);
+  const mf_ring_descriptor_v1 request = pending_.request;
+  const WorkerResult result = complete(request, status);
+  if (result != WorkerResult::Backpressure) {
+    pending_ = {};
+    release_backend_lease();
+  }
+  return result;
 }
 
 WorkerResult CdevWorker::consume_once() noexcept {
@@ -243,6 +303,9 @@ WorkerResult CdevWorker::consume_once() noexcept {
   if (!valid_queue(view_.submission) || !valid_queue(view_.completion) ||
       view_.payload == nullptr || view_.payload_size == 0U) {
     return WorkerResult::Malformed;
+  }
+  if (pending_.active) {
+    return progress_pending();
   }
   if (!lifecycle_online_) {
     if (!queue_readable(view_.submission)) {
@@ -285,8 +348,7 @@ WorkerResult CdevWorker::consume_once() noexcept {
       return complete(request, lease_status);
     }
     const mf_shared_status_v1 status = dispatch_launch(request);
-    release_backend_lease();
-    return complete(request, status);
+    return finish_backend_request(request, status);
   }
   if (request.opcode != MF_RING_OPCODE_COPY) {
     return complete(request, MF_SHARED_NOT_SUPPORTED);
@@ -316,8 +378,7 @@ WorkerResult CdevWorker::consume_once() noexcept {
     const mf_shared_status_v1 status = resolve_status == MF_SHARED_SUCCESS
                                            ? map_backend_status(dispatch_region_copy(resolution))
                                            : resolve_status;
-    release_backend_lease();
-    return complete(request, status);
+    return finish_backend_request(request, status);
   }
   if (request.flags != 0U || request.arguments[3] > view_.payload_size) {
     return complete(request, MF_SHARED_NOT_SUPPORTED);
@@ -344,8 +405,7 @@ WorkerResult CdevWorker::consume_once() noexcept {
     }
     const mf_shared_status_v1 status =
         map_backend_status(dispatch_copy(base, destination, source, byte_count));
-    release_backend_lease();
-    return complete(request, status);
+    return finish_backend_request(request, status);
   }
   std::memmove(view_.payload + base + destination, view_.payload + base + source,
                static_cast<std::size_t>(byte_count));

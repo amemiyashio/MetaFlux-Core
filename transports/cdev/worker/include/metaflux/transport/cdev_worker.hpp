@@ -54,14 +54,15 @@ using CdevCopyResolver = mf_shared_status_v1 (*)(void* context,
                                                  CdevCopyResolution* out) noexcept;
 
 /*
- * A synchronous backend operation lease keeps the backend instance, queue,
- * and memory handles alive until the ABI call returns. The lease owner may
- * reject a new operation during generation replacement or teardown.
+ * A backend operation lease keeps the backend instance, queue, and memory
+ * handles alive until the ABI call returns, or until its nonzero completion
+ * event is observed complete. The lease owner may reject a new operation
+ * during generation replacement or teardown.
  */
 using CdevBackendLeaseAcquire = mf_shared_status_v1 (*)(void* context) noexcept;
 using CdevBackendLeaseRelease = void (*)(void* context) noexcept;
 
-/* The worker borrows these backend-owned handles for synchronous COPY calls. */
+/* The worker borrows these backend-owned handles for COPY and launch calls. */
 struct CdevBackendBinding final {
   const mf_backend_api_v1* api = nullptr;
   mf_backend_instance_v1 instance = 0U;
@@ -92,6 +93,7 @@ public:
 
   void bind_backend(CdevBackendBinding backend) noexcept { backend_ = backend; }
   [[nodiscard]] bool backend_bound() const noexcept;
+  [[nodiscard]] bool backend_operation_pending() const noexcept { return pending_.active; }
 
   WorkerResult consume_once() noexcept;
   std::uint32_t drain(std::uint32_t maximum) noexcept;
@@ -121,6 +123,7 @@ private:
   static void lifecycle_lost(void* context,
                              const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept;
   static bool valid_backend(const CdevBackendBinding& backend) noexcept;
+  static bool valid_backend_event(const CdevBackendBinding& backend) noexcept;
   static bool valid_copy_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_region_copy_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_launch_backend(const CdevBackendBinding& backend) noexcept;
@@ -133,6 +136,9 @@ private:
   dispatch_region_copy(const CdevCopyResolution& resolution) const noexcept;
   [[nodiscard]] mf_shared_status_v1
   dispatch_launch(const mf_ring_descriptor_v1& request) const noexcept;
+  [[nodiscard]] WorkerResult finish_backend_request(const mf_ring_descriptor_v1& request,
+                                                    mf_shared_status_v1 status) noexcept;
+  [[nodiscard]] WorkerResult progress_pending() noexcept;
   [[nodiscard]] mf_shared_status_v1 acquire_backend_lease() const noexcept;
   void release_backend_lease() const noexcept;
   bool drain_lifecycle() noexcept;
@@ -143,6 +149,11 @@ private:
   bool lifecycle_online_ = true;
   bool lifecycle_accepting_ = true;
   CdevBackendBinding backend_{};
+  struct PendingOperation final {
+    bool active = false;
+    mf_ring_descriptor_v1 request{};
+    mf_backend_event_v1 event = 0U;
+  } pending_{};
 };
 
 } // namespace metaflux::transport::cdev
