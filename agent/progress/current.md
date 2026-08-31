@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0130
-workstream: W0135
-checkpoint: P20260831-057
+workstream: W0134
+checkpoint: P20260831-058
 ---
 
 # Current Progress
@@ -137,6 +137,10 @@ The following items are not `v0.1.0` blockers:
 
 The host-independent W0134 command-resource ownership and completion-gated
 recycling model is recorded; actual Vulkan queue submission remains open.
+The composed `QueueSubmissionLedger` admission boundary is now recorded at
+[P20260831-058](checkpoints/2026/P20260831-058-m0130-vulkan-submit-admission.md);
+resource/plan transactionality, completion validation, and generation reset are
+covered, while Vulkan object ownership and `vkQueueSubmit2` remain open.
 
 W0133's host-independent SPIR-V reflection and packed-BDA admission contract
 is now recorded at [P20260831-053](checkpoints/2026/P20260831-053-m0130-vulkan-module-reflection.md);
@@ -163,6 +167,11 @@ W0135's complete identity-mutation miss matrix and host-independent warm trace
 [P20260831-057](checkpoints/2026/P20260831-057-m0130-vulkan-warm-path.md);
 real ICD trace capture, pipeline creation, and physical warm-launch
 qualification remain open.
+
+W0134's host-independent queue-submission admission boundary is now recorded at
+[P20260831-058](checkpoints/2026/P20260831-058-m0130-vulkan-submit-admission.md);
+real command-buffer/pipeline ownership, `vkQueueSubmit2` timeline submission,
+provider/runtime composition, and physical driver qualification remain open.
 
 Intel x86_64 support qualification and physical NVIDIA binding-performance
 promotion belong to M1000 / `v1.0.0`. Native NixOS VM/package qualification
@@ -299,6 +308,8 @@ Linux 9.8.
 | W0134 CTest | Full `vulkan` preset passed 86/86, including `metaflux.backend.vulkan-stream-graph` |
 | W0134 command-resource pool | `d9e1ef9`; finite generation-bound resources use monotonic identities and completion timelines; recycling waits for observed completion and reconfigure rejects in-flight resources |
 | W0134 CTest after command-resource stage | Full `vulkan` preset passed 88/88, including `metaflux.backend.vulkan-stream-graph` |
+| W0134 queue-submission ledger | `e272a1d`; `QueueSubmissionLedger` composes graph/resource admission, cancels rejected plans, assigns monotonic generation-bound completion values, and resets both authorities only after in-flight work drains |
+| W0134 CTest after queue-admission stage | Focused stream-graph CTest passed 1/1; full `vulkan` preset passed 88/88 |
 | W0134 current boundary | `vkQueueSubmit2`, pipeline creation, timeline semaphore wiring, composed provider/runtime dependencies, validation, and driver-family execution remain open |
 
 ## Recorded M0130 W0135 Evidence
@@ -446,6 +457,12 @@ Linux 9.8.
     [P20260831-057](checkpoints/2026/P20260831-057-m0130-vulkan-warm-path.md).
     Continue with a real ICD trace around `VkPipeline` ownership and preserve
     the explicit physical-driver qualification boundary.
+25. M0130/W0134 is Active after the host-independent `QueueSubmissionLedger`
+    admission stage at
+    [P20260831-058](checkpoints/2026/P20260831-058-m0130-vulkan-submit-admission.md).
+    Continue with real command-buffer/pipeline ownership, `vkQueueSubmit2`
+    timeline signaling, and M0110 completion integration; preserve the boundary
+    against physical Vulkan claims until a qualification host is available.
 
 ## Tool Boundary
 
