@@ -48,6 +48,14 @@ bool CdevWorker::valid_copy_backend(const CdevBackendBinding& backend) noexcept 
          backend.api->copy != nullptr;
 }
 
+bool CdevWorker::valid_region_copy_backend(const CdevBackendBinding& backend) noexcept {
+  return backend.api != nullptr && backend.instance != 0U && backend.queue != 0U &&
+         backend.copy_resolver != nullptr &&
+         mf_backend_api_validate_v1(backend.api, kBackendCopyRequiredSize, MF_BACKEND_CAP_COPY) ==
+             MF_BACKEND_SUCCESS &&
+         backend.api->copy != nullptr;
+}
+
 bool CdevWorker::valid_launch_backend(const CdevBackendBinding& backend) noexcept {
   return backend.api != nullptr && backend.instance != 0U && backend.queue != 0U &&
          backend.memory != 0U && backend.launch_resolver != nullptr &&
@@ -62,7 +70,8 @@ bool CdevWorker::valid_backend_lease(const CdevBackendBinding& backend) noexcept
 
 bool CdevWorker::valid_backend(const CdevBackendBinding& backend) noexcept {
   return valid_backend_lease(backend) &&
-         (valid_copy_backend(backend) || valid_launch_backend(backend));
+         (valid_copy_backend(backend) || valid_region_copy_backend(backend) ||
+          valid_launch_backend(backend));
 }
 
 bool CdevWorker::backend_bound() const noexcept { return valid_backend(backend_); }
@@ -101,6 +110,25 @@ mf_backend_status_v1 CdevWorker::dispatch_copy(std::uint64_t base, std::uint64_t
   copy.source = backend_.memory;
   copy.source_offset = base + source;
   copy.byte_count = byte_count;
+  return backend_.api->copy(backend_.instance, backend_.queue, &copy, backend_.completion_event);
+}
+
+mf_backend_status_v1
+CdevWorker::dispatch_region_copy(const CdevCopyResolution& resolution) const noexcept {
+  if (!valid_region_copy_backend(backend_) || resolution.destination == 0U ||
+      resolution.source == 0U || resolution.byte_count == 0U ||
+      resolution.destination_offset > UINT64_MAX - resolution.byte_count ||
+      resolution.source_offset > UINT64_MAX - resolution.byte_count ||
+      resolution.reserved_word != 0U) {
+    return MF_BACKEND_INVALID_ARGUMENT;
+  }
+  mf_backend_copy_v1 copy{};
+  copy.struct_size = sizeof(copy);
+  copy.destination = resolution.destination;
+  copy.destination_offset = resolution.destination_offset;
+  copy.source = resolution.source;
+  copy.source_offset = resolution.source_offset;
+  copy.byte_count = resolution.byte_count;
   return backend_.api->copy(backend_.instance, backend_.queue, &copy, backend_.completion_event);
 }
 
@@ -258,13 +286,34 @@ WorkerResult CdevWorker::consume_once() noexcept {
     release_backend_lease();
     return complete(request, status);
   }
-  if (request.opcode != MF_RING_OPCODE_COPY || request.arguments[3] > view_.payload_size) {
+  if (request.opcode != MF_RING_OPCODE_COPY) {
     return complete(request, MF_SHARED_NOT_SUPPORTED);
   }
   if ((request.flags & ~MF_RING_COPY_KNOWN_FLAGS_V1) != 0U) {
     return complete(request, MF_SHARED_MALFORMED);
   }
-  if (request.flags != 0U) {
+  if ((request.flags & (MF_RING_COPY_FLAG_DIRECT_HOST_SOURCE_V1 |
+                        MF_RING_COPY_FLAG_DIRECT_HOST_DESTINATION_V1)) != 0U) {
+    return complete(request, MF_SHARED_NOT_SUPPORTED);
+  }
+  if (request.flags == MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1) {
+    if (!valid_region_copy_backend(backend_)) {
+      return complete(request, MF_SHARED_NOT_SUPPORTED);
+    }
+    const mf_shared_status_v1 lease_status = acquire_backend_lease();
+    if (lease_status != MF_SHARED_SUCCESS) {
+      return complete(request, lease_status);
+    }
+    CdevCopyResolution resolution{};
+    const mf_shared_status_v1 resolve_status =
+        backend_.copy_resolver(backend_.copy_context, &request, &resolution);
+    const mf_shared_status_v1 status = resolve_status == MF_SHARED_SUCCESS
+                                           ? map_backend_status(dispatch_region_copy(resolution))
+                                           : resolve_status;
+    release_backend_lease();
+    return complete(request, status);
+  }
+  if (request.flags != 0U || request.arguments[3] > view_.payload_size) {
     return complete(request, MF_SHARED_NOT_SUPPORTED);
   }
   const auto base = request.arguments[3];

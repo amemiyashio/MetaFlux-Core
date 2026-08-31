@@ -84,6 +84,28 @@ struct LaunchResolutionFixture final {
   mf_shared_status_v1 result = MF_SHARED_SUCCESS;
 };
 
+struct CopyResolutionFixture final {
+  metaflux::transport::cdev::CdevCopyResolution resolution{};
+  std::uint32_t calls = 0U;
+  mf_shared_status_v1 result = MF_SHARED_SUCCESS;
+};
+
+mf_shared_status_v1 resolve_copy(void* context, const mf_ring_descriptor_v1* request,
+                                 metaflux::transport::cdev::CdevCopyResolution* out) noexcept {
+  auto* fixture = static_cast<CopyResolutionFixture*>(context);
+  if (fixture == nullptr || request == nullptr || out == nullptr || request->target_id != 4U ||
+      request->arguments[0] != 71U || request->arguments[1] != 73U ||
+      request->arguments[2] != 77U || request->arguments[3] != 79U) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  ++fixture->calls;
+  if (fixture->result != MF_SHARED_SUCCESS) {
+    return fixture->result;
+  }
+  *out = fixture->resolution;
+  return MF_SHARED_SUCCESS;
+}
+
 mf_shared_status_v1 resolve_launch(void* context, const mf_ring_descriptor_v1* request,
                                    metaflux::transport::cdev::CdevLaunchResolution* out) noexcept {
   auto* fixture = static_cast<LaunchResolutionFixture*>(context);
@@ -261,6 +283,68 @@ int main() {
     return 1;
   }
   backend_fixture.lease_result = MF_SHARED_SUCCESS;
+  backend_fixture.result = MF_BACKEND_SUCCESS;
+
+  CopyResolutionFixture copy_resolution{};
+  copy_resolution.resolution.destination = 31U;
+  copy_resolution.resolution.destination_offset = 400U;
+  copy_resolution.resolution.source = 37U;
+  copy_resolution.resolution.source_offset = 512U;
+  copy_resolution.resolution.byte_count = 64U;
+  metaflux::transport::cdev::CdevWorker region_worker(
+      {.submission = submission.header,
+       .completion = completion.header,
+       .payload = payload.data(),
+       .payload_size = payload.size(),
+       .generation = 4U},
+      {.api = &backend_api,
+       .instance =
+           static_cast<mf_backend_instance_v1>(reinterpret_cast<std::uintptr_t>(&backend_fixture)),
+       .queue = 17U,
+       .memory = 0U,
+       .completion_event = 0U,
+       .copy_resolver = resolve_copy,
+       .copy_context = &copy_resolution,
+       .lease_acquire = fixture_lease_acquire,
+       .lease_release = fixture_lease_release,
+       .lease_context = &backend_fixture});
+  request.opcode = MF_RING_OPCODE_COPY;
+  request.flags = MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1;
+  request.request_id = 431U;
+  request.arguments[0] = 71U;
+  request.arguments[1] = 73U;
+  request.arguments[2] = 77U;
+  request.arguments[3] = 79U;
+  const auto region_submit = mf_client_ring_try_submit_v1(&submission, &request);
+  const auto region_result = region_worker.consume_once();
+  const auto region_completion = mf_client_ring_try_consume_v1(&completion, &result);
+  if (!region_worker.backend_bound() || region_submit != MF_SHARED_SUCCESS ||
+      region_result != metaflux::transport::cdev::WorkerResult::Completed ||
+      copy_resolution.calls != 1U || backend_fixture.calls != 3U ||
+      backend_fixture.last.destination != 31U || backend_fixture.last.source != 37U ||
+      backend_fixture.last.destination_offset != 400U ||
+      backend_fixture.last.source_offset != 512U || backend_fixture.last.byte_count != 64U ||
+      backend_fixture.lease_acquires != 4U || backend_fixture.lease_releases != 3U ||
+      backend_fixture.lease_active || region_completion != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  copy_resolution.result = MF_SHARED_STALE_HANDLE;
+  request.request_id = 432U;
+  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      region_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      copy_resolution.calls != 2U || backend_fixture.calls != 3U ||
+      backend_fixture.lease_acquires != 5U || backend_fixture.lease_releases != 4U ||
+      backend_fixture.lease_active ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_STALE_HANDLE)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  copy_resolution.result = MF_SHARED_SUCCESS;
 
   backend_fixture.result = MF_BACKEND_SUCCESS;
   LaunchResolutionFixture launch_resolution{};
@@ -308,7 +392,7 @@ int main() {
       backend_fixture.last_launch.argument_bytes != payload.data() + 64U ||
       backend_fixture.last_launch.argument_size != 32U ||
       backend_fixture.last_launch.grid[0] != 1U || backend_fixture.last_launch.block[0] != 8U ||
-      backend_fixture.lease_acquires != 4U || backend_fixture.lease_releases != 3U ||
+      backend_fixture.lease_acquires != 6U || backend_fixture.lease_releases != 5U ||
       backend_fixture.lease_active ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
@@ -320,8 +404,8 @@ int main() {
   request.request_id = 52U;
   if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
       launch_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
-      backend_fixture.launch_calls != 1U || backend_fixture.lease_acquires != 5U ||
-      backend_fixture.lease_releases != 4U || backend_fixture.lease_active ||
+      backend_fixture.launch_calls != 1U || backend_fixture.lease_acquires != 7U ||
+      backend_fixture.lease_releases != 6U || backend_fixture.lease_active ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_STALE_HANDLE)) {
     mf_client_ring_close_v1(&submission);
@@ -333,8 +417,8 @@ int main() {
   request.request_id = 53U;
   if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
       launch_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
-      backend_fixture.launch_calls != 1U || backend_fixture.lease_acquires != 6U ||
-      backend_fixture.lease_releases != 5U || backend_fixture.lease_active ||
+      backend_fixture.launch_calls != 1U || backend_fixture.lease_acquires != 8U ||
+      backend_fixture.lease_releases != 7U || backend_fixture.lease_active ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_INVALID_ARGUMENT)) {
     mf_client_ring_close_v1(&submission);
@@ -373,7 +457,7 @@ int main() {
   request.request_id = 440U;
   if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
       unleased_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
-      backend_fixture.calls != 2U ||
+      backend_fixture.calls != 3U ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_NOT_SUPPORTED)) {
     mf_client_ring_close_v1(&submission);

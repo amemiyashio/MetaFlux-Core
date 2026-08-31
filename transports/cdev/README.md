@@ -61,6 +61,17 @@ one `mf_backend_copy_v1` record with checked base-relative offsets; backend
 status is mapped to the shared status vocabulary. With no binding, the fixture
 keeps its local `memmove` path.
 
+The worker also accepts `MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1` when the
+binding supplies a `CdevCopyResolver`. The resolver owns daemon/object-table
+semantics and maps the descriptor's region argument-block references to
+independent destination and source backend memory handles, offsets, and a byte
+count. The worker validates both handles, range arithmetic, and reserved fields,
+then keeps the same synchronous operation lease across resolution and the
+`mf_backend_api_v1.copy` call. Direct-host COPY flags remain unsupported on this
+worker. This is the backend import/resolution seam; registered-memory
+`dma_map_sg`, asynchronous ownership, and physical-device qualification remain
+open.
+
 For the bounded LAUNCH subset, the binding additionally supplies a
 `CdevLaunchResolver`. The resolver owns daemon/object-table semantics and maps
 the cdev descriptor's generation, module ID/generation, and argument-block

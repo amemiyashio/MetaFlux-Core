@@ -39,6 +39,20 @@ using CdevLaunchResolver = mf_shared_status_v1 (*)(void* context,
                                                    const mf_ring_descriptor_v1* request,
                                                    CdevLaunchResolution* out) noexcept;
 
+/* Object-table result for a region COPY argument block. */
+struct CdevCopyResolution final {
+  mf_backend_memory_v1 destination = 0U;
+  std::uint64_t destination_offset = 0U;
+  mf_backend_memory_v1 source = 0U;
+  std::uint64_t source_offset = 0U;
+  std::uint64_t byte_count = 0U;
+  std::uint32_t reserved_word = 0U;
+};
+
+using CdevCopyResolver = mf_shared_status_v1 (*)(void* context,
+                                                 const mf_ring_descriptor_v1* request,
+                                                 CdevCopyResolution* out) noexcept;
+
 /*
  * A synchronous backend operation lease keeps the backend instance, queue,
  * and memory handles alive until the ABI call returns. The lease owner may
@@ -54,6 +68,8 @@ struct CdevBackendBinding final {
   mf_backend_queue_v1 queue = 0U;
   mf_backend_memory_v1 memory = 0U;
   mf_backend_event_v1 completion_event = 0U;
+  CdevCopyResolver copy_resolver = nullptr;
+  void* copy_context = nullptr;
   CdevLaunchResolver launch_resolver = nullptr;
   void* launch_context = nullptr;
   CdevBackendLeaseAcquire lease_acquire = nullptr;
@@ -106,12 +122,15 @@ private:
                              const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept;
   static bool valid_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_copy_backend(const CdevBackendBinding& backend) noexcept;
+  static bool valid_region_copy_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_launch_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_backend_lease(const CdevBackendBinding& backend) noexcept;
   static std::int32_t map_backend_status(mf_backend_status_v1 status) noexcept;
   [[nodiscard]] mf_backend_status_v1 dispatch_copy(std::uint64_t base, std::uint64_t destination,
                                                    std::uint64_t source,
                                                    std::uint64_t byte_count) const noexcept;
+  [[nodiscard]] mf_backend_status_v1
+  dispatch_region_copy(const CdevCopyResolution& resolution) const noexcept;
   [[nodiscard]] mf_shared_status_v1
   dispatch_launch(const mf_ring_descriptor_v1& request) const noexcept;
   [[nodiscard]] mf_shared_status_v1 acquire_backend_lease() const noexcept;
