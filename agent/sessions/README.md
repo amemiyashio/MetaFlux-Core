@@ -114,6 +114,7 @@ copies canonical content.
 | [S0132-20260831-020-vulkan-device-context](2026/08/S0132-20260831-020-vulkan-device-context/summary.md) | 2026-08-31 | Exact | Complete | W0132 private Vulkan 1.3 device/queue/timeline context with generation-checked RADV smoke; staging allocation is deferred to the existing W0132 boundary |
 | [S0112-20260831-021-cuda-cdev-add-copy](2026/08/S0112-20260831-021-cuda-cdev-add-copy/summary.md) | 2026-08-31 | Exact | In progress | W0112 CPU backend, cdev launch and real region COPY through shared-identity resolver/lease; registered-memory DMA and replacement remain open |
 | [S0113-20260831-022-vfio-user-guest-ring](2026/08/S0113-20260831-022-vfio-user-guest-ring/summary.md) | 2026-08-31 | Exact | In progress | W0113 host-independent paired guest-ring adapter with BAR2 doorbell callback; live QEMU/PCI qualification remains open |
+| [S0111-20260831-023-vfio-user-negotiation](2026/08/S0111-20260831-023-vfio-user-negotiation/summary.md) | 2026-08-31 | Exact | In progress | W0111 vfio-user transport ABI 0.x negotiation with generated guest/server codec and feature selection; live transport activation remains open |
 
 ## Fidelity and retention
 

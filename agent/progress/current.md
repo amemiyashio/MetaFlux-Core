@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-08-31
 milestone: M0110
-workstream: W0113
-checkpoint: P20260831-067
+workstream: W0111
+checkpoint: P20260831-068
 ---
 
 # Current Progress
@@ -20,8 +20,10 @@ set, repairs only integration-owned compatible gaps, routes another active
 session through transient guidance, and routes breaking replacements through
 semantic-change governance. It creates no snapshot or review archive. This
 governance addition initially left product work queued. M0110 is now Active;
-W0111 has an implemented candidate contract and remains Active pending the
-local/guest negotiation slices. W0112 is Active with its first local cdev stage
+W0111 has an implemented candidate contract and the first vfio-user transport
+negotiation slice recorded at
+[P20260831-068](checkpoints/2026/P20260831-068-m0110-vfio-user-negotiation.md);
+local cdev and live guest negotiation remain open. W0112 is Active with its first local cdev stage
 recorded at [P20260830-016](checkpoints/2026/P20260830-016-m0110-local-cdev.md).
 W0113 is Active with its static vfio-user control-plane stage recorded at
 [P20260830-017](checkpoints/2026/P20260830-017-m0110-static-vfio-user.md).
@@ -256,6 +258,7 @@ Linux 9.8.
 | W0113 static vfio-user control fixture | Generated GET_INFO reply, static BAR0/BAR2/BAR4 profile, generation/epoch DMA map ledger, overlap and reset rejection, and `No_reply` unmap passed |
 | W0113 static guest PCI binder | `cb118f1`; Linux 6.18.42 GCC Kbuild built `metaflux_pci.ko`, validating CI VID/DID/class and BAR0/BAR2/BAR4 sizes, mapping BAR0/BAR2, reserving two MSI-X vectors, and reversing teardown |
 | W0113 guest ring adapter | `9a5cb6b`; paired generated rings, registry/generation/capacity checks, payload bounds, completion polling/waits, and success-only BAR2 callback; focused guest CTest and full dev CTest 84/84 |
+| W0111 transport negotiation | `fa515bb`; generated vfio-user negotiation message, guest request/response codec, server major/minor and feature selection, identity/limit publication, unsupported-version completion, and no-FD control validation; focused transport/schema/component/lifecycle gates 8/8 and full dev CTest 84/84 |
 | W0113 current boundary | Static PCI binder and host-independent guest ring seam are recorded; pinned QEMU/libvfio-user, actual BAR2 MMIO/MSI-X, generation-bound DMA lifetime, Add/Copy path, drain/tombstone faults, and package qualification remain open |
 | W0114 bounded transport fault matrix | `700b7c8`; cdev COPY disposition checks and completion backpressure/FIFO retry, plus vfio-user malformed framing, stale unmap, duplicate-range, and DMA-overflow regressions; focused transport tests 2/2 and full dev CTest 82/82 |
 | W0114 current boundary | Malformed and recoverable userspace/socketpair faults are recorded; kernel ioctl/BAR fuzzing, MSI-X, live DMA/backend references, ownership-death injection, native/compat negotiation, and the base ABI freeze remain open |
@@ -367,9 +370,10 @@ Linux 9.8.
 
 1. M0100, its foundation session, and its completion session are terminal; the
    Applied SC0005 record correction does not reopen product scope or lifecycle.
-2. M0110 is Active. W0111's schema stage is recorded in
-   [S0111](../sessions/2026/08/S0111-20260830-012-m0110-abi-contract/summary.md),
-   and its remaining negotiation gate continues with W0112/W0113. W0113's
+2. M0110 is Active. W0111's schema stage and first vfio-user negotiation slice
+   are recorded at
+   [P20260831-068](checkpoints/2026/P20260831-068-m0110-vfio-user-negotiation.md);
+   its remaining local/guest activation gate continues with W0112/W0113. W0113's
    generated control-plane and static PCI binder stages are recorded, while both
    transport workstreams remain Active until their data-plane and fault gates
    pass. Start each
