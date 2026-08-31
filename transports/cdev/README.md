@@ -119,6 +119,15 @@ reference is released if source resolution fails. The adapter does not own or
 infer object lifetime, so its lookup owner must keep the view valid until the
 worker finishes its reference callbacks.
 
+`metafluxd` now composes this adapter in its embedded CPU region-COPY path. A
+session creates a CPU backend instance/context/queue, exposes its authoritative
+object table through the lookup callback, imports only validated subranges, and
+dispatches the resulting handles through `mf_backend_api_v1.copy`. Imported
+handles are released after the synchronous backend call, while the existing
+completion and copy-accounting records stay unchanged. This proves daemon
+object-table activation without claiming a live `/dev/metafluxctl` lease or
+physical DMA qualification; those remain the live cdev stage.
+
 The region descriptor uses the argument-block object ID as `target_id`, its
 generation in `arguments[0]`, and zero in `arguments[1..3]`; the resolver must
 reject stale object-table generations. The cdev client exposes this encoding as

@@ -2,10 +2,12 @@
 
 #include "execution.hpp"
 
+#include "metaflux/backend/cpu.h"
 #include "metaflux/client/fastpath.h"
 #include "metaflux/compiler/kernel_ir.hpp"
 #include "metaflux/compiler/ptx_frontend.hpp"
 #include "metaflux/runtime/core.hpp"
+#include "metaflux/transport/cdev_worker.hpp"
 
 #include <algorithm>
 #include <array>
@@ -45,6 +47,10 @@
 #include <utility>
 #include <vector>
 
+#ifndef METAFLUX_DAEMON_CDEV_BACKEND
+#define METAFLUX_DAEMON_CDEV_BACKEND 0
+#endif
+
 namespace metaflux::service {
 namespace {
 
@@ -73,6 +79,29 @@ constexpr std::uint64_t kRuntimeCapabilities =
     MF_CLIENT_CAP_POLICY_SETTERS_V1 | MF_CLIENT_CAP_DIRECT_HOST_COPY_V1;
 
 volatile std::sig_atomic_t shutdown_requested = 0;
+
+#if METAFLUX_DAEMON_CDEV_BACKEND
+[[nodiscard]] mf_shared_status_v1 cdev_backend_status(mf_backend_status_v1 status) noexcept {
+  switch (status) {
+  case MF_BACKEND_SUCCESS:
+    return MF_SHARED_SUCCESS;
+  case MF_BACKEND_INVALID_ARGUMENT:
+    return MF_SHARED_INVALID_ARGUMENT;
+  case MF_BACKEND_UNSUPPORTED:
+    return MF_SHARED_NOT_SUPPORTED;
+  case MF_BACKEND_OUT_OF_MEMORY:
+    return MF_SHARED_RESOURCE_EXHAUSTED;
+  case MF_BACKEND_DEVICE_LOST:
+    return MF_SHARED_DEVICE_LOST;
+  case MF_BACKEND_TIMEOUT:
+    return MF_SHARED_TIMEOUT;
+  case MF_BACKEND_BUSY:
+    return MF_SHARED_WOULD_BLOCK;
+  default:
+    return MF_SHARED_SYSTEM_ERROR;
+  }
+}
+#endif
 
 [[nodiscard]] std::uint64_t monotonic_time_ns() noexcept {
   const auto now = std::chrono::steady_clock::now().time_since_epoch();
@@ -1334,6 +1363,21 @@ private:
   [[nodiscard]] bool handle_control_packet(ReceivedPacket packet) noexcept;
   [[nodiscard]] ControlReply control(const mf_client_control_request_v1& request, UniqueFd payload,
                                      bool process_was_admitted) noexcept;
+#if METAFLUX_DAEMON_CDEV_BACKEND
+  [[nodiscard]] static mf_shared_status_v1
+  cdev_object_lookup(void* context, std::uint64_t object_id, std::uint64_t object_generation,
+                     std::uint32_t expected_kind, bool for_write,
+                     metaflux::transport::cdev::CdevObjectTableView* out) noexcept;
+  [[nodiscard]] static mf_shared_status_v1
+  cdev_memory_import(void* context, mf_backend_instance_v1 instance,
+                     mf_backend_context_v1 backend_context, void* address, std::uint64_t byte_count,
+                     metaflux::transport::cdev::CdevBackendMemoryReference* out) noexcept;
+  [[nodiscard]] static mf_shared_status_v1 cdev_memory_retain(void* context,
+                                                              mf_backend_memory_v1 memory) noexcept;
+  static void cdev_memory_release(void* context, mf_backend_memory_v1 memory) noexcept;
+  [[nodiscard]] mf_shared_status_v1 initialize_cdev_backend() noexcept;
+  void destroy_cdev_backend() noexcept;
+#endif
   [[nodiscard]] mf_shared_status_v1 pump_once() noexcept;
   [[nodiscard]] mf_shared_status_v1 process_command(const mf_ring_descriptor_v1& command,
                                                     std::uint64_t& result_id,
@@ -1380,6 +1424,12 @@ private:
   ucred credentials_{};
   mf_registry_view_id_v1 view_id_{};
   std::shared_ptr<CpuExecutionEngine> execution_;
+#if METAFLUX_DAEMON_CDEV_BACKEND
+  const mf_backend_api_v1* cdev_backend_api_ = nullptr;
+  mf_backend_instance_v1 cdev_backend_instance_ = 0U;
+  mf_backend_context_v1 cdev_backend_context_ = 0U;
+  mf_backend_queue_v1 cdev_backend_queue_ = 0U;
+#endif
   std::shared_ptr<RegistryAuthority> registry_authority_;
   std::shared_ptr<ProcessAuthority> process_authority_;
   std::shared_ptr<ResourceAuthority> resource_authority_;
@@ -1416,13 +1466,205 @@ Session::~Session() {
     }
   }
   objects_.clear();
+#if METAFLUX_DAEMON_CDEV_BACKEND
+  destroy_cdev_backend();
+#endif
 }
+
+#if METAFLUX_DAEMON_CDEV_BACKEND
+mf_shared_status_v1
+Session::cdev_object_lookup(void* context, std::uint64_t object_id, std::uint64_t object_generation,
+                            std::uint32_t expected_kind, bool for_write,
+                            metaflux::transport::cdev::CdevObjectTableView* out) noexcept {
+  if (context == nullptr || out == nullptr || object_id == 0U || object_generation == 0U) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  auto* session = static_cast<Session*>(context);
+  Object* object = nullptr;
+  mf_shared_status_v1 status = MF_SHARED_INVALID_ARGUMENT;
+  if (expected_kind == 0U) {
+    status = session->resolve_memory(object_id, object_generation, for_write, object);
+  } else {
+    ObjectKind kind = ObjectKind::kDeviceMemory;
+    switch (expected_kind) {
+    case MF_OBJECT_TYPE_DEVICE_MEMORY:
+      kind = ObjectKind::kDeviceMemory;
+      break;
+    case MF_OBJECT_TYPE_HOST_MEMORY:
+      kind = ObjectKind::kHostMemory;
+      break;
+    case MF_OBJECT_TYPE_ARTIFACT:
+      kind = ObjectKind::kArtifact;
+      break;
+    case MF_OBJECT_TYPE_ARGUMENT_BLOCK:
+      kind = ObjectKind::kArgumentBlock;
+      break;
+    case MF_OBJECT_TYPE_MODULE:
+      kind = ObjectKind::kModule;
+      break;
+    default:
+      return MF_SHARED_INVALID_ARGUMENT;
+    }
+    status = session->resolve(object_id, object_generation, kind, object);
+  }
+  if (status != MF_SHARED_SUCCESS || object == nullptr || object->data() == nullptr ||
+      object->byte_size() == 0U) {
+    return status == MF_SHARED_SUCCESS ? MF_SHARED_MALFORMED : status;
+  }
+  if (for_write && object->mutable_data() == nullptr) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  *out = {};
+  out->object_id = object->id;
+  out->object_generation = object->generation;
+  out->object_kind = static_cast<std::uint32_t>(object->kind);
+  if ((object->access_flags & MF_CLIENT_CONTROL_FLAG_READ) != 0U) {
+    out->access_flags |= MF_ARGUMENT_BUFFER_READ;
+  }
+  if ((object->access_flags & MF_CLIENT_CONTROL_FLAG_WRITE) != 0U) {
+    out->access_flags |= MF_ARGUMENT_BUFFER_WRITE;
+  }
+  out->data = object->data();
+  out->address = for_write ? object->mutable_data() : const_cast<std::uint8_t*>(object->data());
+  out->byte_size = object->byte_size();
+  return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1
+Session::cdev_memory_import(void* context, mf_backend_instance_v1 instance,
+                            mf_backend_context_v1 backend_context, void* address,
+                            std::uint64_t byte_count,
+                            metaflux::transport::cdev::CdevBackendMemoryReference* out) noexcept {
+  if (context == nullptr || out == nullptr || address == nullptr || byte_count == 0U) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  auto* session = static_cast<Session*>(context);
+  if (session->cdev_backend_api_ == nullptr || instance != session->cdev_backend_instance_ ||
+      backend_context != session->cdev_backend_context_) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  mf_backend_memory_v1 handle = 0U;
+  const mf_backend_status_v1 status =
+      mf_cpu_backend_import_host_memory_v1(instance, backend_context, address, byte_count, &handle);
+  if (status != MF_BACKEND_SUCCESS) {
+    return cdev_backend_status(status);
+  }
+  if (handle == 0U) {
+    return MF_SHARED_SYSTEM_ERROR;
+  }
+  *out = {
+      .handle = handle,
+      .retain = &Session::cdev_memory_retain,
+      .release = &Session::cdev_memory_release,
+      .context = session,
+  };
+  return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1 Session::cdev_memory_retain(void* context,
+                                                mf_backend_memory_v1 memory) noexcept {
+  if (context == nullptr || memory == 0U) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  const auto* session = static_cast<const Session*>(context);
+  return session->cdev_backend_api_ != nullptr && session->cdev_backend_instance_ != 0U
+             ? MF_SHARED_SUCCESS
+             : MF_SHARED_STALE_HANDLE;
+}
+
+void Session::cdev_memory_release(void* context, mf_backend_memory_v1 memory) noexcept {
+  if (context == nullptr || memory == 0U) {
+    return;
+  }
+  auto* session = static_cast<Session*>(context);
+  if (session->cdev_backend_api_ != nullptr && session->cdev_backend_instance_ != 0U &&
+      session->cdev_backend_api_->free_memory != nullptr) {
+    session->cdev_backend_api_->free_memory(session->cdev_backend_instance_, memory);
+  }
+}
+
+mf_shared_status_v1 Session::initialize_cdev_backend() noexcept {
+  if (cdev_backend_api_ != nullptr) {
+    return MF_SHARED_SUCCESS;
+  }
+  const auto* api = mf_cpu_backend_get_api_v1();
+  constexpr std::uint32_t required_copy_size = static_cast<std::uint32_t>(
+      offsetof(mf_backend_api_v1, copy) + sizeof(((mf_backend_api_v1*)nullptr)->copy));
+  if (api == nullptr ||
+      mf_backend_api_validate_v1(api, required_copy_size, MF_BACKEND_CAP_COPY) !=
+          MF_BACKEND_SUCCESS ||
+      api->create_instance == nullptr || api->destroy_instance == nullptr ||
+      api->create_context == nullptr || api->destroy_context == nullptr ||
+      api->create_queue == nullptr || api->destroy_queue == nullptr || api->copy == nullptr) {
+    return MF_SHARED_NOT_SUPPORTED;
+  }
+  mf_backend_instance_v1 instance = 0U;
+  mf_backend_context_v1 backend_context = 0U;
+  mf_backend_queue_v1 queue = 0U;
+  mf_backend_status_v1 status = api->create_instance(nullptr, &instance);
+  if (status != MF_BACKEND_SUCCESS) {
+    return cdev_backend_status(status);
+  }
+  if (instance == 0U) {
+    return MF_SHARED_SYSTEM_ERROR;
+  }
+  status = api->create_context(instance, 0U, &backend_context);
+  if (status != MF_BACKEND_SUCCESS) {
+    api->destroy_instance(instance);
+    return cdev_backend_status(status);
+  }
+  if (backend_context == 0U) {
+    api->destroy_instance(instance);
+    return MF_SHARED_SYSTEM_ERROR;
+  }
+  status = api->create_queue(instance, backend_context, &queue);
+  if (status != MF_BACKEND_SUCCESS) {
+    api->destroy_context(instance, backend_context);
+    api->destroy_instance(instance);
+    return cdev_backend_status(status);
+  }
+  if (queue == 0U) {
+    api->destroy_context(instance, backend_context);
+    api->destroy_instance(instance);
+    return MF_SHARED_SYSTEM_ERROR;
+  }
+  cdev_backend_api_ = api;
+  cdev_backend_instance_ = instance;
+  cdev_backend_context_ = backend_context;
+  cdev_backend_queue_ = queue;
+  return MF_SHARED_SUCCESS;
+}
+
+void Session::destroy_cdev_backend() noexcept {
+  if (cdev_backend_api_ == nullptr) {
+    return;
+  }
+  if (cdev_backend_queue_ != 0U && cdev_backend_api_->destroy_queue != nullptr) {
+    cdev_backend_api_->destroy_queue(cdev_backend_instance_, cdev_backend_queue_);
+  }
+  if (cdev_backend_context_ != 0U && cdev_backend_api_->destroy_context != nullptr) {
+    cdev_backend_api_->destroy_context(cdev_backend_instance_, cdev_backend_context_);
+  }
+  if (cdev_backend_instance_ != 0U && cdev_backend_api_->destroy_instance != nullptr) {
+    cdev_backend_api_->destroy_instance(cdev_backend_instance_);
+  }
+  cdev_backend_queue_ = 0U;
+  cdev_backend_context_ = 0U;
+  cdev_backend_instance_ = 0U;
+  cdev_backend_api_ = nullptr;
+}
+#endif
 
 mf_shared_status_v1 Session::initialize() noexcept {
   if (credentials_.pid <= 0 || registry_authority_->borrow_fd() < 0 ||
       !session_lease_.valid_for(static_cast<std::uint32_t>(credentials_.uid))) {
     return MF_SHARED_SYSTEM_ERROR;
   }
+#if METAFLUX_DAEMON_CDEV_BACKEND
+  if (initialize_cdev_backend() != MF_SHARED_SUCCESS) {
+    return MF_SHARED_SYSTEM_ERROR;
+  }
+#endif
   if (mf_client_ring_create_v1(kRingCapacity, view_id_, MF_CLIENT_SUBMISSION_QUEUE_ID_V1,
                                MF_CLIENT_QUEUE_GENERATION_V1, &submission_) != MF_SHARED_SUCCESS ||
       mf_client_ring_create_v1(kRingCapacity, view_id_, MF_CLIENT_COMPLETION_QUEUE_ID_V1,
@@ -2162,6 +2404,60 @@ mf_shared_status_v1 Session::process_command(const mf_ring_descriptor_v1& comman
           argument_block->data() + sizeof(mf_argument_block_header_v1));
       const mf_argument_entry_v1& destination_entry = entries[MF_COPY_REGION_DESTINATION_INDEX_V1];
       const mf_argument_entry_v1& source_entry = entries[MF_COPY_REGION_SOURCE_INDEX_V1];
+#if METAFLUX_DAEMON_CDEV_BACKEND
+      metaflux::transport::cdev::CdevObjectTableResolver resolver(
+          this, &Session::cdev_object_lookup, this, &Session::cdev_memory_import,
+          cdev_backend_instance_, cdev_backend_context_);
+      metaflux::transport::cdev::CdevCopyResolution resolution{};
+      const mf_shared_status_v1 resolve_status = resolver.resolve_copy(&command, &resolution);
+      if (resolve_status != MF_SHARED_SUCCESS) {
+        return resolve_status;
+      }
+      mf_backend_copy_v1 backend_copy{};
+      backend_copy.struct_size = sizeof(backend_copy);
+      backend_copy.destination = resolution.destination;
+      backend_copy.destination_offset = resolution.destination_offset;
+      backend_copy.source = resolution.source;
+      backend_copy.source_offset = resolution.source_offset;
+      backend_copy.byte_count = resolution.byte_count;
+      const mf_shared_status_v1 copy_status = cdev_backend_status(
+          cdev_backend_api_->copy(cdev_backend_instance_, cdev_backend_queue_, &backend_copy, 0U));
+      if (resolution.destination_reference.release != nullptr) {
+        resolution.destination_reference.release(resolution.destination_reference.context,
+                                                 resolution.destination_reference.handle);
+      }
+      if (resolution.source_reference.release != nullptr) {
+        resolution.source_reference.release(resolution.source_reference.context,
+                                            resolution.source_reference.handle);
+      }
+      if (copy_status != MF_SHARED_SUCCESS) {
+        return copy_status;
+      }
+      metaflux::transport::cdev::CdevObjectTableView destination_view{};
+      metaflux::transport::cdev::CdevObjectTableView source_view{};
+      const mf_shared_status_v1 destination_view_status =
+          cdev_object_lookup(this, destination_entry.object_id, destination_entry.object_generation,
+                             0U, true, &destination_view);
+      const mf_shared_status_v1 source_view_status = cdev_object_lookup(
+          this, source_entry.object_id, source_entry.object_generation, 0U, false, &source_view);
+      byte_count = resolution.byte_count;
+      if (destination_view_status == MF_SHARED_SUCCESS &&
+          destination_view.object_kind == MF_OBJECT_TYPE_HOST_MEMORY) {
+        (void)copy_path_statistics_->staged_host_destination_operations.fetch_add(
+            1U, std::memory_order_relaxed);
+        (void)copy_path_statistics_->staged_host_destination_bytes.fetch_add(
+            byte_count, std::memory_order_relaxed);
+      }
+      if (source_view_status == MF_SHARED_SUCCESS &&
+          source_view.object_kind == MF_OBJECT_TYPE_HOST_MEMORY) {
+        (void)copy_path_statistics_->staged_host_source_operations.fetch_add(
+            1U, std::memory_order_relaxed);
+        (void)copy_path_statistics_->staged_host_source_bytes.fetch_add(byte_count,
+                                                                        std::memory_order_relaxed);
+      }
+      memory_active = true;
+      return MF_SHARED_SUCCESS;
+#else
       destination_status = resolve_memory(destination_entry.object_id,
                                           destination_entry.object_generation, true, destination);
       source_status =
@@ -2169,6 +2465,7 @@ mf_shared_status_v1 Session::process_command(const mf_ring_descriptor_v1& comman
       destination_offset = destination_entry.value;
       source_offset = source_entry.value;
       byte_count = entries[MF_COPY_REGION_BYTE_COUNT_INDEX_V1].value;
+#endif
     } else if (command.flags == 0U) {
       destination_status =
           resolve_memory(command.target_id, command.arguments[0], true, destination);

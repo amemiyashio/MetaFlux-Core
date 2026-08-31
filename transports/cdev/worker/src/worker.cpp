@@ -347,11 +347,13 @@ mf_shared_status_v1 CdevObjectTableResolver::resolve_memory(
     return lookup_status;
   }
   if (object.object_id != entry.object_id || object.object_generation != entry.object_generation ||
-      object.byte_size == 0U || entry.value > object.byte_size ||
-      byte_count > object.byte_size - entry.value ||
       (object.object_kind != MF_OBJECT_TYPE_DEVICE_MEMORY &&
        object.object_kind != MF_OBJECT_TYPE_HOST_MEMORY)) {
     return MF_SHARED_MALFORMED;
+  }
+  if (object.byte_size == 0U || entry.value > object.byte_size ||
+      byte_count > object.byte_size - entry.value) {
+    return MF_SHARED_INVALID_ARGUMENT;
   }
   if (object.object_kind == MF_OBJECT_TYPE_HOST_MEMORY) {
     const std::uint32_t required = for_write ? MF_ARGUMENT_BUFFER_WRITE : MF_ARGUMENT_BUFFER_READ;

@@ -117,6 +117,12 @@ and arithmetic operation is validated.
   the worker validates the range and 2D launch shape, then invokes the backend
   submit ABI. The real CPU backend Add fixture now passes through this cdev
   worker path; production backend memory import and physical DMA remain open.
+- [x] Activate the daemon's authoritative object table for region COPY in the
+  embedded CPU worker path. Each daemon session owns a CPU backend
+  instance/context/queue, the cdev resolver validates object identity,
+  permissions, and ranges, and validated subranges are imported through the
+  backend C ABI before COPY. Imported handles are released on every completion
+  path; the public completion and copy-accounting records remain unchanged.
 - [x] Retain an offline queue mapping as a VMA tombstone after module teardown
   and reclaim its backing under the cdev lock when the final queue VMA closes.
 - [x] Mark the current generation offline and wake waiters when the queue owner
@@ -134,12 +140,10 @@ and arithmetic operation is validated.
   queue VMA tombstones, owner-death transition, eventfd references, and bounded
   registered-memory lifetime are implemented for the current fixture.
 - [ ] Connect the daemon object table and leased worker/backend binding to the
-  cdev registered-memory handles, invoking `CdevBackendMemoryImporter` only
-  after generation/range validation, and prove Add/Copy with those references
-  through the mapped payload arena. Kernel-side DMA mapping, host-independent
-  asynchronous lease and resolved-memory reference retention, capability-gated
-  lifecycle-loss cancellation and reset/remove drain, and replacement-safe
-  pending binding snapshots are implemented; daemon activation, generation
+  live cdev registered-memory handles and prove Add/Copy through the mapped
+  payload arena. The embedded CPU daemon path now invokes
+  `CdevBackendMemoryImporter` only after generation/range validation; live
+  `/dev/metafluxctl` lease attachment, kernel DMA-backed references, generation
   replacement, and physical device qualification remain open.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak.

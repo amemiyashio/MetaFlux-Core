@@ -84,16 +84,16 @@ if(
   add_subdirectory(plugins)
 endif()
 
-if(METAFLUX_BUILD_DAEMON)
-  add_subdirectory(services)
-endif()
-
 if(
   METAFLUX_BUILD_MEMFD_TRANSPORT
   OR METAFLUX_BUILD_CDEV_TRANSPORT
   OR METAFLUX_BUILD_VFIO_USER_TRANSPORT
 )
   add_subdirectory(transports)
+endif()
+
+if(METAFLUX_BUILD_DAEMON)
+  add_subdirectory(services)
 endif()
 
 metaflux_write_component_graph("${CMAKE_BINARY_DIR}/metaflux-component-graph.json")

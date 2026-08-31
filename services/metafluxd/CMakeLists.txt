@@ -38,6 +38,14 @@ target_link_libraries(
     Threads::Threads
     ZLIB::ZLIB
 )
+target_include_directories(
+  metafluxd
+  PRIVATE "${PROJECT_SOURCE_DIR}/transports/cdev/worker/include"
+)
+if(TARGET MetaFlux::TransportCdevWorker)
+  target_link_libraries(metafluxd PRIVATE MetaFlux::TransportCdevWorker)
+  target_compile_definitions(metafluxd PRIVATE METAFLUX_DAEMON_CDEV_BACKEND=1)
+endif()
 metaflux_configure_target(metafluxd CXX)
 metaflux_register_component_graph_entry(
   metafluxd
