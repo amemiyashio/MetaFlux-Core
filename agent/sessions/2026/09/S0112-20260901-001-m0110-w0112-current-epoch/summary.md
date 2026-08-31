@@ -30,6 +30,13 @@ The product Exit Gate remains open.
   current payload generation, exact size, and mmap offset to a negotiated
   worker lease. `map_current_payload()` consumes it without a local size
   convention.
+- The base transport manifest and lifecycle extension manifest were synchronized
+  to the new UAPI digest; the lifecycle model gate remains valid after the
+  contract update.
+- `kernel/core/metaflux_core_main.c`: the lease and negotiation checks for
+  `MF_UAPI_IOCTL_MEMORY_QUERY` now execute under `mf_cdev_lock`, matching the
+  release path that clears those fields and removing a KCSAN-visible read/write
+  window.
 - `transports/cdev/README.md`, `kernel/core/README.md`, and the W0112 plan:
   record the new mapping boundary and keep daemon live lease/import,
   generation replacement, and kernel qualification explicitly open.
@@ -43,6 +50,8 @@ The product Exit Gate remains open.
 | Daemon cdev backend content commit | Passed: `0bba77f87c8f0737513a6873eb8325af54ff4852` |
 | Worker/kernel payload mapping content commit | Passed: `fcfaa8d` |
 | Lease-bound payload query content commit | Passed: `5050915992771444398879212e37529b44b704ce` |
+| Manifest closure checkpoint commit | Passed: `cd8d06d` |
+| Query lease-check serialization content commit | Passed: `c9682ff` |
 | Development build | Passed with `METAFLUX_DAEMON_CDEV_BACKEND=1` |
 | Focused cdev/daemon CTest | Passed: 6/6 |
 | Full development CTest | Passed: 85/85 |

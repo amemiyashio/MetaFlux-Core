@@ -6,7 +6,7 @@ focus_mode: product
 focus_owner: S0112-20260901-001-m0110-w0112-current-epoch
 milestone: M0110
 workstream: W0112
-checkpoint: P20260901-095
+checkpoint: P20260901-097
 ---
 
 # Current Progress
@@ -52,7 +52,9 @@ default scheduling authority while M0110 is incomplete.
   generation discovery and lease-bound mapping of the data-owner payload;
   P095 adds the canonical lease-bound payload query, so worker mapping no longer
   depends on a local size convention; daemon-side live lease/import remains
-  open.
+  open. P096 confirms the base/lifecycle manifest closure and full 85-test
+  suite after that UAPI update. P097 serializes query lease-state checks with
+  cdev release under the same lock; the full 85-test suite remains green.
 - P089 records the runtime-owned immediate producer ingress at `6152efa`: admin
   reset, VFIO-user reset, disconnect, and daemon restart capture one authority
   snapshot; wrong-route QMP, malformed, unknown, and stale observations are
@@ -89,6 +91,8 @@ default scheduling authority while M0110 is incomplete.
 - [P093 daemon cdev backend reference drain](checkpoints/2026/P20260901-093-m0110-daemon-cdev-reference-drain.md)
 - [P094 current cdev worker payload mapping](checkpoints/2026/P20260901-094-m0110-cdev-worker-payload-mapping.md)
 - [P095 lease-bound cdev payload query](checkpoints/2026/P20260901-095-m0110-cdev-payload-query.md)
+- [P096 manifest closure after cdev payload query](checkpoints/2026/P20260901-096-m0110-cdev-payload-query-closure.md)
+- [P097 serialized cdev payload query lease checks](checkpoints/2026/P20260901-097-m0110-cdev-payload-query-lock.md)
 - [P092 breaking governance applied](checkpoints/2026/P20260901-092-breaking-governance-applied.md)
 - [P091 destructive governance epoch](checkpoints/2026/P20260901-091-destructive-governance-epoch.md)
 - [P090 execution-focus governance](checkpoints/2026/P20260831-090-execution-focus-governance.md)
