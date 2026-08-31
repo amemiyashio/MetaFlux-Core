@@ -97,5 +97,8 @@ hydrates the bounded catalog and participates in its LRU policy. Pin/unpin and
 device invalidation are serialized with these transitions. Cross-process
 single-key misses use `lookup_or_publish`: a stable per-key advisory lock is
 held across the second lookup, producer, and publication, and waiters recheck
-after release. Pipeline-bound device/driver invalidation still requires the
-later Vulkan pipeline stage.
+after release. A resident device-bound hit can now be acquired as one
+generation-scoped pipeline binding; duplicate generations report `pinned`,
+stale generations report `stale_generation`, and release is required before
+device invalidation can remove the entry. This is a lifecycle contract for the
+cache repository, not creation or qualification of a `VkPipeline`.

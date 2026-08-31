@@ -44,7 +44,10 @@ where available; other platforms use traces and a separate p99 creation budget.
 - [x] Add cross-process single-key stampede control. `lookup_or_publish` uses a
   stable per-key advisory lock, rechecks resident and durable stores after
   acquisition, and invokes the producer only for a true miss.
-- [ ] Bind device/driver invalidation to the pipeline boundary.
+- [x] Add a host-independent pipeline binding boundary. A validated resident
+  device-bound hit is pinned under one generation-scoped binding; duplicate or
+  stale generations are rejected and release is required before device
+  invalidation can remove the entry. Actual `VkPipeline` creation remains open.
 - [ ] Verify every key mutation causes a miss and provisional extension revisions
   deterministically invalidate incompatible entries.
 - [ ] Prove warm launch invokes no MLIR/SPIR-V compiler or validator, creates no

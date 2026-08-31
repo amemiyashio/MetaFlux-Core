@@ -48,6 +48,7 @@ enum class CacheStatus : std::uint32_t {
   quota_exceeded = 6,
   not_found = 7,
   io_error = 8,
+  stale_generation = 9,
 };
 
 class CacheCatalog final {
@@ -112,9 +113,10 @@ private:
   mutable std::mutex mutex_;
 };
 
-// One in-process authority for durable cache files and bounded resident entries.
-// Cross-process stampede coordination and pipeline ownership remain above this
-// host-independent repository boundary.
+// One in-process authority for durable cache files, bounded resident entries,
+// and generation-scoped pipeline bindings. Cross-process stampede coordination
+// and actual Vulkan pipeline objects remain above this host-independent
+// repository boundary.
 class PersistentCacheRepository final {
 public:
   explicit PersistentCacheRepository(
@@ -132,6 +134,8 @@ public:
                                    std::string* out_payload);
   [[nodiscard]] CacheStatus lookup_or_publish(std::string_view key, bool device_bound,
                                               const Producer& producer, std::string* out_payload);
+  [[nodiscard]] CacheStatus acquire_pipeline(std::string_view key, std::uint64_t generation);
+  [[nodiscard]] CacheStatus release_pipeline(std::string_view key, std::uint64_t generation);
   [[nodiscard]] CacheStatus pin(std::string_view key) noexcept;
   [[nodiscard]] CacheStatus unpin(std::string_view key) noexcept;
   [[nodiscard]] CacheStatus invalidate_device(std::string_view key);
@@ -144,6 +148,7 @@ private:
   CacheCatalog catalog_;
   CacheFileStore files_;
   std::chrono::milliseconds key_lock_timeout_;
+  std::map<std::string, std::uint64_t> active_pipeline_bindings_;
 };
 
 [[nodiscard]] const char* cache_status_string(CacheStatus status) noexcept;

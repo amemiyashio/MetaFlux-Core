@@ -292,6 +292,38 @@ bool persistent_repository_hydrates_and_preserves_pins() {
          metaflux::backend::vulkan::CacheStatus::miss;
 }
 
+bool persistent_repository_binds_pipeline_generations() {
+  TemporaryDirectory temporary;
+  if (!temporary.valid()) {
+    return false;
+  }
+  const auto key = identity().device_key();
+  metaflux::backend::vulkan::PersistentCacheRepository repository(temporary.path() / "cache", 2U,
+                                                                  1024U);
+  std::string payload;
+  if (repository.publish(key, "pipeline", true) !=
+          metaflux::backend::vulkan::CacheStatus::success ||
+      repository.acquire_pipeline(key, 0U) !=
+          metaflux::backend::vulkan::CacheStatus::invalid_argument ||
+      repository.acquire_pipeline(key, 7U) != metaflux::backend::vulkan::CacheStatus::success ||
+      repository.acquire_pipeline(key, 7U) != metaflux::backend::vulkan::CacheStatus::pinned ||
+      repository.acquire_pipeline(key, 8U) !=
+          metaflux::backend::vulkan::CacheStatus::stale_generation ||
+      repository.unpin(key) != metaflux::backend::vulkan::CacheStatus::pinned ||
+      repository.invalidate_device(key) != metaflux::backend::vulkan::CacheStatus::pinned ||
+      repository.release_pipeline(key, 8U) !=
+          metaflux::backend::vulkan::CacheStatus::stale_generation ||
+      repository.release_pipeline(key, 7U) != metaflux::backend::vulkan::CacheStatus::success ||
+      repository.invalidate_device(key) != metaflux::backend::vulkan::CacheStatus::success ||
+      repository.lookup(key, true, &payload) != metaflux::backend::vulkan::CacheStatus::miss ||
+      repository.release_pipeline(key, 7U) != metaflux::backend::vulkan::CacheStatus::not_found ||
+      repository.acquire_pipeline(key, 7U) != metaflux::backend::vulkan::CacheStatus::miss) {
+    return false;
+  }
+  return std::string(metaflux::backend::vulkan::cache_status_string(
+             metaflux::backend::vulkan::CacheStatus::stale_generation)) == "stale-generation";
+}
+
 bool persistent_repository_coalesces_process_misses() {
   TemporaryDirectory temporary;
   if (!temporary.valid()) {
@@ -374,6 +406,7 @@ int main() {
                   filesystem_corruption_is_removed() &&
                   filesystem_device_invalidation_and_inputs() &&
                   persistent_repository_hydrates_and_preserves_pins() &&
+                  persistent_repository_binds_pipeline_generations() &&
                   persistent_repository_coalesces_process_misses();
   std::printf("vulkan cache model: %s\n", ok ? "pass" : "fail");
   return ok ? 0 : 1;

@@ -361,6 +361,8 @@ const char* cache_status_string(CacheStatus status) noexcept {
     return "not-found";
   case CacheStatus::io_error:
     return "io-error";
+  case CacheStatus::stale_generation:
+    return "stale-generation";
   }
   return "unknown";
 }
@@ -643,6 +645,54 @@ CacheStatus PersistentCacheRepository::lookup_or_publish(std::string_view key, b
   return CacheStatus::hit;
 }
 
+CacheStatus PersistentCacheRepository::acquire_pipeline(std::string_view key,
+                                                        std::uint64_t generation) {
+  if (!valid_key(key) || generation == 0U) {
+    return CacheStatus::invalid_argument;
+  }
+  const std::string owned_key(key);
+  std::lock_guard lock(mutex_);
+
+  std::string payload;
+  const auto resident = catalog_.lookup(owned_key, true, &payload);
+  if (resident != CacheStatus::hit) {
+    return resident;
+  }
+
+  const auto active = active_pipeline_bindings_.find(owned_key);
+  if (active != active_pipeline_bindings_.end()) {
+    return active->second == generation ? CacheStatus::pinned : CacheStatus::stale_generation;
+  }
+  const auto pinned = catalog_.pin(owned_key);
+  if (pinned != CacheStatus::success) {
+    return pinned;
+  }
+  active_pipeline_bindings_.emplace(owned_key, generation);
+  return CacheStatus::success;
+}
+
+CacheStatus PersistentCacheRepository::release_pipeline(std::string_view key,
+                                                        std::uint64_t generation) {
+  if (!valid_key(key) || generation == 0U) {
+    return CacheStatus::invalid_argument;
+  }
+  const std::string owned_key(key);
+  std::lock_guard lock(mutex_);
+  const auto active = active_pipeline_bindings_.find(owned_key);
+  if (active == active_pipeline_bindings_.end()) {
+    return CacheStatus::not_found;
+  }
+  if (active->second != generation) {
+    return CacheStatus::stale_generation;
+  }
+  const auto unpinned = catalog_.unpin(owned_key);
+  if (unpinned != CacheStatus::success) {
+    return unpinned;
+  }
+  active_pipeline_bindings_.erase(active);
+  return CacheStatus::success;
+}
+
 CacheStatus PersistentCacheRepository::pin(std::string_view key) noexcept {
   const std::string owned_key(key);
   std::lock_guard lock(mutex_);
@@ -652,6 +702,9 @@ CacheStatus PersistentCacheRepository::pin(std::string_view key) noexcept {
 CacheStatus PersistentCacheRepository::unpin(std::string_view key) noexcept {
   const std::string owned_key(key);
   std::lock_guard lock(mutex_);
+  if (active_pipeline_bindings_.find(owned_key) != active_pipeline_bindings_.end()) {
+    return CacheStatus::pinned;
+  }
   return catalog_.unpin(owned_key);
 }
 
