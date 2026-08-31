@@ -49,16 +49,26 @@ is the sole value accepted by the worker. Requests observed while the mirror is
 generation complete with `MF_SHARED_STALE_HANDLE`. This mirror changes no ring,
 ioctl, mmap, or BAR record.
 
-The worker also exposes an explicit `CdevBackendBinding` for the worker-side
-`mf_backend_api_v1` copy call. A bound API must advertise `MF_BACKEND_CAP_COPY`,
-provide a table large enough to contain `copy`, and carry nonzero instance,
-queue, and payload-memory handles. A payload COPY is translated to one
-`mf_backend_copy_v1` record with the same memory handle at checked base-relative
-offsets; backend status is mapped to the shared status vocabulary. An invalid
-or unsupported bound API returns `MF_SHARED_NOT_SUPPORTED` rather than silently
-falling back. With no binding, the fixture keeps its local `memmove` path. The
-binding is synchronous at this stage; backend memory import, DMA mapping,
-in-flight reference draining, and CPU Add/Copy production wiring remain open.
+The worker also exposes an explicit `CdevBackendBinding` for worker-side
+`mf_backend_api_v1` calls. A COPY binding must advertise
+`MF_BACKEND_CAP_COPY`, provide a table large enough to contain `copy`, and carry
+nonzero instance, queue, and payload-memory handles. A payload COPY is
+translated to one `mf_backend_copy_v1` record with checked base-relative
+offsets; backend status is mapped to the shared status vocabulary. With no
+binding, the fixture keeps its local `memmove` path.
+
+For the bounded LAUNCH subset, the binding additionally supplies a
+`CdevLaunchResolver`. The resolver owns daemon/object-table semantics and maps
+the cdev descriptor's generation, module ID/generation, and argument-block
+ID/generation to a `CdevLaunchResolution`. It must place the already encoded
+backend argument bytes in the worker payload arena; the worker checks the
+payload range, primary-entry ID, 2D dimensions (`z == 1`), and reserved fields
+before constructing `mf_backend_launch_v1` and calling `submit`. The C client
+helpers `mf_cdev_launch_descriptor_v0` and `mf_cdev_submit_launch_v0` encode
+this primary-entry layout. Resolver failures and backend statuses remain
+visible in the completion record, with no silent fallback. Completion events,
+backend DMA mapping, in-flight reference draining, and daemon replacement are
+still outside this synchronous stage.
 
 The W0114 bounded fault matrix now treats unknown COPY flags as malformed,
 known direct-host flags as unsupported on this worker, and zero-length COPY as

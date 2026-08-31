@@ -18,6 +18,27 @@ struct WorkerQueueView final {
   std::uint64_t generation = 0U;
 };
 
+/*
+ * A resolver owns cdev object-table semantics. It returns a backend-neutral
+ * launch description whose argument bytes are already encoded in the worker's
+ * payload arena and remain borrowed for the duration of submit. The cdev
+ * descriptor reserves the kernel slot for the primary entry point.
+ */
+struct CdevLaunchResolution final {
+  mf_backend_module_v1 module = 0U;
+  std::uint64_t kernel_id = 0U;
+  std::uint64_t argument_offset = 0U;
+  std::uint64_t argument_size = 0U;
+  std::uint32_t grid[3]{};
+  std::uint32_t block[3]{};
+  std::uint32_t dynamic_shared_bytes = 0U;
+  std::uint32_t reserved_word = 0U;
+};
+
+using CdevLaunchResolver = mf_shared_status_v1 (*)(void* context,
+                                                   const mf_ring_descriptor_v1* request,
+                                                   CdevLaunchResolution* out) noexcept;
+
 /* The worker borrows these backend-owned handles for synchronous COPY calls. */
 struct CdevBackendBinding final {
   const mf_backend_api_v1* api = nullptr;
@@ -25,6 +46,8 @@ struct CdevBackendBinding final {
   mf_backend_queue_v1 queue = 0U;
   mf_backend_memory_v1 memory = 0U;
   mf_backend_event_v1 completion_event = 0U;
+  CdevLaunchResolver launch_resolver = nullptr;
+  void* launch_context = nullptr;
 };
 
 enum class WorkerResult : std::uint32_t {
@@ -71,10 +94,14 @@ private:
   static void lifecycle_lost(void* context,
                              const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept;
   static bool valid_backend(const CdevBackendBinding& backend) noexcept;
+  static bool valid_copy_backend(const CdevBackendBinding& backend) noexcept;
+  static bool valid_launch_backend(const CdevBackendBinding& backend) noexcept;
   static std::int32_t map_backend_status(mf_backend_status_v1 status) noexcept;
   [[nodiscard]] mf_backend_status_v1 dispatch_copy(std::uint64_t base, std::uint64_t destination,
                                                    std::uint64_t source,
                                                    std::uint64_t byte_count) const noexcept;
+  [[nodiscard]] mf_shared_status_v1
+  dispatch_launch(const mf_ring_descriptor_v1& request) const noexcept;
   bool drain_lifecycle() noexcept;
   WorkerResult complete(const mf_ring_descriptor_v1& request, std::int32_t status) noexcept;
 

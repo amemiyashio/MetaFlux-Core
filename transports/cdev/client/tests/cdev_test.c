@@ -13,11 +13,27 @@ int main(void) {
   mf_cdev_memory_v0 memory = {.device_fd = -1};
   mf_cdev_session_v0 session;
   session.device_fd = 0;
+  mf_cdev_launch_v0 launch = {
+      .module_id = 11U,
+      .module_generation = 13U,
+      .argument_block_id = 17U,
+      .argument_block_generation = 19U,
+  };
   if (mf_cdev_copy_descriptor_v0(UINT64_C(9), UINT64_C(3), &copy, &descriptor) !=
           MF_SHARED_SUCCESS ||
       descriptor.opcode != MF_RING_OPCODE_COPY || descriptor.request_id != UINT64_C(9) ||
       descriptor.target_id != UINT64_C(3) || descriptor.arguments[0] != UINT64_C(128) ||
       descriptor.arguments[1] != UINT64_C(256) || descriptor.arguments[2] != UINT64_C(64) ||
+      mf_cdev_launch_descriptor_v0(UINT64_C(21), UINT64_C(23), &launch, &descriptor) !=
+          MF_SHARED_SUCCESS ||
+      descriptor.opcode != MF_RING_OPCODE_LAUNCH || descriptor.flags != 0U ||
+      descriptor.request_id != UINT64_C(21) || descriptor.target_id != UINT64_C(23) ||
+      descriptor.arguments[0] != UINT64_C(11) || descriptor.arguments[1] != UINT64_C(13) ||
+      descriptor.arguments[2] != UINT64_C(17) || descriptor.arguments[3] != UINT64_C(19) ||
+      mf_cdev_launch_descriptor_v0(UINT64_C(0), UINT64_C(23), &launch, &descriptor) !=
+          MF_SHARED_INVALID_ARGUMENT ||
+      mf_cdev_launch_descriptor_v0(UINT64_C(1), UINT64_C(1), NULL, &descriptor) !=
+          MF_SHARED_INVALID_ARGUMENT ||
       mf_cdev_copy_descriptor_v0(UINT64_C(0), UINT64_C(3), &copy, &descriptor) !=
           MF_SHARED_INVALID_ARGUMENT ||
       mf_cdev_copy_descriptor_v0(UINT64_C(1), UINT64_C(1), NULL, &descriptor) !=

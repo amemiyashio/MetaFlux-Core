@@ -12,9 +12,10 @@ only retains their address and length until the matching memory handle is
 released. A loaded module owns a copy of the canonical KIR, and `submit`
 accepts the private `mf_cpu_backend_argument_block_v1` encoding of memory
 handles and scalar values. The cdev worker uses this table for mapped-payload
-COPY dispatch; descriptor-to-argument launch wiring, asynchronous events,
-backend DMA mapping, and policy or metrics operations remain outside this
-subset until their corresponding transport and lifecycle contracts are
+COPY dispatch and now routes the primary-entry launch descriptor through a
+generation-bound resolver into the same synchronous submit call. Asynchronous
+events, backend DMA mapping, and policy or metrics operations remain outside
+this subset until their corresponding transport and lifecycle contracts are
 qualified.
 
 Compiler-side and runtime-side code are separate build targets. The compiler

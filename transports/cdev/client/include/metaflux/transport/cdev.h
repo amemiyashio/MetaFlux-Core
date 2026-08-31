@@ -57,6 +57,14 @@ typedef struct mf_cdev_copy_v0 {
   uint64_t byte_count;
 } mf_cdev_copy_v0;
 
+/* Primary-entry launch object references used by the local cdev worker. */
+typedef struct mf_cdev_launch_v0 {
+  uint64_t module_id;
+  uint64_t module_generation;
+  uint64_t argument_block_id;
+  uint64_t argument_block_generation;
+} mf_cdev_launch_v0;
+
 /* Open, negotiate, and map one generation-bound local cdev queue. */
 mf_shared_status_v1 mf_cdev_session_open_v0(const char* device_path,
                                              mf_cdev_session_v0* out_session);
@@ -94,6 +102,14 @@ mf_shared_status_v1 mf_cdev_copy_descriptor_v0(uint64_t request_id,
 
 mf_shared_status_v1 mf_cdev_submit_copy_v0(mf_cdev_session_v0* session, uint64_t request_id,
                                            const mf_cdev_copy_v0* copy);
+
+/* Encode or submit a primary-entry launch against the session generation. */
+mf_shared_status_v1 mf_cdev_launch_descriptor_v0(uint64_t request_id, uint64_t generation,
+                                                 const mf_cdev_launch_v0* launch,
+                                                 mf_ring_descriptor_v1* out_descriptor);
+
+mf_shared_status_v1 mf_cdev_submit_launch_v0(mf_cdev_session_v0* session, uint64_t request_id,
+                                             const mf_cdev_launch_v0* launch);
 
 mf_shared_status_v1 mf_cdev_wait_v0(mf_cdev_session_v0* session, uint64_t timeline,
                                     uint64_t timeout_ns);

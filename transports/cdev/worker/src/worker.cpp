@@ -10,6 +10,8 @@ namespace {
 constexpr std::uint32_t kCompletionOpcode = MF_RING_OPCODE_COMPLETION;
 constexpr std::uint32_t kBackendCopyRequiredSize = static_cast<std::uint32_t>(
     offsetof(mf_backend_api_v1, copy) + sizeof(((mf_backend_api_v1*)nullptr)->copy));
+constexpr std::uint32_t kBackendLaunchRequiredSize = static_cast<std::uint32_t>(
+    offsetof(mf_backend_api_v1, submit) + sizeof(((mf_backend_api_v1*)nullptr)->submit));
 
 bool valid_queue(const mf_ring_header_v1* header) noexcept {
   if (header == nullptr) {
@@ -38,12 +40,24 @@ const mf_ring_descriptor_v1* descriptor_at(const mf_ring_header_v1* header,
 
 } // namespace
 
-bool CdevWorker::valid_backend(const CdevBackendBinding& backend) noexcept {
+bool CdevWorker::valid_copy_backend(const CdevBackendBinding& backend) noexcept {
   return backend.api != nullptr && backend.instance != 0U && backend.queue != 0U &&
          backend.memory != 0U &&
          mf_backend_api_validate_v1(backend.api, kBackendCopyRequiredSize, MF_BACKEND_CAP_COPY) ==
              MF_BACKEND_SUCCESS &&
          backend.api->copy != nullptr;
+}
+
+bool CdevWorker::valid_launch_backend(const CdevBackendBinding& backend) noexcept {
+  return backend.api != nullptr && backend.instance != 0U && backend.queue != 0U &&
+         backend.memory != 0U && backend.launch_resolver != nullptr &&
+         mf_backend_api_validate_v1(backend.api, kBackendLaunchRequiredSize,
+                                    MF_BACKEND_CAP_LAUNCH) == MF_BACKEND_SUCCESS &&
+         backend.api->submit != nullptr;
+}
+
+bool CdevWorker::valid_backend(const CdevBackendBinding& backend) noexcept {
+  return valid_copy_backend(backend) || valid_launch_backend(backend);
 }
 
 bool CdevWorker::backend_bound() const noexcept { return valid_backend(backend_); }
@@ -83,6 +97,40 @@ mf_backend_status_v1 CdevWorker::dispatch_copy(std::uint64_t base, std::uint64_t
   copy.source_offset = base + source;
   copy.byte_count = byte_count;
   return backend_.api->copy(backend_.instance, backend_.queue, &copy, backend_.completion_event);
+}
+
+mf_shared_status_v1
+CdevWorker::dispatch_launch(const mf_ring_descriptor_v1& request) const noexcept {
+  if (!valid_launch_backend(backend_)) {
+    return MF_SHARED_NOT_SUPPORTED;
+  }
+  CdevLaunchResolution resolution{};
+  const mf_shared_status_v1 resolve_status =
+      backend_.launch_resolver(backend_.launch_context, &request, &resolution);
+  if (resolve_status != MF_SHARED_SUCCESS) {
+    return resolve_status;
+  }
+  if (resolution.module == 0U || resolution.kernel_id != MF_KERNEL_PRIMARY_ENTRY_ID ||
+      resolution.argument_size == 0U || resolution.argument_offset > view_.payload_size ||
+      resolution.argument_size > view_.payload_size - resolution.argument_offset ||
+      resolution.grid[0] == 0U || resolution.grid[1] == 0U || resolution.grid[2] != 1U ||
+      resolution.block[0] == 0U || resolution.block[1] == 0U || resolution.block[2] != 1U ||
+      resolution.reserved_word != 0U) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  mf_backend_launch_v1 launch{};
+  launch.struct_size = sizeof(launch);
+  launch.module = resolution.module;
+  launch.kernel_id = resolution.kernel_id;
+  launch.argument_bytes = view_.payload + resolution.argument_offset;
+  launch.argument_size = resolution.argument_size;
+  for (std::size_t index = 0; index < 3U; ++index) {
+    launch.grid[index] = resolution.grid[index];
+    launch.block[index] = resolution.block[index];
+  }
+  launch.dynamic_shared_bytes = resolution.dynamic_shared_bytes;
+  return map_backend_status(
+      backend_.api->submit(backend_.instance, backend_.queue, &launch, backend_.completion_event));
 }
 
 bool CdevWorker::queue_readable(const mf_ring_header_v1* header) noexcept {
@@ -177,6 +225,12 @@ WorkerResult CdevWorker::consume_once() noexcept {
   if (request.opcode == MF_RING_OPCODE_NOOP) {
     return complete(request, MF_SHARED_SUCCESS);
   }
+  if (request.opcode == MF_RING_OPCODE_LAUNCH) {
+    if (request.flags != 0U) {
+      return complete(request, MF_SHARED_MALFORMED);
+    }
+    return complete(request, dispatch_launch(request));
+  }
   if (request.opcode != MF_RING_OPCODE_COPY || request.arguments[3] > view_.payload_size) {
     return complete(request, MF_SHARED_NOT_SUPPORTED);
   }
@@ -199,7 +253,7 @@ WorkerResult CdevWorker::consume_once() noexcept {
     return complete(request, MF_SHARED_INVALID_ARGUMENT);
   }
   if (backend_.api != nullptr) {
-    if (request.flags != 0U || !valid_backend(backend_)) {
+    if (request.flags != 0U || !valid_copy_backend(backend_)) {
       return complete(request, MF_SHARED_NOT_SUPPORTED);
     }
     return complete(request,

@@ -41,6 +41,19 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     target_link_libraries(metaflux_transport_cdev_worker_test PRIVATE MetaFlux::CpuBackendRuntime)
     target_compile_definitions(metaflux_transport_cdev_worker_test PRIVATE METAFLUX_CPU_BACKEND=1)
   endif()
+  if(TARGET metaflux_cpu_backend_runtime AND TARGET metaflux_cuda_ptx_frontend AND
+     TARGET metaflux_compiler_core)
+    target_link_libraries(
+      metaflux_transport_cdev_worker_test
+      PRIVATE MetaFlux::CompilerCore MetaFlux::CudaPtxFrontend
+    )
+    target_compile_definitions(
+      metaflux_transport_cdev_worker_test
+      PRIVATE
+        METAFLUX_CPU_CDEV_LAUNCH=1
+        METAFLUX_CPU_ADD_PTX="${PROJECT_SOURCE_DIR}/plugins/compat/cuda/compiler/ptx/corpus/fixtures/positive-add-copy.ptx"
+    )
+  endif()
   target_include_directories(
     metaflux_transport_cdev_worker_test
     PRIVATE "${PROJECT_SOURCE_DIR}/contracts/shared/device/v1/include"

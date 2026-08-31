@@ -392,6 +392,40 @@ mf_shared_status_v1 mf_cdev_submit_copy_v0(mf_cdev_session_v0* session, uint64_t
   return mf_client_ring_try_submit_v1(&session->submission, &descriptor);
 }
 
+mf_shared_status_v1 mf_cdev_launch_descriptor_v0(uint64_t request_id, uint64_t generation,
+                                                 const mf_cdev_launch_v0* launch,
+                                                 mf_ring_descriptor_v1* out_descriptor) {
+  if (launch == NULL || out_descriptor == NULL || request_id == 0U || generation == 0U ||
+      launch->module_id == 0U || launch->module_generation == 0U ||
+      launch->argument_block_id == 0U || launch->argument_block_generation == 0U) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  (void)memset(out_descriptor, 0, sizeof(*out_descriptor));
+  out_descriptor->opcode = MF_RING_OPCODE_LAUNCH;
+  out_descriptor->request_id = request_id;
+  out_descriptor->target_id = generation;
+  out_descriptor->arguments[0] = launch->module_id;
+  out_descriptor->arguments[1] = launch->module_generation;
+  out_descriptor->arguments[2] = launch->argument_block_id;
+  out_descriptor->arguments[3] = launch->argument_block_generation;
+  return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1 mf_cdev_submit_launch_v0(mf_cdev_session_v0* session, uint64_t request_id,
+                                             const mf_cdev_launch_v0* launch) {
+  mf_ring_descriptor_v1 descriptor;
+  mf_shared_status_v1 status = MF_SHARED_SUCCESS;
+  if (session == NULL || session->device_fd < 0) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  status =
+      mf_cdev_launch_descriptor_v0(request_id, session->device_generation, launch, &descriptor);
+  if (status != MF_SHARED_SUCCESS) {
+    return status;
+  }
+  return mf_client_ring_try_submit_v1(&session->submission, &descriptor);
+}
+
 mf_shared_status_v1 mf_cdev_try_consume_completion_v0(mf_cdev_session_v0* session,
                                                       mf_ring_descriptor_v1* out_descriptor) {
   if (session == NULL || session->device_fd < 0 || out_descriptor == NULL) {
