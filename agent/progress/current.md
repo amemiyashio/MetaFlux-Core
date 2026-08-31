@@ -3,7 +3,7 @@ status: Active
 updated: 2026-08-31
 milestone: M0110
 workstream: W0112
-checkpoint: P20260831-078
+checkpoint: P20260831-079
 ---
 
 # Current Progress
@@ -48,8 +48,11 @@ and the resolver-side registered-memory importer seam is now recorded at
 The generation/view-bound `CdevWorkerSession`, control-fd paired queue mapping,
 and deterministic UAPI status boundary are now recorded at
 [P20260831-078](checkpoints/2026/P20260831-078-m0110-cdev-worker-lease.md);
-daemon object-table activation, generation replacement, and non-cancellable
-backend wait policy remain open.
+the daemon-compatible object-table resolver and CPU-backed two-subrange
+reference path are now recorded at
+[P20260831-079](checkpoints/2026/P20260831-079-m0110-cdev-object-table-resolver.md);
+live daemon object-table activation, generation replacement, and
+non-cancellable backend wait policy remain open.
 W0113 is Active with its static vfio-user control-plane stage recorded at
 [P20260830-017](checkpoints/2026/P20260830-017-m0110-static-vfio-user.md).
 M0120 is now Active for lifecycle implementation. W0121's model stage is
@@ -293,6 +296,7 @@ Linux 9.8.
 | W0112 registered-memory multi-region stage | `a6df246`; kernel-private four-slot table with unique generation-bound handles (`3`-`6`), independent pin/SG/DMA/mm teardown, `max_regions=4`, and 256 MiB aggregate quota; Linux 6.18.42 GCC Kbuild and full CTest 84/84 |
 | W0112 direct backend-memory reference stage | `b03c4f3`; optional complete binding reference is retained before direct COPY and released after synchronous completion or asynchronous completion/cancellation/backpressure; focused cdev/component tests 2/2 and full CTest 84/84 |
 | W0112 registered-memory import seam | `c40c0e3`; resolver-side `CdevBackendMemoryImporter` is exercised with the CPU backend for two caller-owned ranges before the existing source/destination reference retention path; focused cdev/component tests 2/2 and full CTest 84/84 |
+| W0112 daemon object-table resolver | `f7f45a7`; `CdevObjectTableResolver` validates exact region COPY blocks, generation/kind/access/range ownership, imports checked host subranges, and composes with worker reference retention; focused cdev worker test 1/1 and full CTest 84/84 |
 | W0113 current boundary | Static PCI binder and host-independent guest ring seam are recorded; pinned QEMU/libvfio-user, actual BAR2 MMIO/MSI-X, generation-bound DMA lifetime, Add/Copy path, drain/tombstone faults, and package qualification remain open |
 | W0114 bounded transport fault matrix | `700b7c8`; cdev COPY disposition checks and completion backpressure/FIFO retry, plus vfio-user malformed framing, stale unmap, duplicate-range, and DMA-overflow regressions; focused transport tests 2/2 and full dev CTest 82/82 |
 | W0114 current boundary | Malformed and recoverable userspace/socketpair faults are recorded; kernel ioctl/BAR fuzzing, MSI-X, live DMA/backend references, ownership-death injection, native/compat negotiation, and the base ABI freeze remain open |
