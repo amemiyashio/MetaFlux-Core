@@ -56,8 +56,13 @@ bool CdevWorker::valid_launch_backend(const CdevBackendBinding& backend) noexcep
          backend.api->submit != nullptr;
 }
 
+bool CdevWorker::valid_backend_lease(const CdevBackendBinding& backend) noexcept {
+  return backend.lease_acquire != nullptr && backend.lease_release != nullptr;
+}
+
 bool CdevWorker::valid_backend(const CdevBackendBinding& backend) noexcept {
-  return valid_copy_backend(backend) || valid_launch_backend(backend);
+  return valid_backend_lease(backend) &&
+         (valid_copy_backend(backend) || valid_launch_backend(backend));
 }
 
 bool CdevWorker::backend_bound() const noexcept { return valid_backend(backend_); }
@@ -131,6 +136,22 @@ CdevWorker::dispatch_launch(const mf_ring_descriptor_v1& request) const noexcept
   launch.dynamic_shared_bytes = resolution.dynamic_shared_bytes;
   return map_backend_status(
       backend_.api->submit(backend_.instance, backend_.queue, &launch, backend_.completion_event));
+}
+
+mf_shared_status_v1 CdevWorker::acquire_backend_lease() const noexcept {
+  if (backend_.api == nullptr) {
+    return MF_SHARED_SUCCESS;
+  }
+  if (!valid_backend(backend_)) {
+    return MF_SHARED_NOT_SUPPORTED;
+  }
+  return backend_.lease_acquire(backend_.lease_context);
+}
+
+void CdevWorker::release_backend_lease() const noexcept {
+  if (backend_.api != nullptr && valid_backend_lease(backend_)) {
+    backend_.lease_release(backend_.lease_context);
+  }
 }
 
 bool CdevWorker::queue_readable(const mf_ring_header_v1* header) noexcept {
@@ -229,7 +250,13 @@ WorkerResult CdevWorker::consume_once() noexcept {
     if (request.flags != 0U) {
       return complete(request, MF_SHARED_MALFORMED);
     }
-    return complete(request, dispatch_launch(request));
+    const mf_shared_status_v1 lease_status = acquire_backend_lease();
+    if (lease_status != MF_SHARED_SUCCESS) {
+      return complete(request, lease_status);
+    }
+    const mf_shared_status_v1 status = dispatch_launch(request);
+    release_backend_lease();
+    return complete(request, status);
   }
   if (request.opcode != MF_RING_OPCODE_COPY || request.arguments[3] > view_.payload_size) {
     return complete(request, MF_SHARED_NOT_SUPPORTED);
@@ -256,8 +283,14 @@ WorkerResult CdevWorker::consume_once() noexcept {
     if (request.flags != 0U || !valid_copy_backend(backend_)) {
       return complete(request, MF_SHARED_NOT_SUPPORTED);
     }
-    return complete(request,
-                    map_backend_status(dispatch_copy(base, destination, source, byte_count)));
+    const mf_shared_status_v1 lease_status = acquire_backend_lease();
+    if (lease_status != MF_SHARED_SUCCESS) {
+      return complete(request, lease_status);
+    }
+    const mf_shared_status_v1 status =
+        map_backend_status(dispatch_copy(base, destination, source, byte_count));
+    release_backend_lease();
+    return complete(request, status);
   }
   std::memmove(view_.payload + base + destination, view_.payload + base + source,
                static_cast<std::size_t>(byte_count));

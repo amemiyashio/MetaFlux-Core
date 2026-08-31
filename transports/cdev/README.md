@@ -52,10 +52,14 @@ ioctl, mmap, or BAR record.
 The worker also exposes an explicit `CdevBackendBinding` for worker-side
 `mf_backend_api_v1` calls. A COPY binding must advertise
 `MF_BACKEND_CAP_COPY`, provide a table large enough to contain `copy`, and carry
-nonzero instance, queue, and payload-memory handles. A payload COPY is
-translated to one `mf_backend_copy_v1` record with checked base-relative
-offsets; backend status is mapped to the shared status vocabulary. With no
-binding, the fixture keeps its local `memmove` path.
+nonzero instance, queue, and payload-memory handles. It must also provide a
+synchronous backend-operation lease pair. The worker acquires that lease
+before resolving or dispatching a bound request and releases it after the
+synchronous backend call returns; lease rejection is surfaced in the completion
+record and never falls back to the local path. A payload COPY is translated to
+one `mf_backend_copy_v1` record with checked base-relative offsets; backend
+status is mapped to the shared status vocabulary. With no binding, the fixture
+keeps its local `memmove` path.
 
 For the bounded LAUNCH subset, the binding additionally supplies a
 `CdevLaunchResolver`. The resolver owns daemon/object-table semantics and maps
@@ -63,12 +67,14 @@ the cdev descriptor's generation, module ID/generation, and argument-block
 ID/generation to a `CdevLaunchResolution`. It must place the already encoded
 backend argument bytes in the worker payload arena; the worker checks the
 payload range, primary-entry ID, 2D dimensions (`z == 1`), and reserved fields
-before constructing `mf_backend_launch_v1` and calling `submit`. The C client
+before constructing `mf_backend_launch_v1` and calling `submit`. The same
+operation lease covers resolver access and the submit call. The C client
 helpers `mf_cdev_launch_descriptor_v0` and `mf_cdev_submit_launch_v0` encode
 this primary-entry layout. Resolver failures and backend statuses remain
-visible in the completion record, with no silent fallback. Completion events,
-backend DMA mapping, in-flight reference draining, and daemon replacement are
-still outside this synchronous stage.
+visible in the completion record, with no silent fallback. Nonzero completion
+events, asynchronous backend ownership, backend DMA mapping, and daemon
+generation replacement are still outside this synchronous stage; a future
+asynchronous contract must extend the lease until observed completion.
 
 The W0114 bounded fault matrix now treats unknown COPY flags as malformed,
 known direct-host flags as unsupported on this worker, and zero-length COPY as

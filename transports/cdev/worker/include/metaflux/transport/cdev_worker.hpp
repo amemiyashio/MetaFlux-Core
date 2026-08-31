@@ -39,6 +39,14 @@ using CdevLaunchResolver = mf_shared_status_v1 (*)(void* context,
                                                    const mf_ring_descriptor_v1* request,
                                                    CdevLaunchResolution* out) noexcept;
 
+/*
+ * A synchronous backend operation lease keeps the backend instance, queue,
+ * and memory handles alive until the ABI call returns. The lease owner may
+ * reject a new operation during generation replacement or teardown.
+ */
+using CdevBackendLeaseAcquire = mf_shared_status_v1 (*)(void* context) noexcept;
+using CdevBackendLeaseRelease = void (*)(void* context) noexcept;
+
 /* The worker borrows these backend-owned handles for synchronous COPY calls. */
 struct CdevBackendBinding final {
   const mf_backend_api_v1* api = nullptr;
@@ -48,6 +56,9 @@ struct CdevBackendBinding final {
   mf_backend_event_v1 completion_event = 0U;
   CdevLaunchResolver launch_resolver = nullptr;
   void* launch_context = nullptr;
+  CdevBackendLeaseAcquire lease_acquire = nullptr;
+  CdevBackendLeaseRelease lease_release = nullptr;
+  void* lease_context = nullptr;
 };
 
 enum class WorkerResult : std::uint32_t {
@@ -96,12 +107,15 @@ private:
   static bool valid_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_copy_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_launch_backend(const CdevBackendBinding& backend) noexcept;
+  static bool valid_backend_lease(const CdevBackendBinding& backend) noexcept;
   static std::int32_t map_backend_status(mf_backend_status_v1 status) noexcept;
   [[nodiscard]] mf_backend_status_v1 dispatch_copy(std::uint64_t base, std::uint64_t destination,
                                                    std::uint64_t source,
                                                    std::uint64_t byte_count) const noexcept;
   [[nodiscard]] mf_shared_status_v1
   dispatch_launch(const mf_ring_descriptor_v1& request) const noexcept;
+  [[nodiscard]] mf_shared_status_v1 acquire_backend_lease() const noexcept;
+  void release_backend_lease() const noexcept;
   bool drain_lifecycle() noexcept;
   WorkerResult complete(const mf_ring_descriptor_v1& request, std::int32_t status) noexcept;
 
