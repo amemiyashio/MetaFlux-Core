@@ -43,6 +43,9 @@ Implemented stage:
   address; it serializes the queried profile and hashes it with SHA-256.
 - [x] Materialize Vulkan headers, loader, `vulkaninfo`, `glslangValidator`, and
   `spirv-val` in the named Nix `vulkan-tools` output and `.#vulkan` shell.
+- [x] Add the separate on-demand `vulkan-runtime` tool output and
+  `.#vulkan-runtime` shell with pinned Mesa ICD and Khronos validation layers
+  for host smoke/probe execution; keep it out of the lean tool-only shell.
 - [x] Add C ABI layout and host capability regression tests; an unavailable or
   incompatible host is reported as a skipped local probe.
 - [x] Draft the target-digest-bound packed scalar/device-address argument block
