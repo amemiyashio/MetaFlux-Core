@@ -31,7 +31,7 @@ executor.
 | `nix develop .#vulkan --command ctest --preset vulkan --output-on-failure` | Passed: 88/88 |
 | `clang-format` and `git diff --check` | Passed |
 | Product identity | `5b1a304`; Agent Harness (codex) as Author and Committer |
-| Agent records | Pending separate checkpoint record commit |
+| Agent records | Recorded in separate checkpoint commit `c2ef95b` |
 
 ## Cleanup
 
@@ -73,6 +73,6 @@ executor.
 
 ## Handoff
 
-The session is ready for checkpoint/close. Resume W0135 with
+The session is complete. Resume W0135 with
 `nix develop .#vulkan --command ctest --preset vulkan`, then read W0135 and
 the cache/device-loss reference before wiring an ICD trace.
