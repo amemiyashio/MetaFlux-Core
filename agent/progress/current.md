@@ -6,7 +6,7 @@ focus_mode: product
 focus_owner: S0112-20260901-001-m0110-w0112-current-epoch
 milestone: M0110
 workstream: W0112
-checkpoint: P20260901-094
+checkpoint: P20260901-095
 ---
 
 # Current Progress
@@ -50,7 +50,9 @@ default scheduling authority while M0110 is incomplete.
   binds embedded daemon memory objects to persistent CPU backend handles with
   explicit operation-reference draining. P094 adds same-fd current cdev view /
   generation discovery and lease-bound mapping of the data-owner payload;
-  daemon-side live lease/import remains open.
+  P095 adds the canonical lease-bound payload query, so worker mapping no longer
+  depends on a local size convention; daemon-side live lease/import remains
+  open.
 - P089 records the runtime-owned immediate producer ingress at `6152efa`: admin
   reset, VFIO-user reset, disconnect, and daemon restart capture one authority
   snapshot; wrong-route QMP, malformed, unknown, and stale observations are
@@ -86,6 +88,7 @@ default scheduling authority while M0110 is incomplete.
 
 - [P093 daemon cdev backend reference drain](checkpoints/2026/P20260901-093-m0110-daemon-cdev-reference-drain.md)
 - [P094 current cdev worker payload mapping](checkpoints/2026/P20260901-094-m0110-cdev-worker-payload-mapping.md)
+- [P095 lease-bound cdev payload query](checkpoints/2026/P20260901-095-m0110-cdev-payload-query.md)
 - [P092 breaking governance applied](checkpoints/2026/P20260901-092-breaking-governance-applied.md)
 - [P091 destructive governance epoch](checkpoints/2026/P20260901-091-destructive-governance-epoch.md)
 - [P090 execution-focus governance](checkpoints/2026/P20260831-090-execution-focus-governance.md)

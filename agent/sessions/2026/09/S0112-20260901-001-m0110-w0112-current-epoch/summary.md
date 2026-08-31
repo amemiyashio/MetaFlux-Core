@@ -25,6 +25,11 @@ The product Exit Gate remains open.
 - `kernel/core/metaflux_core_main.c`: a valid worker lease fd may map the online
   payload arena while the data fd remains its owner; the existing kref/VMA
   tombstone graph is preserved.
+- `contracts/uapi/linux/v1/schema/uapi.json` and its manifest closure:
+  `MF_UAPI_IOCTL_MEMORY_QUERY` reuses the fixed memory record to publish the
+  current payload generation, exact size, and mmap offset to a negotiated
+  worker lease. `map_current_payload()` consumes it without a local size
+  convention.
 - `transports/cdev/README.md`, `kernel/core/README.md`, and the W0112 plan:
   record the new mapping boundary and keep daemon live lease/import,
   generation replacement, and kernel qualification explicitly open.
@@ -37,10 +42,12 @@ The product Exit Gate remains open.
 | Current focus projection | Passed for M0110/W0112 and its canonical Exit Gate |
 | Daemon cdev backend content commit | Passed: `0bba77f87c8f0737513a6873eb8325af54ff4852` |
 | Worker/kernel payload mapping content commit | Passed: `fcfaa8d` |
+| Lease-bound payload query content commit | Passed: `5050915992771444398879212e37529b44b704ce` |
 | Development build | Passed with `METAFLUX_DAEMON_CDEV_BACKEND=1` |
 | Focused cdev/daemon CTest | Passed: 6/6 |
 | Full development CTest | Passed: 85/85 |
 | Linux 6.18 kernel module Kbuild | Passed with `/usr/bin/gcc`; compiler-version warning only |
+| Schema and lifecycle manifest closure | Passed: schema validator and lifecycle model checks |
 | Agent records | Passed before checkpoint-record commit |
 
 ## Cleanup
@@ -62,6 +69,9 @@ The product Exit Gate remains open.
   fd used for its lease, avoiding a discovery/reopen race. The worker lease is
   a second mapping authority for the data-owner payload, while the data fd
   retains ownership and the payload VMA retains the offline tombstone.
+- Payload size is queried through the canonical fixed memory record on the
+  lease fd; worker mapping does not depend on an environment or local-size
+  convention.
 
 ## roast
 
@@ -77,6 +87,10 @@ The product Exit Gate remains open.
 - Same-fd current cdev discovery and lease-bound payload mapping ->
   `transports/cdev/worker/include/metaflux/transport/cdev_worker.hpp`
   (`fcfaa8d`; full CTest 85/85; Linux 6.18 Kbuild)
+- Lease-bound payload query and exact-size mapping ->
+  `contracts/uapi/linux/v1/schema/uapi.json`
+  (`5050915992771444398879212e37529b44b704ce`; schema/lifecycle checks, full
+  CTest 85/85, Linux 6.18 Kbuild)
 
 ### dark roasts
 
@@ -90,7 +104,7 @@ The product Exit Gate remains open.
 
 - W0112: live `/dev/metafluxN` Add/Copy, replacement-generation isolation,
   daemon-side lease/import wiring, and Linux 6.12/6.18 fault qualification
-  remain open.
+  remain open; the worker-side payload-size query is now available.
 
 ## Handoff
 
