@@ -8,6 +8,7 @@
 #include "metaflux/compiler/ptx_frontend.hpp"
 #include "metaflux/runtime/core.hpp"
 #include "metaflux/transport/cdev_worker.hpp"
+#include "metaflux/uapi/transport.h"
 
 #include <algorithm>
 #include <array>
@@ -1513,6 +1514,7 @@ private:
     bool persistent = false;
     bool retired = false;
     std::uint64_t active_references = 0U;
+    metaflux::transport::cdev::CdevRegisteredMemory registered{};
   };
   std::unordered_map<mf_backend_memory_v1, CdevMemoryEntry> cdev_memories_;
 #endif
@@ -1630,28 +1632,42 @@ Session::cdev_memory_import(void* context, mf_backend_instance_v1 instance,
       backend_context != session->cdev_backend_context_) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
+  metaflux::transport::cdev::CdevRegisteredMemory registered{};
+  const mf_shared_status_v1 register_status = session->cdev_worker_session_.register_memory(
+      address, byte_count,
+      MF_UAPI_MEMORY_REGISTER_FLAG_READ_V0 | MF_UAPI_MEMORY_REGISTER_FLAG_WRITE_V0, registered);
+  if (register_status != MF_SHARED_SUCCESS) {
+    return register_status;
+  }
   mf_backend_memory_v1 handle = 0U;
   const mf_backend_status_v1 status =
       mf_cpu_backend_import_host_memory_v1(instance, backend_context, address, byte_count, &handle);
   if (status != MF_BACKEND_SUCCESS) {
+    session->cdev_worker_session_.close_registered_memory(registered);
     return cdev_backend_status(status);
   }
   if (handle == 0U) {
+    session->cdev_worker_session_.close_registered_memory(registered);
     return MF_SHARED_SYSTEM_ERROR;
   }
   try {
     const auto [entry, inserted] = session->cdev_memories_.try_emplace(
-        handle, CdevMemoryEntry{.persistent = false, .retired = false, .active_references = 0U});
+        handle, CdevMemoryEntry{.persistent = false,
+                                 .retired = false,
+                                 .active_references = 0U,
+                                 .registered = registered});
     if (!inserted || entry->second.persistent) {
       if (session->cdev_backend_api_->free_memory != nullptr) {
         session->cdev_backend_api_->free_memory(instance, handle);
       }
+      session->cdev_worker_session_.close_registered_memory(registered);
       return MF_SHARED_SYSTEM_ERROR;
     }
   } catch (const std::bad_alloc&) {
     if (session->cdev_backend_api_->free_memory != nullptr) {
       session->cdev_backend_api_->free_memory(instance, handle);
     }
+    session->cdev_worker_session_.close_registered_memory(registered);
     return MF_SHARED_RESOURCE_EXHAUSTED;
   }
   *out = {
@@ -1702,6 +1718,7 @@ void Session::cdev_memory_release(void* context, mf_backend_memory_v1 memory) no
       session->cdev_backend_api_->free_memory != nullptr) {
     session->cdev_backend_api_->free_memory(session->cdev_backend_instance_, memory);
   }
+  session->cdev_worker_session_.close_registered_memory(found->second.registered);
   session->cdev_memories_.erase(found);
 }
 
@@ -2035,23 +2052,47 @@ mf_shared_status_v1 Session::ensure_cdev_object_memory(
     return MF_SHARED_INVALID_ARGUMENT;
   }
   if (object.cdev_backend_memory == 0U) {
+    std::uint32_t registration_flags =
+        MF_UAPI_MEMORY_REGISTER_FLAG_READ_V0 | MF_UAPI_MEMORY_REGISTER_FLAG_WRITE_V0;
+    if (object.kind == ObjectKind::kHostMemory) {
+      registration_flags = 0U;
+      if ((object.access_flags & MF_CLIENT_CONTROL_FLAG_READ) != 0U) {
+        registration_flags |= MF_UAPI_MEMORY_REGISTER_FLAG_READ_V0;
+      }
+      if ((object.access_flags & MF_CLIENT_CONTROL_FLAG_WRITE) != 0U) {
+        registration_flags |= MF_UAPI_MEMORY_REGISTER_FLAG_WRITE_V0;
+      }
+    }
+    metaflux::transport::cdev::CdevRegisteredMemory registered{};
+    const mf_shared_status_v1 register_status = cdev_worker_session_.register_memory(
+        const_cast<std::uint8_t*>(object.data()), object.byte_size(), registration_flags,
+        registered);
+    if (register_status != MF_SHARED_SUCCESS) {
+      return register_status;
+    }
     mf_backend_memory_v1 handle = 0U;
     const mf_backend_status_v1 status = mf_cpu_backend_import_host_memory_v1(
         cdev_backend_instance_, cdev_backend_context_, const_cast<std::uint8_t*>(object.data()),
         object.byte_size(), &handle);
     if (status != MF_BACKEND_SUCCESS) {
+      cdev_worker_session_.close_registered_memory(registered);
       return cdev_backend_status(status);
     }
     if (handle == 0U) {
+      cdev_worker_session_.close_registered_memory(registered);
       return MF_SHARED_SYSTEM_ERROR;
     }
     try {
       const auto [entry, inserted] = cdev_memories_.try_emplace(
-          handle, CdevMemoryEntry{.persistent = true, .retired = false, .active_references = 0U});
+          handle, CdevMemoryEntry{.persistent = true,
+                                  .retired = false,
+                                  .active_references = 0U,
+                                  .registered = registered});
       if (!inserted || !entry->second.persistent) {
         if (cdev_backend_api_->free_memory != nullptr) {
           cdev_backend_api_->free_memory(cdev_backend_instance_, handle);
         }
+        cdev_worker_session_.close_registered_memory(registered);
         return MF_SHARED_SYSTEM_ERROR;
       }
       object.cdev_backend_memory = handle;
@@ -2059,6 +2100,7 @@ mf_shared_status_v1 Session::ensure_cdev_object_memory(
       if (cdev_backend_api_->free_memory != nullptr) {
         cdev_backend_api_->free_memory(cdev_backend_instance_, handle);
       }
+      cdev_worker_session_.close_registered_memory(registered);
       return MF_SHARED_RESOURCE_EXHAUSTED;
     }
   }
@@ -2104,9 +2146,14 @@ void Session::retire_cdev_module(Object& object) noexcept {
 
 void Session::release_all_cdev_memories() noexcept {
   if (cdev_backend_api_ != nullptr && cdev_backend_api_->free_memory != nullptr) {
-    for (const auto& [handle, entry] : cdev_memories_) {
-      (void)entry;
+    for (auto& [handle, entry] : cdev_memories_) {
       cdev_backend_api_->free_memory(cdev_backend_instance_, handle);
+      cdev_worker_session_.close_registered_memory(entry.registered);
+    }
+  } else {
+    for (auto& [handle, entry] : cdev_memories_) {
+      (void)handle;
+      cdev_worker_session_.close_registered_memory(entry.registered);
     }
   }
   cdev_memories_.clear();
@@ -2925,6 +2972,7 @@ mf_shared_status_v1 Session::process_command(const mf_ring_descriptor_v1& comman
       const mf_argument_entry_v1& destination_entry = entries[MF_COPY_REGION_DESTINATION_INDEX_V1];
       const mf_argument_entry_v1& source_entry = entries[MF_COPY_REGION_SOURCE_INDEX_V1];
 #if METAFLUX_DAEMON_CDEV_BACKEND
+      if (cdev_worker_ != nullptr) {
       metaflux::transport::cdev::CdevObjectTableResolver resolver(
           this, &Session::cdev_object_lookup, this, &Session::cdev_memory_import,
           cdev_backend_instance_, cdev_backend_context_);
@@ -2982,7 +3030,8 @@ mf_shared_status_v1 Session::process_command(const mf_ring_descriptor_v1& comman
       }
       memory_active = true;
       return MF_SHARED_SUCCESS;
-#else
+      }
+#endif
       destination_status = resolve_memory(destination_entry.object_id,
                                           destination_entry.object_generation, true, destination);
       source_status =
@@ -2990,7 +3039,6 @@ mf_shared_status_v1 Session::process_command(const mf_ring_descriptor_v1& comman
       destination_offset = destination_entry.value;
       source_offset = source_entry.value;
       byte_count = entries[MF_COPY_REGION_BYTE_COUNT_INDEX_V1].value;
-#endif
     } else if (command.flags == 0U) {
       destination_status =
           resolve_memory(command.target_id, command.arguments[0], true, destination);

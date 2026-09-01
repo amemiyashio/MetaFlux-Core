@@ -51,7 +51,9 @@ payload remain shared-memory fast-path data.
 
 `CdevWorkerSession` is the C++ worker-side activation wrapper for this lease.
 `open_current()` negotiates the current `registry_view_id` and generation on the
-same `/dev/metafluxctl` fd that receives `MF_UAPI_IOCTL_WORKER_LEASE`; the
+same `/dev/metafluxctl` fd that receives `MF_UAPI_IOCTL_WORKER_LEASE`, then
+negotiates `/dev/metaflux0` (or `METAFLUX_CDEV_PATH`) for registered-memory
+access and requires the same view and generation on both fds; the
 expected-value overload remains available for a caller that already owns the
 authority record. Both paths validate the returned identity, lease, exact
 page-aligned paired-ring size, queue IDs, and ring metadata, then map the queue
@@ -59,8 +61,13 @@ through the leased control fd. After the data-plane owner has allocated its
 exact, page-aligned payload arena, `map_payload()` maps that arena through the
 same leased control fd. The data fd remains the payload owner; the worker lease only
 grants a generation-bound mapping, and the VMA reference keeps the offline
-tombstone alive until its final close. `close()` unmaps payload first, then the
-rings, before closing the fd so the kernel release revokes the lease. `ENOENT`/
+tombstone alive until its final close. `register_memory()` and
+`close_registered_memory()` execute `MEMORY_REGISTER` and its matching
+unregister on the data fd. A registered handle is transport metadata only; the
+daemon's CPU backend handle is a separate import and is the only handle passed
+through `mf_backend_api_v1`. `close()` unmaps payload first, then the rings,
+before closing the data fd and control fd so registered ranges are released and
+the kernel lease is revoked. `ENOENT`/
 `ENODEV`/`ENOTTY` and unsupported ioctls map to `MF_SHARED_NOT_SUPPORTED`;
 stale, busy, permission, resource, and malformed responses remain distinct
 statuses.
@@ -128,7 +135,10 @@ import/reference seam; a resolver may use `CdevBackendMemoryImporter` after its
 object-table generation and range checks to turn a registered caller-owned
 range into a backend handle. The importer returns the complete reference pair,
 and the worker-side reference callback remains the owner boundary for that
-imported handle. Physical-device qualification remains open.
+imported handle. The daemon object-table adapter registers each validated
+object range on the live data fd before importing it into the CPU backend, and
+keeps both lifetimes through backend reference drain. Physical-device
+qualification remains open.
 
 `CdevObjectTableResolver` is the concrete adapter contract for that daemon
 boundary. The daemon supplies a borrowed lookup view for argument blocks and
