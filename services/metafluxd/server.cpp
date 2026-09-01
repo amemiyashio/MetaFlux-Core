@@ -1996,6 +1996,7 @@ mf_shared_status_v1 Session::bind_cdev_worker() noexcept {
   binding.lease_acquire = &Session::cdev_worker_lease_acquire;
   binding.lease_release = &Session::cdev_worker_lease_release;
   binding.lease_context = this;
+  binding.generation = kDeviceGeneration;
   try {
     cdev_worker_ = std::make_unique<metaflux::transport::cdev::CdevWorker>(
         cdev_worker_session_.queue_view(), binding);

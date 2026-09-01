@@ -731,12 +731,19 @@ bool CdevWorker::valid_backend_event(const CdevBackendBinding& backend) noexcept
 }
 
 bool CdevWorker::valid_backend(const CdevBackendBinding& backend) noexcept {
-  return valid_backend_lease(backend) &&
+  return backend.generation != 0U && valid_backend_lease(backend) &&
          (valid_copy_backend(backend) || valid_region_copy_backend(backend) ||
           valid_launch_backend(backend));
 }
 
-bool CdevWorker::backend_bound() const noexcept { return valid_backend(backend_); }
+bool CdevWorker::backend_matches_generation() const noexcept {
+  return backend_.api == nullptr ||
+         (backend_.generation != 0U && backend_.generation == view_.generation);
+}
+
+bool CdevWorker::backend_bound() const noexcept {
+  return valid_backend(backend_) && backend_matches_generation();
+}
 
 std::int32_t CdevWorker::map_backend_status(mf_backend_status_v1 status) noexcept {
   switch (status) {
@@ -762,7 +769,7 @@ std::int32_t CdevWorker::map_backend_status(mf_backend_status_v1 status) noexcep
 mf_backend_status_v1 CdevWorker::dispatch_copy(std::uint64_t base, std::uint64_t destination,
                                                std::uint64_t source,
                                                std::uint64_t byte_count) const noexcept {
-  if (!valid_backend(backend_) || base > UINT64_MAX - destination || base > UINT64_MAX - source) {
+  if (!backend_bound() || base > UINT64_MAX - destination || base > UINT64_MAX - source) {
     return MF_BACKEND_UNSUPPORTED;
   }
   mf_backend_copy_v1 copy{};
@@ -777,7 +784,8 @@ mf_backend_status_v1 CdevWorker::dispatch_copy(std::uint64_t base, std::uint64_t
 
 mf_backend_status_v1
 CdevWorker::dispatch_region_copy(const CdevCopyResolution& resolution) const noexcept {
-  if (!valid_region_copy_backend(backend_) || !valid_copy_resolution(resolution)) {
+  if (!backend_bound() || !valid_region_copy_backend(backend_) ||
+      !valid_copy_resolution(resolution)) {
     return MF_BACKEND_INVALID_ARGUMENT;
   }
   mf_backend_copy_v1 copy{};
@@ -793,7 +801,7 @@ CdevWorker::dispatch_region_copy(const CdevCopyResolution& resolution) const noe
 mf_shared_status_v1
 CdevWorker::dispatch_launch(const mf_ring_descriptor_v1& request,
                             CdevLaunchResolution* out) const noexcept {
-  if (!valid_launch_backend(backend_)) {
+  if (!backend_bound() || !valid_launch_backend(backend_)) {
     return MF_SHARED_NOT_SUPPORTED;
   }
   if (out == nullptr) {
@@ -833,7 +841,7 @@ mf_shared_status_v1 CdevWorker::acquire_backend_lease() const noexcept {
   if (backend_.api == nullptr) {
     return MF_SHARED_SUCCESS;
   }
-  if (!valid_backend(backend_)) {
+  if (!backend_bound()) {
     return MF_SHARED_NOT_SUPPORTED;
   }
   return backend_.lease_acquire(backend_.lease_context);
@@ -1093,6 +1101,9 @@ WorkerResult CdevWorker::consume_once() noexcept {
   }
   if (request.opcode == MF_RING_OPCODE_NOOP) {
     return complete(request, MF_SHARED_SUCCESS);
+  }
+  if (backend_.api != nullptr && valid_backend(backend_) && !backend_matches_generation()) {
+    return complete(request, MF_SHARED_STALE_HANDLE);
   }
   if (request.opcode == MF_RING_OPCODE_LAUNCH) {
     if (request.flags != 0U) {

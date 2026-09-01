@@ -229,6 +229,8 @@ struct CdevBackendBinding final {
   CdevBackendLeaseAcquire lease_acquire = nullptr;
   CdevBackendLeaseRelease lease_release = nullptr;
   void* lease_context = nullptr;
+  /* A binding is usable only while it names the worker's current generation. */
+  std::uint64_t generation = 0U;
 };
 
 enum class WorkerResult : std::uint32_t {
@@ -288,6 +290,7 @@ private:
   static bool valid_backend_cancellation(const CdevBackendBinding& backend) noexcept;
   static bool valid_launch_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_backend_lease(const CdevBackendBinding& backend) noexcept;
+  [[nodiscard]] bool backend_matches_generation() const noexcept;
   static mf_shared_status_v1 retain_copy_references(CdevCopyResolution& resolution) noexcept;
   static void release_copy_references(const CdevCopyResolution& resolution) noexcept;
   static mf_shared_status_v1 retain_launch_references(CdevLaunchResolution& resolution) noexcept;

@@ -463,7 +463,8 @@ int main() {
        .completion_event = 0U,
        .lease_acquire = fixture_lease_acquire,
        .lease_release = fixture_lease_release,
-       .lease_context = &backend_fixture});
+       .lease_context = &backend_fixture,
+       .generation = 4U});
   request.request_id = 42U;
   request.arguments[0] = 320U;
   request.arguments[1] = 128U;
@@ -534,7 +535,8 @@ int main() {
       .completion_event = async_fixture.expected_completion_event,
       .lease_acquire = fixture_lease_acquire,
       .lease_release = fixture_lease_release,
-      .lease_context = &async_fixture};
+      .lease_context = &async_fixture,
+      .generation = 4U};
   const metaflux::transport::cdev::CdevBackendBinding replacement_binding{
       .api = &replacement_api,
       .instance = static_cast<mf_backend_instance_v1>(
@@ -544,7 +546,8 @@ int main() {
       .completion_event = replacement_fixture.expected_completion_event,
       .lease_acquire = fixture_lease_acquire,
       .lease_release = fixture_lease_release,
-      .lease_context = &replacement_fixture};
+      .lease_context = &replacement_fixture,
+      .generation = 4U};
   metaflux::transport::cdev::CdevWorker async_worker(
       {.submission = submission.header,
        .completion = completion.header,
@@ -693,7 +696,8 @@ int main() {
        .copy_context = &copy_resolution,
        .lease_acquire = fixture_lease_acquire,
        .lease_release = fixture_lease_release,
-       .lease_context = &backend_fixture});
+       .lease_context = &backend_fixture,
+       .generation = 4U});
   request.opcode = MF_RING_OPCODE_COPY;
   request.flags = MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1;
   request.request_id = 431U;
@@ -791,7 +795,8 @@ int main() {
        .copy_context = &async_region_resolution,
        .lease_acquire = fixture_lease_acquire,
        .lease_release = fixture_lease_release,
-       .lease_context = &async_region_fixture});
+       .lease_context = &async_region_fixture,
+       .generation = 4U});
   request.request_id = 434U;
   request.target_id = 71U;
   request.arguments[0] = 73U;
@@ -855,7 +860,8 @@ int main() {
        .completion_event = cancel_fixture.expected_completion_event,
        .lease_acquire = fixture_lease_acquire,
        .lease_release = fixture_lease_release,
-       .lease_context = &cancel_fixture});
+       .lease_context = &cancel_fixture,
+       .generation = 4U});
   request.flags = 0U;
   request.opcode = MF_RING_OPCODE_COPY;
   request.request_id = 435U;
@@ -917,7 +923,8 @@ int main() {
        .completion_event = reset_fixture.expected_completion_event,
        .lease_acquire = fixture_lease_acquire,
        .lease_release = fixture_lease_release,
-       .lease_context = &reset_fixture});
+       .lease_context = &reset_fixture,
+       .generation = 4U});
   request.request_id = 437U;
   request.target_id = 4U;
   metaflux::runtime::lifecycle::Config reset_config{};
@@ -952,6 +959,28 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
+  if (reset_worker.backend_bound()) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  request = {};
+  request.opcode = MF_RING_OPCODE_COPY;
+  request.request_id = 438U;
+  request.target_id = 5U;
+  request.arguments[0] = 320U;
+  request.arguments[1] = 128U;
+  request.arguments[2] = 32U;
+  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      reset_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      reset_fixture.calls != 1U || reset_fixture.lease_acquires != 1U ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_STALE_HANDLE)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  request.target_id = 4U;
 
   BackendFixture reject_fixture{};
   auto reject_api = make_async_fixture_api();
@@ -972,7 +1001,8 @@ int main() {
        .completion_event = reject_fixture.expected_completion_event,
        .lease_acquire = fixture_lease_acquire,
        .lease_release = fixture_lease_release,
-       .lease_context = &reject_fixture});
+       .lease_context = &reject_fixture,
+       .generation = 4U});
   request.request_id = 439U;
   metaflux::runtime::lifecycle::Config reject_config{};
   reject_config.logical_device_id = 7U;
@@ -1052,7 +1082,8 @@ int main() {
        .launch_context = &launch_resolution,
        .lease_acquire = fixture_lease_acquire,
        .lease_release = fixture_lease_release,
-       .lease_context = &backend_fixture});
+       .lease_context = &backend_fixture,
+       .generation = 4U});
   request.opcode = MF_RING_OPCODE_LAUNCH;
   request.flags = 0U;
   request.request_id = 51U;
@@ -1161,7 +1192,8 @@ int main() {
        .completion_event = 0U,
        .lease_acquire = fixture_lease_acquire,
        .lease_release = fixture_lease_release,
-       .lease_context = &backend_fixture});
+       .lease_context = &backend_fixture,
+       .generation = 4U});
   request.request_id = 44U;
   if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
       unsupported_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
@@ -1350,7 +1382,8 @@ int main() {
                                                            .completion_event = 0U,
                                                            .lease_acquire = fixture_lease_acquire,
                                                            .lease_release = fixture_lease_release,
-                                                           .lease_context = &backend_fixture});
+                                                           .lease_context = &backend_fixture,
+                                                           .generation = 4U});
   request.request_id = 45U;
   request.target_id = 4U;
   request.arguments[0] = 384U;
@@ -1438,7 +1471,8 @@ int main() {
                                                            .copy_context = &cpu_region_resolution,
                                                            .lease_acquire = fixture_lease_acquire,
                                                            .lease_release = fixture_lease_release,
-                                                           .lease_context = &cpu_region_lease});
+                                                           .lease_context = &cpu_region_lease,
+                                                           .generation = 4U});
   request.flags = MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1;
   request.request_id = 46U;
   request.target_id = 71U;
@@ -1510,7 +1544,8 @@ int main() {
                                                       .copy_context = &table_resolver,
                                                       .lease_acquire = fixture_lease_acquire,
                                                       .lease_release = fixture_lease_release,
-                                                      .lease_context = &table_lease});
+                                                      .lease_context = &table_lease,
+                                                      .generation = 4U});
   request.flags = MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1;
   request.request_id = 47U;
   request.target_id = object_table.argument_id;
@@ -1566,7 +1601,8 @@ int main() {
        .copy_context = &table_resolver,
        .lease_acquire = fixture_lease_acquire,
        .lease_release = fixture_lease_release,
-       .lease_context = &table_lease});
+       .lease_context = &table_lease,
+       .generation = 4U});
   request.request_id = 48U;
   std::fill(table_destination.begin(), table_destination.end(), 0U);
   if (!queue_only_table_worker.backend_bound() ||
@@ -1721,7 +1757,8 @@ int main() {
                                                            .launch_context = &cpu_launch_resolution,
                                                            .lease_acquire = fixture_lease_acquire,
                                                            .lease_release = fixture_lease_release,
-                                                           .lease_context = &backend_fixture});
+                                                           .lease_context = &backend_fixture,
+                                                           .generation = 4U});
   request.opcode = MF_RING_OPCODE_LAUNCH;
   request.flags = 0U;
   request.request_id = 55U;
