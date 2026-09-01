@@ -281,6 +281,35 @@ bool is_copy_u32_kernel(const compiler::Kernel& kernel) noexcept {
              static_cast<std::uint32_t>(SpecialRegister::BlockDimX);
 }
 
+bool is_static_shared_barrier_kernel(const compiler::Kernel& kernel) noexcept {
+  using enum Opcode;
+  constexpr std::array<Opcode, 21> kOperations{
+      LoadParameterAddress, LoadParameterU32,  LoadParameterU32, MoveSpecialU32,
+      LoadSharedAddress,    AddU32,             AddU32,           MultiplyLoU32,
+      AddSharedAddress,     AddU32,             SetPredicateEqU32, StoreSharedU32,
+      BarrierSync,          SubU32,             MultiplyLoU32,    AddSharedAddress,
+      LoadSharedU32,         MultiplyWideU32,   AddGlobalAddress, StoreGlobalU32,
+      Return,
+  };
+  if (kernel.parameters.size() != 3U ||
+      kernel.parameters[0].kind != ParameterKind::BufferU32 ||
+      kernel.parameters[1].kind != ParameterKind::ScalarU32 ||
+      kernel.parameters[2].kind != ParameterKind::ScalarU32 ||
+      kernel.shared_allocations.size() != 1U || kernel.shared_allocations[0].words != 4U ||
+      kernel.operations.size() != kOperations.size()) {
+    return false;
+  }
+  for (std::size_t index = 0U; index < kOperations.size(); ++index) {
+    if (kernel.operations[index].opcode != kOperations[index]) {
+      return false;
+    }
+  }
+  return kernel.operations[3].attribute ==
+             static_cast<std::uint32_t>(SpecialRegister::ThreadIdX) &&
+         kernel.operations[10].inputs[0] == kernel.operations[10].inputs[1] &&
+         kernel.operations[11].predicate != compiler::kNoValue;
+}
+
 std::string mlir_symbol(std::string_view name) {
   std::string result = "@\"";
   result.reserve(name.size() + 3U);
@@ -296,7 +325,7 @@ std::string mlir_symbol(std::string_view name) {
 
 std::string actual_mlir_source(const compiler::Kernel& kernel,
                                const std::array<std::uint32_t, 3>& workgroup_size,
-                               bool copy_form) {
+                               bool copy_form, bool static_shared_barrier_form) {
   std::ostringstream output;
   output << "module attributes {\n"
          << "  gpu.container_module,\n"
@@ -306,42 +335,68 @@ std::string actual_mlir_source(const compiler::Kernel& kernel,
          << "} {\n"
          << "  gpu.module @kernels {\n"
          << "    gpu.func " << mlir_symbol(kernel.name)
-         << "(%arg0: memref<?xi32, #spirv.storage_class<StorageBuffer>>, "
-         << "%arg1: memref<?xi32, #spirv.storage_class<StorageBuffer>>, ";
-  if (copy_form) {
-    output << "%arg2: i32) kernel ";
+         << "(%arg0: memref<?xi32, #spirv.storage_class<StorageBuffer>>, ";
+  if (static_shared_barrier_form) {
+    output << "%arg1: i32, %arg2: i32) kernel ";
+  } else if (copy_form) {
+    output << "%arg1: memref<?xi32, #spirv.storage_class<StorageBuffer>>, "
+             << "%arg2: i32) kernel ";
   } else {
-    output << "%arg2: memref<?xi32, #spirv.storage_class<StorageBuffer>>, %arg3: i32) kernel ";
+    output << "%arg1: memref<?xi32, #spirv.storage_class<StorageBuffer>>, "
+             << "%arg2: memref<?xi32, #spirv.storage_class<StorageBuffer>>, %arg3: i32) kernel ";
   }
   output
          << "attributes {spirv.entry_point_abi = #spirv.entry_point_abi<workgroup_size = ["
          << workgroup_size[0] << ", " << workgroup_size[1] << ", " << workgroup_size[2]
          << "]>} {\n"
-         << "      %tid = gpu.thread_id x\n"
-         << "      %bid = gpu.block_id x\n"
-         << "      %bdim = gpu.block_dim x\n"
-         << "      %idx0 = arith.muli %bid, %bdim : index\n"
-         << "      %idx = arith.addi %idx0, %tid : index\n"
-         << "      %n = arith.index_cast %arg" << (copy_form ? 2 : 3) << " : i32 to index\n"
-         << "      %pred = arith.cmpi uge, %idx, %n : index\n"
-         << "      scf.if %pred {\n"
-         << "      } else {\n";
-  if (copy_form) {
-    output << "        %value = memref.load %arg1[%idx] : memref<?xi32, "
-               "#spirv.storage_class<StorageBuffer>>\n"
-            << "        memref.store %value, %arg0[%idx] : memref<?xi32, "
-               "#spirv.storage_class<StorageBuffer>>\n";
+         << "      %tid = gpu.thread_id x\n";
+  if (static_shared_barrier_form) {
+    output << "      %shared = memref.alloc() : memref<4xi32, #spirv.storage_class<Workgroup>>\n"
+           << "      %one_index = arith.index_cast %arg2 : i32 to index\n"
+           << "      %last_index = arith.index_cast %arg1 : i32 to index\n"
+           << "      %slot = arith.muli %tid, %one_index : index\n"
+           << "      %tid_value = arith.index_cast %tid : index to i32\n"
+           << "      %write_value = arith.addi %tid_value, %arg2 : i32\n"
+           << "      memref.store %write_value, %shared[%slot] : memref<4xi32, "
+              "#spirv.storage_class<Workgroup>>\n"
+           << "      gpu.barrier\n"
+           << "      %reverse = arith.subi %last_index, %tid : index\n"
+           << "      %reverse_slot = arith.muli %reverse, %one_index : index\n"
+           << "      %value = memref.load %shared[%reverse_slot] : memref<4xi32, "
+              "#spirv.storage_class<Workgroup>>\n"
+           << "      memref.store %value, %arg0[%tid] : memref<?xi32, "
+              "#spirv.storage_class<StorageBuffer>>\n";
   } else {
-    output << "        %a = memref.load %arg0[%idx] : memref<?xi32, "
-               "#spirv.storage_class<StorageBuffer>>\n"
-            << "        %b = memref.load %arg1[%idx] : memref<?xi32, "
-               "#spirv.storage_class<StorageBuffer>>\n"
-            << "        %sum = arith.addi %a, %b : i32\n"
-           << "        memref.store %sum, %arg2[%idx] : memref<?xi32, "
-               "#spirv.storage_class<StorageBuffer>>\n";
+    output << "      %bid = gpu.block_id x\n"
+           << "      %bdim = gpu.block_dim x\n"
+           << "      %idx0 = arith.muli %bid, %bdim : index\n"
+           << "      %idx = arith.addi %idx0, %tid : index\n"
+           << "      %n = arith.index_cast %arg" << (copy_form ? 2 : 3)
+           << " : i32 to index\n"
+           << "      %pred = arith.cmpi uge, %idx, %n : index\n"
+           << "      scf.if %pred {\n"
+           << "      } else {\n";
   }
-  output << "      }\n"
-         << "      gpu.return\n"
+  if (!static_shared_barrier_form) {
+    if (copy_form) {
+      output << "        %value = memref.load %arg1[%idx] : memref<?xi32, "
+                 "#spirv.storage_class<StorageBuffer>>\n"
+              << "        memref.store %value, %arg0[%idx] : memref<?xi32, "
+                 "#spirv.storage_class<StorageBuffer>>\n";
+    } else {
+      output << "        %a = memref.load %arg0[%idx] : memref<?xi32, "
+                 "#spirv.storage_class<StorageBuffer>>\n"
+              << "        %b = memref.load %arg1[%idx] : memref<?xi32, "
+                 "#spirv.storage_class<StorageBuffer>>\n"
+              << "        %sum = arith.addi %a, %b : i32\n"
+              << "        memref.store %sum, %arg2[%idx] : memref<?xi32, "
+                 "#spirv.storage_class<StorageBuffer>>\n";
+    }
+  }
+  if (!static_shared_barrier_form) {
+    output << "      }\n";
+  }
+  output << "      gpu.return\n"
          << "    }\n"
          << "  }\n"
          << "}\n";
@@ -361,14 +416,16 @@ LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
                                  SpirvLoweredModule* module) {
   const bool add_form = is_add_u32_kernel(kernel);
   const bool copy_form = is_copy_u32_kernel(kernel);
-  if (!add_form && !copy_form) {
+  const bool static_shared_barrier_form = is_static_shared_barrier_kernel(kernel);
+  if (!add_form && !copy_form && !static_shared_barrier_form) {
     return {.status = LoweringStatus::unsupported_semantics,
             .diagnostic =
                 "actual MLIR/SPIR-V emission currently supports the verified u32 Add/Copy form"};
   }
 
   try {
-    const auto source = actual_mlir_source(kernel, workgroup_size, copy_form);
+    const auto source =
+        actual_mlir_source(kernel, workgroup_size, copy_form, static_shared_barrier_form);
     mlir::DialectRegistry registry;
     registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect, mlir::gpu::GPUDialect,
                     mlir::memref::MemRefDialect, mlir::scf::SCFDialect,

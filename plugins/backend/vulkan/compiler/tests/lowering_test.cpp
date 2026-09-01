@@ -132,6 +132,50 @@ Kernel copy_kernel() {
   return kernel;
 }
 
+Kernel shared_barrier_kernel() {
+  Kernel kernel{
+      .name = "shared_reverse",
+      .parameters = {Parameter{.kind = ParameterKind::BufferU32},
+                     Parameter{.kind = ParameterKind::ScalarU32},
+                     Parameter{.kind = ParameterKind::ScalarU32}},
+      .shared_allocations = {metaflux::compiler::SharedAllocation{.words = 4U}},
+      .registers = {Register{.kind = ValueKind::GlobalAddress}, Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::U32}, Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::SharedAddress}, Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::U32}, Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::SharedAddress}, Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::Predicate}, Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::U32}, Register{.kind = ValueKind::SharedAddress},
+                    Register{.kind = ValueKind::U32}, Register{.kind = ValueKind::U64},
+                    Register{.kind = ValueKind::GlobalAddress}},
+      .operations = {op(Opcode::LoadParameterAddress, 0U, {}, 0U),
+                     op(Opcode::LoadParameterU32, 1U, {}, 1U),
+                     op(Opcode::LoadParameterU32, 2U, {}, 2U),
+                     op(Opcode::MoveSpecialU32, 3U, {},
+                        static_cast<std::uint32_t>(SpecialRegister::ThreadIdX)),
+                     op(Opcode::LoadSharedAddress, 4U, {}, 0U),
+                     op(Opcode::AddU32, 5U, {2U, 2U}),
+                     op(Opcode::AddU32, 6U, {5U, 5U}),
+                     op(Opcode::MultiplyLoU32, 7U, {3U, 6U}),
+                     op(Opcode::AddSharedAddress, 8U, {4U, 7U}),
+                     op(Opcode::AddU32, 9U, {3U, 2U}),
+                     op(Opcode::SetPredicateEqU32, 10U, {2U, 2U}),
+                     op(Opcode::BarrierSync, metaflux::compiler::kNoValue, {}),
+                     op(Opcode::SubU32, 11U, {1U, 3U}),
+                     op(Opcode::MultiplyLoU32, 12U, {11U, 6U}),
+                     op(Opcode::AddSharedAddress, 13U, {4U, 12U}),
+                     op(Opcode::LoadSharedU32, 14U, {13U}),
+                     op(Opcode::MultiplyWideU32, 15U, {3U}, 4U),
+                     op(Opcode::AddGlobalAddress, 16U, {0U, 15U}),
+                     op(Opcode::StoreGlobalU32, metaflux::compiler::kNoValue, {16U, 14U}),
+                     op(Opcode::Return, metaflux::compiler::kNoValue, {})},
+  };
+  kernel.operations.insert(kernel.operations.begin() + 11U,
+                           op(Opcode::StoreSharedU32, metaflux::compiler::kNoValue, {8U, 9U}));
+  kernel.operations[11].predicate = 10U;
+  return kernel;
+}
+
 mf_vulkan_capability_profile_v1 target() {
   mf_vulkan_capability_profile_v1 result{};
   result.struct_size = sizeof(result);
@@ -229,6 +273,37 @@ bool valid_copy_lowering() {
   return valid;
 }
 
+bool valid_shared_barrier_lowering() {
+  const auto profile = target();
+  SpirvLoweredModule module{};
+  const auto result = metaflux::backend::vulkan::lower_kernel(
+      shared_barrier_kernel(), profile, {4U, 1U, 1U}, &module);
+  const bool valid = result.status == LoweringStatus::success &&
+         module.entry_point == "shared_reverse" && module.instructions.size() == 21U &&
+         module.reflection.argument_count == 3U && module.reflection.has_workgroup_storage &&
+         module.canonical_text.find("spirv.control_barrier") != std::string::npos &&
+         module.canonical_text.find("spirv.load_workgroup_u32") != std::string::npos &&
+         module.canonical_text.find("spirv.store_workgroup_u32") != std::string::npos &&
+         module.mlir_text.find("%arg1") != std::string::npos &&
+         module.mlir_text.find("%arg2") != std::string::npos &&
+         module.mlir_text.find("arith.subi") != std::string::npos &&
+         module.mlir_text.find("arith.muli") != std::string::npos &&
+         module.mlir_text.find("spirv.ControlBarrier") != std::string::npos &&
+         module.mlir_text.find("Workgroup") != std::string::npos &&
+         module.spirv_binary.size() > 5U && module.spirv_binary[0] == 0x07230203U &&
+         module.spirv_binary[1] != 0U;
+  if (!valid) {
+    std::cerr << "Vulkan shared barrier lowering failure: status="
+              << metaflux::backend::vulkan::lowering_status_string(result.status)
+              << " diagnostic=" << result.diagnostic << " mlir-bytes=" << module.mlir_text.size()
+              << " spirv-words=" << module.spirv_binary.size() << '\n';
+    if (!module.mlir_text.empty()) {
+      std::cerr << module.mlir_text << '\n';
+    }
+  }
+  return valid;
+}
+
 bool independently_validates_spirv() {
 #ifdef METAFLUX_VULKAN_SPIRV_VAL
   const auto validate = [](const Kernel& kernel) {
@@ -280,7 +355,7 @@ bool independently_validates_spirv() {
     }
     return valid;
   };
-  return validate(add_kernel()) && validate(copy_kernel());
+  return validate(add_kernel()) && validate(copy_kernel()) && validate(shared_barrier_kernel());
 #else
   std::cout << "Vulkan lowering: spirv-val unavailable; independent validation skipped\n";
   return true;
@@ -321,7 +396,8 @@ bool invalid_inputs() {
 } // namespace
 
 int main() {
-  return valid_add_lowering() && valid_copy_lowering() && independently_validates_spirv() &&
+  return valid_add_lowering() && valid_copy_lowering() && valid_shared_barrier_lowering() &&
+         independently_validates_spirv() &&
                  unsupported_semantics_fail_before_emission() && invalid_inputs()
              ? 0
              : 1;
