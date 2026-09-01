@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <initializer_list>
+#include <iostream>
 #include <string>
 
 namespace {
@@ -112,7 +113,7 @@ bool valid_add_lowering() {
   SpirvLoweredModule module{};
   const auto result = metaflux::backend::vulkan::lower_kernel(
       add_kernel(), profile, {8U, 1U, 1U}, &module);
-  return result.status == LoweringStatus::success && module.entry_point == "add_u32" &&
+  const bool valid = result.status == LoweringStatus::success && module.entry_point == "add_u32" &&
          module.instructions.size() == 19U && module.reflection.argument_count == 4U &&
          module.instructions[4].opcode == SpirvSemanticOpcode::builtin_local_invocation_id &&
          module.instructions[5].opcode == SpirvSemanticOpcode::builtin_workgroup_id &&
@@ -130,7 +131,20 @@ bool valid_add_lowering() {
          module.canonical_text.find("spirv.builtin_workgroup_size result=6") !=
              std::string::npos &&
          module.canonical_text.find("spirv.store_global_u32") != std::string::npos &&
-         module.canonical_text.find("schema=metaflux.vulkan.target.v1") != std::string::npos;
+         module.canonical_text.find("schema=metaflux.vulkan.target.v1") != std::string::npos &&
+         module.mlir_text.find("spirv.func @add_u32") != std::string::npos &&
+         module.spirv_binary.size() > 5U &&
+         module.spirv_binary[0] == 0x07230203U && module.spirv_binary[1] != 0U;
+  if (!valid) {
+    std::cerr << "Vulkan lowering failure: status="
+              << metaflux::backend::vulkan::lowering_status_string(result.status)
+              << " diagnostic=" << result.diagnostic << " mlir-bytes=" << module.mlir_text.size()
+              << " spirv-words=" << module.spirv_binary.size() << '\n';
+    if (!module.mlir_text.empty()) {
+      std::cerr << module.mlir_text << '\n';
+    }
+  }
+  return valid;
 }
 
 bool invalid_inputs() {

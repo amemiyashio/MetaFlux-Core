@@ -1,15 +1,40 @@
 #include "metaflux/backend/vulkan_lowering.hpp"
 
+#include "mlir/Conversion/GPUToSPIRV/GPUToSPIRVPass.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/GPU/IR/GPUDialect.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/SPIRV/IR/SPIRVAttributes.h"
+#include "mlir/Dialect/SPIRV/IR/SPIRVDialect.h"
+#include "mlir/Dialect/SPIRV/IR/SPIRVOps.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/Diagnostics.h"
+#include "mlir/IR/DialectRegistry.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/Parser/Parser.h"
+#include "mlir/Pass/Pass.h"
+#include "mlir/Pass/PassManager.h"
+#include "mlir/Target/SPIRV/Serialization.h"
+#include "mlir/Target/SPIRV/Target.h"
+
 #include <algorithm>
+#include <array>
 #include <cstring>
+#include <exception>
 #include <limits>
 #include <sstream>
 #include <utility>
+
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace metaflux::backend::vulkan {
 namespace {
 
 using compiler::Opcode;
+using compiler::ParameterKind;
 using compiler::SpecialRegister;
 using compiler::ValueKind;
 
@@ -199,6 +224,189 @@ std::string text_for(const SpirvLoweredModule& module) {
   return output.str();
 }
 
+bool is_add_u32_kernel(const compiler::Kernel& kernel) noexcept {
+  using enum Opcode;
+  constexpr std::array<Opcode, 19> kOperations{
+      LoadParameterAddress, LoadParameterAddress, LoadParameterAddress, LoadParameterU32,
+      MoveSpecialU32,       MoveSpecialU32,       MoveSpecialU32,       MadLoU32,
+      SetPredicateGeU32,    BranchIf,             MultiplyWideU32,      AddGlobalAddress,
+      AddGlobalAddress,     AddGlobalAddress,     LoadGlobalU32,        LoadGlobalU32,
+      AddU32,               StoreGlobalU32,        Return,
+  };
+  if (kernel.parameters.size() != 4U || kernel.parameters[0].kind != ParameterKind::BufferU32 ||
+      kernel.parameters[1].kind != ParameterKind::BufferU32 ||
+      kernel.parameters[2].kind != ParameterKind::BufferU32 ||
+      kernel.parameters[3].kind != ParameterKind::ScalarU32 ||
+      kernel.operations.size() != kOperations.size()) {
+    return false;
+  }
+  for (std::size_t index = 0U; index < kOperations.size(); ++index) {
+    if (kernel.operations[index].opcode != kOperations[index]) {
+      return false;
+    }
+  }
+  return kernel.operations[4].attribute ==
+             static_cast<std::uint32_t>(SpecialRegister::ThreadIdX) &&
+         kernel.operations[5].attribute ==
+             static_cast<std::uint32_t>(SpecialRegister::BlockIdX) &&
+         kernel.operations[6].attribute ==
+             static_cast<std::uint32_t>(SpecialRegister::BlockDimX);
+}
+
+std::string mlir_symbol(std::string_view name) {
+  std::string result = "@\"";
+  result.reserve(name.size() + 3U);
+  for (const char character : name) {
+    if (character == '\\' || character == '\"') {
+      result.push_back('\\');
+    }
+    result.push_back(character);
+  }
+  result.push_back('"');
+  return result;
+}
+
+std::string actual_mlir_source(const compiler::Kernel& kernel,
+                               const std::array<std::uint32_t, 3>& workgroup_size) {
+  std::ostringstream output;
+  output << "module attributes {\n"
+         << "  gpu.container_module,\n"
+         << "  spirv.target_env = #spirv.target_env<"
+         << "#spirv.vce<v1.0, [Shader], [SPV_KHR_storage_buffer_storage_class]>, "
+         << "#spirv.resource_limits<>>\n"
+         << "} {\n"
+         << "  gpu.module @kernels {\n"
+         << "    gpu.func " << mlir_symbol(kernel.name)
+         << "(%arg0: memref<?xi32, #spirv.storage_class<StorageBuffer>>, "
+         << "%arg1: memref<?xi32, #spirv.storage_class<StorageBuffer>>, "
+         << "%arg2: memref<?xi32, #spirv.storage_class<StorageBuffer>>, %arg3: i32) kernel "
+         << "attributes {spirv.entry_point_abi = #spirv.entry_point_abi<workgroup_size = ["
+         << workgroup_size[0] << ", " << workgroup_size[1] << ", " << workgroup_size[2]
+         << "]>} {\n"
+         << "      %tid = gpu.thread_id x\n"
+         << "      %bid = gpu.block_id x\n"
+         << "      %bdim = gpu.block_dim x\n"
+         << "      %idx0 = arith.muli %bid, %bdim : index\n"
+         << "      %idx = arith.addi %idx0, %tid : index\n"
+         << "      %n = arith.index_cast %arg3 : i32 to index\n"
+         << "      %pred = arith.cmpi uge, %idx, %n : index\n"
+         << "      scf.if %pred {\n"
+         << "      } else {\n"
+         << "        %a = memref.load %arg0[%idx] : memref<?xi32, "
+            "#spirv.storage_class<StorageBuffer>>\n"
+         << "        %b = memref.load %arg1[%idx] : memref<?xi32, "
+            "#spirv.storage_class<StorageBuffer>>\n"
+         << "        %sum = arith.addi %a, %b : i32\n"
+         << "        memref.store %sum, %arg2[%idx] : memref<?xi32, "
+            "#spirv.storage_class<StorageBuffer>>\n"
+         << "      }\n"
+         << "      gpu.return\n"
+         << "    }\n"
+         << "  }\n"
+         << "}\n";
+  return output.str();
+}
+
+std::string diagnostic_text(mlir::Diagnostic& diagnostic) {
+  std::string text;
+  llvm::raw_string_ostream stream(text);
+  diagnostic.print(stream);
+  stream.flush();
+  return text;
+}
+
+LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
+                                 const std::array<std::uint32_t, 3>& workgroup_size,
+                                 SpirvLoweredModule* module) {
+  if (!is_add_u32_kernel(kernel)) {
+    return {.status = LoweringStatus::unsupported_semantics,
+            .diagnostic =
+                "actual MLIR/SPIR-V emission currently supports the verified u32 Add/Copy form"};
+  }
+
+  try {
+    const auto source = actual_mlir_source(kernel, workgroup_size);
+    mlir::DialectRegistry registry;
+    registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect, mlir::gpu::GPUDialect,
+                    mlir::memref::MemRefDialect, mlir::scf::SCFDialect,
+                    mlir::spirv::SPIRVDialect>();
+    mlir::spirv::registerSPIRVTargetInterfaceExternalModels(registry);
+    mlir::MLIRContext context(registry);
+    std::string diagnostics;
+    const auto handler = context.getDiagEngine().registerHandler(
+        [&diagnostics](mlir::Diagnostic& diagnostic) {
+          diagnostics += diagnostic_text(diagnostic);
+          diagnostics.push_back('\n');
+          return mlir::success();
+        });
+    mlir::ParserConfig parser_config(&context);
+    auto parsed =
+        mlir::parseSourceString<mlir::ModuleOp>(source, parser_config, "metaflux-kernel");
+    if (!parsed) {
+      context.getDiagEngine().eraseHandler(handler);
+      return {.status = LoweringStatus::invalid_kernel,
+              .diagnostic = "MLIR parse failed: " + diagnostics};
+    }
+
+    mlir::PassManager pass_manager(&context);
+    pass_manager.enableVerifier(true);
+    pass_manager.addPass(mlir::createConvertGPUToSPIRVPass());
+    if (mlir::failed(pass_manager.run(*parsed))) {
+      context.getDiagEngine().eraseHandler(handler);
+      return {.status = LoweringStatus::unsupported_semantics,
+              .diagnostic = "MLIR GPU-to-SPIR-V conversion failed: " + diagnostics};
+    }
+
+    mlir::Operation* spirv_operation = nullptr;
+    parsed->walk([&spirv_operation](mlir::spirv::ModuleOp candidate) {
+      if (spirv_operation == nullptr) {
+        spirv_operation = candidate.getOperation();
+      }
+    });
+    auto spirv_module =
+        llvm::dyn_cast_or_null<mlir::spirv::ModuleOp>(spirv_operation);
+    if (!spirv_module) {
+      context.getDiagEngine().eraseHandler(handler);
+      return {.status = LoweringStatus::unsupported_semantics,
+              .diagnostic = "MLIR conversion produced no SPIR-V module"};
+    }
+
+    const auto target_environment =
+        parsed->getOperation()->getAttrOfType<mlir::spirv::TargetEnvAttr>("spirv.target_env");
+    if (!target_environment) {
+      context.getDiagEngine().eraseHandler(handler);
+      return {.status = LoweringStatus::unsupported_semantics,
+              .diagnostic = "SPIR-V serialization target environment is missing"};
+    }
+    // The conversion pass consumes the target environment but does not retain
+    // its triple on the generated module in this embedding API. Serialization
+    // requires that property to be explicit, so restore the exact parsed
+    // target triple before emitting the binary.
+    spirv_module.setVceTripleAttr(target_environment.getTripleAttr());
+
+    llvm::SmallVector<std::uint32_t, 0> binary;
+    if (mlir::failed(mlir::spirv::serialize(spirv_module, binary))) {
+      context.getDiagEngine().eraseHandler(handler);
+      return {.status = LoweringStatus::unsupported_semantics,
+              .diagnostic = "SPIR-V serialization failed: " + diagnostics};
+    }
+    std::string lowered_text;
+    llvm::raw_string_ostream text_stream(lowered_text);
+    parsed->print(text_stream);
+    text_stream.flush();
+    context.getDiagEngine().eraseHandler(handler);
+    module->mlir_text = std::move(lowered_text);
+    module->spirv_binary.assign(binary.begin(), binary.end());
+    return {.status = LoweringStatus::success, .diagnostic = {}};
+  } catch (const std::exception& error) {
+    return {.status = LoweringStatus::resource_exhausted,
+            .diagnostic = std::string("MLIR/SPIR-V emission failed: ") + error.what()};
+  } catch (...) {
+    return {.status = LoweringStatus::resource_exhausted,
+            .diagnostic = "MLIR/SPIR-V emission failed with an unknown exception"};
+  }
+}
+
 } // namespace
 
 LoweringResult lower_kernel(const compiler::Kernel& kernel,
@@ -295,6 +503,10 @@ LoweringResult lower_kernel(const compiler::Kernel& kernel,
       });
     }
     module.canonical_text = text_for(module);
+    const auto actual = emit_actual_spirv(kernel, workgroup_size, &module);
+    if (actual.status != LoweringStatus::success) {
+      return actual;
+    }
   } catch (...) {
     return {.status = LoweringStatus::resource_exhausted,
             .diagnostic = "SPIR-V dialect projection allocation failed"};

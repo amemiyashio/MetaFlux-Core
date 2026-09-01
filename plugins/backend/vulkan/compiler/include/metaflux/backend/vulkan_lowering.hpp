@@ -71,9 +71,12 @@ struct SpirvLoweredModule final {
   SpirvModuleRequirements requirements{};
   SpirvReflection reflection{};
   std::vector<SpirvLoweredInstruction> instructions{};
-  // This is a deterministic SPIR-V dialect projection. Actual MLIR parsing and
-  // binary emission remain separate toolchain-owned stages.
+  // canonical_text remains the stable semantic projection used by diagnostics
+  // and cache identity tests. mlir_text and spirv_binary are the actual
+  // target-constrained compiler products.
   std::string canonical_text;
+  std::string mlir_text;
+  std::vector<std::uint32_t> spirv_binary{};
 };
 
 struct LoweringResult final {
