@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/platform_device.h>
 #include <linux/poll.h>
 #include <linux/scatterlist.h>
 #include <linux/sched/mm.h>
@@ -105,6 +106,9 @@ static struct mf_cdev_queue mf_cdev_queue;
 static struct mf_cdev_memory mf_cdev_payload;
 static struct mf_cdev_registered_memory
 	mf_cdev_registered[MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS];
+static struct platform_device *mf_cdev_dma_provider;
+static u64 mf_cdev_dma_mask;
+static u32 mf_cdev_dma_width;
 static struct miscdevice mf_cdev_data_device;
 
 static void mf_cdev_queue_release(struct kref *reference)
@@ -156,6 +160,58 @@ static enum dma_data_direction mf_cdev_dma_direction(u32 flags)
 static bool mf_cdev_dma_mapping_available(struct device *device)
 {
 	return device != NULL && device->dma_mask != NULL && *device->dma_mask != 0U;
+}
+
+static struct device *mf_cdev_dma_device(void)
+{
+	if (mf_cdev_dma_provider == NULL)
+		return NULL;
+	return &mf_cdev_dma_provider->dev;
+}
+
+static int mf_cdev_dma_provider_register(void)
+{
+	struct device *device;
+	int result;
+
+	mf_cdev_dma_provider = platform_device_alloc("metaflux-dma", -1);
+	if (mf_cdev_dma_provider == NULL)
+		return -ENOMEM;
+	device = &mf_cdev_dma_provider->dev;
+	mf_cdev_dma_mask = DMA_BIT_MASK(64);
+	device->dma_mask = &mf_cdev_dma_mask;
+	device->coherent_dma_mask = DMA_BIT_MASK(64);
+	result = dma_set_mask_and_coherent(device, DMA_BIT_MASK(64));
+	if (result != 0)
+		result = dma_set_mask_and_coherent(device, DMA_BIT_MASK(32));
+	if (result != 0 || !mf_cdev_dma_mapping_available(device)) {
+		platform_device_put(mf_cdev_dma_provider);
+		mf_cdev_dma_provider = NULL;
+		return result != 0 ? result : -EOPNOTSUPP;
+	}
+	mf_cdev_dma_width = fls64(*device->dma_mask);
+	if (mf_cdev_dma_width == 0U) {
+		platform_device_put(mf_cdev_dma_provider);
+		mf_cdev_dma_provider = NULL;
+		return -EOPNOTSUPP;
+	}
+	result = platform_device_add(mf_cdev_dma_provider);
+	if (result != 0) {
+		platform_device_put(mf_cdev_dma_provider);
+		mf_cdev_dma_provider = NULL;
+		mf_cdev_dma_width = 0U;
+		return result;
+	}
+	return 0;
+}
+
+static void mf_cdev_dma_provider_unregister(void)
+{
+	if (mf_cdev_dma_provider != NULL) {
+		platform_device_unregister(mf_cdev_dma_provider);
+		mf_cdev_dma_provider = NULL;
+	}
+	mf_cdev_dma_width = 0U;
 }
 
 static void mf_cdev_init_ring(struct mf_ring_header_v1 *header, u64 queue_id)
@@ -516,7 +572,7 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 		return -EOVERFLOW;
 	if (request.offset + request.byte_count > (u64)ULONG_MAX - (PAGE_SIZE - 1U))
 		return -EOVERFLOW;
-	dma_device = READ_ONCE(mf_cdev_data_device.this_device);
+	dma_device = mf_cdev_dma_device();
 	if (!mf_cdev_dma_mapping_available(dma_device))
 		return -EOPNOTSUPP;
 
@@ -693,7 +749,7 @@ static int mf_cdev_negotiate(struct mf_cdev_file *file, void __user *argument)
 	request.max_queues = 1U;
 	request.max_regions = MF_CDEV_REGISTERED_MEMORY_MAX_REGIONS;
 	request.max_inflight = MF_CDEV_RING_CAPACITY;
-	request.dma_width = 64U;
+	request.dma_width = mf_cdev_dma_width;
 	request.dma_alignment = PAGE_SIZE;
 	file->negotiated_features = request.required_features | request.optional_features;
 	file->negotiated = true;
@@ -1270,20 +1326,27 @@ static int __init mf_cdev_init(void)
 	mf_cdev_init_ring(submission, MF_CDEV_SUBMISSION_QUEUE_ID);
 	mf_cdev_init_ring(completion, MF_CDEV_COMPLETION_QUEUE_ID);
 	mf_cdev_queue.online = true;
+	result = mf_cdev_dma_provider_register();
+	if (result != 0)
+		goto fail_mapping;
+	mf_cdev_control_device.parent = &mf_cdev_dma_provider->dev;
+	mf_cdev_data_device.parent = &mf_cdev_dma_provider->dev;
 
 	result = misc_register(&mf_cdev_control_device);
 	if (result != 0)
-		goto fail_mapping;
+		goto fail_provider;
 	result = misc_register(&mf_cdev_data_device);
 	if (result != 0) {
 		misc_deregister(&mf_cdev_control_device);
-		goto fail_mapping;
+		goto fail_provider;
 	}
 	pr_info("metaflux_core: cdev queues ready (generation %llu, mapping %llu bytes)\n",
 		(unsigned long long)mf_cdev_queue.generation,
 		(unsigned long long)mf_cdev_queue.mapping_size);
 	return 0;
 
+fail_provider:
+	mf_cdev_dma_provider_unregister();
 fail_mapping:
 	mf_cdev_queue.online = false;
 	mf_cdev_queue.root_ref_held = false;
@@ -1335,6 +1398,7 @@ static void __exit mf_cdev_exit(void)
 		--retired_count;
 		mf_cdev_registered_memory_destroy(&retired[retired_count]);
 	}
+	mf_cdev_dma_provider_unregister();
 }
 
 module_init(mf_cdev_init);

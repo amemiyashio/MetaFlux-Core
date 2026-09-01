@@ -15,7 +15,7 @@
       "id": "lane-cdev-dma",
       "iteration": "iteration-0001",
       "outcome": "Provide a real DMA-capable cdev parent/provider and qualify registered-memory mapping through the live device path.",
-      "status": "planned",
+      "status": "integrated",
       "depends_on": [],
       "acceptance": [
         "The cdev data device has an explicit DMA-capable parent/provider rather than a fixture-only capability.",
