@@ -112,6 +112,7 @@ local-only, and failed-route material is discarded. No roast archive is kept.
 
 Decision-0034 supersedes the fixed identity portion of this decision. The
 [`agent-tool detection boundary`](agent-tool-detection.md) derives Author and
-Committer from bounded executable evidence and pairs it with the active
-`METAFLUX_AGENT_EPOCH`. The Epoch/Batch/Iteration topology and candidate-tree
-commit gate defined here remain authoritative.
+Committer from bounded executable evidence. The active Epoch is represented
+once in `agent/goal.json` and is not part of commit identity or command
+environment. The Epoch/Batch/Iteration topology and candidate-tree commit gate
+defined here remain authoritative.

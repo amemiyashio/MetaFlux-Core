@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
-"""Validate that MetaFlux work runs from a provisioned Git common directory."""
+"""Reject local standalone clones without inventing repository identity."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 
-EXECUTION_COMMON_DIR_KEY = "metaflux.agentExecutionCommonDir"
-
-
-class ContextError(ValueError):
-    """Raised when the current checkout is not a provisioned execution context."""
+class TopologyError(ValueError):
+    """Raised when the current Git topology is not a valid execution surface."""
 
 
 @dataclass(frozen=True)
-class ExecutionContext:
+class GitTopology:
     repository_root: str
     git_common_dir: str
     git_dir: str
@@ -39,7 +38,7 @@ def isolated_git_environment(
         env=environment,
     )
     if result.returncode != 0:
-        raise ContextError(
+        raise TopologyError(
             f"cannot enumerate Git local environment: {result.stderr.strip()}"
         )
     for variable in result.stdout.splitlines():
@@ -50,7 +49,6 @@ def isolated_git_environment(
 def git(
     repository: Path,
     *arguments: str,
-    environment: dict[str, str] | None = None,
     allowed_returncodes: tuple[int, ...] = (0,),
 ) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
@@ -58,11 +56,11 @@ def git(
         check=False,
         capture_output=True,
         text=True,
-        env=isolated_git_environment(environment),
+        env=isolated_git_environment(),
     )
     if result.returncode not in allowed_returncodes:
         detail = result.stderr.strip() or result.stdout.strip()
-        raise ContextError(
+        raise TopologyError(
             f"git {' '.join(arguments)} failed in {repository}: {detail}"
         )
     return result
@@ -71,7 +69,7 @@ def git(
 def resolved_git_path(repository: Path, *arguments: str) -> Path:
     value = git(repository, *arguments).stdout.strip()
     if not value:
-        raise ContextError(f"git {' '.join(arguments)} returned an empty path")
+        raise TopologyError(f"git {' '.join(arguments)} returned an empty path")
     return Path(value).resolve()
 
 
@@ -84,10 +82,46 @@ def registered_worktrees(repository: Path) -> set[Path]:
     }
 
 
-def resolve_execution_context(
-    repository: Path,
-    environment: dict[str, str] | None = None,
-) -> ExecutionContext:
+def local_git_source(value: str) -> str | None:
+    value = value.strip()
+    if not value:
+        return None
+    parsed = urlparse(value)
+    if parsed.scheme:
+        return unquote(parsed.path) if parsed.scheme == "file" else None
+    if re.match(r"^[^/]+:[^/].*", value):
+        return None
+    return value
+
+
+def local_clone_evidence(repository: Path) -> list[str]:
+    evidence: list[str] = []
+    remotes = git(repository, "remote").stdout.splitlines()
+    for remote in remotes:
+        urls = git(repository, "remote", "get-url", "--all", remote)
+        for url in urls.stdout.splitlines():
+            if local_git_source(url) is not None:
+                evidence.append(f"remote {remote} -> {url}")
+
+    head = git(
+        repository,
+        "rev-parse",
+        "--verify",
+        "HEAD",
+        allowed_returncodes=(0, 128),
+    )
+    if head.returncode == 0:
+        reflog = git(repository, "reflog", "show", "--format=%gs", "HEAD")
+        for message in reflog.stdout.splitlines():
+            prefix = "clone: from "
+            if message.startswith(prefix):
+                source = message.removeprefix(prefix)
+                if local_git_source(source) is not None:
+                    evidence.append(f"HEAD reflog -> {source}")
+    return list(dict.fromkeys(evidence))
+
+
+def resolve_git_topology(repository: Path) -> GitTopology:
     repository = repository.resolve()
     root = resolved_git_path(repository, "rev-parse", "--show-toplevel")
     common_dir = resolved_git_path(
@@ -98,34 +132,8 @@ def resolve_execution_context(
     )
     git_dir = resolved_git_path(repository, "rev-parse", "--absolute-git-dir")
 
-    registration = git(
-        repository,
-        "config",
-        "--local",
-        "--get",
-        EXECUTION_COMMON_DIR_KEY,
-        environment=environment,
-        allowed_returncodes=(0, 1),
-    )
-    if registration.returncode == 1 or not registration.stdout.strip():
-        raise ContextError(
-            "execution context is not provisioned: shared Git config key "
-            f"{EXECUTION_COMMON_DIR_KEY} is missing"
-        )
-    registered_common_dir = Path(registration.stdout.strip())
-    if not registered_common_dir.is_absolute():
-        raise ContextError(
-            f"{EXECUTION_COMMON_DIR_KEY} must contain an absolute path"
-        )
-    if registered_common_dir.resolve() != common_dir:
-        raise ContextError(
-            "execution context registration does not match its Git common "
-            f"directory: registered {registered_common_dir.resolve()}, actual {common_dir}"
-        )
-
-    worktrees = registered_worktrees(repository)
-    if root not in worktrees:
-        raise ContextError(
+    if root not in registered_worktrees(repository):
+        raise TopologyError(
             f"repository root is not registered by Git worktree metadata: {root}"
         )
 
@@ -135,12 +143,19 @@ def resolve_execution_context(
         try:
             git_dir.relative_to(common_dir / "worktrees")
         except ValueError as error:
-            raise ContextError(
+            raise TopologyError(
                 f"linked worktree Git directory is outside {common_dir / 'worktrees'}"
             ) from error
         context_kind = "linked-worktree"
 
-    return ExecutionContext(
+    clone_evidence = local_clone_evidence(repository)
+    if clone_evidence:
+        raise TopologyError(
+            "local standalone clone execution is forbidden: "
+            + "; ".join(clone_evidence)
+        )
+
+    return GitTopology(
         repository_root=str(root),
         git_common_dir=str(common_dir),
         git_dir=str(git_dir),
@@ -150,7 +165,7 @@ def resolve_execution_context(
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(
-        description="Validate a provisioned MetaFlux Git execution context."
+        description="Validate MetaFlux execution using existing Git topology."
     )
     result.add_argument("repository", nargs="?", default=".")
     result.add_argument("--json", action="store_true")
@@ -160,17 +175,17 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     arguments = parser().parse_args()
     try:
-        context = resolve_execution_context(Path(arguments.repository))
-    except ContextError as error:
+        topology = resolve_git_topology(Path(arguments.repository))
+    except TopologyError as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
 
     if arguments.json:
-        print(json.dumps(asdict(context), sort_keys=True))
+        print(json.dumps(asdict(topology), sort_keys=True))
     else:
         print(
-            f"execution context: {context.context_kind} "
-            f"{context.repository_root} @ {context.git_common_dir}"
+            f"git topology: {topology.context_kind} "
+            f"{topology.repository_root} @ {topology.git_common_dir}"
         )
     return 0
 

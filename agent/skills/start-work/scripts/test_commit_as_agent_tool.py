@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import importlib.util
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -27,7 +26,7 @@ def load_module():
 
 
 HELPER = load_module()
-CONTEXT_CHECKER = HELPER.CONTEXT_CHECKER
+TOPOLOGY_CHECKER = HELPER.TOPOLOGY_CHECKER
 
 
 def isolated_git_environment(
@@ -68,10 +67,9 @@ def make_tool(root: Path, name: str = "fixture-agent") -> Path:
     return path
 
 
-def environment(tool: Path, epoch: str = "epoch-0002") -> dict[str, str]:
+def environment(tool: Path) -> dict[str, str]:
     result = isolated_git_environment()
     result[HELPER.TOOL_EXECUTABLE_DECLARATION] = str(tool)
-    result[HELPER.EPOCH_DECLARATION] = epoch
     return result
 
 
@@ -101,28 +99,6 @@ def initialize_repository(repository: Path) -> None:
     )
 
 
-def provision_repository(repository: Path) -> None:
-    common_dir = run(
-        repository,
-        "git",
-        "rev-parse",
-        "--path-format=absolute",
-        "--git-common-dir",
-    )
-    require(common_dir, "resolve Git common directory")
-    require(
-        run(
-            repository,
-            "git",
-            "config",
-            "--local",
-            CONTEXT_CHECKER.EXECUTION_COMMON_DIR_KEY,
-            common_dir.stdout.strip(),
-        ),
-        "provision execution common directory",
-    )
-
-
 def expect_error(action, fragment: str) -> None:
     try:
         action()
@@ -138,20 +114,13 @@ def test_declarations(root: Path) -> None:
     identity = HELPER.declared_identity(environment(tool))
     assert identity.name == "fixture-agent"
     assert identity.email == "fixture-agent@localhost"
-    assert identity.epoch == "epoch-0002"
     assert identity.executable == str(tool.resolve())
     expect_error(
         lambda: HELPER.declared_identity(
-            {HELPER.EPOCH_DECLARATION: "epoch-0002", "PATH": ""},
+            {"PATH": ""},
             explicit_executable=str(root / "missing-agent-tool"),
         ),
         "not executable",
-    )
-    expect_error(
-        lambda: HELPER.declared_identity(
-            environment(tool, epoch="E" + "0002")
-        ),
-        "epoch-NNNN",
     )
 
 
@@ -159,7 +128,6 @@ def test_identity_output(root: Path) -> None:
     tool = make_tool(root / "identity")
     repository = root / "repository"
     initialize_repository(repository)
-    provision_repository(repository)
     result = run(
         repository,
         sys.executable,
@@ -168,16 +136,13 @@ def test_identity_output(root: Path) -> None:
         env=environment(tool),
     )
     require(result, "identity preflight")
-    assert result.stdout.strip() == (
-        "fixture-agent <fixture-agent@localhost> @ epoch-0002"
-    )
+    assert result.stdout.strip() == "fixture-agent <fixture-agent@localhost>"
 
 
 def test_commit_identity(root: Path) -> None:
     tool = make_tool(root / "tools")
     repository = root / "repository"
     initialize_repository(repository)
-    provision_repository(repository)
     (repository / "value.txt").write_text("value\n", encoding="utf-8")
     require(run(repository, "git", "add", "value.txt"), "git add")
     result = run(
@@ -189,7 +154,7 @@ def test_commit_identity(root: Path) -> None:
         "--",
         "-m",
         "candidate",
-        env={**isolated_git_environment(), HELPER.EPOCH_DECLARATION: "epoch-0002"},
+        env=isolated_git_environment(),
     )
     require(result, "agent commit")
     identity = run(repository, "git", "show", "-s", "--format=%an|%ae|%cn|%ce")
@@ -201,15 +166,14 @@ def test_commit_identity(root: Path) -> None:
     assert run(repository, "git", "config", "user.name").stdout.strip() == "Human"
 
 
-def test_execution_context_boundary(root: Path) -> None:
+def test_git_topology_boundary(root: Path) -> None:
     source = root / "source"
     initialize_repository(source)
-    provision_repository(source)
     (source / "value.txt").write_text("value\n", encoding="utf-8")
     require(run(source, "git", "add", "value.txt"), "git add")
     require(run(source, "git", "commit", "-q", "-m", "base"), "base commit")
 
-    primary = CONTEXT_CHECKER.resolve_execution_context(source)
+    primary = TOPOLOGY_CHECKER.resolve_git_topology(source)
     assert primary.context_kind == "primary"
     assert primary.repository_root == str(source.resolve())
 
@@ -218,23 +182,27 @@ def test_execution_context_boundary(root: Path) -> None:
         run(source, "git", "worktree", "add", "-q", "--detach", str(linked), "HEAD"),
         "linked worktree",
     )
-    linked_context = CONTEXT_CHECKER.resolve_execution_context(linked)
+    linked_context = TOPOLOGY_CHECKER.resolve_git_topology(linked)
     assert linked_context.context_kind == "linked-worktree"
     assert linked_context.git_common_dir == primary.git_common_dir
 
     clone = root / "clone"
     require(run(root, "git", "clone", "-q", str(source), str(clone)), "local clone")
     expect_error(
-        lambda: CONTEXT_CHECKER.resolve_execution_context(clone),
-        "is not provisioned",
+        lambda: TOPOLOGY_CHECKER.resolve_git_topology(clone),
+        "local standalone clone",
+    )
+    require(run(clone, "git", "remote", "remove", "origin"), "remove clone remote")
+    expect_error(
+        lambda: TOPOLOGY_CHECKER.resolve_git_topology(clone),
+        "local standalone clone",
     )
 
-    copied = root / "copied"
-    shutil.copytree(source, copied)
-    expect_error(
-        lambda: CONTEXT_CHECKER.resolve_execution_context(copied),
-        "does not match",
+    require(
+        run(source, "git", "remote", "add", "upstream", "https://example.invalid/repo.git"),
+        "add network remote",
     )
+    TOPOLOGY_CHECKER.resolve_git_topology(source)
 
 
 def test_conflicting_options() -> None:
@@ -249,10 +217,10 @@ def test_policy_text() -> None:
     assert text.index("## Stage Zero") < text.index("## Load Current Authority")
     assert "$detect-agent-tool" in text
     assert "nix develop . --command ..." in text
-    assert "METAFLUX_AGENT_EPOCH" in text
     assert "goal.json" in text
-    assert "check_execution_context.py" in text
-    assert CONTEXT_CHECKER.EXECUTION_COMMON_DIR_KEY in text
+    assert "check_git_topology.py" in text
+    duplicate_epoch = "METAFLUX_AGENT_" + "EPOCH"
+    assert duplicate_epoch not in text
     legacy_marker = "METAFLUX_AGENT_" + "HARNESS"
     assert legacy_marker not in text
 
@@ -265,7 +233,7 @@ def main() -> int:
         test_declarations(root / "declarations")
         test_identity_output(root / "output")
         test_commit_identity(root / "commit")
-        test_execution_context_boundary(root / "context")
+        test_git_topology_boundary(root / "context")
     print("commit helper tests: 6 passed")
     return 0
 

@@ -257,7 +257,8 @@ def test_plan_and_legacy(root: Path) -> None:
     assert any("requires an Exit Gate" in error for error in errors(root))
 
     legacy = "METAFLUX_" + "SESSION_ID"
-    write(root / "legacy.md", legacy + "\n")
+    duplicate_epoch = "METAFLUX_AGENT_" + "EPOCH"
+    write(root / "legacy.md", legacy + "\n" + duplicate_epoch + "\n")
     assert any("legacy execution marker" in error for error in errors(root))
 
 
@@ -282,7 +283,6 @@ def test_commit_environment(root: Path) -> None:
     valid.update(
         {
             "METAFLUX_AGENT_TOOL_EXECUTABLE": str(tool),
-            "METAFLUX_AGENT_EPOCH": "epoch-0002",
             "GIT_AUTHOR_NAME": "fixture-agent",
             "GIT_AUTHOR_EMAIL": "fixture-agent@localhost",
             "GIT_COMMITTER_NAME": "fixture-agent",
@@ -294,11 +294,9 @@ def test_commit_environment(root: Path) -> None:
     assert not checker.errors
     invalid = dict(valid)
     invalid["GIT_AUTHOR_NAME"] = "unrelated-name"
-    invalid["METAFLUX_AGENT_EPOCH"] = "epoch-9999"
     checker = STATE.Checker(root)
     checker.validate_commit_environment(invalid)
     assert any("GIT_AUTHOR_NAME" in error for error in checker.errors)
-    assert any("candidate Epoch" in error for error in checker.errors)
 
     relative = dict(valid)
     relative["METAFLUX_AGENT_TOOL_EXECUTABLE"] = tool.name

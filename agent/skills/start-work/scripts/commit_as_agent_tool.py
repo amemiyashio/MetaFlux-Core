@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Create one Git commit with detected agent-tool identity and declared Epoch."""
+"""Create one Git commit with detected agent-tool identity."""
 
 from __future__ import annotations
 
 import argparse
 import importlib.util
 import os
-import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -14,8 +13,6 @@ from pathlib import Path
 
 
 TOOL_EXECUTABLE_DECLARATION = "METAFLUX_AGENT_TOOL_EXECUTABLE"
-EPOCH_DECLARATION = "METAFLUX_AGENT_EPOCH"
-EPOCH_RE = re.compile(r"epoch-[0-9]{4}")
 SCRIPT = Path(__file__).resolve()
 DETECTOR_SCRIPT = (
     SCRIPT.parents[2]
@@ -23,7 +20,7 @@ DETECTOR_SCRIPT = (
     / "scripts"
     / "detect_agent_tool.py"
 )
-CONTEXT_CHECKER_SCRIPT = SCRIPT.with_name("check_execution_context.py")
+TOPOLOGY_CHECKER_SCRIPT = SCRIPT.with_name("check_git_topology.py")
 
 
 def load_detector():
@@ -41,25 +38,24 @@ def load_detector():
 DETECTOR = load_detector()
 
 
-def load_context_checker():
+def load_topology_checker():
     spec = importlib.util.spec_from_file_location(
-        "metaflux_execution_context_for_commit", CONTEXT_CHECKER_SCRIPT
+        "metaflux_git_topology_for_commit", TOPOLOGY_CHECKER_SCRIPT
     )
     if spec is None or spec.loader is None:
-        raise RuntimeError("execution-context checker cannot be loaded")
+        raise RuntimeError("Git-topology checker cannot be loaded")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
 
-CONTEXT_CHECKER = load_context_checker()
+TOPOLOGY_CHECKER = load_topology_checker()
 
 
 @dataclass(frozen=True)
 class AgentIdentity:
     subject: str
-    epoch: str
     executable: str
 
     @property
@@ -74,9 +70,6 @@ class AgentIdentity:
 def declared_identity(
     environment: dict[str, str], explicit_executable: str | None = None
 ) -> AgentIdentity:
-    epoch = environment.get(EPOCH_DECLARATION)
-    if epoch is None or EPOCH_RE.fullmatch(epoch) is None:
-        raise ValueError(f"{EPOCH_DECLARATION} must match epoch-NNNN")
     try:
         tool = DETECTOR.detect_agent_tool(
             explicit=explicit_executable,
@@ -86,7 +79,6 @@ def declared_identity(
         raise ValueError(str(error)) from error
     return AgentIdentity(
         subject=tool.subject,
-        epoch=epoch,
         executable=tool.executable,
     )
 
@@ -118,7 +110,7 @@ def commit_arguments(raw_arguments: list[str]) -> list[str]:
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(
-        description="Run git commit under detected agent-tool identity and Epoch."
+        description="Run git commit under detected agent-tool identity."
     )
     result.add_argument(
         "--agent-tool", help="exact harness or CLI executable for identity detection"
@@ -134,11 +126,11 @@ def main() -> int:
         identity = declared_identity(
             dict(os.environ), explicit_executable=arguments.agent_tool
         )
-        CONTEXT_CHECKER.resolve_execution_context(Path.cwd())
+        TOPOLOGY_CHECKER.resolve_git_topology(Path.cwd())
         if arguments.print_identity:
             if arguments.git_arguments:
                 raise ValueError("--print-identity does not accept commit arguments")
-            print(f"{identity.name} <{identity.email}> @ {identity.epoch}")
+            print(f"{identity.name} <{identity.email}>")
             return 0
         git_arguments = commit_arguments(arguments.git_arguments)
     except ValueError as error:
@@ -156,7 +148,7 @@ def main() -> int:
         }
     )
     print(
-        f"agent identity: {identity.name} <{identity.email}> @ {identity.epoch}",
+        f"agent identity: {identity.name} <{identity.email}>",
         file=sys.stderr,
     )
     return subprocess.run(

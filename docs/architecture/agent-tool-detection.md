@@ -57,11 +57,12 @@ caller evidence outside product toolchain ownership.
 ## Commit Boundary
 
 The commit helper detects the tool, derives
-`SUBJECT <SUBJECT@localhost>`, and passes the exact resolved executable plus the
-candidate `METAFLUX_AGENT_EPOCH` to the child commit. The pre-commit checker
-repeats the detector against the candidate tree and requires Author and
-Committer to match that subject. Neither helper nor checker changes Git config
-or persists detector output.
+`SUBJECT <SUBJECT@localhost>`, and passes only the exact resolved executable to
+the child commit. The pre-commit checker repeats the detector against the
+candidate tree and requires Author and Committer to match that subject. The
+single active Epoch remains in `agent/goal.json`; it is not duplicated into Git
+identity, an environment declaration, or Git config. Neither helper nor checker
+changes Git config or persists detector output.
 
 ## Verification
 

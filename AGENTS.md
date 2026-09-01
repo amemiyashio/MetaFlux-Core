@@ -55,12 +55,14 @@ the repository gates.
    credential.
 8. **Verify and identify commits.** Run
    `nix develop . --command python3 tools/check-agent-state.py .` plus relevant
-   CTest/domain gates. Agent commits use the `start-work` commit helper with
-   `METAFLUX_AGENT_EPOCH=<active epoch>`. The helper detects the exact agent
-   executable, derives `SUBJECT <SUBJECT@localhost>`, and passes that executable
-   to the candidate-tree commit gate. It never stores tool facts or changes Git
-   configuration. Candidate checks and their self-tests are side-effect-free
-   with respect to the invoking repository, including from linked worktrees.
+   CTest/domain gates. Agent commits use the `start-work` commit helper. The
+   helper detects the exact agent executable, derives
+   `SUBJECT <SUBJECT@localhost>`, and passes that executable to the
+   candidate-tree commit gate. Epoch exists only in `agent/goal.json`; it is not
+   part of Git identity or a command environment declaration. The helper never
+   stores tool facts or changes Git configuration. Candidate checks and their
+   self-tests are side-effect-free with respect to the invoking repository,
+   including from linked worktrees.
 
 Product boundaries live in `contracts/README.md` and
 `docs/architecture/repo-layout.md`; the language wall and dependency whitelist

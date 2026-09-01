@@ -405,10 +405,6 @@ class Checker:
     ) -> None:
         values = os.environ if environment is None else environment
         path = self.root / "agent" / "goal.json"
-        epoch = self.current_epoch()
-        if epoch is None or values.get("METAFLUX_AGENT_EPOCH") != epoch:
-            self.error(path, "METAFLUX_AGENT_EPOCH must equal the candidate Epoch")
-
         detector = (
             self.root
             / "agent"
@@ -725,6 +721,7 @@ class Checker:
         literal_markers = (
             "METAFLUX_" + "SESSION_ID",
             "METAFLUX_AGENT_" + "HARNESS",
+            "METAFLUX_AGENT_" + "EPOCH",
             "owner_" + "session",
             "agent/" + "sessions",
             "agent/" + "progress/focus.json",

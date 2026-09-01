@@ -1,6 +1,6 @@
 ---
 name: start-work
-description: Cold-start one externally assigned MetaFlux Iteration with detected tool identity, a provisioned Git execution context, Nix-first project tools, bounded in-task subagents, and one committed delivery without allocating sibling lanes or source copies.
+description: Cold-start one externally assigned MetaFlux Iteration with detected tool identity, existing Git topology, Nix-first project tools, bounded in-task subagents, and one committed delivery without allocating sibling lanes or source copies.
 ---
 
 # Start Work
@@ -23,19 +23,19 @@ Complete this stage before any shell executable except host `git` and `nix`.
 
    Emit the detected subject, resolved executable, and tool version. These are
    ephemeral startup facts, not repository state.
-2. Validate the current checkout before reading or running project tools:
+2. Validate the current checkout from Git's existing topology before reading or
+   running project tools:
 
    ```sh
    nix develop . --command python3 -B \
-     agent/skills/start-work/scripts/check_execution_context.py --json
+     agent/skills/start-work/scripts/check_git_topology.py --json
    ```
 
-   The shared Git config key `metaflux.agentExecutionCommonDir` must contain
-   the exact absolute `git-common-dir` provisioned by the user or application.
-   The primary checkout and its registered linked worktrees share that value;
-   a standalone clone or copied `.git` does not. An Agent never creates,
-   changes, copies, or repairs this registration. A missing or mismatched value
-   ends the work unit without a clone, worktree, directory, or config retry.
+   Accept the current primary checkout or an existing registered linked
+   worktree. Reject an independent repository whose remote or creation reflog
+   shows a local Git source. Do not add, remove, or rewrite remotes or reflogs to
+   alter this result. This check reads Git facts only and creates no repository,
+   worktree, Agent, or execution identity.
 3. If discovery is ambiguous, pass the exact harness or CLI executable with
    `--executable`. Do not choose by PATH order. Outside the detector, do not
    search for an agent CLI or inspect PATH, processes, `/proc`, environment,
@@ -96,11 +96,11 @@ claim or dispatch. Existing parallel agents and worktrees are accepted as
 external facts, not authorization to create more. After delivering the assigned
 Iteration, report it and stop instead of selecting the next lane.
 
-A standalone clone is never an Iteration execution context, even when it is
-clean, local-only, based on the requested revision, or already contains a useful
+A standalone local clone is never an Iteration execution context, even when it
+is clean, based on the requested revision, or already contains a useful
 candidate. Preserve unexpected content long enough to identify its exact Git
 relationship, then let the user or application decide cleanup; do not continue
-work there or create another copy.
+work there, remove its provenance, or create another copy.
 
 Within the assigned Iteration, prefer bounded subagents over additional Git
 branches when independent analysis materially improves speed or review quality.
@@ -156,19 +156,21 @@ constraints, experience, and Git.
 Before staging the first agent commit, run:
 
 ```sh
-METAFLUX_AGENT_EPOCH=epoch-NNNN \
 nix develop . --command python3 -B \
   agent/skills/start-work/scripts/commit_as_agent_tool.py --print-identity
 ```
 
-The output must be `SUBJECT <SUBJECT@localhost> @ epoch-NNNN`, where `SUBJECT`
-is the detector result. If detection is ambiguous, add
+The output must be `SUBJECT <SUBJECT@localhost>`, where `SUBJECT` is the
+detector result. If detection is ambiguous, add
 `--agent-tool AGENT_TOOL_EXECUTABLE` before `--print-identity`.
 
-Commit only through the same helper and command-local Epoch declaration:
+Epoch is repository goal state, not Git identity or command environment. Read
+its single active value from `agent/goal.json`; never duplicate it in Author,
+Committer, an environment declaration, Git config, or another identity record.
+
+Commit only through the same helper:
 
 ```sh
-METAFLUX_AGENT_EPOCH=epoch-NNNN \
 nix develop . --command python3 -B \
   agent/skills/start-work/scripts/commit_as_agent_tool.py -- -m "Commit subject"
 ```
@@ -183,7 +185,7 @@ the helper.
 
 ```sh
 nix develop . --command python3 -B \
-  agent/skills/start-work/scripts/check_execution_context.py --json
+  agent/skills/start-work/scripts/check_git_topology.py --json
 nix develop . --command python3 -B \
   agent/skills/detect-agent-tool/scripts/test_detect_agent_tool.py
 nix develop . --command python3 -B \
