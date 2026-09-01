@@ -85,7 +85,7 @@ archive.
 | [S0100-20260901-002-agent-startup-resolution](2026/09/S0100-20260901-002-agent-startup-resolution/summary.md) | 2026-09-01 | Exact | Complete | Applied destructive D0031/SC0008 harness and Nix-first startup governance |
 | [S0112-20260901-003-m0110-w0112-post-startup-governance](2026/09/S0112-20260901-003-m0110-w0112-post-startup-governance/summary.md) | 2026-09-01 | Exact | Abandoned | Phase-converged unchanged W0112 at P101 and handed focus to SC0009 governance |
 | [S0100-20260901-004-host-package-bootstrap](2026/09/S0100-20260901-004-host-package-bootstrap/summary.md) | 2026-09-01 | Exact | Complete | Applied SC0009 and established independent bounded host-privilege governance |
-| [S0112-20260901-005-m0110-w0112-post-privilege-governance](2026/09/S0112-20260901-005-m0110-w0112-post-privilege-governance/summary.md) | 2026-09-01 | Exact | In progress | Recorded W0112 cdev mmap/lease/DMA capability boundary after P103 |
+| [S0112-20260901-005-m0110-w0112-post-privilege-governance](2026/09/S0112-20260901-005-m0110-w0112-post-privilege-governance/summary.md) | 2026-09-01 | Exact | In progress | Recorded W0112 worker generation-bound rebind/drain closure after P104 |
 
 ## Fidelity and retention
 

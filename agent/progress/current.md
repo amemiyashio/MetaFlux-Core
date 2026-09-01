@@ -6,7 +6,7 @@ focus_mode: product
 focus_owner: S0112-20260901-005-m0110-w0112-post-privilege-governance
 milestone: M0110
 workstream: W0112
-checkpoint: P20260901-104
+checkpoint: P20260901-105
 ---
 
 # Current Progress
@@ -67,15 +67,20 @@ default scheduling authority while M0110 is incomplete.
   and forces control-fd negotiation before lease-bound payload query.
   Privileged live qualification reaches registered-memory, which is accurately
   skipped on this host because the virtual misc cdev has no DMA mask or parent;
-  the full 86-test suite is green with the module unloaded. These are source
-  and fixture closures, not physical-device proof.
+  the full 86-test suite is green with the module unloaded. P105 closes the
+  worker-side generation-bound replacement boundary: only an online committed
+  generation may be rebound, lifecycle commit clears the old current binding,
+  and pending backend, lease, and memory references drain before owner retire.
+  Rebinding a pending binding back to the current owner remains live without a
+  duplicate retire. These are source and fixture closures, not physical-device
+  proof.
 - The live product path is partially qualified: the module was activated and
   session, queue, lease, payload query, and payload mapping reached the
   registered-memory boundary. This host's standalone virtual cdev has no
   DMA-capable parent, so the kernel returns unsupported before pinning and the
   module is unloaded with no active device nodes. Daemon Add/Copy through live
-  registered memory, daemon-controlled replacement and rebind drain, and the
-  Linux fault matrix remain open.
+  registered memory, daemon/provider-controlled replacement and rebind drain,
+  and the Linux fault matrix remain open.
 - P089 records the runtime-owned immediate producer ingress at `6152efa`: admin
   reset, VFIO-user reset, disconnect, and daemon restart capture one authority
   snapshot; wrong-route QMP, malformed, unknown, and stale observations are
@@ -92,8 +97,9 @@ default scheduling authority while M0110 is incomplete.
    host/domain workflow, then rerun the bounded live qualification.
 2. Connect daemon Add/Copy and registered-memory import through the live
    lease/query path while preserving exact device/view/generation binding.
-3. Complete replacement-generation drain and the Linux 6.12/6.18 fault,
-   sanitizer, lockdep, and kmemleak matrix required by the Exit Gate.
+3. Complete daemon/provider-controlled replacement-generation drain and the
+   Linux 6.12/6.18 fault, sanitizer, lockdep, and kmemleak matrix required by
+   the Exit Gate.
 
 ## Blockers
 
@@ -109,6 +115,7 @@ default scheduling authority while M0110 is incomplete.
 ## Evidence Pointers
 
 - [P102 host privilege escalation](checkpoints/2026/P20260901-102-host-privilege-escalation.md)
+- [P105 cdev generation-bound rebind drain](checkpoints/2026/P20260901-105-m0110-cdev-rebind-drain.md)
 - [P104 cdev mmap and DMA capability boundary](checkpoints/2026/P20260901-104-m0110-cdev-mmap-dma-boundary.md)
 - [P103 cdev backend generation isolation](checkpoints/2026/P20260901-103-m0110-cdev-backend-generation.md)
 - [P101 agent startup resolution](checkpoints/2026/P20260901-101-agent-startup-resolution.md)

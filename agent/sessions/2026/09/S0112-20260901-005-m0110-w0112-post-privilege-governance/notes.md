@@ -26,3 +26,16 @@ payload query, and payload mapping, then returned exit 77 because the standalone
 virtual misc cdev has no DMA mask or parent master. Registered-memory now
 returns an explicit unsupported capability before pinning. The module was
 unloaded through the bounded helper and no device nodes remain active.
+
+P105 records product revision `75284e1`. Worker rebind now requires an online
+committed generation; lifecycle commit clears the old current binding; pending
+backend, lease, and memory references drain before the optional owner retire
+callback; and rebinding a pending binding back to its current owner does not
+retire it twice. Focused cdev worker testing covers replacement, reset stale
+generation rejection, asynchronous completion, timeout, and rebind-back.
+
+The repository-wide format target remains red because of existing violations
+across unrelated files. No unrelated formatting migration was performed. The
+W0112 source boundary is therefore recorded as a worker-side closure only;
+daemon/provider-controlled replacement, physical DMA/live Add/Copy, and the
+Linux fault matrix remain open.

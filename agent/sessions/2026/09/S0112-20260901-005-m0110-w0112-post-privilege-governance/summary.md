@@ -5,7 +5,8 @@
 Receive M0110/W0112 product focus after Applied SC0009. The session resumes
 from current canonical files and P102 under D0032, records worker binding
 generation isolation at P103, and then qualifies the live cdev boundary through
-P104. The W0112 Exit Gate remains open; every elevated driver operation composes
+P104, then closes worker-side generation-bound replacement and rebind drain at
+P105. The W0112 Exit Gate remains open; every elevated driver operation composes
 the independent `manage-host-privilege` skill.
 
 ## Durable changes
@@ -20,9 +21,13 @@ the independent `manage-host-privilege` skill.
   sources at `16707ec`: paired-ring mmap sizes are page-aligned, every worker
   control fd negotiates before a lease-bound payload query, and a standalone
   cdev without a DMA mask or parent rejects registered-memory before pinning.
+- `transports/cdev/worker/{include,src,tests}` and cdev documentation at
+  `75284e1`: backend rebind requires an online committed generation, lifecycle
+  commit clears the old binding, and optional owner retirement waits until
+  pending backend, lease, and memory references drain.
 - `agent/plan/M0110-kernel-guest-transport/work/W0112-local-cdev.md`: records
-  the P104 live capability boundary while keeping daemon rebind, physical DMA,
-  and fault qualification open.
+  the P105 worker-side rebind closure while keeping daemon replacement,
+  physical DMA, and fault qualification open.
 
 ## Verification
 
@@ -32,10 +37,11 @@ the independent `manage-host-privilege` skill.
 | CMake development build | Passed |
 | Linux 6.18 Kbuild | Passed; existing compiler-version warning only |
 | Focused cdev worker test | Passed: 1/1 |
+| Worker rebind-back regression | Passed: pending binding remains live without duplicate retire |
 | Focused cdev client test | Passed: 1/1 |
 | Privileged live cdev qualification | Reached registered-memory; exit 77 because the virtual cdev has no DMA target |
 | Full development CTest | Passed: 86/86; live cdev test explicitly skipped after module unload |
-| Content revision | `16707ec`, agent harness `codex` |
+| Content revisions | `75284e1` product source and P105 records; agent harness `codex` |
 | Product resume boundary | M0110/W0112 and its canonical Exit Gate |
 
 ## Cleanup
@@ -43,7 +49,7 @@ the independent `manage-host-privilege` skill.
 - Removed: exact temporary live qualification binary.
 - Host cleanup: module unloaded through `manage-host-privilege`; no cdev nodes
   remain active.
-- Retained: current W0112 source, P101/P102/P103/P104 evidence, and live
+- Retained: current W0112 source, P101/P102/P103/P104/P105 evidence, and live
   qualification requirements; closed sessions remain evidence only.
 
 ## Decisions and experience
@@ -52,8 +58,10 @@ the independent `manage-host-privilege` skill.
   sudo/su, root-helper, host-package, and privileged driver work through
   `manage-host-privilege` without credential persistence.
 - `$roast`: page alignment, worker control-fd negotiation, and explicit
-  no-DMA-master capability handling are medium-roast bounded syntheses under
-  their canonical source owners; no new DNNNN or SCNNNN is created.
+  no-DMA-master capability handling remain medium-roast bounded syntheses under
+  their canonical source owners. P105 adds medium claims for online committed
+  generation binding, pending reference drain before owner retirement, and
+  lifecycle-commit invalidation; no new DNNNN or SCNNNN is created.
 
 ## roast
 
@@ -72,6 +80,15 @@ the independent `manage-host-privilege` skill.
 - Explicit no-DMA-master capability boundary ->
   `kernel/core/metaflux_core_main.c` (`16707ec`; live qualification and
   full CTest)
+- Online committed-generation binding and stale rebind rejection ->
+  `transports/cdev/worker/src/worker.cpp` (`75284e1`; public declaration and
+  focused cdev worker CTest are evidence)
+- Pending backend, lease, and memory-reference drain before owner retirement ->
+  `transports/cdev/worker/src/worker.cpp` (`75284e1`; asynchronous completion,
+  timeout, and rebind-back regressions)
+- Lifecycle-commit invalidation requiring explicit new-generation rebind ->
+  `transports/cdev/worker/src/worker.cpp` (`75284e1`; reset and
+  stale-generation regressions are evidence)
 
 ### dark roasts
 
@@ -86,11 +103,11 @@ the independent `manage-host-privilege` skill.
 ## Unresolved items
 
 - W0112: attach a DMA-capable cdev provider, prove live daemon CPU Add/Copy and
-  registered-memory/DMA import, then qualify replacement-generation isolation
-  and the Linux 6.12/6.18 fault matrix.
+  registered-memory/DMA import, then qualify daemon/provider replacement and
+  the Linux 6.12/6.18 fault matrix.
 
 ## Handoff
 
 Read current focus, current progress, D0032, `$manage-host-privilege`, P103,
-P104, and the W0112 Exit Gate. Use the Nix-provided privilege client for any
-driver action before continuing live qualification.
+P104, P105, and the W0112 Exit Gate. Use the Nix-provided privilege client for
+any driver action before continuing live qualification.

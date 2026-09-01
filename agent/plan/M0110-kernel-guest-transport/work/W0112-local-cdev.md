@@ -132,6 +132,12 @@ and arithmetic operation is validated.
   lifecycle commit, a valid old binding is rejected for new COPY/LAUNCH work as
   stale until the daemon installs a binding for the committed generation;
   pending operations retain their captured binding through drain.
+- [x] Enforce the worker-side generation-bound replacement boundary. Rebind is
+  accepted only while the lifecycle mirror is online at the committed
+  generation; lifecycle commit clears the previous current binding, and an
+  optional owner retire callback waits for pending backend, lease, and memory
+  references to drain. A pending binding may be rebound to the same owner
+  without duplicate retirement.
 - [x] Activate the daemon's authoritative object table for region COPY in the
   embedded CPU worker path. Each daemon session owns a CPU backend
   instance/context/queue, the cdev resolver validates object identity,
@@ -174,8 +180,9 @@ and arithmetic operation is validated.
   object handles now have persistent operation-reference draining; the payload
   and queue VMA tombstones, owner-death transition, eventfd references, and
   bounded registered-memory lifetime are implemented for the current fixture.
-  Worker-side backend binding generation isolation is now enforced; daemon-side
-  rebinding and physical replacement drain remain open.
+  Worker-side backend binding generation isolation and owner-retire drain are
+  now enforced; daemon/provider-side rebinding and physical replacement drain
+  remain open.
 - [ ] Connect the daemon object table and leased worker/backend binding to the
   live cdev registered-memory handles and prove Add/Copy through the mapped
   payload arena. The source-level daemon lease/object-table binding and CPU
