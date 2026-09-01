@@ -67,7 +67,7 @@ bool VulkanQueueExecutor::dependencies_known(
     if (dependency.stream_id == 0U || dependency.timeline_value == 0U) {
       return false;
     }
-    if (find_completion(dependency.timeline_value) != nullptr) {
+    if (find_completion(dependency.stream_id, dependency.timeline_value) != nullptr) {
       continue;
     }
     // In the normal path graph sequence and the Vulkan timeline are identical
@@ -83,13 +83,13 @@ bool VulkanQueueExecutor::dependencies_known(
 }
 
 const VulkanQueueExecutor::CompletionRecord*
-VulkanQueueExecutor::find_completion(std::uint64_t sequence) const noexcept {
-  if (sequence == 0U || completion_records_ == nullptr) {
+VulkanQueueExecutor::find_completion(std::uint64_t stream_id, std::uint64_t sequence) const noexcept {
+  if (stream_id == 0U || sequence == 0U || completion_records_ == nullptr) {
     return nullptr;
   }
   for (std::size_t index = 0U; index < completion_capacity_; ++index) {
     const CompletionRecord& record = completion_records_[index];
-    if (record.active && record.sequence == sequence) {
+    if (record.active && record.stream_id == stream_id && record.sequence == sequence) {
       return &record;
     }
   }
@@ -97,15 +97,17 @@ VulkanQueueExecutor::find_completion(std::uint64_t sequence) const noexcept {
 }
 
 VulkanQueueExecutor::CompletionRecord*
-VulkanQueueExecutor::reserve_completion(std::uint64_t sequence,
+VulkanQueueExecutor::reserve_completion(std::uint64_t stream_id, std::uint64_t sequence,
                                         std::uint64_t completion_value) noexcept {
-  if (sequence == 0U || completion_value == 0U || completion_records_ == nullptr) {
+  if (stream_id == 0U || sequence == 0U || completion_value == 0U ||
+      completion_records_ == nullptr) {
     return nullptr;
   }
   for (std::size_t index = 0U; index < completion_capacity_; ++index) {
     CompletionRecord& record = completion_records_[index];
     if (!record.active) {
       record.sequence = sequence;
+      record.stream_id = stream_id;
       record.completion_value = completion_value;
       record.active = true;
       return &record;
@@ -180,7 +182,7 @@ QueueExecutionStatus VulkanQueueExecutor::submit(
   std::uint64_t wait_value = 0U;
   for (std::uint32_t index = 0U; index < submission.plan.dependency_count; ++index) {
     const auto dependency = submission.plan.dependencies[index];
-    const CompletionRecord* found = find_completion(dependency.timeline_value);
+    const CompletionRecord* found = find_completion(dependency.stream_id, dependency.timeline_value);
     if (found == nullptr) {
       if (physical_submission_failed_ || dependency.timeline_value > last_completed_value_) {
         static_cast<void>(ledger_.discard(submission));
@@ -195,7 +197,8 @@ QueueExecutionStatus VulkanQueueExecutor::submit(
     }
     wait_value = std::max(wait_value, found->completion_value);
   }
-  if (reserve_completion(submission.plan.sequence, submission.completion_value) == nullptr) {
+  if (reserve_completion(submission.plan.stream_id, submission.plan.sequence,
+                         submission.completion_value) == nullptr) {
     static_cast<void>(ledger_.discard(submission));
     return QueueExecutionStatus::resource_exhausted;
   }

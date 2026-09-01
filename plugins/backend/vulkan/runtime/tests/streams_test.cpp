@@ -78,6 +78,14 @@ bool negative_paths() {
                    {}, &plan) != StreamStatus::success) {
     return false;
   }
+  SubmissionPlan failed_plan = plan;
+  if (graph.submit(4U, 1U, OperationKind::launch,
+                   Visibility{.stage_mask = metaflux::backend::vulkan::kStageTransfer,
+                              .access_mask = metaflux::backend::vulkan::kAccessTransferRead},
+                   {}, &failed_plan) != StreamStatus::invalid_visibility ||
+      failed_plan.sequence != 0U || failed_plan.generation != 0U) {
+    return false;
+  }
   const std::array<Dependency, 2> duplicate{{Dependency{.stream_id = 1U, .timeline_value = 1U},
                                              Dependency{.stream_id = 1U, .timeline_value = 1U}}};
   return graph.submit(4U, 1U, OperationKind::copy,
@@ -94,12 +102,14 @@ bool command_resources_recycle_only_after_completion() {
   metaflux::backend::vulkan::CommandResource first{};
   metaflux::backend::vulkan::CommandResource second{};
   if (pool.acquire(9U, 1U, &first) != CommandResourceStatus::success ||
-      pool.acquire(9U, 2U, &second) != CommandResourceStatus::success ||
-      pool.acquire(9U, 3U, &first) != CommandResourceStatus::exhausted || first.id == 0U ||
-      second.id == 0U || first.sequence == second.sequence) {
+      pool.acquire(9U, 2U, &second) != CommandResourceStatus::success) {
     return false;
   }
   const auto first_copy = first;
+  if (pool.acquire(9U, 3U, &first) != CommandResourceStatus::exhausted || first.id != 0U ||
+      second.id == 0U || first_copy.sequence == second.sequence) {
+    return false;
+  }
   if (pool.submit(first_copy, 4U) != CommandResourceStatus::success ||
       pool.submit(second, 5U) != CommandResourceStatus::success || pool.in_flight_count() != 2U ||
       pool.recycle(9U, 3U) != CommandResourceStatus::success || pool.available_count() != 0U ||
@@ -168,7 +178,8 @@ bool queue_submission_ledger_is_transactional() {
   const auto accepted = submission;
   status = ledger.submit(7U, 1U, OperationKind::copy, copy_visibility, {}, &submission);
   if (status != QueueSubmissionStatus::resource_exhausted || ledger.in_flight_count() != 1U ||
-      ledger.next_completion_value() != 2U) {
+      ledger.next_completion_value() != 2U || submission.completion_value != 0U ||
+      submission.resource.id != 0U || submission.plan.sequence != 0U) {
     return false;
   }
   if (ledger.reconfigure(8U) != QueueSubmissionStatus::busy ||

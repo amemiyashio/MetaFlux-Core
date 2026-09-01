@@ -40,6 +40,7 @@ enum class QueueExecutionStatus : std::uint32_t {
 class VulkanQueueExecutor final {
   struct CompletionRecord final {
     std::uint64_t sequence = 0;
+    std::uint64_t stream_id = 0;
     std::uint64_t completion_value = 0;
     bool active = false;
   };
@@ -102,8 +103,10 @@ private:
   [[nodiscard]] static QueueExecutionStatus map(QueueSubmissionStatus status) noexcept;
   [[nodiscard]] static QueueExecutionStatus map(DeviceStatus status) noexcept;
   [[nodiscard]] bool dependencies_known(std::span<const Dependency> dependencies) const noexcept;
-  [[nodiscard]] const CompletionRecord* find_completion(std::uint64_t sequence) const noexcept;
-  [[nodiscard]] CompletionRecord* reserve_completion(std::uint64_t sequence,
+  [[nodiscard]] const CompletionRecord* find_completion(std::uint64_t stream_id,
+                                                        std::uint64_t sequence) const noexcept;
+  [[nodiscard]] CompletionRecord* reserve_completion(std::uint64_t stream_id,
+                                                     std::uint64_t sequence,
                                                      std::uint64_t completion_value) noexcept;
   void release_completion(std::uint64_t sequence) noexcept;
   void retire_completions(std::uint64_t completed_value) noexcept;

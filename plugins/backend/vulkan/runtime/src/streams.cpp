@@ -55,7 +55,12 @@ StreamStatus StreamGraph::submit(std::uint64_t generation, std::uint64_t stream_
                                  OperationKind kind, Visibility visibility,
                                  std::span<const Dependency> dependencies,
                                  SubmissionPlan* out_plan) {
-  if (out_plan == nullptr || generation == 0U || generation != generation_) {
+  if (out_plan == nullptr) {
+    return generation != generation_ && generation != 0U ? StreamStatus::stale_generation
+                                                         : StreamStatus::invalid_argument;
+  }
+  *out_plan = {};
+  if (generation == 0U || generation != generation_) {
     return generation != generation_ && generation != 0U ? StreamStatus::stale_generation
                                                          : StreamStatus::invalid_argument;
   }
@@ -148,7 +153,11 @@ CommandResourcePool::find_slot(const CommandResource& resource) const noexcept {
 CommandResourceStatus CommandResourcePool::acquire(std::uint64_t generation,
                                                    std::uint64_t stream_id,
                                                    CommandResource* out_resource) noexcept {
-  if (out_resource == nullptr || generation == 0U || generation != generation_ || stream_id == 0U) {
+  if (out_resource == nullptr) {
+    return CommandResourceStatus::invalid_argument;
+  }
+  *out_resource = {};
+  if (generation == 0U || generation != generation_ || stream_id == 0U) {
     return generation != generation_ && generation != 0U ? CommandResourceStatus::stale_generation
                                                          : CommandResourceStatus::invalid_argument;
   }
@@ -387,6 +396,7 @@ QueueSubmissionStatus QueueSubmissionLedger::submit(std::uint64_t generation,
   if (out_submission == nullptr) {
     return QueueSubmissionStatus::invalid_argument;
   }
+  *out_submission = {};
   std::lock_guard lock(mutex_);
   if (generation == 0U) {
     return QueueSubmissionStatus::invalid_argument;
