@@ -83,18 +83,21 @@ sequence. Submission records a strictly increasing completion timeline; a
 resource remains in flight until an observed completion reaches that value.
 Recycling never releases an incomplete resource, and generation reconfiguration
 is rejected while any resource is acquired or submitted. Handles from a retired
-generation are stale and are not reused by identity. The pool is an ownership
-and admission model only: Vulkan command buffers, queue submission, pipeline
-creation, and driver timing still belong to the later integration stage.
+generation are stale and are not reused by identity. The pool remains the
+host-independent ownership authority; the source-local queue executor supplies
+the physical command buffer and timeline bridge.
 
 The `QueueSubmissionLedger` composes that pool with the stream graph behind one
 mutex-protected admission boundary. It acquires a finite resource before graph
 validation, cancels the resource when validation rejects the plan, assigns a
 monotonic generation-bound completion value only after both admissions succeed,
 and recycles only through an observed completion. Reconfiguration resets the
-graph and resource generation together and rejects in-flight work. The ledger
-returns a complete host-independent plan/resource/completion tuple; it does not
-create Vulkan objects or claim `vkQueueSubmit2` execution.
+graph and resource generation together and rejects in-flight work. The source-
+local queue executor now binds each accepted tuple to `vkQueueSubmit2`, applies
+the dependency wait timeline, and recycles completed resources through the
+device timeline. Its sequence-to-completion ledger is allocated once with the
+finite resource capacity, and completion records are retired after observation,
+so steady-state and warm submissions do not allocate map nodes.
 
 work-item-0.1.3.2 now adds a private `VulkanDeviceContext` that binds a successful capability
 profile to a new Vulkan 1.3 instance, an exact physical-device identity, one

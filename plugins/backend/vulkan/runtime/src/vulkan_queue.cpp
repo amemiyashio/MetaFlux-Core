@@ -64,12 +64,83 @@ QueueExecutionStatus VulkanQueueExecutor::map(DeviceStatus status) noexcept {
 bool VulkanQueueExecutor::dependencies_known(
     std::span<const Dependency> dependencies) const noexcept {
   for (const auto dependency : dependencies) {
-    if (dependency.stream_id == 0U || dependency.timeline_value == 0U ||
-        completion_by_sequence_.find(dependency.timeline_value) == completion_by_sequence_.end()) {
+    if (dependency.stream_id == 0U || dependency.timeline_value == 0U) {
       return false;
     }
+    if (find_completion(dependency.timeline_value) != nullptr) {
+      continue;
+    }
+    // In the normal path graph sequence and the Vulkan timeline are identical
+    // because both advance once per accepted submission. Once a physical
+    // submission failed they can diverge, so completed dependencies must not
+    // be guessed from their sequence number.
+    if (!physical_submission_failed_ && dependency.timeline_value <= last_completed_value_) {
+      continue;
+    }
+    return false;
   }
   return true;
+}
+
+const VulkanQueueExecutor::CompletionRecord*
+VulkanQueueExecutor::find_completion(std::uint64_t sequence) const noexcept {
+  if (sequence == 0U || completion_records_ == nullptr) {
+    return nullptr;
+  }
+  for (std::size_t index = 0U; index < completion_capacity_; ++index) {
+    const CompletionRecord& record = completion_records_[index];
+    if (record.active && record.sequence == sequence) {
+      return &record;
+    }
+  }
+  return nullptr;
+}
+
+VulkanQueueExecutor::CompletionRecord*
+VulkanQueueExecutor::reserve_completion(std::uint64_t sequence,
+                                        std::uint64_t completion_value) noexcept {
+  if (sequence == 0U || completion_value == 0U || completion_records_ == nullptr) {
+    return nullptr;
+  }
+  for (std::size_t index = 0U; index < completion_capacity_; ++index) {
+    CompletionRecord& record = completion_records_[index];
+    if (!record.active) {
+      record.sequence = sequence;
+      record.completion_value = completion_value;
+      record.active = true;
+      return &record;
+    }
+  }
+  return nullptr;
+}
+
+void VulkanQueueExecutor::release_completion(std::uint64_t sequence) noexcept {
+  if (completion_records_ == nullptr) {
+    return;
+  }
+  for (std::size_t index = 0U; index < completion_capacity_; ++index) {
+    CompletionRecord& record = completion_records_[index];
+    if (record.active && record.sequence == sequence) {
+      record = CompletionRecord{};
+      return;
+    }
+  }
+}
+
+void VulkanQueueExecutor::retire_completions(std::uint64_t completed_value) noexcept {
+  if (completed_value <= last_completed_value_) {
+    return;
+  }
+  last_completed_value_ = completed_value;
+  if (completion_records_ == nullptr) {
+    return;
+  }
+  for (std::size_t index = 0U; index < completion_capacity_; ++index) {
+    CompletionRecord& record = completion_records_[index];
+    if (record.active && record.completion_value <= completed_value) {
+      record = CompletionRecord{};
+    }
+  }
 }
 
 QueueExecutionStatus VulkanQueueExecutor::create_stream(std::uint64_t stream_id) {
@@ -107,16 +178,22 @@ QueueExecutionStatus VulkanQueueExecutor::submit(
   std::uint64_t wait_value = 0U;
   for (std::uint32_t index = 0U; index < submission.plan.dependency_count; ++index) {
     const auto dependency = submission.plan.dependencies[index];
-    const auto found = completion_by_sequence_.find(dependency.timeline_value);
-    if (found == completion_by_sequence_.end()) {
+    const CompletionRecord* found = find_completion(dependency.timeline_value);
+    if (found == nullptr) {
+      if (physical_submission_failed_ || dependency.timeline_value > last_completed_value_) {
+        static_cast<void>(ledger_.discard(submission));
+        return QueueExecutionStatus::dependency_not_ready;
+      }
+      wait_value = std::max(wait_value, dependency.timeline_value);
+      continue;
+    }
+    if (found->completion_value == 0U) {
       static_cast<void>(ledger_.discard(submission));
       return QueueExecutionStatus::dependency_not_ready;
     }
-    wait_value = std::max(wait_value, found->second);
+    wait_value = std::max(wait_value, found->completion_value);
   }
-  try {
-    completion_by_sequence_.emplace(submission.plan.sequence, submission.completion_value);
-  } catch (...) {
+  if (reserve_completion(submission.plan.sequence, submission.completion_value) == nullptr) {
     static_cast<void>(ledger_.discard(submission));
     return QueueExecutionStatus::resource_exhausted;
   }
@@ -124,7 +201,8 @@ QueueExecutionStatus VulkanQueueExecutor::submit(
   const auto submitted = context_->submit_commands(generation, command_buffer, wait_value,
                                                    submission.completion_value);
   if (submitted != DeviceStatus::success) {
-    completion_by_sequence_.erase(submission.plan.sequence);
+    release_completion(submission.plan.sequence);
+    physical_submission_failed_ = true;
     static_cast<void>(ledger_.discard(submission));
     return map(submitted);
   }
@@ -258,7 +336,11 @@ QueueExecutionStatus VulkanQueueExecutor::submit_warm_compute(
 
 QueueExecutionStatus VulkanQueueExecutor::complete(std::uint64_t generation,
                                                    std::uint64_t completed_value) noexcept {
-  return map(ledger_.complete(generation, completed_value));
+  const auto status = map(ledger_.complete(generation, completed_value));
+  if (status == QueueExecutionStatus::success) {
+    retire_completions(completed_value);
+  }
+  return status;
 }
 
 QueueExecutionStatus VulkanQueueExecutor::poll(std::uint64_t generation,
@@ -289,6 +371,7 @@ QueueExecutionStatus VulkanQueueExecutor::poll(std::uint64_t generation,
   const auto recycled = ledger_.complete(generation, completed_value);
   const auto recycled_status = map(recycled);
   if (recycled_status == QueueExecutionStatus::success) {
+    retire_completions(completed_value);
     *out_completed_value = completed_value;
   }
   return recycled_status;
@@ -314,7 +397,11 @@ QueueExecutionStatus VulkanQueueExecutor::wait(std::uint64_t generation, std::ui
   if (waited_status != QueueExecutionStatus::success) {
     return waited_status;
   }
-  return map(ledger_.complete(generation, value));
+  const auto completed = map(ledger_.complete(generation, value));
+  if (completed == QueueExecutionStatus::success) {
+    retire_completions(value);
+  }
+  return completed;
 }
 
 const char* queue_execution_status_string(QueueExecutionStatus status) noexcept {

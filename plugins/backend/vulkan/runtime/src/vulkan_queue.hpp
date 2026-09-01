@@ -8,7 +8,8 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <map>
+#include <memory>
+#include <new>
 #include <span>
 
 namespace metaflux::backend::vulkan {
@@ -36,9 +37,19 @@ enum class QueueExecutionStatus : std::uint32_t {
 // Vulkan context. The context is owned by the caller and must outlive this
 // adapter; no Vulkan handle crosses the backend C ABI.
 class VulkanQueueExecutor final {
+  struct CompletionRecord final {
+    std::uint64_t sequence = 0;
+    std::uint64_t completion_value = 0;
+    bool active = false;
+  };
+
 public:
   VulkanQueueExecutor(VulkanDeviceContext& context, std::size_t resource_capacity) noexcept
-      : context_(&context), ledger_(resource_capacity, context.generation()) {}
+      : context_(&context), ledger_(resource_capacity, context.generation()),
+        completion_capacity_(resource_capacity),
+        completion_records_(resource_capacity == 0U
+                                ? nullptr
+                                : new (std::nothrow) CompletionRecord[resource_capacity]{}) {}
 
   VulkanQueueExecutor(const VulkanQueueExecutor&) = delete;
   VulkanQueueExecutor& operator=(const VulkanQueueExecutor&) = delete;
@@ -89,10 +100,18 @@ private:
   [[nodiscard]] static QueueExecutionStatus map(QueueSubmissionStatus status) noexcept;
   [[nodiscard]] static QueueExecutionStatus map(DeviceStatus status) noexcept;
   [[nodiscard]] bool dependencies_known(std::span<const Dependency> dependencies) const noexcept;
+  [[nodiscard]] const CompletionRecord* find_completion(std::uint64_t sequence) const noexcept;
+  [[nodiscard]] CompletionRecord* reserve_completion(std::uint64_t sequence,
+                                                     std::uint64_t completion_value) noexcept;
+  void release_completion(std::uint64_t sequence) noexcept;
+  void retire_completions(std::uint64_t completed_value) noexcept;
 
   VulkanDeviceContext* context_ = nullptr;
   QueueSubmissionLedger ledger_;
-  std::map<std::uint64_t, std::uint64_t> completion_by_sequence_{};
+  const std::size_t completion_capacity_ = 0U;
+  std::unique_ptr<CompletionRecord[]> completion_records_;
+  std::uint64_t last_completed_value_ = 0U;
+  bool physical_submission_failed_ = false;
 };
 
 [[nodiscard]] const char* queue_execution_status_string(QueueExecutionStatus status) noexcept;

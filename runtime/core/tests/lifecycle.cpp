@@ -287,6 +287,47 @@ bool exhaustion_rejects_before_side_effect() {
   return true;
 }
 
+bool exhaustion_after_committed_replacements_preserves_last_state() {
+  MirrorLog memfd{};
+  MirrorLog cdev{};
+  MirrorLog vfio{};
+  Config config{};
+  config.logical_device_id = 7;
+  config.daemon_incarnation = 11;
+  config.initial_identity_record_id = 1;
+  config.initial_generation = 1;
+  config.initial_epoch = 1;
+  config.generation_terminal = 4;
+  config.identity_record_terminal = 4;
+  config.epoch_terminal = 4;
+  Coordinator coordinator(config);
+  (void)coordinator.register_mirror(make_mirror(MirrorKind::Memfd, "memfd", memfd));
+  (void)coordinator.register_mirror(make_mirror(MirrorKind::Cdev, "cdev", cdev));
+  (void)coordinator.register_mirror(make_mirror(MirrorKind::VfioUser, "vfio-user", vfio));
+
+  ResultDetails details{};
+  REQUIRE(coordinator.apply(request(15, Operation::Reset, 1, 1), details) == Result::Accepted);
+  REQUIRE(details.snapshot.generation == 2U && details.snapshot.identity_record_id == 2U &&
+          details.snapshot.epoch == 2U);
+  REQUIRE(coordinator.apply(request(16, Operation::Reset, 2, 2), details) == Result::Accepted);
+  REQUIRE(details.snapshot.generation == 3U && details.snapshot.identity_record_id == 3U &&
+          details.snapshot.epoch == 3U);
+
+  const auto before = coordinator.snapshot();
+  const std::uint32_t commits = memfd.commit_count;
+  REQUIRE(coordinator.apply(request(17, Operation::Reset, 3, 3), details) ==
+          Result::ResourceExhausted);
+  REQUIRE(details.snapshot.state == before.state);
+  REQUIRE(details.snapshot.generation == before.generation);
+  REQUIRE(details.snapshot.identity_record_id == before.identity_record_id);
+  REQUIRE(details.snapshot.epoch == before.epoch);
+  REQUIRE(details.snapshot.generation_high_water == before.generation_high_water);
+  REQUIRE(details.snapshot.identity_high_water == before.identity_high_water);
+  REQUIRE(memfd.commit_count == commits && cdev.commit_count == commits &&
+          vfio.commit_count == commits);
+  return true;
+}
+
 bool every_mirror_stage_failure_is_bounded() {
   constexpr std::array<MirrorStage, 4> stages{
       MirrorStage::Prepare, MirrorStage::Quiesce, MirrorStage::Drain, MirrorStage::Commit};
@@ -382,6 +423,7 @@ int main() {
                   partial_commit_never_restores_retired_generation() &&
                   remove_then_add_uses_new_generation_and_epoch() &&
                   exhaustion_rejects_before_side_effect() &&
+                  exhaustion_after_committed_replacements_preserves_last_state() &&
                   every_mirror_stage_failure_is_bounded() &&
                   stale_identity_and_expired_deadline_are_rejected_without_callbacks();
   return ok ? 0 : 1;
