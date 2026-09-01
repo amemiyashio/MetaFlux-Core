@@ -26,6 +26,7 @@ typedef struct mf_vfio_user_guest_ring_v0 {
   mf_vfio_user_guest_doorbell_v0 doorbell;
   void* doorbell_context;
   uint32_t doorbell_value;
+  /* Nonzero also marks the ring poisoned after a malformed completion. */
   uint32_t reserved;
   uint64_t last_completion_timeline;
   uint64_t armed_completion_timeline;

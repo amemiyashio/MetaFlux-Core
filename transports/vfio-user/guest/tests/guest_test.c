@@ -169,6 +169,20 @@ static int run_ring_test(void) {
     mf_client_ring_close_v1(&submission_owner);
     return 11;
   }
+  (void)memset(&completion, 0, sizeof(completion));
+  completion.opcode = MF_RING_OPCODE_COMPLETION;
+  completion.request_id = UINT64_C(22);
+  completion.target_id = UINT64_C(0);
+  completion.arguments[1] = UINT64_C(2);
+  if (mf_client_ring_try_submit_v1(&completion_owner, &completion) != MF_SHARED_SUCCESS ||
+      mf_vfio_user_guest_ring_try_consume_v0(&guest, &descriptor) != MF_SHARED_MALFORMED ||
+      mf_vfio_user_guest_ring_last_completion_timeline_v0(&guest) != UINT64_C(0) ||
+      mf_vfio_user_guest_ring_submit_v0(&guest, &batch[0]) != MF_SHARED_INVALID_ARGUMENT) {
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 12;
+  }
   mf_vfio_user_guest_ring_close_v0(&guest);
   mf_client_ring_close_v1(&completion_owner);
   mf_client_ring_close_v1(&submission_owner);

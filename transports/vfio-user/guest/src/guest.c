@@ -149,8 +149,10 @@ mf_shared_status_v1 mf_vfio_user_guest_ring_try_consume_v0(mf_vfio_user_guest_ri
     return status;
   }
   if (out_descriptor->opcode != MF_RING_OPCODE_COMPLETION ||
-      out_descriptor->request_id == UINT64_C(0) || out_descriptor->arguments[1] == UINT64_C(0) ||
+      out_descriptor->request_id == UINT64_C(0) || out_descriptor->target_id == UINT64_C(0) ||
+      out_descriptor->arguments[1] == UINT64_C(0) ||
       out_descriptor->arguments[1] <= ring->last_completion_timeline) {
+    ring->reserved = UINT32_C(1);
     return MF_SHARED_MALFORMED;
   }
   ring->last_completion_timeline = out_descriptor->arguments[1];
