@@ -40,6 +40,12 @@ executable other than the host bootstrap `git` and `nix` commands.
    provide or materialize the tool may the agent stop and tell the host operator
    exactly what must be installed. Do not silently use an ambient copy or run a
    host package manager.
+   Adding or entering a Nix tool closure changes only tool identity,
+   materialization, and exposure. Nix must not own or encode task routing,
+   source history, build/test/package commands, qualification semantics,
+   focus/session policy, evidence, cleanup, or host installation. A fixed tool
+   may evolve through an explicit `manage-toolchain` manifest/lock update;
+   fixed means revision-clear and reproducibly stable, not permanently frozen.
 4. Before staging the first agent-created commit, run the identity preflight
    inside that Nix environment and compare the complete output with the emitted
    declaration. A mismatch stops the commit path.

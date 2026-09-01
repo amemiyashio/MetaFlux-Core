@@ -27,6 +27,18 @@ does not own MetaFlux source identity, the CMake build graph, CTest policy,
 release packaging, qualification semantics, evidence retention, build-directory
 cleanup, or Nix store garbage-collection policy.
 
+This boundary is strict: Nix declarations contain tool versions, source
+identities, inputs, patches, hashes, and shell exposure only. They do not encode
+task routing, Git operations, project configure/build/test/package commands,
+qualification meaning, focus/session governance, evidence, cleanup, or host
+installation. `nix develop . --command TOOL ...` provides the tool closure;
+the invoked tool and its owning workflow retain command semantics.
+
+"Fixed" does not mean permanently immutable. It means the current repository
+revision names a clear, reproducible, stable tool identity. A later governed
+change updates the canonical manifest and lock together and revalidates affected
+consumers; unrecorded ambient drift remains invalid.
+
 A repeatable workflow names the tools it requires, and those tool versions are
 added to the Nix-provided environment before the workflow relies on them. This
 keeps ambient host installations out of recorded evidence without transferring
@@ -53,7 +65,8 @@ A newly required repeatable tool is added to the narrow repository Nix
 declaration before it is used. If Nix cannot provide or materialize that tool,
 the workflow stops and reports the exact host installation prerequisite to the
 operator. It does not silently consume an ambient executable or invoke a host
-package manager without separate user authorization.
+package manager without separate user authorization. This declaration change
+pins and exposes the tool only; it never absorbs the consuming workflow.
 
 ## Compiler Epoch 1 (D0018)
 

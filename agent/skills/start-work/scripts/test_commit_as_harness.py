@@ -181,6 +181,7 @@ def test_start_work_policy_is_nix_first(root: Path) -> None:
         "Do not search for an\n   agent binary or CLI",
         "nix develop . --command ...",
         "add it to the\n   repository Nix declaration before use",
+        "Nix must not own or encode task routing",
         "mandatory before staging",
         "Never probe ambient host\n   tools first",
     )

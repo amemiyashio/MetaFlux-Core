@@ -64,6 +64,18 @@ history, CMake/Ninja own build semantics, CTest and test harnesses own
 verification, packaging owns artifacts, and sessions own compact evidence and
 cleanup.
 
+This ownership limit is strict. Nix declarations contain tool versions, source
+identities, inputs, patches, hashes, and shell exposure only. They do not encode
+task routing, Git operations, project configure/build/test/package commands,
+qualification meaning, focus/session policy, evidence retention, cleanup, or
+host installation. `nix develop . --command TOOL ...` supplies the
+environment; `TOOL` and its owning workflow define the operation.
+
+"Fixed" means that the current repository revision has a clear, reproducible,
+stable tool identity. It does not mean permanent immutability. A later
+`manage-toolchain` change may update the canonical manifest and lock together,
+then revalidate affected consumers.
+
 Ambient host tools are not a discovery fallback. An agent does not run
 `which`, `command -v`, `--version`, `env`, or an agent CLI search before
 entering the declared environment. The flake entry is always Git-aware
@@ -75,7 +87,7 @@ boundary.
 When a workflow needs an executable absent from the declared shell, the first
 action is to add the narrow tool package to the repository Nix declaration and
 verify it through the Git-aware flake. Absence from the current shell does not
-authorize an ambient host lookup.
+authorize an ambient host lookup or moving that tool's workflow into Nix.
 
 If Nix cannot provide or materialize the tool, or the prerequisite is inherently
 host-managed, the agent stops the affected command path and tells the host

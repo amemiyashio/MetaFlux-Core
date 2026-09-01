@@ -47,6 +47,11 @@ identity and provisioning boundaries live in
   CMake/Ninja own configure and build, CTest and test harnesses own testing,
   `packaging/` owns release artifacts, sessions own durable work evidence, and
   invoking tools or host operators own cleanup and garbage collection (D0022).
+  Nix declarations are strictly limited to tool version/source/input/patch/hash
+  identity, materialization, and shell exposure; they do not encode project
+  workflows, focus/session governance, evidence, cleanup, or host installation.
+  Fixed means clear and reproducibly stable for the current revision, not
+  permanently immutable; governed manifest/lock updates may advance versions.
 - Agent startup is Nix-first (D0031). The stable harness subject comes only from
   active system/developer runtime instruction context; Codex declares exactly
   `codex`. Model/template/backend/build/CLI/session/thread/prompt labels and

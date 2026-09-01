@@ -39,7 +39,14 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
   and cleanup of session-owned temporary artifacts.
 - Nix owns only locked input resolution, exact tool materialization, and the
   development shell that exposes those tools. It does not wrap or duplicate the
-  owners above, archive evidence, snapshot project source, or configure host GC.
+  owners above, encode their commands or policies, archive evidence, snapshot
+  project source, govern sessions/focus, install host software, or configure
+  host GC. `nix develop . --command TOOL ...` is an environment-entry
+  boundary; `TOOL` and its owning repository workflow retain all semantics.
+- A fixed tool is not permanently frozen. Its current version, source, patches,
+  hashes, and exposure are explicit and reproducibly stable for the repository
+  revision. Later change uses this skill to update the canonical manifest and
+  lock, then revalidates the affected consumers without ambient drift.
 - Entering `nix develop .#release` proves only that the release tools are
   available. It does not select the Ubuntu 20.04 target SDK, target triple,
   unwrapped compiler, startup objects, target linker, or generic CMake package
