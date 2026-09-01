@@ -1,17 +1,19 @@
 ---
 name: integrate-batch
-description: Integrate one explicitly requested MetaFlux Batch from exact committed Iteration revisions, preserve lane history, run focused and combined tests, and update goal state only on success.
+description: Integrate one explicitly requested MetaFlux Batch from user-supplied committed Iteration revisions in a supplied integration context, without dispatching workers or creating branches, worktrees, tasks, or threads.
 ---
 
 # Integrate Batch
 
 Use only when the user explicitly creates an integration run or invokes
-`$integrate-batch`. Ordinary worker completion does not trigger it.
+`$integrate-batch`. Ordinary worker completion does not trigger it. The user or
+application supplies the integration context and candidate revisions; this
+skill does not create either.
 
 ## Inputs
 
-Require a clean integration worktree at the current main revision and one entry
-per candidate:
+Require the supplied integration context to already be a clean worktree at the
+current main revision and require one entry per candidate:
 
 ```text
 lane
@@ -26,6 +28,14 @@ Accept only committed Git objects. Reject staged, unstaged, untracked, inferred,
 or path-only delivery. Resolve each revision to a full hash; require base to be
 an ancestor of tip and the current Epoch activation commit to be an ancestor of
 base. Epoch, Batch, lane, and Iteration must match `agent/goal.json`.
+
+A planned lane without a supplied committed candidate is a missing input, not
+authorization to create a worker, subtask, branch, worktree, clone, thread, or
+chat. Report the exact missing delivery and leave its lane state unchanged.
+Bounded read-only subagents may review independent `base..tip` ranges, test
+evidence, or dependency ordering when useful; the integrator remains the sole
+writer and merge owner. A subagent mechanism that creates an independent
+execution context still requires explicit user or application authorization.
 
 Run the ancestry gate for every delivery before merge preparation:
 
@@ -46,7 +56,8 @@ nix develop . --command python3 tools/check-agent-state.py . \
 4. Resolve bounded merge and composition gaps in the merge. If resolution would
    redefine the lane outcome, abort that merge and request a new Iteration.
 5. Run focused tests before committing each non-final merge. Keep all integration
-   commits on the isolated integration branch; main remains unchanged.
+   commits in the supplied integration context; do not create another branch or
+   worktree, and leave main unchanged until promotion.
 6. For the final merge, update accepted lane states and Batch state in
    `agent/goal.json`, invoke `roast`, and apply any canonical promotions. Run the
    combined Batch regression before creating the final merge commit.

@@ -1,6 +1,6 @@
 ---
 name: govern-epoch
-description: Apply an explicitly requested destructive MetaFlux Epoch governance cutover by rewriting current authority directly, removing obsolete semantics, and publishing only after full regression.
+description: Apply an explicitly requested destructive MetaFlux Epoch cutover in a user-supplied governance context, rewriting current authority directly without dispatching workers or creating branches, worktrees, tasks, or threads.
 ---
 
 # Govern Epoch
@@ -11,11 +11,21 @@ integration conflict, review findings, or product implementation.
 
 ## Entry Boundary
 
-Start in a clean dedicated worktree at current main. Read the active goal,
-decision index, constraints, plans, skills, gates, and every affected canonical
-surface. Confirm concrete governance drift such as duplicate authority,
-ambiguous terminology, incompatible rules, stale process machinery, or process
-work displacing product progress.
+Require the user or application to supply a clean dedicated governance worktree
+at current main. Do not create, switch, move, replace, or delete a branch,
+worktree, clone, task, thread, or chat to establish that context. Read the
+active goal, decision index, constraints, plans, skills, gates, and every
+affected canonical surface. Confirm concrete governance drift such as duplicate
+authority, ambiguous terminology, incompatible rules, stale process machinery,
+or process work displacing product progress.
+
+Use bounded read-only subagents for independent semantic inventory, residual
+search, or regression review when that improves coverage. The governing Agent
+remains the sole writer and commit owner. Subagents do not rewrite authority,
+advance the Epoch, edit `goal.json`, or create execution contexts. If the
+available subagent mechanism creates an independent task, thread, branch, or
+worktree, require explicit user or application authorization before invoking
+it.
 
 Choose the next monotonic `epoch-NNNN`. Do not publish it yet. Existing branches
 and worktrees remain untouched, but no older-base candidate may integrate after

@@ -1,13 +1,13 @@
 ---
 name: start-work
-description: Cold-start MetaFlux work with detected harness or CLI tool identity, Nix-first project tools, the active Epoch/Batch/Iteration goal, domain routing, and committed Iteration delivery.
+description: Cold-start one externally assigned MetaFlux Iteration with detected tool identity, Nix-first project tools, domain routing, bounded in-task subagents, and one committed delivery without allocating sibling lanes or execution contexts.
 ---
 
 # Start Work
 
 Use at the beginning of every repository task. It resolves the executing tool
 and current goal; it does not create an execution record or claim repository
-state.
+state, schedule another lane, or create an execution context.
 
 ## Stage Zero: Detect Agent Tool And Enter Nix
 
@@ -59,10 +59,36 @@ Require an assignment containing the exact Epoch, Batch, Iteration, lane, and
 base revision. The Epoch and Batch must equal `agent/goal.json`; the lane and
 Iteration must be one planned lane. A normal worker never edits `goal.json`.
 
-Use a separate clean worktree based on the exact base revision. If the base
-predates the active Epoch activation commit, rebase before implementation. Do
+Require the already supplied execution context to be a clean worktree based on
+the exact base revision. If it is missing, dirty outside the assignment, or
+based before the active Epoch activation commit, preserve it and report the
+exact mismatch. Do not create, switch, move, replace, or delete a branch,
+worktree, clone, task, thread, or chat to manufacture a compliant context. Do
 not infer work from another worktree, uncommitted files, conversation history,
 or obsolete repository records.
+
+## Assignment And Subagent Boundary
+
+The user or application owns scheduling and supplies the task, execution
+context, base revision, and assigned lane. `planned` sibling lanes describe the
+Batch integration topology; they are not a queue for the current worker to
+claim or dispatch. Existing parallel agents and worktrees are accepted as
+external facts, not authorization to create more. After delivering the assigned
+Iteration, report it and stop instead of selecting the next lane.
+
+Within the assigned Iteration, prefer bounded subagents over additional Git
+branches when independent analysis materially improves speed or review quality.
+Use them for read-only investigation, interface tracing, code review, test
+selection, and failure triage. The parent Agent remains the sole durable writer,
+test owner, and commit owner; subagents return findings or patch suggestions and
+do not edit `goal.json`, claim sibling lanes, integrate, govern, or create
+branches, worktrees, clones, tasks, threads, or chats.
+
+If the available subagent mechanism inherently creates an independent task,
+thread, branch, or worktree, treat it as external fan-out and require explicit
+user or application authorization before invoking it. Concurrent durable edits
+require execution contexts supplied by that external scheduler; otherwise the
+parent applies changes sequentially in its assigned context.
 
 Linked worktrees share the common Git configuration, refs, hooks, and object
 database. A hook or self-test that creates a foreign temporary repository must
