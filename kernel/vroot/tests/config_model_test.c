@@ -35,7 +35,9 @@ static int test_add_and_config(void) {
   EXPECT(value == 0x00014d46U);
   EXPECT(mf_vroot_read_config(&model, function, 255U, 2U, &value) == MF_VROOT_STATUS_RANGE);
   EXPECT(mf_vroot_read_config(&model, function, 0U, 3U, &value) == MF_VROOT_STATUS_INVALID_ARGUMENT);
+  EXPECT(mf_vroot_read_config(&model, function, 1U, 2U, &value) == MF_VROOT_STATUS_INVALID_ARGUMENT);
   EXPECT(mf_vroot_write_config(&model, function, 0U, 2U, 0U) == MF_VROOT_STATUS_OK);
+  EXPECT(mf_vroot_write_config(&model, function, 1U, 2U, 0U) == MF_VROOT_STATUS_INVALID_ARGUMENT);
   EXPECT(mf_vroot_write_config(&model, function, 0U, 2U, 1U) == MF_VROOT_STATUS_READ_ONLY);
   return 0;
 }
