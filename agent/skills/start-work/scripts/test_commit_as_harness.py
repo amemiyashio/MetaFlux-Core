@@ -181,11 +181,10 @@ def test_start_work_policy_is_nix_first(root: Path) -> None:
         "Do not search for an\n   agent binary or CLI",
         "nix develop . --command ...",
         "add it to the\n   repository Nix declaration before use",
-        "Only after Nix is confirmed not to\n   provide or materialize",
-        "host_privilege.py package PACKAGE",
-        "Do not call `sudo` or `pacman` directly",
-        "D0032 driver action allowlist",
-        "Never request a generic root shell",
+        "Only after that skill confirms Nix\n   cannot provide or materialize",
+        "load and follow\n   `manage-host-privilege`",
+        "Before any repository operation needs `sudo`, `su`",
+        "Start-work\n   only routes the need after Nix-first entry",
         "Nix must not own or encode task routing",
         "mandatory before staging",
         "Never probe ambient host\n   tools first",
@@ -194,8 +193,15 @@ def test_start_work_policy_is_nix_first(root: Path) -> None:
         assert fragment in source
     assert source.index("## Stage Zero") < source.index("## Steps")
     assert source.index("repository Nix declaration before use") < source.index(
-        "host_privilege.py package PACKAGE"
+        "`manage-host-privilege`"
     )
+    for forbidden in (
+        "host_privilege.py package",
+        "host_privilege.py driver",
+        "Allowed actions are",
+        "sudoers rule",
+    ):
+        assert forbidden not in source
     assert re.search(r"(?m)^\s*python3\s+", source) is None
 
 

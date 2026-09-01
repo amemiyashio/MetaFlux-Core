@@ -90,14 +90,14 @@ action is to add the narrow tool package to the repository Nix declaration and
 verify it through the Git-aware flake. Absence from the current shell does not
 authorize an ambient host lookup or moving that tool's workflow into Nix.
 
-If Nix cannot provide or materialize the tool, D0032 governs the next step. An
-exact pacman-resolvable package may be installed through the bounded root-owned
-helper, and its intended absolute executable may then run from inside the Nix
-entry environment. That host copy is local prerequisite state, not declared
-repeatable tool identity or release evidence. Inherently privileged MetaFlux
-driver debugging follows D0032's separate action allowlist. Direct package-
-manager invocation, arbitrary sudo commands, and credential persistence remain
-invalid.
+If `manage-toolchain` proves Nix cannot provide or materialize the tool,
+`manage-host-privilege` governs the next step. An exact pacman-resolvable
+package may be installed through the bounded root-owned helper, and its intended
+absolute executable may then run from inside the Nix entry environment. That
+host copy is local prerequisite state, not declared repeatable tool identity or
+release evidence. Every sudo/su or privileged MetaFlux driver operation routes
+to that skill; start-work does not own its actions, authorization, credentials,
+or revocation.
 
 ## Failure And Compatibility
 

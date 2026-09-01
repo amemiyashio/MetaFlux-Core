@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Behavioral and static tests for the D0032 host-privilege boundary."""
+"""Behavioral and static tests for the D0032 privilege skill boundary."""
 
 from __future__ import annotations
 

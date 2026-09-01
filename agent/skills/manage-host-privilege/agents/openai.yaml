@@ -1,0 +1,4 @@
+interface:
+  display_name: "Host Privilege Governance"
+  short_description: "Bound sudo and driver root access without stored secrets"
+  default_prompt: "Use $manage-host-privilege to perform or review this repository host privilege operation without exposing broad root access or credentials."

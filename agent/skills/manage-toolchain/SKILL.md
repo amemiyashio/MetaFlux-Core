@@ -28,12 +28,12 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
    declaration is needed. Host `git` and `nix` are the only bootstrap
    executables; repository file APIs may read tracked text directly.
 - A newly required repeatable tool is added to the narrow repository Nix
-  declaration before use. Only after a confirmed Nix provision/materialization
-  gap may D0032 map the requirement to an exact pacman package and invoke the
-  package-name-only root helper through `host_privilege.py`. Do not call the
-  host package manager directly or pass options, URLs, local packages, or shell
-  fragments. The installed host copy is a local prerequisite and does not
-  become Nix-owned declared identity or repeatable/release evidence.
+  declaration before use. This skill owns proving a Nix
+  provision/materialization gap; after that proof it composes
+  `manage-host-privilege`, which alone owns host package mapping, privilege,
+  installation, and authorization. The installed host copy is a local
+  prerequisite and does not become Nix-owned declared identity or
+  repeatable/release evidence.
 - Git owns source identity and history.
 - CMake and Ninja own configure, build, install, and build-directory behavior.
 - CTest and repository scripts own tests and qualification.
@@ -68,9 +68,9 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 - Route compiler semantics, provider ABI, runtime behavior, and target tuning to
   their domain skills. A tool version change does not transfer those decisions
   to this skill.
-- Route MetaFlux module load/unload, kernel logs, kmemleak controls, and the
-  named live cdev qualification binary to D0032's driver helper. This skill does
-  not grant arbitrary sudo, own driver-debug commands, or retain credentials.
+- Route every `sudo`, `su`, root-helper, host package, and privileged driver
+  operation to `manage-host-privilege`. This skill neither defines nor executes
+  privilege commands and never owns credentials or persistent grants.
 
 ## Workflow
 

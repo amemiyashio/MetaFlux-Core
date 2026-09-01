@@ -59,14 +59,17 @@ identity and provisioning boundaries live in
   executable and tool/version/capability probe runs through the Git-aware
   `nix develop . --command ...` environment before ambient host inspection.
   Newly required tools are added to the repository Nix declaration first. Only
-  a confirmed Nix materialization gap permits D0032 host escalation: an exact
-  pacman package is installed through the package-name-only root helper, then
+  a confirmed Nix materialization gap permits D0032 host escalation through
+  `manage-host-privilege`: an exact pacman package is installed through the
+  package-name-only root helper, then
   its exact host executable may run from inside the Nix entry environment. This
   host copy is a local prerequisite, not declared repeatable tool identity or
   release evidence. MetaFlux driver privilege uses the separate D0032 action
   allowlist for current module lifecycle, kernel-log/kmemleak inspection, and
   the named live cdev qualification binary under the configured repository
-  root. Neither path permits arbitrary sudo commands or credential persistence.
+  root. That skill is the sole owner for sudo/su, root-helper, persistent-grant,
+  and revocation policy. Neither path permits arbitrary root commands or
+  credential persistence.
   SC0008 provides no compatibility route for the superseded startup order.
 - Breaking replacements of established semantics, identifiers, constraints,
   record shapes, or authority use a decision-bound `SCNNNN` migration (D0025).

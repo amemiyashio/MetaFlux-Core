@@ -63,8 +63,9 @@ qualification semantics to Nix.
 
 A newly required repeatable tool is added to the narrow repository Nix
 declaration before it is used. After a confirmed Nix provision/materialization
-gap, D0032 may install one exact pacman-resolvable package through the bounded
-root helper. The intended absolute host executable then runs from inside the
+gap, compose `manage-host-privilege`; it may install one exact pacman-resolvable
+package through the bounded root helper. The intended absolute host executable
+then runs from inside the
 Nix entry environment as explicit local prerequisite state. It is not a Nix
 declaration, reproducibly fixed identity, generic ambient fallback, or release
 evidence. The package helper never absorbs the consuming workflow.

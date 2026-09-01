@@ -5,13 +5,15 @@
 | Status | Verified |
 | Decision | D0032 |
 | Classification | Breaking (destructive) governance |
-| Applies to | Confirmed repository Nix gaps and MetaFlux driver debugging |
+| Applies to | Every repository sudo/su boundary, confirmed Nix gaps, and MetaFlux driver debugging |
 | Migration | SC0009 |
 
 ## Decision
 
-Repository agents use two root-owned host helpers through the Nix-provided
-`host_privilege.py` client:
+`manage-host-privilege` is the sole workflow owner for repository `sudo`, `su`,
+root-helper installation, persistent grants, host package escalation, privileged
+driver debugging, and later revocation. Repository agents use its Nix-provided
+`host_privilege.py` client to reach two root-owned host helpers:
 
 1. `metaflux-pacman-install` accepts one or more validated Arch package names,
    first asks pacman to resolve them from configured repositories, and then
@@ -23,6 +25,11 @@ Repository agents use two root-owned host helpers through the Nix-provided
    executable named `metaflux_transport_cdev_live_qualification`. Both must
    resolve under the repository root recorded in the root-owned host
    configuration.
+
+The canonical client, helper, sudoers-template, and regression sources live in
+`agent/skills/manage-host-privilege/`. `start-work` only routes a privilege need
+after Nix-first entry; `manage-toolchain` only establishes a Nix gap; the owning
+domain skill retains operation semantics and evidence.
 
 The client invokes only the fixed `/usr/local/libexec` helper paths through
 `sudo --non-interactive`. A root-owned sudoers fragment grants the current host
@@ -74,10 +81,16 @@ may enter sudo only through its protected terminal input and is discarded after
 authentication. It never enters Git, arguments, environment variables, files,
 command output, Agent records, or logs.
 
-The host operator owns installation, ownership/mode, sudoers validation, and
-later revocation of these host objects. The repository owns the auditable helper
-sources and client behavior. Nix remains strictly limited to tool identity,
-materialization, and exposure; it does not install or configure host privilege.
+`manage-host-privilege` owns installation, ownership/mode, sudoers validation,
+and later revocation of these host objects. The repository owns the auditable
+helper sources and client behavior. Nix remains strictly limited to tool
+identity, materialization, and exposure; it does not install or configure host
+privilege.
+
+Routine execution does not use `su` or retain a root shell. If a host exposes
+only `su`, this skill may use that channel solely to provision the same bounded
+helper arrangement through protected terminal input; no credential or elevated
+session persists afterward.
 
 ## Failure And Compatibility
 
@@ -101,6 +114,6 @@ plaintext-credential compatibility route.
   grants.
 - The current host verifies both root-owned helpers through non-interactive sudo
   without installing an unnecessary package or executing a driver mutation.
-- The start-work package validator, routing corpus, Agent records, semantic-
-  change edit gate, and repository pre-commit gate cover the synchronized
-  workflow surfaces.
+- The independent skill package validator, start-work routing regression,
+  routing corpus, Agent records, semantic-change edit gate, and repository
+  pre-commit gate cover the synchronized workflow surfaces.

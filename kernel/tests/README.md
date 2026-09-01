@@ -25,18 +25,18 @@ busy; it is recorded as a skipped live qualification, never as a passing test.
 The binary does not load or unload the kernel module and does not fabricate
 device nodes.
 
-When host privilege is required, D0032 keeps build and test semantics here but
-routes elevation through fixed actions:
+When host privilege is required, `manage-host-privilege` applies D0032 while
+build and test semantics remain here:
 
 ```sh
 nix develop . --command python3 \
-  agent/skills/start-work/scripts/host_privilege.py driver load \
+  agent/skills/manage-host-privilege/scripts/host_privilege.py driver load \
   /absolute/repository/build/path/metaflux_core.ko
 nix develop . --command python3 \
-  agent/skills/start-work/scripts/host_privilege.py driver live \
+  agent/skills/manage-host-privilege/scripts/host_privilege.py driver live \
   /absolute/repository/build/path/metaflux_transport_cdev_live_qualification
 nix develop . --command python3 \
-  agent/skills/start-work/scripts/host_privilege.py driver logs
+  agent/skills/manage-host-privilege/scripts/host_privilege.py driver logs
 ```
 
 The root helper validates canonical artifact names and the configured repository

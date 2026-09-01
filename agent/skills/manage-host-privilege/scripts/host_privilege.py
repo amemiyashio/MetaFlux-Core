@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Invoke the bounded MetaFlux host-privilege helpers."""
+"""Invoke helpers owned by the MetaFlux host-privilege skill."""
 
 from __future__ import annotations
 

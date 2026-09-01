@@ -36,45 +36,22 @@ executable other than the host bootstrap `git` and `nix` commands.
    host `nix` may enter the declared environment. Never probe ambient host
    tools first and never use `path:.`.
    If a required tool is absent, follow `manage-toolchain` and add it to the
-   repository Nix declaration before use. Only after Nix is confirmed not to
-   provide or materialize the tool may the agent map it to an exact pacman
-   package and run:
-
-   ```sh
-   nix develop . --command python3 \
-     agent/skills/start-work/scripts/host_privilege.py package PACKAGE
-   ```
-
-   Do not interrupt for an operator installation request while this bounded
-   path can resolve the package. Do not call `sudo` or `pacman` directly, pass
-   package-manager options, install a URL/local package, or silently select an
-   ambient executable. After installation, invoke only the intended absolute
-   host executable from inside `nix develop . --command ...`; treat it as a
-   local host prerequisite, not repeatable tool identity or release evidence.
-   If pacman cannot resolve the exact package or the configured helper fails,
-   report that exact blocker.
+   repository Nix declaration before use. Only after that skill confirms Nix
+   cannot provide or materialize the tool, load and follow
+   `manage-host-privilege` for any host package mapping and installation. Do
+   not inspect or select an ambient executable as a substitute.
    Adding or entering a Nix tool closure changes only tool identity,
    materialization, and exposure. Nix must not own or encode task routing,
    source history, build/test/package commands, qualification semantics,
    focus/session policy, evidence, cleanup, or host installation. A fixed tool
    may evolve through an explicit `manage-toolchain` manifest/lock update;
    fixed means revision-clear and reproducibly stable, not permanently frozen.
-4. When the owning MetaFlux kernel workflow needs root privilege, use only the
-   D0032 driver action allowlist through the same Nix-provided client:
-
-   ```sh
-   nix develop . --command python3 \
-     agent/skills/start-work/scripts/host_privilege.py driver ACTION [ARTIFACT]
-   ```
-
-   Allowed actions are `check`, `load`, `reload`, `unload`, `logs`,
-   `kmemleak-clear`, `kmemleak-scan`, `kmemleak-read`, and `live`. Module and
-   live-test artifacts must resolve inside the exact configured repository root
-   and have their canonical names. The helper grants privilege only; Kbuild,
-   the live test, and the kernel qualification workflow own commands and
-   evidence. Never request a generic root shell or store, print, export, or pass
-   a sudo password. Persistent access is a root-owned helper plus a narrow
-   sudoers rule, not credential storage.
+4. Before any repository operation needs `sudo`, `su`, a root-owned helper,
+   host package installation, or privileged driver debugging, load and follow
+   `manage-host-privilege` together with the owning domain skill. Start-work
+   only routes the need after Nix-first entry; it does not define commands,
+   actions, credential handling, persistent grants, installation, or
+   revocation.
 5. Before staging the first agent-created commit, run the identity preflight
    inside that Nix environment and compare the complete output with the emitted
    declaration. A mismatch stops the commit path.
@@ -222,7 +199,6 @@ METAFLUX_AGENT_HARNESS=HARNESS_SUBJECT \
 
 ```sh
 nix develop . --command python3 agent/skills/start-work/scripts/test_commit_as_harness.py
-nix develop . --command python3 agent/skills/start-work/scripts/test_host_privilege.py
 nix develop . --command python3 tools/check-agent-records.py .
 ```
 
