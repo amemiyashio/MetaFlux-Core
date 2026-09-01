@@ -257,6 +257,10 @@ mf_shared_status_v1 mf_client_ring_try_consume_v1(mf_client_ring_v1* ring,
 
 mf_shared_status_v1 mf_client_ring_wait_readable_v1(mf_client_ring_v1* ring, uint64_t timeout_ns);
 
+/* Wait for a later producer publication, even when an older descriptor is readable. */
+mf_shared_status_v1 mf_client_ring_wait_readable_update_v1(mf_client_ring_v1* ring,
+                                                           uint64_t timeout_ns);
+
 mf_shared_status_v1 mf_client_ring_wait_writable_v1(mf_client_ring_v1* ring, uint64_t timeout_ns);
 
 uint64_t mf_client_ring_consumer_doorbells_v1(const mf_client_ring_v1* ring);

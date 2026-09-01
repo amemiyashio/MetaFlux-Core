@@ -1,6 +1,9 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <metaflux/transport/vfio_user_guest.h>
 
 #include <string.h>
+#include <time.h>
 
 static int guest_ring_bound(const mf_vfio_user_guest_ring_v0* ring) {
   return ring != NULL && ring->reserved == UINT32_C(0) && ring->doorbell != NULL &&
@@ -29,6 +32,61 @@ static void guest_ring_reset(mf_vfio_user_guest_ring_v0* ring) {
 static int guest_descriptor_valid(const mf_ring_descriptor_v1* descriptor) {
   return descriptor != NULL && descriptor->request_id != UINT64_C(0) &&
          descriptor->target_id != UINT64_C(0) && descriptor->opcode != MF_RING_OPCODE_COMPLETION;
+}
+
+static mf_shared_status_v1 guest_ring_has_armed_completion(
+    mf_vfio_user_guest_ring_v0* ring, uint64_t armed_timeline, int* out_ready) {
+  const uint64_t consumer_position =
+      mf_atomic_load_u64_relaxed(&ring->completion.header->consumer.position);
+  const uint64_t producer_position =
+      mf_atomic_load_u64_acquire(&ring->completion.header->producer.position);
+  const uint32_t mask = ring->completion.capacity - UINT32_C(1);
+  const uint64_t available = producer_position - consumer_position;
+  uint64_t previous_timeline = ring->last_completion_timeline;
+
+  if (out_ready == NULL) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  *out_ready = 0;
+  if (available > (uint64_t)ring->completion.capacity) {
+    ring->reserved = UINT32_C(1);
+    return MF_SHARED_MALFORMED;
+  }
+  for (uint64_t offset = 0; offset < available; ++offset) {
+    const uint64_t position = consumer_position + offset;
+    const mf_ring_descriptor_v1* descriptor =
+        &ring->completion.descriptors[position & (uint64_t)mask];
+    const uint64_t sequence = mf_atomic_load_u64_acquire(&descriptor->sequence);
+    if (sequence != position + UINT64_C(1)) {
+      return MF_SHARED_WOULD_BLOCK;
+    }
+    if (descriptor->opcode != MF_RING_OPCODE_COMPLETION ||
+        descriptor->request_id == UINT64_C(0) || descriptor->target_id == UINT64_C(0) ||
+        descriptor->arguments[1] == UINT64_C(0) || descriptor->arguments[1] <= previous_timeline) {
+      ring->reserved = UINT32_C(1);
+      return MF_SHARED_MALFORMED;
+    }
+    previous_timeline = descriptor->arguments[1];
+    if (previous_timeline >= armed_timeline) {
+      *out_ready = 1;
+      return MF_SHARED_SUCCESS;
+    }
+  }
+  return MF_SHARED_SUCCESS;
+}
+
+static int guest_monotonic_time_ns(uint64_t* out_time_ns) {
+  struct timespec now;
+  uint64_t seconds = 0;
+
+  if (out_time_ns == NULL || clock_gettime(CLOCK_MONOTONIC, &now) != 0 || now.tv_sec < 0 ||
+      now.tv_nsec < 0 || (uint64_t)now.tv_sec > (UINT64_MAX - (uint64_t)now.tv_nsec) /
+                                UINT64_C(1000000000)) {
+    return 0;
+  }
+  seconds = (uint64_t)now.tv_sec;
+  *out_time_ns = seconds * UINT64_C(1000000000) + (uint64_t)now.tv_nsec;
+  return 1;
 }
 
 static mf_shared_status_v1 guest_ring_publish(mf_vfio_user_guest_ring_v0* ring,
@@ -186,13 +244,51 @@ mf_shared_status_v1 mf_vfio_user_guest_ring_arm_completion_v0(
 
 mf_shared_status_v1 mf_vfio_user_guest_ring_wait_armed_completion_v0(
     mf_vfio_user_guest_ring_v0* ring, uint64_t timeout_ns) {
+  uint64_t start_time_ns = 0;
+
   if (!guest_ring_bound(ring) || ring->armed_completion_timeline == UINT64_C(0)) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
   if (ring->last_completion_timeline >= ring->armed_completion_timeline) {
     return MF_SHARED_SUCCESS;
   }
-  return mf_client_ring_wait_readable_v1(&ring->completion, timeout_ns);
+  if (timeout_ns != MF_CLIENT_RING_INFINITE_TIMEOUT_NS &&
+      !guest_monotonic_time_ns(&start_time_ns)) {
+    return MF_SHARED_SYSTEM_ERROR;
+  }
+  for (;;) {
+    int armed_ready = 0;
+    uint64_t wait_timeout_ns = timeout_ns;
+    mf_shared_status_v1 status =
+        guest_ring_has_armed_completion(ring, ring->armed_completion_timeline, &armed_ready);
+
+    if (status == MF_SHARED_SUCCESS && armed_ready != 0) {
+      return MF_SHARED_SUCCESS;
+    }
+    if (status == MF_SHARED_MALFORMED) {
+      return status;
+    }
+    if (timeout_ns == UINT64_C(0)) {
+      return MF_SHARED_WOULD_BLOCK;
+    }
+    if (timeout_ns != MF_CLIENT_RING_INFINITE_TIMEOUT_NS) {
+      uint64_t now_time_ns = 0;
+      uint64_t elapsed_ns = 0;
+      if (!guest_monotonic_time_ns(&now_time_ns) || now_time_ns < start_time_ns) {
+        return MF_SHARED_SYSTEM_ERROR;
+      }
+      elapsed_ns = now_time_ns - start_time_ns;
+      if (elapsed_ns >= timeout_ns) {
+        return MF_SHARED_TIMEOUT;
+      }
+      wait_timeout_ns = timeout_ns - elapsed_ns;
+    }
+    status = mf_client_ring_wait_readable_update_v1(&ring->completion, wait_timeout_ns);
+    if (status == MF_SHARED_SUCCESS || status == MF_SHARED_RETRY) {
+      continue;
+    }
+    return status;
+  }
 }
 
 uint64_t mf_vfio_user_guest_ring_last_completion_timeline_v0(

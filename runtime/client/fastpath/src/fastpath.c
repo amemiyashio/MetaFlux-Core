@@ -469,7 +469,7 @@ static mf_shared_status_v1 mf_client_ring_wait(mf_client_ring_v1* ring, uint32_t
   if (!mf_client_ring_handle_valid(ring)) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
-  if (ready(ring) != 0) {
+  if (ready != (int (*)(const mf_client_ring_v1*))0 && ready(ring) != 0) {
     return MF_SHARED_SUCCESS;
   }
   if (timeout_ns == UINT64_C(0)) {
@@ -483,7 +483,9 @@ static mf_shared_status_v1 mf_client_ring_wait(mf_client_ring_v1* ring, uint32_t
       return register_status;
     }
   }
-  if (ready(ring) != 0) {
+  if ((ready != (int (*)(const mf_client_ring_v1*))0 && ready(ring) != 0) ||
+      (ready == (int (*)(const mf_client_ring_v1*))0 &&
+       mf_atomic_load_u32_acquire(wake_sequence) != observed_sequence)) {
     (void)mf_atomic_fetch_sub_u32_acq_rel(waiter_count, UINT32_C(1));
     return MF_SHARED_SUCCESS;
   }
@@ -498,7 +500,9 @@ static mf_shared_status_v1 mf_client_ring_wait(mf_client_ring_v1* ring, uint32_t
   result = syscall(SYS_futex, wake_sequence, FUTEX_WAIT, observed_sequence, timeout_pointer,
                    (void*)0, 0);
   (void)mf_atomic_fetch_sub_u32_acq_rel(waiter_count, UINT32_C(1));
-  if (ready(ring) != 0) {
+  if ((ready != (int (*)(const mf_client_ring_v1*))0 && ready(ring) != 0) ||
+      (ready == (int (*)(const mf_client_ring_v1*))0 &&
+       mf_atomic_load_u32_acquire(wake_sequence) != observed_sequence)) {
     return MF_SHARED_SUCCESS;
   }
   if (result == 0 || errno == EAGAIN) {
@@ -1765,6 +1769,21 @@ mf_shared_status_v1 mf_client_ring_wait_readable_v1(mf_client_ring_v1* ring, uin
   return mf_client_ring_wait(ring, &ring->header->wait.consumer_wait_state,
                              &ring->header->wait.consumer_wake_sequence, timeout_ns,
                              mf_client_ring_is_readable);
+}
+
+mf_shared_status_v1 mf_client_ring_wait_readable_update_v1(mf_client_ring_v1* ring,
+                                                            uint64_t timeout_ns) {
+  if (!mf_client_ring_handle_valid(ring)) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  /*
+   * An already-readable ring needs a wake-sequence wait when its next
+   * descriptor is below a caller's timeline target. A null ready predicate
+   * makes mf_client_ring_wait wait for a later producer publication.
+   */
+  return mf_client_ring_wait(ring, &ring->header->wait.consumer_wait_state,
+                             &ring->header->wait.consumer_wake_sequence, timeout_ns,
+                             (int (*)(const mf_client_ring_v1*))0);
 }
 
 mf_shared_status_v1 mf_client_ring_wait_writable_v1(mf_client_ring_v1* ring, uint64_t timeout_ns) {

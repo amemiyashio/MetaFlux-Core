@@ -144,6 +144,34 @@ static int run_ring_test(void) {
     mf_client_ring_close_v1(&submission_owner);
     return 9;
   }
+  if (mf_vfio_user_guest_ring_arm_completion_v0(&guest, UINT64_C(3)) != MF_SHARED_SUCCESS) {
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 13;
+  }
+  completion.arguments[1] = UINT64_C(2);
+  if (mf_client_ring_try_submit_v1(&completion_owner, &completion) != MF_SHARED_SUCCESS ||
+      mf_vfio_user_guest_ring_wait_armed_completion_v0(&guest, UINT64_C(0)) !=
+          MF_SHARED_WOULD_BLOCK) {
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 14;
+  }
+  completion.arguments[1] = UINT64_C(3);
+  if (mf_client_ring_try_submit_v1(&completion_owner, &completion) != MF_SHARED_SUCCESS ||
+      mf_vfio_user_guest_ring_wait_armed_completion_v0(&guest, UINT64_C(0)) !=
+          MF_SHARED_SUCCESS ||
+      mf_vfio_user_guest_ring_try_consume_v0(&guest, &descriptor) != MF_SHARED_SUCCESS ||
+      descriptor.arguments[1] != UINT64_C(2) ||
+      mf_vfio_user_guest_ring_try_consume_v0(&guest, &descriptor) != MF_SHARED_SUCCESS ||
+      descriptor.arguments[1] != UINT64_C(3)) {
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 15;
+  }
 
   if (mf_client_ring_try_consume_v1(&submission_owner, &descriptor) != MF_SHARED_SUCCESS) {
     mf_vfio_user_guest_ring_close_v0(&guest);
