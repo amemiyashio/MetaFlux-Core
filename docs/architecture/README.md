@@ -10,6 +10,8 @@ passing tests remain stronger evidence than prose.
   leased workers, and lifecycle ownership.
 - [`agent-execution.md`](agent-execution.md): decision-0033 Epoch/Batch/Iteration
   execution and destructive governance.
+- [`agent-tool-detection.md`](agent-tool-detection.md): decision-0034 bounded
+  harness/CLI executable evidence and dynamic commit identity.
 - [`host-privilege-escalation.md`](host-privilege-escalation.md): bounded,
   non-secret host privilege and driver-debug helpers.
 

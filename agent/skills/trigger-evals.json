@@ -14,6 +14,7 @@
     "vulkan-spirv-compute"
   ],
   "workflow_skills": [
+    "detect-agent-tool",
     "integrate-batch",
     "govern-epoch",
     "roast"
@@ -477,6 +478,46 @@
       "forbidden_skills": ["vulkan-spirv-compute"]
     },
     {
+      "id": "DETECT-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Report the current agent harness or CLI executable subject, resolved path, tool version, and digest without reading model metadata.",
+      "expected_skills": ["detect-agent-tool"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "DETECT-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Probe this exact agent CLI executable and return bounded executable-tool facts; reject ambiguous discovery and do not infer identity from a backend or template label.",
+      "expected_skills": ["detect-agent-tool"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "DETECT-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Choose an inference model and reasoning effort for a remote evaluation; do not inspect any local harness or CLI executable.",
+      "expected_skills": [],
+      "forbidden_skills": ["detect-agent-tool"]
+    },
+    {
+      "id": "DETECT-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "探测当前 agent harness 或 CLI 的可执行文件、工具名称、版本和摘要，不读取模型信息。",
+      "expected_skills": ["detect-agent-tool"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "DETECT-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "只选择远程推理模型和 reasoning effort，不探测本地 harness 或 CLI 可执行工具。",
+      "expected_skills": [],
+      "forbidden_skills": ["detect-agent-tool"]
+    },
+    {
       "id": "INTEGRATE-P1",
       "kind": "single",
       "locale": "en",
@@ -605,6 +646,22 @@
       "forbidden_skills": ["roast"]
     },
 
+    {
+      "id": "COMBO-DETECT-LINUX",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Detect the exact agent CLI executable first, then review Linux cdev DMA pinning and teardown with the kernel UAPI expert.",
+      "expected_skills": ["detect-agent-tool", "linux-device-driver-uapi"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-ZH-DETECT-CUDA",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "先探测当前 agent CLI 可执行工具信息，再审查 CUDA Driver 的导出符号和句柄兼容行为。",
+      "expected_skills": ["detect-agent-tool", "cuda-driver-abi-compatibility"],
+      "forbidden_skills": []
+    },
     {
       "id": "COMBO-PTX-CPU",
       "kind": "composition",

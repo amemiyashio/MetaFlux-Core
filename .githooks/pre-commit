@@ -27,7 +27,9 @@ nix develop . --command python3 -B \
   "$candidate_root"
 nix develop . --command python3 -B \
   "$candidate_root/tools/test-check-skill-routing.py"
-nix develop . --command python3 \
-  "$candidate_root/agent/skills/start-work/scripts/test_commit_as_harness.py"
+nix develop . --command python3 -B \
+  "$candidate_root/agent/skills/detect-agent-tool/scripts/test_detect_agent_tool.py"
+nix develop . --command python3 -B \
+  "$candidate_root/agent/skills/start-work/scripts/test_commit_as_agent_tool.py"
 
 git diff --cached --check

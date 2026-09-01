@@ -6,7 +6,8 @@ identity, conversations, worktrees, or activity.
 
 ## Read Order
 
-1. Follow [`start-work`](skills/start-work/SKILL.md) Stage Zero.
+1. Follow [`start-work`](skills/start-work/SKILL.md) Stage Zero and consume
+   [`detect-agent-tool`](skills/detect-agent-tool/SKILL.md) executable facts.
 2. Read [`memory/README.md`](memory/README.md), especially constraints and open
    decisions.
 3. Read [`goal.json`](goal.json).
@@ -19,7 +20,7 @@ queued plans describe intent, not implemented behavior.
 
 ## Execution Scale
 
-- **Epoch** (`epoch-0001`): one repository-wide semantic governance regime.
+- **Epoch** (`epoch-0002`): one repository-wide semantic governance regime.
   Only explicit `govern-epoch` may advance it, after a full current-authority
   rewrite and passing regression.
 - **Batch** (`batch-0001`): one bounded collection of parallel product lanes
@@ -29,7 +30,7 @@ queued plans describe intent, not implemented behavior.
   restarts in a new Batch.
 
 The full identity is always written as
-`epoch-0001 / batch-0001 / iteration-0001`. A worker delivers exact base and tip
+`epoch-0002 / batch-0001 / iteration-0001`. A worker delivers exact base and tip
 revisions. Only an explicitly created integration agent changes `goal.json`.
 Failed candidates and superseded Batch state are not archived in the current
 tree; Git and the originating conversation retain their evidence.

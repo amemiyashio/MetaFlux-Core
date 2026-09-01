@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -12,6 +13,14 @@ from pathlib import Path
 
 
 SCRIPT = Path(__file__).with_name("check-agent-state.py").resolve()
+DETECTOR_SCRIPT = (
+    SCRIPT.parents[1]
+    / "agent"
+    / "skills"
+    / "detect-agent-tool"
+    / "scripts"
+    / "detect_agent_tool.py"
+)
 
 
 def load_module():
@@ -48,7 +57,7 @@ def git(root: Path, *arguments: str) -> str:
 def goal() -> dict:
     return {
         "schema_version": 1,
-        "epoch": "epoch-0001",
+        "epoch": "epoch-0002",
         "batch": {"id": "batch-0001", "status": "open"},
         "target": {
             "milestone": "milestone-0.1.0.0",
@@ -108,7 +117,8 @@ Pass.
         root / "agent/memory/decisions-index.md",
         "| ID | Topic | Canonical source | Source status |\n"
         "| --- | --- | --- | --- |\n"
-        "| decision-0033 | Current execution | [goal](../goal.json) | Verified |\n",
+        "| decision-0033 | Current execution | [goal](../goal.json) | Verified |\n"
+        "| decision-0034 | Agent-tool detection | [tool](../skills/detect-agent-tool/SKILL.md) | Verified |\n",
     )
     write(root / "agent/experience/README.md", "# Experience\n")
     write(
@@ -123,11 +133,32 @@ Pass.
         "  default_prompt: \"Use $start-work to begin.\"\n",
     )
     write(
+        root / "agent/skills/detect-agent-tool/SKILL.md",
+        "---\n"
+        "name: detect-agent-tool\n"
+        "description: Detect the current executable agent tool.\n"
+        "---\n\n"
+        "# Detect Agent Tool\n",
+    )
+    write(
+        root / "agent/skills/detect-agent-tool/agents/openai.yaml",
+        "interface:\n"
+        "  display_name: \"Detect Agent Tool\"\n"
+        "  short_description: \"Detect the current executable agent tool\"\n"
+        "  default_prompt: \"Use $detect-agent-tool to report the tool.\"\n",
+    )
+    write(
+        root
+        / "agent/skills/detect-agent-tool/scripts/detect_agent_tool.py",
+        DETECTOR_SCRIPT.read_text(encoding="utf-8"),
+    )
+    write(
         root / "agent/skills/README.md",
         "## Index\n\n"
         "| Skill | Status | Use when |\n"
         "| --- | --- | --- |\n"
-        "| [start-work](start-work/SKILL.md) | Active | Starting |\n",
+        "| [start-work](start-work/SKILL.md) | Active | Starting |\n"
+        "| [detect-agent-tool](detect-agent-tool/SKILL.md) | Active | Detecting |\n",
     )
     write(
         root / "agent/skills/trigger-evals.json",
@@ -214,24 +245,43 @@ def test_broken_link(root: Path) -> None:
 
 def test_commit_environment(root: Path) -> None:
     create_fixture(root)
-    valid = {
-        "METAFLUX_AGENT_HARNESS": "codex",
-        "METAFLUX_AGENT_EPOCH": "epoch-0001",
-        "GIT_AUTHOR_NAME": "codex",
-        "GIT_AUTHOR_EMAIL": "codex@localhost",
-        "GIT_COMMITTER_NAME": "codex",
-        "GIT_COMMITTER_EMAIL": "codex@localhost",
-    }
+    tool = root / "fixture-agent"
+    write(
+        tool,
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"--version\" ]; then printf '%s\\n' 'fixture-cli 1.2.3'; exit 0; fi\n"
+        "if [ \"$1\" = \"--help\" ]; then exit 0; fi\n"
+        "exit 2\n",
+    )
+    tool.chmod(0o755)
+    valid = os.environ.copy()
+    valid.update(
+        {
+            "METAFLUX_AGENT_TOOL_EXECUTABLE": str(tool),
+            "METAFLUX_AGENT_EPOCH": "epoch-0002",
+            "GIT_AUTHOR_NAME": "fixture-agent",
+            "GIT_AUTHOR_EMAIL": "fixture-agent@localhost",
+            "GIT_COMMITTER_NAME": "fixture-agent",
+            "GIT_COMMITTER_EMAIL": "fixture-agent@localhost",
+        }
+    )
     checker = STATE.Checker(root)
     checker.validate_commit_environment(valid)
     assert not checker.errors
     invalid = dict(valid)
-    invalid["METAFLUX_AGENT_HARNESS"] = "model-derived-name"
+    invalid["GIT_AUTHOR_NAME"] = "unrelated-name"
     invalid["METAFLUX_AGENT_EPOCH"] = "epoch-9999"
     checker = STATE.Checker(root)
     checker.validate_commit_environment(invalid)
-    assert any("HARNESS" in error for error in checker.errors)
+    assert any("GIT_AUTHOR_NAME" in error for error in checker.errors)
     assert any("candidate Epoch" in error for error in checker.errors)
+
+    relative = dict(valid)
+    relative["METAFLUX_AGENT_TOOL_EXECUTABLE"] = tool.name
+    relative["PATH"] = str(root)
+    checker = STATE.Checker(root)
+    checker.validate_commit_environment(relative)
+    assert any("exact detected path" in error for error in checker.errors)
 
 
 def test_integration_ancestry(root: Path) -> None:

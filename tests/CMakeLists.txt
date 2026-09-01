@@ -170,10 +170,20 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "architecture"
   )
   add_test(
+    NAME metaflux.architecture.agent-tool-detection-selftest
+    COMMAND
+      Python3::Interpreter -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/detect-agent-tool/scripts/test_detect_agent_tool.py"
+  )
+  set_tests_properties(
+    metaflux.architecture.agent-tool-detection-selftest
+    PROPERTIES LABELS "architecture"
+  )
+  add_test(
     NAME metaflux.architecture.agent-commit-identity-selftest
     COMMAND
       Python3::Interpreter -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/start-work/scripts/test_commit_as_harness.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/start-work/scripts/test_commit_as_agent_tool.py"
   )
   set_tests_properties(
     metaflux.architecture.agent-commit-identity-selftest

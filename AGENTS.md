@@ -3,13 +3,18 @@
 These rules apply to every agent changing this repository and are enforced by
 the repository gates.
 
-1. **Resolve the runtime before repository work.** Follow `start-work` Stage
-   Zero. Read the stable harness product slug only from active system/developer
-   runtime instructions; for Codex it is exactly `codex`, and declare it
-   immediately. Do not search for an agent CLI or infer identity from a model,
-   template, backend, build, process, environment, PATH, prompt, or Git config.
-   Before any executable other than host `git` or `nix`, enter the Git-aware
-   `nix develop . --command ...` environment. Never probe the host first or use
+1. **Resolve the executing tool before repository work.** Follow `start-work`
+   Stage Zero and invoke
+   [`detect-agent-tool`](agent/skills/detect-agent-tool/SKILL.md) inside the
+   Git-aware Nix environment. Consume only its executable subject, resolved
+   path, tool version, discovery source, help availability, and digest. If more
+   than one candidate is visible, supply the exact harness or CLI executable;
+   never choose by PATH order. Outside that skill, do not search PATH,
+   processes, `/proc`, environment, Git configuration, or repository prose for
+   identity. Model/provider/template/backend/build/prompt/conversation/session/
+   thread data is never an identity input or output. Before any other
+   executable except host `git` or `nix`, use
+   `nix develop . --command ...`; never probe the ambient host first or use
    `path:.`.
 2. **Read the current goal.** Read [`agent/README.md`](agent/README.md), durable
    memory, [`agent/goal.json`](agent/goal.json), the target milestone/work item
@@ -47,9 +52,10 @@ the repository gates.
 8. **Verify and identify commits.** Run
    `nix develop . --command python3 tools/check-agent-state.py .` plus relevant
    CTest/domain gates. Agent commits use the `start-work` commit helper with
-   `METAFLUX_AGENT_HARNESS=codex` and
-   `METAFLUX_AGENT_EPOCH=<active epoch>`; Author and Committer are exactly
-   `codex <codex@localhost>`.
+   `METAFLUX_AGENT_EPOCH=<active epoch>`. The helper detects the exact agent
+   executable, derives `SUBJECT <SUBJECT@localhost>`, and passes that executable
+   to the candidate-tree commit gate. It never stores tool facts or changes Git
+   configuration.
 
 Product boundaries live in `contracts/README.md` and
 `docs/architecture/repo-layout.md`; the language wall and dependency whitelist

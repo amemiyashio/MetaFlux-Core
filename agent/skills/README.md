@@ -14,6 +14,7 @@ this directory.
 | Skill | Status | Use when |
 | --- | --- | --- |
 | [start-work](start-work/SKILL.md) | Active | Beginning any repository task or Iteration |
+| [detect-agent-tool](detect-agent-tool/SKILL.md) | Active | Resolving harness or CLI executable facts without model metadata |
 | [integrate-batch](integrate-batch/SKILL.md) | Active | The user explicitly requests integration of committed Iterations |
 | [govern-epoch](govern-epoch/SKILL.md) | Active | The user explicitly requests destructive Epoch governance |
 | [roast](roast/SKILL.md) | Active | Explicitly promoting valuable knowledge at integration or governance boundaries |
@@ -36,7 +37,8 @@ this directory.
 
 ## Composition
 
-- Worker Iterations compose `start-work` with every affected domain skill.
+- Worker Iterations compose `start-work`, automatic `detect-agent-tool`, and
+  every affected domain skill.
 - Explicit Batch integration composes `integrate-batch`, affected domain
   skills, and `roast` before final acceptance.
 - Explicit destructive governance composes `govern-epoch` and `roast`; domain

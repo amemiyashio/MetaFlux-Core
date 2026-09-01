@@ -1,36 +1,47 @@
 ---
 name: start-work
-description: Cold-start MetaFlux work with exact Codex identity, Nix-first tools, the active Epoch/Batch/Iteration goal, domain routing, and committed Iteration delivery.
+description: Cold-start MetaFlux work with detected harness or CLI tool identity, Nix-first project tools, the active Epoch/Batch/Iteration goal, domain routing, and committed Iteration delivery.
 ---
 
 # Start Work
 
-Use at the beginning of every repository task. It resolves the runtime and
-current goal; it does not create an execution record or claim repository state.
+Use at the beginning of every repository task. It resolves the executing tool
+and current goal; it does not create an execution record or claim repository
+state.
 
-## Stage Zero: Resolve Runtime And Enter Nix
+## Stage Zero: Detect Agent Tool And Enter Nix
 
 Complete this stage before any shell executable except host `git` and `nix`.
 
-1. Read the stable harness product slug from active system/developer runtime
-   instructions. For Codex it is exactly `codex`. Emit:
+1. Invoke `$detect-agent-tool`. Run its detector inside the Git-aware Nix
+   environment and consume only its structured executable-tool facts:
 
-   ```text
-   Agent harness subject: codex
+   ```sh
+   nix develop . --command python3 -B \
+     agent/skills/detect-agent-tool/scripts/detect_agent_tool.py --json
    ```
 
-2. Do not search for an agent CLI and do not inspect PATH, environment,
-   processes, `/proc`, Git config, repository text, model names, templates,
-   backends, builds, prompts, threads, or prior labels to infer the harness.
-3. Run every other executable and every version/capability probe through the
-   Git-aware `nix develop . --command ...` environment. Never probe the ambient
-   host first and never use `path:.`.
-4. If a required tool is missing, load `manage-toolchain` and add it to the
-   repository Nix declaration first. Only after a confirmed Nix provision or
-   materialization gap may `manage-host-privilege` resolve and install an exact
-   host package. Nix owns version identity, materialization, and exposure only;
-   fixed means reproducibly stable for the current revision, not immutable.
-5. Before sudo, su, a root helper, persistent authorization, package install,
+   Emit the detected subject, resolved executable, and tool version. These are
+   ephemeral startup facts, not repository state.
+2. If discovery is ambiguous, pass the exact harness or CLI executable with
+   `--executable`. Do not choose by PATH order. Outside the detector, do not
+   search for an agent CLI or inspect PATH, processes, `/proc`, environment,
+   Git configuration, or repository prose to derive identity.
+3. Never inspect or derive identity from a model, provider, template, backend,
+   build label, prompt, conversation, session, thread, or user-supplied label.
+   The subject comes only from the resolved executable basename; the version
+   comes only from its bounded `--version` probe.
+4. Run every project executable and every project version/capability probe
+   through the Git-aware `nix develop . --command ...` environment. Never probe
+   the ambient host first and never use `path:.`. The observed caller harness
+   is not a project tool and is not pinned by repository Nix.
+5. If a required project tool is missing, load `manage-toolchain` and add it to
+   the repository Nix declaration first. Only after a confirmed Nix provision
+   or materialization gap may `manage-host-privilege` resolve and install an
+   exact host package. Nix owns version identity, materialization, and exposure
+   only; fixed means reproducibly stable for the current revision, not
+   immutable.
+6. Before sudo, su, a root helper, persistent authorization, package install,
    or privileged driver operation, load `manage-host-privilege` and the owning
    domain skill. Never persist, pass, or print a credential.
 
@@ -84,31 +95,35 @@ constraints, experience, and Git.
 Before staging the first agent commit, run:
 
 ```sh
-METAFLUX_AGENT_HARNESS=codex \
 METAFLUX_AGENT_EPOCH=epoch-NNNN \
-nix develop . --command python3 \
-  agent/skills/start-work/scripts/commit_as_harness.py --print-identity
+nix develop . --command python3 -B \
+  agent/skills/start-work/scripts/commit_as_agent_tool.py --print-identity
 ```
 
-The complete output must be `codex <codex@localhost> @ epoch-NNNN`. Commit only
-through the same helper and command-local declarations:
+The output must be `SUBJECT <SUBJECT@localhost> @ epoch-NNNN`, where `SUBJECT`
+is the detector result. If detection is ambiguous, add
+`--agent-tool AGENT_TOOL_EXECUTABLE` before `--print-identity`.
+
+Commit only through the same helper and command-local Epoch declaration:
 
 ```sh
-METAFLUX_AGENT_HARNESS=codex \
 METAFLUX_AGENT_EPOCH=epoch-NNNN \
-nix develop . --command python3 \
-  agent/skills/start-work/scripts/commit_as_harness.py -- -m "Commit subject"
+nix develop . --command python3 -B \
+  agent/skills/start-work/scripts/commit_as_agent_tool.py -- -m "Commit subject"
 ```
 
-The helper sets Author and Committer to `codex <codex@localhost>` for the child
-commit only. It never changes Git config or derives identity from runtime state.
+The helper reuses the detector, sets Author and Committer to the detected
+`SUBJECT <SUBJECT@localhost>` for the child commit, and passes the exact resolved
+executable to the commit gate. It never changes Git config or stores tool facts.
 For merge, revert, or cherry-pick commits, prepare with `--no-commit`, then use
 the helper.
 
 ## Verification
 
 ```sh
-nix develop . --command python3 \
-  agent/skills/start-work/scripts/test_commit_as_harness.py
-nix develop . --command python3 tools/check-agent-state.py .
+nix develop . --command python3 -B \
+  agent/skills/detect-agent-tool/scripts/test_detect_agent_tool.py
+nix develop . --command python3 -B \
+  agent/skills/start-work/scripts/test_commit_as_agent_tool.py
+nix develop . --command python3 -B tools/check-agent-state.py .
 ```

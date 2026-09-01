@@ -50,7 +50,12 @@ DOMAIN_SKILL_SLUGS = {
     "device-lifecycle-resilience",
     "vulkan-spirv-compute",
 }
-WORKFLOW_SKILL_SLUGS = {"integrate-batch", "govern-epoch", "roast"}
+WORKFLOW_SKILL_SLUGS = {
+    "detect-agent-tool",
+    "integrate-batch",
+    "govern-epoch",
+    "roast",
+}
 EXPLICIT_ONLY_SKILLS = {"integrate-batch", "govern-epoch", "roast"}
 OBSOLETE_SKILLS = {
     "record-" + "session",
@@ -65,6 +70,16 @@ FORBIDDEN_PATHS = (
     Path("agent") / ("semantic-" + "changes"),
     Path("tools") / ("new-" + "session.py"),
     Path("tools") / ("check-semantic-" + "change-edits.py"),
+    Path("agent")
+    / "skills"
+    / "start-work"
+    / "scripts"
+    / ("commit_as_" + "harness.py"),
+    Path("agent")
+    / "skills"
+    / "start-work"
+    / "scripts"
+    / ("test_commit_as_" + "harness.py"),
 )
 
 
@@ -391,15 +406,81 @@ class Checker:
         values = os.environ if environment is None else environment
         path = self.root / "agent" / "goal.json"
         epoch = self.current_epoch()
-        if values.get("METAFLUX_AGENT_HARNESS") != "codex":
-            self.error(path, "METAFLUX_AGENT_HARNESS must be exactly codex")
         if epoch is None or values.get("METAFLUX_AGENT_EPOCH") != epoch:
             self.error(path, "METAFLUX_AGENT_EPOCH must equal the candidate Epoch")
+
+        detector = (
+            self.root
+            / "agent"
+            / "skills"
+            / "detect-agent-tool"
+            / "scripts"
+            / "detect_agent_tool.py"
+        )
+        try:
+            result = subprocess.run(
+                [sys.executable, "-B", str(detector), "--json"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=values,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            self.error(path, "agent-tool detector did not complete")
+            return
+        if result.returncode != 0:
+            self.error(path, "agent-tool detector rejected the commit environment")
+            return
+        try:
+            tool = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            self.error(path, "agent-tool detector did not emit valid JSON")
+            return
+        expected_tool_fields = {
+            "schema_version",
+            "subject",
+            "interface",
+            "executable",
+            "version",
+            "source",
+            "version_probe",
+            "help_available",
+            "executable_sha256",
+        }
+        if not isinstance(tool, dict) or set(tool) != expected_tool_fields:
+            self.error(path, "agent-tool detector emitted fields outside tool evidence")
+            return
+        subject = tool.get("subject") if isinstance(tool, dict) else None
+        if not isinstance(subject, str) or SKILL_SLUG_RE.fullmatch(subject) is None:
+            self.error(path, "agent-tool detector emitted an invalid subject")
+            return
+        declared_executable = values.get("METAFLUX_AGENT_TOOL_EXECUTABLE")
+        executable = tool.get("executable")
+        if (
+            not isinstance(declared_executable, str)
+            or not Path(declared_executable).is_absolute()
+            or not isinstance(executable, str)
+            or executable != declared_executable
+        ):
+            self.error(
+                path,
+                "METAFLUX_AGENT_TOOL_EXECUTABLE must be the exact detected path",
+            )
+        if (
+            tool.get("schema_version") != 1
+            or tool.get("interface") != "cli"
+            or not isinstance(tool.get("version"), str)
+            or tool.get("version_probe") != "--version"
+            or not isinstance(tool.get("help_available"), bool)
+            or not isinstance(tool.get("executable_sha256"), str)
+        ):
+            self.error(path, "agent-tool detector emitted invalid tool evidence")
         expected_identity = {
-            "GIT_AUTHOR_NAME": "codex",
-            "GIT_AUTHOR_EMAIL": "codex@localhost",
-            "GIT_COMMITTER_NAME": "codex",
-            "GIT_COMMITTER_EMAIL": "codex@localhost",
+            "GIT_AUTHOR_NAME": subject,
+            "GIT_AUTHOR_EMAIL": f"{subject}@localhost",
+            "GIT_COMMITTER_NAME": subject,
+            "GIT_COMMITTER_EMAIL": f"{subject}@localhost",
         }
         for name, expected in expected_identity.items():
             if values.get(name) != expected:
@@ -473,6 +554,8 @@ class Checker:
             self.decisions.add(decision)
         if "decision-0033" not in self.decisions:
             self.error(path, "decision-0033 must establish the active execution model")
+        if "decision-0034" not in self.decisions:
+            self.error(path, "decision-0034 must establish agent-tool detection")
         for document in self.text_files():
             text_value = self.read_text(document)
             if text_value is None:
@@ -641,10 +724,13 @@ class Checker:
     def validate_legacy_markers(self) -> None:
         literal_markers = (
             "METAFLUX_" + "SESSION_ID",
+            "METAFLUX_AGENT_" + "HARNESS",
             "owner_" + "session",
             "agent/" + "sessions",
             "agent/" + "progress/focus.json",
             "agent/" + "semantic-changes",
+            "commit_as_" + "harness.py",
+            "test_commit_as_" + "harness.py",
         )
         legacy_patterns = (
             re.compile(r"(?<![A-Za-z0-9])(?:M|W|D)[0-9]{4,}(?![A-Za-z0-9])", re.IGNORECASE),

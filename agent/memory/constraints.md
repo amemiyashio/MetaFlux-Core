@@ -52,12 +52,18 @@ identity and provisioning boundaries live in
   workflows, Agent execution policy, evidence, cleanup, or host installation.
   Fixed means clear and reproducibly stable for the current revision, not
   permanently immutable; governed manifest/lock updates may advance versions.
-- Agent startup is Nix-first (decision-0031). The stable harness subject comes only from
-  active system/developer runtime instruction context; Codex declares exactly
-  `codex`. Model/template/backend/build/CLI/session/thread/prompt labels and
-  identity inference are invalid. Except for host Git/Nix bootstrap, every
+- Agent startup is Nix-first (decision-0031) and agent identity follows
+  decision-0034. `detect-agent-tool` runs inside the Git-aware Nix environment
+  and derives its ephemeral subject only from a resolved harness/CLI executable
+  basename; its numeric version comes only from a bounded `--version` probe.
+  Model/provider/template/backend/build/prompt/conversation/session/thread,
+  repository prose, Git configuration, and user labels are invalid inputs and
+  are never output fields. Ambiguous executable discovery requires an exact
+  executable instead of PATH-order selection. Except for host Git/Nix bootstrap
+  and observation of the caller executable through this detector, every
   executable and tool/version/capability probe runs through the Git-aware
   `nix develop . --command ...` environment before ambient host inspection.
+  The caller harness is not pinned or installed as a repository Nix tool.
   Newly required tools are added to the repository Nix declaration first. Only
   a confirmed Nix materialization gap permits decision-0032 host escalation through
   `manage-host-privilege`: an exact pacman package is installed through the

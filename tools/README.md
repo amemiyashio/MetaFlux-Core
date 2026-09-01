@@ -6,7 +6,8 @@ semantics and evidence ownership.
 
 ## Agent State
 
-`check-agent-state.py` validates the current decision-0033 execution model:
+`check-agent-state.py` validates the decision-0033 execution model and the
+decision-0034 agent-tool identity boundary:
 
 - full-word milestone, work-item, decision, and experience identities;
 - dotted delivery coordinates, plan dependencies, and Exit Gates;
@@ -19,9 +20,10 @@ nix develop . --command python3 tools/check-agent-state.py .
 nix develop . --command python3 tools/test-check-agent-state.py
 ```
 
-The optional commit gate validates the candidate Epoch, fixed Codex harness, and
-fixed Git Author/Committer declarations. Integration agents additionally submit
-exact committed revisions; the checker proves that the current Epoch activation
+The optional commit gate re-runs the candidate-tree agent-tool detector,
+validates the candidate Epoch, and requires Git Author/Committer to match the
+detected executable subject. Integration agents additionally submit exact
+committed revisions; the checker proves that the current Epoch activation
 precedes the base, the base precedes the tip, and the base belongs to current
 main history.
 
@@ -32,9 +34,9 @@ nix develop . --command python3 tools/check-agent-state.py . \
 ```
 
 The pre-commit hook materializes the exact Git index into a temporary tree and
-runs its candidate state checker, checker self-test, routing gates, identity
-helper tests, and `git diff --cached --check`. Agent commits are made through
-`agent/skills/start-work/scripts/commit_as_harness.py`.
+runs its candidate state checker, checker self-test, routing gates, detector and
+identity-helper tests, and `git diff --cached --check`. Agent commits are made
+through `agent/skills/start-work/scripts/commit_as_agent_tool.py`.
 
 ## Skill Routing
 

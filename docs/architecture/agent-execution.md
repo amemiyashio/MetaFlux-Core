@@ -110,9 +110,8 @@ local-only, and failed-route material is discarded. No roast archive is kept.
 
 ## Commit Boundary
 
-Codex declares `METAFLUX_AGENT_HARNESS=codex` and the active
-`METAFLUX_AGENT_EPOCH`. The pre-commit gate compares both with the candidate
-tree and runs the candidate state checker. Agent Author and Committer are
-exactly `codex <codex@localhost>`. Harness identity is never derived from a
-model, template, backend, build, CLI, process, prompt, environment namespace,
-or repository string.
+Decision-0034 supersedes the fixed identity portion of this decision. The
+[`agent-tool detection boundary`](agent-tool-detection.md) derives Author and
+Committer from bounded executable evidence and pairs it with the active
+`METAFLUX_AGENT_EPOCH`. The Epoch/Batch/Iteration topology and candidate-tree
+commit gate defined here remain authoritative.
