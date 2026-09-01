@@ -46,6 +46,7 @@ ALLOWED_DEPENDENCIES: dict[str, set[str]] = {
     # Worker-side plugins.
     "backend-compiler": {"compiler-core"},
     "backend-runtime": {"backend-plugin-api"},
+    "pci-presentation": set(),
     # A v0.x daemon may embed the local worker. It consumes the canonical C17
     # queue implementation and enabled ecosystem frontends on the worker side;
     # neither dependency permits an application-side edge back to the daemon.

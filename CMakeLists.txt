@@ -92,6 +92,10 @@ if(
   add_subdirectory(transports)
 endif()
 
+if(METAFLUX_BUILD_VROOT_MODEL)
+  add_subdirectory(kernel)
+endif()
+
 if(METAFLUX_BUILD_DAEMON)
   add_subdirectory(services)
 endif()
