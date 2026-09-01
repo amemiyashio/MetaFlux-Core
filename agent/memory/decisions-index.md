@@ -41,6 +41,7 @@ an index row does not promote `Proposed` material to `Verified`.
 | D0029 | One Exit-Gate-bound execution focus and exact owner session authorize durable content commits | [Execution focus governance](../../docs/architecture/execution-focus-governance.md) | Breaking schema 2 epoch and legacy liquidation tracked by Active SC0007 |
 | D0030 | Local managed providers select cdev first, bind its data queue to the same Unix control session/view/generation, and use only narrowly classified pre-success memfd fallback | [M0110 provider cdev boundary](../plan/M0110-kernel-guest-transport/plan.md#provider-cdev-selection-and-fallback-diagnostics-d0030) | Current M0110 decision; implementation and qualification remain open |
 | D0031 | Agent startup resolves the stable runtime harness subject before entering a mandatory Git-aware Nix tool environment | [Agent startup resolution order](../../docs/architecture/agent-startup-resolution.md) | Verified destructive workflow; migration tracked by Active SC0008 |
+| D0032 | Confirmed Nix gaps and MetaFlux driver debugging use bounded, non-secret host-privilege helpers | [Host privilege escalation](../../docs/architecture/host-privilege-escalation.md) | Verified destructive workflow; migration tracked by Active SC0009 |
 
 New decisions receive the next `DNNNN` identifier and point to a plan or
 architecture record containing rationale, consequences, and verification state.

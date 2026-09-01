@@ -76,9 +76,13 @@ enforced by repository checks.
    policy, and evidence. "Fixed" means clear and reproducibly stable for the
    current revision, not permanently immutable; governed manifest/lock updates
    may advance a tool. Add a newly required tool to the repository Nix
-   declaration first. If Nix cannot provide it, stop and tell the host operator
-   the exact installation prerequisite; do not silently use an ambient
-   executable or run a host package manager.
+   declaration first. After a confirmed Nix provision/materialization gap, use
+   only the D0032 `host_privilege.py package` path for an exact
+   pacman-resolvable package, then invoke its exact host executable from inside
+   the Nix entry environment. For MetaFlux driver debugging, use only the D0032
+   enumerated driver actions. Do not invoke arbitrary sudo commands, pass host
+   package-manager options, or persist/print a credential. The root helpers
+   supply privilege only; owning workflows retain command and evidence meaning.
 8. **Record outcomes and clean work.** Invoke `$roast` explicitly to route each
    materially promoted claim to one durable owner and semantic-transformation
    depth; keep `session-only` as an independent disposition. Record

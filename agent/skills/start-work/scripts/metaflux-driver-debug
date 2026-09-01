@@ -1,0 +1,99 @@
+#!/bin/sh
+set -eu
+
+CONFIG=/etc/metaflux-driver-debug-root
+INSMOD=/usr/bin/insmod
+RMMOD=/usr/bin/rmmod
+DMESG=/usr/bin/dmesg
+ENV=/usr/bin/env
+CAT=/usr/bin/cat
+REALPATH=/usr/bin/realpath
+STAT=/usr/bin/stat
+KMEMLEAK=/sys/kernel/debug/kmemleak
+
+fail() {
+  printf '%s\n' "metaflux-driver-debug: $*" >&2
+  exit 64
+}
+
+[ -f "$CONFIG" ] || fail "repository-root configuration is unavailable"
+config_metadata=$($STAT -Lc '%u:%a' "$CONFIG") || fail "cannot inspect configuration"
+case "$config_metadata" in
+  0:600|0:644) ;;
+  *) fail "repository-root configuration ownership or mode is invalid" ;;
+esac
+REPOSITORY_ROOT=
+IFS= read -r REPOSITORY_ROOT < "$CONFIG" || true
+case "$REPOSITORY_ROOT" in
+  /*) ;;
+  *) fail "repository root must be absolute" ;;
+esac
+[ -d "$REPOSITORY_ROOT" ] || fail "repository root is unavailable"
+
+project_file() {
+  [ "$#" -eq 2 ] || fail "internal artifact validation error"
+  resolved=$($REALPATH -e -- "$1") || fail "artifact does not resolve"
+  case "$resolved" in
+    "$REPOSITORY_ROOT"/*) ;;
+    *) fail "artifact is outside the configured repository" ;;
+  esac
+  [ -f "$resolved" ] || fail "artifact is not a regular file"
+  [ "${resolved##*/}" = "$2" ] || fail "artifact has an invalid name"
+  printf '%s\n' "$resolved"
+}
+
+[ "$#" -gt 0 ] || fail "an action is required"
+action=$1
+shift
+
+case "$action" in
+  check)
+    [ "$#" -eq 0 ] || fail "check accepts no arguments"
+    [ -x "$INSMOD" ] || fail "insmod is unavailable"
+    [ -x "$RMMOD" ] || fail "rmmod is unavailable"
+    [ -x "$DMESG" ] || fail "dmesg is unavailable"
+    [ -x "$ENV" ] || fail "env is unavailable"
+    [ -x "$CAT" ] || fail "cat is unavailable"
+    [ -x "$REALPATH" ] || fail "realpath is unavailable"
+    [ -x "$STAT" ] || fail "stat is unavailable"
+    ;;
+  load|reload)
+    [ "$#" -eq 1 ] || fail "$action requires one module path"
+    module=$(project_file "$1" metaflux_core.ko)
+    if [ "$action" = "reload" ]; then
+      "$RMMOD" metaflux_core 2>/dev/null || true
+    fi
+    exec "$INSMOD" "$module"
+    ;;
+  unload)
+    [ "$#" -eq 0 ] || fail "unload accepts no arguments"
+    exec "$RMMOD" metaflux_core
+    ;;
+  logs)
+    [ "$#" -eq 0 ] || fail "logs accepts no arguments"
+    exec "$DMESG" --color=never
+    ;;
+  kmemleak-clear|kmemleak-scan)
+    [ "$#" -eq 0 ] || fail "$action accepts no arguments"
+    [ -w "$KMEMLEAK" ] || fail "kmemleak control is unavailable"
+    if [ "$action" = "kmemleak-clear" ]; then
+      printf 'clear\n' > "$KMEMLEAK"
+    else
+      printf 'scan\n' > "$KMEMLEAK"
+    fi
+    ;;
+  kmemleak-read)
+    [ "$#" -eq 0 ] || fail "kmemleak-read accepts no arguments"
+    [ -r "$KMEMLEAK" ] || fail "kmemleak output is unavailable"
+    exec "$CAT" "$KMEMLEAK"
+    ;;
+  live)
+    [ "$#" -eq 1 ] || fail "live requires one executable path"
+    executable=$(project_file "$1" metaflux_transport_cdev_live_qualification)
+    [ -x "$executable" ] || fail "live qualification is not executable"
+    exec "$ENV" -i PATH=/usr/bin:/bin "$executable"
+    ;;
+  *)
+    fail "unsupported action"
+    ;;
+esac

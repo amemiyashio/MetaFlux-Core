@@ -7,9 +7,10 @@
    context (`codex` for Codex), emit it, and enter
    `nix develop . --command ...` before every non-Git/Nix executable or probe.
    Do not search for an agent CLI or inspect ambient host state first. Add a
-   missing tool to the repository Nix declaration; if Nix cannot provide it,
-   report the exact host installation prerequisite instead of falling back or
-   installing host software automatically.
+   missing tool to the repository Nix declaration. After a confirmed Nix gap,
+   use only the D0032 bounded pacman helper for an exact package. Route
+   MetaFlux driver privilege through the D0032 action allowlist. Never store or
+   print a sudo credential and never expose an arbitrary root command.
 2. Read the machine [execution focus](progress/focus.json) before selecting
    durable work. Require schema version 2 and `governance_epoch: D0029` on both
    focus and owner, then resume its exact Exit Gate or governance authority.

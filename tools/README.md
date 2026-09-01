@@ -18,8 +18,28 @@ without transferring each tool's command, behavior, policy, or evidence
 ownership to Nix. A fixed version is clear and reproducibly stable for the
 current revision, but may advance through a governed manifest/lock update.
 When a needed tool is absent, add it to the repository Nix declaration first.
-If Nix cannot provide it, report the exact host installation prerequisite; do
-not silently use an ambient executable or mutate host packages.
+After a confirmed Nix gap, use only the D0032 host-privilege client for an exact
+pacman package; do not invoke pacman or sudo directly. The resulting host
+executable is an explicit local prerequisite, not fixed/release evidence.
+
+```sh
+nix develop . --command python3 \
+  agent/skills/start-work/scripts/host_privilege.py check
+nix develop . --command python3 \
+  agent/skills/start-work/scripts/host_privilege.py package PACKAGE
+```
+
+The same client owns bounded MetaFlux driver elevation:
+
+```sh
+nix develop . --command python3 \
+  agent/skills/start-work/scripts/host_privilege.py driver ACTION [ARTIFACT]
+```
+
+The client never accepts a password or arbitrary root command. D0032 defines
+the action set, repository-path confinement, host authorization, and failure
+classification; the invoked package, Kbuild, test, or qualification workflow
+retains its own semantics and evidence.
 
 ## Agent records
 

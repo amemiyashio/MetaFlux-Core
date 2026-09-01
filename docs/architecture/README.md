@@ -32,3 +32,8 @@ are recorded in
 [`agent-startup-resolution.md`](agent-startup-resolution.md) (D0031); SC0008
 owns the destructive migration and amends D0022/D0028 without transferring
 workflow ownership to Nix or adding a product identity table.
+The verified bounded host escalation for confirmed Nix gaps and MetaFlux driver
+debugging is recorded in
+[`host-privilege-escalation.md`](host-privilege-escalation.md) (D0032); SC0009
+owns the destructive migration and prohibits arbitrary sudo or credential
+persistence.

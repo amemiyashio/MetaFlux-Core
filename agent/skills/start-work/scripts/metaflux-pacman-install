@@ -1,0 +1,25 @@
+#!/bin/sh
+set -eu
+
+PACMAN=/usr/bin/pacman
+
+fail() {
+  printf '%s\n' "metaflux-pacman-install: $*" >&2
+  exit 64
+}
+
+if [ "$#" -eq 1 ] && [ "$1" = "--check" ]; then
+  [ -x "$PACMAN" ] || fail "pacman is unavailable"
+  exit 0
+fi
+
+[ "$#" -gt 0 ] || fail "at least one package is required"
+for package in "$@"; do
+  case "$package" in
+    ""|-*|*[!a-z0-9@._+-]*) fail "invalid package name" ;;
+  esac
+done
+
+[ -x "$PACMAN" ] || fail "pacman is unavailable"
+"$PACMAN" --sync --print-format '%n' -- "$@" >/dev/null
+exec "$PACMAN" --sync --needed --noconfirm -- "$@"

@@ -62,11 +62,17 @@ snapshot. Nix-first resolution does not transfer CMake, CTest, packaging, or
 qualification semantics to Nix.
 
 A newly required repeatable tool is added to the narrow repository Nix
-declaration before it is used. If Nix cannot provide or materialize that tool,
-the workflow stops and reports the exact host installation prerequisite to the
-operator. It does not silently consume an ambient executable or invoke a host
-package manager without separate user authorization. This declaration change
-pins and exposes the tool only; it never absorbs the consuming workflow.
+declaration before it is used. After a confirmed Nix provision/materialization
+gap, D0032 may install one exact pacman-resolvable package through the bounded
+root helper. The intended absolute host executable then runs from inside the
+Nix entry environment as explicit local prerequisite state. It is not a Nix
+declaration, reproducibly fixed identity, generic ambient fallback, or release
+evidence. The package helper never absorbs the consuming workflow.
+
+D0032 separately provides enumerated root actions for MetaFlux module lifecycle,
+kernel logs, kmemleak, and the named live cdev qualification binary. Those
+actions are driver-debug privilege, not tool materialization, and remain outside
+Nix ownership. Neither helper accepts arbitrary commands or credentials.
 
 ## Compiler Epoch 1 (D0018)
 

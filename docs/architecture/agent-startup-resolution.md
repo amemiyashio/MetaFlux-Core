@@ -7,6 +7,7 @@
 | Classification | Breaking (destructive) governance |
 | Applies to | Every repository agent cold start and agent-created commit |
 | Migration | SC0008 |
+| Amended by | D0032 host privilege escalation |
 
 ## Decision
 
@@ -89,18 +90,22 @@ action is to add the narrow tool package to the repository Nix declaration and
 verify it through the Git-aware flake. Absence from the current shell does not
 authorize an ambient host lookup or moving that tool's workflow into Nix.
 
-If Nix cannot provide or materialize the tool, or the prerequisite is inherently
-host-managed, the agent stops the affected command path and tells the host
-operator exactly which software or facility must be installed and why. The
-agent does not silently switch to a host executable and does not run a host
-package manager unless the user separately authorizes that host mutation.
+If Nix cannot provide or materialize the tool, D0032 governs the next step. An
+exact pacman-resolvable package may be installed through the bounded root-owned
+helper, and its intended absolute executable may then run from inside the Nix
+entry environment. That host copy is local prerequisite state, not declared
+repeatable tool identity or release evidence. Inherently privileged MetaFlux
+driver debugging follows D0032's separate action allowlist. Direct package-
+manager invocation, arbitrary sudo commands, and credential persistence remain
+invalid.
 
 ## Failure And Compatibility
 
 A missing stable harness subject, a failed identity preflight, or an unavailable
 declared Nix environment stops the affected executable/change path at the
-boundary. The agent reports the exact prerequisite instead of inferring a
-subject or falling back to ambient host tools.
+boundary. A confirmed Nix package gap proceeds through D0032 when its exact
+bounded host path is available; an unresolved package, unsupported debug
+action, invalid artifact path, or authorization failure is reported precisely.
 
 This is a destructive workflow replacement. Subjects accepted only by the old
 25-48 character range, model/template/CLI labels, host-first probes, and
