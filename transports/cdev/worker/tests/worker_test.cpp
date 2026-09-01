@@ -446,6 +446,53 @@ bool backend_device_loss_reports_lifecycle() {
   return completed;
 }
 
+bool backendless_replacement_requires_staged_view() {
+  const mf_registry_view_id_v1 view{.daemon_incarnation = 7U, .view_serial = 9U};
+  mf_client_ring_v1 submission{};
+  mf_client_ring_v1 completion{};
+  if (mf_client_ring_create_v1(8U, view, 1U, 4U, &submission) != MF_SHARED_SUCCESS ||
+      mf_client_ring_create_v1(8U, view, 2U, 4U, &completion) != MF_SHARED_SUCCESS) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return false;
+  }
+  std::array<std::uint8_t, 64> payload{};
+  metaflux::transport::cdev::CdevWorker worker({
+      .submission = submission.header,
+      .completion = completion.header,
+      .payload = payload.data(),
+      .payload_size = payload.size(),
+      .generation = 4U,
+  });
+  metaflux::runtime::lifecycle::Config config{};
+  config.logical_device_id = 7U;
+  config.daemon_incarnation = 7U;
+  config.initial_identity_record_id = 4U;
+  config.initial_generation = 4U;
+  config.initial_epoch = 1U;
+  metaflux::runtime::lifecycle::Coordinator coordinator(config);
+  const metaflux::runtime::lifecycle::Request reset{
+      .request_id = 901U,
+      .logical_device_id = 7U,
+      .daemon_incarnation = 7U,
+      .expected_identity_record_id = 4U,
+      .expected_generation = 4U,
+      .expected_epoch = 1U,
+      .source = metaflux::runtime::lifecycle::Source::Admin,
+      .operation = metaflux::runtime::lifecycle::Operation::Reset,
+  };
+  const auto result = worker.attach_lifecycle(coordinator)
+                          ? coordinator.apply(reset)
+                          : metaflux::runtime::lifecycle::Result::Invalid;
+  const bool unchanged = result == metaflux::runtime::lifecycle::Result::CallbackRejected &&
+                         worker.generation() == 4U && worker.lifecycle_online() &&
+                         submission.header->metadata.queue_generation == 4U &&
+                         completion.header->metadata.queue_generation == 4U;
+  mf_client_ring_close_v1(&submission);
+  mf_client_ring_close_v1(&completion);
+  return unchanged;
+}
+
 #if defined(METAFLUX_CPU_CDEV_LAUNCH)
 std::string read_file(const char* path) {
   std::ifstream input(path, std::ios::binary | std::ios::ate);
@@ -485,6 +532,9 @@ make_cpu_argument_block(std::span<const mf_cpu_backend_argument_v1> entries) {
 
 int main() {
   if (!backend_device_loss_reports_lifecycle()) {
+    return 1;
+  }
+  if (!backendless_replacement_requires_staged_view()) {
     return 1;
   }
   mf_registry_view_id_v1 view{.daemon_incarnation = 7U, .view_serial = 9U};
@@ -1032,6 +1082,20 @@ int main() {
   BackendFixture reset_fixture{};
   const auto reset_api = make_async_fixture_api();
   reset_fixture.expected_completion_event = 103U;
+  mf_client_ring_v1 reset_submission{};
+  mf_client_ring_v1 reset_completion{};
+  if (mf_client_ring_create_v1(8U, view, 1U, 5U, &reset_submission) != MF_SHARED_SUCCESS ||
+      mf_client_ring_create_v1(8U, view, 2U, 5U, &reset_completion) != MF_SHARED_SUCCESS) {
+    mf_client_ring_close_v1(&reset_submission);
+    mf_client_ring_close_v1(&reset_completion);
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  const auto close_reset_rings = [&]() noexcept {
+    mf_client_ring_close_v1(&reset_submission);
+    mf_client_ring_close_v1(&reset_completion);
+  };
   RebindFixture reset_rebind{};
   BackendFixture rebound_fixture{};
   const auto rebound_api = make_fixture_api();
@@ -1049,8 +1113,8 @@ int main() {
       .rebind = fixture_rebind,
       .rebind_context = &reset_rebind};
   reset_rebind.view = {
-      .submission = submission.header,
-      .completion = completion.header,
+      .submission = reset_submission.header,
+      .completion = reset_completion.header,
       .payload = payload.data(),
       .payload_size = payload.size(),
       .generation = 5U,
@@ -1079,6 +1143,7 @@ int main() {
        .generation = 4U},
       reset_binding);
   if (reset_worker.bind_backend(rebound_binding)) {
+    close_reset_rings();
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
     return 1;
@@ -1105,21 +1170,30 @@ int main() {
   if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
       reset_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Idle ||
       !reset_worker.backend_operation_pending() || !reset_fixture.lease_active ||
-      !reset_worker.attach_lifecycle(reset_coordinator) ||
-      reset_coordinator.apply(reset_request) != metaflux::runtime::lifecycle::Result::Accepted ||
+      !reset_worker.attach_lifecycle(reset_coordinator)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    close_reset_rings();
+    return 1;
+  }
+  const auto reset_result = reset_coordinator.apply(reset_request);
+  const auto old_completion_status = mf_client_ring_try_consume_v1(&completion, &result);
+  if (reset_result != metaflux::runtime::lifecycle::Result::Accepted ||
       reset_worker.generation() != 5U || !reset_worker.lifecycle_online() ||
       reset_rebind.calls != 1U ||
       reset_fixture.cancel_calls != 1U || reset_worker.backend_operation_pending() ||
       reset_fixture.lease_releases != 1U || reset_fixture.lease_active ||
       reset_fixture.retire_calls != 1U ||
-      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      old_completion_status != MF_SHARED_SUCCESS ||
       result.request_id != 437U ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_DEVICE_LOST)) {
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
+    close_reset_rings();
     return 1;
   }
   if (!reset_worker.backend_bound()) {
+    close_reset_rings();
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
     return 1;
@@ -1131,27 +1205,30 @@ int main() {
   request.arguments[0] = 320U;
   request.arguments[1] = 128U;
   request.arguments[2] = 32U;
-  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+  if (mf_client_ring_try_submit_v1(&reset_submission, &request) != MF_SHARED_SUCCESS ||
       reset_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
       reset_fixture.calls != 1U || reset_fixture.lease_acquires != 1U ||
-      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      mf_client_ring_try_consume_v1(&reset_completion, &result) != MF_SHARED_SUCCESS ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_STALE_HANDLE)) {
+    close_reset_rings();
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
     return 1;
   }
   request.target_id = 5U;
-  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+  if (mf_client_ring_try_submit_v1(&reset_submission, &request) != MF_SHARED_SUCCESS ||
       reset_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
       rebound_fixture.calls != 1U || rebound_fixture.lease_acquires != 1U ||
       rebound_fixture.lease_releases != 1U ||
-      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      mf_client_ring_try_consume_v1(&reset_completion, &result) != MF_SHARED_SUCCESS ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
+    close_reset_rings();
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
     return 1;
   }
   request.target_id = 4U;
+  close_reset_rings();
 
   BackendFixture reject_fixture{};
   auto reject_api = make_async_fixture_api();
@@ -2003,18 +2080,25 @@ int main() {
       .source = metaflux::runtime::lifecycle::Source::Cdev,
       .operation = metaflux::runtime::lifecycle::Operation::Reset,
   };
-  if (coordinator.apply(reset) != metaflux::runtime::lifecycle::Result::Accepted ||
-      worker.generation() != 5U || !worker.lifecycle_online()) {
+  if (coordinator.apply(reset) != metaflux::runtime::lifecycle::Result::CallbackRejected ||
+      worker.generation() != 4U || !worker.lifecycle_online() ||
+      submission.header->metadata.queue_generation != 4U ||
+      completion.header->metadata.queue_generation != 4U) {
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
     return 1;
   }
+  request = {};
+  request.opcode = MF_RING_OPCODE_COPY;
   request.request_id = 42U;
   request.target_id = 4U;
+  request.arguments[0] = 256U;
+  request.arguments[1] = 128U;
+  request.arguments[2] = 32U;
   if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
       worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
-      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_STALE_HANDLE)) {
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
     return 1;
@@ -2023,9 +2107,9 @@ int main() {
       .request_id = 43U,
       .logical_device_id = 7U,
       .daemon_incarnation = 7U,
-      .expected_identity_record_id = 5U,
-      .expected_generation = 5U,
-      .expected_epoch = 2U,
+      .expected_identity_record_id = 4U,
+      .expected_generation = 4U,
+      .expected_epoch = 1U,
       .source = metaflux::runtime::lifecycle::Source::Disconnect,
       .operation = metaflux::runtime::lifecycle::Operation::TransportLoss,
   };
@@ -2039,7 +2123,7 @@ int main() {
     return 1;
   }
   request.request_id = 44U;
-  request.target_id = 5U;
+  request.target_id = 4U;
   if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
       worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||

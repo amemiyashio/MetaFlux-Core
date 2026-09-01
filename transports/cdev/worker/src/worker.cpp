@@ -235,6 +235,34 @@ bool valid_queue(const mf_ring_header_v1* header) noexcept {
          (capacity & (capacity - 1U)) == 0U;
 }
 
+bool valid_worker_queue_view(const WorkerQueueView& view) noexcept {
+  if (view.generation == 0U || !valid_queue(view.submission) ||
+      !valid_queue(view.completion) ||
+      (view.payload == nullptr && view.payload_size != 0U) ||
+      (view.payload != nullptr && view.payload_size == 0U)) {
+    return false;
+  }
+  return view.submission->metadata.queue_id == kCdevSubmissionQueueId &&
+         view.completion->metadata.queue_id == kCdevCompletionQueueId &&
+         view.submission->metadata.queue_generation == view.generation &&
+         view.completion->metadata.queue_generation == view.generation &&
+         view.submission->metadata.capacity == view.completion->metadata.capacity &&
+         mf_registry_view_id_equal_v1(view.submission->metadata.registry_view_id,
+                                      view.completion->metadata.registry_view_id);
+}
+
+bool empty_backend_binding(const CdevBackendBinding& backend) noexcept {
+  return backend.api == nullptr && backend.instance == 0U && backend.queue == 0U &&
+         backend.memory == 0U && empty_memory_reference(backend.memory_reference) &&
+         backend.completion_event == 0U && backend.copy_resolver == nullptr &&
+         backend.copy_context == nullptr && backend.launch_resolver == nullptr &&
+         backend.launch_context == nullptr && backend.lease_acquire == nullptr &&
+         backend.lease_release == nullptr && backend.lease_context == nullptr &&
+         backend.retire == nullptr && backend.retire_context == nullptr &&
+         backend.generation == 0U && backend.rebind == nullptr &&
+         backend.rebind_context == nullptr;
+}
+
 mf_ring_descriptor_v1* descriptor_at(mf_ring_header_v1* header, std::uint64_t position) noexcept {
   auto* bytes = reinterpret_cast<std::uint8_t*>(header);
   return reinterpret_cast<mf_ring_descriptor_v1*>(bytes + sizeof(mf_ring_header_v1)) +
@@ -934,11 +962,9 @@ bool CdevWorker::stage_rebind(std::uint64_t generation) noexcept {
   WorkerQueueView view{};
   CdevBackendBinding backend{};
   if (!backend_.rebind(backend_.rebind_context, generation, &view, &backend) ||
-      view.generation != generation || !valid_queue(view.submission) ||
-      !valid_queue(view.completion) ||
-      (view.payload == nullptr && view.payload_size != 0U) ||
-      (view.payload != nullptr && view.payload_size == 0U) || !valid_backend(backend) ||
-      backend.generation != generation) {
+      view.generation != generation || !valid_worker_queue_view(view) ||
+      (!empty_backend_binding(backend) &&
+       (!valid_backend(backend) || backend.generation != generation))) {
     retire_backend_binding(backend);
     return false;
   }
@@ -1494,14 +1520,14 @@ bool CdevWorker::lifecycle_prepare(
                                  worker->view_.payload_size != 0U;
   const bool region_backend_available = worker != nullptr &&
                                         valid_region_copy_backend(worker->backend_);
-  if (worker == nullptr || !valid_queue(worker->view_.submission) ||
-      !valid_queue(worker->view_.completion) || (!payload_available && !region_backend_available)) {
+  if (worker == nullptr || !valid_worker_queue_view(worker->view_) ||
+      (!payload_available && !region_backend_available)) {
     return false;
   }
   if (event.candidate.generation == 0U) {
     return event.request.operation == metaflux::runtime::lifecycle::Operation::Remove;
   }
-  return worker->backend_.api == nullptr || worker->stage_rebind(event.candidate.generation);
+  return worker->stage_rebind(event.candidate.generation);
 }
 
 bool CdevWorker::lifecycle_quiesce(
@@ -1533,11 +1559,13 @@ bool CdevWorker::lifecycle_commit(void* context,
   }
   const CdevBackendBinding previous = worker->backend_;
   if (event.candidate.generation != 0U) {
-    if (previous.api == nullptr) {
-      worker->view_.generation = event.candidate.generation;
-    } else if (!worker->staged_rebind_ ||
-               worker->staged_view_.generation != event.candidate.generation ||
-        worker->staged_backend_.generation != event.candidate.generation) {
+    const bool staged_backend_empty = empty_backend_binding(worker->staged_backend_);
+    if (!worker->staged_rebind_ ||
+        worker->staged_view_.generation != event.candidate.generation ||
+        !valid_worker_queue_view(worker->staged_view_) ||
+        (!staged_backend_empty &&
+         (!valid_backend(worker->staged_backend_) ||
+          worker->staged_backend_.generation != event.candidate.generation))) {
       return false;
     } else {
       worker->view_ = worker->staged_view_;
