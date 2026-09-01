@@ -16,3 +16,6 @@ if(NOT METAFLUX_VULKAN_INCLUDE_DIR OR NOT METAFLUX_VULKAN_LIBRARY)
 endif()
 
 add_subdirectory(runtime)
+if(METAFLUX_BUILD_COMPILER AND TARGET metaflux_compiler_core)
+  add_subdirectory(compiler)
+endif()

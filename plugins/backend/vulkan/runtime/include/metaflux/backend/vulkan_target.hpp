@@ -39,9 +39,11 @@ constexpr std::uint32_t kSpirvExecutionModelGlCompute = 5U;
 constexpr std::uint32_t kReflectionBuiltinLocalInvocationId = 1U << 0U;
 constexpr std::uint32_t kReflectionBuiltinWorkgroupId = 1U << 1U;
 constexpr std::uint32_t kReflectionBuiltinNumWorkgroups = 1U << 2U;
+constexpr std::uint32_t kReflectionBuiltinWorkgroupSize = 1U << 3U;
 constexpr std::uint32_t kKnownReflectionBuiltinFlags = kReflectionBuiltinLocalInvocationId |
                                                        kReflectionBuiltinWorkgroupId |
-                                                       kReflectionBuiltinNumWorkgroups;
+                                                       kReflectionBuiltinNumWorkgroups |
+                                                       kReflectionBuiltinWorkgroupSize;
 
 // Host-independent observations extracted by a future SPIR-V reflection pass.
 // The verifier below keeps the packed argument and target contract explicit

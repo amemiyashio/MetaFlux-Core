@@ -44,7 +44,7 @@ ALLOWED_DEPENDENCIES: dict[str, set[str]] = {
     },
     "compiler-frontend": {"compiler-core"},
     # Worker-side plugins.
-    "backend-compiler": {"compiler-core"},
+    "backend-compiler": {"compiler-core", "backend-runtime"},
     "backend-runtime": {"backend-plugin-api"},
     "pci-presentation": set(),
     # A v0.x daemon may embed the local worker. It consumes the canonical C17
