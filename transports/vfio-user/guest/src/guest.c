@@ -13,6 +13,7 @@ static int guest_ring_bound(const mf_vfio_user_guest_ring_v0* ring) {
          ring->submission.mapping != NULL && ring->completion.mapping != NULL &&
          ring->submission.mapping_size >= sizeof(mf_ring_header_v1) &&
          ring->completion.mapping_size >= sizeof(mf_ring_header_v1) &&
+         (ring->payload_mapping != NULL || ring->payload_size == UINT64_C(0)) &&
          ring->submission.queue_id == MF_CLIENT_SUBMISSION_QUEUE_ID_V1 &&
          ring->completion.queue_id == MF_CLIENT_COMPLETION_QUEUE_ID_V1 &&
          ring->submission.queue_generation == ring->completion.queue_generation &&
