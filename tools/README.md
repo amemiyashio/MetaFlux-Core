@@ -36,7 +36,12 @@ nix develop . --command python3 tools/check-agent-state.py . \
 The pre-commit hook materializes the exact Git index into a temporary tree and
 runs its candidate state checker, checker self-test, routing gates, detector and
 identity-helper tests, and `git diff --cached --check`. Agent commits are made
-through `agent/skills/start-work/scripts/commit_as_agent_tool.py`.
+through `agent/skills/start-work/scripts/commit_as_agent_tool.py`. Before any
+candidate self-test can create a foreign temporary repository, the hook clears
+the invoking repository variables reported by `git rev-parse --local-env-vars`.
+The individual Git-fixture tests repeat that isolation defensively so a linked
+worktree's absolute `GIT_DIR`, index, common directory, refs, and configuration
+cannot become fixture output.
 
 ## Skill Routing
 

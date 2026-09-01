@@ -64,6 +64,15 @@ predates the active Epoch activation commit, rebase before implementation. Do
 not infer work from another worktree, uncommitted files, conversation history,
 or obsolete repository records.
 
+Linked worktrees share the common Git configuration, refs, hooks, and object
+database. A hook or self-test that creates a foreign temporary repository must
+clear every variable reported by `git rev-parse --local-env-vars` before its
+nested Git commands. If HEAD, the index, or shared configuration changes during
+an agent-started command, inspect that command's hooks, tests, and reflog before
+attributing the change to another agent. Stop after the first unexplained
+mutation; do not create another worktree or clone as a retry until the source is
+identified and the existing candidate is preserved.
+
 If the user explicitly requests Batch integration, load `integrate-batch`. If
 the user explicitly requests destructive governance, load `govern-epoch`.
 Neither workflow is inferred from ordinary implementation or review.

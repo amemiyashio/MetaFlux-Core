@@ -28,6 +28,25 @@ def load_module():
 HELPER = load_module()
 
 
+def isolated_git_environment(
+    source: dict[str, str] | None = None,
+) -> dict[str, str]:
+    environment = dict(os.environ if source is None else source)
+    result = subprocess.run(
+        ["git", "rev-parse", "--local-env-vars"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise AssertionError(
+            f"cannot enumerate Git local environment: {result.stderr}"
+        )
+    for variable in result.stdout.splitlines():
+        environment.pop(variable, None)
+    return environment
+
+
 def make_tool(root: Path, name: str = "fixture-agent") -> Path:
     root.mkdir(parents=True, exist_ok=True)
     path = root / name
@@ -48,7 +67,7 @@ def make_tool(root: Path, name: str = "fixture-agent") -> Path:
 
 
 def environment(tool: Path, epoch: str = "epoch-0002") -> dict[str, str]:
-    result = os.environ.copy()
+    result = isolated_git_environment()
     result[HELPER.TOOL_EXECUTABLE_DECLARATION] = str(tool)
     result[HELPER.EPOCH_DECLARATION] = epoch
     return result
@@ -58,7 +77,7 @@ def run(root: Path, *arguments: str, env=None):
     return subprocess.run(
         arguments,
         cwd=root,
-        env=env,
+        env=isolated_git_environment(env),
         check=False,
         capture_output=True,
         text=True,
@@ -138,7 +157,7 @@ def test_commit_identity(root: Path) -> None:
         "--",
         "-m",
         "candidate",
-        env={**os.environ, HELPER.EPOCH_DECLARATION: "epoch-0002"},
+        env={**isolated_git_environment(), HELPER.EPOCH_DECLARATION: "epoch-0002"},
     )
     require(result, "agent commit")
     identity = run(repository, "git", "show", "-s", "--format=%an|%ae|%cn|%ce")

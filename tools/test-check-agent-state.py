@@ -41,10 +41,34 @@ def write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def git(root: Path, *arguments: str) -> str:
+def isolated_git_environment(
+    source: dict[str, str] | None = None,
+) -> dict[str, str]:
+    environment = dict(os.environ if source is None else source)
+    result = subprocess.run(
+        ["git", "rev-parse", "--local-env-vars"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise AssertionError(
+            f"cannot enumerate Git local environment: {result.stderr}"
+        )
+    for variable in result.stdout.splitlines():
+        environment.pop(variable, None)
+    return environment
+
+
+def git(
+    root: Path,
+    *arguments: str,
+    environment: dict[str, str] | None = None,
+) -> str:
     result = subprocess.run(
         ["git", *arguments],
         cwd=root,
+        env=isolated_git_environment(environment),
         check=False,
         capture_output=True,
         text=True,
@@ -309,6 +333,49 @@ def test_integration_ancestry(root: Path) -> None:
     assert any("predates the current Epoch" in error for error in checker.errors)
 
 
+def test_foreign_git_environment_isolation(root: Path) -> None:
+    root.mkdir()
+    outer = root / "outer"
+    outer.mkdir()
+    git(outer, "init", "-q")
+    git(outer, "config", "user.name", "Outer")
+    git(outer, "config", "user.email", "outer@example.invalid")
+    write(outer / "sentinel.txt", "outer\n")
+    git(outer, "add", "sentinel.txt")
+    git(outer, "commit", "-q", "-m", "outer sentinel")
+    outer_revision = git(outer, "rev-parse", "HEAD")
+    outer_git_dir = git(outer, "rev-parse", "--absolute-git-dir")
+
+    fixture = root / "fixture"
+    fixture.mkdir()
+    poisoned = os.environ.copy()
+    poisoned.update(
+        {
+            "GIT_DIR": outer_git_dir,
+            "GIT_COMMON_DIR": outer_git_dir,
+            "GIT_WORK_TREE": str(outer),
+            "GIT_INDEX_FILE": str(Path(outer_git_dir) / "index"),
+        }
+    )
+    git(fixture, "init", "-q", environment=poisoned)
+    git(fixture, "config", "user.name", "Fixture", environment=poisoned)
+    git(
+        fixture,
+        "config",
+        "user.email",
+        "fixture@example.invalid",
+        environment=poisoned,
+    )
+    write(fixture / "value.txt", "fixture\n")
+    git(fixture, "add", "value.txt", environment=poisoned)
+    git(fixture, "commit", "-q", "-m", "fixture", environment=poisoned)
+
+    assert git(outer, "rev-parse", "HEAD") == outer_revision
+    assert git(outer, "status", "--porcelain") == ""
+    assert git(outer, "config", "--bool", "core.bare") == "false"
+    assert git(fixture, "log", "-1", "--format=%s") == "fixture"
+
+
 def main() -> int:
     test_parsers()
     test_cycle_detection()
@@ -318,7 +385,8 @@ def main() -> int:
         test_broken_link(Path(temp) / "link")
         test_commit_environment(Path(temp) / "commit")
         test_integration_ancestry(Path(temp) / "integration")
-    print("agent state self-tests: 9 groups passed")
+        test_foreign_git_environment_isolation(Path(temp) / "isolation")
+    print("agent state self-tests: 10 groups passed")
     return 0
 
 

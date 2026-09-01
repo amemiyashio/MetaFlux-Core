@@ -25,7 +25,11 @@ the repository gates.
    exact revision supplied by the assignment. Do not edit `agent/goal.json`.
    Report the full Epoch/Batch/Iteration identity, base and tip revisions,
    tests, blockers, and roast candidates. Uncommitted or ambient worktree state
-   is never an integration input.
+   is never an integration input. Linked worktrees share common Git state;
+   temporary-repository tests must clear Git local environment variables before
+   nested Git commands. Attribute an unexpected HEAD/index/config change to the
+   exact reflog and invoking hook/test before claiming another agent changed it,
+   and do not multiply worktrees as an unattributed retry.
 4. **Integrate only on explicit request.** A user-created integration agent
    invokes [`integrate-batch`](agent/skills/integrate-batch/SKILL.md) with exact
    committed revisions. Only that agent may update Batch/lane state, and only
@@ -55,7 +59,8 @@ the repository gates.
    `METAFLUX_AGENT_EPOCH=<active epoch>`. The helper detects the exact agent
    executable, derives `SUBJECT <SUBJECT@localhost>`, and passes that executable
    to the candidate-tree commit gate. It never stores tool facts or changes Git
-   configuration.
+   configuration. Candidate checks and their self-tests are side-effect-free
+   with respect to the invoking repository, including from linked worktrees.
 
 Product boundaries live in `contracts/README.md` and
 `docs/architecture/repo-layout.md`; the language wall and dependency whitelist
