@@ -6,7 +6,7 @@ focus_mode: product
 focus_owner: S0112-20260901-001-m0110-w0112-current-epoch
 milestone: M0110
 workstream: W0112
-checkpoint: P20260901-098
+checkpoint: P20260901-099
 ---
 
 # Current Progress
@@ -57,16 +57,15 @@ default scheduling authority while M0110 is incomplete.
   cdev release under the same lock. P098 extends that invariant to every cdev
   ioctl, mmap, and poll read of mutable per-file negotiation, lease, queue, and
   registered-memory authorization state; the full 85-test suite and Linux
-  6.18 Kbuild remain green.
-- The live product path is still absent: `Session::serve()` starts only the
-  Unix-ring `EmbeddedCpuWorker`; the cdev client region descriptors refer to a
-  daemon object table that the standalone cdev client does not create or bind,
-  and the CPU backend currently imports host virtual ranges rather than kernel
-  registered-memory handles. D0030 now closes the provider cdev selection and
-  M0100 fallback boundary: cdev is first, its queue binds to the same Unix
-  session/view/generation, and memfd is a pre-success fallback only for
-  `ENOENT`, `ENODEV`, or explicit ABI incompatibility. Provider wiring remains
-  open until that binding is implemented.
+  6.18 Kbuild remain green. P099 adds the source-level provider cdev-first
+  handshake, same-session/view/generation binding, daemon cdev worker pump,
+  and CPU backend COPY/primary-entry LAUNCH resolution with explicit memory
+  references. These are source and fixture closures, not live device proof.
+- The live product path remains unqualified: `/dev/metafluxctl` and
+  `/dev/metaflux0` are absent on this host. The provider and daemon now have a
+  single initialization epoch and a cdev data-plane route under D0030, while
+  kernel registered-memory/DMA import, replacement-generation isolation, and
+  fd/VMA tombstone behavior still require an activated device node.
 - P089 records the runtime-owned immediate producer ingress at `6152efa`: admin
   reset, VFIO-user reset, disconnect, and daemon restart capture one authority
   snapshot; wrong-route QMP, malformed, unknown, and stale observations are
@@ -79,9 +78,9 @@ default scheduling authority while M0110 is incomplete.
 
 ## Next Actions
 
-1. Connect the current daemon object table and leased worker/backend binding to
-   live cdev registered-memory handles using the current W0112 source and tests;
-   the worker-side payload mapping slice is complete.
+1. Activate `/dev/metafluxctl` and `/dev/metafluxN`, then prove the current
+   daemon lease/query/object-table path against live cdev mappings and
+   registered-memory handles.
 2. Prove unmodified Add/Copy through `/dev/metafluxN`, including
    replacement-generation isolation and fd/VMA tombstone behavior, then
    execute the W0112 fault matrix with KUnit, KASAN, KCSAN, lockdep, and
@@ -106,6 +105,7 @@ default scheduling authority while M0110 is incomplete.
 - [P096 manifest closure after cdev payload query](checkpoints/2026/P20260901-096-m0110-cdev-payload-query-closure.md)
 - [P097 serialized cdev payload query lease checks](checkpoints/2026/P20260901-097-m0110-cdev-payload-query-lock.md)
 - [P098 serialized cdev per-file state checks](checkpoints/2026/P20260901-098-m0110-cdev-per-file-state-lock.md)
+- [P099 cdev provider and daemon worker binding](checkpoints/2026/P20260901-099-m0110-cdev-provider-daemon-binding.md)
 - [P092 breaking governance applied](checkpoints/2026/P20260901-092-breaking-governance-applied.md)
 - [P091 destructive governance epoch](checkpoints/2026/P20260901-091-destructive-governance-epoch.md)
 - [P090 execution-focus governance](checkpoints/2026/P20260831-090-execution-focus-governance.md)

@@ -81,7 +81,7 @@ archive.
 | Session | Date | Fidelity | Status | Summary |
 | --- | --- | --- | --- | --- |
 | [S0100-20260831-047-breaking-governance-epoch](2026/08/S0100-20260831-047-breaking-governance-epoch/summary.md) | 2026-08-31 | Exact | Complete | Applied SC0007, liquidated pre-epoch detail, and transferred W0112 to a current-epoch successor |
-| [S0112-20260901-001-m0110-w0112-current-epoch](2026/09/S0112-20260901-001-m0110-w0112-current-epoch/summary.md) | 2026-09-01 | Exact | In progress | Own the current D0029 M0110/W0112 Exit Gate from canonical repository files only |
+| [S0112-20260901-001-m0110-w0112-current-epoch](2026/09/S0112-20260901-001-m0110-w0112-current-epoch/summary.md) | 2026-09-01 | Exact | In progress | Connect the D0030 cdev provider and daemon worker path; live W0112 qualification remains |
 
 ## Fidelity and retention
 

@@ -41,6 +41,17 @@ The product Exit Gate remains open.
   mutable per-file negotiation, lease, queue, and registered-memory
   authorization state now execute under `mf_cdev_lock`, matching close and
   teardown updates while preserving errno and resource-unwind behavior.
+- `047ea9428fe28e56ae3dac5bbf6db96499dc070e`: the D0030 provider path now
+  attempts cdev first, binds its data queue to the matching Unix session,
+  view, and generation before committing initialization, and limits memfd
+  fallback to the recorded pre-success unsupported cases.
+- `services/metafluxd/server.cpp`: a bound cdev worker now consumes the leased
+  queue beside the Unix control worker, imports canonical KIR modules into the
+  CPU backend, resolves daemon object-table COPY and primary-entry LAUNCH
+  descriptors, and retains backend memory references for the operation lifetime.
+- `transports/cdev/worker/`: launch resolutions now carry bounded backend
+  memory references with synchronous and asynchronous cleanup; the worker
+  regression asserts balanced launch reference retention.
 - `transports/cdev/README.md`, `kernel/core/README.md`, and the W0112 plan:
   record the new mapping boundary and keep daemon live lease/import,
   generation replacement, and kernel qualification explicitly open.
@@ -68,6 +79,10 @@ The product Exit Gate remains open.
 | Focused cdev/daemon CTest | Passed: 6/6 |
 | Full development CTest | Passed: 85/85 |
 | Linux 6.18 kernel module Kbuild | Passed with `/usr/bin/gcc`; compiler-version warning only |
+| Cdev worker launch reference regression | Passed: 1/1 |
+| Provider-only cdev-disabled build and CTest | Passed: build and 40/40 |
+| Full development CTest after provider/daemon binding | Passed: 85/85 |
+| Linux 6.18 core Kbuild in repository Nix environment | Passed: compile, modpost, and BTF; compiler-version warning only |
 | Schema and lifecycle manifest closure | Passed: schema validator and lifecycle model checks |
 | Agent records | Passed before checkpoint-record commit |
 
@@ -97,6 +112,11 @@ The product Exit Gate remains open.
   close and teardown. Long pin/map operations still unwind outside the lock,
   and commit-time checks prevent an authorization or generation decision from
   crossing the publication boundary.
+- D0030 is now implemented at the provider/daemon boundary: Unix control
+  operations create and retire objects, while cdev owns steady-state COPY and
+  primary-entry LAUNCH only after the daemon has leased and bound the matching
+  queue. The CPU backend mapping is an explicit host-memory import fixture;
+  it is not evidence of kernel registered-memory DMA.
 
 ## roast
 
@@ -119,6 +139,16 @@ The product Exit Gate remains open.
 - Cdev per-file authorization checks serialized with close/teardown ->
   `kernel/core/metaflux_core_main.c` (`780222c`; full CTest 85/85, Linux 6.18
   Kbuild)
+- D0030 cdev-first provider selection and same-session binding ->
+  `agent/plan/M0110-kernel-guest-transport/plan.md` (implementation evidence:
+  `contracts/protocol/client/v1/include/metaflux/client/protocol.h` and
+  `plugins/compat/cuda/abi/driver/src/provider.c`; `047ea94`; full CTest 85/85;
+  provider-only cdev-disabled CTest 40/40)
+- Bound daemon cdev worker with CPU COPY/LAUNCH object-table resolution ->
+  `agent/plan/M0110-kernel-guest-transport/work/W0112-local-cdev.md`
+  (implementation evidence: `services/metafluxd/server.cpp` and
+  `transports/cdev/worker/src/worker.cpp`; `047ea94`; focused worker CTest 1/1;
+  full CTest 85/85; Linux 6.18 Kbuild)
 
 ### dark roasts
 
@@ -134,9 +164,10 @@ The product Exit Gate remains open.
   daemon-side lease/import wiring, and Linux 6.12/6.18 fault qualification
   remain open; the worker-side payload-size query and cdev per-file state
   serialization are now available.
-- The next product boundary is decision closure for provider cdev selection,
-  M0100 fallback diagnostics, and the registered-memory/backend import contract;
-  no provider wiring should be promoted before that boundary is canonical.
+- M0100 fallback diagnostics and provider cdev selection are now canonical and
+  implemented. The remaining W0112 boundary is live cdev lease/query use,
+  registered-memory/DMA backend import, generation replacement, and the
+  Linux fault matrix.
 
 ## Handoff
 

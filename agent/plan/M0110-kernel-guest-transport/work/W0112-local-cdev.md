@@ -5,7 +5,7 @@ milestone: M0110
 status: Active
 area: transport.cdev
 depends_on: [W0111]
-updated: 2026-08-31
+updated: 2026-09-01
 ---
 
 # Local cdev Vertical Slice
@@ -119,6 +119,13 @@ and arithmetic operation is validated.
   the worker validates the range and 2D launch shape, then invokes the backend
   submit ABI. The real CPU backend Add fixture now passes through this cdev
   worker path; production backend memory import and physical DMA remain open.
+- [x] Bind provider cdev initialization to the matching Unix daemon session,
+  registry view, and queue generation through the D0030 capability and control
+  handshake. The provider keeps Unix object/control operations and routes COPY
+  plus primary-entry LAUNCH through the leased cdev worker after binding; the
+  daemon resolves its object table into CPU backend handles with explicit
+  operation references. Live device-node qualification and kernel registered
+  memory/DMA import remain separate gates.
 - [x] Activate the daemon's authoritative object table for region COPY in the
   embedded CPU worker path. Each daemon session owns a CPU backend
   instance/context/queue, the cdev resolver validates object identity,
@@ -158,9 +165,9 @@ and arithmetic operation is validated.
   bounded registered-memory lifetime are implemented for the current fixture.
 - [ ] Connect the daemon object table and leased worker/backend binding to the
   live cdev registered-memory handles and prove Add/Copy through the mapped
-  payload arena. The embedded CPU daemon path now invokes
-  `CdevBackendMemoryImporter` only after generation/range validation; live
-  daemon use of the lease/query path, kernel DMA-backed references, generation
+  payload arena. The source-level daemon lease/object-table binding and CPU
+  backend COPY/LAUNCH adapter are now connected under `047ea94`; live daemon
+  use of the lease/query path, kernel DMA-backed references, generation
   replacement, and physical device qualification remain open.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak.
