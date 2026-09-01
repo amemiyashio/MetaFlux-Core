@@ -254,6 +254,33 @@ bool is_add_u32_kernel(const compiler::Kernel& kernel) noexcept {
              static_cast<std::uint32_t>(SpecialRegister::BlockDimX);
 }
 
+bool is_copy_u32_kernel(const compiler::Kernel& kernel) noexcept {
+  using enum Opcode;
+  constexpr std::array<Opcode, 15> kOperations{
+      LoadParameterAddress, LoadParameterAddress, LoadParameterU32, MoveSpecialU32,
+      MoveSpecialU32,       MoveSpecialU32,       MadLoU32,          SetPredicateGeU32,
+      BranchIf,             MultiplyWideU32,      AddGlobalAddress,  AddGlobalAddress,
+      LoadGlobalU32,        StoreGlobalU32,       Return,
+  };
+  if (kernel.parameters.size() != 3U || kernel.parameters[0].kind != ParameterKind::BufferU32 ||
+      kernel.parameters[1].kind != ParameterKind::BufferU32 ||
+      kernel.parameters[2].kind != ParameterKind::ScalarU32 ||
+      kernel.operations.size() != kOperations.size()) {
+    return false;
+  }
+  for (std::size_t index = 0U; index < kOperations.size(); ++index) {
+    if (kernel.operations[index].opcode != kOperations[index]) {
+      return false;
+    }
+  }
+  return kernel.operations[3].attribute ==
+             static_cast<std::uint32_t>(SpecialRegister::ThreadIdX) &&
+         kernel.operations[4].attribute ==
+             static_cast<std::uint32_t>(SpecialRegister::BlockIdX) &&
+         kernel.operations[5].attribute ==
+             static_cast<std::uint32_t>(SpecialRegister::BlockDimX);
+}
+
 std::string mlir_symbol(std::string_view name) {
   std::string result = "@\"";
   result.reserve(name.size() + 3U);
@@ -268,7 +295,8 @@ std::string mlir_symbol(std::string_view name) {
 }
 
 std::string actual_mlir_source(const compiler::Kernel& kernel,
-                               const std::array<std::uint32_t, 3>& workgroup_size) {
+                               const std::array<std::uint32_t, 3>& workgroup_size,
+                               bool copy_form) {
   std::ostringstream output;
   output << "module attributes {\n"
          << "  gpu.container_module,\n"
@@ -279,8 +307,13 @@ std::string actual_mlir_source(const compiler::Kernel& kernel,
          << "  gpu.module @kernels {\n"
          << "    gpu.func " << mlir_symbol(kernel.name)
          << "(%arg0: memref<?xi32, #spirv.storage_class<StorageBuffer>>, "
-         << "%arg1: memref<?xi32, #spirv.storage_class<StorageBuffer>>, "
-         << "%arg2: memref<?xi32, #spirv.storage_class<StorageBuffer>>, %arg3: i32) kernel "
+         << "%arg1: memref<?xi32, #spirv.storage_class<StorageBuffer>>, ";
+  if (copy_form) {
+    output << "%arg2: i32) kernel ";
+  } else {
+    output << "%arg2: memref<?xi32, #spirv.storage_class<StorageBuffer>>, %arg3: i32) kernel ";
+  }
+  output
          << "attributes {spirv.entry_point_abi = #spirv.entry_point_abi<workgroup_size = ["
          << workgroup_size[0] << ", " << workgroup_size[1] << ", " << workgroup_size[2]
          << "]>} {\n"
@@ -289,18 +322,25 @@ std::string actual_mlir_source(const compiler::Kernel& kernel,
          << "      %bdim = gpu.block_dim x\n"
          << "      %idx0 = arith.muli %bid, %bdim : index\n"
          << "      %idx = arith.addi %idx0, %tid : index\n"
-         << "      %n = arith.index_cast %arg3 : i32 to index\n"
+         << "      %n = arith.index_cast %arg" << (copy_form ? 2 : 3) << " : i32 to index\n"
          << "      %pred = arith.cmpi uge, %idx, %n : index\n"
          << "      scf.if %pred {\n"
-         << "      } else {\n"
-         << "        %a = memref.load %arg0[%idx] : memref<?xi32, "
-            "#spirv.storage_class<StorageBuffer>>\n"
-         << "        %b = memref.load %arg1[%idx] : memref<?xi32, "
-            "#spirv.storage_class<StorageBuffer>>\n"
-         << "        %sum = arith.addi %a, %b : i32\n"
-         << "        memref.store %sum, %arg2[%idx] : memref<?xi32, "
-            "#spirv.storage_class<StorageBuffer>>\n"
-         << "      }\n"
+         << "      } else {\n";
+  if (copy_form) {
+    output << "        %value = memref.load %arg1[%idx] : memref<?xi32, "
+               "#spirv.storage_class<StorageBuffer>>\n"
+            << "        memref.store %value, %arg0[%idx] : memref<?xi32, "
+               "#spirv.storage_class<StorageBuffer>>\n";
+  } else {
+    output << "        %a = memref.load %arg0[%idx] : memref<?xi32, "
+               "#spirv.storage_class<StorageBuffer>>\n"
+            << "        %b = memref.load %arg1[%idx] : memref<?xi32, "
+               "#spirv.storage_class<StorageBuffer>>\n"
+            << "        %sum = arith.addi %a, %b : i32\n"
+           << "        memref.store %sum, %arg2[%idx] : memref<?xi32, "
+               "#spirv.storage_class<StorageBuffer>>\n";
+  }
+  output << "      }\n"
          << "      gpu.return\n"
          << "    }\n"
          << "  }\n"
@@ -319,14 +359,16 @@ std::string diagnostic_text(mlir::Diagnostic& diagnostic) {
 LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
                                  const std::array<std::uint32_t, 3>& workgroup_size,
                                  SpirvLoweredModule* module) {
-  if (!is_add_u32_kernel(kernel)) {
+  const bool add_form = is_add_u32_kernel(kernel);
+  const bool copy_form = is_copy_u32_kernel(kernel);
+  if (!add_form && !copy_form) {
     return {.status = LoweringStatus::unsupported_semantics,
             .diagnostic =
                 "actual MLIR/SPIR-V emission currently supports the verified u32 Add/Copy form"};
   }
 
   try {
-    const auto source = actual_mlir_source(kernel, workgroup_size);
+    const auto source = actual_mlir_source(kernel, workgroup_size, copy_form);
     mlir::DialectRegistry registry;
     registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect, mlir::gpu::GPUDialect,
                     mlir::memref::MemRefDialect, mlir::scf::SCFDialect,
