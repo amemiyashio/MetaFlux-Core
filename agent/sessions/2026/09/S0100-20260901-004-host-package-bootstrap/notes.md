@@ -16,3 +16,10 @@ kernel logs and kmemleak state, and run the named live cdev qualification binary
 from the exact repository root. It does not expose an arbitrary command or root
 shell. Loading a user-built kernel module is inherently a root-trust boundary;
 the helper makes that authority explicit and project-scoped.
+
+SC0009 applied at `c4cedfe`. The client, helper sources, sudoers template, and
+regression now live only under `agent/skills/manage-host-privilege/`.
+`start-work` and `manage-toolchain` route that owner but do not reproduce its
+commands or credential policy. The one-time authentication timestamp and exact
+temporary installation directory were removed; only non-secret root-owned
+authorization objects remain on the host.

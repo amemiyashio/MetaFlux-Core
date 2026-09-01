@@ -2,16 +2,13 @@
   "schema_version": 2,
   "governance_epoch": "D0029",
   "updated": "2026-09-01",
-  "mode": "governance",
-  "owner_session": "S0100-20260901-004-host-package-bootstrap",
-  "authority": {
-    "decision": "D0029",
-    "semantic_change": "SC0009"
-  },
-  "target": null,
-  "resume_target": {
+  "mode": "product",
+  "owner_session": "S0112-20260901-005-m0110-w0112-post-privilege-governance",
+  "authority": null,
+  "target": {
     "milestone": "M0110",
     "work_item": "W0112",
     "exit_gate": "agent/plan/M0110-kernel-guest-transport/work/W0112-local-cdev.md#exit-gate"
-  }
+  },
+  "resume_target": null
 }

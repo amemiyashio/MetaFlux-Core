@@ -2,31 +2,24 @@
 status: Active
 updated: 2026-09-01
 governance_epoch: D0029
-focus_mode: governance
-focus_owner: S0100-20260901-004-host-package-bootstrap
+focus_mode: product
+focus_owner: S0112-20260901-005-m0110-w0112-post-privilege-governance
 milestone: M0110
 workstream: W0112
-checkpoint: P20260901-101
+checkpoint: P20260901-102
 ---
 
 # Current Progress
 
 ## Execution Focus
 
-SC0009 is Active under D0029 as a destructive host-privilege escalation
-migration. The sole governance owner is
-`S0100-20260901-004-host-package-bootstrap`; product changes are paused while
-the confirmed Nix-gap terminal branch and W0112 driver-debug privilege path are
-replaced with bounded helpers and non-secret persistent host authorization.
-
-Nix remains the first and canonical tool provider. The proposed replacement
-applies only after the repository declaration has been tried and Nix is
-confirmed unable to provide or materialize the tool. When pacman can resolve an
-exact package, a narrowly validated sudo path will install it without storing a
-password. A separate action allowlist will own MetaFlux module lifecycle,
-kernel-log/kmemleak inspection, and the named live qualification executable.
-The current stop-and-report behavior remains authoritative until SC0009 is
-Applied.
+M0110/W0112 product work is active under
+`S0112-20260901-005-m0110-w0112-post-privilege-governance`. SC0009 is Applied at
+`c4cedfe`; D0032 makes `manage-host-privilege` the sole sudo/su, root-helper,
+host-authorization, post-Nix package, privileged driver, and revocation owner.
+Nix remains first and limited to clear, stable, evolvable tool identity,
+materialization, and exposure. Product commands and evidence remain with their
+domain workflows.
 
 ## Product Resume Target
 
@@ -86,12 +79,12 @@ default scheduling authority while M0110 is incomplete.
 
 ## Next Actions
 
-1. Create the canonical host-privilege decision and migrate start-work,
-   manage-toolchain, toolchain ownership, and bounded host-privilege tooling
-   under Active SC0009.
-2. Configure and verify root-owned pacman and driver-debug helpers with
-   non-secret persistent sudo authorization; do not persist a password.
-3. Apply SC0009 and atomically return W0112 to a newly scaffolded successor.
+1. Activate the current `metaflux_core.ko` and `/dev/metafluxctl` plus
+   `/dev/metafluxN` through `$manage-host-privilege` and the W0112 workflow.
+2. Run the live cdev qualification for CPU Add/Copy and registered-memory/DMA
+   import, preserving exact device/view/generation binding.
+3. Complete replacement-generation isolation and the Linux 6.12/6.18 fault,
+   sanitizer, lockdep, and kmemleak matrix required by the Exit Gate.
 
 ## Blockers
 
@@ -101,13 +94,12 @@ default scheduling authority while M0110 is incomplete.
 - W0112 remains incomplete until live device-node Add/Copy and kernel fault
   evidence exist. Host-independent fixtures and mapped COPY alone do not close
   it.
-- Product work remains paused until SC0009 has no Pending migration row and a
-  current-epoch W0112 successor owns product focus.
 - M0120 and M0130 content work waits for an explicit focus handoff after the
   M0110 dependency boundary advances.
 
 ## Evidence Pointers
 
+- [P102 host privilege escalation](checkpoints/2026/P20260901-102-host-privilege-escalation.md)
 - [P101 agent startup resolution](checkpoints/2026/P20260901-101-agent-startup-resolution.md)
 - [P100 live cdev qualification harness](checkpoints/2026/P20260901-100-m0110-cdev-live-qualification.md)
 - [P093 daemon cdev backend reference drain](checkpoints/2026/P20260901-093-m0110-daemon-cdev-reference-drain.md)
@@ -140,13 +132,11 @@ default scheduling authority while M0110 is incomplete.
 
 ## Tool Boundary
 
-D0031 requires Git-aware Nix-first executable resolution. Missing tools are
-added to the repository Nix declaration first; only a tool that Nix cannot
-provide or materialize becomes an exact host-operator prerequisite. Nix owns
-only clear, reproducible, stable tool-version identity, materialization, and
-exposure. A fixed version describes the current revision, not a permanent
-freeze: later `manage-toolchain` changes may deliberately evolve manifests and
-locks. Git owns source identity, CMake/Ninja own builds, CTest and repository
-harnesses own verification, packaging owns artifacts, focus owns scheduling and
-commit authority, sessions own compact work evidence and cleanup, and host
-operators own Nix-store retention.
+D0031 requires Git-aware Nix-first executable resolution. Missing tools enter
+the repository declaration first; `manage-toolchain` must prove a Nix gap
+before D0032 permits host package escalation. `manage-host-privilege` owns every
+sudo/su, root-helper, persistent-grant, privileged driver, and revocation
+operation without owning the consuming workflow. Nix owns only clear,
+reproducible, stable tool-version identity, materialization, and exposure. A
+fixed version describes the current revision, not permanent immutability; later
+governed manifest/lock updates may evolve it.
