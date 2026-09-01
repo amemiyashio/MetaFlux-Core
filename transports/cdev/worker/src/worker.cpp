@@ -613,6 +613,19 @@ bool CdevWorker::valid_copy_resolution(const CdevCopyResolution& resolution) noe
          resolution.reserved_word == 0U;
 }
 
+bool CdevWorker::valid_launch_resolution(const CdevLaunchResolution& resolution) noexcept {
+  if (resolution.memory_reference_count > kCdevLaunchMemoryReferenceCapacity) {
+    return false;
+  }
+  for (std::size_t index = 0U; index < resolution.memory_reference_count; ++index) {
+    const auto& reference = resolution.memory_references[index];
+    if (!valid_memory_reference(reference.handle, reference)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool CdevWorker::valid_backend_cancellation(const CdevBackendBinding& backend) noexcept {
   return backend.api != nullptr &&
          mf_backend_api_validate_v1(backend.api, kBackendCancellationRequiredSize,
@@ -664,6 +677,32 @@ void CdevWorker::release_copy_references(const CdevCopyResolution& resolution) n
     if (reference->release != nullptr && reference->handle != 0U) {
       reference->release(reference->context, reference->handle);
     }
+  }
+}
+
+mf_shared_status_v1
+CdevWorker::retain_launch_references(CdevLaunchResolution& resolution) noexcept {
+  std::size_t retained = 0U;
+  while (retained < resolution.memory_reference_count) {
+    const auto& reference = resolution.memory_references[retained];
+    const mf_shared_status_v1 status = reference.retain(reference.context, reference.handle);
+    if (status != MF_SHARED_SUCCESS) {
+      while (retained > 0U) {
+        --retained;
+        const auto& retained_reference = resolution.memory_references[retained];
+        retained_reference.release(retained_reference.context, retained_reference.handle);
+      }
+      return status;
+    }
+    ++retained;
+  }
+  return MF_SHARED_SUCCESS;
+}
+
+void CdevWorker::release_launch_references(const CdevLaunchResolution& resolution) noexcept {
+  for (std::size_t index = 0U; index < resolution.memory_reference_count; ++index) {
+    const auto& reference = resolution.memory_references[index];
+    reference.release(reference.context, reference.handle);
   }
 }
 
@@ -752,11 +791,16 @@ CdevWorker::dispatch_region_copy(const CdevCopyResolution& resolution) const noe
 }
 
 mf_shared_status_v1
-CdevWorker::dispatch_launch(const mf_ring_descriptor_v1& request) const noexcept {
+CdevWorker::dispatch_launch(const mf_ring_descriptor_v1& request,
+                            CdevLaunchResolution* out) const noexcept {
   if (!valid_launch_backend(backend_)) {
     return MF_SHARED_NOT_SUPPORTED;
   }
-  CdevLaunchResolution resolution{};
+  if (out == nullptr) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  CdevLaunchResolution& resolution = *out;
+  resolution = {};
   const mf_shared_status_v1 resolve_status =
       backend_.launch_resolver(backend_.launch_context, &request, &resolution);
   if (resolve_status != MF_SHARED_SUCCESS) {
@@ -767,7 +811,7 @@ CdevWorker::dispatch_launch(const mf_ring_descriptor_v1& request) const noexcept
       resolution.argument_size > view_.payload_size - resolution.argument_offset ||
       resolution.grid[0] == 0U || resolution.grid[1] == 0U || resolution.grid[2] != 1U ||
       resolution.block[0] == 0U || resolution.block[1] == 0U || resolution.block[2] != 1U ||
-      resolution.reserved_word != 0U) {
+      resolution.reserved_word != 0U || !valid_launch_resolution(resolution)) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
   mf_backend_launch_v1 launch{};
@@ -888,13 +932,17 @@ WorkerResult CdevWorker::complete(const mf_ring_descriptor_v1& request,
 WorkerResult CdevWorker::finish_backend_request(const mf_ring_descriptor_v1& request,
                                                 mf_shared_status_v1 status,
                                                 const CdevCopyResolution* resolution,
-                                                const CdevBackendMemoryReference* memory_reference) noexcept {
+                                                const CdevBackendMemoryReference* memory_reference,
+                                                const CdevLaunchResolution* launch_resolution) noexcept {
   if (status != MF_SHARED_SUCCESS || backend_.completion_event == 0U) {
     if (resolution != nullptr) {
       release_copy_references(*resolution);
     }
     if (memory_reference != nullptr) {
       release_memory_reference(*memory_reference);
+    }
+    if (launch_resolution != nullptr) {
+      release_launch_references(*launch_resolution);
     }
     release_backend_lease();
     return complete(request, status);
@@ -909,6 +957,10 @@ WorkerResult CdevWorker::finish_backend_request(const mf_ring_descriptor_v1& req
   if (memory_reference != nullptr) {
     pending_.memory_reference = *memory_reference;
     pending_.has_backend_memory_reference = true;
+  }
+  if (launch_resolution != nullptr) {
+    pending_.launch_resolution = *launch_resolution;
+    pending_.has_launch_memory_references = launch_resolution->memory_reference_count != 0U;
   }
   pending_.event = backend_.completion_event;
   return WorkerResult::Idle;
@@ -927,12 +979,17 @@ WorkerResult CdevWorker::progress_pending() noexcept {
       const CdevCopyResolution pending_resolution = pending_.resolution;
       const bool has_backend_memory_reference = pending_.has_backend_memory_reference;
       const CdevBackendMemoryReference pending_memory_reference = pending_.memory_reference;
+      const bool has_launch_memory_references = pending_.has_launch_memory_references;
+      const CdevLaunchResolution pending_launch_resolution = pending_.launch_resolution;
       pending_ = {};
       if (has_memory_references) {
         release_copy_references(pending_resolution);
       }
       if (has_backend_memory_reference) {
         release_memory_reference(pending_memory_reference);
+      }
+      if (has_launch_memory_references) {
+        release_launch_references(pending_launch_resolution);
       }
       release_backend_lease(pending_backend);
     }
@@ -945,12 +1002,17 @@ WorkerResult CdevWorker::progress_pending() noexcept {
     const CdevCopyResolution pending_resolution = pending_.resolution;
     const bool has_backend_memory_reference = pending_.has_backend_memory_reference;
     const CdevBackendMemoryReference pending_memory_reference = pending_.memory_reference;
+    const bool has_launch_memory_references = pending_.has_launch_memory_references;
+    const CdevLaunchResolution pending_launch_resolution = pending_.launch_resolution;
     pending_ = {};
     if (has_memory_references) {
       release_copy_references(pending_resolution);
     }
     if (has_backend_memory_reference) {
       release_memory_reference(pending_memory_reference);
+    }
+    if (has_launch_memory_references) {
+      release_launch_references(pending_launch_resolution);
     }
     release_backend_lease(pending_backend);
     return complete(request, MF_SHARED_NOT_SUPPORTED);
@@ -971,12 +1033,17 @@ WorkerResult CdevWorker::progress_pending() noexcept {
     const CdevCopyResolution pending_resolution = pending_.resolution;
     const bool has_backend_memory_reference = pending_.has_backend_memory_reference;
     const CdevBackendMemoryReference pending_memory_reference = pending_.memory_reference;
+    const bool has_launch_memory_references = pending_.has_launch_memory_references;
+    const CdevLaunchResolution pending_launch_resolution = pending_.launch_resolution;
     pending_ = {};
     if (has_memory_references) {
       release_copy_references(pending_resolution);
     }
     if (has_backend_memory_reference) {
       release_memory_reference(pending_memory_reference);
+    }
+    if (has_launch_memory_references) {
+      release_launch_references(pending_launch_resolution);
     }
     release_backend_lease(pending_backend);
   }
@@ -1035,8 +1102,16 @@ WorkerResult CdevWorker::consume_once() noexcept {
     if (lease_status != MF_SHARED_SUCCESS) {
       return complete(request, lease_status);
     }
-    const mf_shared_status_v1 status = dispatch_launch(request);
-    return finish_backend_request(request, status);
+    CdevLaunchResolution resolution{};
+    const mf_shared_status_v1 status = dispatch_launch(request, &resolution);
+    if (status != MF_SHARED_SUCCESS) {
+      return finish_backend_request(request, status);
+    }
+    const mf_shared_status_v1 retain_status = retain_launch_references(resolution);
+    if (retain_status != MF_SHARED_SUCCESS) {
+      return finish_backend_request(request, retain_status);
+    }
+    return finish_backend_request(request, status, nullptr, nullptr, &resolution);
   }
   if (request.opcode != MF_RING_OPCODE_COPY) {
     return complete(request, MF_SHARED_NOT_SUPPORTED);

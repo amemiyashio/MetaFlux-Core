@@ -80,6 +80,21 @@ private:
   CdevWorkerLeaseView lease_{};
 };
 
+using CdevBackendMemoryRetain = mf_shared_status_v1 (*)(void* context,
+                                                        mf_backend_memory_v1 memory) noexcept;
+using CdevBackendMemoryRelease = void (*)(void* context,
+                                          mf_backend_memory_v1 memory) noexcept;
+
+/* A resolver-owned backend memory reference held across one worker operation. */
+struct CdevBackendMemoryReference final {
+  mf_backend_memory_v1 handle = 0U;
+  CdevBackendMemoryRetain retain = nullptr;
+  CdevBackendMemoryRelease release = nullptr;
+  void* context = nullptr;
+};
+
+inline constexpr std::size_t kCdevLaunchMemoryReferenceCapacity = 64U;
+
 /*
  * A resolver owns cdev object-table semantics. It returns a backend-neutral
  * launch description whose argument bytes are already encoded in the worker's
@@ -95,24 +110,13 @@ struct CdevLaunchResolution final {
   std::uint32_t block[3]{};
   std::uint32_t dynamic_shared_bytes = 0U;
   std::uint32_t reserved_word = 0U;
+  std::uint32_t memory_reference_count = 0U;
+  CdevBackendMemoryReference memory_references[kCdevLaunchMemoryReferenceCapacity]{};
 };
 
 using CdevLaunchResolver = mf_shared_status_v1 (*)(void* context,
                                                    const mf_ring_descriptor_v1* request,
                                                    CdevLaunchResolution* out) noexcept;
-
-using CdevBackendMemoryRetain = mf_shared_status_v1 (*)(void* context,
-                                                        mf_backend_memory_v1 memory) noexcept;
-using CdevBackendMemoryRelease = void (*)(void* context,
-                                          mf_backend_memory_v1 memory) noexcept;
-
-/* A resolver-owned backend memory reference held across one worker operation. */
-struct CdevBackendMemoryReference final {
-  mf_backend_memory_v1 handle = 0U;
-  CdevBackendMemoryRetain retain = nullptr;
-  CdevBackendMemoryRelease release = nullptr;
-  void* context = nullptr;
-};
 
 /*
  * Resolver-side import seam for a daemon-owned registered range. The resolver
@@ -280,11 +284,14 @@ private:
   static bool valid_optional_memory_reference(
       mf_backend_memory_v1 memory, const CdevBackendMemoryReference& reference) noexcept;
   static bool valid_copy_resolution(const CdevCopyResolution& resolution) noexcept;
+  static bool valid_launch_resolution(const CdevLaunchResolution& resolution) noexcept;
   static bool valid_backend_cancellation(const CdevBackendBinding& backend) noexcept;
   static bool valid_launch_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_backend_lease(const CdevBackendBinding& backend) noexcept;
   static mf_shared_status_v1 retain_copy_references(CdevCopyResolution& resolution) noexcept;
   static void release_copy_references(const CdevCopyResolution& resolution) noexcept;
+  static mf_shared_status_v1 retain_launch_references(CdevLaunchResolution& resolution) noexcept;
+  static void release_launch_references(const CdevLaunchResolution& resolution) noexcept;
   static mf_shared_status_v1 retain_memory_reference(
       const CdevBackendMemoryReference& reference) noexcept;
   static void release_memory_reference(const CdevBackendMemoryReference& reference) noexcept;
@@ -295,11 +302,13 @@ private:
   [[nodiscard]] mf_backend_status_v1
   dispatch_region_copy(const CdevCopyResolution& resolution) const noexcept;
   [[nodiscard]] mf_shared_status_v1
-  dispatch_launch(const mf_ring_descriptor_v1& request) const noexcept;
+  dispatch_launch(const mf_ring_descriptor_v1& request, CdevLaunchResolution* out) const noexcept;
   [[nodiscard]] WorkerResult finish_backend_request(const mf_ring_descriptor_v1& request,
                                                     mf_shared_status_v1 status,
                                                     const CdevCopyResolution* resolution = nullptr,
                                                     const CdevBackendMemoryReference* memory_reference =
+                                                        nullptr,
+                                                    const CdevLaunchResolution* launch_resolution =
                                                         nullptr) noexcept;
   [[nodiscard]] WorkerResult progress_pending() noexcept;
   [[nodiscard]] mf_shared_status_v1 acquire_backend_lease() const noexcept;
@@ -322,6 +331,8 @@ private:
     bool has_memory_references = false;
     CdevBackendMemoryReference memory_reference{};
     bool has_backend_memory_reference = false;
+    CdevLaunchResolution launch_resolution{};
+    bool has_launch_memory_references = false;
     bool cancellation_requested = false;
     mf_backend_event_v1 event = 0U;
   } pending_{};

@@ -714,7 +714,7 @@ void mf_client_session_close_v1(mf_client_session_v1* session) {
   mf_client_session_initialize_empty(session);
 }
 
-static mf_shared_status_v1
+mf_shared_status_v1
 mf_client_session_connect_capabilities_v1(const char* socket_path, uint64_t required_capabilities,
                                           uint64_t optional_capabilities,
                                           mf_client_session_v1* out_session) {
@@ -827,12 +827,26 @@ mf_shared_status_v1 mf_client_observer_connect_v1(const char* socket_path,
 }
 
 mf_shared_status_v1 mf_client_session_connect_default_v1(mf_client_session_v1* out_session) {
+  const uint64_t required_capabilities =
+      MF_CLIENT_CAP_SHARED_DEVICE_V1 | MF_CLIENT_CAP_MEMFD_RING_V1 |
+      MF_CLIENT_CAP_FUTEX_DOORBELL_V1 | MF_CLIENT_CAP_LIVE_CONTEXT_ACCOUNTING_V1;
+  const uint64_t optional_capabilities = MF_CLIENT_CAP_TIMELINE_V1 | MF_CLIENT_CAP_TELEMETRY_V1 |
+                                         MF_CLIENT_CAP_COPY_REGION_V1 |
+                                         MF_CLIENT_CAP_DIRECT_HOST_COPY_V1;
+  return mf_client_session_connect_default_capabilities_v1(required_capabilities,
+                                                           optional_capabilities, out_session);
+}
+
+mf_shared_status_v1 mf_client_session_connect_default_capabilities_v1(
+    uint64_t required_capabilities, uint64_t optional_capabilities,
+    mf_client_session_v1* out_session) {
   const char* configured = getenv("METAFLUX_SOCKET");
   const char* runtime_directory = getenv("XDG_RUNTIME_DIR");
   char socket_path[sizeof(((struct sockaddr_un*)0)->sun_path)];
   int written = 0;
   if (configured != (const char*)0 && configured[0] != '\0') {
-    return mf_client_session_connect_v1(configured, out_session);
+    return mf_client_session_connect_capabilities_v1(configured, required_capabilities,
+                                                      optional_capabilities, out_session);
   }
   if (runtime_directory != (const char*)0 && runtime_directory[0] != '\0') {
     written = snprintf(socket_path, sizeof(socket_path), "%s/metafluxd.sock", runtime_directory);
@@ -843,7 +857,8 @@ mf_shared_status_v1 mf_client_session_connect_default_v1(mf_client_session_v1* o
   if (written <= 0 || (size_t)written >= sizeof(socket_path)) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
-  return mf_client_session_connect_v1(socket_path, out_session);
+  return mf_client_session_connect_capabilities_v1(socket_path, required_capabilities,
+                                                   optional_capabilities, out_session);
 }
 
 mf_shared_status_v1 mf_client_observer_connect_default_v1(mf_client_session_v1* out_session) {

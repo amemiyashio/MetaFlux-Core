@@ -11,12 +11,14 @@ _Static_assert(sizeof(mf_client_process_snapshot_row_wire_v1) == 128, "snapshot 
 _Static_assert(MF_CLIENT_CAP_COPY_REGION_V1 == (UINT64_C(1) << 7U), "copy-region bit");
 _Static_assert(MF_CLIENT_CAP_POLICY_SETTERS_V1 == (UINT64_C(1) << 8U), "policy-setter bit");
 _Static_assert(MF_CLIENT_CAP_DIRECT_HOST_COPY_V1 == (UINT64_C(1) << 9U), "direct-copy bit");
+_Static_assert(MF_CLIENT_CAP_CDEV_BINDING_V1 == (UINT64_C(1) << 10U), "cdev-binding bit");
 _Static_assert(MF_CLIENT_CONTROL_DEVICE_SET_PERSISTENCE_MODE_V1 == UINT16_C(13),
                "persistence setter opcode");
 _Static_assert(MF_CLIENT_CONTROL_DEVICE_SET_COMPUTE_MODE_V1 == UINT16_C(14),
                "compute setter opcode");
 _Static_assert(MF_CLIENT_CONTROL_HOST_ADDRESS_SPACE_REGISTER_V1 == UINT16_C(15),
                "host address-space opcode");
+_Static_assert(MF_CLIENT_CONTROL_CDEV_BIND_V1 == UINT16_C(16), "cdev-binding opcode");
 
 int main(void) {
   mf_client_negotiation_request_v1 request;
@@ -35,6 +37,7 @@ int main(void) {
   const uint64_t runtime = required | MF_CLIENT_CAP_FUTEX_DOORBELL_V1;
   const uint64_t live_context = MF_CLIENT_CAP_LIVE_CONTEXT_ACCOUNTING_V1;
   const uint64_t copy_region = MF_CLIENT_CAP_COPY_REGION_V1;
+  const uint64_t cdev_binding = MF_CLIENT_CAP_CDEV_BINDING_V1;
 
   mf_client_negotiation_request_init_v1(&request, UINT16_C(1), UINT16_C(2), required, optional,
                                         MF_CLIENT_FLAG_JOIN_EXISTING_VIEW_V1);
@@ -117,6 +120,21 @@ int main(void) {
     return 17;
   }
 
+  /* cdev binding is an initialization capability, not a late transport switch. */
+  mf_client_negotiation_request_init_v1(&request, UINT16_C(1), UINT16_C(1), required | cdev_binding,
+                                        UINT64_C(0), UINT32_C(0));
+  if (mf_client_negotiate_v1(&request, UINT16_C(1), UINT16_C(1), runtime, UINT32_C(1), UINT32_C(1),
+                             UINT64_C(1), UINT64_C(1), &response) !=
+      MF_CLIENT_NEGOTIATION_UNSUPPORTED_CAPABILITY) {
+    return 20;
+  }
+  if (mf_client_negotiate_v1(&request, UINT16_C(1), UINT16_C(1), runtime | cdev_binding,
+                             UINT32_C(1), UINT32_C(1), UINT64_C(1), UINT64_C(1), &response) !=
+          MF_CLIENT_NEGOTIATION_OK ||
+      (mf_client_load_le64_v1(response.bytes + 24) & cdev_binding) == UINT64_C(0)) {
+    return 21;
+  }
+
   mf_client_control_request_init_v1(&control_request, MF_CLIENT_CONTROL_ARTIFACT_REGISTER_V1,
                                     MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD | MF_CLIENT_CONTROL_FLAG_PTX,
                                     UINT64_C(17), UINT64_C(0x1122334455667788),
@@ -158,6 +176,12 @@ int main(void) {
       UINT64_C(0x1122334455667788), UINT64_C(0x8877665544332211), UINT64_C(7), UINT64_C(1));
   if (mf_client_control_request_validate_v1(&control_request) != MF_CLIENT_CONTROL_OK) {
     return 19;
+  }
+  mf_client_control_request_init_v1(&control_request, MF_CLIENT_CONTROL_CDEV_BIND_V1, UINT16_C(0),
+                                    UINT64_C(21), UINT64_C(1), UINT64_C(1),
+                                    UINT64_C(1), UINT64_C(1));
+  if (mf_client_control_request_validate_v1(&control_request) != MF_CLIENT_CONTROL_OK) {
+    return 22;
   }
   mf_client_process_snapshot_header_init_v1(snapshot_header, UINT64_C(9), UINT32_C(2));
   snapshot_row = mf_client_process_snapshot_mutable_row_v1_at(snapshot, UINT32_C(0));

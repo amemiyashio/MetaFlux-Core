@@ -7,6 +7,12 @@
 
 #include "metaflux/client/fastpath.h"
 #include "metaflux/client/protocol.h"
+#ifndef METAFLUX_PROVIDER_CDEV
+#define METAFLUX_PROVIDER_CDEV 0
+#endif
+#if METAFLUX_PROVIDER_CDEV
+#include "metaflux/transport/cdev.h"
+#endif
 
 #include <fcntl.h>
 #include <pthread.h>
@@ -59,6 +65,9 @@
 #define MF_CUDA_COPY_D2H UINT32_C(2)
 #define MF_CUDA_COPY_D2D UINT32_C(3)
 #define MF_CUDA_MATERIALIZED_POINTER UINT32_C(0x80000000)
+
+#define MF_CUDA_SUBMISSION_UNIX UINT32_C(0)
+#define MF_CUDA_SUBMISSION_CDEV UINT32_C(1)
 
 #define MF_CUDA_PENDING_STATE_FREE UINT32_C(0)
 #define MF_CUDA_PENDING_STATE_PREPARING UINT32_C(1)
@@ -133,6 +142,7 @@ typedef struct mf_cuda_pending {
   uint32_t defer_error;
   uint32_t argument_cached;
   uint32_t synchronous;
+  uint32_t submission_transport;
 } mf_cuda_pending;
 
 typedef struct mf_cuda_pending_slot {
@@ -223,6 +233,10 @@ typedef struct mf_cuda_state {
   mf_client_registry_v1 registry;
   mf_client_ring_v1 submission;
   mf_client_ring_v1 completion;
+#if METAFLUX_PROVIDER_CDEV
+  mf_cdev_session_v0 cdev_session;
+  mf_cdev_memory_v0 cdev_payload;
+#endif
   mf_cuda_object contexts[MF_CUDA_OBJECT_CAPACITY];
   mf_cuda_object modules[MF_CUDA_OBJECT_CAPACITY];
   mf_cuda_object functions[MF_CUDA_OBJECT_CAPACITY];
@@ -246,6 +260,7 @@ typedef struct mf_cuda_state {
   uint32_t initialized;
   uint32_t closing;
   uint32_t direct_host_copy_ready;
+  uint32_t cdev_active;
   uint32_t control_gate;
   uint32_t context_gates[MF_CUDA_OBJECT_CAPACITY];
 } mf_cuda_state;
@@ -308,7 +323,16 @@ static mf_cuda_state mf_cuda_global = {.lock = ATOMIC_FLAG_INIT,
                                                    .socket_fd = -1},
                                        .registry = {.owned_fd = -1},
                                        .submission = {.owned_fd = -1},
-                                       .completion = {.owned_fd = -1}};
+                                       .completion = {.owned_fd = -1},
+#if METAFLUX_PROVIDER_CDEV
+                                       .cdev_session = {.submission = {.owned_fd = -1},
+                                                         .completion = {.owned_fd = -1},
+                                                         .device_fd = -1,
+                                                         .submission_eventfd = -1,
+                                                         .completion_eventfd = -1},
+                                       .cdev_payload = {.device_fd = -1},
+#endif
+};
 static pthread_key_t mf_cuda_tls_key;
 static pthread_once_t mf_cuda_tls_once = PTHREAD_ONCE_INIT;
 static int mf_cuda_tls_key_status = -1;
@@ -806,6 +830,44 @@ static void mf_cuda_take_session_mappings_locked(void) {
   mf_cuda_global.session.registry.owned_fd = -1;
   mf_cuda_global.session.submission.owned_fd = -1;
   mf_cuda_global.session.completion.owned_fd = -1;
+}
+
+static void mf_cuda_close_cdev_locked(void) {
+#if METAFLUX_PROVIDER_CDEV
+  mf_cdev_memory_close_v0(&mf_cuda_global.cdev_payload);
+  mf_cdev_session_close_v0(&mf_cuda_global.cdev_session);
+#endif
+  mf_cuda_global.cdev_active = UINT32_C(0);
+}
+
+static int mf_cuda_command_uses_cdev_locked(const mf_cuda_command* command) {
+#if METAFLUX_PROVIDER_CDEV
+  return mf_cuda_global.cdev_active != UINT32_C(0) && command != (const mf_cuda_command*)0 &&
+         (command->kind == MF_CUDA_COMMAND_COPY || command->kind == MF_CUDA_COMMAND_LAUNCH);
+#else
+  (void)command;
+  return 0;
+#endif
+}
+
+static mf_client_ring_v1* mf_cuda_submission_ring_locked(const mf_cuda_command* command) {
+#if METAFLUX_PROVIDER_CDEV
+  return mf_cuda_command_uses_cdev_locked(command) != 0 ? &mf_cuda_global.cdev_session.submission
+                                                        : &mf_cuda_global.submission;
+#else
+  (void)command;
+  return &mf_cuda_global.submission;
+#endif
+}
+
+static mf_client_ring_v1* mf_cuda_completion_ring_for_transport_locked(uint32_t transport) {
+#if METAFLUX_PROVIDER_CDEV
+  return transport == MF_CUDA_SUBMISSION_CDEV ? &mf_cuda_global.cdev_session.completion
+                                               : &mf_cuda_global.completion;
+#else
+  (void)transport;
+  return &mf_cuda_global.completion;
+#endif
 }
 
 static void mf_cuda_pending_initialize(mf_cuda_pending* pending) {
@@ -1418,6 +1480,7 @@ static void mf_cuda_close_locked(void) {
                                                 UINT32_C(0));
   }
   mf_cuda_abandon_pending_locked();
+  mf_cuda_close_cdev_locked();
   if (mf_cuda_global.session.socket_fd >= 0) {
     mf_client_session_close_v1(&mf_cuda_global.session);
   }
@@ -1437,9 +1500,106 @@ static void mf_cuda_close_locked(void) {
   mf_cuda_global.visible_count = UINT32_C(0);
   mf_cuda_global.process_view_revision = UINT64_C(0);
   mf_cuda_global.direct_host_copy_ready = UINT32_C(0);
+  mf_cuda_global.cdev_active = UINT32_C(0);
   mf_atomic_store_u32_release(&mf_cuda_global.transport_error, (uint32_t)CUDA_SUCCESS);
   mf_cuda_global.initialized = UINT32_C(0);
   mf_cuda_global.closing = UINT32_C(0);
+}
+
+static mf_shared_status_v1 mf_cuda_try_initialize_cdev_locked(uint32_t* out_fallback) {
+#if METAFLUX_PROVIDER_CDEV
+  const uint64_t required_capabilities =
+      MF_CLIENT_CAP_SHARED_DEVICE_V1 | MF_CLIENT_CAP_MEMFD_RING_V1 |
+      MF_CLIENT_CAP_FUTEX_DOORBELL_V1 | MF_CLIENT_CAP_LIVE_CONTEXT_ACCOUNTING_V1 |
+      MF_CLIENT_CAP_CDEV_BINDING_V1;
+  const uint64_t optional_capabilities = MF_CLIENT_CAP_TIMELINE_V1 | MF_CLIENT_CAP_TELEMETRY_V1 |
+                                         MF_CLIENT_CAP_COPY_REGION_V1 |
+                                         MF_CLIENT_CAP_DIRECT_HOST_COPY_V1;
+  mf_client_control_response_v1 response;
+  mf_shared_status_v1 status = MF_SHARED_SUCCESS;
+  uint32_t control_status = MF_CLIENT_CONTROL_INTERNAL_ERROR;
+  if (out_fallback == (uint32_t*)0) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  *out_fallback = UINT32_C(0);
+  status = mf_cdev_session_open_default_v0(&mf_cuda_global.cdev_session);
+  if (status == MF_SHARED_NOT_SUPPORTED) {
+    *out_fallback = UINT32_C(1);
+    return MF_SHARED_SUCCESS;
+  }
+  if (status != MF_SHARED_SUCCESS) {
+    return status;
+  }
+  status = mf_client_session_connect_default_capabilities_v1(
+      required_capabilities, optional_capabilities, &mf_cuda_global.session);
+  if (status == MF_SHARED_NOT_SUPPORTED) {
+    *out_fallback = UINT32_C(1);
+    mf_cuda_close_cdev_locked();
+    mf_client_session_close_v1(&mf_cuda_global.session);
+    return MF_SHARED_SUCCESS;
+  }
+  if (status != MF_SHARED_SUCCESS) {
+    return status;
+  }
+  if (!mf_registry_view_id_equal_v1(mf_cuda_global.cdev_session.registry_view_id,
+                                    mf_cuda_global.session.registry_view_id) ||
+      mf_cuda_global.cdev_session.device_generation != MF_CLIENT_QUEUE_GENERATION_V1) {
+    return MF_SHARED_STALE_HANDLE;
+  }
+  status = mf_cdev_memory_alloc_v0(&mf_cuda_global.cdev_session, MF_CDEV_PAYLOAD_MAX_SIZE_V0,
+                                   UINT64_C(4096), &mf_cuda_global.cdev_payload);
+  if (status == MF_SHARED_NOT_SUPPORTED) {
+    *out_fallback = UINT32_C(1);
+    mf_cuda_close_cdev_locked();
+    mf_client_session_close_v1(&mf_cuda_global.session);
+    return MF_SHARED_SUCCESS;
+  }
+  if (status != MF_SHARED_SUCCESS) {
+    return status;
+  }
+  status = mf_client_session_control_v1(
+      &mf_cuda_global.session, MF_CLIENT_CONTROL_CDEV_BIND_V1, UINT16_C(0),
+      MF_CLIENT_RUNTIME_CONTEXT_ID_V1, mf_cuda_global.cdev_session.device_generation, -1, &response,
+      (int32_t*)0);
+  if (status != MF_SHARED_SUCCESS) {
+    return status;
+  }
+  control_status = mf_client_load_le32_v1(response.bytes + 12);
+  if (control_status == MF_CLIENT_CONTROL_UNSUPPORTED) {
+    *out_fallback = UINT32_C(1);
+    mf_cuda_close_cdev_locked();
+    mf_client_session_close_v1(&mf_cuda_global.session);
+    return MF_SHARED_SUCCESS;
+  }
+  if (control_status != MF_CLIENT_CONTROL_OK ||
+      mf_client_load_le16_v1(response.bytes + 16) != UINT16_C(0) ||
+      mf_client_load_le64_v1(response.bytes + 48) != MF_CLIENT_RUNTIME_CONTEXT_ID_V1 ||
+      mf_client_load_le64_v1(response.bytes + 56) == UINT64_C(0)) {
+    return control_status == MF_CLIENT_CONTROL_OK ? MF_SHARED_MALFORMED
+                                                   : MF_SHARED_INVALID_ARGUMENT;
+  }
+  mf_cuda_global.transport.view_id = mf_cuda_global.session.registry_view_id;
+  mf_cuda_global.transport.submission_queue_id = MF_CLIENT_SUBMISSION_QUEUE_ID_V1;
+  mf_cuda_global.transport.submission_queue_generation = MF_CLIENT_QUEUE_GENERATION_V1;
+  mf_cuda_global.transport.completion_queue_id = MF_CLIENT_COMPLETION_QUEUE_ID_V1;
+  mf_cuda_global.transport.completion_queue_generation = MF_CLIENT_QUEUE_GENERATION_V1;
+  mf_cuda_global.transport.runtime_context_id = MF_CLIENT_RUNTIME_CONTEXT_ID_V1;
+  mf_cuda_global.transport.runtime_event_id = MF_CLIENT_RUNTIME_EVENT_ID_V1;
+  mf_cuda_global.transport.runtime_event_generation = MF_CLIENT_RUNTIME_EVENT_GENERATION_V1;
+  mf_cuda_global.transport.runtime_add_kernel_id = MF_CLIENT_RUNTIME_ADD_KERNEL_ID_V1;
+  mf_cuda_global.transport.negotiated_capabilities =
+      mf_cuda_global.session.negotiated_capabilities & ~MF_CLIENT_CAP_DIRECT_HOST_COPY_V1;
+  mf_cuda_global.session.negotiated_capabilities &= ~MF_CLIENT_CAP_DIRECT_HOST_COPY_V1;
+  mf_cuda_global.cdev_active = UINT32_C(1);
+  mf_cuda_take_session_mappings_locked();
+  return MF_SHARED_SUCCESS;
+#else
+  if (out_fallback == (uint32_t*)0) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  *out_fallback = UINT32_C(1);
+  return MF_SHARED_SUCCESS;
+#endif
 }
 
 static CUresult mf_cuda_initialize_locked(void) {
@@ -1484,8 +1644,12 @@ static CUresult mf_cuda_initialize_locked(void) {
     }
 #endif
   } else {
-    status = mf_client_session_connect_default_v1(&mf_cuda_global.session);
-    if (status == MF_SHARED_SUCCESS) {
+    uint32_t cdev_fallback = UINT32_C(0);
+    status = mf_cuda_try_initialize_cdev_locked(&cdev_fallback);
+    if (status == MF_SHARED_SUCCESS && cdev_fallback != UINT32_C(0)) {
+      status = mf_client_session_connect_default_v1(&mf_cuda_global.session);
+    }
+    if (status == MF_SHARED_SUCCESS && mf_cuda_global.cdev_active == UINT32_C(0)) {
       mf_cuda_global.transport.view_id = mf_cuda_global.session.registry_view_id;
       mf_cuda_global.transport.submission_queue_id = MF_CLIENT_SUBMISSION_QUEUE_ID_V1;
       mf_cuda_global.transport.submission_queue_generation = MF_CLIENT_QUEUE_GENERATION_V1;
@@ -1550,48 +1714,65 @@ static CUresult mf_cuda_require_locked(void) {
 
 static mf_shared_status_v1 mf_cuda_try_submit_locked(const mf_cuda_command* command,
                                                      uint64_t request_id) {
+  mf_client_ring_v1* submission = mf_cuda_submission_ring_locked(command);
+#if METAFLUX_PROVIDER_CDEV
+  if (mf_cuda_global.cdev_active != UINT32_C(0) &&
+      command->kind == MF_CUDA_COMMAND_LAUNCH) {
+    const mf_cdev_launch_v0 launch = {
+        .module_id = command->target,
+        .module_generation = command->arguments[0],
+        .argument_block_id = command->arguments[2],
+        .argument_block_generation = command->arguments[3],
+    };
+    mf_ring_descriptor_v1 descriptor;
+    mf_shared_status_v1 status = mf_cdev_launch_descriptor_v0(
+        request_id, mf_cuda_global.cdev_session.device_generation, &launch, &descriptor);
+    return status == MF_SHARED_SUCCESS ? mf_client_ring_try_submit_v1(submission, &descriptor)
+                                       : status;
+  }
+#endif
   switch (command->kind) {
   case MF_CUDA_COMMAND_ALLOC:
-    return mf_client_submit_memory_alloc_v1(&mf_cuda_global.submission, request_id, command->target,
+    return mf_client_submit_memory_alloc_v1(submission, request_id, command->target,
                                             command->arguments[0], command->arguments[1],
                                             command->flags);
   case MF_CUDA_COMMAND_FREE:
-    return mf_client_submit_memory_free_v1(&mf_cuda_global.submission, request_id, command->target,
+    return mf_client_submit_memory_free_v1(submission, request_id, command->target,
                                            command->arguments[0]);
   case MF_CUDA_COMMAND_MODULE_LOAD:
-    return mf_client_submit_module_load_v1(&mf_cuda_global.submission, request_id, command->target,
+    return mf_client_submit_module_load_v1(submission, request_id, command->target,
                                            command->arguments[0], command->flags);
   case MF_CUDA_COMMAND_MODULE_UNLOAD:
-    return mf_client_submit_module_unload_v1(&mf_cuda_global.submission, request_id,
+    return mf_client_submit_module_unload_v1(submission, request_id,
                                              command->target, command->arguments[0]);
   case MF_CUDA_COMMAND_COPY:
     if (command->flags == MF_RING_COPY_FLAG_DIRECT_HOST_SOURCE_V1 ||
         command->flags == MF_RING_COPY_FLAG_DIRECT_HOST_DESTINATION_V1) {
       return mf_client_submit_direct_host_copy_v1(
-          &mf_cuda_global.submission, request_id, command->target, command->arguments[0],
+          submission, request_id, command->target, command->arguments[0],
           command->arguments[1], command->arguments[2], command->arguments[3], command->flags);
     }
     if (command->flags == MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1) {
-      return mf_client_submit_copy_region_v1(&mf_cuda_global.submission, request_id,
+      return mf_client_submit_copy_region_v1(submission, request_id,
                                              command->target, command->arguments[0]);
     }
-    return mf_client_submit_copy_v1(&mf_cuda_global.submission, request_id, command->target,
+    return mf_client_submit_copy_v1(submission, request_id, command->target,
                                     command->arguments[0], command->arguments[1],
                                     command->arguments[2], command->arguments[3], command->flags);
   case MF_CUDA_COMMAND_LAUNCH:
-    return mf_client_submit_launch_v1(&mf_cuda_global.submission, request_id, command->target,
+    return mf_client_submit_launch_v1(submission, request_id, command->target,
                                       command->arguments[0], command->arguments[1],
                                       command->arguments[2], command->arguments[3], command->flags);
   case MF_CUDA_COMMAND_EVENT_RECORD:
-    return mf_client_submit_event_record_v1(&mf_cuda_global.submission, request_id, command->target,
+    return mf_client_submit_event_record_v1(submission, request_id, command->target,
                                             command->arguments[0], command->arguments[1],
                                             command->flags);
   case MF_CUDA_COMMAND_EVENT_WAIT:
-    return mf_client_submit_event_wait_v1(&mf_cuda_global.submission, request_id, command->target,
+    return mf_client_submit_event_wait_v1(submission, request_id, command->target,
                                           command->arguments[0], command->arguments[1],
                                           command->flags);
   case MF_CUDA_COMMAND_QUEUE_SYNC:
-    return mf_client_submit_queue_control_v1(&mf_cuda_global.submission,
+    return mf_client_submit_queue_control_v1(submission,
                                              MF_RING_OPCODE_QUEUE_SYNCHRONIZE, request_id,
                                              command->arguments[0], command->flags);
   }
@@ -1772,6 +1953,25 @@ static CUresult mf_cuda_process_ready_locked(void) {
       thread->queue_context_index, mf_cuda_global.contexts[thread->queue_context_index].generation);
 }
 
+static uint32_t mf_cuda_earliest_pending_transport_locked(void) {
+  uint64_t first_request = UINT64_MAX;
+  uint32_t transport = MF_CUDA_SUBMISSION_UNIX;
+  uint32_t index = UINT32_C(0);
+  for (index = UINT32_C(0); index < MF_CUDA_PENDING_CAPACITY; ++index) {
+    const mf_cuda_pending_slot* slot = &mf_cuda_global.pending[index];
+    const uint64_t tagged_state = mf_atomic_load_u64_acquire(&slot->tagged_state);
+    const uint32_t state = mf_cuda_pending_state(tagged_state);
+    const uint64_t request_id = mf_atomic_load_u64_acquire(&slot->request_id);
+    if (state == MF_CUDA_PENDING_STATE_FREE || state == MF_CUDA_PENDING_STATE_PREPARING ||
+        request_id == UINT64_C(0) || request_id >= first_request) {
+      continue;
+    }
+    first_request = request_id;
+    transport = slot->pending.submission_transport;
+  }
+  return transport;
+}
+
 static CUresult mf_cuda_consume_one_locked(uint32_t blocking,
                                            mf_client_completion_v1* out_completion,
                                            CUresult* out_result, uint32_t* out_consumed) {
@@ -1792,7 +1992,16 @@ static CUresult mf_cuda_consume_one_locked(uint32_t blocking,
     if (mf_atomic_load_u32_acquire(&mf_cuda_global.pending_count) == UINT32_C(0)) {
       return CUDA_ERROR_NOT_READY;
     }
-    status = mf_client_try_consume_completion_v1(&mf_cuda_global.completion, &completion);
+    status = MF_SHARED_WOULD_BLOCK;
+#if METAFLUX_PROVIDER_CDEV
+    if (mf_cuda_global.cdev_active != UINT32_C(0)) {
+      status = mf_client_try_consume_completion_v1(&mf_cuda_global.cdev_session.completion,
+                                                   &completion);
+    }
+#endif
+    if (status == MF_SHARED_WOULD_BLOCK) {
+      status = mf_client_try_consume_completion_v1(&mf_cuda_global.completion, &completion);
+    }
     if (status == MF_SHARED_SUCCESS) {
       break;
     }
@@ -1812,9 +2021,15 @@ static CUresult mf_cuda_consume_one_locked(uint32_t blocking,
           return mf_cuda_status(status);
         }
       }
-      status = mf_cuda_wait_ring_locked(&mf_cuda_global.completion, UINT32_C(1), wait_deadline_ns);
+        status = mf_cuda_wait_ring_locked(
+            mf_cuda_completion_ring_for_transport_locked(
+                mf_cuda_earliest_pending_transport_locked()),
+            UINT32_C(1), wait_deadline_ns);
     } else {
-      status = mf_client_ring_wait_readable_v1(&mf_cuda_global.completion, MF_CUDA_WAIT_NS);
+      status = mf_client_ring_wait_readable_v1(
+          mf_cuda_completion_ring_for_transport_locked(
+              mf_cuda_earliest_pending_transport_locked()),
+          MF_CUDA_WAIT_NS);
     }
     if (status != MF_SHARED_SUCCESS && status != MF_SHARED_RETRY) {
       mf_atomic_store_u32_release(&mf_cuda_global.transport_error,
@@ -1919,6 +2134,9 @@ static CUresult mf_cuda_enqueue_locked(const mf_cuda_command* command, mf_cuda_p
     goto done;
   }
   pending->request_id = request_id;
+  pending->submission_transport = mf_cuda_command_uses_cdev_locked(command) != 0
+                                      ? MF_CUDA_SUBMISSION_CDEV
+                                      : MF_CUDA_SUBMISSION_UNIX;
   pending->synchronous = pending->defer_error == UINT32_C(0) ? UINT32_C(1) : UINT32_C(0);
   slot->pending = *pending;
   (void)memset(&slot->completion, 0, sizeof(slot->completion));
@@ -1945,7 +2163,8 @@ static CUresult mf_cuda_enqueue_locked(const mf_cuda_command* command, mf_cuda_p
         goto done;
       }
     }
-    status = mf_cuda_wait_ring_locked(&mf_cuda_global.submission, UINT32_C(0), wait_deadline_ns);
+    status = mf_cuda_wait_ring_locked(mf_cuda_submission_ring_locked(command), UINT32_C(0),
+                                      wait_deadline_ns);
     if (status != MF_SHARED_SUCCESS && status != MF_SHARED_RETRY) {
       result = mf_cuda_status(status);
       goto done;
@@ -3534,6 +3753,7 @@ static CUresult mf_cuda_copy(uint32_t direction, CUdeviceptr destination_device,
   uint64_t argument_generation = 0;
   uint32_t argument_cached = UINT32_C(0);
   uint32_t direct_host_copy = UINT32_C(0);
+  uint32_t region_copy = UINT32_C(0);
   uint32_t must_drain = UINT32_C(0);
   uint32_t memory_indices[2] = {MF_CUDA_INDEX_NONE, MF_CUDA_INDEX_NONE};
   uint32_t memory_generations[2] = {UINT32_C(0), UINT32_C(0)};
@@ -3588,14 +3808,19 @@ static CUresult mf_cuda_copy(uint32_t direction, CUdeviceptr destination_device,
        (source_memory != (mf_cuda_object*)0 && source_memory->owner_context != context_index))) {
     result = CUDA_ERROR_INVALID_CONTEXT;
   }
-  if (result == CUDA_SUCCESS && direction != MF_CUDA_COPY_D2D &&
+  if (result == CUDA_SUCCESS && mf_cuda_global.cdev_active == UINT32_C(0) &&
+      direction != MF_CUDA_COPY_D2D &&
       mf_cuda_global.direct_host_copy_ready != UINT32_C(0) &&
       (mf_cuda_global.transport.negotiated_capabilities & MF_CLIENT_CAP_DIRECT_HOST_COPY_V1) !=
           UINT64_C(0)) {
     direct_host_copy = UINT32_C(1);
   }
+  region_copy = (mf_cuda_global.cdev_active != UINT32_C(0) ||
+                 destination_offset != UINT64_C(0) || source_offset != UINT64_C(0))
+                    ? UINT32_C(1)
+                    : UINT32_C(0);
   if (result == CUDA_SUCCESS &&
-      (destination_offset != UINT64_C(0) || source_offset != UINT64_C(0)) &&
+      region_copy != UINT32_C(0) &&
       direct_host_copy == UINT32_C(0) &&
       (mf_cuda_global.transport.negotiated_capabilities & MF_CLIENT_CAP_COPY_REGION_V1) ==
           UINT64_C(0)) {
@@ -3617,8 +3842,7 @@ static CUresult mf_cuda_copy(uint32_t direction, CUdeviceptr destination_device,
     }
   }
   (void)memset(&arguments, 0, sizeof(arguments));
-  if (result == CUDA_SUCCESS && direct_host_copy == UINT32_C(0) &&
-      (destination_offset != UINT64_C(0) || source_offset != UINT64_C(0))) {
+  if (result == CUDA_SUCCESS && direct_host_copy == UINT32_C(0) && region_copy != UINT32_C(0)) {
     arguments.header.magic = MF_SHARED_ARGUMENT_BLOCK_MAGIC;
     arguments.header.abi_version = MF_SHARED_DEVICE_ABI_VERSION_1;
     arguments.header.header_size = (uint32_t)sizeof(arguments.header);
@@ -3645,8 +3869,7 @@ static CUresult mf_cuda_copy(uint32_t direction, CUdeviceptr destination_device,
     result = mf_cuda_status(mf_client_copy_region_argument_block_validate_v1(
         (const uint8_t*)&arguments, (uint64_t)MF_CUDA_COPY_ARGUMENT_SIZE));
   }
-  if (result == CUDA_SUCCESS && direct_host_copy == UINT32_C(0) &&
-      (destination_offset != UINT64_C(0) || source_offset != UINT64_C(0))) {
+  if (result == CUDA_SUCCESS && direct_host_copy == UINT32_C(0) && region_copy != UINT32_C(0)) {
     if (destination_memory != (mf_cuda_object*)0) {
       memory_indices[0] = (uint32_t)(destination_memory - mf_cuda_global.memories);
       memory_generations[0] = destination_memory->generation;

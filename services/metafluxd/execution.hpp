@@ -64,7 +64,7 @@ class PreparedModule final {
 public:
   PreparedModule(std::string canonical_kernel_ir,
                  std::shared_ptr<backend::cpu::CpuExecutor> executor, bool accesses_global_memory);
-  PreparedModule(backend::cpu::compiler::PreparedArtifact artifact,
+  PreparedModule(std::string canonical_kernel_ir, backend::cpu::compiler::PreparedArtifact artifact,
                  backend::cpu::LoadedCompiledKernel kernel,
                  std::shared_ptr<backend::cpu::CpuExecutor> executor, bool accesses_global_memory);
   ~PreparedModule();
@@ -81,6 +81,9 @@ public:
   launch(std::span<const backend::cpu::Argument> arguments,
          backend::cpu::LaunchDimensions dimensions, std::stop_token cancellation) const;
   [[nodiscard]] bool accesses_global_memory() const noexcept { return accesses_global_memory_; }
+  [[nodiscard]] std::string_view canonical_kernel_ir() const noexcept {
+    return canonical_kernel_ir_;
+  }
 
 private:
   std::string canonical_kernel_ir_;

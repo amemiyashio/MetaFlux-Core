@@ -37,6 +37,7 @@ extern "C" {
 #define MF_CLIENT_CONTROL_DEVICE_SET_PERSISTENCE_MODE_V1 UINT16_C(13)
 #define MF_CLIENT_CONTROL_DEVICE_SET_COMPUTE_MODE_V1 UINT16_C(14)
 #define MF_CLIENT_CONTROL_HOST_ADDRESS_SPACE_REGISTER_V1 UINT16_C(15)
+#define MF_CLIENT_CONTROL_CDEV_BIND_V1 UINT16_C(16)
 
 #define MF_CLIENT_CONTROL_OK UINT32_C(0)
 #define MF_CLIENT_CONTROL_MALFORMED UINT32_C(1)
@@ -72,6 +73,7 @@ extern "C" {
 #define MF_CLIENT_CAP_COPY_REGION_V1 (UINT64_C(1) << 7U)
 #define MF_CLIENT_CAP_POLICY_SETTERS_V1 (UINT64_C(1) << 8U)
 #define MF_CLIENT_CAP_DIRECT_HOST_COPY_V1 (UINT64_C(1) << 9U)
+#define MF_CLIENT_CAP_CDEV_BINDING_V1 (UINT64_C(1) << 10U)
 
 #define MF_CLIENT_PROCESS_KIND_COMPUTE_V1 (UINT32_C(1) << 0U)
 #define MF_CLIENT_PROCESS_KIND_GRAPHICS_V1 (UINT32_C(1) << 1U)
@@ -331,7 +333,7 @@ mf_client_control_request_validate_v1(const mf_client_control_request_v1* reques
   opcode = mf_client_load_le16_v1(request->bytes + 12);
   flags = mf_client_load_le16_v1(request->bytes + 14);
   if (opcode < MF_CLIENT_CONTROL_DEVICE_MEMORY_ALLOC_V1 ||
-      opcode > MF_CLIENT_CONTROL_HOST_ADDRESS_SPACE_REGISTER_V1 ||
+      opcode > MF_CLIENT_CONTROL_CDEV_BIND_V1 ||
       (flags & (uint16_t)~MF_CLIENT_CONTROL_KNOWN_FLAGS) != UINT16_C(0) ||
       mf_client_load_le64_v1(request->bytes + 24) == UINT64_C(0) ||
       mf_client_load_le64_v1(request->bytes + 32) == UINT64_C(0) ||

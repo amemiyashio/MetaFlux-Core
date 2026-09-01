@@ -114,7 +114,13 @@ static mf_shared_status_v1 mf_cdev_session_open_internal_v0(const char* device_p
   out_session->completion_eventfd = -1;
   fd = open(path, O_RDWR | O_CLOEXEC);
   if (fd < 0) {
-    return (errno == ENOENT || errno == ENODEV) ? MF_SHARED_NOT_SUPPORTED : MF_SHARED_SYSTEM_ERROR;
+    if (errno == ENOENT || errno == ENODEV || errno == ENOTTY || errno == EOPNOTSUPP) {
+      return MF_SHARED_NOT_SUPPORTED;
+    }
+    if (errno == EACCES || errno == EPERM) {
+      return MF_SHARED_PERMISSION_DENIED;
+    }
+    return MF_SHARED_SYSTEM_ERROR;
   }
   (void)memset(&negotiate, 0, sizeof(negotiate));
   negotiate.struct_size = sizeof(negotiate);

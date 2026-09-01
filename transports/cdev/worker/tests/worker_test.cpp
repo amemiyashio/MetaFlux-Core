@@ -1018,6 +1018,7 @@ int main() {
 
   backend_fixture.result = MF_BACKEND_SUCCESS;
   LaunchResolutionFixture launch_resolution{};
+  MemoryReferenceFixture launch_references{};
   launch_resolution.resolution.module = 99U;
   launch_resolution.resolution.kernel_id = MF_KERNEL_PRIMARY_ENTRY_ID;
   launch_resolution.resolution.argument_offset = 64U;
@@ -1028,6 +1029,13 @@ int main() {
   launch_resolution.resolution.block[0] = 8U;
   launch_resolution.resolution.block[1] = 1U;
   launch_resolution.resolution.block[2] = 1U;
+  launch_resolution.resolution.memory_reference_count = 1U;
+  launch_resolution.resolution.memory_references[0] = {
+      .handle = 29U,
+      .retain = retain_memory_reference,
+      .release = release_memory_reference,
+      .context = &launch_references,
+  };
   metaflux::transport::cdev::CdevWorker launch_worker(
       {.submission = submission.header,
        .completion = completion.header,
@@ -1062,6 +1070,8 @@ int main() {
       backend_fixture.last_launch.argument_bytes != payload.data() + 64U ||
       backend_fixture.last_launch.argument_size != 32U ||
       backend_fixture.last_launch.grid[0] != 1U || backend_fixture.last_launch.block[0] != 8U ||
+      launch_references.retains != 1U || launch_references.releases != 1U ||
+      launch_references.active != 0U || launch_references.last_handle != 29U ||
       backend_fixture.lease_acquires != 6U || backend_fixture.lease_releases != 5U ||
       backend_fixture.lease_active ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||

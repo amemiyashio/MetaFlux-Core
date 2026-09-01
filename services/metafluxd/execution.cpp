@@ -253,11 +253,13 @@ PreparedModule::PreparedModule(std::string canonical_kernel_ir,
     : canonical_kernel_ir_(std::move(canonical_kernel_ir)), executor_(std::move(executor)),
       accesses_global_memory_(accesses_global_memory) {}
 
-PreparedModule::PreparedModule(backend::cpu::compiler::PreparedArtifact artifact,
+PreparedModule::PreparedModule(std::string canonical_kernel_ir,
+                               backend::cpu::compiler::PreparedArtifact artifact,
                                backend::cpu::LoadedCompiledKernel kernel,
                                std::shared_ptr<backend::cpu::CpuExecutor> executor,
                                bool accesses_global_memory)
-    : artifact_(std::move(artifact)), compiled_kernel_(std::move(kernel)),
+    : canonical_kernel_ir_(std::move(canonical_kernel_ir)), artifact_(std::move(artifact)),
+      compiled_kernel_(std::move(kernel)),
       executor_(std::move(executor)), accesses_global_memory_(accesses_global_memory) {}
 
 PreparedModule::~PreparedModule() = default;
@@ -430,7 +432,8 @@ PrepareModuleResult CpuExecutionEngine::prepare(std::uint32_t peer_uid,
     }
 
     auto module = std::make_unique<PreparedModule>(
-        std::move(*artifact.artifact), std::move(loaded.kernel), executor_, accesses_global_memory);
+        std::move(canonical_kernel_ir), std::move(*artifact.artifact), std::move(loaded.kernel),
+        executor_, accesses_global_memory);
     loaded_modules_.fetch_add(1U, std::memory_order_relaxed);
     return {.module = std::move(module), .error = ModulePreparationError::None, .diagnostic = {}};
   } catch (const std::bad_alloc&) {

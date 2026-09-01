@@ -64,6 +64,12 @@ target_link_libraries(
   metaflux_cuda_provider
   PRIVATE MetaFlux::ClientFastpath MetaFlux::CudaPassthrough Threads::Threads
 )
+if(METAFLUX_BUILD_CDEV_TRANSPORT)
+  target_link_libraries(metaflux_cuda_provider PRIVATE MetaFlux::TransportCdevClient)
+  target_compile_definitions(metaflux_cuda_provider PRIVATE METAFLUX_PROVIDER_CDEV=1)
+else()
+  target_compile_definitions(metaflux_cuda_provider PRIVATE METAFLUX_PROVIDER_CDEV=0)
+endif()
 target_link_options(
   metaflux_cuda_provider
   PRIVATE

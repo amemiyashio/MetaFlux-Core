@@ -101,6 +101,18 @@ completion violates this lifetime and a range that is invalid when executed
 completes with `INVALID_ARGUMENT`; address reuse has no independent generation
 protection.
 
+Capability bit 10 and control opcode 16 define the local cdev binding extension.
+A managed compute provider requests the bit before it opens a data cdev queue.
+The successful `CDEV_BIND` request is payload-free, uses the runtime context ID
+at byte 48, and carries the cdev device generation at byte 56. The daemon
+accepts it only after the Unix control session and the caller-owned cdev queue
+agree on the same registry view and generation, then binds the leased local
+worker to that session. The Unix session remains the object-table control plane
+while the cdev queue is the steady-state data plane. A provider commits one
+transport for its initialization epoch: cdev absence or explicit ABI
+incompatibility may select the pre-success memfd path, while permission,
+malformed state, integrity, and policy errors remain terminal.
+
 Host-memory registration retains a shared size-sealed memfd for the session.
 Artifact and argument-block registration require write-sealed immutable memfds.
 Artifact resolve returns another descriptor reference to the same immutable

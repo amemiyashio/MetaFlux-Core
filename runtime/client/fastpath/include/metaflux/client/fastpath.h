@@ -144,7 +144,16 @@ int32_t mf_client_payload_borrow_fd_v1(const mf_client_payload_v1* payload);
 mf_shared_status_v1 mf_client_session_connect_v1(const char* socket_path,
                                                  mf_client_session_v1* out_session);
 
+mf_shared_status_v1 mf_client_session_connect_capabilities_v1(const char* socket_path,
+                                                              uint64_t required_capabilities,
+                                                              uint64_t optional_capabilities,
+                                                              mf_client_session_v1* out_session);
+
 mf_shared_status_v1 mf_client_session_connect_default_v1(mf_client_session_v1* out_session);
+
+mf_shared_status_v1 mf_client_session_connect_default_capabilities_v1(
+    uint64_t required_capabilities, uint64_t optional_capabilities,
+    mf_client_session_v1* out_session);
 
 mf_shared_status_v1 mf_client_observer_connect_v1(const char* socket_path,
                                                   mf_client_session_v1* out_session);
