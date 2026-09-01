@@ -75,6 +75,13 @@ identity and provisioning boundaries live in
   measured decision explicitly changes that boundary.
 - The runtime and compiler core remain ecosystem-neutral. Compatibility plugins
   do not depend on concrete execution backends.
+- Local managed providers select cdev before memfd. cdev uses the Unix daemon
+  session as its object-table control plane and the cdev queue as its steady-state
+  data plane, bound to one session/view/generation for the provider initialization
+  epoch. Memfd fallback is limited to pre-success cdev `ENOENT`, `ENODEV`, or an
+  explicit ABI incompatibility; permission, malformed/integrity, and policy
+  failures are terminal. Kernel registered-memory handles remain opaque and are
+  not host pointers; CPU backend payload mappings require an explicit binding.
 - Mutable provider state belongs to one negotiated shared view, not per-DSO
   globals. Statically embedded fast-path code remains stateless.
 - Vendor CUDA/NVML passthrough loads one validated same-build pair by canonical

@@ -53,6 +53,22 @@ duplicating that architecture here.
 - Transport commits for the `provider initialization epoch`. CUDA and NVML in one
   process join one mode/transport/`registry_view_id`. Guests require cdev/vfio-user
   and fail closed.
+- ### Provider cdev selection and fallback diagnostics (D0030)
+
+  A local managed provider attempts cdev first and commits cdev only after both
+  the cdev data device and the matching Unix daemon session negotiate the
+  cdev-binding capability. The Unix session remains the control plane for
+  object-table registration and the cdev queue is the steady-state data plane;
+  the daemon binds that queue to the same session, view, and generation before
+  the provider can expose successful managed initialization. The provider never
+  switches transport after the initialization epoch commits. Before any object
+  or command becomes visible, `ENOENT`, `ENODEV`, and an explicitly reported ABI
+  incompatibility may select the existing memfd path; permission failures,
+  malformed or integrity failures, and policy rejection are terminal diagnostics.
+  A cdev registered-memory handle is opaque across the C ABI and is never cast
+  to a host pointer. The current CPU backend uses an explicitly bound cdev
+  payload mapping until a backend import-handle extension is separately
+  qualified.
 - QEMU and `metaflux-vfio-userd` are one trusted high-speed boundary.
 - Static guest cold-plug and terminal reset-to-`LOST` are included. M0110 leaves
   `VFIO_DEVICE_FLAGS_RESET` clear and advertises no migration capability; a
@@ -151,9 +167,8 @@ Fault and release:
 3. QEMU shared-memory command line and deployment ownership.
 4. DMA width, pin quotas, ring-order range, drain deadlines, and interrupt
    moderation defaults.
-5. Provider cdev selection and M0100 fallback diagnostics.
-6. Registered release VID/DID process.
-7. Module-signing and Secure Boot packaging workflow.
+5. Registered release VID/DID process.
+6. Module-signing and Secure Boot packaging workflow.
 
 Items 1 and 4 close only after W0114 evidence, not before implementation.
 

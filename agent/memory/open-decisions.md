@@ -20,7 +20,6 @@ fail.
 | M0110 | Exact Linux, QEMU, and libvfio-user support matrix | Kernel and guest qualification | Before W0112/W0113 kernels are pinned |
 | M0110 | QEMU shared-memory command line and deployment ownership | Guest fixture | Before W0113 guest slice |
 | M0110 | DMA width, pin quotas, ring-order range, drain deadlines, interrupt moderation defaults | Data-plane limits | Only after W0114 evidence |
-| M0110 | Provider cdev selection and M0100 fallback diagnostics | W0112 cdev path | Before W0112 provider wiring |
 | M0110 | Registered release VID/DID process | Release identity | Before W0115 release |
 | M0110 | Module-signing and Secure Boot packaging workflow | Kernel packaging | Before W0115 release hardening |
 | M0120 | Exact lifecycle deadline and old-work isolation policy | Lifecycle model | Only after W0123 qualification |
