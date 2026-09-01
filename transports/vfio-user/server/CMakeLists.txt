@@ -1,3 +1,22 @@
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+set(MF_VFIO_USER_PROFILE_HEADER_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/include/metaflux/transport")
+set(MF_VFIO_USER_PROFILE_HEADER "${MF_VFIO_USER_PROFILE_HEADER_DIR}/vfio_user_profile.h")
+add_custom_command(
+  OUTPUT "${MF_VFIO_USER_PROFILE_HEADER}"
+  COMMAND
+    Python3::Interpreter "${PROJECT_SOURCE_DIR}/tools/validate-vfio-user-profile.py"
+    --root "${PROJECT_SOURCE_DIR}"
+    --manifest "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/manifest.json"
+    --generate-header "${MF_VFIO_USER_PROFILE_HEADER}"
+  DEPENDS
+    "${PROJECT_SOURCE_DIR}/tools/validate-vfio-user-profile.py"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/manifest.json"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/vfio_user.json"
+  VERBATIM
+)
+add_custom_target(metaflux_vfio_user_profile DEPENDS "${MF_VFIO_USER_PROFILE_HEADER}")
+
 add_library(
   metaflux_transport_vfio_user_server STATIC
   src/server.cpp
@@ -16,6 +35,11 @@ target_include_directories(
 target_link_libraries(
   metaflux_transport_vfio_user_server
   PUBLIC MetaFlux::TransportSchema MetaFlux::RuntimeCore
+)
+add_dependencies(metaflux_transport_vfio_user_server metaflux_vfio_user_profile)
+target_include_directories(
+  metaflux_transport_vfio_user_server
+  PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/include"
 )
 metaflux_configure_target(metaflux_transport_vfio_user_server CXX)
 metaflux_register_component_graph_entry(
@@ -49,6 +73,27 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   metaflux_configure_target(metaflux_transport_vfio_user_server_test CXX)
   add_test(NAME metaflux.transport.vfio-user-server COMMAND metaflux_transport_vfio_user_server_test)
   set_tests_properties(metaflux.transport.vfio-user-server PROPERTIES LABELS "transport;unit")
+
+  add_test(
+    NAME metaflux.transport.vfio-user-profile
+    COMMAND
+      Python3::Interpreter -B "${PROJECT_SOURCE_DIR}/tools/validate-vfio-user-profile.py"
+      --root "${PROJECT_SOURCE_DIR}"
+      --manifest "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/manifest.json"
+      --generate-header "${CMAKE_CURRENT_BINARY_DIR}/test-generated-vfio-user-profile.h"
+  )
+  set_tests_properties(
+    metaflux.transport.vfio-user-profile
+    PROPERTIES LABELS "transport;schema"
+  )
+  add_test(
+    NAME metaflux.transport.vfio-user-profile-selftest
+    COMMAND Python3::Interpreter -B "${PROJECT_SOURCE_DIR}/tools/test-vfio-user-profile.py"
+  )
+  set_tests_properties(
+    metaflux.transport.vfio-user-profile-selftest
+    PROPERTIES LABELS "transport;schema;unit"
+  )
 
   add_executable(metaflux_transport_vfio_user_msix_test tests/msix_test.cpp)
   target_link_libraries(

@@ -3,6 +3,18 @@
   "version": "0.1",
   "zone": "protocol/transport/v1",
   "kind": "encoded-layout",
+  "profile": {
+    "id": "transport.vfio-user-profile.v0",
+    "version": "0.1",
+    "page_size": 4096,
+    "bars": [
+      {"index": 0, "offset": 0, "size": 65536, "role": "control"},
+      {"index": 2, "offset": 65536, "size": 4096, "role": "doorbell"},
+      {"index": 4, "offset": 69632, "size": 4096, "role": "msix"}
+    ],
+    "msix_vectors": 2,
+    "doorbell_width": 4
+  },
   "records": [
     {
       "name": "mf_vfio_user_dma_map_v0",

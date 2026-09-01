@@ -26,7 +26,7 @@
       "id": "transport.vfio-user.v0",
       "version": "0.1",
       "path": "contracts/protocol/transport/v1/schema/vfio_user.json",
-      "sha256": "0cd227d9311bf94d08e4af48e08554479de6b94c26f6764bc052696d27cdb699"
+      "sha256": "34e4073e194af49d7525d9767ec171ab5235750c00e3572d2503424e6217df08"
     },
     {
       "id": "linux.uapi.v0",

@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""Validate and project the canonical static vfio-user BAR profile."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import sys
+from pathlib import Path
+from typing import Any
+
+
+class ProfileError(ValueError):
+    """A malformed vfio-user profile or manifest reference."""
+
+
+def load_json(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ProfileError(f"cannot load {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise ProfileError(f"{path}: expected a JSON object")
+    return value
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def checked_int(value: Any, label: str, minimum: int = 0) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < minimum:
+        raise ProfileError(f"{label}: expected integer >= {minimum}")
+    return value
+
+
+def validate_profile(schema_path: Path) -> dict[str, Any]:
+    schema = load_json(schema_path)
+    if schema.get("id") != "transport.vfio-user.v0" or schema.get("version") != "0.1":
+        raise ProfileError(f"{schema_path}: unexpected vfio-user schema metadata")
+    profile = schema.get("profile")
+    if not isinstance(profile, dict) or profile.get("id") != "transport.vfio-user-profile.v0" or \
+            profile.get("version") != "0.1":
+        raise ProfileError(f"{schema_path}: canonical profile metadata is required")
+    page_size = checked_int(profile.get("page_size"), f"{schema_path}:profile.page_size", 1)
+    if page_size != 4096 or page_size & (page_size - 1):
+        raise ProfileError(f"{schema_path}:profile.page_size must be the 4096-byte page")
+    bars = profile.get("bars")
+    if not isinstance(bars, list) or len(bars) != 3:
+        raise ProfileError(f"{schema_path}:profile.bars must contain exactly three regions")
+    expected = {
+        0: (0, 65536, "control"),
+        2: (65536, 4096, "doorbell"),
+        4: (69632, 4096, "msix"),
+    }
+    occupied: list[tuple[int, int]] = []
+    for bar in bars:
+        if not isinstance(bar, dict):
+            raise ProfileError(f"{schema_path}:profile bar must be an object")
+        index = checked_int(bar.get("index"), f"{schema_path}:profile.bar.index")
+        offset = checked_int(bar.get("offset"), f"{schema_path}:profile.bar{index}.offset")
+        size = checked_int(bar.get("size"), f"{schema_path}:profile.bar{index}.size", 1)
+        role = bar.get("role")
+        if index not in expected or (offset, size, role) != expected[index]:
+            raise ProfileError(f"{schema_path}:profile.bar{index} is not the canonical layout")
+        if offset % page_size != 0 or size % page_size != 0 or size & (size - 1):
+            raise ProfileError(f"{schema_path}:profile.bar{index} must be page-aligned power-of-two")
+        end = offset + size
+        if end <= offset or any(offset < other_end and other_offset < end
+                                 for other_offset, other_end in occupied):
+            raise ProfileError(f"{schema_path}:profile.bar{index} overlaps another BAR")
+        occupied.append((offset, end))
+    if checked_int(profile.get("msix_vectors"), f"{schema_path}:profile.msix_vectors", 1) != 2 or \
+            checked_int(profile.get("doorbell_width"), f"{schema_path}:profile.doorbell_width", 1) != 4:
+        raise ProfileError(f"{schema_path}:profile notification parameters are not canonical")
+    return profile
+
+
+def validate(root: Path, manifest_path: Path) -> dict[str, Any]:
+    manifest = load_json(manifest_path)
+    if manifest.get("id") != "transport.base.v0" or manifest.get("version") != "0.1":
+        raise ProfileError(f"{manifest_path}: expected transport.base.v0 version 0.1")
+    definitions = manifest.get("definitions")
+    if not isinstance(definitions, list):
+        raise ProfileError(f"{manifest_path}: definitions must be an array")
+    entry = next((item for item in definitions
+                  if isinstance(item, dict) and item.get("id") == "transport.vfio-user.v0"), None)
+    if not isinstance(entry, dict):
+        raise ProfileError(f"{manifest_path}: vfio-user schema is not in the base manifest")
+    rel = entry.get("path")
+    if not isinstance(rel, str) or Path(rel).is_absolute():
+        raise ProfileError(f"{manifest_path}: invalid vfio-user schema path")
+    schema_path = (root / rel).resolve()
+    if root.resolve() not in schema_path.parents or not schema_path.is_file():
+        raise ProfileError(f"{manifest_path}: vfio-user schema escapes or is missing")
+    if entry.get("sha256") != digest(schema_path):
+        raise ProfileError(f"{manifest_path}: vfio-user schema digest mismatch")
+    return validate_profile(schema_path)
+
+
+def header_text(profile: dict[str, Any]) -> str:
+    bars = {item["index"]: item for item in profile["bars"]}
+    return f"""/* Generated by tools/validate-vfio-user-profile.py; do not edit. */
+#ifndef METAFLUX_VFIO_USER_GENERATED_PROFILE_H
+#define METAFLUX_VFIO_USER_GENERATED_PROFILE_H
+
+#include <stdint.h>
+
+#define MF_VFIO_USER_PROFILE_PAGE_SIZE UINT64_C({profile['page_size']})
+#define MF_VFIO_USER_PROFILE_BAR0_OFFSET UINT64_C({bars[0]['offset']})
+#define MF_VFIO_USER_PROFILE_BAR0_SIZE UINT64_C({bars[0]['size']})
+#define MF_VFIO_USER_PROFILE_BAR2_OFFSET UINT64_C({bars[2]['offset']})
+#define MF_VFIO_USER_PROFILE_BAR2_SIZE UINT64_C({bars[2]['size']})
+#define MF_VFIO_USER_PROFILE_BAR4_OFFSET UINT64_C({bars[4]['offset']})
+#define MF_VFIO_USER_PROFILE_BAR4_SIZE UINT64_C({bars[4]['size']})
+#define MF_VFIO_USER_PROFILE_MSIX_VECTORS UINT32_C({profile['msix_vectors']})
+#define MF_VFIO_USER_PROFILE_DOORBELL_WIDTH UINT32_C({profile['doorbell_width']})
+
+#endif
+"""
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path("."))
+    parser.add_argument("--manifest", type=Path,
+                        default=Path("contracts/protocol/transport/v1/schema/manifest.json"))
+    parser.add_argument("--generate-header", type=Path)
+    arguments = parser.parse_args()
+    root = arguments.root.resolve()
+    manifest = arguments.manifest if arguments.manifest.is_absolute() else root / arguments.manifest
+    try:
+        profile = validate(root, manifest.resolve())
+        if arguments.generate_header is not None:
+            output = arguments.generate_header.resolve()
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(header_text(profile), encoding="utf-8")
+    except ProfileError as error:
+        print(f"vfio-user profile: invalid: {error}", file=sys.stderr)
+        return 1
+    print(f"vfio-user profile: ok ({profile['id']} {profile['version']})")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

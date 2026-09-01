@@ -1,4 +1,5 @@
 #include <metaflux/transport/vfio_user_server.hpp>
+#include <metaflux/transport/vfio_user_profile.h>
 
 #include <array>
 #include <algorithm>
@@ -384,14 +385,14 @@ ServerResult VfioUserServer::handle_get_info(const mf_transport_message_header_v
   mf_vfio_user_get_info_reply_v0 info{};
   info.status = status_code(MF_SHARED_SUCCESS);
   info.device_generation = config_.device_generation;
-  info.bar0_offset = 0U;
-  info.bar0_size = UINT64_C(65536);
-  info.bar2_offset = UINT64_C(65536);
-  info.bar2_size = UINT64_C(4096);
-  info.bar4_offset = UINT64_C(69632);
-  info.bar4_size = UINT64_C(4096);
-  info.msix_vectors = 2U;
-  info.doorbell_width = 4U;
+  info.bar0_offset = MF_VFIO_USER_PROFILE_BAR0_OFFSET;
+  info.bar0_size = MF_VFIO_USER_PROFILE_BAR0_SIZE;
+  info.bar2_offset = MF_VFIO_USER_PROFILE_BAR2_OFFSET;
+  info.bar2_size = MF_VFIO_USER_PROFILE_BAR2_SIZE;
+  info.bar4_offset = MF_VFIO_USER_PROFILE_BAR4_OFFSET;
+  info.bar4_size = MF_VFIO_USER_PROFILE_BAR4_SIZE;
+  info.msix_vectors = MF_VFIO_USER_PROFILE_MSIX_VECTORS;
+  info.doorbell_width = MF_VFIO_USER_PROFILE_DOORBELL_WIDTH;
   state_ = ServerState::Configuring;
   return reply_payload(header.message_id, header.message_type, &info, sizeof(info), no_reply);
 }
