@@ -144,6 +144,7 @@ void VulkanQueueExecutor::retire_completions(std::uint64_t completed_value) noex
 }
 
 QueueExecutionStatus VulkanQueueExecutor::create_stream(std::uint64_t stream_id) {
+  const std::lock_guard<std::recursive_mutex> lock(mutex_);
   return map(ledger_.create_stream(stream_id));
 }
 
@@ -151,6 +152,7 @@ QueueExecutionStatus VulkanQueueExecutor::submit(
     std::uint64_t generation, std::uint64_t stream_id, OperationKind kind, Visibility visibility,
     std::span<const Dependency> dependencies, VkCommandBuffer command_buffer,
     QueueSubmission* out_submission) {
+  const std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (context_ == nullptr || out_submission == nullptr || command_buffer == VK_NULL_HANDLE) {
     return QueueExecutionStatus::invalid_argument;
   }
@@ -215,6 +217,7 @@ QueueExecutionStatus VulkanQueueExecutor::submit_compute(
     std::span<const Dependency> dependencies, VkCommandBuffer command_buffer,
     std::uint32_t groups_x, std::uint32_t groups_y, std::uint32_t groups_z,
     QueueSubmission* out_submission) {
+  const std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (context_ == nullptr || out_submission == nullptr || command_buffer == VK_NULL_HANDLE ||
       !pipeline.uses_context(*context_)) {
     return QueueExecutionStatus::invalid_argument;
@@ -257,6 +260,7 @@ QueueExecutionStatus VulkanQueueExecutor::submit_warm_launch(
     OperationKind kind, Visibility visibility, std::span<const Dependency> dependencies,
     VkCommandBuffer command_buffer, std::uint64_t argument_block_size,
     QueueSubmission* out_submission) {
+  const std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (!session.active() || session.generation() != generation) {
     return session.active() && generation != 0U ? QueueExecutionStatus::stale_generation
                                                 : QueueExecutionStatus::invalid_argument;
@@ -286,6 +290,7 @@ QueueExecutionStatus VulkanQueueExecutor::submit_warm_compute(
     VkCommandBuffer command_buffer, std::uint32_t groups_x, std::uint32_t groups_y,
     std::uint32_t groups_z, std::uint64_t argument_block_size,
     QueueSubmission* out_submission) {
+  const std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (context_ == nullptr || out_submission == nullptr || command_buffer == VK_NULL_HANDLE ||
       !session.active() || session.generation() != generation ||
       !pipeline.uses_context(*context_)) {
@@ -336,6 +341,7 @@ QueueExecutionStatus VulkanQueueExecutor::submit_warm_compute(
 
 QueueExecutionStatus VulkanQueueExecutor::complete(std::uint64_t generation,
                                                    std::uint64_t completed_value) noexcept {
+  const std::lock_guard<std::recursive_mutex> lock(mutex_);
   const auto status = map(ledger_.complete(generation, completed_value));
   if (status == QueueExecutionStatus::success) {
     retire_completions(completed_value);
@@ -345,6 +351,7 @@ QueueExecutionStatus VulkanQueueExecutor::complete(std::uint64_t generation,
 
 QueueExecutionStatus VulkanQueueExecutor::poll(std::uint64_t generation,
                                                 std::uint64_t* out_completed_value) noexcept {
+  const std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (context_ == nullptr || out_completed_value == nullptr || generation == 0U) {
     return QueueExecutionStatus::invalid_argument;
   }
@@ -379,6 +386,7 @@ QueueExecutionStatus VulkanQueueExecutor::poll(std::uint64_t generation,
 
 QueueExecutionStatus VulkanQueueExecutor::wait(std::uint64_t generation, std::uint64_t value,
                                                 std::uint64_t timeout_ns) noexcept {
+  const std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (context_ == nullptr || generation == 0U || value == 0U) {
     return QueueExecutionStatus::invalid_argument;
   }

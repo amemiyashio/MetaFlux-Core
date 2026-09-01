@@ -209,6 +209,31 @@ bool physical_pipeline_round_trip() {
         vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
         return false;
       }
+      if (executor.create_stream(2U) !=
+              metaflux::backend::vulkan::QueueExecutionStatus::success ||
+          vkResetCommandBuffer(command_buffer, 0U) != VK_SUCCESS ||
+          vkBeginCommandBuffer(command_buffer, &begin) != VK_SUCCESS) {
+        vkDestroyCommandPool(context.device_handle(), pool, nullptr);
+        vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
+        return false;
+      }
+      const std::array<metaflux::backend::vulkan::Dependency, 1> cross_stream_dependency{{
+          metaflux::backend::vulkan::Dependency{
+              .stream_id = 1U, .timeline_value = submission.completion_value}}};
+      metaflux::backend::vulkan::QueueSubmission dependent_submission{};
+      const auto dependent_submitted = executor.submit_compute(
+          pipeline, 7U, 2U, cross_stream_dependency, command_buffer, 1U, 1U, 1U,
+          &dependent_submission);
+      const auto dependent_waited =
+          dependent_submitted == metaflux::backend::vulkan::QueueExecutionStatus::success
+              ? executor.wait(7U, dependent_submission.completion_value,
+                              UINT64_C(5000000000))
+              : dependent_submitted;
+      if (dependent_waited != metaflux::backend::vulkan::QueueExecutionStatus::success) {
+        vkDestroyCommandPool(context.device_handle(), pool, nullptr);
+        vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
+        return false;
+      }
       char directory_template[] = "/tmp/metaflux-vulkan-warm-XXXXXX";
       const char* directory = ::mkdtemp(directory_template);
       if (directory == nullptr) {

@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <new>
 #include <span>
 
@@ -93,6 +94,7 @@ public:
                                            std::uint64_t value,
                                            std::uint64_t timeout_ns) noexcept;
   [[nodiscard]] std::size_t in_flight_count() const noexcept {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     return ledger_.in_flight_count();
   }
 
@@ -110,6 +112,7 @@ private:
   QueueSubmissionLedger ledger_;
   const std::size_t completion_capacity_ = 0U;
   std::unique_ptr<CompletionRecord[]> completion_records_;
+  mutable std::recursive_mutex mutex_;
   std::uint64_t last_completed_value_ = 0U;
   bool physical_submission_failed_ = false;
 };
