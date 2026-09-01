@@ -4,6 +4,7 @@
 #include "vulkan_staging.hpp"
 
 #include <cstdint>
+#include <mutex>
 
 namespace metaflux::backend::vulkan {
 
@@ -22,7 +23,7 @@ public:
   VulkanDeviceLocalCopy& operator=(VulkanDeviceLocalCopy&&) = delete;
 
   [[nodiscard]] AllocationStatus allocate(VkDeviceSize size, VkDeviceSize alignment) noexcept;
-  [[nodiscard]] AllocationStatus map() noexcept { return staging_.map(); }
+  [[nodiscard]] AllocationStatus map() noexcept;
   [[nodiscard]] AllocationStatus upload(VkDeviceSize offset, VkDeviceSize size,
                                         std::uint64_t timeout_ns) noexcept;
   [[nodiscard]] AllocationStatus download(VkDeviceSize offset, VkDeviceSize size,
@@ -30,6 +31,7 @@ public:
   void destroy() noexcept;
 
   [[nodiscard]] bool ready() const noexcept {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     return staging_.ready() && device_.buffer != VK_NULL_HANDLE &&
            device_.memory != VK_NULL_HANDLE && command_pool_ != VK_NULL_HANDLE &&
            command_buffer_ != VK_NULL_HANDLE;
@@ -54,6 +56,7 @@ private:
   VulkanBufferAllocation device_{};
   VkCommandPool command_pool_ = VK_NULL_HANDLE;
   VkCommandBuffer command_buffer_ = VK_NULL_HANDLE;
+  mutable std::recursive_mutex mutex_;
 };
 
 } // namespace metaflux::backend::vulkan

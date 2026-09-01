@@ -66,6 +66,7 @@ VulkanDeviceLocalCopy::select_memory_type(const VkPhysicalDeviceMemoryProperties
 
 AllocationStatus VulkanDeviceLocalCopy::allocate(VkDeviceSize size,
                                                  VkDeviceSize alignment) noexcept {
+  const std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (context_ == nullptr || !context_->ready()) {
     return context_ != nullptr && context_->lost() ? AllocationStatus::device_lost
                                                    : AllocationStatus::not_ready;
@@ -155,6 +156,11 @@ AllocationStatus VulkanDeviceLocalCopy::allocate(VkDeviceSize size,
   return status;
 }
 
+AllocationStatus VulkanDeviceLocalCopy::map() noexcept {
+  const std::lock_guard<std::recursive_mutex> lock(mutex_);
+  return staging_.map();
+}
+
 AllocationStatus VulkanDeviceLocalCopy::record_copy(VkBuffer source, VkBuffer destination,
                                                     VkDeviceSize offset,
                                                     VkDeviceSize size) noexcept {
@@ -199,6 +205,7 @@ AllocationStatus VulkanDeviceLocalCopy::submit_copy(std::uint64_t timeout_ns) no
 
 AllocationStatus VulkanDeviceLocalCopy::upload(VkDeviceSize offset, VkDeviceSize size,
                                                std::uint64_t timeout_ns) noexcept {
+  const std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (!staging_.ready() || staging_.allocation().mapped == nullptr ||
       device_.buffer == VK_NULL_HANDLE) {
     return AllocationStatus::not_ready;
@@ -216,6 +223,7 @@ AllocationStatus VulkanDeviceLocalCopy::upload(VkDeviceSize offset, VkDeviceSize
 
 AllocationStatus VulkanDeviceLocalCopy::download(VkDeviceSize offset, VkDeviceSize size,
                                                  std::uint64_t timeout_ns) noexcept {
+  const std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (!staging_.ready() || staging_.allocation().mapped == nullptr ||
       device_.buffer == VK_NULL_HANDLE) {
     return AllocationStatus::not_ready;
@@ -232,6 +240,7 @@ AllocationStatus VulkanDeviceLocalCopy::download(VkDeviceSize offset, VkDeviceSi
 }
 
 void VulkanDeviceLocalCopy::destroy() noexcept {
+  const std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (context_ == nullptr || context_->device_handle() == VK_NULL_HANDLE) {
     command_pool_ = VK_NULL_HANDLE;
     command_buffer_ = VK_NULL_HANDLE;

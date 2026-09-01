@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <atomic>
+#include <thread>
 
 namespace {
 
@@ -212,9 +214,45 @@ int main() {
         return 11;
       }
     }
+    std::atomic<bool> concurrent_uploads_ok{true};
+    std::thread first_upload([&] {
+      if (transfer.upload(0U, 2048U, UINT64_C(5000000000)) !=
+          metaflux::backend::vulkan::AllocationStatus::success) {
+        concurrent_uploads_ok.store(false, std::memory_order_relaxed);
+      }
+    });
+    std::thread second_upload([&] {
+      if (transfer.upload(2048U, 2048U, UINT64_C(5000000000)) !=
+          metaflux::backend::vulkan::AllocationStatus::success) {
+        concurrent_uploads_ok.store(false, std::memory_order_relaxed);
+      }
+    });
+    first_upload.join();
+    second_upload.join();
+    if (!concurrent_uploads_ok.load(std::memory_order_relaxed)) {
+      return 12;
+    }
+    std::atomic<bool> concurrent_downloads_ok{true};
+    std::thread first_download([&] {
+      if (transfer.download(0U, 2048U, UINT64_C(5000000000)) !=
+          metaflux::backend::vulkan::AllocationStatus::success) {
+        concurrent_downloads_ok.store(false, std::memory_order_relaxed);
+      }
+    });
+    std::thread second_download([&] {
+      if (transfer.download(2048U, 2048U, UINT64_C(5000000000)) !=
+          metaflux::backend::vulkan::AllocationStatus::success) {
+        concurrent_downloads_ok.store(false, std::memory_order_relaxed);
+      }
+    });
+    first_download.join();
+    second_download.join();
+    if (!concurrent_downloads_ok.load(std::memory_order_relaxed)) {
+      return 13;
+    }
     if (transfer.upload(4096U, 1U, UINT64_C(5000000000)) !=
         metaflux::backend::vulkan::AllocationStatus::range_out_of_bounds) {
-      return 12;
+      return 14;
     }
   }
 
