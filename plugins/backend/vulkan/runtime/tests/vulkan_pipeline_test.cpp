@@ -1,9 +1,11 @@
 #include "../src/vulkan_pipeline.hpp"
+#include "../src/vulkan_pipeline_cache.hpp"
 
 #include <metaflux/backend/vulkan_capability.hpp>
 #include <metaflux/backend/vulkan.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <fstream>
@@ -24,6 +26,17 @@ bool invalid_guards() {
                          VK_NULL_HANDLE) == PipelineStatus::not_ready &&
          std::string(metaflux::backend::vulkan::pipeline_status_string(
              PipelineStatus::compile_required)) == "compile-required";
+}
+
+bool invalid_cache_guard() {
+  using metaflux::backend::vulkan::PipelineCacheStatus;
+  using metaflux::backend::vulkan::VulkanPipelineCache;
+  metaflux::backend::vulkan::VulkanDeviceContext context(7U);
+  VulkanPipelineCache cache(context);
+  const std::array<std::uint8_t, 4> malformed{0U, 0U, 0U, 0U};
+  return cache.create(malformed) == PipelineCacheStatus::not_ready &&
+         std::string(metaflux::backend::vulkan::pipeline_cache_status_string(
+             PipelineCacheStatus::corrupt)) == "corrupt";
 }
 
 #ifdef METAFLUX_VULKAN_PIPELINE_FIXTURE
@@ -48,6 +61,7 @@ bool physical_pipeline_round_trip() {
   using metaflux::backend::vulkan::PipelineStatus;
   using metaflux::backend::vulkan::VulkanComputePipeline;
   using metaflux::backend::vulkan::VulkanDeviceContext;
+  using metaflux::backend::vulkan::VulkanPipelineCache;
   mf_vulkan_capability_profile_v1 profile{};
   const auto probe_status = metaflux::backend::vulkan::probe(&profile);
   if (probe_status == MF_VULKAN_PROBE_LOADER_UNAVAILABLE ||
@@ -82,7 +96,12 @@ bool physical_pipeline_round_trip() {
     return false;
   }
   VulkanComputePipeline pipeline(context);
-  const auto status = pipeline.create(words, "main", layout);
+  VulkanPipelineCache cache(context);
+  if (cache.create() != metaflux::backend::vulkan::PipelineCacheStatus::success) {
+    vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
+    return false;
+  }
+  const auto status = pipeline.create(words, "main", layout, cache.handle());
   const bool ready = status == PipelineStatus::success && pipeline.ready();
   if (ready) {
     VkCommandPoolCreateInfo pool_info{};
@@ -125,6 +144,22 @@ bool physical_pipeline_round_trip() {
       return false;
     }
   }
+  std::vector<std::uint8_t> cache_bytes;
+  const auto exported = cache.export_data(&cache_bytes);
+  if (ready && exported != metaflux::backend::vulkan::PipelineCacheStatus::success) {
+    vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
+    return false;
+  }
+  if (ready && !cache_bytes.empty()) {
+    pipeline.destroy();
+    VulkanPipelineCache imported(context);
+    if (imported.create(cache_bytes) !=
+            metaflux::backend::vulkan::PipelineCacheStatus::success ||
+        pipeline.create(words, "main", layout, imported.handle()) != PipelineStatus::success) {
+      vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
+      return false;
+    }
+  }
   vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
   if (!ready) {
     std::fprintf(stderr, "vulkan pipeline creation failed: %s\n",
@@ -137,7 +172,7 @@ bool physical_pipeline_round_trip() {
 } // namespace
 
 int main() {
-  if (!invalid_guards()) {
+  if (!invalid_guards() || !invalid_cache_guard()) {
     return 1;
   }
 #ifdef METAFLUX_VULKAN_PIPELINE_FIXTURE

@@ -11,6 +11,7 @@ add_library(
   src/vulkan_admission.cpp
   src/vulkan_queue.cpp
   src/vulkan_pipeline.cpp
+  src/vulkan_pipeline_cache.cpp
   src/vulkan_staging.cpp
   src/vulkan_device_copy.cpp
 )

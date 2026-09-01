@@ -113,8 +113,13 @@ removes corrupt unpinned entries for rebuild and protects live references from
 eviction. `CacheFileStore` persists either key class with a complete envelope,
 payload digest, process-unique temporary file, `fsync`, and atomic rename;
 truncated or mismatched entries are removed before returning `corrupt`, and a
-device-bound key can be explicitly invalidated. Cross-process stampede control,
-opaque `VkPipelineCache` data, and warm-launch tracing remain open.
+device-bound key can be explicitly invalidated. Cross-process stampede control
+and warm-launch tracing remain open. The runtime now owns a source-local
+`VkPipelineCache` boundary: a cold pipeline build can import a device-bound
+opaque payload, export the updated payload after build, and hand the bytes back
+to `PersistentCacheRepository`. The cache object is destroyed with its
+generation-bound device and never crosses the stable C ABI; the repository
+still owns identity, pinning, atomic persistence, and invalidation.
 
 `PersistentCacheRepository` is the current host-independent integration
 boundary. It admits a publish against the resident catalog before writing the

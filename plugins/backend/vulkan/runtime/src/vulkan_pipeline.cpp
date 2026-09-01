@@ -45,7 +45,8 @@ PipelineStatus VulkanComputePipeline::map_result(VkResult result) noexcept {
 
 PipelineStatus VulkanComputePipeline::create(std::span<const std::uint32_t> spirv,
                                              std::string_view entry_point,
-                                             VkPipelineLayout layout) noexcept {
+                                             VkPipelineLayout layout,
+                                             VkPipelineCache cache) noexcept {
   if (context_ == nullptr || !context_->ready()) {
     return context_ != nullptr && context_->lost() ? PipelineStatus::device_lost
                                                     : PipelineStatus::not_ready;
@@ -79,7 +80,7 @@ PipelineStatus VulkanComputePipeline::create(std::span<const std::uint32_t> spir
     pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     pipeline_info.stage = stage;
     pipeline_info.layout = layout;
-    status = map_result(vkCreateComputePipelines(context_->device_handle(), VK_NULL_HANDLE, 1U,
+    status = map_result(vkCreateComputePipelines(context_->device_handle(), cache, 1U,
                                                   &pipeline_info, nullptr, &pipeline_));
     if (status != PipelineStatus::success) {
       if (shader_module_ != VK_NULL_HANDLE) {
@@ -98,7 +99,7 @@ PipelineStatus VulkanComputePipeline::create(std::span<const std::uint32_t> spir
 PipelineStatus VulkanComputePipeline::create_validated(
     const mf_vulkan_capability_profile_v1& profile, const SpirvModuleRequirements& module,
     const SpirvReflection& reflection, std::span<const std::uint32_t> spirv,
-    VkPipelineLayout layout) noexcept {
+    VkPipelineLayout layout, VkPipelineCache cache) noexcept {
   const auto status = validate_spirv_reflection(profile, module, reflection);
   if (status != TargetStatus::success) {
     return status == TargetStatus::target_mismatch ? PipelineStatus::target_mismatch
@@ -107,7 +108,7 @@ PipelineStatus VulkanComputePipeline::create_validated(
   if (reflection.entry_point.empty()) {
     return PipelineStatus::invalid_module;
   }
-  return create(spirv, reflection.entry_point, layout);
+  return create(spirv, reflection.entry_point, layout, cache);
 }
 
 PipelineStatus VulkanComputePipeline::bind(VkCommandBuffer command_buffer) const noexcept {

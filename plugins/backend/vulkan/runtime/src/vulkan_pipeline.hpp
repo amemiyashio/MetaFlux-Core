@@ -38,11 +38,12 @@ public:
 
   [[nodiscard]] PipelineStatus create(std::span<const std::uint32_t> spirv,
                                       std::string_view entry_point,
-                                      VkPipelineLayout layout) noexcept;
+                                      VkPipelineLayout layout,
+                                      VkPipelineCache cache = VK_NULL_HANDLE) noexcept;
   [[nodiscard]] PipelineStatus create_validated(
       const mf_vulkan_capability_profile_v1& profile, const SpirvModuleRequirements& module,
       const SpirvReflection& reflection, std::span<const std::uint32_t> spirv,
-      VkPipelineLayout layout) noexcept;
+      VkPipelineLayout layout, VkPipelineCache cache = VK_NULL_HANDLE) noexcept;
   [[nodiscard]] PipelineStatus bind(VkCommandBuffer command_buffer) const noexcept;
   void destroy() noexcept;
 
