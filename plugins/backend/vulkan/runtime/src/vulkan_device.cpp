@@ -152,6 +152,12 @@ SelectionResult select_profile_device(VkInstance instance,
 VulkanDeviceContext::~VulkanDeviceContext() noexcept { destroy_handles(); }
 
 void VulkanDeviceContext::destroy_handles() noexcept {
+  if (device_ != VK_NULL_HANDLE) {
+    // All source-local buffers, pipelines, and command resources are owned by
+    // callers, so context teardown must not invalidate them while the queue is
+    // still executing. Device loss makes this wait return immediately.
+    (void)vkDeviceWaitIdle(device_);
+  }
   if (timeline_ != VK_NULL_HANDLE && device_ != VK_NULL_HANDLE) {
     vkDestroySemaphore(device_, timeline_, nullptr);
   }

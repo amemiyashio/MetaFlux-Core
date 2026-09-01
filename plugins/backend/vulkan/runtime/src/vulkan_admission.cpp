@@ -15,6 +15,15 @@ bool nonzero_bytes(const std::uint8_t* bytes, std::size_t count) noexcept {
          std::any_of(bytes, bytes + count, [](std::uint8_t byte) { return byte != 0U; });
 }
 
+bool zero_bytes(const std::uint8_t* bytes, std::size_t count) noexcept {
+  return bytes != nullptr &&
+         std::all_of(bytes, bytes + count, [](std::uint8_t byte) { return byte == 0U; });
+}
+
+bool terminated_string(const char* bytes, std::size_t count) noexcept {
+  return bytes != nullptr && bytes[0] != '\0' && std::memchr(bytes, '\0', count) != nullptr;
+}
+
 bool valid_transport(VulkanTransport transport) noexcept {
   return transport == VulkanTransport::memfd || transport == VulkanTransport::local_cdev ||
          transport == VulkanTransport::vfio_user;
@@ -51,13 +60,26 @@ bool valid_capability_profile(const mf_vulkan_capability_profile_v1& profile) no
   return profile.struct_size == sizeof(profile) &&
          profile.abi_version == MF_VULKAN_CAPABILITY_ABI_VERSION_1 &&
          profile.status == MF_VULKAN_PROBE_SUCCESS &&
-         profile.api_version >= MF_VULKAN_API_VERSION_1_3 && profile.queue_count != 0U &&
+         profile.api_version >= MF_VULKAN_API_VERSION_1_3 &&
+         profile.queue_family_index != UINT32_MAX && profile.queue_count != 0U &&
+         profile.subgroup_size_min != 0U &&
+         profile.subgroup_size_min <= profile.subgroup_size_max &&
+         profile.max_compute_workgroup_invocations != 0U &&
+         profile.max_compute_workgroup_size[0] != 0U &&
+         profile.max_compute_workgroup_size[1] != 0U &&
+         profile.max_compute_workgroup_size[2] != 0U &&
+         profile.max_storage_buffer_range != 0U && profile.max_uniform_buffer_range != 0U &&
          profile.vendor_id != 0U &&
          (profile.feature_flags & kRequiredFeatures) == kRequiredFeatures &&
          (profile.memory_tier_flags & MF_VULKAN_MEMORY_TIER_STAGING) != 0U &&
-         profile.target_environment[0] != '\0' &&
+         profile.memory_heap_count != 0U && profile.memory_type_count != 0U &&
+         profile.device_local_heap_bytes != 0U && profile.host_visible_heap_bytes != 0U &&
+         terminated_string(profile.target_environment, sizeof(profile.target_environment)) &&
          nonzero_bytes(profile.device_uuid, sizeof(profile.device_uuid)) &&
-         nonzero_bytes(profile.target_digest, sizeof(profile.target_digest));
+         nonzero_bytes(profile.driver_uuid, sizeof(profile.driver_uuid)) &&
+         nonzero_bytes(profile.pipeline_cache_uuid, sizeof(profile.pipeline_cache_uuid)) &&
+         nonzero_bytes(profile.target_digest, sizeof(profile.target_digest)) &&
+         zero_bytes(profile.reserved, sizeof(profile.reserved));
 }
 
 AdmissionStatus VulkanBackendAdmission::admit(const mf_vulkan_capability_profile_v1& profile,

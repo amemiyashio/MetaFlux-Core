@@ -19,13 +19,28 @@ mf_vulkan_capability_profile_v1 admission_profile() {
   profile.status = MF_VULKAN_PROBE_SUCCESS;
   profile.api_version = MF_VULKAN_API_VERSION_1_3;
   profile.vendor_id = 1U;
+  profile.queue_family_index = 0U;
   profile.queue_count = 1U;
+  profile.subgroup_size_min = 32U;
+  profile.subgroup_size_max = 32U;
+  profile.max_compute_workgroup_invocations = 1024U;
+  profile.max_compute_workgroup_size[0] = 1024U;
+  profile.max_compute_workgroup_size[1] = 1024U;
+  profile.max_compute_workgroup_size[2] = 64U;
+  profile.max_storage_buffer_range = 1U;
+  profile.max_uniform_buffer_range = 1U;
   profile.feature_flags = MF_VULKAN_FEATURE_TIMELINE_SEMAPHORE |
                           MF_VULKAN_FEATURE_SYNCHRONIZATION2 |
                           MF_VULKAN_FEATURE_BUFFER_DEVICE_ADDRESS;
   profile.memory_tier_flags = MF_VULKAN_MEMORY_TIER_STAGING;
+  profile.memory_heap_count = 1U;
+  profile.memory_type_count = 1U;
+  profile.device_local_heap_bytes = 1U;
+  profile.host_visible_heap_bytes = 1U;
   profile.target_environment[0] = 'x';
   profile.device_uuid[0] = 1U;
+  profile.driver_uuid[0] = 1U;
+  profile.pipeline_cache_uuid[0] = 1U;
   profile.target_digest[0] = 1U;
   return profile;
 }
@@ -35,6 +50,28 @@ bool admission_guards() {
   using metaflux::backend::vulkan::VulkanBackendAdmission;
   using metaflux::backend::vulkan::VulkanTransport;
   const auto profile = admission_profile();
+
+  auto incomplete = profile;
+  incomplete.max_compute_workgroup_size[0] = 0U;
+  VulkanBackendAdmission incomplete_admission;
+  if (incomplete_admission.admit(incomplete, 42U, VulkanTransport::local_cdev) !=
+      AdmissionStatus::invalid_argument) {
+    return false;
+  }
+  auto missing_identity = profile;
+  missing_identity.driver_uuid[0] = 0U;
+  VulkanBackendAdmission missing_identity_admission;
+  if (missing_identity_admission.admit(missing_identity, 42U, VulkanTransport::local_cdev) !=
+      AdmissionStatus::invalid_argument) {
+    return false;
+  }
+  auto reserved = profile;
+  reserved.reserved[0] = 1U;
+  VulkanBackendAdmission reserved_admission;
+  if (reserved_admission.admit(reserved, 42U, VulkanTransport::local_cdev) !=
+      AdmissionStatus::invalid_argument) {
+    return false;
+  }
 
   VulkanBackendAdmission admission;
   if (admission.admit(profile, 42U, VulkanTransport::local_cdev) != AdmissionStatus::success ||
