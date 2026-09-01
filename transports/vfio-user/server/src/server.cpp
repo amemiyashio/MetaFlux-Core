@@ -8,6 +8,7 @@
 #include <limits>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <unistd.h>
 
 namespace metaflux::transport::vfio_user {
@@ -68,6 +69,9 @@ VfioUserServer::VfioUserServer(int fd, ServerConfig config) noexcept : fd_(fd), 
 VfioUserServer::~VfioUserServer() {
   const auto close_mappings = [](const std::vector<DmaMapping>& mappings) noexcept {
     for (const DmaMapping& mapping : mappings) {
+      if (mapping.mapped_address != nullptr && mapping.mapped_size != 0U) {
+        (void)::munmap(mapping.mapped_address, mapping.mapped_size);
+      }
       if (mapping.fd >= 0) {
         (void)::close(mapping.fd);
       }
@@ -154,6 +158,24 @@ bool VfioUserServer::dma_lookup(std::uint64_t iova, std::uint64_t size,
   return false;
 }
 
+void* VfioUserServer::dma_host_address(std::uint64_t iova, std::uint64_t size,
+                                       std::uint32_t permission) noexcept {
+  if (!dma_lookup(iova, size, permission)) {
+    return nullptr;
+  }
+  for (DmaMapping& mapping : mappings_) {
+    if (mapping.revoking || mapping.finalized || iova < mapping.iova ||
+        range_overflows(iova, size) || iova + size > mapping.iova + mapping.size ||
+        (mapping.permissions & permission) != permission || mapping.mapped_address == nullptr ||
+        mapping.mapped_size != mapping.size) {
+      continue;
+    }
+    const std::uint64_t delta = iova - mapping.iova;
+    return static_cast<std::uint8_t*>(mapping.mapped_address) + delta;
+  }
+  return nullptr;
+}
+
 bool VfioUserServer::dma_acquire(std::uint64_t iova, std::uint64_t size,
                                  std::uint32_t permission, DmaLease& out) noexcept {
   out = DmaLease{};
@@ -192,6 +214,11 @@ void VfioUserServer::finalize_mapping(DmaMapping& mapping) noexcept {
   if (mapping.fd >= 0) {
     (void)::close(mapping.fd);
     mapping.fd = -1;
+  }
+  if (mapping.mapped_address != nullptr && mapping.mapped_size != 0U) {
+    (void)::munmap(mapping.mapped_address, mapping.mapped_size);
+    mapping.mapped_address = nullptr;
+    mapping.mapped_size = 0U;
   }
   if (mapped_bytes_ >= mapping.size) {
     mapped_bytes_ -= mapping.size;
@@ -425,17 +452,32 @@ ServerResult VfioUserServer::handle_dma_map(const mf_transport_message_header_v0
   if (overlaps(mappings_) || overlaps(retired_mappings_)) {
     return fail(MF_SHARED_INVALID_ARGUMENT);
   }
+  int protection = 0;
+  if ((request.flags & MF_VFIO_USER_DMA_READ_V0) != 0U) {
+    protection |= PROT_READ;
+  }
+  if ((request.flags & MF_VFIO_USER_DMA_WRITE_V0) != 0U) {
+    protection |= PROT_WRITE;
+  }
+  void* mapped_address = ::mmap(nullptr, request.size, protection, MAP_SHARED, received_fd,
+                                 static_cast<off_t>(request.file_offset));
+  if (mapped_address == MAP_FAILED) {
+    return fail(MF_SHARED_SYSTEM_ERROR);
+  }
   duplicate_fd = ::fcntl(received_fd, F_DUPFD_CLOEXEC, 0);
   (void)::close(received_fd);
   if (duplicate_fd < 0) {
+    (void)::munmap(mapped_address, request.size);
     return reply(header.message_id, header.message_type, MF_SHARED_SYSTEM_ERROR, nullptr, 0U,
                  no_reply);
   }
   try {
     mappings_.push_back({request.iova, request.size, request.file_offset, request.mapping_epoch,
-                         request.device_generation, request.flags, duplicate_fd});
+                         request.device_generation, request.flags, duplicate_fd, mapped_address,
+                         request.size});
   } catch (...) {
     (void)::close(duplicate_fd);
+    (void)::munmap(mapped_address, request.size);
     return reply(header.message_id, header.message_type, MF_SHARED_SYSTEM_ERROR, nullptr, 0U,
                  no_reply);
   }

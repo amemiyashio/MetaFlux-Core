@@ -60,6 +60,8 @@ struct DmaMapping final {
   std::uint64_t device_generation = 0U;
   std::uint32_t permissions = 0U;
   int fd = -1;
+  void* mapped_address = nullptr;
+  std::uint64_t mapped_size = 0U;
   bool revoking = false;
   bool finalized = false;
   std::vector<std::uint64_t> lease_ids{};
@@ -96,6 +98,8 @@ public:
   std::size_t retired_mapping_count() const noexcept { return retired_mappings_.size(); }
   std::uint64_t mapped_bytes() const noexcept { return mapped_bytes_; }
   bool dma_lookup(std::uint64_t iova, std::uint64_t size, std::uint32_t permission) const noexcept;
+  [[nodiscard]] void* dma_host_address(std::uint64_t iova, std::uint64_t size,
+                                       std::uint32_t permission) noexcept;
   [[nodiscard]] bool dma_acquire(std::uint64_t iova, std::uint64_t size,
                                  std::uint32_t permission, DmaLease& out) noexcept;
   [[nodiscard]] bool dma_release(const DmaLease& lease) noexcept;

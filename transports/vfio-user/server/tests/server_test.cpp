@@ -192,6 +192,19 @@ int main() {
     close(memfd);
     return 1;
   }
+  auto* mapped = static_cast<std::uint8_t*>(
+      server.dma_host_address(0x1200U, 0x100U, MF_VFIO_USER_DMA_WRITE_V0));
+  std::uint8_t observed = 0U;
+  const std::uint8_t expected = 0xa5U;
+  if (mapped == nullptr) {
+    close(memfd);
+    return 1;
+  }
+  mapped[0x20U] = expected;
+  if (::pread(memfd, &observed, sizeof(observed), 0x220) != 1 || observed != expected) {
+    close(memfd);
+    return 1;
+  }
 
   mf_vfio_user_dma_map_v0 quota_map = map;
   quota_map.iova = 0x3000U;
