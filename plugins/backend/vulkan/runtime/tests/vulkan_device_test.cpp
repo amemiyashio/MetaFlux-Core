@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstring>
 #include <atomic>
+#include <limits>
 #include <thread>
 
 namespace {
@@ -189,6 +190,14 @@ int main() {
         staging.allocate(0U, 256U) !=
             metaflux::backend::vulkan::AllocationStatus::invalid_argument) {
       return 7;
+    }
+    const VkBuffer original_buffer = staging.allocation().buffer;
+    const VkDeviceMemory original_memory = staging.allocation().memory;
+    if (staging.allocate(std::numeric_limits<VkDeviceSize>::max(), 256U) ==
+            metaflux::backend::vulkan::AllocationStatus::success ||
+        staging.allocation().buffer != original_buffer ||
+        staging.allocation().memory != original_memory || !staging.ready()) {
+      return 15;
     }
   }
 

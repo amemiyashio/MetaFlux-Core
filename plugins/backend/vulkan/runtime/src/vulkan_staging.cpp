@@ -43,6 +43,25 @@ AllocationStatus VulkanStagingBuffer::map_result(VkResult result) noexcept {
   }
 }
 
+void VulkanStagingBuffer::destroy_allocation(VulkanDeviceContext& context,
+                                              VulkanBufferAllocation& allocation) noexcept {
+  const VkDevice device = context.device_handle();
+  if (device == VK_NULL_HANDLE) {
+    allocation = {};
+    return;
+  }
+  if (allocation.mapped != nullptr && allocation.memory != VK_NULL_HANDLE) {
+    vkUnmapMemory(device, allocation.memory);
+  }
+  if (allocation.buffer != VK_NULL_HANDLE) {
+    vkDestroyBuffer(device, allocation.buffer, nullptr);
+  }
+  if (allocation.memory != VK_NULL_HANDLE) {
+    vkFreeMemory(device, allocation.memory, nullptr);
+  }
+  allocation = {};
+}
+
 std::uint32_t
 VulkanStagingBuffer::select_memory_type(const VkPhysicalDeviceMemoryProperties& properties,
                                         std::uint32_t type_bits, VkMemoryPropertyFlags required,
@@ -82,7 +101,6 @@ AllocationStatus VulkanStagingBuffer::allocate(VkDeviceSize size, VkDeviceSize a
   if (size == 0U || !power_of_two(alignment)) {
     return AllocationStatus::invalid_argument;
   }
-  destroy();
 
   VkBufferCreateInfo buffer_info{};
   buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -133,14 +151,18 @@ AllocationStatus VulkanStagingBuffer::allocate(VkDeviceSize size, VkDeviceSize a
     vkDestroyBuffer(context_->device_handle(), buffer, nullptr);
     return status;
   }
-  allocation_ = {.buffer = buffer,
-                 .memory = memory,
-                 .requested_size = size,
-                 .allocation_size = requirements.size,
-                 .alignment = std::max(alignment, requirements.alignment),
-                 .atom_size = std::max<VkDeviceSize>(context_->non_coherent_atom_size(), 1U),
-                 .memory_properties = memory_properties,
-                 .mapped = nullptr};
+  VulkanBufferAllocation replacement{.buffer = buffer,
+                                     .memory = memory,
+                                     .requested_size = size,
+                                     .allocation_size = requirements.size,
+                                     .alignment = std::max(alignment, requirements.alignment),
+                                     .atom_size = std::max<VkDeviceSize>(
+                                         context_->non_coherent_atom_size(), 1U),
+                                     .memory_properties = memory_properties,
+                                     .mapped = nullptr};
+  VulkanBufferAllocation previous = allocation_;
+  allocation_ = replacement;
+  destroy_allocation(*context_, previous);
   return AllocationStatus::success;
 }
 
@@ -228,16 +250,7 @@ void VulkanStagingBuffer::destroy() noexcept {
     allocation_ = {};
     return;
   }
-  if (allocation_.mapped != nullptr && allocation_.memory != VK_NULL_HANDLE) {
-    vkUnmapMemory(context_->device_handle(), allocation_.memory);
-  }
-  if (allocation_.buffer != VK_NULL_HANDLE) {
-    vkDestroyBuffer(context_->device_handle(), allocation_.buffer, nullptr);
-  }
-  if (allocation_.memory != VK_NULL_HANDLE) {
-    vkFreeMemory(context_->device_handle(), allocation_.memory, nullptr);
-  }
-  allocation_ = {};
+  destroy_allocation(*context_, allocation_);
 }
 
 const char* allocation_status_string(AllocationStatus status) noexcept {

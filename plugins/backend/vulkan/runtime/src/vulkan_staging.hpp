@@ -55,6 +55,8 @@ private:
                                                  VkDeviceSize* out_offset,
                                                  VkDeviceSize* out_size) const noexcept;
   [[nodiscard]] static AllocationStatus map_result(VkResult result) noexcept;
+  static void destroy_allocation(VulkanDeviceContext& context,
+                                 VulkanBufferAllocation& allocation) noexcept;
   [[nodiscard]] static std::uint32_t
   select_memory_type(const VkPhysicalDeviceMemoryProperties& properties, std::uint32_t type_bits,
                      VkMemoryPropertyFlags required, VkMemoryPropertyFlags preferred,
