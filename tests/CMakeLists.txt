@@ -84,6 +84,28 @@ if(TARGET metaflux_cpu_backend_runtime AND TARGET metaflux_cuda_ptx_frontend AND
   set_tests_properties(metaflux.backend.cpu-launch PROPERTIES LABELS "backend;cpu;cuda;unit")
 endif()
 
+if(TARGET metaflux_transport_cdev_client)
+  add_executable(
+    metaflux_transport_cdev_live_qualification
+    ../kernel/tests/kselftest/cdev_qualification.c
+  )
+  target_link_libraries(
+    metaflux_transport_cdev_live_qualification
+    PRIVATE MetaFlux::TransportCdevClient
+  )
+  metaflux_configure_target(metaflux_transport_cdev_live_qualification C)
+  add_test(
+    NAME metaflux.transport.cdev-live-qualification
+    COMMAND metaflux_transport_cdev_live_qualification
+  )
+  set_tests_properties(
+    metaflux.transport.cdev-live-qualification
+    PROPERTIES
+      LABELS "transport;qualification;live"
+      SKIP_RETURN_CODE 77
+  )
+endif()
+
 if(TARGET metaflux_cuda_ptx_frontend)
   add_executable(metaflux_ptx_frontend_smoke unit/ptx_frontend_smoke.cpp)
   target_link_libraries(metaflux_ptx_frontend_smoke PRIVATE MetaFlux::CudaPtxFrontend)
