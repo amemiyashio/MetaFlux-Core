@@ -1603,13 +1603,24 @@ int32_t mf_client_ring_borrow_fd_v1(const mf_client_ring_v1* ring) {
   return ring == (const mf_client_ring_v1*)0 ? -1 : ring->owned_fd;
 }
 
+static void mf_client_ring_store_descriptor(mf_ring_descriptor_v1* slot,
+                                            const mf_ring_descriptor_v1* descriptor) {
+  uint32_t argument = 0;
+  slot->opcode = descriptor->opcode;
+  slot->flags = descriptor->flags;
+  slot->request_id = descriptor->request_id;
+  slot->target_id = descriptor->target_id;
+  for (argument = 0; argument < UINT32_C(4); ++argument) {
+    slot->arguments[argument] = descriptor->arguments[argument];
+  }
+}
+
 mf_shared_status_v1 mf_client_ring_try_submit_v1(mf_client_ring_v1* ring,
                                                  const mf_ring_descriptor_v1* descriptor) {
   uint64_t position = 0;
   uint64_t sequence = 0;
   uint32_t mask = 0;
   mf_ring_descriptor_v1* slot = (mf_ring_descriptor_v1*)0;
-  uint32_t argument = 0;
 
   if (!mf_client_ring_handle_valid(ring) || descriptor == (const mf_ring_descriptor_v1*)0) {
     return MF_SHARED_INVALID_ARGUMENT;
@@ -1634,14 +1645,65 @@ mf_shared_status_v1 mf_client_ring_try_submit_v1(mf_client_ring_v1* ring,
     position = mf_atomic_load_u64_relaxed(&ring->header->producer.position);
   }
 
-  slot->opcode = descriptor->opcode;
-  slot->flags = descriptor->flags;
-  slot->request_id = descriptor->request_id;
-  slot->target_id = descriptor->target_id;
-  for (argument = 0; argument < UINT32_C(4); ++argument) {
-    slot->arguments[argument] = descriptor->arguments[argument];
-  }
+  mf_client_ring_store_descriptor(slot, descriptor);
   mf_atomic_store_u64_release(&slot->sequence, position + UINT64_C(1));
+  mf_client_ring_wake(&ring->header->wait.consumer_wait_state,
+                      &ring->header->wait.consumer_wake_sequence,
+                      &ring->header->wait.consumer_doorbell_count);
+  return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1 mf_client_ring_try_submit_batch_v1(
+    mf_client_ring_v1* ring, const mf_ring_descriptor_v1* descriptors, uint32_t descriptor_count) {
+  uint64_t position = 0;
+  uint32_t mask = 0;
+  uint32_t index = 0;
+
+  if (!mf_client_ring_handle_valid(ring) || descriptors == (const mf_ring_descriptor_v1*)0 ||
+      descriptor_count == UINT32_C(0)) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  if (descriptor_count > ring->capacity) {
+    return MF_SHARED_WOULD_BLOCK;
+  }
+  mask = ring->capacity - UINT32_C(1);
+  position = mf_atomic_load_u64_relaxed(&ring->header->producer.position);
+  for (;;) {
+    int retry = 0;
+    for (index = 0; index < descriptor_count; ++index) {
+      const uint64_t candidate = position + (uint64_t)index;
+      const mf_ring_descriptor_v1* slot = &ring->descriptors[candidate & (uint64_t)mask];
+      const uint64_t sequence = mf_atomic_load_u64_acquire(&slot->sequence);
+      if (sequence == candidate) {
+        continue;
+      }
+      if (sequence - candidate > UINT64_MAX / UINT64_C(2)) {
+        return MF_SHARED_WOULD_BLOCK;
+      }
+      position = mf_atomic_load_u64_relaxed(&ring->header->producer.position);
+      retry = 1;
+      break;
+    }
+    if (retry != 0) {
+      continue;
+    }
+    {
+      uint64_t expected = position;
+      if (mf_atomic_compare_exchange_u64_weak_relaxed(
+              &ring->header->producer.position, &expected,
+              position + (uint64_t)descriptor_count)) {
+        break;
+      }
+      position = expected;
+    }
+  }
+
+  for (index = 0; index < descriptor_count; ++index) {
+    const uint64_t published_position = position + (uint64_t)index;
+    mf_ring_descriptor_v1* slot = &ring->descriptors[published_position & (uint64_t)mask];
+    mf_client_ring_store_descriptor(slot, &descriptors[index]);
+    mf_atomic_store_u64_release(&slot->sequence, published_position + UINT64_C(1));
+  }
   mf_client_ring_wake(&ring->header->wait.consumer_wait_state,
                       &ring->header->wait.consumer_wake_sequence,
                       &ring->header->wait.consumer_doorbell_count);

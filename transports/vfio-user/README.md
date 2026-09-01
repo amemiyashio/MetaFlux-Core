@@ -13,7 +13,9 @@ queue IDs, registry-view identity, generation, and equal capacity, and exposes
 payload-bound checks plus completion polling/waits. A successful submission
 invokes the injected BAR2 doorbell callback; backpressure and malformed input
 never publish a doorbell. The callback is a host-independent seam for the
-future kernel MMIO path, not physical NVIDIA or QEMU qualification.
+future kernel MMIO path, not physical NVIDIA or QEMU qualification. Batch
+submission uses the fastpath all-or-none reservation and emits one doorbell
+after the complete range is published.
 
 The server keeps vfio-user framing at the boundary and never treats its message
 IDs as unique. IDs are echoed on every reply, may be reused, and `No_reply`

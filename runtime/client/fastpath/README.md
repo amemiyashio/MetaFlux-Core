@@ -41,6 +41,11 @@ outcome is the stable `MF_CLIENT_CONTROL_*` status in response byte 12. An
 SCM_RIGHTS descriptor returned through `out_received_payload_fd` is newly owned by
 the caller.
 
+The batch ring entry point reserves the complete descriptor range with one
+producer-cursor CAS before publishing any slot. Capacity failure therefore
+leaves the producer cursor and every descriptor unchanged, even when other
+producers race with the caller; a successful batch wakes consumers once.
+
 ## Descriptor arguments
 
 | Opcode | `target_id` | `arguments[0..3]` |

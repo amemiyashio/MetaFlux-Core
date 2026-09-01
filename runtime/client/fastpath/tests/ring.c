@@ -365,6 +365,52 @@ static int run_copy_region_submission_test(void) {
   return 0;
 }
 
+static int run_batch_submission_test(void) {
+  const mf_registry_view_id_v1 view_id = {UINT64_C(31), UINT64_C(37)};
+  mf_client_ring_v1 ring;
+  mf_ring_descriptor_v1 batch[3] = {0};
+  mf_ring_descriptor_v1 consumed = {0};
+  uint64_t producer_position = 0;
+  uint64_t consumer_position = 0;
+  uint32_t index = 0;
+
+  if (mf_client_ring_create_v1(UINT32_C(4), view_id, UINT64_C(41), UINT64_C(43), &ring) !=
+      MF_SHARED_SUCCESS) {
+    return 1;
+  }
+  for (index = 0; index < 3U; ++index) {
+    batch[index].opcode = MF_RING_OPCODE_COPY;
+    batch[index].request_id = (uint64_t)index + UINT64_C(1);
+    batch[index].target_id = (uint64_t)index + UINT64_C(11);
+  }
+  if (mf_client_ring_try_submit_batch_v1(&ring, batch, 0U) != MF_SHARED_INVALID_ARGUMENT ||
+      mf_client_ring_try_submit_batch_v1(&ring, batch, 5U) != MF_SHARED_WOULD_BLOCK ||
+      mf_client_ring_try_submit_batch_v1(&ring, batch, 3U) != MF_SHARED_SUCCESS ||
+      mf_client_ring_try_submit_batch_v1(&ring, batch, 2U) != MF_SHARED_WOULD_BLOCK) {
+    mf_client_ring_close_v1(&ring);
+    return 2;
+  }
+  producer_position = mf_atomic_load_u64_relaxed(&ring.header->producer.position);
+  if (producer_position != 3U ||
+      mf_client_ring_try_consume_v1(&ring, &consumed) != MF_SHARED_SUCCESS ||
+      consumed.request_id != UINT64_C(1) ||
+      mf_client_ring_try_submit_batch_v1(&ring, batch, 2U) != MF_SHARED_SUCCESS) {
+    mf_client_ring_close_v1(&ring);
+    return 3;
+  }
+  consumer_position = mf_atomic_load_u64_relaxed(&ring.header->consumer.position);
+  if (consumer_position != 1U ||
+      mf_client_ring_try_consume_v1(&ring, &consumed) != MF_SHARED_SUCCESS ||
+      consumed.request_id != UINT64_C(2) ||
+      mf_client_ring_try_consume_v1(&ring, &consumed) != MF_SHARED_SUCCESS ||
+      consumed.request_id != UINT64_C(3)) {
+    mf_client_ring_close_v1(&ring);
+    return 4;
+  }
+  mf_client_ring_close_v1(&ring);
+  return 0;
+}
+
 static int run_wrap_test(void) {
   const mf_registry_view_id_v1 view_id = {UINT64_C(9), UINT64_C(7)};
   mf_client_ring_v1 ring;
@@ -490,7 +536,8 @@ int main(void) {
   uint64_t sequence = 0;
 
   if (run_argument_block_test() != 0 || run_copy_region_argument_test() != 0 ||
-      run_copy_region_submission_test() != 0 || run_wrap_test() != 0 ||
+      run_copy_region_submission_test() != 0 || run_batch_submission_test() != 0 ||
+      run_wrap_test() != 0 ||
       run_metadata_snapshot_test() != 0 || run_capacity_test() != 0 || run_mpmc_test() != 0 ||
       mf_client_ring_create_v1(UINT32_C(1024), view_id, UINT64_C(17), UINT64_C(3), &ring) !=
           MF_SHARED_SUCCESS) {

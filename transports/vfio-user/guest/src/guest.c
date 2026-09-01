@@ -31,17 +31,6 @@ static int guest_descriptor_valid(const mf_ring_descriptor_v1* descriptor) {
          descriptor->target_id != UINT64_C(0) && descriptor->opcode != MF_RING_OPCODE_COMPLETION;
 }
 
-static int guest_batch_capacity_available(const mf_vfio_user_guest_ring_v0* ring,
-                                          uint32_t descriptor_count) {
-  const uint64_t producer =
-      mf_atomic_load_u64_relaxed(&ring->submission.header->producer.position);
-  const uint64_t consumer =
-      mf_atomic_load_u64_acquire(&ring->submission.header->consumer.position);
-  const uint64_t used = producer - consumer;
-  return producer >= consumer && used <= ring->submission.capacity &&
-         (uint64_t)descriptor_count <= (uint64_t)ring->submission.capacity - used;
-}
-
 static mf_shared_status_v1 guest_ring_publish(mf_vfio_user_guest_ring_v0* ring,
                                               const mf_ring_descriptor_v1* descriptor,
                                               int notify) {
@@ -131,26 +120,19 @@ mf_shared_status_v1 mf_vfio_user_guest_ring_submit_v0(mf_vfio_user_guest_ring_v0
 mf_shared_status_v1 mf_vfio_user_guest_ring_submit_batch_v0(
     mf_vfio_user_guest_ring_v0* ring, const mf_ring_descriptor_v1* descriptors,
     uint32_t descriptor_count) {
-  uint32_t index = 0U;
-  mf_shared_status_v1 status = MF_SHARED_SUCCESS;
   if (!guest_ring_bound(ring) || descriptors == NULL || descriptor_count == 0U ||
       descriptor_count > MF_VFIO_USER_GUEST_MAX_BATCH_V0) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
-  for (index = 0U; index < descriptor_count; ++index) {
+  for (uint32_t index = 0U; index < descriptor_count; ++index) {
     if (!guest_descriptor_valid(&descriptors[index])) {
       return MF_SHARED_INVALID_ARGUMENT;
     }
   }
-  if (descriptor_count > ring->submission.capacity ||
-      !guest_batch_capacity_available(ring, descriptor_count)) {
-    return MF_SHARED_WOULD_BLOCK;
-  }
-  for (index = 0U; index < descriptor_count; ++index) {
-    status = guest_ring_publish(ring, &descriptors[index], 0);
-    if (status != MF_SHARED_SUCCESS) {
-      return status;
-    }
+  const mf_shared_status_v1 status = mf_client_ring_try_submit_batch_v1(
+      &ring->submission, descriptors, descriptor_count);
+  if (status != MF_SHARED_SUCCESS) {
+    return status;
   }
   ring->doorbell(ring->doorbell_context, ring->doorbell_value);
   return MF_SHARED_SUCCESS;

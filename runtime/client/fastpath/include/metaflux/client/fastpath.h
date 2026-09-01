@@ -248,6 +248,10 @@ int32_t mf_client_ring_borrow_fd_v1(const mf_client_ring_v1* ring);
 mf_shared_status_v1 mf_client_ring_try_submit_v1(mf_client_ring_v1* ring,
                                                  const mf_ring_descriptor_v1* descriptor);
 
+/* Reserve and publish one bounded batch atomically at the producer cursor. */
+mf_shared_status_v1 mf_client_ring_try_submit_batch_v1(
+    mf_client_ring_v1* ring, const mf_ring_descriptor_v1* descriptors, uint32_t descriptor_count);
+
 mf_shared_status_v1 mf_client_ring_try_consume_v1(mf_client_ring_v1* ring,
                                                   mf_ring_descriptor_v1* out_descriptor);
 
