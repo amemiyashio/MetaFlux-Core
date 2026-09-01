@@ -231,11 +231,11 @@ void VulkanStagingBuffer::destroy() noexcept {
   if (allocation_.mapped != nullptr && allocation_.memory != VK_NULL_HANDLE) {
     vkUnmapMemory(context_->device_handle(), allocation_.memory);
   }
-  if (allocation_.memory != VK_NULL_HANDLE) {
-    vkFreeMemory(context_->device_handle(), allocation_.memory, nullptr);
-  }
   if (allocation_.buffer != VK_NULL_HANDLE) {
     vkDestroyBuffer(context_->device_handle(), allocation_.buffer, nullptr);
+  }
+  if (allocation_.memory != VK_NULL_HANDLE) {
+    vkFreeMemory(context_->device_handle(), allocation_.memory, nullptr);
   }
   allocation_ = {};
 }

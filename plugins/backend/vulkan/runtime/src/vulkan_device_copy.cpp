@@ -244,11 +244,11 @@ void VulkanDeviceLocalCopy::destroy() noexcept {
   }
   command_pool_ = VK_NULL_HANDLE;
   command_buffer_ = VK_NULL_HANDLE;
-  if (device_.memory != VK_NULL_HANDLE) {
-    vkFreeMemory(context_->device_handle(), device_.memory, nullptr);
-  }
   if (device_.buffer != VK_NULL_HANDLE) {
     vkDestroyBuffer(context_->device_handle(), device_.buffer, nullptr);
+  }
+  if (device_.memory != VK_NULL_HANDLE) {
+    vkFreeMemory(context_->device_handle(), device_.memory, nullptr);
   }
   device_ = {};
   staging_.destroy();
