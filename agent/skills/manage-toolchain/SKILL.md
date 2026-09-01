@@ -21,6 +21,12 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 
 ## Routing
 
+- Startup resolution is Nix-first. Before any repository executable or
+  tool/version/capability probe, enter the Git-aware environment with
+  `nix develop . --command ...`. Do not inspect ambient `PATH`, use
+  `which`/`command -v`, or run a host executable to decide whether the Nix
+  declaration is needed. Host `git` and `nix` are the only bootstrap
+  executables; repository file APIs may read tracked text directly.
 - Git owns source identity and history.
 - CMake and Ninja own configure, build, install, and build-directory behavior.
 - CTest and repository scripts own tests and qualification.
@@ -74,9 +80,12 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 6. Use the Git flake entry point (`nix develop .` or a tool output under `.`).
    Never use `path:.`; it ignores Git's source boundary and can copy generated
    trees into the Nix store before evaluation.
-7. Run a version probe inside the development shell. Run project configure,
-   build, tests, packaging, or qualification directly through their owning
-   tools after leaving Nix orchestration out of the command.
+7. Run every version probe and owning project command inside the declared
+   development shell, for example
+   `nix develop . --command cmake --preset development` or
+   `nix develop . --command ctest --preset development`. Nix supplies the
+   executable closure; CMake, CTest, packaging, and qualification retain command
+   semantics and evidence ownership.
 8. Before accepting a generic artifact or release fixture, have its owning
    workflow verify the system loader, absence of RPATH/RUNPATH and Nix store
    strings, allowed `DT_NEEDED` closure, and a highest referenced glibc symbol
@@ -104,7 +113,7 @@ nix develop . --command clang --version
 nix develop . --command cmake --version
 nix develop . --command ninja --version
 nix develop .#release --command rpmbuild --version
-python3 tools/check-agent-records.py .
+nix develop . --command python3 tools/check-agent-records.py .
 ```
 
 Then run the narrow CMake/CTest or other owner-specific gate affected by the

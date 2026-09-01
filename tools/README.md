@@ -8,6 +8,14 @@ providers or the client fast path.
 Tools consume public contracts or documented service interfaces. They do not
 become an alternate application-facing MetaFlux API.
 
+## Command resolution
+
+D0031 makes repository command resolution Nix-first. Invoke every tool in this
+directory through the Git-aware `nix develop . --command ...` environment;
+do not probe ambient PATH, Python, or tool versions first. Host Git and Nix are
+the only executable bootstrap exceptions. This selects declared executables
+without transferring each tool's behavior or evidence ownership to Nix.
+
 ## Agent records
 
 `check-agent-records.py` validates the repository-local collaboration records:
@@ -30,8 +38,8 @@ session directories, live/tombstoned ID overlap, session-detail knowledge
 owners, and narrative compatibility fields are hard errors.
 
 ```sh
-python3 tools/check-agent-records.py .
-python3 tools/check-agent-records.py . --cached
+nix develop . --command python3 tools/check-agent-records.py .
+nix develop . --command python3 tools/check-agent-records.py . --cached
 ```
 
 The ordinary command validates the checkout; `--cached` materializes and checks
@@ -68,7 +76,7 @@ New checkpoints and in-progress sessions remain ordinary record writes. Its
 focused regression suite is:
 
 ```sh
-python3 tools/test-semantic-change-edits.py
+nix develop . --command python3 tools/test-semantic-change-edits.py
 ```
 
 Routed domain and workflow skills require `agents/openai.yaml`. Metadata permits
@@ -93,10 +101,10 @@ domain/workflow `SKILL.md` and `agents/openai.yaml`; its product is exactly
 `Codex`:
 
 ```sh
-python3 -B tools/check-skill-routing.py .
-python3 -B tools/check-skill-routing.py . --emit-template --repetitions 3
-python3 -B tools/check-skill-routing.py . --observed ROUTING_RESULTS.json
-python3 -B tools/test-check-skill-routing.py
+nix develop . --command python3 -B tools/check-skill-routing.py .
+nix develop . --command python3 -B tools/check-skill-routing.py . --emit-template --repetitions 3
+nix develop . --command python3 -B tools/check-skill-routing.py . --observed ROUTING_RESULTS.json
+nix develop . --command python3 -B tools/test-check-skill-routing.py
 ```
 
 The corpus and its self-test run in CTest. CI does
@@ -112,7 +120,7 @@ component to a CXX component, or any client-side link into the daemon, so the
 application-side closure cannot silently grow a C++ runtime.
 
 ```sh
-python3 tools/check-component-graph.py \
+nix develop . --command python3 tools/check-component-graph.py \
   ../.metaflux-build/MetaFlux-Core/dev/metaflux-component-graph.json
 ```
 
@@ -130,7 +138,7 @@ two-bank telemetry race exploration with reader retry/final-fence checks; the
 output belongs in the external build evidence tree.
 
 ```sh
-python3 tools/check-lifecycle-model.py \
+nix develop . --command python3 tools/check-lifecycle-model.py \
   --base-manifest contracts/protocol/transport/v1/schema/manifest.json \
   --manifest contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/manifest.json \
   --model contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/model.json \
@@ -146,7 +154,7 @@ a validator-clean skeleton, and appends the index row to
 `agent/sessions/README.md` so the index-completeness rule stays green:
 
 ```sh
-python3 tools/new-session.py 0.1.0.1 my-session-slug
+nix develop . --command python3 tools/new-session.py 0.1.0.1 my-session-slug
 ```
 
 The dotted `delivery` value is authoritative; its compact body is derived by
@@ -176,7 +184,7 @@ builds fixtures in a temporary directory and loads the validator by path
 without writing bytecode.
 
 ```sh
-python3 tools/test-check-agent-records.py
+nix develop . --command python3 tools/test-check-agent-records.py
 ```
 
 The same suite runs as the CTest `metaflux.architecture.agent-records-selftest`

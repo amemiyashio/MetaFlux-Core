@@ -9,11 +9,12 @@
 ## Decision
 
 An agent-created Git commit derives both Author and Committer from the active
-agent's self-declared harness subject. Before its first commit, the agent reads
-that subject from its own harness runtime context and emits `Agent harness
-subject: <subject>` in the interaction. Repository code does not own a product
-list mapping Codex, Claude Code, ZCode, or any later harness to hand-maintained
-Git identities. Adding a harness therefore does not require a repository patch.
+agent's self-declared stable harness product subject. Under D0031, the agent
+reads that subject only from active system/developer runtime instruction context
+and emits `Agent harness subject: <subject>` before durable edits. For Codex,
+the value is exactly `codex`. Repository code does not own a product list
+mapping Codex, Claude Code, ZCode, or any later harness to hand-maintained Git
+identities. Adding a harness therefore does not require a repository patch.
 
 The agent supplies the same subject command-locally through the generic
 `METAFLUX_AGENT_HARNESS` declaration. The repository helper validates that
@@ -24,10 +25,12 @@ stops before Git runs; human Git configuration is never a fallback.
 
 ## Identity Derivation
 
-The self-declared subject must already be a normalized lowercase ASCII slug
-containing only letters, digits, and single hyphen separators. The helper
-validates that form, then generates the command-local identity without a vendor
-table:
+The self-declared subject must identify the stable harness product and be a
+normalized lowercase ASCII slug of at most 24 characters containing only
+letters, digits, and single hyphen separators. Model, template, backend, build,
+CLI, session, thread, and prompt classification segments are invalid. The
+helper validates that form, then generates the command-local identity without a
+vendor table:
 
 ```text
 name  = Agent Harness (<subject>)
@@ -35,7 +38,8 @@ email = <subject>@localhost
 ```
 
 Harness session and thread values never enter the declaration, identity, or
-logs. Only the normalized subject is passed to the helper.
+logs. Only the normalized product subject is passed to the helper. D0031 owns
+the mandatory Nix-first startup and preflight order.
 
 ## Boundary And Consequences
 
@@ -45,8 +49,10 @@ logs. Only the normalized subject is passed to the helper.
 - The command interface has no per-product harness selector. The agent supplies
   its self-reported subject through command-local `METAFLUX_AGENT_HARNESS`.
 - The self-report is a provenance declaration, not authenticated evidence. The
-  agent must read the active harness context, surface the subject before the
-  commit, and must not synthesize a preferred or inherited prior-agent value.
+  agent must read active system/developer runtime instruction context, surface
+  the stable product subject before durable edits, and must not synthesize a
+  model/template, repository-provided, user-provided, or inherited prior-agent
+  value.
 - Every agent or harness handoff requires a fresh self-declaration. The
   command-local value prevents one agent's identity from becoming sticky.
 - Git Author and Committer identify workflow provenance; they are not
@@ -60,9 +66,10 @@ logs. Only the normalized subject is passed to the helper.
 
 ## Verification State
 
-The isolated helper suite passes seven cases covering an unseen declared
-harness, complete absence of process/environment inference, missing and
-malformed declarations, stale Git identity override, cross-harness handoff,
-configuration isolation, removed fixed selection, and protected commit
-options. SC0004 binds the synchronized migration and a real commit created only
-after the active agent self-declares its harness subject.
+The isolated helper suite passes nine cases covering exact Codex derivation,
+an unseen declared harness, model/template/CLI and legacy-length rejection,
+complete absence of process/environment inference, missing and malformed
+declarations, stale Git identity override, cross-harness handoff, configuration
+isolation, removed fixed selection, and protected commit options. SC0004
+retains the original derivation migration evidence; SC0008 applies the D0031
+breaking subject and startup-order amendment.

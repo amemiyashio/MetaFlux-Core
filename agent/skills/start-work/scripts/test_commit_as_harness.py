@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -14,6 +15,7 @@ from typing import Callable, cast
 
 
 SCRIPT = Path(__file__).with_name("commit_as_harness.py").resolve()
+SKILL = SCRIPT.parents[1] / "SKILL.md"
 GIT_IDENTITY_VARIABLES = {
     "GIT_AUTHOR_NAME",
     "GIT_AUTHOR_EMAIL",
@@ -122,6 +124,28 @@ def test_unseen_harness_declaration_is_derived(root: Path) -> None:
     assert derived.email == "future-agent@localhost"
 
 
+def test_codex_subject_excludes_model_and_cli_labels(root: Path) -> None:
+    del root
+    identity = HARNESS.resolve_identity({HARNESS.HARNESS_DECLARATION: "codex"})
+    assert identity.name == "Agent Harness (codex)"
+    assert identity.email == "codex@localhost"
+
+    non_harness_subjects = (
+        "gpt-5",
+        "codex-cli",
+        "agent-template",
+        "runtime-session",
+        "github-gpt-5-6-sol-unrestricted-33b86c71",
+    )
+    for invalid in non_harness_subjects:
+        expect_value_error(
+            lambda invalid=invalid: HARNESS.declared_harness(
+                {HARNESS.HARNESS_DECLARATION: invalid}
+            ),
+            "harness subject",
+        )
+
+
 def test_process_and_namespace_inference_is_absent(root: Path) -> None:
     del root
     assert not hasattr(HARNESS, "read_process_ancestry")
@@ -148,6 +172,23 @@ def test_process_and_namespace_inference_is_absent(root: Path) -> None:
     )
 
 
+def test_start_work_policy_is_nix_first(root: Path) -> None:
+    del root
+    source = SKILL.read_text(encoding="utf-8")
+    required = (
+        "## Stage Zero: Resolve Runtime And Enter Nix",
+        "For Codex, the subject is\n   exactly `codex`",
+        "Do not search for an\n   agent binary or CLI",
+        "nix develop . --command ...",
+        "mandatory before staging",
+        "Never probe ambient host\n   tools first",
+    )
+    for fragment in required:
+        assert fragment in source
+    assert source.index("## Stage Zero") < source.index("## Steps")
+    assert re.search(r"(?m)^\s*python3\s+", source) is None
+
+
 def test_declaration_validation(root: Path) -> None:
     del root
     direct = {HARNESS.HARNESS_DECLARATION: "future-agent"}
@@ -169,6 +210,7 @@ def test_declaration_validation(root: Path) -> None:
             ),
             "harness subject",
         )
+
 
 def test_commit_overrides_without_config_mutation(root: Path) -> None:
     repository = root / "derived-identity"
@@ -324,7 +366,9 @@ def test_authorship_reuse_options_are_rejected(root: Path) -> None:
 def main() -> int:
     tests = (
         test_unseen_harness_declaration_is_derived,
+        test_codex_subject_excludes_model_and_cli_labels,
         test_process_and_namespace_inference_is_absent,
+        test_start_work_policy_is_nix_first,
         test_declaration_validation,
         test_commit_overrides_without_config_mutation,
         test_harness_handoff_is_not_sticky,

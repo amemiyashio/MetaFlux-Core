@@ -20,7 +20,18 @@ class HarnessIdentity:
 
 HARNESS_DECLARATION = "METAFLUX_AGENT_HARNESS"
 HARNESS_SUBJECT = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
-MAX_SUBJECT_LENGTH = 48
+MAX_SUBJECT_LENGTH = 24
+NON_HARNESS_SEGMENTS = {
+    "backend",
+    "build",
+    "cli",
+    "gpt",
+    "model",
+    "prompt",
+    "session",
+    "template",
+    "thread",
+}
 
 
 def validate_subject(value: str) -> str:
@@ -32,6 +43,11 @@ def validate_subject(value: str) -> str:
         raise ValueError(
             "harness subject must use lowercase ASCII letters, digits, and "
             "single hyphen separators"
+        )
+    if NON_HARNESS_SEGMENTS.intersection(value.split("-")):
+        raise ValueError(
+            "harness subject must identify the stable harness product, not a "
+            "model, template, backend, build, CLI, session, thread, or prompt"
         )
     return value
 
@@ -49,8 +65,9 @@ def declared_harness(environment: dict[str, str]) -> str:
     declared_value = environment.get(HARNESS_DECLARATION)
     if not declared_value:
         raise ValueError(
-            "agent harness declaration is missing; the agent must read its "
-            f"active harness identity and supply {HARNESS_DECLARATION}"
+            "agent harness declaration is missing; the agent must read the "
+            "stable harness product slug from active runtime instruction "
+            f"context and supply {HARNESS_DECLARATION}"
         )
     return validate_subject(declared_value)
 
@@ -120,8 +137,9 @@ def main() -> int:
     try:
         if arguments.legacy_harness is not None:
             raise ValueError(
-                "--harness was removed; the agent must self-declare its "
-                f"runtime subject through {HARNESS_DECLARATION}"
+                "--harness was removed; the agent must declare the stable "
+                "harness product slug from active runtime instruction context "
+                f"through {HARNESS_DECLARATION}"
             )
         identity = resolve_identity(dict(os.environ))
         if arguments.print_identity:

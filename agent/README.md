@@ -2,15 +2,21 @@
 
 ## Before changing anything
 
-1. Read the machine [execution focus](progress/focus.json) before selecting
+1. Follow [start-work](skills/start-work/SKILL.md) Stage Zero. Resolve the stable
+   harness product slug only from active system/developer runtime instruction
+   context (`codex` for Codex), emit it, and enter
+   `nix develop . --command ...` before every non-Git/Nix executable or probe.
+   Do not search for an agent CLI or inspect ambient host state first.
+2. Read the machine [execution focus](progress/focus.json) before selecting
    durable work. Require schema version 2 and `governance_epoch: D0029` on both
    focus and owner, then resume its exact Exit Gate or governance authority.
-2. If a task matches an [expert skill](skills/README.md), follow it verbatim.
-3. Scaffold a session before durable work when a new ledger is needed:
-   `python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>`. A session is
+3. If a task matches an [expert skill](skills/README.md), follow it verbatim.
+4. Scaffold a session before durable work when a new ledger is needed:
+   `nix develop . --command python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>`.
+   A session is
    a curated ledger and cleanup boundary, not a snapshot, and scaffolding does
    not claim execution focus.
-4. Never relax a durable constraint in [`memory/constraints.md`](memory/constraints.md)
+5. Never relax a durable constraint in [`memory/constraints.md`](memory/constraints.md)
    without a recorded decision.
 
 This directory serves only the `MetaFlux-Core` repository. It preserves project
@@ -191,7 +197,8 @@ Use this fixed order for routine work:
 7. Only the related validated records from
    [`experience/`](experience/README.md).
 
-Then inspect Git status and current files before editing. Session records are
+Use repository file APIs or Nix-provided read tools for this order. Then inspect
+Git status and current files before editing. Session records are
 project evidence for audits or reconstruction; do not load them by default.
 Load the focus owner's current-schema compact session record to resume it;
 inspect only whether

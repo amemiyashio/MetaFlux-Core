@@ -34,11 +34,20 @@ the workflow to Nix. D0022 supersedes D0021, whose broader "owning Nix
 environment" wording blurred tool declaration with build, test, packaging, and
 qualification ownership.
 
-Development enters the Git-aware flake with `nix develop .`; the raw-path flake
-form is not a project workflow because it treats the working directory,
-including ignored build output, as a Nix source input. Git remains the source
-snapshot authority. Qualification records a clean Git commit and tree identity
-rather than a Nix source-store path or a second per-file source snapshot.
+Under D0031, command resolution is Nix-first. Development enters the Git-aware
+flake with `nix develop . --command ...` before any repository executable or
+tool/version/capability probe. This includes shell inspection utilities,
+Python/repository scripts, compilers, CMake, Ninja, CTest, packaging, and
+qualification tools. Host Git and Nix are the only executable bootstrap
+exceptions; repository file APIs may read tracked text directly. Agents do not
+probe ambient PATH or search for an agent CLI first.
+
+The raw-path flake form is not a project workflow because it treats the working
+directory, including ignored build output, as a Nix source input. Git remains
+the source snapshot authority. Qualification records a clean Git commit and
+tree identity rather than a Nix source-store path or a second per-file source
+snapshot. Nix-first resolution does not transfer CMake, CTest, packaging, or
+qualification semantics to Nix.
 
 ## Compiler Epoch 1 (D0018)
 

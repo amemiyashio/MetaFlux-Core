@@ -40,6 +40,7 @@ an index row does not promote `Proposed` material to `Verified`.
 | D0028 | Agent commit identity is derived from the active agent's self-declared harness subject without process inference or a product mapping table | [Agent harness commit identity](../../docs/architecture/agent-harness-commit-identity.md) | Verified repository workflow; migration tracked by SC0004 |
 | D0029 | One Exit-Gate-bound execution focus and exact owner session authorize durable content commits | [Execution focus governance](../../docs/architecture/execution-focus-governance.md) | Breaking schema 2 epoch and legacy liquidation tracked by Active SC0007 |
 | D0030 | Local managed providers select cdev first, bind its data queue to the same Unix control session/view/generation, and use only narrowly classified pre-success memfd fallback | [M0110 provider cdev boundary](../plan/M0110-kernel-guest-transport/plan.md#provider-cdev-selection-and-fallback-diagnostics-d0030) | Current M0110 decision; implementation and qualification remain open |
+| D0031 | Agent startup resolves the stable runtime harness subject before entering a mandatory Git-aware Nix tool environment | [Agent startup resolution order](../../docs/architecture/agent-startup-resolution.md) | Verified destructive workflow; migration tracked by Active SC0008 |
 
 New decisions receive the next `DNNNN` identifier and point to a plan or
 architecture record containing rationale, consequences, and verification state.

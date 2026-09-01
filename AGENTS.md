@@ -3,7 +3,17 @@
 Hard rules for any agent (human or AI) changing this repository. These are
 enforced by repository checks.
 
-1. **Read before changing.** Follow the daily read order in
+1. **Resolve startup, then read.** Follow `start-work` stage zero before any
+   shell executable except host `git` and `nix`. Read the stable harness
+   product slug only from active system/developer runtime instruction context;
+   for Codex it is exactly `codex`. Declare it immediately. Never search for
+   an agent CLI or derive the subject from a model/template/backend/build,
+   session/thread, user prompt, repository text, process, environment, PATH, or
+   Git configuration. Use the Git-aware
+   `nix develop . --command ...` entry for every other executable and every
+   version/capability probe; never probe the ambient host first or use
+   `path:.`.
+   Then follow the daily read order in
    [`agent/README.md`](agent/README.md): agent rules, durable memory
    (constraints + [open decisions](agent/memory/open-decisions.md)),
    the machine [execution focus](agent/progress/focus.json),
@@ -16,7 +26,7 @@ enforced by repository checks.
 2. **Scaffold a session before the first durable change.**
 
    ```sh
-   python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>
+   nix develop . --command python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>
    ```
 
    Scaffolding creates a ledger and cleanup boundary; it does not claim
@@ -53,13 +63,16 @@ enforced by repository checks.
    identifier, constraint, record-shape, or authority migration. Keep the
    decision index resolvable; compose `close-decision` when an open ledger row
    is being resolved.
-6. **Verify before committing.** `python3 tools/check-agent-records.py .` must
-   pass; run the relevant CTest preset for build-affecting changes. Content
+6. **Verify before committing.**
+   `nix develop . --command python3 tools/check-agent-records.py .` must pass;
+   run the relevant CTest preset inside the declared Nix environment for
+   build-affecting changes. Content
    and records are committed separately. Every agent-created commit declares
    both `METAFLUX_AGENT_HARNESS` and the exact `METAFLUX_SESSION_ID`.
 7. **Keep tool ownership narrow.** Follow `manage-toolchain` for versions,
-   manifests, shells, and Nix. Nix pins and provides tools only; Git, CMake,
-   CTest, packaging, tests, and sessions keep their own semantics.
+   manifests, shells, and Nix. Nix-first command resolution is mandatory, while
+   Nix still only pins and provides tools; Git, CMake, CTest, packaging, tests,
+   and sessions keep their own semantics.
 8. **Record outcomes and clean work.** Invoke `$roast` explicitly to route each
    materially promoted claim to one durable owner and semantic-transformation
    depth; keep `session-only` as an independent disposition. Record

@@ -57,8 +57,8 @@ for history.
 
 | Skill | Status | Use when |
 | --- | --- | --- |
-| [start-work](start-work/SKILL.md) | Active | Beginning any task, before the first change |
-| [manage-toolchain](manage-toolchain/SKILL.md) | Active | Pinning tools, changing manifests or shells, or reviewing Nix responsibility |
+| [start-work](start-work/SKILL.md) | Active | Beginning any task, before harness resolution, tool probes, or the first change |
+| [manage-toolchain](manage-toolchain/SKILL.md) | Active | Pinning tools, changing manifests or shells, enforcing Nix-first entry, or reviewing Nix responsibility |
 | [add-component](add-component/SKILL.md) | Active | Adding any new boundary target to the build |
 | [close-decision](close-decision/SKILL.md) | Active | Resolving a row of the open-decisions ledger |
 | [record-session](record-session/SKILL.md) | Active | Committing a verified stage breakthrough or closing a work session |
@@ -92,7 +92,7 @@ separate even when one vertical slice needs all of them.
 | Durable collaborator-delivered source or records | `$converge-project-changes` + every materially touched domain skill | Convergence owns project-level audit and disposition; domain skills retain technical meaning; foreign active sessions receive `$session-guidance`, while breaking replacements compose `$govern-semantic-change` |
 | Breaking semantic, identifier, constraint, record-shape, or authority replacement | `$govern-semantic-change` + `$close-decision` when resolving an open row + matching domain skill | The decision owns new policy, the domain skill owns technical meaning, and semantic-change governance owns complete migration and active-session handoff |
 | Valuable experience, reasoning, failure lesson, or verified breakthrough at handoff | explicit `$roast` + `$record-session` | Roast chooses disposition, one durable owner, and semantic depth independently of evidence status; record-session owns Git checkpoint, cleanup, and lifecycle |
-| Tool version, compiler epoch, SDK/header input, development shell, or Nix-scope change | `$manage-toolchain` | Toolchain governance owns portable version identity and provisioning only; Git, CMake, CTest, packaging, tests, and sessions retain their workflows |
+| Tool version, compiler epoch, SDK/header input, development shell, Nix-first entry, or Nix-scope change | `$manage-toolchain` | Toolchain governance owns portable version identity and provisioning only; Git, CMake, CTest, packaging, tests, and sessions retain their workflows |
 | Registry, client protocol, shared queue, or backend C ABI change | `$runtime-contracts-registry` | Runtime/contracts owns the neutral schema, versioning, generated layouts, and registry-view semantics |
 | PTX form interpreted, lowered, and optimized for CPU | `$ptx-simt-semantics` + `$mlir-compiler-engineering` + `$cpu-backend-performance` | PTX owns meaning/oracle; MLIR owns conversion mechanics; CPU owns interpreter implementation, target lowering, and measurement |
 | CUDA launch plus PTX compiler failure | `$cuda-driver-abi-compatibility` + `$ptx-simt-semantics` + `$mlir-compiler-engineering` | CUDA owns visible API/error; PTX owns accepted form; MLIR owns failing pass |

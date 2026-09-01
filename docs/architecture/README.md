@@ -27,3 +27,8 @@ The proposed replacement of global active-session commit coverage with one
 Exit-Gate-bound execution focus is recorded in
 [`execution-focus-governance.md`](execution-focus-governance.md) (D0029);
 SC0006 owns the active migration.
+The verified Nix-first startup order and stable harness product-subject boundary
+are recorded in
+[`agent-startup-resolution.md`](agent-startup-resolution.md) (D0031); SC0008
+owns the destructive migration and amends D0022/D0028 without transferring
+workflow ownership to Nix or adding a product identity table.

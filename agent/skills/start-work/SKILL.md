@@ -1,6 +1,6 @@
 ---
 name: start-work
-description: Cold-start repository work so rules and execution focus are read, the matching skill is followed, and durable changes use the exact focus owner.
+description: Cold-start repository work with exact runtime harness resolution, Nix-first tool entry, governed context loading, matching skill routing, and exact focus ownership.
 ---
 
 # Start Work
@@ -12,10 +12,38 @@ only a ledger until the current owner transfers focus to it. Current execution
 requires schema version 2 and `governance_epoch: D0029` on both focus and owner;
 a schema version 1 or pre-epoch ledger is evidence, never resumable authority.
 
+## Stage Zero: Resolve Runtime And Enter Nix
+
+Complete this stage before the numbered workflow and before invoking any shell
+executable other than the host bootstrap `git` and `nix` commands.
+
+1. Read the stable harness product slug directly from the active executor's
+   system/developer runtime instruction context. For Codex, the subject is
+   exactly `codex`. A model, prompt template, backend, build, CLI, session,
+   thread, user-message, repository-file, or inherited prior-agent label is not
+   the harness subject.
+2. Emit `Agent harness subject: <subject>` immediately. Do not search for an
+   agent binary or CLI and do not inspect `PATH`, `which`, `command -v`,
+   `env`, `ps`, `/proc`, product environment namespaces, or repository
+   text to discover or infer the subject. If active runtime instruction context
+   does not identify it, stop before staging or durable changes and report that
+   exact missing prerequisite.
+3. Use the Git-aware `nix develop . --command ...` entry point for every other
+   executable, including `rg`, `sed`, `jq`, Python, version/capability
+   probes, repository scripts, compilers, CMake, Ninja, CTest, packaging, and
+   qualification tools. Repository file APIs may read files directly without a
+   shell. Host `git` may inspect source identity, topology, status, and diffs;
+   host `nix` may enter the declared environment. Never probe ambient host
+   tools first and never use `path:.`.
+4. Before staging the first agent-created commit, run the identity preflight
+   inside that Nix environment and compare the complete output with the emitted
+   declaration. A mismatch stops the commit path.
+
 ## Steps
 
-1. Read in order: [agent rules](../../README.md) (including "Before changing
-   anything"), [durable memory](../../memory/README.md) — especially
+1. Using repository file APIs or Nix-provided read tools, read in order:
+   [agent rules](../../README.md) (including "Before changing anything"),
+   [durable memory](../../memory/README.md) — especially
    [constraints](../../memory/constraints.md) and the
    [open-decisions ledger](../../memory/open-decisions.md) for your area —
    then the machine [execution focus](../../progress/focus.json), the
@@ -41,7 +69,7 @@ a schema version 1 or pre-epoch ledger is evidence, never resumable authority.
 5. When a new ledger is needed, scaffold it before its first durable change:
 
    ```sh
-   python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>
+   nix develop . --command python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>
    ```
 
    Use the narrowest useful delivery scope from
@@ -75,10 +103,12 @@ a schema version 1 or pre-epoch ledger is evidence, never resumable authority.
 9. Before checkpoint or close, invoke `$roast` explicitly. Route each material
    outcome to a canonical unresolved owner, the independent `session-only`
    disposition, or one materially updated canonical owner and roast depth.
-   Verify with `python3 tools/check-agent-records.py .` and the relevant CTest
-   preset for build-affecting files. Use `record-session` in checkpoint mode for
-   separate content/record commits and in close mode for cleanup, progress
-   refresh, and final handoff. A read-only task reports its evidence directly.
+   Verify with
+   `nix develop . --command python3 tools/check-agent-records.py .` and the
+   relevant CTest preset inside its declared Nix environment for build-affecting
+   files. Use `record-session` in checkpoint mode for separate content/record
+   commits and in close mode for cleanup, progress refresh, and final handoff.
+   A read-only task reports its evidence directly.
 
 ## Agent Commit Identity
 
@@ -87,23 +117,23 @@ active agent harness, not the human identity stored in `.git/config`. This
 applies to content, checkpoint, and closing-record commits. Human-created
 commits outside an agent run are unaffected.
 
-Before the first agent-created commit, read the harness subject from the active
-agent runtime context and emit this declaration in the interaction:
+Stage Zero supplies the harness subject. Before the first durable edit and again
+whenever work passes to another agent or harness, emit this declaration:
 
 ```text
 Agent harness subject: <subject>
 ```
 
-This is an agent self-report. Do not infer it from `/proc`, process names,
-product-specific environment namespaces, repository contents, or the user's Git
-configuration. Repeat the declaration whenever work passes to another agent or
-harness. Then provide that same normalized subject command-locally to the
+This is an agent self-report from active system/developer runtime instruction
+context. It is not derived from a model/template identifier, agent CLI search,
+repository content, user prompt text, process state, environment namespace, or
+Git configuration. Provide that same normalized subject command-locally to the
 package helper instead of invoking `git commit` directly:
 
 ```sh
 METAFLUX_AGENT_HARNESS=HARNESS_SUBJECT \
   METAFLUX_SESSION_ID=FOCUS_OWNER_SESSION \
-  python3 agent/skills/start-work/scripts/commit_as_harness.py -- -m "Commit subject"
+  nix develop . --command python3 agent/skills/start-work/scripts/commit_as_harness.py -- -m "Commit subject"
 ```
 
 Under [D0028](../../../docs/architecture/agent-harness-commit-identity.md), the
@@ -113,7 +143,10 @@ Git identity. The pre-commit gate separately consumes
 owner. The helper
 contains no `/proc` reader, process or environment heuristic, Codex/Claude
 Code/ZCode product table, or `--harness` selector. A missing or malformed
-declaration stops before Git runs.
+declaration stops before Git runs. Subjects longer than 24 characters and
+subjects containing model/template/backend/build/CLI/session/thread/prompt
+classification segments are malformed. For a Codex run, any value other than
+`codex` contradicts Stage Zero even if it passes generic slug syntax.
 
 The normalized subject generates both roles as `Agent Harness (<subject>)
 <<subject>@localhost>`. The declaration is a provenance label supplied by the
@@ -136,19 +169,20 @@ After each commit, verify the recorded identity before reporting its revision:
 git show -s --format='Author: %an <%ae>%nCommitter: %cn <%ce>' HEAD
 ```
 
-To validate the declaration before staging or committing, use the same
-command-local subject:
+The following preflight is mandatory before staging the first agent-created
+commit. Use the same command-local subject and compare its complete output with
+the interaction declaration:
 
 ```sh
 METAFLUX_AGENT_HARNESS=HARNESS_SUBJECT \
-  python3 agent/skills/start-work/scripts/commit_as_harness.py --print-identity
+  nix develop . --command python3 agent/skills/start-work/scripts/commit_as_harness.py --print-identity
 ```
 
 ## Verification
 
 ```sh
-python3 agent/skills/start-work/scripts/test_commit_as_harness.py
-python3 tools/check-agent-records.py .
+nix develop . --command python3 agent/skills/start-work/scripts/test_commit_as_harness.py
+nix develop . --command python3 tools/check-agent-records.py .
 ```
 
 Passing means existing records, decision identities, indexes, and skill packages
