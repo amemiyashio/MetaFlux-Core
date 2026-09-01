@@ -10,6 +10,7 @@ add_library(
   src/vulkan_device.cpp
   src/vulkan_admission.cpp
   src/vulkan_queue.cpp
+  src/vulkan_pipeline.cpp
   src/vulkan_staging.cpp
   src/vulkan_device_copy.cpp
 )
@@ -87,6 +88,41 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(NAME metaflux.backend.vulkan-queue-executor COMMAND metaflux_vulkan_queue_test)
   set_tests_properties(
     metaflux.backend.vulkan-queue-executor
+    PROPERTIES LABELS "backend;vulkan;execution"
+  )
+
+  find_program(
+    METAFLUX_GLSLANG_VALIDATOR
+    NAMES glslangValidator
+    HINTS "${METAFLUX_VULKAN_SDK_DIR}/bin"
+  )
+  set(METAFLUX_VULKAN_PIPELINE_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/metaflux-pipeline-fixture.spv")
+  if(METAFLUX_GLSLANG_VALIDATOR)
+    add_custom_command(
+      OUTPUT "${METAFLUX_VULKAN_PIPELINE_FIXTURE}"
+      COMMAND
+        "${METAFLUX_GLSLANG_VALIDATOR}" -V --target-env vulkan1.3
+        -S comp -e main -o "${METAFLUX_VULKAN_PIPELINE_FIXTURE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/empty.comp"
+      DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/empty.comp"
+      VERBATIM
+    )
+    add_custom_target(metaflux_vulkan_pipeline_fixture
+                      DEPENDS "${METAFLUX_VULKAN_PIPELINE_FIXTURE}")
+  endif()
+  add_executable(metaflux_vulkan_pipeline_test tests/vulkan_pipeline_test.cpp)
+  target_link_libraries(metaflux_vulkan_pipeline_test PRIVATE MetaFlux::VulkanBackend)
+  metaflux_configure_target(metaflux_vulkan_pipeline_test CXX)
+  if(METAFLUX_GLSLANG_VALIDATOR)
+    add_dependencies(metaflux_vulkan_pipeline_test metaflux_vulkan_pipeline_fixture)
+    target_compile_definitions(
+      metaflux_vulkan_pipeline_test PRIVATE
+      METAFLUX_VULKAN_PIPELINE_FIXTURE="${METAFLUX_VULKAN_PIPELINE_FIXTURE}"
+    )
+  endif()
+  add_test(NAME metaflux.backend.vulkan-pipeline COMMAND metaflux_vulkan_pipeline_test)
+  set_tests_properties(
+    metaflux.backend.vulkan-pipeline
     PROPERTIES LABELS "backend;vulkan;execution"
   )
 endif()
