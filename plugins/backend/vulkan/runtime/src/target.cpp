@@ -22,6 +22,18 @@ bool digest_present(const std::uint8_t* digest, std::size_t size) noexcept {
   return false;
 }
 
+bool bytes_present(const std::uint8_t* bytes, std::size_t size) noexcept {
+  return digest_present(bytes, size);
+}
+
+bool bytes_clear(const std::uint8_t* bytes, std::size_t size) noexcept {
+  return std::all_of(bytes, bytes + size, [](std::uint8_t byte) { return byte == 0U; });
+}
+
+bool terminated_string(const char* bytes, std::size_t size) noexcept {
+  return bytes != nullptr && bytes[0] != '\0' && std::memchr(bytes, '\0', size) != nullptr;
+}
+
 bool valid_entry_point(std::string_view name) noexcept {
   if (name.empty() || name.size() > 255U) {
     return false;
@@ -40,12 +52,20 @@ TargetStatus validate_target_profile(const mf_vulkan_capability_profile_v1& prof
       profile.abi_version != MF_VULKAN_CAPABILITY_ABI_VERSION_1 ||
       profile.status != MF_VULKAN_PROBE_SUCCESS ||
       profile.api_version < MF_VULKAN_API_VERSION_1_3 || profile.queue_count == 0U ||
+      profile.queue_family_index == UINT32_MAX || profile.vendor_id == 0U ||
       profile.max_compute_workgroup_invocations == 0U ||
       profile.max_compute_workgroup_size[0] == 0U || profile.max_compute_workgroup_size[1] == 0U ||
       profile.max_compute_workgroup_size[2] == 0U || profile.subgroup_size_min == 0U ||
       profile.subgroup_size_min > profile.subgroup_size_max ||
-      profile.target_environment[0] == '\0' ||
-      !digest_present(profile.target_digest, sizeof(profile.target_digest))) {
+      profile.max_storage_buffer_range == 0U || profile.max_uniform_buffer_range == 0U ||
+      profile.memory_heap_count == 0U || profile.memory_type_count == 0U ||
+      profile.device_local_heap_bytes == 0U || profile.host_visible_heap_bytes == 0U ||
+      !terminated_string(profile.target_environment, sizeof(profile.target_environment)) ||
+      !bytes_present(profile.device_uuid, sizeof(profile.device_uuid)) ||
+      !bytes_present(profile.driver_uuid, sizeof(profile.driver_uuid)) ||
+      !bytes_present(profile.pipeline_cache_uuid, sizeof(profile.pipeline_cache_uuid)) ||
+      !digest_present(profile.target_digest, sizeof(profile.target_digest)) ||
+      !bytes_clear(profile.reserved, sizeof(profile.reserved))) {
     return TargetStatus::invalid_profile;
   }
   if ((profile.feature_flags & required_features) != required_features ||

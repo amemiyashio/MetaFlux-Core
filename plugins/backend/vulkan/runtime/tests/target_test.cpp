@@ -15,6 +15,8 @@ mf_vulkan_capability_profile_v1 profile() {
   result.abi_version = MF_VULKAN_CAPABILITY_ABI_VERSION_1;
   result.status = MF_VULKAN_PROBE_SUCCESS;
   result.api_version = MF_VULKAN_API_VERSION_1_3;
+  result.vendor_id = 1U;
+  result.queue_family_index = 0U;
   result.queue_count = 1U;
   result.subgroup_size_min = 64U;
   result.subgroup_size_max = 64U;
@@ -22,9 +24,18 @@ mf_vulkan_capability_profile_v1 profile() {
   result.max_compute_workgroup_size[0] = 1024U;
   result.max_compute_workgroup_size[1] = 1024U;
   result.max_compute_workgroup_size[2] = 64U;
+  result.max_storage_buffer_range = 1U;
+  result.max_uniform_buffer_range = 1U;
   result.feature_flags = MF_VULKAN_FEATURE_TIMELINE_SEMAPHORE | MF_VULKAN_FEATURE_SYNCHRONIZATION2 |
                          MF_VULKAN_FEATURE_BUFFER_DEVICE_ADDRESS;
   result.memory_tier_flags = MF_VULKAN_MEMORY_TIER_STAGING;
+  result.memory_heap_count = 1U;
+  result.memory_type_count = 1U;
+  result.device_local_heap_bytes = 1U;
+  result.host_visible_heap_bytes = 1U;
+  result.device_uuid[0] = 1U;
+  result.driver_uuid[0] = 1U;
+  result.pipeline_cache_uuid[0] = 1U;
   std::strcpy(result.target_environment, "schema=metaflux.vulkan.target.v1;api=4030000");
   std::fill(std::begin(result.target_digest), std::end(result.target_digest), 0x2aU);
   return result;
@@ -81,6 +92,18 @@ bool target_profile_guards() {
   }
   target = profile();
   target.target_environment[0] = '\0';
+  if (metaflux::backend::vulkan::validate_target_profile(target, 0U) !=
+      metaflux::backend::vulkan::TargetStatus::invalid_profile) {
+    return false;
+  }
+  target = profile();
+  target.host_visible_heap_bytes = 0U;
+  if (metaflux::backend::vulkan::validate_target_profile(target, 0U) !=
+      metaflux::backend::vulkan::TargetStatus::invalid_profile) {
+    return false;
+  }
+  target = profile();
+  target.reserved[0] = 1U;
   return metaflux::backend::vulkan::validate_target_profile(target, 0U) ==
          metaflux::backend::vulkan::TargetStatus::invalid_profile;
 }

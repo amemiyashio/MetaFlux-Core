@@ -138,6 +138,8 @@ mf_vulkan_capability_profile_v1 target() {
   result.abi_version = MF_VULKAN_CAPABILITY_ABI_VERSION_1;
   result.status = MF_VULKAN_PROBE_SUCCESS;
   result.api_version = MF_VULKAN_API_VERSION_1_3;
+  result.vendor_id = 1U;
+  result.queue_family_index = 0U;
   result.queue_count = 1U;
   result.subgroup_size_min = 32U;
   result.subgroup_size_max = 64U;
@@ -145,8 +147,17 @@ mf_vulkan_capability_profile_v1 target() {
   result.max_compute_workgroup_size[0] = 1024U;
   result.max_compute_workgroup_size[1] = 1024U;
   result.max_compute_workgroup_size[2] = 64U;
+  result.max_storage_buffer_range = 1U;
+  result.max_uniform_buffer_range = 1U;
   result.feature_flags = MF_VULKAN_FEATURE_BUFFER_DEVICE_ADDRESS;
   result.memory_tier_flags = MF_VULKAN_MEMORY_TIER_STAGING;
+  result.memory_heap_count = 1U;
+  result.memory_type_count = 1U;
+  result.device_local_heap_bytes = 1U;
+  result.host_visible_heap_bytes = 1U;
+  result.device_uuid[0] = 1U;
+  result.driver_uuid[0] = 1U;
+  result.pipeline_cache_uuid[0] = 1U;
   std::strcpy(result.target_environment, "schema=metaflux.vulkan.target.v1");
   std::fill(std::begin(result.target_digest), std::end(result.target_digest), 0x4aU);
   return result;
