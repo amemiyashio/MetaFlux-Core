@@ -9,6 +9,7 @@
 #include "mlir/Dialect/SPIRV/IR/SPIRVAttributes.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVDialect.h"
 #include "mlir/Dialect/SPIRV/IR/SPIRVOps.h"
+#include "mlir/Dialect/SPIRV/Transforms/Passes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/DialectRegistry.h"
@@ -351,6 +352,8 @@ LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
     mlir::PassManager pass_manager(&context);
     pass_manager.enableVerifier(true);
     pass_manager.addPass(mlir::createConvertGPUToSPIRVPass());
+    pass_manager.addNestedPass<mlir::spirv::ModuleOp>(
+        mlir::spirv::createSPIRVLowerABIAttributesPass());
     if (mlir::failed(pass_manager.run(*parsed))) {
       context.getDiagEngine().eraseHandler(handler);
       return {.status = LoweringStatus::unsupported_semantics,

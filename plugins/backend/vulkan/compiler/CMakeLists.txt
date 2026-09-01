@@ -78,6 +78,17 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_executable(metaflux_vulkan_lowering_test tests/lowering_test.cpp)
   target_link_libraries(metaflux_vulkan_lowering_test PRIVATE MetaFlux::VulkanCompiler)
   metaflux_configure_target(metaflux_vulkan_lowering_test CXX)
+  find_program(
+    METAFLUX_SPIRV_VAL
+    NAMES spirv-val
+    HINTS "${METAFLUX_VULKAN_SDK_DIR}/bin"
+  )
+  if(METAFLUX_SPIRV_VAL)
+    target_compile_definitions(
+      metaflux_vulkan_lowering_test PRIVATE
+      METAFLUX_VULKAN_SPIRV_VAL="${METAFLUX_SPIRV_VAL}"
+    )
+  endif()
   add_test(NAME metaflux.backend.vulkan-lowering COMMAND metaflux_vulkan_lowering_test)
   set_tests_properties(
     metaflux.backend.vulkan-lowering

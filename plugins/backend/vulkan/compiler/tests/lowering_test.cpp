@@ -4,9 +4,12 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <cstdlib>
 #include <initializer_list>
 #include <iostream>
 #include <string>
+#include <sys/wait.h>
+#include <unistd.h>
 
 namespace {
 
@@ -147,6 +150,70 @@ bool valid_add_lowering() {
   return valid;
 }
 
+bool independently_validates_spirv() {
+#ifdef METAFLUX_VULKAN_SPIRV_VAL
+  const auto profile = target();
+  SpirvLoweredModule module{};
+  const auto result = metaflux::backend::vulkan::lower_kernel(
+      add_kernel(), profile, {8U, 1U, 1U}, &module);
+  if (result.status != LoweringStatus::success || module.spirv_binary.empty()) {
+    return false;
+  }
+
+  char path[] = "/tmp/metaflux-vulkan-lowering-XXXXXX";
+  const int fd = ::mkstemp(path);
+  if (fd < 0) {
+    return false;
+  }
+  const auto* bytes = reinterpret_cast<const std::uint8_t*>(module.spirv_binary.data());
+  std::size_t remaining = module.spirv_binary.size() * sizeof(std::uint32_t);
+  while (remaining != 0U) {
+    const ssize_t written = ::write(fd, bytes, remaining);
+    if (written <= 0) {
+      (void)::close(fd);
+      (void)::unlink(path);
+      return false;
+    }
+    bytes += written;
+    remaining -= static_cast<std::size_t>(written);
+  }
+  (void)::close(fd);
+
+  const pid_t child = ::fork();
+  if (child == 0) {
+    ::execl(METAFLUX_VULKAN_SPIRV_VAL, "spirv-val", "--target-env", "vulkan1.3", path,
+            static_cast<char*>(nullptr));
+    _exit(127);
+  }
+  if (child < 0) {
+    (void)::unlink(path);
+    return false;
+  }
+  int status = 0;
+  const bool waited = ::waitpid(child, &status, 0) == child;
+  (void)::unlink(path);
+  const bool valid = waited && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+  if (!valid) {
+    std::cerr << "SPIR-V validation failed; converted MLIR:\n" << module.mlir_text << '\n';
+  }
+  return valid;
+#else
+  std::cout << "Vulkan lowering: spirv-val unavailable; independent validation skipped\n";
+  return true;
+#endif
+}
+
+bool unsupported_semantics_fail_before_emission() {
+  auto kernel = add_kernel();
+  kernel.operations[16] = op(Opcode::SubU32, 15U, {13U, 14U});
+  SpirvLoweredModule module{};
+  const auto result = metaflux::backend::vulkan::lower_kernel(
+      kernel, target(), {8U, 1U, 1U}, &module);
+  return result.status == LoweringStatus::unsupported_semantics &&
+         result.diagnostic.find("verified u32 Add/Copy form") != std::string::npos &&
+         module.spirv_binary.empty() && module.mlir_text.empty();
+}
+
 bool invalid_inputs() {
   auto profile = target();
   SpirvLoweredModule module{};
@@ -169,4 +236,9 @@ bool invalid_inputs() {
 
 } // namespace
 
-int main() { return valid_add_lowering() && invalid_inputs() ? 0 : 1; }
+int main() {
+  return valid_add_lowering() && independently_validates_spirv() &&
+                 unsupported_semantics_fail_before_emission() && invalid_inputs()
+             ? 0
+             : 1;
+}
