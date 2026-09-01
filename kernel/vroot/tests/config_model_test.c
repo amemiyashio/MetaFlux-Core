@@ -105,9 +105,44 @@ static int test_allocation(void) {
   return 0;
 }
 
+static int test_repeated_lifecycle_cycles(void) {
+  mf_vroot_model model;
+  uint8_t uuid[16] = {0};
+  uint8_t function = 0xffU;
+  mf_vroot_function snapshot;
+
+  EXPECT(mf_vroot_model_init(&model, 0x21U, 0x43U, 2U) == MF_VROOT_STATUS_OK);
+  for (uint64_t generation = 1U; generation <= 1000U; ++generation) {
+    uuid[0] = (uint8_t)(generation & 0xffU);
+    uuid[1] = (uint8_t)((generation >> 8U) & 0xffU);
+    EXPECT(mf_vroot_add(&model, uuid, generation, &function) == MF_VROOT_STATUS_OK);
+    EXPECT(function == 0U);
+    EXPECT(mf_vroot_prepare_driver(&model, function) == MF_VROOT_STATUS_OK);
+    EXPECT(mf_vroot_enable_matching(&model, function) == MF_VROOT_STATUS_OK);
+    if ((generation % 3U) == 0U) {
+      EXPECT(mf_vroot_probe(&model, function, false) == MF_VROOT_STATUS_OK);
+      EXPECT(mf_vroot_get_function(&model, function, &snapshot) == MF_VROOT_STATUS_OK);
+      EXPECT(snapshot.present == 0U && snapshot.quarantined != 0U &&
+             snapshot.generation == generation);
+      EXPECT(mf_vroot_rescan(&model, function) == MF_VROOT_STATUS_OK);
+      EXPECT(mf_vroot_prepare_driver(&model, function) == MF_VROOT_STATUS_OK);
+      EXPECT(mf_vroot_enable_matching(&model, function) == MF_VROOT_STATUS_OK);
+    }
+    EXPECT(mf_vroot_probe(&model, function, true) == MF_VROOT_STATUS_OK);
+    EXPECT(mf_vroot_get_function(&model, function, &snapshot) == MF_VROOT_STATUS_OK);
+    EXPECT(snapshot.present != 0U && snapshot.bound != 0U && snapshot.online != 0U &&
+           snapshot.generation == generation && snapshot.devfn == 0U);
+    EXPECT(mf_vroot_remove(&model, function) == MF_VROOT_STATUS_OK);
+    EXPECT(mf_vroot_get_function(&model, function, &snapshot) == MF_VROOT_STATUS_OK);
+    EXPECT(snapshot.logical_present == 0U && snapshot.present == 0U && snapshot.online == 0U);
+  }
+  return 0;
+}
+
 int main(void) {
   if (test_add_and_config() != 0 || test_prebind_and_probe() != 0 ||
-      test_probe_failure_rescan_remove() != 0 || test_allocation() != 0) {
+      test_probe_failure_rescan_remove() != 0 || test_allocation() != 0 ||
+      test_repeated_lifecycle_cycles() != 0) {
     return 1;
   }
   (void)puts("vroot config model: ok");
