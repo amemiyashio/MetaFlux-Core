@@ -112,6 +112,14 @@ configuration(std::string_view mode, const std::filesystem::path& cache_root,
       mode, cache_root.string(), std::nullopt,
       topology_root == nullptr ? std::nullopt : std::optional<std::string_view>(topology_root));
   if (result.ok()) {
+    // Worker/cache behavior must not depend on the capacity of the test host's /tmp.
+    result.configuration->cache.filesystem_space = [] {
+      return std::optional<metaflux::compiler::CacheFilesystemSpace>{
+          metaflux::compiler::CacheFilesystemSpace{
+              .total_bytes = 64ULL * 1024ULL * 1024ULL * 1024ULL,
+              .available_bytes = 64ULL * 1024ULL * 1024ULL * 1024ULL,
+          }};
+    };
     result.configuration->compiler_worker.executable = worker;
     result.configuration->compiler_worker.deadline = deadline;
   }

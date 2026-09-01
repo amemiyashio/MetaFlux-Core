@@ -118,9 +118,20 @@ private:
 [[nodiscard]] metaflux::service::CpuExecutionConfigurationResult
 execution_configuration(std::string_view mode, const std::filesystem::path& cache_root) {
   const char* topology_root = std::getenv("METAFLUX_CPU_TOPOLOGY_ROOT");
-  return metaflux::service::parse_cpu_execution_configuration(
+  auto result = metaflux::service::parse_cpu_execution_configuration(
       mode, cache_root.string(), std::nullopt,
       topology_root == nullptr ? std::nullopt : std::optional<std::string_view>(topology_root));
+  if (result.ok()) {
+    // Keep cache policy tests independent of the host's small /tmp filesystem.
+    result.configuration->cache.filesystem_space = [] {
+      return std::optional<metaflux::compiler::CacheFilesystemSpace>{
+          metaflux::compiler::CacheFilesystemSpace{
+              .total_bytes = 64ULL * 1024ULL * 1024ULL * 1024ULL,
+              .available_bytes = 64ULL * 1024ULL * 1024ULL * 1024ULL,
+          }};
+    };
+  }
+  return result;
 }
 
 [[nodiscard]] bool test_configuration_parser() {
