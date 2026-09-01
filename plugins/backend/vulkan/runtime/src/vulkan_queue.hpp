@@ -1,0 +1,68 @@
+#ifndef METAFLUX_BACKEND_VULKAN_QUEUE_HPP
+#define METAFLUX_BACKEND_VULKAN_QUEUE_HPP
+
+#include "vulkan_device.hpp"
+
+#include "metaflux/backend/vulkan_streams.hpp"
+
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <span>
+
+namespace metaflux::backend::vulkan {
+
+enum class QueueExecutionStatus : std::uint32_t {
+  success = 0,
+  invalid_argument = 1,
+  stale_generation = 2,
+  not_ready = 3,
+  device_lost = 4,
+  unknown_stream = 5,
+  invalid_visibility = 6,
+  dependency_not_ready = 7,
+  duplicate_dependency = 8,
+  too_many_dependencies = 9,
+  resource_exhausted = 10,
+  busy = 11,
+  invalid_timeline = 12,
+  submission_failed = 13,
+};
+
+// Binds the host-independent graph/resource ledger to one generation-bound
+// Vulkan context. The context is owned by the caller and must outlive this
+// adapter; no Vulkan handle crosses the backend C ABI.
+class VulkanQueueExecutor final {
+public:
+  VulkanQueueExecutor(VulkanDeviceContext& context, std::size_t resource_capacity) noexcept
+      : context_(&context), ledger_(resource_capacity, context.generation()) {}
+
+  VulkanQueueExecutor(const VulkanQueueExecutor&) = delete;
+  VulkanQueueExecutor& operator=(const VulkanQueueExecutor&) = delete;
+
+  [[nodiscard]] QueueExecutionStatus create_stream(std::uint64_t stream_id);
+  [[nodiscard]] QueueExecutionStatus submit(
+      std::uint64_t generation, std::uint64_t stream_id, OperationKind kind,
+      Visibility visibility, std::span<const Dependency> dependencies,
+      VkCommandBuffer command_buffer, QueueSubmission* out_submission);
+  [[nodiscard]] QueueExecutionStatus complete(std::uint64_t generation,
+                                              std::uint64_t completed_value) noexcept;
+  [[nodiscard]] std::size_t in_flight_count() const noexcept {
+    return ledger_.in_flight_count();
+  }
+
+private:
+  [[nodiscard]] static QueueExecutionStatus map(QueueSubmissionStatus status) noexcept;
+  [[nodiscard]] static QueueExecutionStatus map(DeviceStatus status) noexcept;
+  [[nodiscard]] bool dependencies_known(std::span<const Dependency> dependencies) const noexcept;
+
+  VulkanDeviceContext* context_ = nullptr;
+  QueueSubmissionLedger ledger_;
+  std::map<std::uint64_t, std::uint64_t> completion_by_sequence_{};
+};
+
+[[nodiscard]] const char* queue_execution_status_string(QueueExecutionStatus status) noexcept;
+
+} // namespace metaflux::backend::vulkan
+
+#endif

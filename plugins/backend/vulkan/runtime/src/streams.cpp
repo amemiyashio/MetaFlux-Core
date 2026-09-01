@@ -212,6 +212,23 @@ CommandResourceStatus CommandResourcePool::cancel(const CommandResource& resourc
   return CommandResourceStatus::success;
 }
 
+CommandResourceStatus CommandResourcePool::discard(const CommandResource& resource) noexcept {
+  if (resource.generation == 0U || resource.generation != generation_) {
+    return CommandResourceStatus::stale_generation;
+  }
+  Slot* slot = find_slot(resource);
+  if (slot == nullptr) {
+    return CommandResourceStatus::not_found;
+  }
+  if (slot->state != SlotState::submitted) {
+    return slot->state == SlotState::acquired ? CommandResourceStatus::success
+                                               : CommandResourceStatus::not_found;
+  }
+  slot->state = SlotState::available;
+  slot->resource = CommandResource{};
+  return CommandResourceStatus::success;
+}
+
 CommandResourceStatus CommandResourcePool::recycle(std::uint64_t generation,
                                                    std::uint64_t completed_value) noexcept {
   if (generation == 0U || generation != generation_) {
@@ -412,6 +429,12 @@ QueueSubmissionStatus QueueSubmissionLedger::complete(std::uint64_t generation,
     return QueueSubmissionStatus::invalid_argument;
   }
   return map(resources_.recycle(generation, completed_value));
+}
+
+QueueSubmissionStatus QueueSubmissionLedger::discard(
+    const QueueSubmission& submission) noexcept {
+  std::lock_guard lock(mutex_);
+  return map(resources_.discard(submission.resource));
 }
 
 QueueSubmissionStatus QueueSubmissionLedger::reconfigure(std::uint64_t generation) noexcept {

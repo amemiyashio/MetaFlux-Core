@@ -9,6 +9,7 @@ add_library(
   src/cache.cpp
   src/vulkan_device.cpp
   src/vulkan_admission.cpp
+  src/vulkan_queue.cpp
   src/vulkan_staging.cpp
   src/vulkan_device_copy.cpp
 )
@@ -78,5 +79,14 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   set_tests_properties(
     metaflux.backend.vulkan-device
     PROPERTIES LABELS "backend;vulkan;device"
+  )
+
+  add_executable(metaflux_vulkan_queue_test tests/vulkan_queue_test.cpp)
+  target_link_libraries(metaflux_vulkan_queue_test PRIVATE MetaFlux::VulkanBackend)
+  metaflux_configure_target(metaflux_vulkan_queue_test CXX)
+  add_test(NAME metaflux.backend.vulkan-queue-executor COMMAND metaflux_vulkan_queue_test)
+  set_tests_properties(
+    metaflux.backend.vulkan-queue-executor
+    PROPERTIES LABELS "backend;vulkan;execution"
   )
 endif()

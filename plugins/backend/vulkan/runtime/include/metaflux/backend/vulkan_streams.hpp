@@ -116,6 +116,9 @@ public:
   [[nodiscard]] CommandResourceStatus submit(const CommandResource& resource,
                                              std::uint64_t completion_value) noexcept;
   [[nodiscard]] CommandResourceStatus cancel(const CommandResource& resource) noexcept;
+  // Discard a reservation after the physical queue submit failed. The graph
+  // sequence remains terminal for this ledger and the generation is not reused.
+  [[nodiscard]] CommandResourceStatus discard(const CommandResource& resource) noexcept;
   [[nodiscard]] CommandResourceStatus recycle(std::uint64_t generation,
                                               std::uint64_t completed_value) noexcept;
   [[nodiscard]] CommandResourceStatus reconfigure(std::uint64_t generation) noexcept;
@@ -185,6 +188,7 @@ public:
                                              QueueSubmission* out_submission);
   [[nodiscard]] QueueSubmissionStatus complete(std::uint64_t generation,
                                                std::uint64_t completed_value) noexcept;
+  [[nodiscard]] QueueSubmissionStatus discard(const QueueSubmission& submission) noexcept;
   [[nodiscard]] QueueSubmissionStatus reconfigure(std::uint64_t generation) noexcept;
   [[nodiscard]] std::size_t available_count() const noexcept;
   [[nodiscard]] std::size_t in_flight_count() const noexcept;
