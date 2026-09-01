@@ -163,6 +163,58 @@ QueueExecutionStatus VulkanQueueExecutor::complete(std::uint64_t generation,
   return map(ledger_.complete(generation, completed_value));
 }
 
+QueueExecutionStatus VulkanQueueExecutor::poll(std::uint64_t generation,
+                                                std::uint64_t* out_completed_value) noexcept {
+  if (context_ == nullptr || out_completed_value == nullptr || generation == 0U) {
+    return QueueExecutionStatus::invalid_argument;
+  }
+  if (generation != context_->generation()) {
+    return QueueExecutionStatus::stale_generation;
+  }
+  if (context_->lost()) {
+    return QueueExecutionStatus::device_lost;
+  }
+  if (!context_->ready()) {
+    return QueueExecutionStatus::not_ready;
+  }
+
+  std::uint64_t completed_value = 0U;
+  const auto observed = context_->poll(generation, &completed_value);
+  const auto observed_status = map(observed);
+  if (observed_status != QueueExecutionStatus::success) {
+    return observed_status;
+  }
+  const auto recycled = ledger_.complete(generation, completed_value);
+  const auto recycled_status = map(recycled);
+  if (recycled_status == QueueExecutionStatus::success) {
+    *out_completed_value = completed_value;
+  }
+  return recycled_status;
+}
+
+QueueExecutionStatus VulkanQueueExecutor::wait(std::uint64_t generation, std::uint64_t value,
+                                                std::uint64_t timeout_ns) noexcept {
+  if (context_ == nullptr || generation == 0U || value == 0U) {
+    return QueueExecutionStatus::invalid_argument;
+  }
+  if (generation != context_->generation()) {
+    return QueueExecutionStatus::stale_generation;
+  }
+  if (context_->lost()) {
+    return QueueExecutionStatus::device_lost;
+  }
+  if (!context_->ready()) {
+    return QueueExecutionStatus::not_ready;
+  }
+
+  const auto waited = context_->wait(generation, value, timeout_ns);
+  const auto waited_status = map(waited);
+  if (waited_status != QueueExecutionStatus::success) {
+    return waited_status;
+  }
+  return map(ledger_.complete(generation, value));
+}
+
 const char* queue_execution_status_string(QueueExecutionStatus status) noexcept {
   switch (status) {
   case QueueExecutionStatus::success:

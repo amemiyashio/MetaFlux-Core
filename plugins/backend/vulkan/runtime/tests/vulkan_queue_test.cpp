@@ -59,7 +59,11 @@ int main() {
                               metaflux::backend::vulkan::CacheStatus::success ||
       repository.release_pipeline(key, 7U) !=
           metaflux::backend::vulkan::CacheStatus::success ||
-      executor.complete(7U, 1U) != QueueExecutionStatus::invalid_timeline) {
+      executor.complete(7U, 1U) != QueueExecutionStatus::invalid_timeline ||
+      executor.poll(6U, nullptr) != QueueExecutionStatus::invalid_argument ||
+      executor.poll(6U, &submission.completion_value) != QueueExecutionStatus::stale_generation ||
+      executor.wait(7U, 0U, 0U) != QueueExecutionStatus::invalid_argument ||
+      executor.wait(7U, 1U, 0U) != QueueExecutionStatus::not_ready) {
     std::error_code error;
     std::filesystem::remove_all(cache_path, error);
     return 4;

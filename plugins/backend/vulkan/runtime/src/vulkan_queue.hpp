@@ -55,6 +55,15 @@ public:
       QueueSubmission* out_submission);
   [[nodiscard]] QueueExecutionStatus complete(std::uint64_t generation,
                                               std::uint64_t completed_value) noexcept;
+  // Observe the Vulkan timeline and recycle every command resource at or below
+  // the value reported by the device.
+  [[nodiscard]] QueueExecutionStatus poll(std::uint64_t generation,
+                                           std::uint64_t* out_completed_value) noexcept;
+  // Wait for one submitted timeline value, then publish the observed value to
+  // the host-independent resource ledger.
+  [[nodiscard]] QueueExecutionStatus wait(std::uint64_t generation,
+                                           std::uint64_t value,
+                                           std::uint64_t timeout_ns) noexcept;
   [[nodiscard]] std::size_t in_flight_count() const noexcept {
     return ledger_.in_flight_count();
   }
