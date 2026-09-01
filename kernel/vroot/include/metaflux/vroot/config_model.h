@@ -46,6 +46,7 @@ typedef struct mf_vroot_model {
   uint8_t max_functions;
   uint8_t initialized;
   uint8_t reserved[3];
+  uint64_t generation_high_water;
 } mf_vroot_model;
 
 mf_vroot_status mf_vroot_model_init(mf_vroot_model* model, uint16_t domain, uint8_t bus,

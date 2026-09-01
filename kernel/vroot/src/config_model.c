@@ -70,6 +70,9 @@ mf_vroot_status mf_vroot_add(mf_vroot_model* model, const uint8_t uuid[16], uint
   if (!valid_model(model) || uuid == NULL || out_function == NULL || generation == 0U) {
     return MF_VROOT_STATUS_INVALID_ARGUMENT;
   }
+  if (generation <= model->generation_high_water) {
+    return MF_VROOT_STATUS_STALE;
+  }
   for (uint8_t index = 0U; index < model->max_functions; ++index) {
     mf_vroot_function* function = &model->functions[index];
     if (function->logical_present != 0U) {
@@ -77,6 +80,7 @@ mf_vroot_status mf_vroot_add(mf_vroot_model* model, const uint8_t uuid[16], uint
     }
     initialize_config(function, uuid, model->domain, model->bus,
                       (uint8_t)(index << 3U), generation);
+    model->generation_high_water = generation;
     *out_function = index;
     return MF_VROOT_STATUS_OK;
   }

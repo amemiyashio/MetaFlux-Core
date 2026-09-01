@@ -104,6 +104,10 @@ static int test_allocation(void) {
   EXPECT(mf_vroot_remove(&model, first) == MF_VROOT_STATUS_OK);
   EXPECT(mf_vroot_add(&model, uuid, 3U, &third) == MF_VROOT_STATUS_OK);
   EXPECT(third == 0U);
+  EXPECT(mf_vroot_remove(&model, second) == MF_VROOT_STATUS_OK);
+  EXPECT(mf_vroot_add(&model, uuid, 2U, &second) == MF_VROOT_STATUS_STALE);
+  EXPECT(mf_vroot_add(&model, uuid, 4U, &second) == MF_VROOT_STATUS_OK);
+  EXPECT(second == 1U);
   return 0;
 }
 
