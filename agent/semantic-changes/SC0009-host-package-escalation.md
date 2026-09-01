@@ -59,6 +59,14 @@ superseded_by: null
 | `agent/semantic-changes/README.md` | Current | Migrated | Activation indexes SC0009 as Active |
 | `agent/semantic-changes/SC0009-host-package-escalation.md` | Current | Migrated | This Active permit owns replacement scope, inventory, evidence, and reminder |
 | `agent/sessions/README.md` | Current | Pending | Activation closes the W0112 owner and installs governance; application installs a successor |
+| `agent/skills/README.md` | Current | Pending | Index the independent host-privilege skill and define composition ownership |
+| `agent/skills/manage-host-privilege/SKILL.md` | Current | Pending | Create the sole sudo/su, root-helper, credential, pacman-escalation, and driver-debug workflow owner |
+| `agent/skills/manage-host-privilege/agents/openai.yaml` | Current | Pending | Publish precise Codex UI metadata for host-privilege routing |
+| `agent/skills/manage-host-privilege/scripts/host_privilege.py` | Tooling | Pending | Move deterministic package/action/path validation and bounded helper invocation to the new owner |
+| `agent/skills/manage-host-privilege/scripts/metaflux-pacman-install` | Tooling | Pending | Move the auditable package-name-only root helper source to the new owner |
+| `agent/skills/manage-host-privilege/scripts/metaflux-driver-debug` | Tooling | Pending | Move the enumerated driver-debug root helper source to the new owner |
+| `agent/skills/manage-host-privilege/scripts/metaflux-host-privilege.sudoers.in` | Tooling | Pending | Move the two-command sudoers template to the new owner |
+| `agent/skills/manage-host-privilege/scripts/test_host_privilege.py` | Tooling | Pending | Move bounded privilege regressions to the new owner |
 | `agent/skills/start-work/SKILL.md` | Current | Pending | Replace confirmed-gap and driver-debug prompts with bounded non-interactive host privilege paths |
 | `agent/skills/start-work/scripts/host_privilege.py` | Tooling | Pending | Add deterministic package/action/path validation and bounded root-helper invocation |
 | `agent/skills/start-work/scripts/metaflux-pacman-install` | Tooling | Pending | Add auditable root helper source with exact pacman operation and argument validation |
