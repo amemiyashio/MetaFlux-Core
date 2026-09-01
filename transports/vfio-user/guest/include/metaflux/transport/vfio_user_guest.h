@@ -6,6 +6,7 @@
 
 #include <metaflux/client/fastpath.h>
 #include <metaflux/transport/generated.h>
+#include <metaflux/transport/vfio_user_profile.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -100,6 +101,9 @@ mf_shared_status_v1 mf_vfio_user_guest_decode_completion_v0(
 mf_shared_status_v1 mf_vfio_user_guest_decode_get_info_v0(
     const uint8_t* buffer, uint32_t buffer_size, uint64_t expected_message_id,
     mf_vfio_user_get_info_reply_v0* out_reply);
+
+mf_shared_status_v1 mf_vfio_user_guest_validate_get_info_v0(
+    const mf_vfio_user_get_info_reply_v0* reply, uint64_t expected_generation);
 
 mf_shared_status_v1 mf_vfio_user_guest_decode_negotiate_v0(
     const uint8_t* buffer, uint32_t buffer_size, uint64_t expected_message_id,

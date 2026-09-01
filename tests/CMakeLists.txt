@@ -122,7 +122,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.architecture.component-graph
     COMMAND
-      Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/../tools/check-component-graph.py"
+      "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/../tools/check-component-graph.py"
       "${CMAKE_BINARY_DIR}/metaflux-component-graph.json"
   )
   set_tests_properties(
@@ -132,7 +132,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.lifecycle.model-check
     COMMAND
-      Python3::Interpreter
+      "${Python3_EXECUTABLE}"
       "${CMAKE_CURRENT_SOURCE_DIR}/../tools/check-lifecycle-model.py"
       --base-manifest
       "${CMAKE_CURRENT_SOURCE_DIR}/../contracts/protocol/transport/v1/schema/manifest.json"
@@ -152,7 +152,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.lifecycle.model-check-selftest
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/lifecycle/test_model_checker.py"
   )
   set_tests_properties(
@@ -162,7 +162,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.architecture.agent-state-selftest
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-check-agent-state.py"
   )
   set_tests_properties(
@@ -172,7 +172,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.architecture.agent-diagnostics-selftest
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-agent-diagnostics.py"
   )
   set_tests_properties(
@@ -182,7 +182,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.architecture.agent-tool-detection-selftest
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/detect-agent-tool/scripts/test_detect_agent_tool.py"
   )
   set_tests_properties(
@@ -192,7 +192,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.architecture.agent-commit-identity-selftest
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/start-work/scripts/test_commit_as_agent_tool.py"
   )
   set_tests_properties(
@@ -202,7 +202,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.architecture.skill-routing
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/../tools/check-skill-routing.py"
       "${CMAKE_CURRENT_SOURCE_DIR}/.."
   )
@@ -213,7 +213,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.architecture.skill-routing-selftest
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-check-skill-routing.py"
   )
   set_tests_properties(
@@ -223,7 +223,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.release.matrix-assertions
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/release/test_release_matrix_assertions.py"
   )
   set_tests_properties(
@@ -233,7 +233,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.performance.optimization-runner-selftest
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_milestone_0_1_0_0_optimization.py"
   )
   set_tests_properties(
@@ -243,7 +243,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.performance.measurement-runner-selftest
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_milestone_0_1_0_0_performance.py"
   )
   set_tests_properties(
@@ -253,7 +253,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.compatibility.pytorch-cuda-probe-selftest
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/test_pytorch_cuda_probe.py"
   )
   set_tests_properties(
@@ -263,7 +263,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.toolchain.pytorch-cuda-client-manifests
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/../toolchains/tests/verify_pytorch_cuda_clients.py"
   )
   set_tests_properties(
@@ -414,7 +414,7 @@ if(TARGET metaflux_cuda_provider AND TARGET metafluxd AND METAFLUX_NVIDIA_HEADER
   add_test(
     NAME metaflux.integration.cuda-add-copy-managed
     COMMAND
-      Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_cuda_acceptance.py"
+      "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_cuda_acceptance.py"
       --daemon $<TARGET_FILE:metafluxd>
       --application $<TARGET_FILE:metaflux_cuda_add_copy_acceptance>
       --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
@@ -431,7 +431,7 @@ if(TARGET metaflux_cuda_provider AND TARGET metafluxd AND METAFLUX_NVIDIA_HEADER
     add_test(
       NAME "metaflux.integration.cuda-add-copy-managed.${metaflux_execution_mode}"
       COMMAND
-        Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_cuda_acceptance.py"
+        "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_cuda_acceptance.py"
         --daemon $<TARGET_FILE:metafluxd>
         --application $<TARGET_FILE:metaflux_cuda_add_copy_acceptance>
         --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
@@ -487,7 +487,7 @@ if(
   add_test(
     NAME metaflux.performance.milestone-0.1.0.0-managed-smoke
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/performance/run_milestone_0_1_0_0_performance.py"
       --mode smoke
       --budget-status provisional

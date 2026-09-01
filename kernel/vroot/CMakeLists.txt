@@ -50,7 +50,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.kernel.vroot-profile
     COMMAND
-      Python3::Interpreter "${PROJECT_SOURCE_DIR}/tools/validate-vroot-profile.py"
+      "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/tools/validate-vroot-profile.py"
       --root "${PROJECT_SOURCE_DIR}"
       --manifest "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/extensions/vroot/v1/manifest.json"
       --generate-header "${CMAKE_CURRENT_BINARY_DIR}/test-generated-profile.h"
@@ -61,7 +61,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   )
   add_test(
     NAME metaflux.kernel.vroot-profile-selftest
-    COMMAND Python3::Interpreter -B "${PROJECT_SOURCE_DIR}/tools/test-vroot-profile.py"
+    COMMAND "${Python3_EXECUTABLE}" -B "${PROJECT_SOURCE_DIR}/tools/test-vroot-profile.py"
   )
   set_tests_properties(
     metaflux.kernel.vroot-profile-selftest

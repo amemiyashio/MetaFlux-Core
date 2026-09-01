@@ -179,6 +179,7 @@ int main(void) {
   uint8_t packet[MF_VFIO_USER_MAX_PACKET_SIZE_V0];
   uint32_t packet_size = 0;
   mf_vfio_user_dma_map_v0 map;
+  mf_vfio_user_get_info_reply_v0 info;
   mf_transport_message_header_v0 header;
 
   if (mf_vfio_user_guest_encode_get_info_v0(UINT64_C(7), packet, sizeof(packet), &packet_size) !=
@@ -189,6 +190,31 @@ int main(void) {
   (void)memcpy(&header, packet, sizeof(header));
   if (header.message_id != UINT64_C(7) || header.message_type != MF_VFIO_USER_MESSAGE_GET_INFO_V0 ||
       header.payload_size != 0U) {
+    return 1;
+  }
+
+  (void)memset(&info, 0, sizeof(info));
+  info.status = MF_SHARED_SUCCESS;
+  info.device_generation = UINT64_C(11);
+  info.bar0_offset = MF_VFIO_USER_PROFILE_BAR0_OFFSET;
+  info.bar0_size = MF_VFIO_USER_PROFILE_BAR0_SIZE;
+  info.bar2_offset = MF_VFIO_USER_PROFILE_BAR2_OFFSET;
+  info.bar2_size = MF_VFIO_USER_PROFILE_BAR2_SIZE;
+  info.bar4_offset = MF_VFIO_USER_PROFILE_BAR4_OFFSET;
+  info.bar4_size = MF_VFIO_USER_PROFILE_BAR4_SIZE;
+  info.msix_vectors = MF_VFIO_USER_PROFILE_MSIX_VECTORS;
+  info.doorbell_width = MF_VFIO_USER_PROFILE_DOORBELL_WIDTH;
+  if (mf_vfio_user_guest_validate_get_info_v0(&info, UINT64_C(11)) != MF_SHARED_SUCCESS ||
+      mf_vfio_user_guest_validate_get_info_v0(&info, UINT64_C(12)) != MF_SHARED_MALFORMED) {
+    return 1;
+  }
+  info.bar2_size += UINT64_C(1);
+  if (mf_vfio_user_guest_validate_get_info_v0(&info, UINT64_C(11)) != MF_SHARED_MALFORMED) {
+    return 1;
+  }
+  info.bar2_size = MF_VFIO_USER_PROFILE_BAR2_SIZE;
+  info.status = UINT32_C(99);
+  if (mf_vfio_user_guest_validate_get_info_v0(&info, UINT64_C(11)) != MF_SHARED_MALFORMED) {
     return 1;
   }
 

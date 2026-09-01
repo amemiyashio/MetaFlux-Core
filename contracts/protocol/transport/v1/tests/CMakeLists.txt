@@ -27,7 +27,7 @@ endif()
 add_test(
   NAME metaflux.contract.transport-schema-validator
   COMMAND
-    Python3::Interpreter -B
+    "${Python3_EXECUTABLE}" -B
     "${PROJECT_SOURCE_DIR}/tools/validate-transport-schema.py"
     --root "${PROJECT_SOURCE_DIR}"
 )

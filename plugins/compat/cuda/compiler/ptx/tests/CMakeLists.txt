@@ -24,7 +24,7 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(
   NAME metaflux.unit.ptx-manifest
   COMMAND
-    Python3::Interpreter
+    "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/validate_manifest.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/../manifest/capabilities.json"
     "${CMAKE_CURRENT_SOURCE_DIR}/../manifest/forms.jsonl"

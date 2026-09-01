@@ -253,6 +253,56 @@ static int bytes_zero(const uint8_t* bytes, size_t count) {
   return 1;
 }
 
+static mf_shared_status_v1 get_info_status(uint32_t encoded_status) {
+  const int32_t status = (int32_t)encoded_status;
+  switch (status) {
+  case MF_SHARED_SUCCESS:
+  case MF_SHARED_WOULD_BLOCK:
+  case MF_SHARED_TIMEOUT:
+  case MF_SHARED_INTERRUPTED:
+  case MF_SHARED_RETRY:
+  case MF_SHARED_STALE_HANDLE:
+  case MF_SHARED_DEVICE_LOST:
+  case MF_SHARED_TERMINAL_VIEW:
+  case MF_SHARED_INVALID_ARGUMENT:
+  case MF_SHARED_MALFORMED:
+  case MF_SHARED_OVERFLOW:
+  case MF_SHARED_RESOURCE_EXHAUSTED:
+  case MF_SHARED_SYSTEM_ERROR:
+  case MF_SHARED_NOT_SUPPORTED:
+  case MF_SHARED_PERMISSION_DENIED:
+    return status;
+  default:
+    return MF_SHARED_MALFORMED;
+  }
+}
+
+mf_shared_status_v1 mf_vfio_user_guest_validate_get_info_v0(
+    const mf_vfio_user_get_info_reply_v0* reply, uint64_t expected_generation) {
+  mf_shared_status_v1 status;
+  if (reply == NULL) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  status = get_info_status(reply->status);
+  if (status != MF_SHARED_SUCCESS) {
+    return status;
+  }
+  if (reply->flags != UINT32_C(0) || reply->device_generation == UINT64_C(0) ||
+      (expected_generation != UINT64_C(0) && reply->device_generation != expected_generation) ||
+      reply->bar0_offset != MF_VFIO_USER_PROFILE_BAR0_OFFSET ||
+      reply->bar0_size != MF_VFIO_USER_PROFILE_BAR0_SIZE ||
+      reply->bar2_offset != MF_VFIO_USER_PROFILE_BAR2_OFFSET ||
+      reply->bar2_size != MF_VFIO_USER_PROFILE_BAR2_SIZE ||
+      reply->bar4_offset != MF_VFIO_USER_PROFILE_BAR4_OFFSET ||
+      reply->bar4_size != MF_VFIO_USER_PROFILE_BAR4_SIZE ||
+      reply->msix_vectors != MF_VFIO_USER_PROFILE_MSIX_VECTORS ||
+      reply->doorbell_width != MF_VFIO_USER_PROFILE_DOORBELL_WIDTH ||
+      !bytes_zero(reply->reserved, sizeof(reply->reserved))) {
+    return MF_SHARED_MALFORMED;
+  }
+  return MF_SHARED_SUCCESS;
+}
+
 mf_shared_status_v1 mf_vfio_user_guest_encode_get_info_v0(uint64_t message_id, uint8_t* buffer,
                                                            uint32_t buffer_capacity,
                                                            uint32_t* out_size) {
@@ -334,7 +384,7 @@ mf_shared_status_v1 mf_vfio_user_guest_decode_get_info_v0(
     return MF_SHARED_MALFORMED;
   }
   (void)memcpy(out_reply, buffer + sizeof(*header), sizeof(*out_reply));
-  return MF_SHARED_SUCCESS;
+  return mf_vfio_user_guest_validate_get_info_v0(out_reply, UINT64_C(0));
 }
 
 mf_shared_status_v1 mf_vfio_user_guest_decode_negotiate_v0(

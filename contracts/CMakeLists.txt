@@ -27,13 +27,36 @@ add_custom_target(metaflux_transport_schema DEPENDS "${METAFLUX_TRANSPORT_SCHEMA
 add_library(metaflux_transport_schema_projection INTERFACE)
 add_library(MetaFlux::TransportSchema ALIAS metaflux_transport_schema_projection)
 add_dependencies(metaflux_transport_schema_projection metaflux_transport_schema)
+
+set(
+  METAFLUX_VFIO_USER_PROFILE_HEADER
+  "${CMAKE_CURRENT_BINARY_DIR}/generated/include/metaflux/transport/vfio_user_profile.h"
+)
+add_custom_command(
+  OUTPUT "${METAFLUX_VFIO_USER_PROFILE_HEADER}"
+  COMMAND
+    Python3::Interpreter "${PROJECT_SOURCE_DIR}/tools/validate-vfio-user-profile.py"
+    --root "${PROJECT_SOURCE_DIR}"
+    --manifest "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/manifest.json"
+    --generate-header "${METAFLUX_VFIO_USER_PROFILE_HEADER}"
+  DEPENDS
+    "${PROJECT_SOURCE_DIR}/tools/validate-vfio-user-profile.py"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/manifest.json"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/vfio_user.json"
+  VERBATIM
+)
+add_custom_target(
+  metaflux_vfio_user_profile
+  DEPENDS "${METAFLUX_VFIO_USER_PROFILE_HEADER}"
+)
+add_dependencies(metaflux_transport_schema_projection metaflux_vfio_user_profile)
 list(APPEND metaflux_runtime_contract_targets metaflux_transport_schema_projection)
 
 if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.contract.transport-measurement-validator
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${PROJECT_SOURCE_DIR}/tools/validate-transport-measurement.py"
       --root "${PROJECT_SOURCE_DIR}"
   )
@@ -44,7 +67,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.contract.transport-measurement-selftest
     COMMAND
-      Python3::Interpreter -B
+      "${Python3_EXECUTABLE}" -B
       "${PROJECT_SOURCE_DIR}/tools/test-transport-measurement.py"
   )
   set_tests_properties(
@@ -61,7 +84,9 @@ target_include_directories(
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
 install(
-  FILES "${METAFLUX_TRANSPORT_SCHEMA_HEADER}"
+  FILES
+    "${METAFLUX_TRANSPORT_SCHEMA_HEADER}"
+    "${METAFLUX_VFIO_USER_PROFILE_HEADER}"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/metaflux/transport"
   COMPONENT Runtime
 )
