@@ -2,6 +2,7 @@
 #define METAFLUX_BACKEND_VULKAN_MEMORY_HPP
 
 #include "metaflux/backend/vulkan.h"
+#include "metaflux/backend/vulkan_memory.h"
 
 #include <cstdint>
 #include <vector>
@@ -29,12 +30,88 @@ enum class VisibilityStatus : std::uint32_t {
   range_out_of_bounds = 7,
 };
 
+enum class ExternalMemoryStatus : std::uint32_t {
+  success = 0,
+  invalid_argument = 1,
+  unsupported = 2,
+  stale_generation = 3,
+  not_found = 4,
+  busy = 5,
+  overlap = 6,
+  incompatible_memory_type = 7,
+  incompatible_handle = 8,
+  incompatible_sync = 9,
+  ownership_conflict = 10,
+  exhausted = 11,
+};
+
 struct StagingAllocation {
   std::uint64_t id = 0;
   std::uint64_t generation = 0;
   std::uint64_t offset = 0;
   std::uint64_t size = 0;
   std::uint64_t alignment = 0;
+};
+
+struct ExternalMemoryImport final {
+  std::uint64_t id = 0;
+  std::uint64_t generation = 0;
+  std::uint64_t offset = 0;
+  std::uint64_t size = 0;
+  std::uint64_t alignment = 0;
+  std::uint64_t references = 0;
+  std::uint32_t memory_type_index = 0;
+  std::uint32_t handle_type = MF_VULKAN_MEMORY_HANDLE_NONE_V0;
+  std::uint32_t sync_type = MF_VULKAN_MEMORY_SYNC_NONE_V0;
+  std::uint32_t flags = 0;
+  std::uint64_t permissions = 0;
+  bool revoked = false;
+};
+
+// Models direct external-memory admission and lifetime without importing an OS
+// fd or owning a Vulkan allocation. The physical adapter must repeat these
+// checks before taking ownership of its native handles.
+class ExternalMemoryLedger final {
+public:
+  ExternalMemoryLedger() = default;
+  explicit ExternalMemoryLedger(std::uint64_t generation,
+                                std::uint32_t memory_type_bits,
+                                std::uint32_t handle_type_bits,
+                                std::uint32_t sync_type_bits,
+                                std::size_t capacity = 0U) noexcept;
+
+  [[nodiscard]] ExternalMemoryStatus configure(std::uint64_t generation,
+                                               std::uint32_t memory_type_bits,
+                                               std::uint32_t handle_type_bits,
+                                               std::uint32_t sync_type_bits,
+                                               std::size_t capacity = 0U) noexcept;
+  [[nodiscard]] ExternalMemoryStatus import(
+      const mf_vulkan_external_memory_profile_v0& profile, std::uint64_t offset,
+      std::uint32_t memory_type_index, ExternalMemoryImport* out_import) noexcept;
+  [[nodiscard]] ExternalMemoryStatus retain(const ExternalMemoryImport& import) noexcept;
+  [[nodiscard]] ExternalMemoryStatus release(const ExternalMemoryImport& import) noexcept;
+  [[nodiscard]] ExternalMemoryStatus revoke(const ExternalMemoryImport& import) noexcept;
+  [[nodiscard]] ExternalMemoryStatus validate(const ExternalMemoryImport& import) const noexcept;
+  [[nodiscard]] std::size_t active_count() const noexcept { return imports_.size(); }
+  [[nodiscard]] std::uint64_t generation() const noexcept { return generation_; }
+
+private:
+  [[nodiscard]] static bool range_overflows(std::uint64_t offset,
+                                            std::uint64_t size) noexcept;
+  [[nodiscard]] static std::uint32_t handle_bit(std::uint32_t handle_type) noexcept;
+  [[nodiscard]] static std::uint32_t sync_bit(std::uint32_t sync_type) noexcept;
+  [[nodiscard]] std::vector<ExternalMemoryImport>::iterator
+  find(const ExternalMemoryImport& import) noexcept;
+  [[nodiscard]] std::vector<ExternalMemoryImport>::const_iterator
+  find(const ExternalMemoryImport& import) const noexcept;
+
+  std::uint64_t generation_ = 0;
+  std::uint32_t memory_type_bits_ = 0;
+  std::uint32_t handle_type_bits_ = 0;
+  std::uint32_t sync_type_bits_ = 0;
+  std::size_t capacity_ = 0;
+  std::uint64_t next_id_ = 1;
+  std::vector<ExternalMemoryImport> imports_;
 };
 
 class StagingLedger final {
@@ -171,6 +248,7 @@ private:
 
 [[nodiscard]] const char* memory_status_string(MemoryStatus status) noexcept;
 [[nodiscard]] const char* visibility_status_string(VisibilityStatus status) noexcept;
+[[nodiscard]] const char* external_memory_status_string(ExternalMemoryStatus status) noexcept;
 
 } // namespace metaflux::backend::vulkan
 

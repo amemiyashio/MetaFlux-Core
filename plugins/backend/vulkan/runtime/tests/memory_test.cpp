@@ -25,6 +25,76 @@ mf_vulkan_capability_profile_v1 profile() {
   return result;
 }
 
+mf_vulkan_external_memory_profile_v0 direct_profile(std::uint64_t generation = 7U) {
+  mf_vulkan_external_memory_profile_v0 result{};
+  result.struct_size = sizeof(result);
+  result.abi_version = MF_VULKAN_EXTERNAL_MEMORY_ABI_VERSION_0;
+  result.tier = MF_VULKAN_MEMORY_TIER_OPAQUE_FD_V0;
+  result.handle_type = MF_VULKAN_MEMORY_HANDLE_OPAQUE_FD_V0;
+  result.sync_type = MF_VULKAN_MEMORY_SYNC_OPAQUE_FD_V0;
+  result.flags = MF_VULKAN_MEMORY_FLAG_DEVICE_LOCAL_V0 |
+                 MF_VULKAN_MEMORY_FLAG_DIRECT_IMPORT_V0;
+  result.memory_type_bits = UINT32_C(0x3);
+  result.size = 4096U;
+  result.alignment = 256U;
+  result.generation = generation;
+  result.permissions = 3U;
+  return result;
+}
+
+bool external_memory_admission_and_drain() {
+  using metaflux::backend::vulkan::ExternalMemoryImport;
+  using metaflux::backend::vulkan::ExternalMemoryLedger;
+  using metaflux::backend::vulkan::ExternalMemoryStatus;
+  ExternalMemoryLedger ledger(7U, UINT32_C(0x3), UINT32_C(0x1), UINT32_C(0x1), 2U);
+  ExternalMemoryImport first{};
+  const auto profile = direct_profile();
+  if (ledger.import(profile, 0U, 0U, &first) != ExternalMemoryStatus::success ||
+      first.references != 1U || first.handle_type != MF_VULKAN_MEMORY_HANDLE_OPAQUE_FD_V0 ||
+      ledger.retain(first) != ExternalMemoryStatus::success || first.references != 1U ||
+      ledger.revoke(first) != ExternalMemoryStatus::busy ||
+      ledger.validate(first) != ExternalMemoryStatus::ownership_conflict ||
+      ledger.retain(first) != ExternalMemoryStatus::ownership_conflict ||
+      ledger.release(first) != ExternalMemoryStatus::success ||
+      ledger.release(first) != ExternalMemoryStatus::success ||
+      ledger.validate(first) != ExternalMemoryStatus::not_found) {
+    return false;
+  }
+
+  ExternalMemoryImport second{};
+  if (ledger.import(profile, 4096U, 1U, &second) != ExternalMemoryStatus::success ||
+      ledger.import(profile, 6144U, 1U, &first) != ExternalMemoryStatus::overlap ||
+      ledger.import(profile, 8192U, 2U, &first) !=
+          ExternalMemoryStatus::incompatible_memory_type) {
+    return false;
+  }
+  auto stale = profile;
+  stale.generation = 8U;
+  ExternalMemoryImport third{};
+  if (ledger.import(stale, 8192U, 0U, &third) != ExternalMemoryStatus::stale_generation ||
+      ledger.import(profile, 8192U, 0U, &third) != ExternalMemoryStatus::success ||
+      ledger.import(profile, 12288U, 0U, &first) != ExternalMemoryStatus::exhausted ||
+      ledger.release(second) != ExternalMemoryStatus::success ||
+      ledger.release(third) != ExternalMemoryStatus::success ||
+      ledger.active_count() != 0U) {
+    return false;
+  }
+
+  auto staging = profile;
+  staging.tier = MF_VULKAN_MEMORY_TIER_STAGING_V0;
+  staging.handle_type = MF_VULKAN_MEMORY_HANDLE_NONE_V0;
+  staging.sync_type = MF_VULKAN_MEMORY_SYNC_NONE_V0;
+  staging.flags = MF_VULKAN_MEMORY_FLAG_HOST_VISIBLE_V0;
+  if (ledger.import(staging, 0U, 0U, &first) != ExternalMemoryStatus::invalid_argument) {
+    return false;
+  }
+  auto dedicated = profile;
+  dedicated.flags |= MF_VULKAN_MEMORY_FLAG_DEDICATED_ONLY_V0;
+  return ledger.import(dedicated, 256U, 0U, &first) == ExternalMemoryStatus::invalid_argument &&
+         ledger.configure(8U, UINT32_C(0x3), UINT32_C(0x1), UINT32_C(0x1), 2U) ==
+             ExternalMemoryStatus::success;
+}
+
 bool staging_lifetime_and_reuse() {
   metaflux::backend::vulkan::StagingLedger ledger(profile(), 7U);
   if (ledger.capacity() != 4096U || ledger.generation() != 7U) {
@@ -232,7 +302,8 @@ bool visibility_partial_and_lifetime_guards() {
 } // namespace
 
 int main() {
-  const bool ok = staging_lifetime_and_reuse() && profile_and_generation_guards() &&
+  const bool ok = external_memory_admission_and_drain() && staging_lifetime_and_reuse() &&
+                  profile_and_generation_guards() &&
                   timeline_guards() && non_coherent_visibility() &&
                   visibility_range_and_coherent_guards() &&
                   visibility_partial_and_lifetime_guards();

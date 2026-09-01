@@ -6,6 +6,186 @@
 
 namespace metaflux::backend::vulkan {
 
+ExternalMemoryLedger::ExternalMemoryLedger(std::uint64_t generation,
+                                           std::uint32_t memory_type_bits,
+                                           std::uint32_t handle_type_bits,
+                                           std::uint32_t sync_type_bits,
+                                           std::size_t capacity) noexcept {
+  (void)configure(generation, memory_type_bits, handle_type_bits, sync_type_bits, capacity);
+}
+
+ExternalMemoryStatus ExternalMemoryLedger::configure(std::uint64_t generation,
+                                                     std::uint32_t memory_type_bits,
+                                                     std::uint32_t handle_type_bits,
+                                                     std::uint32_t sync_type_bits,
+                                                     std::size_t capacity) noexcept {
+  if (generation == 0U || memory_type_bits == 0U || handle_type_bits == 0U ||
+      sync_type_bits == 0U) {
+    return ExternalMemoryStatus::invalid_argument;
+  }
+  if (std::any_of(imports_.begin(), imports_.end(),
+                  [](const ExternalMemoryImport& import) { return import.references != 0U; })) {
+    return ExternalMemoryStatus::busy;
+  }
+  generation_ = generation;
+  memory_type_bits_ = memory_type_bits;
+  handle_type_bits_ = handle_type_bits;
+  sync_type_bits_ = sync_type_bits;
+  capacity_ = capacity;
+  next_id_ = 1U;
+  imports_.clear();
+  return ExternalMemoryStatus::success;
+}
+
+bool ExternalMemoryLedger::range_overflows(std::uint64_t offset, std::uint64_t size) noexcept {
+  return size == 0U || offset > std::numeric_limits<std::uint64_t>::max() - size;
+}
+
+std::uint32_t ExternalMemoryLedger::handle_bit(std::uint32_t handle_type) noexcept {
+  return handle_type == 0U || handle_type > 31U ? 0U : UINT32_C(1) << (handle_type - 1U);
+}
+
+std::uint32_t ExternalMemoryLedger::sync_bit(std::uint32_t sync_type) noexcept {
+  return sync_type == 0U || sync_type > 31U ? 0U : UINT32_C(1) << (sync_type - 1U);
+}
+
+std::vector<ExternalMemoryImport>::iterator
+ExternalMemoryLedger::find(const ExternalMemoryImport& import) noexcept {
+  return std::find_if(imports_.begin(), imports_.end(), [&import](const auto& current) {
+    return current.id == import.id && current.generation == import.generation &&
+           current.offset == import.offset && current.size == import.size &&
+           current.memory_type_index == import.memory_type_index;
+  });
+}
+
+std::vector<ExternalMemoryImport>::const_iterator
+ExternalMemoryLedger::find(const ExternalMemoryImport& import) const noexcept {
+  return std::find_if(imports_.begin(), imports_.end(), [&import](const auto& current) {
+    return current.id == import.id && current.generation == import.generation &&
+           current.offset == import.offset && current.size == import.size &&
+           current.memory_type_index == import.memory_type_index;
+  });
+}
+
+ExternalMemoryStatus ExternalMemoryLedger::import(
+    const mf_vulkan_external_memory_profile_v0& profile, std::uint64_t offset,
+    std::uint32_t memory_type_index, ExternalMemoryImport* out_import) noexcept {
+  if (out_import == nullptr || generation_ == 0U ||
+      !mf_vulkan_external_memory_profile_valid_v0(&profile) ||
+      (profile.flags & MF_VULKAN_MEMORY_FLAG_DIRECT_IMPORT_V0) == 0U) {
+    return ExternalMemoryStatus::invalid_argument;
+  }
+  if (profile.generation != generation_) {
+    return ExternalMemoryStatus::stale_generation;
+  }
+  if (memory_type_index >= 32U ||
+      (memory_type_bits_ & (UINT32_C(1) << memory_type_index)) == 0U ||
+      (profile.memory_type_bits & (UINT32_C(1) << memory_type_index)) == 0U) {
+    return ExternalMemoryStatus::incompatible_memory_type;
+  }
+  if (handle_bit(profile.handle_type) == 0U ||
+      (handle_type_bits_ & handle_bit(profile.handle_type)) == 0U) {
+    return ExternalMemoryStatus::incompatible_handle;
+  }
+  if (sync_bit(profile.sync_type) == 0U ||
+      (sync_type_bits_ & sync_bit(profile.sync_type)) == 0U) {
+    return ExternalMemoryStatus::incompatible_sync;
+  }
+  if (offset % profile.alignment != 0U || range_overflows(offset, profile.size) ||
+      ((profile.flags & MF_VULKAN_MEMORY_FLAG_DEDICATED_ONLY_V0) != 0U && offset != 0U)) {
+    return ExternalMemoryStatus::invalid_argument;
+  }
+  if (capacity_ != 0U && imports_.size() >= capacity_) {
+    return ExternalMemoryStatus::exhausted;
+  }
+  const auto new_end = offset + profile.size;
+  for (const auto& current : imports_) {
+    if (current.revoked || current.generation != generation_) {
+      continue;
+    }
+    if (offset < current.offset + current.size && current.offset < new_end) {
+      return ExternalMemoryStatus::overlap;
+    }
+  }
+  if (next_id_ == 0U) {
+    return ExternalMemoryStatus::exhausted;
+  }
+  ExternalMemoryImport candidate{
+      .id = next_id_++,
+      .generation = generation_,
+      .offset = offset,
+      .size = profile.size,
+      .alignment = profile.alignment,
+      .references = 1U,
+      .memory_type_index = memory_type_index,
+      .handle_type = profile.handle_type,
+      .sync_type = profile.sync_type,
+      .flags = profile.flags,
+      .permissions = profile.permissions,
+      .revoked = false,
+  };
+  try {
+    imports_.push_back(candidate);
+  } catch (...) {
+    return ExternalMemoryStatus::exhausted;
+  }
+  *out_import = candidate;
+  return ExternalMemoryStatus::success;
+}
+
+ExternalMemoryStatus ExternalMemoryLedger::validate(
+    const ExternalMemoryImport& import) const noexcept {
+  if (import.generation == 0U || import.generation != generation_) {
+    return ExternalMemoryStatus::stale_generation;
+  }
+  const auto position = find(import);
+  if (position == imports_.end()) {
+    return ExternalMemoryStatus::not_found;
+  }
+  return position->revoked ? ExternalMemoryStatus::ownership_conflict
+                           : ExternalMemoryStatus::success;
+}
+
+ExternalMemoryStatus ExternalMemoryLedger::retain(const ExternalMemoryImport& import) noexcept {
+  auto position = find(import);
+  if (position == imports_.end()) {
+    return import.generation != generation_ ? ExternalMemoryStatus::stale_generation
+                                            : ExternalMemoryStatus::not_found;
+  }
+  if (position->revoked || position->references == std::numeric_limits<std::uint64_t>::max()) {
+    return ExternalMemoryStatus::ownership_conflict;
+  }
+  ++position->references;
+  return ExternalMemoryStatus::success;
+}
+
+ExternalMemoryStatus ExternalMemoryLedger::release(const ExternalMemoryImport& import) noexcept {
+  auto position = find(import);
+  if (position == imports_.end()) {
+    return import.generation != generation_ ? ExternalMemoryStatus::stale_generation
+                                            : ExternalMemoryStatus::not_found;
+  }
+  if (position->references == 0U) {
+    return ExternalMemoryStatus::ownership_conflict;
+  }
+  --position->references;
+  if (position->references == 0U) {
+    imports_.erase(position);
+  }
+  return ExternalMemoryStatus::success;
+}
+
+ExternalMemoryStatus ExternalMemoryLedger::revoke(const ExternalMemoryImport& import) noexcept {
+  auto position = find(import);
+  if (position == imports_.end()) {
+    return import.generation != generation_ ? ExternalMemoryStatus::stale_generation
+                                            : ExternalMemoryStatus::not_found;
+  }
+  position->revoked = true;
+  return position->references > 1U ? ExternalMemoryStatus::busy
+                                   : ExternalMemoryStatus::success;
+}
+
 StagingLedger::StagingLedger(const mf_vulkan_capability_profile_v1& profile,
                              std::uint64_t generation) noexcept {
   (void)configure(profile, generation);
@@ -578,6 +758,36 @@ const char* visibility_status_string(VisibilityStatus status) noexcept {
     return "invalidate-required";
   case VisibilityStatus::range_out_of_bounds:
     return "range-out-of-bounds";
+  }
+  return "unknown";
+}
+
+const char* external_memory_status_string(ExternalMemoryStatus status) noexcept {
+  switch (status) {
+  case ExternalMemoryStatus::success:
+    return "success";
+  case ExternalMemoryStatus::invalid_argument:
+    return "invalid-argument";
+  case ExternalMemoryStatus::unsupported:
+    return "unsupported";
+  case ExternalMemoryStatus::stale_generation:
+    return "stale-generation";
+  case ExternalMemoryStatus::not_found:
+    return "not-found";
+  case ExternalMemoryStatus::busy:
+    return "busy";
+  case ExternalMemoryStatus::overlap:
+    return "overlap";
+  case ExternalMemoryStatus::incompatible_memory_type:
+    return "incompatible-memory-type";
+  case ExternalMemoryStatus::incompatible_handle:
+    return "incompatible-handle";
+  case ExternalMemoryStatus::incompatible_sync:
+    return "incompatible-sync";
+  case ExternalMemoryStatus::ownership_conflict:
+    return "ownership-conflict";
+  case ExternalMemoryStatus::exhausted:
+    return "exhausted";
   }
   return "unknown";
 }
