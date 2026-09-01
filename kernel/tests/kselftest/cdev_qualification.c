@@ -145,7 +145,10 @@ int main(void) {
       (control_negotiate.required_features & MF_UAPI_FEATURE_QUEUE_MMAP_V0) == 0U ||
       control_negotiate.registry_view_daemon != session.registry_view_id.daemon_incarnation ||
       control_negotiate.registry_view_serial != session.registry_view_id.view_serial ||
-      control_negotiate.device_generation != session.device_generation) {
+      control_negotiate.device_generation != session.device_generation ||
+      (control_negotiate.dma_width != UINT32_C(32) &&
+       control_negotiate.dma_width != UINT32_C(64)) ||
+      control_negotiate.dma_alignment != MF_CDEV_TEST_PAGE_SIZE) {
     (void)failf("validate control negotiation", "returned control view does not match data queue");
     goto cleanup;
   }
