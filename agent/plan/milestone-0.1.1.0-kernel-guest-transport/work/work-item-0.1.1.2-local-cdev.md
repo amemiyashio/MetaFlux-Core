@@ -181,8 +181,10 @@ and arithmetic operation is validated.
   and queue VMA tombstones, owner-death transition, eventfd references, and
   bounded registered-memory lifetime are implemented for the current fixture.
   Worker-side backend binding generation isolation and owner-retire drain are
-  now enforced; daemon/provider-side rebinding and physical replacement drain
-  remain open.
+  now enforced, and backend-backed candidate generations require a validated
+  staged queue/backend pair before worker commit. Daemon/provider-side resource
+  staging, object-reference transfer, and physical replacement drain remain
+  open.
 - [ ] Connect the daemon object table and leased worker/backend binding to the
   live cdev registered-memory handles and prove Add/Copy through the mapped
   payload arena. The source-level daemon lease/object-table binding and CPU

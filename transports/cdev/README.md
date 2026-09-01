@@ -99,10 +99,17 @@ Each backend binding carries its device generation. The worker accepts a binding
 only while its lifecycle mirror is online and the binding names the committed
 worker generation; a pre-commit or stale-generation rebind is rejected. After a
 lifecycle commit, an old binding is cleared and its optional retire callback is
-called once it has no pending operation. A pending operation keeps its captured
-old binding, lease, and memory references until drain completes; only then is
-the old binding's owner notified that its generation-bound backend can be
-destroyed.
+called once it has no pending operation. For a candidate generation, a backend
+owner must provide `CdevWorkerRebind`. The worker invokes it during lifecycle
+prepare and validates a complete candidate queue view and backend binding before
+quiescing the old worker. A failed staging callback rejects the transaction and
+discards only the candidate. Commit then switches the queue view and backend as
+one worker-local operation; abort and transport loss release any uncommitted
+candidate. A pending operation keeps its captured old binding, lease, and memory
+references until drain completes; only then is the old binding's owner notified
+that its generation-bound backend can be destroyed. The callback is a staging
+seam: the daemon/provider owner still supplies the physical cdev lease, payload,
+backend resources, and their lifetime policy.
 
 The worker also exposes an explicit `CdevBackendBinding` for worker-side
 `mf_backend_api_v1` calls. A COPY binding must advertise

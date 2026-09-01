@@ -895,7 +895,8 @@ bool CdevWorker::same_backend_binding(const CdevBackendBinding& left,
          left.launch_context == right.launch_context && left.lease_acquire == right.lease_acquire &&
          left.lease_release == right.lease_release && left.lease_context == right.lease_context &&
          left.retire == right.retire && left.retire_context == right.retire_context &&
-         left.generation == right.generation;
+         left.generation == right.generation && left.rebind == right.rebind &&
+         left.rebind_context == right.rebind_context;
 }
 
 void CdevWorker::retire_backend_binding(const CdevBackendBinding& backend) noexcept {
@@ -905,7 +906,7 @@ void CdevWorker::retire_backend_binding(const CdevBackendBinding& backend) noexc
 }
 
 bool CdevWorker::bind_backend(CdevBackendBinding backend) noexcept {
-  if (!lifecycle_online_ || view_.generation == 0U || !valid_backend(backend) ||
+  if (staged_rebind_ || !lifecycle_online_ || view_.generation == 0U || !valid_backend(backend) ||
       backend.generation != view_.generation) {
     return false;
   }
@@ -924,6 +925,38 @@ bool CdevWorker::bind_backend(CdevBackendBinding backend) noexcept {
     retire_backend_binding(previous);
   }
   return true;
+}
+
+bool CdevWorker::stage_rebind(std::uint64_t generation) noexcept {
+  if (staged_rebind_ || generation == 0U || backend_.rebind == nullptr) {
+    return false;
+  }
+  WorkerQueueView view{};
+  CdevBackendBinding backend{};
+  if (!backend_.rebind(backend_.rebind_context, generation, &view, &backend) ||
+      view.generation != generation || !valid_queue(view.submission) ||
+      !valid_queue(view.completion) ||
+      (view.payload == nullptr && view.payload_size != 0U) ||
+      (view.payload != nullptr && view.payload_size == 0U) || !valid_backend(backend) ||
+      backend.generation != generation) {
+    retire_backend_binding(backend);
+    return false;
+  }
+  staged_view_ = view;
+  staged_backend_ = backend;
+  staged_rebind_ = true;
+  return true;
+}
+
+void CdevWorker::discard_staged_rebind() noexcept {
+  if (!staged_rebind_) {
+    return;
+  }
+  const CdevBackendBinding staged_backend = staged_backend_;
+  staged_view_ = {};
+  staged_backend_ = {};
+  staged_rebind_ = false;
+  retire_backend_binding(staged_backend);
 }
 
 bool CdevWorker::backend_matches_generation() const noexcept {
@@ -1450,11 +1483,10 @@ bool CdevWorker::lifecycle_prepare(
       !valid_queue(worker->view_.completion) || (!payload_available && !region_backend_available)) {
     return false;
   }
-  if (event.request.operation != metaflux::runtime::lifecycle::Operation::Add &&
-      event.candidate.generation == 0U) {
+  if (event.candidate.generation == 0U) {
     return event.request.operation == metaflux::runtime::lifecycle::Operation::Remove;
   }
-  return true;
+  return worker->backend_.api == nullptr || worker->stage_rebind(event.candidate.generation);
 }
 
 bool CdevWorker::lifecycle_quiesce(
@@ -1485,12 +1517,27 @@ bool CdevWorker::lifecycle_commit(void* context,
     return false;
   }
   const CdevBackendBinding previous = worker->backend_;
-  worker->backend_ = {};
-  retire_backend_binding(previous);
   if (event.candidate.generation != 0U) {
-    worker->view_.generation = event.candidate.generation;
+    if (previous.api == nullptr) {
+      worker->view_.generation = event.candidate.generation;
+    } else if (!worker->staged_rebind_ ||
+               worker->staged_view_.generation != event.candidate.generation ||
+        worker->staged_backend_.generation != event.candidate.generation) {
+      return false;
+    } else {
+      worker->view_ = worker->staged_view_;
+      worker->backend_ = worker->staged_backend_;
+      worker->staged_view_ = {};
+      worker->staged_backend_ = {};
+      worker->staged_rebind_ = false;
+      retire_backend_binding(previous);
+    }
   } else if (event.state_after == metaflux::runtime::lifecycle::State::Absent) {
+    worker->backend_ = {};
     worker->view_.generation = 0U;
+    retire_backend_binding(previous);
+  } else {
+    return false;
   }
   worker->lifecycle_online_ = event.state_after == metaflux::runtime::lifecycle::State::Online;
   worker->lifecycle_accepting_ = worker->lifecycle_online_;
@@ -1503,6 +1550,7 @@ bool CdevWorker::lifecycle_abort(void* context,
   if (worker == nullptr) {
     return false;
   }
+  worker->discard_staged_rebind();
   worker->lifecycle_online_ = event.state_before == metaflux::runtime::lifecycle::State::Online;
   worker->lifecycle_accepting_ = worker->lifecycle_online_;
   return true;
@@ -1512,6 +1560,7 @@ void CdevWorker::lifecycle_lost(void* context,
                                 const metaflux::runtime::lifecycle::MirrorEvent&) noexcept {
   auto* worker = static_cast<CdevWorker*>(context);
   if (worker != nullptr) {
+    worker->discard_staged_rebind();
     worker->lifecycle_online_ = false;
     worker->lifecycle_accepting_ = false;
     (void)worker->cancel_pending();

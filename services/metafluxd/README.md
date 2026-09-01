@@ -33,7 +33,11 @@ registers its lifecycle mirror only after its generation-bound backend and lease
 are ready, and the session removes that mirror before destroying the worker.
 Queue faults enter the coordinator through the disconnect event path, so the
 worker's lost transition and future replacement work share one authority rather
-than maintaining a transport-local generation.
+than maintaining a transport-local generation. Backend-backed replacement must
+stage a complete cdev queue, payload, backend, and object-reference set before
+the coordinator commit; the worker rejects a generation candidate without that
+staged binding. Physical cdev replacement and daemon-side resource transfer
+remain open until the owner implements this staging callback.
 
 Compute sessions negotiate process-publication semantics explicitly. Sessions
 with `MF_CLIENT_CAP_LIVE_CONTEXT_ACCOUNTING_V1` are absent from process snapshots

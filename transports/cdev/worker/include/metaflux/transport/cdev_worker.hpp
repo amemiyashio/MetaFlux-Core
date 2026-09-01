@@ -26,6 +26,8 @@ struct CdevWorkerLeaseView final {
   std::uint64_t mapping_size = 0U;
 };
 
+struct CdevBackendBinding;
+
 /* A cdev registration handle remains transport-owned and never crosses the backend ABI. */
 struct CdevRegisteredMemory final {
   void* address = nullptr;
@@ -228,6 +230,9 @@ using CdevCopyResolver = mf_shared_status_v1 (*)(void* context,
 using CdevBackendLeaseAcquire = mf_shared_status_v1 (*)(void* context) noexcept;
 using CdevBackendLeaseRelease = void (*)(void* context) noexcept;
 using CdevBackendBindingRetire = void (*)(void* context) noexcept;
+using CdevWorkerRebind = bool (*)(void* context, std::uint64_t generation,
+                                  WorkerQueueView* out_view,
+                                  CdevBackendBinding* out_backend) noexcept;
 
 /* The worker borrows these backend-owned handles for COPY and launch calls. */
 struct CdevBackendBinding final {
@@ -252,6 +257,9 @@ struct CdevBackendBinding final {
   void* retire_context = nullptr;
   /* A binding is usable only while it names the worker's current generation. */
   std::uint64_t generation = 0U;
+  /* Stage a complete queue/backend pair before a lifecycle commit. */
+  CdevWorkerRebind rebind = nullptr;
+  void* rebind_context = nullptr;
 };
 
 enum class WorkerResult : std::uint32_t {
@@ -298,6 +306,8 @@ private:
                               const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept;
   static void lifecycle_lost(void* context,
                              const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept;
+  [[nodiscard]] bool stage_rebind(std::uint64_t generation) noexcept;
+  void discard_staged_rebind() noexcept;
   static bool valid_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_backend_event(const CdevBackendBinding& backend) noexcept;
   static bool valid_copy_backend(const CdevBackendBinding& backend) noexcept;
@@ -350,6 +360,9 @@ private:
   bool lifecycle_online_ = true;
   bool lifecycle_accepting_ = true;
   CdevBackendBinding backend_{};
+  WorkerQueueView staged_view_{};
+  CdevBackendBinding staged_backend_{};
+  bool staged_rebind_ = false;
   struct PendingOperation final {
     bool active = false;
     mf_ring_descriptor_v1 request{};
