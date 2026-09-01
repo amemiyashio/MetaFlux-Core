@@ -38,6 +38,12 @@ They do not receive a state-publish API, so no transport can create an
 independent replacement generation. Abort and loss callbacks provide local
 cleanup and tombstone notification after a failed or partial transaction.
 
+Mirror ownership is explicit: an adapter that owns a mirror context must call
+`unregister_mirror` while the coordinator is still alive and before destroying
+that context. The coordinator serializes removal with lifecycle submission and
+compacts the bounded mirror table, so later transactions cannot call a stale
+owner.
+
 Candidate generation and identity-record high-water marks are checked before
 acceptance and are never reused, including when staging fails. Epoch is checked
 before a retirement and advances only with the single authority commit. A

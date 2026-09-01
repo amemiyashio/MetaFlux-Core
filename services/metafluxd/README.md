@@ -28,6 +28,13 @@ not reused within a session. Daemon shutdown closes the shared view admission
 before the authority mapping is reclaimed; a restarted daemon receives a new
 incarnation.
 
+The daemon owns the lifecycle coordinator for the logical device. A cdev worker
+registers its lifecycle mirror only after its generation-bound backend and lease
+are ready, and the session removes that mirror before destroying the worker.
+Queue faults enter the coordinator through the disconnect event path, so the
+worker's lost transition and future replacement work share one authority rather
+than maintaining a transport-local generation.
+
 Compute sessions negotiate process-publication semantics explicitly. Sessions
 with `MF_CLIENT_CAP_LIVE_CONTEXT_ACCOUNTING_V1` are absent from process snapshots
 until their first context acquire and disappear after their last context release.

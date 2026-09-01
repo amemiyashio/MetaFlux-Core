@@ -166,6 +166,11 @@ public:
 
   [[nodiscard]] bool register_mirror(const Mirror& mirror) noexcept;
 
+  // Remove a mirror before its owner is destroyed. The coordinator serializes
+  // removal with lifecycle submissions so no transaction can retain a stale
+  // callback context after this returns.
+  [[nodiscard]] bool unregister_mirror(MirrorKind kind, void* context) noexcept;
+
   [[nodiscard]] Result apply(const Request& request, ResultDetails& out) noexcept;
 
   [[nodiscard]] Result apply(const Request& request) noexcept;

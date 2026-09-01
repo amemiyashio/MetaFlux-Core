@@ -156,6 +156,22 @@ bool duplicate_and_conflicting_request_have_no_side_effect() {
   return true;
 }
 
+bool mirror_can_be_detached_before_owner_destruction() {
+  MirrorLog memfd{};
+  MirrorLog cdev{};
+  MirrorLog vfio{};
+  Coordinator coordinator = make_coordinator(memfd, cdev, vfio);
+  REQUIRE(coordinator.mirror_count() == 3U);
+  REQUIRE(coordinator.unregister_mirror(MirrorKind::Cdev, &cdev));
+  REQUIRE(coordinator.mirror_count() == 2U);
+  REQUIRE(!coordinator.unregister_mirror(MirrorKind::Cdev, &cdev));
+
+  ResultDetails details{};
+  REQUIRE(coordinator.apply(request(21, Operation::Reset, 1, 1), details) == Result::Accepted);
+  REQUIRE(memfd.commit_count == 1U && vfio.commit_count == 1U && cdev.commit_count == 0U);
+  return true;
+}
+
 bool precommit_failure_consumes_candidate_without_retiring_old() {
   MirrorLog memfd{};
   MirrorLog cdev{};
@@ -316,6 +332,7 @@ bool stale_identity_and_expired_deadline_are_rejected_without_callbacks() {
 int main() {
   const bool ok = reset_commits_one_generation_and_tombstones_old() &&
                   duplicate_and_conflicting_request_have_no_side_effect() &&
+                  mirror_can_be_detached_before_owner_destruction() &&
                   precommit_failure_consumes_candidate_without_retiring_old() &&
                   transport_loss_and_recovery_preserve_then_advance_epoch() &&
                   partial_commit_never_restores_retired_generation() &&

@@ -39,7 +39,7 @@
       "id": "lane-generation-drain",
       "iteration": "iteration-0003",
       "outcome": "Complete daemon/provider replacement-generation rebind and reference drain.",
-      "status": "planned",
+      "status": "integrated",
       "depends_on": [],
       "acceptance": [
         "New work cannot use a stale daemon/provider binding after lifecycle commit.",

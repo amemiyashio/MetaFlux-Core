@@ -140,6 +140,24 @@ bool Coordinator::register_mirror(const Mirror& mirror) noexcept {
   return true;
 }
 
+bool Coordinator::unregister_mirror(MirrorKind kind, void* context) noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  if (!valid_ || context == nullptr || !is_valid_mirror_kind(kind)) {
+    return false;
+  }
+  for (std::uint32_t index = 0; index < mirror_count_; ++index) {
+    if (mirrors_[index].kind != kind || mirrors_[index].context != context) {
+      continue;
+    }
+    const std::uint32_t last = mirror_count_ - 1U;
+    mirrors_[index] = mirrors_[last];
+    mirrors_[last] = {};
+    --mirror_count_;
+    return true;
+  }
+  return false;
+}
+
 bool Coordinator::same_request(const Request& left, const Request& right) const noexcept {
   return left.request_id == right.request_id && left.logical_device_id == right.logical_device_id &&
          left.daemon_incarnation == right.daemon_incarnation &&
