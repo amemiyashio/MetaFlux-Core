@@ -32,6 +32,27 @@ bool send_packet(int fd, const std::uint8_t* bytes, std::uint32_t size, int pass
   return ::sendmsg(fd, &message, MSG_NOSIGNAL) == static_cast<ssize_t>(size);
 }
 
+bool send_multiple_rights(int fd, const std::uint8_t* bytes, std::uint32_t size,
+                          int passed_fd) {
+  struct iovec vector{const_cast<std::uint8_t*>(bytes), size};
+  struct msghdr message{};
+  std::array<std::uint8_t, CMSG_SPACE(sizeof(int) * 2U)> control{};
+  message.msg_iov = &vector;
+  message.msg_iovlen = 1;
+  message.msg_control = control.data();
+  message.msg_controllen = control.size();
+  auto* header = CMSG_FIRSTHDR(&message);
+  if (header == nullptr) {
+    return false;
+  }
+  header->cmsg_level = SOL_SOCKET;
+  header->cmsg_type = SCM_RIGHTS;
+  header->cmsg_len = CMSG_LEN(sizeof(int) * 2U);
+  const int descriptors[2] = {passed_fd, passed_fd};
+  std::memcpy(CMSG_DATA(header), descriptors, sizeof(descriptors));
+  return ::sendmsg(fd, &message, MSG_NOSIGNAL) == static_cast<ssize_t>(size);
+}
+
 bool receive_completion(int fd, std::uint64_t message_id, std::uint16_t request_type,
                         std::int32_t expected_status, mf_transport_completion_v0* out = nullptr) {
   std::array<std::uint8_t,
@@ -138,10 +159,46 @@ bool test_dma_requires_shared_memory_negotiation() {
   return true;
 }
 
+bool test_fatal_control_error_reports_transport_loss() {
+  int sockets[2] = {-1, -1};
+  if (::socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sockets) != 0) {
+    return false;
+  }
+  metaflux::transport::vfio_user::VfioUserServer server(sockets[1]);
+  metaflux::runtime::lifecycle::Config lifecycle_config{};
+  lifecycle_config.logical_device_id = 7U;
+  lifecycle_config.daemon_incarnation = 11U;
+  lifecycle_config.initial_identity_record_id = 1U;
+  lifecycle_config.initial_generation = 1U;
+  lifecycle_config.initial_epoch = 1U;
+  lifecycle_config.generation_terminal = 32U;
+  lifecycle_config.identity_record_terminal = 32U;
+  lifecycle_config.epoch_terminal = 32U;
+  metaflux::runtime::lifecycle::Coordinator coordinator(lifecycle_config);
+  const mf_transport_message_header_v0 header{
+      .message_id = 1U,
+      .message_type = MF_VFIO_USER_MESSAGE_GET_INFO_V0,
+      .flags = 0U,
+      .payload_size = 0U,
+  };
+  metaflux::runtime::lifecycle::ResultDetails details{};
+  const bool sent = send_multiple_rights(
+      sockets[0], reinterpret_cast<const std::uint8_t*>(&header), sizeof(header), sockets[0]);
+  const auto result = server.process_once(coordinator, 2U, 0U, details);
+  const bool valid = sent && result == metaflux::transport::vfio_user::ServerResult::Closed &&
+                     server.state() == metaflux::transport::vfio_user::ServerState::Lost &&
+                     details.result == metaflux::runtime::lifecycle::Result::Accepted &&
+                     details.snapshot.state == metaflux::runtime::lifecycle::State::Lost;
+  close(sockets[0]);
+  close(sockets[1]);
+  return valid;
+}
+
 } // namespace
 
 int main() {
-  if (!test_dma_requires_shared_memory_negotiation()) {
+  if (!test_dma_requires_shared_memory_negotiation() ||
+      !test_fatal_control_error_reports_transport_loss()) {
     return 1;
   }
   int sockets[2] = {-1, -1};

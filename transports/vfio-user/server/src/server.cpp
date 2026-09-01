@@ -657,7 +657,8 @@ VfioUserServer::process_once(metaflux::runtime::lifecycle::Coordinator& coordina
                              metaflux::runtime::lifecycle::ResultDetails& out) noexcept {
   out = metaflux::runtime::lifecycle::ResultDetails{};
   const ServerResult result = process_once();
-  if (result != ServerResult::Closed) {
+  if (result != ServerResult::Closed &&
+      !(result == ServerResult::Malformed && state_ == ServerState::Lost)) {
     return result;
   }
   return mark_lost_and_submit(disconnect_event, coordinator, out);
@@ -669,7 +670,8 @@ VfioUserServer::process_once(metaflux::runtime::lifecycle::Coordinator& coordina
                              metaflux::runtime::lifecycle::ResultDetails& out) noexcept {
   out = metaflux::runtime::lifecycle::ResultDetails{};
   const ServerResult result = process_once();
-  if (result != ServerResult::Closed) {
+  if (result != ServerResult::Closed &&
+      !(result == ServerResult::Malformed && state_ == ServerState::Lost)) {
     return result;
   }
   const auto disconnect_event = metaflux::runtime::lifecycle::capture_external_event(
