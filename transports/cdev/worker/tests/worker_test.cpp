@@ -378,6 +378,74 @@ mf_backend_api_v1 make_async_fixture_api() {
   return api;
 }
 
+bool backend_device_loss_reports_lifecycle() {
+  mf_registry_view_id_v1 view{.daemon_incarnation = 7U, .view_serial = 9U};
+  mf_client_ring_v1 submission{};
+  mf_client_ring_v1 completion{};
+  if (mf_client_ring_create_v1(8U, view, 1U, 4U, &submission) != MF_SHARED_SUCCESS ||
+      mf_client_ring_create_v1(8U, view, 2U, 4U, &completion) != MF_SHARED_SUCCESS) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return false;
+  }
+
+  BackendFixture fixture{};
+  fixture.result = MF_BACKEND_DEVICE_LOST;
+  const auto api = make_fixture_api();
+  std::array<std::uint8_t, 512> payload{};
+  metaflux::transport::cdev::CdevWorker worker(
+      {.submission = submission.header,
+       .completion = completion.header,
+       .payload = payload.data(),
+       .payload_size = payload.size(),
+       .generation = 4U},
+      {.api = &api,
+       .instance = static_cast<mf_backend_instance_v1>(
+           reinterpret_cast<std::uintptr_t>(&fixture)),
+       .queue = 17U,
+       .memory = 23U,
+       .completion_event = 0U,
+       .lease_acquire = fixture_lease_acquire,
+       .lease_release = fixture_lease_release,
+       .lease_context = &fixture,
+       .generation = 4U});
+
+  metaflux::runtime::lifecycle::Config config{};
+  config.logical_device_id = 7U;
+  config.daemon_incarnation = 7U;
+  config.initial_identity_record_id = 4U;
+  config.initial_generation = 4U;
+  config.initial_epoch = 1U;
+  config.generation_terminal = 32U;
+  config.identity_record_terminal = 32U;
+  config.epoch_terminal = 32U;
+  metaflux::runtime::lifecycle::Coordinator coordinator(config);
+  mf_ring_descriptor_v1 request{};
+  request.opcode = MF_RING_OPCODE_COPY;
+  request.request_id = 5001U;
+  request.target_id = 4U;
+  request.arguments[0] = 256U;
+  request.arguments[1] = 128U;
+  request.arguments[2] = 64U;
+  if (!worker.attach_lifecycle(coordinator) ||
+      mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      worker.lifecycle_online() ||
+      coordinator.snapshot().state != metaflux::runtime::lifecycle::State::Lost ||
+      fixture.lease_releases != 1U) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return false;
+  }
+  mf_ring_descriptor_v1 result{};
+  const bool completed = mf_client_ring_try_consume_v1(&completion, &result) == MF_SHARED_SUCCESS &&
+                         result.request_id == request.request_id &&
+                         result.arguments[0] == static_cast<std::uint64_t>(MF_SHARED_DEVICE_LOST);
+  mf_client_ring_close_v1(&submission);
+  mf_client_ring_close_v1(&completion);
+  return completed;
+}
+
 #if defined(METAFLUX_CPU_CDEV_LAUNCH)
 std::string read_file(const char* path) {
   std::ifstream input(path, std::ios::binary | std::ios::ate);
@@ -416,6 +484,9 @@ make_cpu_argument_block(std::span<const mf_cpu_backend_argument_v1> entries) {
 } // namespace
 
 int main() {
+  if (!backend_device_loss_reports_lifecycle()) {
+    return 1;
+  }
   mf_registry_view_id_v1 view{.daemon_incarnation = 7U, .view_serial = 9U};
   metaflux::transport::cdev::CdevWorkerSession worker_session;
   if (metaflux::transport::cdev::CdevWorkerSession::open("/dev/null", view, 4U,

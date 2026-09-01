@@ -351,6 +351,8 @@ private:
                                                         nullptr,
                                                     const CdevLaunchResolution* launch_resolution =
                                                         nullptr) noexcept;
+  void report_backend_loss(
+      const metaflux::runtime::lifecycle::ExternalEvent& event) noexcept;
   [[nodiscard]] WorkerResult progress_pending() noexcept;
   [[nodiscard]] mf_shared_status_v1 acquire_backend_lease() const noexcept;
   bool cancel_pending() noexcept;
@@ -367,6 +369,7 @@ private:
   WorkerQueueView staged_view_{};
   CdevBackendBinding staged_backend_{};
   bool staged_rebind_ = false;
+  metaflux::runtime::lifecycle::Coordinator* lifecycle_coordinator_ = nullptr;
   struct PendingOperation final {
     bool active = false;
     mf_ring_descriptor_v1 request{};
@@ -380,6 +383,8 @@ private:
     bool cancellation_requested = false;
     bool retire_backend = false;
     mf_backend_event_v1 event = 0U;
+    metaflux::runtime::lifecycle::ExternalEvent disconnect_event{};
+    bool has_disconnect_event = false;
   } pending_{};
 };
 

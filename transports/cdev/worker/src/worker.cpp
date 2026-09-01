@@ -1166,6 +1166,12 @@ WorkerResult CdevWorker::finish_backend_request(const mf_ring_descriptor_v1& req
                                                 const CdevBackendMemoryReference* memory_reference,
                                                 const CdevLaunchResolution* launch_resolution) noexcept {
   if (status != MF_SHARED_SUCCESS || backend_.completion_event == 0U) {
+    if (status == MF_SHARED_DEVICE_LOST && lifecycle_coordinator_ != nullptr &&
+        lifecycle_online_) {
+      report_backend_loss(metaflux::runtime::lifecycle::capture_external_event(
+          metaflux::runtime::lifecycle::ExternalEventKind::CdevDisconnect, request.request_id,
+          lifecycle_coordinator_->snapshot()));
+    }
     if (resolution != nullptr) {
       release_copy_references(*resolution);
     }
@@ -1194,6 +1200,12 @@ WorkerResult CdevWorker::finish_backend_request(const mf_ring_descriptor_v1& req
     pending_.has_launch_memory_references = launch_resolution->memory_reference_count != 0U;
   }
   pending_.event = backend_.completion_event;
+  if (lifecycle_coordinator_ != nullptr) {
+    pending_.disconnect_event = metaflux::runtime::lifecycle::capture_external_event(
+        metaflux::runtime::lifecycle::ExternalEventKind::CdevDisconnect, request.request_id,
+        lifecycle_coordinator_->snapshot());
+    pending_.has_disconnect_event = true;
+  }
   return WorkerResult::Idle;
 }
 
@@ -1266,6 +1278,9 @@ WorkerResult CdevWorker::progress_pending() noexcept {
   const mf_shared_status_v1 status =
       query_status == MF_BACKEND_SUCCESS ? MF_SHARED_SUCCESS : map_backend_status(query_status);
   const mf_ring_descriptor_v1 request = pending_.request;
+  if (status == MF_SHARED_DEVICE_LOST && pending_.has_disconnect_event) {
+    report_backend_loss(pending_.disconnect_event);
+  }
   const WorkerResult result = complete(request, status);
   if (result != WorkerResult::Backpressure) {
     const bool has_memory_references = pending_.has_memory_references;
@@ -1568,7 +1583,27 @@ void CdevWorker::lifecycle_lost(void* context,
 }
 
 bool CdevWorker::attach_lifecycle(metaflux::runtime::lifecycle::Coordinator& coordinator) noexcept {
-  return coordinator.register_mirror(lifecycle_mirror());
+  if (!coordinator.register_mirror(lifecycle_mirror())) {
+    return false;
+  }
+  lifecycle_coordinator_ = &coordinator;
+  if (pending_.active) {
+    pending_.disconnect_event = metaflux::runtime::lifecycle::capture_external_event(
+        metaflux::runtime::lifecycle::ExternalEventKind::CdevDisconnect,
+        pending_.request.request_id, coordinator.snapshot());
+    pending_.has_disconnect_event = true;
+  }
+  return true;
+}
+
+void CdevWorker::report_backend_loss(
+    const metaflux::runtime::lifecycle::ExternalEvent& event) noexcept {
+  if (lifecycle_coordinator_ == nullptr || !lifecycle_online_) {
+    return;
+  }
+  metaflux::runtime::lifecycle::ResultDetails details{};
+  (void)metaflux::runtime::lifecycle::submit_external_event(*lifecycle_coordinator_, event,
+                                                            details);
 }
 
 metaflux::runtime::lifecycle::NormalizationResult CdevWorker::report_disconnect(
