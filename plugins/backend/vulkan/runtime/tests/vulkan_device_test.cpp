@@ -110,6 +110,7 @@ int main() {
   }
   if (initialized != DeviceStatus::success || !context.ready() || context.generation() != 42U ||
       context.queue_family_index() != profile.queue_family_index ||
+      context.queue_count() != profile.queue_count ||
       context.last_submitted_value() != 0U || context.last_completed_value() != 0U ||
       context.initialize(profile) != DeviceStatus::busy) {
     return 4;

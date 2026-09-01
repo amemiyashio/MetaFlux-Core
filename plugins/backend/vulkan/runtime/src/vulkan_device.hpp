@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.h>
 
 #include <cstdint>
+#include <mutex>
 
 namespace metaflux::backend::vulkan {
 
@@ -50,20 +51,45 @@ public:
   void reset() noexcept;
 
   [[nodiscard]] bool ready() const noexcept {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     return instance_ != VK_NULL_HANDLE && physical_device_ != VK_NULL_HANDLE &&
            device_ != VK_NULL_HANDLE && queue_ != VK_NULL_HANDLE && timeline_ != VK_NULL_HANDLE &&
-           !lost_;
+           queue_count_ != 0U && !lost_;
   }
-  [[nodiscard]] bool lost() const noexcept { return lost_; }
-  [[nodiscard]] std::uint64_t generation() const noexcept { return generation_; }
-  [[nodiscard]] std::uint32_t queue_family_index() const noexcept { return queue_family_index_; }
-  [[nodiscard]] std::uint64_t last_submitted_value() const noexcept { return last_submitted_; }
-  [[nodiscard]] std::uint64_t last_completed_value() const noexcept { return last_completed_; }
+  [[nodiscard]] bool lost() const noexcept {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return lost_;
+  }
+  [[nodiscard]] std::uint64_t generation() const noexcept {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return generation_;
+  }
+  [[nodiscard]] std::uint32_t queue_family_index() const noexcept {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return queue_family_index_;
+  }
+  [[nodiscard]] std::uint32_t queue_count() const noexcept {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return queue_count_;
+  }
+  [[nodiscard]] std::uint64_t last_submitted_value() const noexcept {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return last_submitted_;
+  }
+  [[nodiscard]] std::uint64_t last_completed_value() const noexcept {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return last_completed_;
+  }
   [[nodiscard]] VkPhysicalDevice physical_device_handle() const noexcept {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     return physical_device_;
   }
-  [[nodiscard]] VkDevice device_handle() const noexcept { return device_; }
+  [[nodiscard]] VkDevice device_handle() const noexcept {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    return device_;
+  }
   [[nodiscard]] VkDeviceSize non_coherent_atom_size() const noexcept {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
     return non_coherent_atom_size_;
   }
 
@@ -78,11 +104,13 @@ private:
   VkQueue queue_ = VK_NULL_HANDLE;
   VkSemaphore timeline_ = VK_NULL_HANDLE;
   std::uint32_t queue_family_index_ = UINT32_MAX;
+  std::uint32_t queue_count_ = 0U;
   std::uint64_t generation_ = 0U;
   std::uint64_t last_submitted_ = 0U;
   std::uint64_t last_completed_ = 0U;
   VkDeviceSize non_coherent_atom_size_ = 1U;
   bool lost_ = false;
+  mutable std::recursive_mutex mutex_;
 };
 
 [[nodiscard]] const char* device_status_string(DeviceStatus status) noexcept;

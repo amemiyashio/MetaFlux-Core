@@ -4,6 +4,7 @@
 #include <array>
 #include <cstring>
 #include <limits>
+#include <mutex>
 #include <vector>
 
 namespace metaflux::backend::vulkan {
@@ -162,6 +163,7 @@ void VulkanDeviceContext::destroy_handles() noexcept {
   queue_ = VK_NULL_HANDLE;
   physical_device_ = VK_NULL_HANDLE;
   queue_family_index_ = UINT32_MAX;
+  queue_count_ = 0U;
   non_coherent_atom_size_ = 1U;
   if (instance_ != VK_NULL_HANDLE) {
     vkDestroyInstance(instance_, nullptr);
@@ -171,7 +173,10 @@ void VulkanDeviceContext::destroy_handles() noexcept {
   last_completed_ = 0U;
 }
 
-void VulkanDeviceContext::reset() noexcept { destroy_handles(); }
+void VulkanDeviceContext::reset() noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
+  destroy_handles();
+}
 
 DeviceStatus VulkanDeviceContext::map_initialization_result(VkResult result) noexcept {
   switch (result) {
@@ -209,6 +214,7 @@ DeviceStatus VulkanDeviceContext::map_runtime_result(VkResult result) noexcept {
 
 DeviceStatus
 VulkanDeviceContext::initialize(const mf_vulkan_capability_profile_v1& profile) noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (generation_ == 0U || !valid_capability_profile(profile)) {
     return DeviceStatus::invalid_argument;
   }
@@ -263,12 +269,12 @@ VulkanDeviceContext::initialize(const mf_vulkan_capability_profile_v1& profile) 
     non_coherent_atom_size_ =
         std::max<VkDeviceSize>(selected_properties.limits.nonCoherentAtomSize, 1U);
 
-    const float queue_priority = 1.0F;
+    std::vector<float> queue_priorities(profile.queue_count, 1.0F);
     VkDeviceQueueCreateInfo queue_info{};
     queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     queue_info.queueFamilyIndex = queue_family_index_;
-    queue_info.queueCount = 1U;
-    queue_info.pQueuePriorities = &queue_priority;
+    queue_info.queueCount = profile.queue_count;
+    queue_info.pQueuePriorities = queue_priorities.data();
 
     VkPhysicalDeviceVulkan13Features enabled13{};
     enabled13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
@@ -295,6 +301,7 @@ VulkanDeviceContext::initialize(const mf_vulkan_capability_profile_v1& profile) 
       destroy_handles();
       return DeviceStatus::initialization_failed;
     }
+    queue_count_ = profile.queue_count;
 
     VkSemaphoreTypeCreateInfo type_info{};
     type_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
@@ -318,6 +325,7 @@ VulkanDeviceContext::initialize(const mf_vulkan_capability_profile_v1& profile) 
 
 DeviceStatus VulkanDeviceContext::submit_signal(std::uint64_t generation,
                                                 std::uint64_t value) noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (generation == 0U) {
     return DeviceStatus::invalid_argument;
   }
@@ -356,6 +364,7 @@ DeviceStatus VulkanDeviceContext::submit_commands(std::uint64_t generation,
                                                   VkCommandBuffer command_buffer,
                                                   std::uint64_t wait_value,
                                                   std::uint64_t signal_value) noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (generation == 0U || command_buffer == VK_NULL_HANDLE) {
     return DeviceStatus::invalid_argument;
   }
@@ -404,6 +413,7 @@ DeviceStatus VulkanDeviceContext::submit_commands(std::uint64_t generation,
 
 DeviceStatus VulkanDeviceContext::wait(std::uint64_t generation, std::uint64_t value,
                                        std::uint64_t timeout_ns) noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (generation == 0U) {
     return DeviceStatus::invalid_argument;
   }
@@ -437,6 +447,7 @@ DeviceStatus VulkanDeviceContext::wait(std::uint64_t generation, std::uint64_t v
 
 DeviceStatus VulkanDeviceContext::poll(std::uint64_t generation,
                                        std::uint64_t* out_value) noexcept {
+  std::lock_guard<std::recursive_mutex> lock(mutex_);
   if (out_value == nullptr || generation == 0U) {
     return DeviceStatus::invalid_argument;
   }
