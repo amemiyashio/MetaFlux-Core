@@ -15,6 +15,18 @@ if(NOT METAFLUX_VULKAN_INCLUDE_DIR OR NOT METAFLUX_VULKAN_LIBRARY)
   )
 endif()
 
+# Test executables need the pinned loader when CTest runs outside the Vulkan
+# development shell. Keep only discovered store paths here; adding host
+# /lib or /usr/lib ahead of the pinned runtime can mix incompatible libc
+# private symbols with the Nix toolchain.
+get_filename_component(METAFLUX_VULKAN_LIBRARY_DIR "${METAFLUX_VULKAN_LIBRARY}" DIRECTORY)
+set(METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH "${METAFLUX_VULKAN_LIBRARY_DIR}")
+foreach(implicit_library_dir IN LISTS CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES)
+  if(implicit_library_dir MATCHES "^/nix/store/")
+    string(APPEND METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH ":${implicit_library_dir}")
+  endif()
+endforeach()
+
 add_subdirectory(runtime)
 if(METAFLUX_BUILD_COMPILER AND TARGET metaflux_compiler_core)
   add_subdirectory(compiler)

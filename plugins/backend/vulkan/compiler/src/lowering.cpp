@@ -110,6 +110,27 @@ SpirvSemanticOpcode map_opcode(Opcode opcode) noexcept {
   return SpirvSemanticOpcode::return_value;
 }
 
+SpirvSemanticOpcode map_operation(const compiler::Operation& operation) noexcept {
+  if (operation.opcode != Opcode::MoveSpecialU32) {
+    return map_opcode(operation.opcode);
+  }
+  switch (static_cast<SpecialRegister>(operation.attribute)) {
+  case SpecialRegister::ThreadIdX:
+  case SpecialRegister::ThreadIdY:
+    return SpirvSemanticOpcode::builtin_local_invocation_id;
+  case SpecialRegister::BlockIdX:
+  case SpecialRegister::BlockIdY:
+    return SpirvSemanticOpcode::builtin_workgroup_id;
+  case SpecialRegister::BlockDimX:
+  case SpecialRegister::BlockDimY:
+    return SpirvSemanticOpcode::builtin_workgroup_size;
+  case SpecialRegister::GridDimX:
+  case SpecialRegister::GridDimY:
+    return SpirvSemanticOpcode::builtin_num_workgroups;
+  }
+  return SpirvSemanticOpcode::return_value;
+}
+
 bool has_global_address(const compiler::Kernel& kernel) noexcept {
   return std::any_of(kernel.parameters.begin(), kernel.parameters.end(), [](const auto& parameter) {
            return parameter.kind == compiler::ParameterKind::BufferU32;
@@ -264,7 +285,7 @@ LoweringResult lower_kernel(const compiler::Kernel& kernel,
     module.instructions.reserve(kernel.operations.size());
     for (const auto& operation : kernel.operations) {
       module.instructions.push_back(SpirvLoweredInstruction{
-          .opcode = map_opcode(operation.opcode),
+          .opcode = map_operation(operation),
           .result = operation.result,
           .inputs = operation.inputs,
           .input_count = operation.input_count,

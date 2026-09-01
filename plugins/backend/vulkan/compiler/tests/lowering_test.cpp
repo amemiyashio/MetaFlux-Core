@@ -11,6 +11,7 @@ namespace {
 
 using metaflux::backend::vulkan::LoweringStatus;
 using metaflux::backend::vulkan::SpirvLoweredModule;
+using metaflux::backend::vulkan::SpirvSemanticOpcode;
 using metaflux::compiler::Kernel;
 using metaflux::compiler::Opcode;
 using metaflux::compiler::Operation;
@@ -113,6 +114,9 @@ bool valid_add_lowering() {
       add_kernel(), profile, {8U, 1U, 1U}, &module);
   return result.status == LoweringStatus::success && module.entry_point == "add_u32" &&
          module.instructions.size() == 19U && module.reflection.argument_count == 4U &&
+         module.instructions[4].opcode == SpirvSemanticOpcode::builtin_local_invocation_id &&
+         module.instructions[5].opcode == SpirvSemanticOpcode::builtin_workgroup_id &&
+         module.instructions[6].opcode == SpirvSemanticOpcode::builtin_workgroup_size &&
          !module.reflection.has_workgroup_storage &&
          (module.reflection.builtin_flags &
           metaflux::backend::vulkan::kReflectionBuiltinLocalInvocationId) != 0U &&
@@ -121,6 +125,10 @@ bool valid_add_lowering() {
          (module.reflection.builtin_flags &
           metaflux::backend::vulkan::kReflectionBuiltinWorkgroupSize) != 0U &&
          module.canonical_text.find("spirv.branch_conditional") != std::string::npos &&
+         module.canonical_text.find("spirv.builtin_workgroup_id result=5") !=
+             std::string::npos &&
+         module.canonical_text.find("spirv.builtin_workgroup_size result=6") !=
+             std::string::npos &&
          module.canonical_text.find("spirv.store_global_u32") != std::string::npos &&
          module.canonical_text.find("schema=metaflux.vulkan.target.v1") != std::string::npos;
 }

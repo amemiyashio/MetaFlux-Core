@@ -29,5 +29,6 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   set_tests_properties(
     metaflux.backend.vulkan-lowering
     PROPERTIES LABELS "backend;vulkan;compiler;unit"
+               ENVIRONMENT "LD_LIBRARY_PATH=${METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH}"
   )
 endif()
