@@ -13,6 +13,7 @@ extern "C" {
 
 #define MF_VFIO_USER_REPLY_FLAG_V0 UINT16_C(0x8000)
 #define MF_VFIO_USER_MAX_PACKET_SIZE_V0 UINT32_C(512)
+#define MF_VFIO_USER_GUEST_MAX_BATCH_V0 UINT32_C(64)
 
 typedef void (*mf_vfio_user_guest_doorbell_v0)(void* context, uint32_t value);
 
@@ -25,6 +26,8 @@ typedef struct mf_vfio_user_guest_ring_v0 {
   void* doorbell_context;
   uint32_t doorbell_value;
   uint32_t reserved;
+  uint64_t last_completion_timeline;
+  uint64_t armed_completion_timeline;
 } mf_vfio_user_guest_ring_v0;
 
 /*
@@ -46,6 +49,16 @@ mf_shared_status_v1 mf_vfio_user_guest_ring_payload_contains_v0(
 mf_shared_status_v1 mf_vfio_user_guest_ring_submit_v0(
     mf_vfio_user_guest_ring_v0* ring, const mf_ring_descriptor_v1* descriptor);
 
+/*
+ * Publish a bounded SPSC batch in caller order and ring BAR2 once. Capacity
+ * is checked before publication so a full batch cannot be partially emitted.
+ * Descriptors may target different logical streams; the shared ring remains
+ * the sole ordered publication boundary.
+ */
+mf_shared_status_v1 mf_vfio_user_guest_ring_submit_batch_v0(
+    mf_vfio_user_guest_ring_v0* ring, const mf_ring_descriptor_v1* descriptors,
+    uint32_t descriptor_count);
+
 mf_shared_status_v1 mf_vfio_user_guest_ring_try_consume_v0(
     mf_vfio_user_guest_ring_v0* ring, mf_ring_descriptor_v1* out_descriptor);
 
@@ -54,6 +67,14 @@ mf_shared_status_v1 mf_vfio_user_guest_ring_wait_submission_v0(
 
 mf_shared_status_v1 mf_vfio_user_guest_ring_wait_completion_v0(
     mf_vfio_user_guest_ring_v0* ring, uint64_t timeout_ns);
+
+/* Arm and wait for a completion timeline without consuming the descriptor. */
+mf_shared_status_v1 mf_vfio_user_guest_ring_arm_completion_v0(
+    mf_vfio_user_guest_ring_v0* ring, uint64_t timeline_value);
+mf_shared_status_v1 mf_vfio_user_guest_ring_wait_armed_completion_v0(
+    mf_vfio_user_guest_ring_v0* ring, uint64_t timeout_ns);
+uint64_t mf_vfio_user_guest_ring_last_completion_timeline_v0(
+    const mf_vfio_user_guest_ring_v0* ring);
 
 mf_shared_status_v1 mf_vfio_user_guest_encode_get_info_v0(uint64_t message_id,
                                                            uint8_t* buffer,

@@ -26,6 +26,32 @@ static void guest_ring_reset(mf_vfio_user_guest_ring_v0* ring) {
   ring->completion.owned_fd = -1;
 }
 
+static int guest_descriptor_valid(const mf_ring_descriptor_v1* descriptor) {
+  return descriptor != NULL && descriptor->request_id != UINT64_C(0) &&
+         descriptor->target_id != UINT64_C(0) && descriptor->opcode != MF_RING_OPCODE_COMPLETION;
+}
+
+static int guest_batch_capacity_available(const mf_vfio_user_guest_ring_v0* ring,
+                                          uint32_t descriptor_count) {
+  const uint64_t producer =
+      mf_atomic_load_u64_relaxed(&ring->submission.header->producer.position);
+  const uint64_t consumer =
+      mf_atomic_load_u64_acquire(&ring->submission.header->consumer.position);
+  const uint64_t used = producer - consumer;
+  return producer >= consumer && used <= ring->submission.capacity &&
+         (uint64_t)descriptor_count <= (uint64_t)ring->submission.capacity - used;
+}
+
+static mf_shared_status_v1 guest_ring_publish(mf_vfio_user_guest_ring_v0* ring,
+                                              const mf_ring_descriptor_v1* descriptor,
+                                              int notify) {
+  const mf_shared_status_v1 status = mf_client_ring_try_submit_v1(&ring->submission, descriptor);
+  if (status == MF_SHARED_SUCCESS && notify) {
+    ring->doorbell(ring->doorbell_context, ring->doorbell_value);
+  }
+  return status;
+}
+
 mf_shared_status_v1 mf_vfio_user_guest_ring_attach_v0(
     int32_t submission_fd, int32_t completion_fd, mf_registry_view_id_v1 expected_view_id,
     uint64_t expected_queue_generation, void* payload_mapping, uint64_t payload_size,
@@ -66,6 +92,8 @@ mf_shared_status_v1 mf_vfio_user_guest_ring_attach_v0(
   out_ring->doorbell = doorbell;
   out_ring->doorbell_context = doorbell_context;
   out_ring->doorbell_value = doorbell_value;
+  out_ring->last_completion_timeline = 0U;
+  out_ring->armed_completion_timeline = 0U;
   return MF_SHARED_SUCCESS;
 }
 
@@ -94,16 +122,38 @@ mf_vfio_user_guest_ring_payload_contains_v0(const mf_vfio_user_guest_ring_v0* ri
 
 mf_shared_status_v1 mf_vfio_user_guest_ring_submit_v0(mf_vfio_user_guest_ring_v0* ring,
                                                       const mf_ring_descriptor_v1* descriptor) {
-  mf_shared_status_v1 status = MF_SHARED_SUCCESS;
-  if (!guest_ring_bound(ring) || descriptor == NULL || descriptor->request_id == UINT64_C(0) ||
-      descriptor->target_id == UINT64_C(0) || descriptor->opcode == MF_RING_OPCODE_COMPLETION) {
+  if (!guest_ring_bound(ring) || !guest_descriptor_valid(descriptor)) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
-  status = mf_client_ring_try_submit_v1(&ring->submission, descriptor);
-  if (status == MF_SHARED_SUCCESS) {
-    ring->doorbell(ring->doorbell_context, ring->doorbell_value);
+  return guest_ring_publish(ring, descriptor, 1);
+}
+
+mf_shared_status_v1 mf_vfio_user_guest_ring_submit_batch_v0(
+    mf_vfio_user_guest_ring_v0* ring, const mf_ring_descriptor_v1* descriptors,
+    uint32_t descriptor_count) {
+  uint32_t index = 0U;
+  mf_shared_status_v1 status = MF_SHARED_SUCCESS;
+  if (!guest_ring_bound(ring) || descriptors == NULL || descriptor_count == 0U ||
+      descriptor_count > MF_VFIO_USER_GUEST_MAX_BATCH_V0) {
+    return MF_SHARED_INVALID_ARGUMENT;
   }
-  return status;
+  for (index = 0U; index < descriptor_count; ++index) {
+    if (!guest_descriptor_valid(&descriptors[index])) {
+      return MF_SHARED_INVALID_ARGUMENT;
+    }
+  }
+  if (descriptor_count > ring->submission.capacity ||
+      !guest_batch_capacity_available(ring, descriptor_count)) {
+    return MF_SHARED_WOULD_BLOCK;
+  }
+  for (index = 0U; index < descriptor_count; ++index) {
+    status = guest_ring_publish(ring, &descriptors[index], 0);
+    if (status != MF_SHARED_SUCCESS) {
+      return status;
+    }
+  }
+  ring->doorbell(ring->doorbell_context, ring->doorbell_value);
+  return MF_SHARED_SUCCESS;
 }
 
 mf_shared_status_v1 mf_vfio_user_guest_ring_try_consume_v0(mf_vfio_user_guest_ring_v0* ring,
@@ -111,7 +161,18 @@ mf_shared_status_v1 mf_vfio_user_guest_ring_try_consume_v0(mf_vfio_user_guest_ri
   if (!guest_ring_bound(ring) || out_descriptor == NULL) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
-  return mf_client_ring_try_consume_v1(&ring->completion, out_descriptor);
+  const mf_shared_status_v1 status =
+      mf_client_ring_try_consume_v1(&ring->completion, out_descriptor);
+  if (status != MF_SHARED_SUCCESS) {
+    return status;
+  }
+  if (out_descriptor->opcode != MF_RING_OPCODE_COMPLETION ||
+      out_descriptor->request_id == UINT64_C(0) || out_descriptor->arguments[1] == UINT64_C(0) ||
+      out_descriptor->arguments[1] <= ring->last_completion_timeline) {
+    return MF_SHARED_MALFORMED;
+  }
+  ring->last_completion_timeline = out_descriptor->arguments[1];
+  return MF_SHARED_SUCCESS;
 }
 
 mf_shared_status_v1 mf_vfio_user_guest_ring_wait_submission_v0(mf_vfio_user_guest_ring_v0* ring,
@@ -128,6 +189,31 @@ mf_shared_status_v1 mf_vfio_user_guest_ring_wait_completion_v0(mf_vfio_user_gues
     return MF_SHARED_INVALID_ARGUMENT;
   }
   return mf_client_ring_wait_readable_v1(&ring->completion, timeout_ns);
+}
+
+mf_shared_status_v1 mf_vfio_user_guest_ring_arm_completion_v0(
+    mf_vfio_user_guest_ring_v0* ring, uint64_t timeline_value) {
+  if (!guest_ring_bound(ring) || timeline_value == UINT64_C(0)) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  ring->armed_completion_timeline = timeline_value;
+  return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1 mf_vfio_user_guest_ring_wait_armed_completion_v0(
+    mf_vfio_user_guest_ring_v0* ring, uint64_t timeout_ns) {
+  if (!guest_ring_bound(ring) || ring->armed_completion_timeline == UINT64_C(0)) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  if (ring->last_completion_timeline >= ring->armed_completion_timeline) {
+    return MF_SHARED_SUCCESS;
+  }
+  return mf_client_ring_wait_readable_v1(&ring->completion, timeout_ns);
+}
+
+uint64_t mf_vfio_user_guest_ring_last_completion_timeline_v0(
+    const mf_vfio_user_guest_ring_v0* ring) {
+  return guest_ring_bound(ring) ? ring->last_completion_timeline : UINT64_C(0);
 }
 
 static mf_shared_status_v1 encode_packet(uint64_t message_id, uint16_t message_type,

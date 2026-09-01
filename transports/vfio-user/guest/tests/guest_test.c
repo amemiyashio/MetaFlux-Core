@@ -22,6 +22,7 @@ static int run_ring_test(void) {
   mf_vfio_user_guest_ring_v0 guest;
   mf_vfio_user_guest_ring_v0 probe;
   mf_ring_descriptor_v1 descriptor;
+  mf_ring_descriptor_v1 batch[2];
   mf_ring_descriptor_v1 completion;
   uint8_t payload[32];
   doorbell_fixture doorbell = {0};
@@ -123,6 +124,7 @@ static int run_ring_test(void) {
   completion.opcode = MF_RING_OPCODE_COMPLETION;
   completion.request_id = UINT64_C(1);
   completion.target_id = UINT64_C(2);
+  completion.arguments[1] = UINT64_C(1);
   for (index = 0; index < UINT32_C(1); ++index) {
     if (mf_client_ring_try_submit_v1(&completion_owner, &completion) != MF_SHARED_SUCCESS ||
         mf_vfio_user_guest_ring_wait_completion_v0(&guest, UINT64_C(0)) != MF_SHARED_SUCCESS ||
@@ -133,6 +135,39 @@ static int run_ring_test(void) {
       mf_client_ring_close_v1(&submission_owner);
       return 8;
     }
+  }
+  if (mf_vfio_user_guest_ring_last_completion_timeline_v0(&guest) != UINT64_C(1) ||
+      mf_vfio_user_guest_ring_arm_completion_v0(&guest, UINT64_C(1)) != MF_SHARED_SUCCESS ||
+      mf_vfio_user_guest_ring_wait_armed_completion_v0(&guest, UINT64_C(0)) != MF_SHARED_SUCCESS) {
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 9;
+  }
+
+  if (mf_client_ring_try_consume_v1(&submission_owner, &descriptor) != MF_SHARED_SUCCESS) {
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 10;
+  }
+  (void)memset(batch, 0, sizeof(batch));
+  batch[0].opcode = MF_RING_OPCODE_COPY;
+  batch[0].request_id = UINT64_C(20);
+  batch[0].target_id = UINT64_C(100);
+  batch[1].opcode = MF_RING_OPCODE_COPY;
+  batch[1].request_id = UINT64_C(21);
+  batch[1].target_id = UINT64_C(200);
+  if (mf_vfio_user_guest_ring_submit_batch_v0(&guest, batch, 2U) != MF_SHARED_SUCCESS ||
+      doorbell.count != UINT32_C(3) ||
+      mf_client_ring_try_consume_v1(&submission_owner, &descriptor) != MF_SHARED_SUCCESS ||
+      descriptor.request_id != UINT64_C(20) || descriptor.target_id != UINT64_C(100) ||
+      mf_client_ring_try_consume_v1(&submission_owner, &descriptor) != MF_SHARED_SUCCESS ||
+      descriptor.request_id != UINT64_C(21) || descriptor.target_id != UINT64_C(200)) {
+    mf_vfio_user_guest_ring_close_v0(&guest);
+    mf_client_ring_close_v1(&completion_owner);
+    mf_client_ring_close_v1(&submission_owner);
+    return 11;
   }
   mf_vfio_user_guest_ring_close_v0(&guest);
   mf_client_ring_close_v1(&completion_owner);
