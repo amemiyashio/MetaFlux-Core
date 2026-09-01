@@ -2,13 +2,16 @@
   "schema_version": 2,
   "governance_epoch": "D0029",
   "updated": "2026-09-01",
-  "mode": "product",
-  "owner_session": "S0112-20260901-001-m0110-w0112-current-epoch",
-  "authority": null,
-  "target": {
+  "mode": "governance",
+  "owner_session": "S0100-20260901-002-agent-startup-resolution",
+  "authority": {
+    "decision": "D0029",
+    "semantic_change": "SC0008"
+  },
+  "target": null,
+  "resume_target": {
     "milestone": "M0110",
     "work_item": "W0112",
     "exit_gate": "agent/plan/M0110-kernel-guest-transport/work/W0112-local-cdev.md#exit-gate"
-  },
-  "resume_target": null
+  }
 }

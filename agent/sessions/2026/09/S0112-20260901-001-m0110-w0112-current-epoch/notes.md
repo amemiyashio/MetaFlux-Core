@@ -22,3 +22,8 @@ host-memory import fixture until live registered-memory/DMA qualification.
 Revision `95c960d` adds the live cdev qualification executable. Its current-host
 result is an explicit skip because `/dev/metaflux0` is absent, not acceptance
 evidence for the W0112 Exit Gate.
+
+This ledger terminally stops at checkpoint `d71afa8` because SC0008 preempts
+product work. It is not a resume owner. After SC0008 applies, W0112 continues
+only through a newly scaffolded current-epoch successor using the migrated
+startup files.

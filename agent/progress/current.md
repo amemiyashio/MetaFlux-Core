@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-09-01
 governance_epoch: D0029
-focus_mode: product
-focus_owner: S0112-20260901-001-m0110-w0112-current-epoch
+focus_mode: governance
+focus_owner: S0100-20260901-002-agent-startup-resolution
 milestone: M0110
 workstream: W0112
 checkpoint: P20260901-100
@@ -13,17 +13,16 @@ checkpoint: P20260901-100
 
 ## Execution Focus
 
-SC0007 is Applied at effective revision
-`97248239d507028309df07aaa4d1f462388cf4b6`. D0029 execution governance is
-explicitly breaking and destructive. The sole product owner is
-`S0112-20260901-001-m0110-w0112-current-epoch`, a schema version 2 session that
-declares the current D0029 epoch.
+SC0008 is Active under D0029 as a destructive agent-startup migration. The sole
+governance owner is `S0100-20260901-002-agent-startup-resolution`; product
+changes are paused until harness-subject resolution and Nix-first startup are
+enforced across the current workflow surfaces.
 
-There is no compatibility, grandfather, fallback, upgrade, or direct
-reactivation path for pre-SC0007 sessions. All 82 schema version 1 ledgers and
-72 transient guidance files are absent from the current tree. Their IDs resolve
-only through `agent/sessions/liquidated-v1.json` as administrative tombstones.
-Work proceeds from current canonical repository files only.
+The replacement has no compatibility route. Future Codex sessions must use the
+stable `codex` harness subject rather than a model, template, backend, build,
+session, thread, or prompt label. Repository executables and tool probes must
+start inside the Git-aware Nix development environment; agents do not search
+the ambient host for an agent CLI or infer harness identity.
 
 ## Product Resume Target
 
@@ -83,13 +82,11 @@ default scheduling authority while M0110 is incomplete.
 
 ## Next Actions
 
-1. Activate `/dev/metafluxctl` and `/dev/metafluxN`, then prove the current
-   daemon lease/query/object-table path against live cdev mappings and
-   registered-memory handles.
-2. Prove unmodified Add/Copy through `/dev/metafluxN`, including
-   replacement-generation isolation and fd/VMA tombstone behavior, then
-   execute the W0112 fault matrix with KUnit, KASAN, KCSAN, lockdep, and
-   kmemleak on Linux 6.12 and 6.18.
+1. Create the canonical startup-resolution decision and migrate the start-work,
+   harness identity, and toolchain surfaces under Active SC0008.
+2. Pass helper, skill, routing, semantic-change, record, and Nix-first
+   regressions with no legacy startup route remaining.
+3. Apply SC0008 and atomically return W0112 to a newly scaffolded successor.
 
 ## Blockers
 
@@ -99,6 +96,8 @@ default scheduling authority while M0110 is incomplete.
 - W0112 remains incomplete until live device-node Add/Copy and kernel fault
   evidence exist. Host-independent fixtures and mapped COPY alone do not close
   it.
+- Product work remains paused until SC0008 has no Pending migration row and the
+  W0112 successor owns product focus.
 - M0120 and M0130 content work waits for an explicit focus handoff after the
   M0110 dependency boundary advances.
 

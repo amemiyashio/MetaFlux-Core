@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "governance_epoch": "D0029",
+  "id": "S0100-20260901-002-agent-startup-resolution",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.0.0",
+  "started_at": "2026-09-01",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "destructive agent-startup governance owner"
+    }
+  ],
+  "milestones": [],
+  "work_items": [],
+  "base_revision": "d71afa8294dc2759a5b79355281e918184020f27",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}

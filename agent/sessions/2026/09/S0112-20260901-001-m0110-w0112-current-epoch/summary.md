@@ -181,6 +181,8 @@ The product Exit Gate remains open.
 
 ## Handoff
 
-Resume from `agent/progress/focus.json`, `agent/progress/current.md`, and the
-W0112 Exit Gate. The next unit is daemon-side live cdev lease/import wiring;
-do not seek task context in `agent/sessions/liquidated-v1.json` or Git history.
+SC0008 now owns execution focus through
+`S0100-20260901-002-agent-startup-resolution`. After that destructive
+migration applies, resume from the current focus, current progress, and W0112
+Exit Gate in a newly scaffolded successor. This terminal ledger is evidence,
+not execution authority.
