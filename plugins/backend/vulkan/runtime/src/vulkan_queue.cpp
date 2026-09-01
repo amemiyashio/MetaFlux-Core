@@ -184,6 +184,10 @@ QueueExecutionStatus VulkanQueueExecutor::poll(std::uint64_t generation,
   if (observed_status != QueueExecutionStatus::success) {
     return observed_status;
   }
+  if (completed_value == 0U) {
+    *out_completed_value = 0U;
+    return QueueExecutionStatus::success;
+  }
   const auto recycled = ledger_.complete(generation, completed_value);
   const auto recycled_status = map(recycled);
   if (recycled_status == QueueExecutionStatus::success) {

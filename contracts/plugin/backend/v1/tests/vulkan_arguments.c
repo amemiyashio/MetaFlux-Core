@@ -26,6 +26,30 @@ int main(void) {
   for (uint32_t index = 0U; index < sizeof(digest); ++index) {
     digest[index] = (uint8_t)(index + 1U);
   }
+  uint8_t built[sizeof(fixture) + 8U] = {0};
+  uint64_t built_size = 0U;
+  if (mf_vulkan_argument_block_init_v1(
+          built, sizeof(built), 2U, MF_VULKAN_ARGUMENT_BLOCK_FLAG_BDA_V1, digest,
+          &built_size) != MF_VULKAN_ARGUMENT_VALID ||
+      built_size != sizeof(fixture) ||
+      mf_vulkan_argument_block_append_scalar_v1(
+          built, built_size, 0U, MF_VULKAN_ARGUMENT_FLAG_READONLY_V1, UINT64_C(7)) !=
+          MF_VULKAN_ARGUMENT_VALID ||
+      mf_vulkan_argument_block_append_device_address_v1(
+          built, built_size, 1U, MF_VULKAN_ARGUMENT_FLAG_WRITE_V1, 0U, UINT64_C(4096),
+          UINT64_C(0x100000), UINT64_C(3)) != MF_VULKAN_ARGUMENT_VALID ||
+      mf_vulkan_argument_block_validate_v1(built, built_size, digest) !=
+          MF_VULKAN_ARGUMENT_VALID) {
+    return 2;
+  }
+  if (mf_vulkan_argument_block_init_v1(
+          built, sizeof(fixture) - 1U, 2U, MF_VULKAN_ARGUMENT_BLOCK_FLAG_BDA_V1, digest,
+          &built_size) != MF_VULKAN_ARGUMENT_INVALID_SIZE ||
+      mf_vulkan_argument_block_append_device_address_v1(
+          built, sizeof(fixture), 1U, MF_VULKAN_ARGUMENT_FLAG_WRITE_V1, UINT64_MAX,
+          UINT64_C(1), UINT64_C(0x100000), UINT64_C(3)) != MF_VULKAN_ARGUMENT_INVALID_ENTRY) {
+    return 3;
+  }
   memcpy(fixture.header.target_digest, digest, sizeof(digest));
   fixture.entries[0].kind = MF_VULKAN_ARGUMENT_KIND_SCALAR_V1;
   fixture.entries[0].flags = MF_VULKAN_ARGUMENT_FLAG_READONLY_V1;
@@ -37,17 +61,17 @@ int main(void) {
   fixture.entries[1].generation = UINT64_C(3);
   if (mf_vulkan_argument_block_validate_v1((const uint8_t*)&fixture, sizeof(fixture), digest) !=
       MF_VULKAN_ARGUMENT_VALID) {
-    return 2;
+    return 4;
   }
   fixture.entries[1].generation = 0U;
   if (mf_vulkan_argument_block_validate_v1((const uint8_t*)&fixture, sizeof(fixture), digest) !=
       MF_VULKAN_ARGUMENT_INVALID_ENTRY) {
-    return 3;
+    return 5;
   }
   fixture.entries[1].generation = 3U;
   digest[0] ^= 0xffU;
   return mf_vulkan_argument_block_validate_v1((const uint8_t*)&fixture, sizeof(fixture), digest) ==
                  MF_VULKAN_ARGUMENT_TARGET_MISMATCH
              ? 0
-             : 4;
+             : 6;
 }

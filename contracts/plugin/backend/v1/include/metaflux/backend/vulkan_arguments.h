@@ -62,6 +62,94 @@ static inline mf_vulkan_argument_status_v1 mf_vulkan_argument_block_size_v1(
   return MF_VULKAN_ARGUMENT_VALID;
 }
 
+static inline mf_vulkan_argument_status_v1 mf_vulkan_argument_block_init_v1(
+    uint8_t* bytes, uint64_t byte_capacity, uint32_t entry_count, uint32_t flags,
+    const uint8_t* target_digest, uint64_t* out_size) {
+  uint64_t expected_size = 0U;
+  if (bytes == (uint8_t*)0 || target_digest == (const uint8_t*)0 || out_size == (uint64_t*)0 ||
+      flags == 0U || (flags & ~MF_VULKAN_ARGUMENT_BLOCK_KNOWN_FLAGS_V1) != 0U ||
+      mf_vulkan_argument_block_size_v1(entry_count, &expected_size) != MF_VULKAN_ARGUMENT_VALID ||
+      expected_size > byte_capacity) {
+    return MF_VULKAN_ARGUMENT_INVALID_SIZE;
+  }
+  (void)memset(bytes, 0, (size_t)expected_size);
+  mf_vulkan_argument_block_header_v1 header;
+  (void)memset(&header, 0, sizeof(header));
+  header.magic = MF_VULKAN_ARGUMENT_BLOCK_MAGIC_V1;
+  header.abi_version = MF_VULKAN_ARGUMENT_ABI_VERSION_1;
+  header.header_size = (uint32_t)sizeof(header);
+  header.entry_size = (uint32_t)sizeof(mf_vulkan_argument_entry_v1);
+  header.entry_count = entry_count;
+  header.flags = flags;
+  header.total_size = expected_size;
+  (void)memcpy(header.target_digest, target_digest, sizeof(header.target_digest));
+  (void)memcpy(bytes, &header, sizeof(header));
+  *out_size = expected_size;
+  return MF_VULKAN_ARGUMENT_VALID;
+}
+
+static inline mf_vulkan_argument_status_v1 mf_vulkan_argument_block_append_v1(
+    uint8_t* bytes, uint64_t byte_count, uint32_t entry_index, uint32_t kind, uint32_t flags,
+    uint64_t byte_offset, uint64_t byte_size, uint64_t value, uint64_t generation) {
+  if (bytes == (uint8_t*)0 || byte_count < sizeof(mf_vulkan_argument_block_header_v1)) {
+    return MF_VULKAN_ARGUMENT_INVALID_ARGUMENT;
+  }
+  mf_vulkan_argument_block_header_v1 header;
+  (void)memcpy(&header, bytes, sizeof(header));
+  uint64_t expected_size = 0U;
+  if (mf_vulkan_argument_block_size_v1(header.entry_count, &expected_size) !=
+          MF_VULKAN_ARGUMENT_VALID ||
+      header.magic != MF_VULKAN_ARGUMENT_BLOCK_MAGIC_V1 ||
+      header.abi_version != MF_VULKAN_ARGUMENT_ABI_VERSION_1 ||
+      header.header_size != sizeof(header) ||
+      header.entry_size != sizeof(mf_vulkan_argument_entry_v1) ||
+      header.total_size != expected_size || byte_count != expected_size ||
+      entry_index >= header.entry_count || flags == 0U ||
+      (flags & ~MF_VULKAN_ARGUMENT_KNOWN_FLAGS_V1) != 0U) {
+    return MF_VULKAN_ARGUMENT_INVALID_ENTRY;
+  }
+  if (kind == MF_VULKAN_ARGUMENT_KIND_SCALAR_V1) {
+    if (byte_offset != 0U || byte_size != 0U || generation != 0U) {
+      return MF_VULKAN_ARGUMENT_INVALID_ENTRY;
+    }
+  } else if (kind == MF_VULKAN_ARGUMENT_KIND_DEVICE_ADDRESS_V1) {
+    if (value == 0U || byte_size == 0U || generation == 0U ||
+        byte_offset > UINT64_MAX - byte_size) {
+      return MF_VULKAN_ARGUMENT_INVALID_ENTRY;
+    }
+  } else {
+    return MF_VULKAN_ARGUMENT_INVALID_ENTRY;
+  }
+  mf_vulkan_argument_entry_v1 entry;
+  (void)memset(&entry, 0, sizeof(entry));
+  entry.kind = kind;
+  entry.flags = flags;
+  entry.byte_offset = byte_offset;
+  entry.byte_size = byte_size;
+  entry.value = value;
+  entry.generation = generation;
+  (void)memcpy(bytes + sizeof(header) +
+                   ((uint64_t)entry_index * sizeof(mf_vulkan_argument_entry_v1)),
+               &entry, sizeof(entry));
+  return MF_VULKAN_ARGUMENT_VALID;
+}
+
+static inline mf_vulkan_argument_status_v1 mf_vulkan_argument_block_append_scalar_v1(
+    uint8_t* bytes, uint64_t byte_count, uint32_t entry_index, uint32_t flags, uint64_t value) {
+  return mf_vulkan_argument_block_append_v1(bytes, byte_count, entry_index,
+                                            MF_VULKAN_ARGUMENT_KIND_SCALAR_V1, flags, 0U, 0U,
+                                            value, 0U);
+}
+
+static inline mf_vulkan_argument_status_v1 mf_vulkan_argument_block_append_device_address_v1(
+    uint8_t* bytes, uint64_t byte_count, uint32_t entry_index, uint32_t flags,
+    uint64_t byte_offset, uint64_t byte_size, uint64_t device_address,
+    uint64_t generation) {
+  return mf_vulkan_argument_block_append_v1(
+      bytes, byte_count, entry_index, MF_VULKAN_ARGUMENT_KIND_DEVICE_ADDRESS_V1, flags,
+      byte_offset, byte_size, device_address, generation);
+}
+
 static inline mf_vulkan_argument_status_v1 mf_vulkan_argument_block_validate_v1(
     const uint8_t* bytes, uint64_t byte_count, const uint8_t* expected_target_digest) {
   if (bytes == (const uint8_t*)0 || byte_count < sizeof(mf_vulkan_argument_block_header_v1)) {
