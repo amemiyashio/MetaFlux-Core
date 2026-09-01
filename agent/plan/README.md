@@ -1,17 +1,17 @@
 # MetaFlux Milestone Plans
 
-This directory contains durable execution plans for MetaFlux releases. M and W
-identities derive from the four-part delivery coordinate defined by the
+This directory contains durable execution plans for MetaFlux releases.
+Milestone and work-item identities derive from the four-part delivery coordinate defined by the
 [release-versioning policy](../../docs/release-versioning.md); they are not
 arbitrary serials.
 
 | Milestone | Delivery | Release | Status | Goal |
 | --- | --- | --- | --- | --- |
-| [M0100](M0100-core-foundation/plan.md) | 0.1.0.0 | v0.1.0 | Complete | CPU-backed CUDA/NVML core foundation |
-| [M0110](M0110-kernel-guest-transport/plan.md) | 0.1.1.0 | v0.1.1 | Active | Local cdev and static guest transport |
-| [M0120](M0120-vpci-lifecycle/plan.md) | 0.1.2.0 | v0.1.2 | Active | Lifecycle and experimental vPCI presentation |
-| [M0130](M0130-vulkan-backend/plan.md) | 0.1.3.0 | v0.1.3 | Active | Vulkan execution backend |
-| [M1000](M1000-stable-qualification/plan.md) | 1.0.0.0 | v1.0.0 | Queued | Intel host support, physical NVIDIA binding, and stable release qualification |
+| [milestone-0.1.0.0](milestone-0.1.0.0-core-foundation/plan.md) | 0.1.0.0 | v0.1.0 | Complete | CPU-backed CUDA/NVML core foundation |
+| [milestone-0.1.1.0](milestone-0.1.1.0-kernel-guest-transport/plan.md) | 0.1.1.0 | v0.1.1 | Active | Local cdev and static guest transport |
+| [milestone-0.1.2.0](milestone-0.1.2.0-vpci-lifecycle/plan.md) | 0.1.2.0 | v0.1.2 | Active | Lifecycle and experimental vPCI presentation |
+| [milestone-0.1.3.0](milestone-0.1.3.0-vulkan-backend/plan.md) | 0.1.3.0 | v0.1.3 | Active | Vulkan execution backend |
+| [milestone-1.0.0.0](milestone-1.0.0.0-stable-qualification/plan.md) | 1.0.0.0 | v1.0.0 | Queued | Intel host support, physical NVIDIA binding, and stable release qualification |
 
 Cross-release research: [PyTorch compatibility](pytorch-compatibility-roadmap.md)
 tracks optional baseline and frontier client probes without changing a milestone.
@@ -22,9 +22,10 @@ decisions, and Definition of Done. Work documents define independently
 verifiable, multi-change execution slices. PR-sized tasks remain in the issue/PR
 system rather than becoming permanent repository documents.
 
-Milestone directory names use `M<compact>-durable-slug`; work files use
-`W<compact>-durable-slug`. The compact body is derived from explicit `delivery`
-metadata and is checked against the product release and parent milestone.
+Milestone directory names use `milestone-MAJOR.MINOR.PATCH.0-durable-slug`;
+work files use `work-item-MAJOR.MINOR.PATCH.WORK-durable-slug`. The dotted body
+is copied from explicit `delivery` metadata and checked against the product
+release and parent milestone.
 
 Allowed status values are `Draft`, `Queued`, `Active`, `Blocked`, `Complete`, and
 `Superseded`. Completed milestones remain at their original paths so historical

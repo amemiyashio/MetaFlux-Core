@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the M0110 transport schema and emit deterministic C projections.
+"""Validate the milestone-0.1.1.0 transport schema and emit deterministic C projections.
 
 The transport manifest is intentionally small and explicit.  It names every
 definition in the v0 base closure together with its content digest; consumers

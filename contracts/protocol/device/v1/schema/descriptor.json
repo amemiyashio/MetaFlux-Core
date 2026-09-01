@@ -18,7 +18,7 @@
     ]
   },
   "notes": [
-    "This is the M0100 descriptor and is imported without changing its bytes.",
+    "This is the milestone-0.1.0.0 descriptor and is imported without changing its bytes.",
     "Transport records carry generation and timeline in descriptor arguments as defined by the inherited ring contract."
   ]
 }

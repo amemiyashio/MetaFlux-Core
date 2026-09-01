@@ -37,12 +37,12 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 - Git owns source identity and history.
 - CMake and Ninja own configure, build, install, and build-directory behavior.
 - CTest and repository scripts own tests and qualification.
-- `packaging/` owns package construction; session records own compact outcomes
-  and cleanup of session-owned temporary artifacts.
+- `packaging/` owns package construction; Git and owning test harnesses retain
+  accepted outcomes, while the invoking work unit cleans temporary artifacts.
 - Nix owns only locked input resolution, exact tool materialization, and the
   development shell that exposes those tools. It does not wrap or duplicate the
   owners above, encode their commands or policies, archive evidence, snapshot
-  project source, govern sessions/focus, install host software, or configure
+  project source, govern Agent execution, install host software, or configure
   host GC. `nix develop . --command TOOL ...` is an environment-entry
   boundary; `TOOL` and its owning repository workflow retain all semantics.
 - A fixed tool is not permanently frozen. Its current version, source, patches,
@@ -53,7 +53,7 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
   available. It does not select the Ubuntu 20.04 target SDK, target triple,
   unwrapped compiler, startup objects, target linker, or generic CMake package
   roots; the CMake-owned target entry point must select those explicitly.
-- D0009 is a hard compatibility floor for generic Linux artifacts: materialize
+- decision-0009 is a hard compatibility floor for generic Linux artifacts: materialize
   and expose the Ubuntu 20.04 target SDK with glibc 2.31. The host distribution,
   host glibc, and a development-shell compiler wrapper must never raise or
   redefine that floor.
@@ -103,7 +103,7 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
    `nix develop . --command ctest --preset development`. Nix supplies the
    executable closure; CMake, CTest, packaging, and qualification retain command
    semantics and evidence ownership.
-   A D0032-installed host prerequisite is invoked by exact absolute path from
+   A decision-0032-installed host prerequisite is invoked by exact absolute path from
    inside this entry environment; record it as local host state, never as a
    substitute for a declared repeatable tool closure.
 8. Before accepting a generic artifact or release fixture, have its owning
@@ -112,7 +112,7 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
    no newer than `GLIBC_2.31`. Execute it in the frozen Ubuntu 20.04 row; a
    successful build or a host-only run is not compatibility evidence.
 9. Remove task-owned temporary downloads and failed materialization work at the
-   session boundary. Host Nix-store retention and GC remain operator concerns;
+   Iteration or integration boundary. Host Nix-store retention and GC remain operator concerns;
    do not add project GC roots, timers, thresholds, or store paths as identity.
 
 ## Output
@@ -133,7 +133,7 @@ nix develop . --command clang --version
 nix develop . --command cmake --version
 nix develop . --command ninja --version
 nix develop .#release --command rpmbuild --version
-nix develop . --command python3 tools/check-agent-records.py .
+nix develop . --command python3 tools/check-agent-state.py .
 ```
 
 Then run the narrow CMake/CTest or other owner-specific gate affected by the

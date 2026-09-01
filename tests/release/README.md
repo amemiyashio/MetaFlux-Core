@@ -1,7 +1,7 @@
 # Release package matrices
 
 Two offline harnesses qualify the generic artifacts against the four frozen
-D0012 distribution rows. Images must already exist locally and are
+decision-0012 distribution rows. Images must already exist locally and are
 required to use immutable `@sha256:` references. Tag-only images are rejected.
 Every container runs with `--pull=never` and
 `--network=none`, so image acquisition and its mirror provenance remain a
@@ -44,7 +44,7 @@ nix develop .#release --command python3 tests/release/run_provider_package_matri
   --ubuntu-22-image REGISTRY/ubuntu@sha256:DIGEST \
   --ubuntu-24-image REGISTRY/ubuntu@sha256:DIGEST \
   --rocky-9-image REGISTRY/rockylinux@sha256:DIGEST \
-  --output-dir ../.metaflux-evidence/MetaFlux-Core/m0100-package-matrix
+  --output-dir ../.metaflux-evidence/MetaFlux-Core/milestone-0.1.0.0-package-matrix
 ```
 
 ## Complete release matrix
@@ -103,7 +103,7 @@ nix develop .#release --command python3 tests/release/run_release_package_matrix
   --ubuntu-22-image REGISTRY/ubuntu@sha256:DIGEST \
   --ubuntu-24-image REGISTRY/ubuntu@sha256:DIGEST \
   --rocky-9-image REGISTRY/rockylinux@sha256:DIGEST \
-  --output-dir ../.metaflux-evidence/MetaFlux-Core/m0100-release-package-matrix
+  --output-dir ../.metaflux-evidence/MetaFlux-Core/milestone-0.1.0.0-release-package-matrix
 ```
 
 `metaflux-activation-launcher` and `metaflux-add-u32.ptx` must be in the same

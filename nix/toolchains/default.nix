@@ -6,6 +6,9 @@
 }:
 let
   gccRuntime = pkgs.stdenv.cc.cc.lib;
+  repositoryPython = pkgs.python3.withPackages (pythonPackages: [
+    pythonPackages.pyyaml
+  ]);
 in
 pkgs.buildEnv {
   name = "metaflux-toolchain-llvm-${epoch.llvm_version}";
@@ -28,7 +31,7 @@ pkgs.buildEnv {
     pkgs.ninja
     pkgs.nixfmt
     pkgs.pkg-config
-    pkgs.python3
+    repositoryPython
     gccRuntime
   ];
   pathsToLink = [

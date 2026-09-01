@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the MetaFlux component dependency graph (D0011).
+"""Validate the MetaFlux component dependency graph (decision-0011).
 
 Consumes the JSON written by cmake/MetaFluxComponentGraph.cmake at configure
 time and asserts two invariants:
@@ -58,7 +58,7 @@ ALLOWED_DEPENDENCIES: dict[str, set[str]] = {
         "backend-runtime",
         "transport-worker",
     },
-    # Transport halves (D0010). No transport code exists yet; the rows freeze
+    # Transport halves (decision-0010). No transport code exists yet; the rows freeze
     # the rules the first implementation must satisfy.
     "transport-client": {"client-protocol", "client-fastpath"},
     "transport-worker": {"runtime-core", "compiler-core", "backend-plugin-api"},

@@ -1,7 +1,7 @@
 # NVIDIA Header Manifests
 
 Compiler epoch 1 carries one immutable CUDA Driver/NVML header manifest for each
-stock-tool family required by W0105. The headers are ABI source inputs only;
+stock-tool family required by work-item-0.1.0.5. The headers are ABI source inputs only;
 they do not prove that a stock `nvidia-smi` binary ran successfully.
 
 ## Update Procedure

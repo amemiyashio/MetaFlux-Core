@@ -1,6 +1,6 @@
 ---
 status: Current
-decision: D0024
+decision: decision-0024
 updated: 2026-08-30
 ---
 
@@ -8,7 +8,7 @@ updated: 2026-08-30
 
 MetaFlux uses product SemVer and delivery coordinates for different jobs. The
 product version describes artifacts and compatibility. A delivery coordinate
-names the milestone, work item, or session scope that produces evidence for
+names the milestone or work item that produces evidence for
 that product line. Neither namespace is reused for an ABI, protocol, SONAME,
 schema, tool, or third-party version.
 
@@ -23,23 +23,23 @@ The approved delivery line is:
 
 | Milestone | Product release | Delivery coordinate | Outcome |
 | --- | --- | --- | --- |
-| [M0100](../agent/plan/M0100-core-foundation/plan.md) | `v0.1.0` | `0.1.0.0` | CPU-backed CUDA/NVML core foundation |
-| [M0110](../agent/plan/M0110-kernel-guest-transport/plan.md) | `v0.1.1` | `0.1.1.0` | Local cdev and static guest transport |
-| [M0120](../agent/plan/M0120-vpci-lifecycle/plan.md) | `v0.1.2` | `0.1.2.0` | Lifecycle and experimental vPCI presentation |
-| [M0130](../agent/plan/M0130-vulkan-backend/plan.md) | `v0.1.3` | `0.1.3.0` | Vulkan execution backend |
-| [M1000](../agent/plan/M1000-stable-qualification/plan.md) | `v1.0.0` | `1.0.0.0` | Intel x86_64 support, physical NVIDIA binding performance, and stable compatibility qualification |
+| [milestone-0.1.0.0](../agent/plan/milestone-0.1.0.0-core-foundation/plan.md) | `v0.1.0` | `0.1.0.0` | CPU-backed CUDA/NVML core foundation |
+| [milestone-0.1.1.0](../agent/plan/milestone-0.1.1.0-kernel-guest-transport/plan.md) | `v0.1.1` | `0.1.1.0` | Local cdev and static guest transport |
+| [milestone-0.1.2.0](../agent/plan/milestone-0.1.2.0-vpci-lifecycle/plan.md) | `v0.1.2` | `0.1.2.0` | Lifecycle and experimental vPCI presentation |
+| [milestone-0.1.3.0](../agent/plan/milestone-0.1.3.0-vulkan-backend/plan.md) | `v0.1.3` | `0.1.3.0` | Vulkan execution backend |
+| [milestone-1.0.0.0](../agent/plan/milestone-1.0.0.0-stable-qualification/plan.md) | `v1.0.0` | `1.0.0.0` | Intel x86_64 support, physical NVIDIA binding performance, and stable compatibility qualification |
 
 `v0.2.0` remains an unallocated support-expansion line for native NixOS
-VM/package qualification. No M record is allocated until that plan is approved;
-its milestone scope would compact to `M0200`.
+VM/package qualification. No milestone record is allocated until that plan is approved;
+its milestone scope would compact to `milestone-0.2.0.0`.
 
-D0027 assigns Intel x86_64 support qualification and physical NVIDIA
-binding-performance qualification to M1000 / `v1.0.0`, together with the
+decision-0027 assigns Intel x86_64 support qualification and physical NVIDIA
+binding-performance qualification to milestone-1.0.0.0 / `v1.0.0`, together with the
 explicit stable public compatibility commitment required by that major release.
-They remain outside M0100 / `v0.1.0`. D0027 supersedes D0023 only for the future
-Intel destination and supersedes D0024 only for the former `v0.2.0` assignment
-of Intel and physical NVIDIA qualification. D0024's SemVer and delivery-identity
-rules remain authoritative; D0012's native NixOS assignment remains unchanged.
+They remain outside milestone-0.1.0.0 / `v0.1.0`. decision-0027 supersedes decision-0023 only for the future
+Intel destination and supersedes decision-0024 only for the former `v0.2.0` assignment
+of Intel and physical NVIDIA qualification. decision-0024's SemVer and delivery-identity
+rules remain authoritative; decision-0012's native NixOS assignment remains unchanged.
 
 The `v0.1.x` releases form the initial-development line. A later milestone may
 add default-off or experimental capability while preserving the established
@@ -57,41 +57,23 @@ MAJOR.MINOR.PATCH.WORK
 
 The first three components equal the owning product release. The fourth
 component is `0` for a milestone and the positive local work ordinal for a work
-item. Its compact body is the direct concatenation of the decimal components:
+item. The dotted coordinate is authoritative and is never compacted.
 
-| Coordinate input | Normalized coordinate | Compact body |
-| --- | --- | --- |
-| `0.1.1.1` | `0.1.1.1` | `0111` |
-| `0.2.1.1` | `0.2.1.1` | `0211` |
-| `1.2.1` | `1.2.1.0` | `1210` |
-| `12.2.1.1` | `12.2.1.1` | `12211` |
+Repository plan identities spell their kind in full:
 
-The explicit dotted coordinate is authoritative because concatenation is not
-reversible when components have multiple digits. The repository rejects a new
-record if its compact body collides with another explicit coordinate.
+- `milestone-0.1.1.0` names delivery `0.1.1.0`.
+- `work-item-0.1.1.1` names delivery `0.1.1.1`.
 
-Record identities use that body directly:
+Every milestone and work-item record carries `delivery` frontmatter. Validators
+derive the expected full-word ID from that field, require each work item to
+resolve to its owning milestone, and require the plan-index release to equal the
+plan frontmatter. Changing an assigned product release creates or supersedes a
+record; it does not silently rename product meaning.
 
-- A milestone is `M<compact>`, for example `M0110` for `0.1.1.0`.
-- A work item is `W<compact>`, for example `W0111` for `0.1.1.1`.
-- A session is `S<compact>-YYYYMMDD-NNN-<slug>`. Its `delivery` names the
-  narrowest useful scope; the date and sequence distinguish repeated sessions
-  without changing product precedence.
-
-Every M and W record carries `delivery` frontmatter. Every `session.json`
-carries `delivery`. Validators derive the expected ID from that field, require
-W to resolve to its owning M, require S references to resolve to current M/W
-records, and require the plan index release to equal the plan frontmatter.
-Changing an assigned product release therefore creates or supersedes a record;
-it does not leave an arbitrary serial ID behind.
-
-D0024 was the first repository-wide breaking migration: it renamed every
-pre-policy M/W/S record and synchronized those identifier references in
-historical sessions and checkpoints. The evidence claims and cited Git
-revisions in those records did not change. D0025 now governs any later breaking
-replacement through a decision-bound `SCNNNN` record, complete affected-history
-synchronization, and factual-evidence preservation. Outside that explicit
-workflow, an assigned coordinate is superseded instead of renamed.
+Agent execution identity is independent of delivery coordinates. Epoch, Batch,
+and Iteration use `epoch-NNNN`, `batch-NNNN`, and `iteration-NNNN` under
+decision-0033. Decisions and validated experiences use `decision-NNNN` and
+`experience-NNNN`.
 
 ## Independent Version Namespaces
 
@@ -102,8 +84,8 @@ when a product release advances:
 - Contract, protocol, UAPI, schema, and function-table versions such as `v1`.
 - Compiler epochs and cache schema versions.
 - Linux, glibc, CUDA, LLVM, Python, PyTorch, and distribution versions.
-- Decision, experience, checkpoint, and guidance IDs, which are durable ledger
-  identities rather than product delivery scopes.
+- Decision and experience IDs, which are durable knowledge identities rather
+  than product delivery scopes.
 
 This policy follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)
 for product versions. The fourth delivery component is repository trace

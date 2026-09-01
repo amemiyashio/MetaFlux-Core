@@ -367,7 +367,7 @@ std::size_t PlacementSnapshot::worker_count() const noexcept {
 PlacementResult discover_cpu_placement(const PlacementPaths& paths, const PlacementPolicy& policy) {
   if (policy.allow_cross_node_stealing) {
     return failure(PlacementError::InvalidTopology,
-                   "cross-node stealing is outside the D0015 default policy");
+                   "cross-node stealing is outside the decision-0015 default policy");
   }
 
   std::string diagnostic;

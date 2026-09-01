@@ -1,8 +1,8 @@
 # Reset and Failure
 
-## M0110 static contract
+## milestone-0.1.1.0 static contract
 
-The M0110 `VFIO_USER_DEVICE_GET_INFO` reply leaves `VFIO_DEVICE_FLAGS_RESET`
+The milestone-0.1.1.0 `VFIO_USER_DEVICE_GET_INFO` reply leaves `VFIO_DEVICE_FLAGS_RESET`
 clear, and migration is also unadvertised. A conforming client therefore does
 not send `VFIO_USER_DEVICE_RESET` as a supported operation. If that command is
 received defensively, the server never replies success: it returns the exact
@@ -25,7 +25,7 @@ Repeated reset/disconnect observation is idempotent. vfio-user message IDs are
 not idempotence keys. A late socket reply, ioeventfd write,
 MSI-X signal, backend callback, or QEMU reconnect cannot revive the instance.
 
-## M0120 boundary
+## milestone-0.1.2.0 boundary
 
 Coordinated reset/recovery belongs to the lifecycle authority. It reserves one
 never-reused generation candidate before quiesce and stages every replacement
@@ -34,7 +34,7 @@ retire old, advance epoch, and install the candidate `ONLINE`; the vfio-user
 server mirrors committed state and never allocates or publishes generations
 locally.
 
-M0120 sets `VFIO_DEVICE_FLAGS_RESET` only when the coordinated reset handler is
+milestone-0.1.2.0 sets `VFIO_DEVICE_FLAGS_RESET` only when the coordinated reset handler is
 registered and ready before `VFIO_USER_DEVICE_GET_INFO`. Once advertised, each
 accepted nonduplicate reset command reserves one generation candidate, replies
 success only after the replacement reaches committed `ONLINE`, and otherwise

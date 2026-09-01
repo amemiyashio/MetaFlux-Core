@@ -166,7 +166,7 @@ class PytorchCudaProbeTests(unittest.TestCase):
             python_version="3.13.15",
         )
 
-    def test_complete_baseline_reports_exact_identity_and_d0017_bundle(self) -> None:
+    def test_complete_baseline_reports_exact_identity_and_decision_0017_bundle(self) -> None:
         fake = FakeTorch("2.11.0+cu126", "12.6")
         report = self.run_fake(fake)
 
@@ -175,12 +175,13 @@ class PytorchCudaProbeTests(unittest.TestCase):
         self.assertEqual(report["reached_stage"], "eager-add")
         self.assertEqual(
             report["advertised_compute_capability"],
-            {"d0017": "7.0", "observed": "7.0"},
+            {"decision-0017": "7.0", "observed": "7.0"},
         )
-        self.assertEqual(report["scope"], "diagnostic-only-not-m0100-compatibility-evidence")
-        self.assertEqual(len(report["d0017"]["bundle_sha256"]), 64)
+        self.assertEqual(report["scope"], "diagnostic-only-not-milestone-0.1.0.0-compatibility-evidence")
+        self.assertEqual(len(report["decision-0017"]["bundle_sha256"]), 64)
         self.assertEqual(
-            set(report["d0017"]["entries"]), {"capabilities", "forms", "corpus_index"}
+            set(report["decision-0017"]["entries"]),
+            {"capabilities", "forms", "corpus_index"},
         )
         self.assertEqual(probe.required_stage_exit_code(report, None), 0)
         self.assertEqual(probe.required_stage_exit_code(report, "eager-add"), 0)

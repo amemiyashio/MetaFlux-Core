@@ -1,0 +1,4 @@
+interface:
+  display_name: "Start MetaFlux Work"
+  short_description: "Enter Nix first and start one goal-bound Iteration"
+  default_prompt: "Use $start-work to begin this MetaFlux repository task."

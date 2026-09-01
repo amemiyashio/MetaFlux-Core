@@ -10,13 +10,13 @@ Select the zone by what crosses the boundary:
 | Linux UAPI | `contracts/uapi/linux/` | Linux-compatible fixed layouts, compat handling, reserved fields, and extension rules |
 
 For each freeze, record one schema owner plus the complete generated-artifact
-manifest. W0111 authors the candidate base UAPI, device protocol,
+manifest. work-item-0.1.1.1 authors the candidate base UAPI, device protocol,
 BAR/extension directory, and capability extension rules from one canonical
-data-plane schema without changing M0100 descriptors; W0114 qualifies and
+data-plane schema without changing milestone-0.1.0.0 descriptors; work-item-0.1.1.4 qualifies and
 freezes it. The Linux, vfio-user, and PCI skills own their layer mechanics; this
 skill owns the shared source and cross-consumer drift check.
 
-The M0110 base manifest freezes an explicit base-definition allowlist, not every
+The milestone-0.1.1.0 base manifest freezes an explicit base-definition allowlist, not every
 future file beneath its source directories. Each allowlisted definition appears
 once. A later versioned extension owns a separate manifest that imports the base
 by content hash and references only its extension definitions; it never adds an
@@ -33,5 +33,5 @@ lists, offsets, opcodes, masks, or version numbers into private definitions.
 
 Primary repository sources: [contracts](../../../../contracts/README.md),
 [component ownership](../../../memory/component-map.md), and
-[W0111](../../../plan/M0110-kernel-guest-transport/work/W0111-abi-benchmark-contract.md),
-and [W0114](../../../plan/M0110-kernel-guest-transport/work/W0114-fault-abi-freeze.md).
+[work-item-0.1.1.1](../../../plan/milestone-0.1.1.0-kernel-guest-transport/work/work-item-0.1.1.1-abi-benchmark-contract.md),
+and [work-item-0.1.1.4](../../../plan/milestone-0.1.1.0-kernel-guest-transport/work/work-item-0.1.1.4-fault-abi-freeze.md).

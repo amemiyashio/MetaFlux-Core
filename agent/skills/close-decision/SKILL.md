@@ -8,7 +8,7 @@ description: Resolve one row of the open-decisions ledger into a durable decisio
 Use when resolving any row of
 [the open-decisions ledger](../../memory/open-decisions.md). The validator
 counts each plan's open items against ledger rows, so a half-closed decision
-fails validation — follow every step.
+fails validation. Follow every step.
 
 ## Steps
 
@@ -18,27 +18,25 @@ fails validation — follow every step.
    (edit its "Decisions to Close" item to state the resolution) or a
    `docs/architecture/` record. A decision without a canonical source cannot
    be closed.
-3. Add the next `DNNNN` row to
+3. Add the next `decision-NNNN` row to
    [decisions-index](../../memory/decisions-index.md) pointing at that
    canonical source with an honest source status; the index never promotes
    `Proposed` material to `Verified`.
 4. Remove the row from the ledger. If only part of the item closed (see the
-   glibc baseline under D0009), rewrite the row to the remaining open scope
+   glibc baseline under decision-0009), rewrite the row to the remaining open scope
    instead of deleting it, and keep the plan item count matching.
-5. Record a `decision` event in the current session's `events.jsonl` naming
-   the `DNNNN` and the amended paths.
-6. Promote the consequence into `memory/` when it is a durable constraint,
-   and refresh `progress/current.md` when it changes the next boundary.
+5. Promote the consequence into `memory/` when it is a durable constraint.
+   Keep implementation work in the assigned Iteration and return its exact
+   base/tip revisions; only Batch integration may update `agent/goal.json`.
 
 ## Verification
 
 ```sh
-python3 tools/check-agent-records.py .
+nix develop . --command python3 tools/check-agent-state.py .
 ```
 
 The validator proves structural identity: every numbered open plan decision
 matches exactly one ledger `Decision` cell, duplicates fail, decision-index IDs
-are unique, and every `DNNNN` referenced by Agent Markdown or a decision event
-resolves to the index. It does not prove the technical outcome; the new index row
-and amended plan must still link the canonical rationale and qualification
-evidence.
+are unique, and every `decision-NNNN` reference resolves to the index. It does
+not prove the technical outcome; the new index row and amended plan must still
+link the canonical rationale and qualification evidence.

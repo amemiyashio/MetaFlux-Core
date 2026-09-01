@@ -1,18 +1,18 @@
 ---
-id: ENNNN
+id: experience-NNNN
 status: Candidate
 captured: YYYY-MM-DD
 validated: null
 applies_to: scope
 ---
 
-# ENNNN: Experience Title
+# Experience Title
 
-Instance path: `agent/experience/ENNNN-slug.md`.
+Instance path: `agent/experience/experience-NNNN-slug.md`.
 
 ## Observation
 
-Describe the repeatable problem without session-specific noise.
+Describe the repeatable problem without transient execution detail.
 
 ## Candidate practice
 

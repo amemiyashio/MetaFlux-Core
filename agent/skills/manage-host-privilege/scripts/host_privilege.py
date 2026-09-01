@@ -107,7 +107,7 @@ def check_commands() -> tuple[tuple[str, ...], ...]:
 
 def parse_args(arguments: Sequence[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Use the D0032 bounded host-privilege helpers."
+        description="Use the decision-0032 bounded host-privilege helpers."
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("check", help="verify both persistent helper grants")

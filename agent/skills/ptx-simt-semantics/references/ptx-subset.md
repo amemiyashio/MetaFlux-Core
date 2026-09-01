@@ -14,7 +14,7 @@ Represent support at the full instruction-form level:
 | Target | PTX version, target feature, address size, capability requirement |
 | Oracle | deterministic, allowed-outcome-set, undefined/unsupported |
 
-M0100's initial corpus includes entries, parameters, registers, predicates,
+milestone-0.1.0.0's initial corpus includes entries, parameters, registers, predicates,
 required address spaces, 1D/2D thread and block registers, required loads/stores,
 move and address arithmetic, integer/basic-FP arithmetic, selected fused forms,
 conversions, comparisons, branches, return, and required synchronization. This

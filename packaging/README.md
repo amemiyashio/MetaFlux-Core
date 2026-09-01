@@ -58,7 +58,7 @@ artifact construction:
 
 ```sh
 nix develop .#release --command python3 packaging/build.py \
-  --build-dir /path/to/m0100-generic-release \
+  --build-dir /path/to/milestone-0.1.0.0-generic-release \
   --output-dir /path/to/release-artifacts \
   --kind complete \
   --target-sdk /nix/store/...-metaflux-ubuntu-20.04-target-sdk \

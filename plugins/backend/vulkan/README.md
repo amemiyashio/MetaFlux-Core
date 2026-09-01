@@ -1,6 +1,6 @@
 # Vulkan Backend
 
-The first M0130 stage is a capability-only probe. The C ABI record in
+The first milestone-0.1.3.0 stage is a capability-only probe. The C ABI record in
 `contracts/plugin/backend/v1/include/metaflux/backend/vulkan.h` contains fixed-width
 API, queue, subgroup, memory-tier, UUID, and target-environment fields; Vulkan
 handles and C++ objects remain private to the implementation.
@@ -29,7 +29,7 @@ nix develop .#vulkan --command cmake --build \
 
 The capability CTest accepts an unavailable or incompatible host as a skipped
 local probe. A successful AMD-host probe is provisioning and single-driver
-evidence only; it does not close the W0131 dual-driver or M0130 release gates.
+evidence only; it does not close the work-item-0.1.3.1 dual-driver or milestone-0.1.3.0 release gates.
 No Vulkan execution, SPIR-V lowering, external-memory import, cache, or device
 loss behavior is claimed by this stage.
 
@@ -46,7 +46,7 @@ address-space flags, and subgroup assumptions. It produces stable diagnostics
 for mismatches and unsupported semantics; it does not yet perform MLIR
 conversion or SPIR-V validation.
 
-W0133 also defines a host-independent `SpirvReflection` contract for the
+work-item-0.1.3.3 also defines a host-independent `SpirvReflection` contract for the
 post-conversion boundary. Its verifier requires a compute entry point, exact
 target digest, workgroup and feature/address-space parity with preflight,
 `LocalInvocationId` coverage, Workgroup storage parity, and a packed argument
@@ -61,7 +61,7 @@ waits to be explicit, and validates transfer/compute stage-access masks before
 future `vkQueueSubmit2` submission. It does not claim queue submission,
 pipeline execution, or device timing.
 
-W0132 also includes a host-independent memory visibility ledger for the staging
+work-item-0.1.3.2 also includes a host-independent memory visibility ledger for the staging
 baseline. It binds each allocation to a generation and submission timeline,
 tracks host/device dirty ranges, requires explicit flush before non-coherent
 device access and invalidate before host access, rounds ranges to the queried
@@ -75,7 +75,7 @@ device-to-host copy through a device-local buffer and the generation-bound
 timeline context. This is a single-device Tier 3 round-trip, not external-handle
 import, backend admission, device-loss drain, or driver qualification.
 
-W0134 also provides a host-independent command-resource pool. A finite pool
+work-item-0.1.3.4 also provides a host-independent command-resource pool. A finite pool
 assigns each acquired resource a monotonic identity, generation, stream, and
 sequence. Submission records a strictly increasing completion timeline; a
 resource remains in flight until an observed completion reaches that value.
@@ -94,7 +94,7 @@ graph and resource generation together and rejects in-flight work. The ledger
 returns a complete host-independent plan/resource/completion tuple; it does not
 create Vulkan objects or claim `vkQueueSubmit2` execution.
 
-W0132 now adds a private `VulkanDeviceContext` that binds a successful capability
+work-item-0.1.3.2 now adds a private `VulkanDeviceContext` that binds a successful capability
 profile to a new Vulkan 1.3 instance, an exact physical-device identity, one
 compute queue, and a timeline semaphore. It rechecks the profile's API/driver
 versions, UUID, queue family, workgroup limits, memory totals, and required

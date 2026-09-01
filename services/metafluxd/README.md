@@ -88,7 +88,7 @@ performance runners require direct H2D and DtoH activity with all staged counter
 at zero; older clients still use the staged compatibility path.
 
 Observer sessions may also negotiate `MF_CLIENT_CAP_POLICY_SETTERS_V1` for the
-two payload-free M0100 policy operations. The target is the immutable identity
+two payload-free milestone-0.1.0.0 policy operations. The target is the immutable identity
 record, and the argument is the canonical shared-device persistence or compute
 mode value. The daemon accepts a setter only from root or its own effective UID,
 serializes it with registry publication, preserves unknown policy bits, and sends
@@ -120,7 +120,7 @@ it. Exit, signal, timeout, malformed/truncated response, digest mismatch, and
 worker exception paths return stable compiler diagnostics and always reap the
 child. Warm-JIT and AOT lookup never spawn this worker.
 
-D0019 intentionally keeps the required static MLIR/LLVM component closure in
+decision-0019 intentionally keeps the required static MLIR/LLVM component closure in
 the generic daemon image. The worker boundary isolates compiler execution,
 resource limits, crashes, and timeout recovery in a distinct process; it is not
 a claim that the parent ELF excludes those static dependencies.

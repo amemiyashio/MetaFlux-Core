@@ -8,9 +8,9 @@ subgroup properties, memory heaps/types, required extensions, feature chains,
 limits, and external handle capabilities.
 
 Select a compute-capable queue profile and enable only the features consumed by
-the backend. Baseline M0130 requires Vulkan 1.3 compute, timeline semaphore and
+the backend. Baseline milestone-0.1.3.0 requires Vulkan 1.3 compute, timeline semaphore and
 Synchronization2 behavior, plus the chosen buffer-device-address contract.
-Exact extensions/features remain an open M0130 decision until qualified on the
+Exact extensions/features remain an open milestone-0.1.3.0 decision until qualified on the
 selected driver families.
 
 ## Target environment

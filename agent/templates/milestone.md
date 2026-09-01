@@ -1,5 +1,5 @@
 ---
-id: MXYZ0
+id: milestone-X.Y.Z.0
 delivery: X.Y.Z.0
 release: vX.Y.Z
 status: Draft
@@ -9,10 +9,10 @@ areas: []
 updated: YYYY-MM-DD
 ---
 
-# MXYZ0: Milestone Title
+# Milestone Title
 
-Instance path: `agent/plan/MXYZ0-slug/plan.md`. Derive the compact ID from the
-explicit delivery coordinate; do not allocate an unrelated serial.
+Instance path: `agent/plan/milestone-X.Y.Z.0-slug/plan.md`. The full-word ID is
+derived directly from the explicit dotted delivery coordinate.
 
 ## Outcome
 
@@ -51,7 +51,7 @@ constraints here.
 
 | Work ID | Title | Status | Evidence |
 | --- | --- | --- | --- |
-| WXYZ1 | Title | Draft | Link |
+| work-item-X.Y.Z.1 | Title | Draft | Link |
 
 ## Risks and unresolved decisions
 

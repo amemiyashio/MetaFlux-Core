@@ -1,6 +1,6 @@
 ---
 name: cpu-backend-performance
-description: Design or review x86 CPU interpreter/runtime and target-lowering implementation, capability detection, effective CPU and NUMA placement, SIMT-to-loop or SIMD mapping, memory ordering, LLVM vectorization, and reproducible performance evidence. Use for M0100 CPU execution and tuning. Do not use to redefine the PTX semantic oracle, own MLIR conversion mechanics, or design processor circuits.
+description: Design or review x86 CPU interpreter/runtime and target-lowering implementation, capability detection, effective CPU and NUMA placement, SIMT-to-loop or SIMD mapping, memory ordering, LLVM vectorization, and reproducible performance evidence. Use for milestone-0.1.0.0 CPU execution and tuning. Do not use to redefine the PTX semantic oracle, own MLIR conversion mechanics, or design processor circuits.
 ---
 
 # CPU Backend Performance
@@ -49,7 +49,7 @@ and runtime dispatch prove the loaded object is compatible with that host.
    divergence, barriers, atomics, FP behavior, and memory visibility before
    selecting loop, thread, or SIMD structure.
 4. Choose CTA placement, worker count, affinity, NUMA policy, work stealing, and
-   oversubscription only within the effective placement profile. Mark open M0100
+   oversubscription only within the effective placement profile. Mark open milestone-0.1.0.0
    topology decisions rather than embedding provisional defaults as ABI.
 5. Shape loops and memory accesses for analyzable aliasing, alignment, stride,
    and trip counts. Inspect vectorizer legality/cost remarks and generated code.

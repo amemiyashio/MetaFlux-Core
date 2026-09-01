@@ -13,10 +13,10 @@ evidence.
 
 ## Inputs
 
-- Read [D0032](../../../docs/architecture/host-privilege-escalation.md) before
+- Read [decision-0032](../../../docs/architecture/host-privilege-escalation.md) before
   any privileged operation or change to the host authorization boundary.
-- Read the active focus and its owning domain skill to identify the exact
-  operation that needs privilege.
+- Read the active goal, assigned lane, and owning domain skill to identify the
+  exact operation that needs privilege.
 - For a missing executable, require `manage-toolchain` evidence that Nix cannot
   provide or materialize the tool before selecting a host package.
 - For driver work, compose `linux-device-driver-uapi`; that skill owns driver
@@ -65,7 +65,7 @@ evidence.
    flags, URLs, local package files, shell syntax, or arbitrary commands. After
    installation, invoke only the intended absolute host executable from inside
    `nix develop . --command ...` and record it as a host prerequisite.
-4. For MetaFlux driver work, invoke one D0032 action:
+4. For MetaFlux driver work, invoke one decision-0032 action:
 
    ```sh
    nix develop . --command python3 \

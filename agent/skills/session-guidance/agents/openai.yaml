@@ -1,4 +1,0 @@
-interface:
-  display_name: "Session Guidance"
-  short_description: "Exchange and absorb expert session direction"
-  default_prompt: "Use $session-guidance to publish or absorb specialist direction for the active repository session."

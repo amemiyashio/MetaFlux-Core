@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-08-30
+updated: 2026-09-01
 ---
 
 # Decision Index
@@ -10,38 +10,39 @@ an index row does not promote `Proposed` material to `Verified`.
 
 | ID | Topic | Canonical source | Source status |
 | --- | --- | --- | --- |
-| D0001 | Wine-style transparent compatibility and low-overhead warm paths | [M0100](../plan/M0100-core-foundation/plan.md) | Complete M0100 plan |
-| D0002 | C17/C++20/C ABI split and compiler epoch 1 | [W0101 language tasks](../plan/M0100-core-foundation/work/W0101-build-toolchain.md), [compiler epoch 1](../../toolchains/README.md#compiler-epoch-1-d0018) | Complete workstream and verified tool input |
-| D0003 | Compatibility and backend plugins are independent axes | [Plugin ownership](../../plugins/README.md) | Repository boundary |
-| D0004 | Contracts are separated by plugin, protocol, shared, and UAPI zones | [Contracts index](../../contracts/README.md) | Repository boundary |
-| D0005 | Registry authority and leased data-plane worker ownership | [Control and data plane](../../docs/architecture/control-and-data-plane.md) | Proposed |
-| D0006 | cdev/vfio-user transport precedes dynamic vPCI lifecycle | [M0110](../plan/M0110-kernel-guest-transport/plan.md), [M0120](../plan/M0120-vpci-lifecycle/plan.md) | Queued plans |
-| D0007 | Vulkan is an execution backend with explicit capability tiers | [M0130](../plan/M0130-vulkan-backend/plan.md) | Queued plan |
-| D0008 | Synthetic vendor identity in vroot is a presentation disguise, never a vendor ABI claim or vendor-driver match | [M0120](../plan/M0120-vpci-lifecycle/plan.md) | Queued plan |
-| D0009 | Userspace glibc floor is 2.31 (Ubuntu 20.04) with a restricted provider DT_NEEDED universe | [M0100](../plan/M0100-core-foundation/plan.md) | Complete M0100 plan |
-| D0010 | Every transport owns one directory split into C17 client and C++20 worker halves that never share headers | [Transports ownership](../../transports/README.md) | Repository boundary |
-| D0011 | Component dependency edges are machine-checked against a role whitelist and the C/CXX language wall | [Component graph check](../../tools/README.md) | Repository boundary |
-| D0012 | `v0.1.0` qualifies four generic distribution rows; native NixOS VM/package qualification moves to `v0.2.0` | [W0101](../plan/M0100-core-foundation/work/W0101-build-toolchain.md#release-qualification-matrix-d0012) | Verified M0100 matrix policy; later NixOS qualification boundary |
-| D0013 | Validated absolute-path discovery for same-build vendor CUDA/NVML libraries | [W0106](../plan/M0100-core-foundation/work/W0106-modes-release.md#vendor-library-discovery-d0013) | Completed M0100 policy |
-| D0014 | Per-UID compiler cache isolation, quotas, atomic publication, and deterministic eviction | [W0103](../plan/M0100-core-foundation/work/W0103-compiler-cpu.md#cache-isolation-and-eviction-d0014) | Completed M0100 policy |
-| D0015 | Effective-core CPU worker placement, NUMA-local pools, and CTA-granularity stealing | [W0103](../plan/M0100-core-foundation/work/W0103-compiler-cpu.md#cpu-and-numa-placement-d0015) | Completed M0100 policy |
-| D0016 | Immutable R535/R550/R570/R580/R610 CUDA/NVML header acquisition manifests | [Toolchain ABI inputs](../../toolchains/README.md#cudanvml-abi-inputs-d0016) | Verified input policy and build gate |
-| D0017 | Compiler-epoch-1 PTX 9.0/sm_70 capability and semantic-oracle corpus | [W0103](../plan/M0100-core-foundation/work/W0103-compiler-cpu.md#ptx-oracle-and-corpus-d0017) | Verified manifest and semantic oracle |
-| D0018 | LLVM 22.1.8 source identity and exact correctness backport | [Compiler epoch 1](../../toolchains/README.md#compiler-epoch-1-d0018) | Verified tool input and correctness gates |
-| D0019 | Static MLIR/LLVM component closure for the generic daemon | [M0100 compiler link closure](../plan/M0100-core-foundation/plan.md#compiler-link-closure-d0019) | Measured completed M0100 policy |
-| D0020 | Timezone-relative artifact mirror routing with canonical identity and verification | [Artifact download routing](../../toolchains/README.md#artifact-download-routing-d0020) | Repository tool-input policy; Asia/Shanghai route historically qualified |
-| D0021 | Nix-owned declaration of every newly required project workflow tool | [Superseded by D0022](../../toolchains/README.md#tool-provider-boundary-d0022) | Superseded |
-| D0022 | Nix fixes and provides tool versions without owning project workflows or lifecycle policy | [Tool provider boundary](../../toolchains/README.md#tool-provider-boundary-d0022) | Repository boundary |
-| D0023 | Intel x86_64 host qualification deferred from M0100 / `v0.1.0` to the `v0.2.0` support expansion | [Superseded future destination](../plan/M1000-stable-qualification/plan.md#release-boundary-decision-d0027) | Superseded by D0027; M0100 AMD reference boundary retained |
-| D0024 | Standard product SemVer plus four-part delivery coordinates and derived M/W/S identifiers | [Release and delivery identity](../../docs/release-versioning.md) | Repository identity policy; former Intel/NVIDIA allocation superseded by D0027 |
-| D0025 | Decision-authorized semantic changes synchronize every affected current and historical record while preserving factual evidence | [Semantic change governance](../../docs/architecture/semantic-change-governance.md) | Verified repository governance contract |
-| D0026 | Project-knowledge roast classifies durable promotion by semantic transformation depth and keeps session-only disposition separate | [Project knowledge roast](../../docs/architecture/project-knowledge-roast.md) | Verified repository knowledge-promotion contract |
-| D0027 | Intel x86_64 support and physical NVIDIA binding-performance qualification belong to M1000 / `v1.0.0`; native NixOS remains `v0.2.0` scope | [M1000 release boundary](../plan/M1000-stable-qualification/plan.md#release-boundary-decision-d0027) | Queued release-boundary decision |
-| D0028 | Agent commit identity is derived from the active agent's self-declared harness subject without process inference or a product mapping table | [Agent harness commit identity](../../docs/architecture/agent-harness-commit-identity.md) | Verified repository workflow; migration tracked by SC0004 |
-| D0029 | One Exit-Gate-bound execution focus and exact owner session authorize durable content commits | [Execution focus governance](../../docs/architecture/execution-focus-governance.md) | Breaking schema 2 epoch and legacy liquidation tracked by Active SC0007 |
-| D0030 | Local managed providers select cdev first, bind its data queue to the same Unix control session/view/generation, and use only narrowly classified pre-success memfd fallback | [M0110 provider cdev boundary](../plan/M0110-kernel-guest-transport/plan.md#provider-cdev-selection-and-fallback-diagnostics-d0030) | Current M0110 decision; implementation and qualification remain open |
-| D0031 | Agent startup resolves the stable runtime harness subject before entering a mandatory Git-aware Nix tool environment | [Agent startup resolution order](../../docs/architecture/agent-startup-resolution.md) | Verified destructive workflow; migration tracked by Active SC0008 |
-| D0032 | Confirmed Nix gaps and MetaFlux driver debugging use bounded, non-secret host-privilege helpers | [Host privilege escalation](../../docs/architecture/host-privilege-escalation.md) | Verified destructive workflow; migration tracked by Active SC0009 |
+| decision-0001 | Wine-style transparent compatibility and low-overhead warm paths | [milestone-0.1.0.0](../plan/milestone-0.1.0.0-core-foundation/plan.md) | Complete milestone-0.1.0.0 plan |
+| decision-0002 | C17/C++20/C ABI split and compiler epoch 1 | [work-item-0.1.0.1 language tasks](../plan/milestone-0.1.0.0-core-foundation/work/work-item-0.1.0.1-build-toolchain.md), [compiler epoch 1](../../toolchains/README.md#compiler-epoch-1-decision-0018) | Complete workstream and verified tool input |
+| decision-0003 | Compatibility and backend plugins are independent axes | [Plugin ownership](../../plugins/README.md) | Repository boundary |
+| decision-0004 | Contracts are separated by plugin, protocol, shared, and UAPI zones | [Contracts index](../../contracts/README.md) | Repository boundary |
+| decision-0005 | Registry authority and leased data-plane worker ownership | [Control and data plane](../../docs/architecture/control-and-data-plane.md) | Proposed |
+| decision-0006 | cdev/vfio-user transport precedes dynamic vPCI lifecycle | [milestone-0.1.1.0](../plan/milestone-0.1.1.0-kernel-guest-transport/plan.md), [milestone-0.1.2.0](../plan/milestone-0.1.2.0-vpci-lifecycle/plan.md) | Queued plans |
+| decision-0007 | Vulkan is an execution backend with explicit capability tiers | [milestone-0.1.3.0](../plan/milestone-0.1.3.0-vulkan-backend/plan.md) | Queued plan |
+| decision-0008 | Synthetic vendor identity in vroot is a presentation disguise, never a vendor ABI claim or vendor-driver match | [milestone-0.1.2.0](../plan/milestone-0.1.2.0-vpci-lifecycle/plan.md) | Queued plan |
+| decision-0009 | Userspace glibc floor is 2.31 (Ubuntu 20.04) with a restricted provider DT_NEEDED universe | [milestone-0.1.0.0](../plan/milestone-0.1.0.0-core-foundation/plan.md) | Complete milestone-0.1.0.0 plan |
+| decision-0010 | Every transport owns one directory split into C17 client and C++20 worker halves that never share headers | [Transports ownership](../../transports/README.md) | Repository boundary |
+| decision-0011 | Component dependency edges are machine-checked against a role whitelist and the C/CXX language wall | [Component graph check](../../tools/README.md) | Repository boundary |
+| decision-0012 | `v0.1.0` qualifies four generic distribution rows; native NixOS VM/package qualification moves to `v0.2.0` | [work-item-0.1.0.1](../plan/milestone-0.1.0.0-core-foundation/work/work-item-0.1.0.1-build-toolchain.md#release-qualification-matrix-decision-0012) | Verified milestone-0.1.0.0 matrix policy; later NixOS qualification boundary |
+| decision-0013 | Validated absolute-path discovery for same-build vendor CUDA/NVML libraries | [work-item-0.1.0.6](../plan/milestone-0.1.0.0-core-foundation/work/work-item-0.1.0.6-modes-release.md#vendor-library-discovery-decision-0013) | Completed milestone-0.1.0.0 policy |
+| decision-0014 | Per-UID compiler cache isolation, quotas, atomic publication, and deterministic eviction | [work-item-0.1.0.3](../plan/milestone-0.1.0.0-core-foundation/work/work-item-0.1.0.3-compiler-cpu.md#cache-isolation-and-eviction-decision-0014) | Completed milestone-0.1.0.0 policy |
+| decision-0015 | Effective-core CPU worker placement, NUMA-local pools, and CTA-granularity stealing | [work-item-0.1.0.3](../plan/milestone-0.1.0.0-core-foundation/work/work-item-0.1.0.3-compiler-cpu.md#cpu-and-numa-placement-decision-0015) | Completed milestone-0.1.0.0 policy |
+| decision-0016 | Immutable R535/R550/R570/R580/R610 CUDA/NVML header acquisition manifests | [Toolchain ABI inputs](../../toolchains/README.md#cudanvml-abi-inputs-decision-0016) | Verified input policy and build gate |
+| decision-0017 | Compiler-epoch-1 PTX 9.0/sm_70 capability and semantic-oracle corpus | [work-item-0.1.0.3](../plan/milestone-0.1.0.0-core-foundation/work/work-item-0.1.0.3-compiler-cpu.md#ptx-oracle-and-corpus-decision-0017) | Verified manifest and semantic oracle |
+| decision-0018 | LLVM 22.1.8 source identity and exact correctness backport | [Compiler epoch 1](../../toolchains/README.md#compiler-epoch-1-decision-0018) | Verified tool input and correctness gates |
+| decision-0019 | Static MLIR/LLVM component closure for the generic daemon | [milestone-0.1.0.0 compiler link closure](../plan/milestone-0.1.0.0-core-foundation/plan.md#compiler-link-closure-decision-0019) | Measured completed milestone-0.1.0.0 policy |
+| decision-0020 | Timezone-relative artifact mirror routing with canonical identity and verification | [Artifact download routing](../../toolchains/README.md#artifact-download-routing-decision-0020) | Repository tool-input policy; Asia/Shanghai route historically qualified |
+| decision-0021 | Nix-owned declaration of every newly required project workflow tool | [Superseded by decision-0022](../../toolchains/README.md#tool-provider-boundary-decision-0022) | Superseded |
+| decision-0022 | Nix fixes and provides tool versions without owning project workflows or lifecycle policy | [Tool provider boundary](../../toolchains/README.md#tool-provider-boundary-decision-0022) | Repository boundary |
+| decision-0023 | Intel x86_64 host qualification deferred from milestone-0.1.0.0 / `v0.1.0` to the `v0.2.0` support expansion | [Superseded future destination](../plan/milestone-1.0.0.0-stable-qualification/plan.md#release-boundary-decision-0027) | Superseded by decision-0027; milestone-0.1.0.0 AMD reference boundary retained |
+| decision-0024 | Standard product SemVer plus four-part delivery coordinates and full-word milestone/work-item identifiers | [Release and delivery identity](../../docs/release-versioning.md) | Current product identity policy; execution identifiers superseded by decision-0033 |
+| decision-0025 | Decision-authorized semantic changes synchronized current and historical execution records | [Goal-first execution](../../docs/architecture/agent-execution.md) | Superseded by decision-0033 |
+| decision-0026 | Roast used record-shaped dispositions for project knowledge promotion | [Goal-first execution](../../docs/architecture/agent-execution.md#knowledge-promotion) | Superseded by decision-0033 |
+| decision-0027 | Intel x86_64 support and physical NVIDIA binding-performance qualification belong to milestone-1.0.0.0 / `v1.0.0`; native NixOS remains `v0.2.0` scope | [milestone-1.0.0.0 release boundary](../plan/milestone-1.0.0.0-stable-qualification/plan.md#release-boundary-decision-0027) | Queued release-boundary decision |
+| decision-0028 | Agent commits used a runtime-declared harness identity | [Goal-first commit boundary](../../docs/architecture/agent-execution.md#commit-boundary) | Superseded by decision-0033 fixed Codex identity |
+| decision-0029 | One persisted execution focus and exact execution owner authorized durable commits | [Goal-first execution](../../docs/architecture/agent-execution.md) | Superseded by decision-0033 |
+| decision-0030 | Local managed providers select cdev first, bind its data queue to the same Unix control session/view/generation, and use only narrowly classified pre-success memfd fallback | [milestone-0.1.1.0 provider cdev boundary](../plan/milestone-0.1.1.0-kernel-guest-transport/plan.md#provider-cdev-selection-and-fallback-diagnostics-decision-0030) | Current milestone-0.1.1.0 decision; implementation and qualification remain open |
+| decision-0031 | Agent startup declares stable `codex` identity before entering a mandatory Git-aware Nix tool environment | [Start work](../skills/start-work/SKILL.md) | Retained by decision-0033 and machine-checked |
+| decision-0032 | Confirmed Nix gaps and MetaFlux driver debugging use bounded, non-secret host-privilege helpers | [Host privilege escalation](../../docs/architecture/host-privilege-escalation.md) | Retained by decision-0033 and machine-checked |
+| decision-0033 | Goal-first multi-Agent execution uses destructive Epoch governance, parallel Batch Iterations, independent integration, ephemeral roast promotion, and no execution-history ledger | [Goal-first execution](../../docs/architecture/agent-execution.md) | Verified; activates epoch-0001 |
 
-New decisions receive the next `DNNNN` identifier and point to a plan or
+New decisions receive the next `decision-NNNN` identifier and point to a plan or
 architecture record containing rationale, consequences, and verification state.

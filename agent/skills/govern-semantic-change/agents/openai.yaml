@@ -1,4 +1,0 @@
-interface:
-  display_name: "Govern Semantic Change"
-  short_description: "Govern breaking semantic migrations and handoffs"
-  default_prompt: "Use $govern-semantic-change to govern this breaking repository semantic migration."

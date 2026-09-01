@@ -1,0 +1,6 @@
+interface:
+  display_name: "Integrate MetaFlux Batch"
+  short_description: "Merge and verify one explicit parallel delivery Batch"
+  default_prompt: "Use $integrate-batch to integrate these committed Iteration revisions."
+policy:
+  allow_implicit_invocation: false

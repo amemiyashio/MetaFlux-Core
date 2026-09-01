@@ -923,7 +923,7 @@ def main() -> int:
         or len(rows) != len(EXPECTED_FAMILIES)
         or set(rows) != set(EXPECTED_FAMILIES)
     ):
-        raise RuntimeError("stock-tool manifest family set differs from the frozen M0100 matrix")
+        raise RuntimeError("stock-tool manifest family set differs from the frozen milestone-0.1.0.0 matrix")
     artifacts = provider_artifacts(args.provider_dir)
 
     with tempfile.TemporaryDirectory(prefix="metaflux-nvidia-smi-") as temporary:
@@ -1049,7 +1049,7 @@ def main() -> int:
         },
         "locale": {"LC_ALL": "C", "LANG": "C", "timezone": "UTC"},
         "registry_fixture": {
-            "kind": "metafluxd-default-m0100-single-device",
+            "kind": "metafluxd-default-milestone-0.1.0.0-single-device",
             "device_count": 1,
             "device": {
                 "index": 0,

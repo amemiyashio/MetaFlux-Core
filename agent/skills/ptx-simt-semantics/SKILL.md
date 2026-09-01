@@ -1,6 +1,6 @@
 ---
 name: ptx-simt-semantics
-description: Specify or review PTX 9.x subset parsing, Kernel IR semantics, state spaces, predication, divergent SIMT control flow, CTA barriers, atomics, memory ordering, and deterministic or allowed-outcome semantic-oracle tests. Use whenever PTX source meaning or its oracle changes, including M0100 CPU and M0130 Vulkan paths. Do not use for CPU interpreter implementation, MLIR pass implementation, CUDA ELF ABI, or target-runtime tuning.
+description: Specify or review PTX 9.x subset parsing, Kernel IR semantics, state spaces, predication, divergent SIMT control flow, CTA barriers, atomics, memory ordering, and deterministic or allowed-outcome semantic-oracle tests. Use whenever PTX source meaning or its oracle changes, including milestone-0.1.0.0 CPU and milestone-0.1.3.0 Vulkan paths. Do not use for CPU interpreter implementation, MLIR pass implementation, CUDA ELF ABI, or target-runtime tuning.
 ---
 
 # PTX SIMT Semantics
@@ -83,4 +83,4 @@ Return or implement:
 - Reject unknown opcodes, unknown modifiers, malformed declarations, unsupported
   state spaces, and unsupported semantics with deterministic diagnostics.
 - Keep the exact corpus decision open until its canonical manifest and evidence
-  satisfy W0103; a draft list is not a frozen compatibility claim.
+  satisfy work-item-0.1.0.3; a draft list is not a frozen compatibility claim.

@@ -1,39 +1,17 @@
-# Architecture Decisions
+# Architecture Records
 
-This directory records architectural descriptions and decision records. Plans
-under `agent/plan/` describe intended milestones. Architecture documents carry
-an explicit status: `Proposed` mirrors a plan boundary, while `Verified` means the
-decision has been implemented and tested. Only `Verified` documents define a
-stable repository contract.
+Architecture records define cross-component behavior that is broader than one
+source owner. Their frontmatter status determines maturity; current source and
+passing tests remain stronger evidence than prose.
 
-Documents should state ownership, dependency direction, public contracts,
-performance consequences, and compatibility impact. Future compatibility
-ecosystems or general plugin APIs are documented here before their interfaces are
-frozen, without creating speculative source directories.
+- [`repo-layout.md`](repo-layout.md): repository ownership, language walls, and
+  dependency boundaries.
+- [`control-and-data-plane.md`](control-and-data-plane.md): registry authority,
+  leased workers, and lifecycle ownership.
+- [`agent-execution.md`](agent-execution.md): decision-0033 Epoch/Batch/Iteration
+  execution and destructive governance.
+- [`host-privilege-escalation.md`](host-privilege-escalation.md): bounded,
+  non-secret host privilege and driver-debug helpers.
 
-The current proposed boundaries are summarized in
-`control-and-data-plane.md`; detailed qualification remains in M0110 and M0120.
-The directory taxonomy and dependency-direction map are recorded in
-[`repo-layout.md`](repo-layout.md) (Verified). Decision-authorized breaking
-repository migrations follow the verified
-[`semantic-change-governance.md`](semantic-change-governance.md) contract
-(D0025). Durable project-knowledge promotion follows the verified
-[`project-knowledge-roast.md`](project-knowledge-roast.md) contract (D0026).
-The verified replacement of static agent identity mappings with agent-provided
-harness-subject derivation is recorded in
-[`agent-harness-commit-identity.md`](agent-harness-commit-identity.md) (D0028);
-SC0004 owns its synchronized migration.
-The proposed replacement of global active-session commit coverage with one
-Exit-Gate-bound execution focus is recorded in
-[`execution-focus-governance.md`](execution-focus-governance.md) (D0029);
-SC0006 owns the active migration.
-The verified Nix-first startup order and stable harness product-subject boundary
-are recorded in
-[`agent-startup-resolution.md`](agent-startup-resolution.md) (D0031); SC0008
-owns the destructive migration and amends D0022/D0028 without transferring
-workflow ownership to Nix or adding a product identity table.
-The verified bounded host escalation for confirmed Nix gaps and MetaFlux driver
-debugging is recorded in
-[`host-privilege-escalation.md`](host-privilege-escalation.md) (D0032); SC0009
-owns the destructive migration and prohibits arbitrary sudo or credential
-persistence.
+Product-specific behavior remains in source, tests, contracts, and approved
+milestone/work-item plans rather than being duplicated here.

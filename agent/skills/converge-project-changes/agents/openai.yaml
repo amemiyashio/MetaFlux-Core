@@ -1,6 +1,0 @@
-interface:
-  display_name: "Converge Project Changes"
-  short_description: "Converge collaborator changes to project rules"
-  default_prompt: "Use $converge-project-changes to audit and converge this collaborator-delivered change set before integration."
-policy:
-  allow_implicit_invocation: true

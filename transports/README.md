@@ -22,7 +22,7 @@ device descriptors or shared records.
 ## Halves
 
 Every transport owns exactly one directory and exactly two load images, never a
-shared one (D0010):
+shared one (decision-0010):
 
 - `client/`: the provider-side half. C17, statically linked into the
   application-side closure, registered with the component role

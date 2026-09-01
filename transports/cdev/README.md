@@ -4,7 +4,7 @@ Local transport over `/dev/metafluxN` mappings and the `/dev/metafluxctl` worker
 broker. Setup, registration, teardown, and blocking waits are cold operations;
 active queues use shared descriptors and timelines directly.
 
-The userspace halves are split per the transport halves convention (D0010). The
+The userspace halves are split per the transport halves convention (decision-0010). The
 kernel counterpart under `kernel/core/` maps one submission and one completion
 ring back-to-back from the generated UAPI queue record. It advertises queue mmap,
 eventfd association, registered-memory, and the worker-broker bits.
@@ -32,7 +32,7 @@ pages, and memlock release. A standalone virtual cdev without a DMA mask or
 parent master returns `MF_SHARED_NOT_SUPPORTED` before pinning; this stage does
 not expose backend memory import or
 in-flight worker references, and it does not qualify a physical GPU DMA master;
-those remain W0112/W0114 work.
+those remain work-item-0.1.1.2/work-item-0.1.1.4 work.
 
 Closing the queue owner or worker lease transitions the current generation to an
 offline tombstone before waking waiters. Existing queue VMAs remain mapped until
@@ -72,7 +72,7 @@ operation rechecks current ownership and length; it does not transfer data-fd
 ownership or infer a size from a local configuration.
 
 The C++ worker can register a `metaflux::runtime::lifecycle::Mirror` with the
-M0120 coordinator. Quiesce stops ordinary queue consumption, the lifecycle
+milestone-0.1.2.0 coordinator. Quiesce stops ordinary queue consumption, the lifecycle
 drain consumes only already-published descriptors, and a committed generation
 is the sole value accepted by the worker. Requests observed while the mirror is
 `LOST` complete with `MF_SHARED_DEVICE_LOST`; descriptors for a retired
@@ -184,7 +184,7 @@ lifetime contract, including direct payload-memory retain/release, and
 capability-gated pending-operation cancellation are implemented by the worker
 binding and lifecycle callbacks.
 
-The W0114 bounded fault matrix now treats unknown COPY flags as malformed,
+The work-item-0.1.1.4 bounded fault matrix now treats unknown COPY flags as malformed,
 known direct-host flags as unsupported on this worker, and zero-length COPY as
 invalid. A full completion ring returns backpressure without consuming the
 submission; once a slot is released the request completes in FIFO order.

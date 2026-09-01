@@ -19,12 +19,12 @@ The product direction is:
 - One authoritative logical-device view within each managed domain across
   compatibility providers, management interfaces, transports, and later device
   presentation; cross-vendor coexistence uses explicit loader namespaces
-  (W0106) rather than merged enumeration.
+  (work-item-0.1.0.6) rather than merged enumeration.
 - Ecosystems such as CUDA and future ROCm-facing interfaces are compatibility
   plugins; CPU, Vulkan, and later targets are execution backends.
 - vPCI is presentation and transport, not the identity of the product and not a
   claim to implement a vendor-private kernel ABI. Presentation may adopt a
-  synthetic vendor identity as a compatibility disguise (D0008); the canonical
+  synthetic vendor identity as a compatibility disguise (decision-0008); the canonical
   device identity remains the persistent MetaFlux UUID.
 
 Product releases use standard three-part SemVer from the repository-root
@@ -32,13 +32,13 @@ Product releases use standard three-part SemVer from the repository-root
 `MAJOR.MINOR.PATCH.WORK` coordinate and derived M/W/S identifiers described in
 the [release and delivery identity policy](../../docs/release-versioning.md).
 
-The current product line is M0100 / `v0.1.0`: the CPU-backed CUDA/NVML core
+The current product line is milestone-0.1.0.0 / `v0.1.0`: the CPU-backed CUDA/NVML core
 foundation and its four-distribution generic release qualification. Native
 NixOS VM/package qualification remains the unallocated `v0.2.0` support
 expansion. Intel x86_64 support qualification and physical NVIDIA
-binding-performance promotion belong to M1000 / `v1.0.0`. None of these later
-qualification tasks is an M0100 exit gate. Canonical scope and acceptance
+binding-performance promotion belong to milestone-1.0.0.0 / `v1.0.0`. None of these later
+qualification tasks is an milestone-0.1.0.0 exit gate. Canonical scope and acceptance
 remain in the [repository overview](../../README.md),
 [plugin ownership](../../plugins/README.md), and
-[M0100](../plan/M0100-core-foundation/plan.md); recorded evidence is valid only
+[milestone-0.1.0.0](../plan/milestone-0.1.0.0-core-foundation/plan.md); recorded evidence is valid only
 for the Git revision and invocation it names.

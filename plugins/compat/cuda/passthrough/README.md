@@ -1,6 +1,6 @@
 # CUDA/NVML Passthrough Helper
 
-This C17 component implements the D0013 vendor-library discovery and mode
+This C17 component implements the decision-0013 vendor-library discovery and mode
 selection mechanism. It is a private provider dependency; it does not export
 CUDA or NVML entry points and it does not choose a mode in a constructor.
 
@@ -79,5 +79,5 @@ provider DSO entries. It covers explicit modes, default-auto managed success,
 clean fail-open, dirty rollback refusal, all manifest symbol lookups, PTDS/PTSZ
 and versioned aliases, CUDA/NVML identity parity, fork/stale rejection, vendor
 call counts, and NVML final teardown/reload. Co-loading the physical CUDA/NVML
-pair and measuring the W0106 performance and coexistence gates remain host
+pair and measuring the work-item-0.1.0.6 performance and coexistence gates remain host
 qualification work on supported NVIDIA driver systems.

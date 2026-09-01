@@ -18,7 +18,7 @@ policy and backend selection remain in `metafluxd`.
 Source ownership is `core/` for cdev and worker-broker objects, `pci/` for the
 common static guest function driver, `vroot/` for the default-off software root,
 `compat/` for target-kernel API shims, and `tests/` for KUnit/kselftest support.
-The first `pci/` stage validates and maps the M0110 BAR0/BAR2/BAR4 profile and
-reserves two MSI-X vectors; ring/DMA/interrupt-arm behavior remains in W0113.
+The first `pci/` stage validates and maps the milestone-0.1.1.0 BAR0/BAR2/BAR4 profile and
+reserves two MSI-X vectors; ring/DMA/interrupt-arm behavior remains in work-item-0.1.1.3.
 Compatibility shims are selected by compile/API probes against the exact target
 kernel rather than broad version checks.

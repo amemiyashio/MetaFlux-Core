@@ -412,13 +412,13 @@ private:
     const auto version = take(TokenKind::Number, "PTX version");
     if (!failed_ && version.text != "9.0") {
       fail(DiagnosticCode::PtxUnsupportedVersion, version,
-           "the M0100 manifest is pinned to PTX ISA 9.0", std::string(version.text));
+           "the milestone-0.1.0.0 manifest is pinned to PTX ISA 9.0", std::string(version.text));
       return;
     }
     take_word(".target");
     const auto target = take(TokenKind::Word, "PTX target");
     if (!failed_ && target.text != "sm_70") {
-      fail(DiagnosticCode::PtxUnsupportedTarget, target, "the M0100 manifest requires target sm_70",
+      fail(DiagnosticCode::PtxUnsupportedTarget, target, "the milestone-0.1.0.0 manifest requires target sm_70",
            std::string(target.text));
       return;
     }
@@ -426,7 +426,7 @@ private:
     const auto address_size = take(TokenKind::Number, "address size");
     if (!failed_ && address_size.text != "64") {
       fail(DiagnosticCode::PtxTypeMismatch, address_size,
-           "the M0100 manifest requires 64-bit global addresses", std::string(address_size.text));
+           "the milestone-0.1.0.0 manifest requires 64-bit global addresses", std::string(address_size.text));
     }
   }
 

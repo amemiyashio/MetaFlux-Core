@@ -14,8 +14,8 @@
     "vulkan-spirv-compute"
   ],
   "workflow_skills": [
-    "converge-project-changes",
-    "govern-semantic-change",
+    "integrate-batch",
+    "govern-epoch",
     "roast"
   ],
   "coverage": {
@@ -30,7 +30,7 @@
       "id": "RUNTIME-P1",
       "kind": "single",
       "locale": "en",
-      "prompt": "Define the ecosystem-neutral registry view, provider join/freeze rules, and client-protocol negotiation for W0102.",
+      "prompt": "Define the ecosystem-neutral registry view, provider join/freeze rules, and client-protocol negotiation for work-item-0.1.0.2.",
       "expected_skills": ["runtime-contracts-registry"],
       "forbidden_skills": []
     },
@@ -38,7 +38,7 @@
       "id": "RUNTIME-P2",
       "kind": "single",
       "locale": "en",
-      "prompt": "Generate the M0110 UAPI, device descriptor, and BAR extension layouts from one canonical contract schema.",
+      "prompt": "Generate the milestone-0.1.1.0 UAPI, device descriptor, and BAR extension layouts from one canonical contract schema.",
       "expected_skills": ["runtime-contracts-registry"],
       "forbidden_skills": []
     },
@@ -79,7 +79,7 @@
       "id": "CUDA-P2",
       "kind": "single",
       "locale": "en",
-      "prompt": "Implement stale CUDA context, stream, event, and device-memory handle behavior for the M0100 provider.",
+      "prompt": "Implement stale CUDA context, stream, event, and device-memory handle behavior for the milestone-0.1.0.0 provider.",
       "expected_skills": ["cuda-driver-abi-compatibility"],
       "forbidden_skills": []
     },
@@ -477,59 +477,59 @@
       "forbidden_skills": ["vulkan-spirv-compute"]
     },
     {
-      "id": "CONVERGE-P1",
+      "id": "INTEGRATE-P1",
       "kind": "single",
       "locale": "en",
-      "prompt": "An agent has delivered persistent changes into my active session. Audit the explicit change set against project-level authority, layout, dependencies, generated contracts, records, and verification rules; fix required findings before the next work unit.",
-      "expected_skills": ["converge-project-changes"],
+      "prompt": "Use $integrate-batch to integrate these exact committed Iteration base and tip revisions in dependency order, preserving lane history and running the combined regression.",
+      "expected_skills": ["integrate-batch"],
       "forbidden_skills": []
     },
     {
-      "id": "CONVERGE-P2",
+      "id": "INTEGRATE-P2",
       "kind": "single",
       "locale": "en",
-      "prompt": "At this delivery boundary, audit the formally handed-off change batch. Converge required issues owned by my session, and send session guidance instead of editing issues owned by another in-progress collaborator.",
-      "expected_skills": ["converge-project-changes"],
+      "prompt": "Use $integrate-batch for the supplied epoch, batch, iteration, base revision, and tip revision deliveries; reject dirty or unrelated input and update goal state only after all tests pass.",
+      "expected_skills": ["integrate-batch"],
       "forbidden_skills": []
     },
     {
-      "id": "CONVERGE-N1",
+      "id": "INTEGRATE-N1",
       "kind": "near-miss",
       "locale": "en",
-      "prompt": "Review this CUDA Driver provider patch only for libcuda symbol, handle, and error correctness; no project-level integration or collaborator-delivery governance is requested.",
+      "prompt": "Review this CUDA Driver provider patch only for libcuda symbol, handle, and error correctness; no Batch integration was requested.",
       "expected_skills": ["cuda-driver-abi-compatibility"],
-      "forbidden_skills": ["converge-project-changes"]
+      "forbidden_skills": ["integrate-batch"]
     },
     {
-      "id": "CONVERGE-ZH-P1",
+      "id": "INTEGRATE-ZH-P1",
       "kind": "single",
       "locale": "zh-CN",
-      "prompt": "另一位协作者刚交付一批持久更改；在进入下一个工作单元前，按项目级权威、仓库布局、依赖、契约与生成物、记录和验证规范审查明确 change set，并收敛当前会话拥有的 required findings。",
-      "expected_skills": ["converge-project-changes"],
+      "prompt": "使用 $integrate-batch 按依赖顺序集成给定 Iteration 的精确 base/tip revisions，保留工作线历史，并在全部联调通过后更新 goal。",
+      "expected_skills": ["integrate-batch"],
       "forbidden_skills": []
     },
     {
-      "id": "CONVERGE-ZH-N1",
+      "id": "INTEGRATE-ZH-N1",
       "kind": "near-miss",
       "locale": "zh-CN",
-      "prompt": "评估 M0110 工作流是否已具备实现条件，只做架构、激活、成熟度和发布证据的 go/no-go 判断，不审查或整改任何已交付 change set。",
+      "prompt": "评估 milestone-0.1.1.0 是否具备实现条件，只做架构、成熟度和发布证据判断，不集成任何 Iteration revision。",
       "expected_skills": [],
-      "forbidden_skills": ["converge-project-changes"]
+      "forbidden_skills": ["integrate-batch"]
     },
     {
       "id": "GOV-P1",
       "kind": "single",
       "locale": "en",
-      "prompt": "Apply an approved replacement of established milestone identifiers across current documents, completed sessions, checkpoints, validators, and active-session handoffs.",
-      "expected_skills": ["govern-semantic-change"],
+      "prompt": "Use $govern-epoch to replace established repository identifiers across all current authority, delete obsolete machinery, and publish the next Epoch only after full regression.",
+      "expected_skills": ["govern-epoch"],
       "forbidden_skills": []
     },
     {
       "id": "GOV-P2",
       "kind": "single",
       "locale": "en",
-      "prompt": "Replace the durable session record shape and authority semantics repository-wide while preserving raw timestamps, commands, counts, hashes, and revisions.",
-      "expected_skills": ["govern-semantic-change"],
+      "prompt": "Use $govern-epoch to destructively replace ambiguous repository governance, directly synchronize every current canonical owner, and keep Git as the sole old-state recovery path.",
+      "expected_skills": ["govern-epoch"],
       "forbidden_skills": []
     },
     {
@@ -538,14 +538,14 @@
       "locale": "en",
       "prompt": "Add one backward-compatible registry field in the current implementation without changing established record meaning or historical documents.",
       "expected_skills": ["runtime-contracts-registry"],
-      "forbidden_skills": ["govern-semantic-change"]
+      "forbidden_skills": ["govern-epoch"]
     },
     {
       "id": "GOV-ZH-P1",
       "kind": "single",
       "locale": "zh-CN",
-      "prompt": "执行已批准的仓库语义替换，同步当前文档、终态会话、检查点、校验器和活动会话交接，并保留原始事实证据。",
-      "expected_skills": ["govern-semantic-change"],
+      "prompt": "使用 $govern-epoch 执行破坏性仓库语义替换，直接同步所有当前权威、删除旧入口，并在完整回归通过后发布新 Epoch。",
+      "expected_skills": ["govern-epoch"],
       "forbidden_skills": []
     },
     {
@@ -554,7 +554,7 @@
       "locale": "zh-CN",
       "prompt": "只给当前注册表实现增加向后兼容字段，不改变既有记录语义或历史文档。",
       "expected_skills": ["runtime-contracts-registry"],
-      "forbidden_skills": ["govern-semantic-change"]
+      "forbidden_skills": ["govern-epoch"]
     },
     {
       "id": "ROAST-P1",
@@ -568,7 +568,7 @@
       "id": "ROAST-P2",
       "kind": "single",
       "locale": "en",
-      "prompt": "Use $roast before checkpointing this verified breakthrough; separate session-only material and promote each durable claim to one owner as light, medium, or authorized dark.",
+      "prompt": "Use $roast at this verified boundary; discard ephemeral detail and promote each valuable claim to one owner as light, medium, or decision-authorized dark.",
       "expected_skills": ["roast"],
       "forbidden_skills": []
     },
@@ -576,7 +576,7 @@
       "id": "ROAST-N1",
       "kind": "near-miss",
       "locale": "en",
-      "prompt": "Send an unreviewed, session-scoped expert suggestion to an active collaborator for evaluation, without promoting it as project knowledge.",
+      "prompt": "Send an unreviewed transient suggestion to a collaborator without promoting it as project knowledge.",
       "expected_skills": [],
       "forbidden_skills": ["roast"]
     },
@@ -592,7 +592,7 @@
       "id": "ROAST-ZH-P1",
       "kind": "single",
       "locale": "zh-CN",
-      "prompt": "在阶段性交接时显式使用 $roast，先区分持久晋升、session-only 和未决去向，再为每个晋升 claim 选择唯一 owner 与语义加工深度。",
+      "prompt": "在 Batch 集成边界显式使用 $roast，丢弃临时细节，并为每个有价值的 claim 选择唯一 owner 与 light、medium 或 dark 加工深度。",
       "expected_skills": ["roast"],
       "forbidden_skills": []
     },
@@ -600,7 +600,7 @@
       "id": "ROAST-ZH-N1",
       "kind": "near-miss",
       "locale": "zh-CN",
-      "prompt": "把尚未评审的会话级专家建议临时发给活动协作者参考，不把它固化为项目知识。",
+      "prompt": "把尚未评审的临时建议发给协作者参考，不把它固化为项目知识。",
       "expected_skills": [],
       "forbidden_skills": ["roast"]
     },
@@ -630,18 +630,18 @@
       "forbidden_skills": []
     },
     {
-      "id": "COMBO-M0110-SCHEMA",
+      "id": "COMBO-MILESTONE-0110-SCHEMA",
       "kind": "composition",
       "locale": "en",
-      "prompt": "Freeze one M0110 schema that generates Linux UAPI, device protocol, vfio-user regions, and PCI BAR extension layouts.",
+      "prompt": "Freeze one milestone-0.1.1.0 schema that generates Linux UAPI, device protocol, vfio-user regions, and PCI BAR extension layouts.",
       "expected_skills": ["runtime-contracts-registry", "linux-device-driver-uapi", "gpu-virtualization-vfio-user", "pcie-vpci-device-model"],
       "forbidden_skills": []
     },
     {
-      "id": "COMBO-M0110-UNMAP",
+      "id": "COMBO-MILESTONE-0110-UNMAP",
       "kind": "composition",
       "locale": "en",
-      "prompt": "Fix a static M0110 VFIO_USER_DMA_UNMAP racing BAR2 submission and MSI-X completion, with no reset or replacement generation.",
+      "prompt": "Fix a static milestone-0.1.1.0 VFIO_USER_DMA_UNMAP racing BAR2 submission and MSI-X completion, with no reset or replacement generation.",
       "expected_skills": ["linux-device-driver-uapi", "gpu-virtualization-vfio-user", "pcie-vpci-device-model"],
       "forbidden_skills": ["device-lifecycle-resilience"]
     },
@@ -713,40 +713,40 @@
       "id": "COMBO-GOV-PTX",
       "kind": "composition",
       "locale": "en",
-      "prompt": "Apply an approved breaking replacement of the PTX semantic oracle and migrate every affected current and historical contract without rewriting raw test evidence.",
-      "expected_skills": ["govern-semantic-change", "ptx-simt-semantics"],
+      "prompt": "Use $govern-epoch for an approved destructive replacement of the PTX semantic oracle, rewrite every affected current contract, and preserve prior facts only in Git history.",
+      "expected_skills": ["govern-epoch", "ptx-simt-semantics"],
       "forbidden_skills": []
     },
     {
       "id": "COMBO-GOV-ROAST",
       "kind": "composition",
       "locale": "zh-CN",
-      "prompt": "完成已批准的仓库级权威语义替换和历史迁移，同时显式使用 $roast 把迁移中实际晋升的持久 claim 分类到唯一规范载体。",
-      "expected_skills": ["govern-semantic-change", "roast"],
+      "prompt": "使用 $govern-epoch 完成仓库级权威替换，并显式使用 $roast 把有价值的 claim 提升到唯一规范载体。",
+      "expected_skills": ["govern-epoch", "roast"],
       "forbidden_skills": []
     },
     {
       "id": "COMBO-ROAST-CPU",
       "kind": "composition",
       "locale": "en",
-      "prompt": "Use $roast on a measured x86 backend breakthrough: apply the CPU performance expert, keep Candidate or Validated evidence status separate, and classify each materially promoted finding before checkpointing.",
+      "prompt": "Use $roast on a measured x86 backend breakthrough: apply the CPU performance expert and classify each valuable finding before Batch integration.",
       "expected_skills": ["cpu-backend-performance", "roast"],
       "forbidden_skills": []
     },
     {
-      "id": "COMBO-CONVERGE-CPU",
+      "id": "COMBO-INTEGRATE-CPU",
       "kind": "composition",
       "locale": "en",
-      "prompt": "Audit a delivered x86 backend patch for both project-level consistency and CPU execution/performance correctness; converge required integration findings and produce reproducible backend evidence.",
-      "expected_skills": ["converge-project-changes", "cpu-backend-performance"],
+      "prompt": "Use $integrate-batch on the committed x86 backend Iteration while applying CPU execution and performance review, then run focused and combined evidence gates.",
+      "expected_skills": ["integrate-batch", "cpu-backend-performance"],
       "forbidden_skills": []
     },
     {
-      "id": "COMBO-ZH-CONVERGE-GOV",
+      "id": "COMBO-ZH-INTEGRATE-GOVERN",
       "kind": "composition",
       "locale": "zh-CN",
-      "prompt": "在收敛协作者交付的 change set 时发现它替换了既有契约权威和记录形状；继续治理该批次，并通过已批准的语义变更流程迁移全部受影响载体且保留事实证据。",
-      "expected_skills": ["converge-project-changes", "govern-semantic-change"],
+      "prompt": "先使用 $integrate-batch 审查精确 Iteration revisions；若确认存在全仓治理漂移，则由用户显式调用 $govern-epoch 直接同步当前权威。",
+      "expected_skills": ["integrate-batch", "govern-epoch"],
       "forbidden_skills": []
     }
   ]

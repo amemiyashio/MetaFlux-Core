@@ -89,7 +89,7 @@ When changing the SDK input:
    both derived identities.
 
 Changing the glibc floor or target distribution is not an SDK refresh. It
-changes D0009 and requires a canonical decision before implementation.
+changes decision-0009 and requires a canonical decision before implementation.
 
 Run the input and materialization gates:
 
@@ -136,7 +136,7 @@ passing check.
 
 ## Product Compile Contract
 
-The CMake owner must encode a checked-in target configuration before the W0101
+The CMake owner must encode a checked-in target configuration before the work-item-0.1.0.1
 generic release gate closes. Do not make agents reconstruct a release command
 from memory, and do not implement the product build as a Nix derivation.
 
@@ -274,7 +274,7 @@ settings. Do not infer these values from the development shell name.
 Package only a clean target build:
 
 ```sh
-output_dir="../.metaflux-evidence/MetaFlux-Core/m0100-generic-packages"
+output_dir="../.metaflux-evidence/MetaFlux-Core/milestone-0.1.0.0-generic-packages"
 source_date_epoch="$(git show -s --format=%ct HEAD)"
 
 SOURCE_DATE_EPOCH="$source_date_epoch" \

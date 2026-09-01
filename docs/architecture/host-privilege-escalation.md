@@ -3,10 +3,10 @@
 | Field | Value |
 | --- | --- |
 | Status | Verified |
-| Decision | D0032 |
+| Decision | decision-0032 |
 | Classification | Breaking (destructive) governance |
 | Applies to | Every repository sudo/su boundary, confirmed Nix gaps, and MetaFlux driver debugging |
-| Migration | SC0009 |
+| Execution model | decision-0033 |
 
 ## Decision
 
@@ -62,15 +62,15 @@ and selecting exact artifacts. The helper clears the environment before running
 the live qualification binary and passes no user-controlled command options.
 
 Loading a user-built kernel module and running a repository-built live binary as
-root are intentionally high-trust actions. D0032 bounds that trust to the exact
+root are intentionally high-trust actions. decision-0032 bounds that trust to the exact
 repository root, canonical artifact names, and fixed actions. It does not expose
 an arbitrary root shell, generic executable runner, module parameter channel, or
 mutable sudoers command.
 
 The helper supplies privilege only. Kbuild owns module construction; the cdev
 test owns its behavior and result; kernel qualification owns KUnit, sanitizer,
-lockdep, fault, and kmemleak semantics; sessions own compact evidence and
-cleanup.
+lockdep, fault, and kmemleak semantics; Git and the owning test harness retain
+accepted evidence.
 
 ## Credential And Host State
 
@@ -100,9 +100,9 @@ path fails closed for unknown actions, wrong arity, artifacts outside the
 configured root, wrong names, missing facilities, or unavailable authorization.
 The agent reports that exact blocker.
 
-This is a destructive replacement of D0031's confirmed-gap stop-and-report
+This is a destructive replacement of decision-0031's confirmed-gap stop-and-report
 branch and repeated interactive driver-debug elevation. When a bounded helper
-can perform the exact operation, future sessions proceed through it without an
+can perform the exact operation, future work proceeds through it without an
 operator installation or password prompt. There is no arbitrary-sudo or
 plaintext-credential compatibility route.
 
@@ -114,6 +114,5 @@ plaintext-credential compatibility route.
   grants.
 - The current host verifies both root-owned helpers through non-interactive sudo
   without installing an unnecessary package or executing a driver mutation.
-- The independent skill package validator, start-work routing regression,
-  routing corpus, Agent records, semantic-change edit gate, and repository
-  pre-commit gate cover the synchronized workflow surfaces.
+- The Agent state checker, start-work identity regression, routing corpus, and
+  repository pre-commit gate cover the synchronized workflow surfaces.

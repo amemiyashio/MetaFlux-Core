@@ -77,7 +77,7 @@ mf_cuda_passthrough_status_v1 mf_cuda_runtime_mode_parse_v1(const char* text,
                                                             mf_cuda_runtime_mode_v1* out_mode);
 
 /*
- * Uses only D0013 production defaults: trusted UID 0 and fixed paths. Success
+ * Uses only decision-0013 production defaults: trusted UID 0 and fixed paths. Success
  * transfers one pair to the caller; every failure stores null in out_pair.
  */
 mf_cuda_passthrough_status_v1

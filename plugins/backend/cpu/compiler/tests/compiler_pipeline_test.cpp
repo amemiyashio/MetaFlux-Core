@@ -616,7 +616,7 @@ int main(int argc, char** argv) {
     if (!expect(digest_directory.filename().string().size() == 64U &&
                     digest_directory.parent_path().filename() ==
                         digest_directory.filename().string().substr(0U, 2U),
-                "D0014 cache path must be sha-prefix/full-sha/kernel.so")) {
+                "decision-0014 cache path must be sha-prefix/full-sha/kernel.so")) {
       return 1;
     }
   }

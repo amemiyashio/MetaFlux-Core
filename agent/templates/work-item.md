@@ -1,7 +1,7 @@
 ---
-id: WXYZW
+id: work-item-X.Y.Z.W
 delivery: X.Y.Z.W
-milestone: MXYZ0
+milestone: milestone-X.Y.Z.0
 status: Draft
 area: component.area
 depends_on: []
@@ -10,9 +10,10 @@ updated: YYYY-MM-DD
 
 # Work Item Title
 
-Instance path: `agent/plan/MXYZ0-slug/work/WXYZW-slug.md`. The first three
-delivery components equal the parent release; the fourth is the local work
-ordinal.
+Instance path:
+`agent/plan/milestone-X.Y.Z.0-slug/work/work-item-X.Y.Z.W-slug.md`. The first
+three delivery components equal the parent release; the fourth is the local
+work ordinal.
 
 ## Objective
 
@@ -26,7 +27,7 @@ Describe one bounded deliverable.
 
 - Link the relevant contract, architecture record, or milestone section.
 
-## Acceptance
+## Exit Gate
 
 - [ ] Behavioral outcome.
 - [ ] Narrow verification command and expected signal.
@@ -37,8 +38,7 @@ Describe one bounded deliverable.
 Record commands, test counts, artifacts, and review findings. Do not mark
 `Complete` without evidence.
 
-## Handoff
+## Dependencies And Next Boundary
 
-- Changed paths:
-- Remaining risk:
-- Next work ID:
+- Remaining product risk:
+- Next work item:

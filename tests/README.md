@@ -28,14 +28,14 @@ runner owns daemon startup, socket and provider selection, execution-mode input,
 timeouts, and cleanup so one unchanged application binary qualifies every CPU
 execution mode.
 
-The [M0100 performance harness](performance/README.md) replaces the old
+The [milestone-0.1.0.0 performance harness](performance/README.md) replaces the old
 bootstrap-call timing placeholder with active memfd ring, managed CUDA Add/Copy,
 and managed NVML measurements. It archives raw samples and an exact host,
 placement, toolchain, source, and binary fingerprint. CI runs only its smoke
 classification; controlled Intel/AMD reference runs and every missing baseline
 remain explicit machine-readable qualification rows.
 
-The [provider package matrix](release/README.md) runs digest-pinned D0012
+The [provider package matrix](release/README.md) runs digest-pinned decision-0012
 distribution images without network access and archives fresh-install, upgrade,
 removal, private-path, dynamic-loader, and vendor-coexistence evidence.
 

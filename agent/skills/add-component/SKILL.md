@@ -28,7 +28,7 @@ is what makes the rules bind.
 5. If the component ships, update the owning CMake install component and the
    corresponding packaging metadata. Nix does not own product source filesets
    or package assembly.
-6. For transport components, create `client/` and `worker/` halves per D0010
+6. For transport components, create `client/` and `worker/` halves per decision-0010
    with roles `transport-client` / `transport-worker`.
 
 ## Verification

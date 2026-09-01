@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Report staged PyTorch/CUDA compatibility gaps without claiming M0100 support."""
+"""Report staged PyTorch/CUDA compatibility gaps without claiming milestone-0.1.0.0 support."""
 
 from __future__ import annotations
 
@@ -130,8 +130,8 @@ def load_client_profile(path: Path, profile_name: str) -> dict[str, str]:
     }
 
 
-def load_d0017_reference(path: Path, repository_root: Path) -> dict[str, Any]:
-    capability = read_json_object(path, "D0017 capability manifest")
+def load_decision_0017_reference(path: Path, repository_root: Path) -> dict[str, Any]:
+    capability = read_json_object(path, "decision-0017 capability manifest")
     forms_path_value = required_string(capability.get("forms_path"), "forms_path")
     corpus_path_value = required_string(capability.get("corpus_index_path"), "corpus_index_path")
     declared_forms_sha = required_string(capability.get("forms_sha256"), "forms_sha256")
@@ -145,23 +145,23 @@ def load_d0017_reference(path: Path, repository_root: Path) -> dict[str, Any]:
         forms_sha = sha256_file(forms_path)
         corpus_sha = sha256_file(corpus_path)
     except OSError as error:
-        raise ManifestError(f"cannot hash D0017 reference: {compact_exception(error)}") from error
+        raise ManifestError(f"cannot hash decision-0017 reference: {compact_exception(error)}") from error
     if forms_sha != declared_forms_sha:
         raise ManifestError(
-            f"D0017 forms digest mismatch: declared {declared_forms_sha}, observed {forms_sha}"
+            f"decision-0017 forms digest mismatch: declared {declared_forms_sha}, observed {forms_sha}"
         )
     if corpus_sha != declared_corpus_sha:
         raise ManifestError(
-            f"D0017 corpus digest mismatch: declared {declared_corpus_sha}, observed {corpus_sha}"
+            f"decision-0017 corpus digest mismatch: declared {declared_corpus_sha}, observed {corpus_sha}"
         )
 
     target = required_string(capability.get("target"), "target")
     target_match = re.fullmatch(r"sm_([0-9]+)", target)
     minimum_sm = capability.get("minimum_sm")
     if target_match is None or not isinstance(minimum_sm, int) or minimum_sm < 10:
-        raise ManifestError("D0017 target/minimum_sm does not encode a CUDA compute capability")
+        raise ManifestError("decision-0017 target/minimum_sm does not encode a CUDA compute capability")
     if int(target_match.group(1)) != minimum_sm:
-        raise ManifestError("D0017 target and minimum_sm disagree")
+        raise ManifestError("decision-0017 target and minimum_sm disagree")
 
     entries = {
         "capabilities": {
@@ -179,7 +179,7 @@ def load_d0017_reference(path: Path, repository_root: Path) -> dict[str, Any]:
     }
     bundle_bytes = json.dumps(entries, sort_keys=True, separators=(",", ":")).encode("ascii")
     return {
-        "decision": "D0017",
+        "decision": "decision-0017",
         "ptx_isa": required_string(capability.get("ptx_isa"), "ptx_isa"),
         "target": target,
         "kernel_ir_schema": capability.get("kernel_ir_schema"),
@@ -368,17 +368,21 @@ def run_probe(
     repository_root: Path = REPOSITORY_ROOT,
 ) -> dict[str, Any]:
     expected = load_client_profile(client_manifest_path, profile_name)
-    d0017 = load_d0017_reference(ptx_manifest_path, repository_root)
+    decision_0017 = load_decision_0017_reference(ptx_manifest_path, repository_root)
     state: dict[str, Any] = {}
     report: dict[str, Any] = {
         "schema_version": 1,
         "probe": "metaflux-pytorch-cuda-gap-probe",
-        "scope": "diagnostic-only-not-m0100-compatibility-evidence",
+        "scope": "diagnostic-only-not-milestone-0.1.0.0-compatibility-evidence",
         "profile": profile_name,
         "expected_client": expected,
-        "d0017": {key: value for key, value in d0017.items() if key != "compute_capability"},
+        "decision-0017": {
+            key: value
+            for key, value in decision_0017.items()
+            if key != "compute_capability"
+        },
         "advertised_compute_capability": {
-            "d0017": d0017["compute_capability"],
+            "decision-0017": decision_0017["compute_capability"],
             "observed": None,
         },
         "stages": [],
@@ -459,7 +463,7 @@ def required_stage_exit_code(report: dict[str, Any], required_stage: str | None)
 def parse_arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Diagnose staged PyTorch/CUDA gaps. Success is not an M0100 compatibility claim."
+            "Diagnose staged PyTorch/CUDA gaps. Success is not a milestone-0.1.0.0 compatibility claim."
         )
     )
     parser.add_argument("--profile", required=True, choices=PROFILE_NAMES)
@@ -483,7 +487,7 @@ def main(argv: list[str] | None = None) -> int:
         report = {
             "schema_version": 1,
             "probe": "metaflux-pytorch-cuda-gap-probe",
-            "scope": "diagnostic-only-not-m0100-compatibility-evidence",
+            "scope": "diagnostic-only-not-milestone-0.1.0.0-compatibility-evidence",
             "fatal_error": str(error),
         }
         print(json.dumps(report, sort_keys=True, separators=(",", ":")))

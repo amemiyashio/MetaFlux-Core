@@ -46,7 +46,7 @@ generation. Transport loss preserves the current generation and epoch; recovery
 uses a new candidate. Removed and replaced generations remain bounded
 tombstones and resolve as `DeviceLost`.
 
-The bounded replay and tombstone tables are sized for the W0123 qualification
+The bounded replay and tombstone tables are sized for the work-item-0.1.2.3 qualification
 envelope: 4,096 request records and 2,048 immutable tombstones. A 1,000-cycle
 reset/remove/add run consumes 3,000 request records, 2,000 tombstones, and
 2,000 generation/identity candidates. Capacity exhaustion returns
@@ -72,7 +72,7 @@ telemetry `READY`. Readers still perform the final fence recheck described by
 the shared telemetry contract.
 
 This header is an in-process runtime contract. It intentionally contains no
-M0110 descriptor, Linux UAPI, BAR, vfio-user wire, QMP, CUDA, or NVML type.
+milestone-0.1.1.0 descriptor, Linux UAPI, BAR, vfio-user wire, QMP, CUDA, or NVML type.
 Those layers remain adapters and consume the coordinator without redefining its
 state machine. The focused regression executable is
 `runtime/core/tests/lifecycle.cpp`, registered as

@@ -1,6 +1,6 @@
 ---
 name: nvml-telemetry-compatibility
-description: Design or review libnvidia-ml.so compatibility for NVML lifecycle, versioned APIs, count/fill queries, telemetry snapshots, process reporting, and stock nvidia-smi qualification. Use for M0100 NVML provider work or NVML-visible M0120 lifecycle behavior. Do not use for CUDA execution, PTX lowering, or invented physical telemetry.
+description: Design or review libnvidia-ml.so compatibility for NVML lifecycle, versioned APIs, count/fill queries, telemetry snapshots, process reporting, and stock nvidia-smi qualification. Use for milestone-0.1.0.0 NVML provider work or NVML-visible milestone-0.1.2.0 lifecycle behavior. Do not use for CUDA execution, PTX lowering, or invented physical telemetry.
 ---
 
 # NVML Telemetry Compatibility

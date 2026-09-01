@@ -1,274 +1,33 @@
 #!/usr/bin/env bash
-# MetaFlux pre-commit gate, enabled per worktree with
-# `git config core.hooksPath .githooks`. Keeps agents that skipped AGENTS.md
-# from committing.
+# Validate the exact staged MetaFlux tree before an agent commit.
 set -euo pipefail
+
 cd "$(git rev-parse --show-toplevel)"
 
-# Guidance is session-local coordination input, never durable Git history.
-# Deletions remain stageable so an accidentally tracked artifact can be cleaned.
-is_guidance_path() {
-  [[ "$1" =~ ^agent/sessions/[^/]+/[^/]+/[^/]+/guidance/ ]]
-}
+if git diff --cached --quiet; then
+  exit 0
+fi
 
-is_closing_record_path() {
-  [[ "$1" == agent/sessions/README.md \
-    || "$1" =~ ^agent/sessions/[0-9]{4}/[0-9]{2}/S[0-9]{4,}-[0-9]{8}-[0-9]{3}-[a-z0-9][a-z0-9-]*/(session\.json|events\.jsonl|summary\.md|notes\.md)$ \
-    || "$1" =~ ^agent/sessions/[0-9]{4}/[0-9]{2}/S[0-9]{4,}-[0-9]{8}-[0-9]{3}-[a-z0-9][a-z0-9-]*/outputs/[0-9]{4}\.txt$ \
-    || "$1" =~ ^agent/sessions/[0-9]{4}/[0-9]{2}/S[0-9]{4,}-[0-9]{8}-[0-9]{3}-[a-z0-9][a-z0-9-]*/guidance/ \
-    || "$1" == agent/progress/README.md \
-    || "$1" == agent/progress/focus.json \
-    || "$1" == agent/progress/current.md \
-    || "$1" =~ ^agent/progress/checkpoints/[0-9]{4}/P[0-9]{8}-[0-9]{3}-[a-z0-9][a-z0-9-]*\.md$ \
-    || "$1" == agent/semantic-changes/README.md \
-    || "$1" =~ ^agent/semantic-changes/SC[0-9]{4}-.+\.md$ ]]
-}
-
-has_staged_changes=false
-staged_changes_are_closing_records=true
-while IFS= read -r -d '' staged_status; do
-  if ! IFS= read -r -d '' staged_path; then
-    echo "error: malformed staged-change stream after status $staged_status" >&2
-    exit 1
-  fi
-  staged_paths=("$staged_path")
-  case "${staged_status:0:1}" in
-    R|C)
-      if ! IFS= read -r -d '' staged_path; then
-        echo "error: malformed staged rename/copy record: $staged_status" >&2
-        exit 1
-      fi
-      staged_paths+=("$staged_path")
-      ;;
-    A|D|M|T) ;;
-    *)
-      echo "error: unsupported staged-change status: $staged_status" >&2
-      exit 1
-      ;;
-  esac
-  for staged_path in "${staged_paths[@]}"; do
-    has_staged_changes=true
-    if ! is_closing_record_path "$staged_path"; then
-      staged_changes_are_closing_records=false
-    fi
-    if [[ "${staged_status:0:1}" != D ]] && is_guidance_path "$staged_path"; then
-      echo "error: session guidance artifacts must not be committed: $staged_path" >&2
-      exit 1
-    fi
-  done
-done < <(
-  git diff --cached --name-status -z --find-renames --find-copies \
-    --diff-filter=ACDMRT
-)
-
-# Execute the candidate versions of the gates against the exact candidate tree.
-# This prevents a partially staged gate edit from validating different code
-# than the code being committed.
-candidate_root="$(mktemp -d)"
+candidate_root="$(nix develop . --command mktemp -d)"
 cleanup_candidate_root() {
-  rm -rf -- "$candidate_root"
+  nix develop . --command rm -rf -- "$candidate_root"
 }
 trap cleanup_candidate_root EXIT
+
 git checkout-index --all --prefix="$candidate_root/"
 
-# Protected history changes require a committed, exact Active SC permit.
-python3 "$candidate_root/tools/check-semantic-change-edits.py" . --cached
+nix develop . --command python3 \
+  "$candidate_root/tools/check-agent-state.py" \
+  "$candidate_root" \
+  --commit-gate
+nix develop . --command python3 \
+  "$candidate_root/tools/test-check-agent-state.py"
+nix develop . --command python3 -B \
+  "$candidate_root/tools/check-skill-routing.py" \
+  "$candidate_root"
+nix develop . --command python3 -B \
+  "$candidate_root/tools/test-check-skill-routing.py"
+nix develop . --command python3 \
+  "$candidate_root/agent/skills/start-work/scripts/test_commit_as_harness.py"
 
-# Records must stay valid in the exact candidate tree.
-python3 "$candidate_root/tools/check-agent-records.py" "$candidate_root"
-
-# The record gate itself must stay proven.
-python3 "$candidate_root/tools/test-check-agent-records.py" > /dev/null 2>&1
-
-# Durable changes require the exact execution-focus owner. A non-owner session
-# may only terminally close through the record-only path, and a focus handoff
-# must close the old owner while installing one new in-progress owner.
-session_json_has_status() {
-  local treeish="$1"
-  local session_path="$2"
-  local expected_status="$3"
-  local object_spec
-  if [[ "$treeish" == index ]]; then
-    object_spec=":$session_path"
-  else
-    object_spec="$treeish:$session_path"
-  fi
-  git show "$object_spec" 2>/dev/null | python3 -c '
-import json
-import sys
-
-try:
-    session = json.load(sys.stdin)
-except (json.JSONDecodeError, OSError):
-    raise SystemExit(1)
-valid = (
-    session.get("schema_version") == 2
-    and session.get("governance_epoch") == "D0029"
-    and session.get("status") == sys.argv[1]
-)
-raise SystemExit(0 if valid else 1)
-' "$expected_status"
-}
-
-focus_owner_from_file() {
-  python3 -c '
-import json
-import re
-import sys
-
-try:
-    focus = json.load(open(sys.argv[1], encoding="utf-8"))
-except (OSError, json.JSONDecodeError):
-    raise SystemExit(1)
-owner = focus.get("owner_session") if isinstance(focus, dict) else None
-if (
-    focus.get("schema_version") != 2
-    or focus.get("governance_epoch") != "D0029"
-    or not isinstance(owner, str)
-    or re.fullmatch(
-    r"S\d{4,}-\d{8}-\d{3}-[a-z0-9][a-z0-9-]*", owner
-    ) is None
-):
-    raise SystemExit(1)
-print(owner)
-' "$1"
-}
-
-focus_owner_from_head() {
-  git show HEAD:agent/progress/focus.json 2>/dev/null | python3 -c '
-import json
-import re
-import sys
-
-try:
-    focus = json.load(sys.stdin)
-except (OSError, json.JSONDecodeError):
-    raise SystemExit(1)
-owner = focus.get("owner_session") if isinstance(focus, dict) else None
-if (
-    focus.get("schema_version") != 2
-    or focus.get("governance_epoch") != "D0029"
-    or not isinstance(owner, str)
-    or re.fullmatch(
-    r"S\d{4,}-\d{8}-\d{3}-[a-z0-9][a-z0-9-]*", owner
-    ) is None
-):
-    raise SystemExit(1)
-print(owner)
-'
-}
-
-session_path_for_id() {
-  local session_id="$1"
-  if [[ "$session_id" =~ ^S[0-9]{4,}-([0-9]{4})([0-9]{2})[0-9]{2}-[0-9]{3}-[a-z0-9][a-z0-9-]*$ ]]; then
-    printf 'agent/sessions/%s/%s/%s/session.json\n' \
-      "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "$session_id"
-    return 0
-  fi
-  return 1
-}
-
-session_path_in_index() {
-  local session_path
-  session_path="$(session_path_for_id "$1")" || return 1
-  git cat-file -e ":$session_path" 2>/dev/null || return 1
-  printf '%s\n' "$session_path"
-}
-
-session_path_in_head() {
-  local session_path
-  session_path="$(session_path_for_id "$1")" || return 1
-  git cat-file -e "HEAD:$session_path" 2>/dev/null || return 1
-  printf '%s\n' "$session_path"
-}
-
-session_is_terminal_in_index() {
-  session_json_has_status index "$1" complete \
-    || session_json_has_status index "$1" blocked \
-    || session_json_has_status index "$1" abandoned
-}
-
-if [[ "$has_staged_changes" == true ]]; then
-  commit_session="${METAFLUX_SESSION_ID:-}"
-  if [[ ! "$commit_session" =~ ^S[0-9]{4,}-[0-9]{8}-[0-9]{3}-[a-z0-9][a-z0-9-]*$ ]]; then
-    echo "error: durable changes require METAFLUX_SESSION_ID naming the exact execution-focus owner." >&2
-    echo "       inspect agent/progress/focus.json and start through agent/skills/start-work/SKILL.md." >&2
-    exit 1
-  fi
-
-  candidate_focus_path="$candidate_root/agent/progress/focus.json"
-  if ! candidate_focus_owner="$(focus_owner_from_file "$candidate_focus_path")"; then
-    echo "error: candidate agent/progress/focus.json is missing or invalid." >&2
-    exit 1
-  fi
-  if ! candidate_owner_path="$(session_path_in_index "$candidate_focus_owner")"; then
-    echo "error: candidate execution-focus owner $candidate_focus_owner does not resolve once." >&2
-    exit 1
-  fi
-  if ! session_json_has_status index "$candidate_owner_path" in_progress; then
-    echo "error: candidate execution-focus owner $candidate_focus_owner is not one in-progress session." >&2
-    exit 1
-  fi
-
-  focus_changed=false
-  if ! git diff --cached --quiet -- agent/progress/focus.json; then
-    focus_changed=true
-  fi
-  head_focus_owner=""
-  if git cat-file -e HEAD:agent/progress/focus.json 2>/dev/null; then
-    if ! head_focus_owner="$(focus_owner_from_head)"; then
-      echo "error: HEAD execution focus is invalid; repair it through D0029 governance." >&2
-      exit 1
-    fi
-  fi
-
-  closing_session_paths=()
-  while IFS= read -r -d '' session_path; do
-    if session_json_has_status HEAD "$session_path" in_progress \
-      && session_is_terminal_in_index "$session_path"; then
-      closing_session_paths+=("$session_path")
-    fi
-  done < <(
-    git diff --cached --name-only -z --diff-filter=M -- \
-      ':(glob)agent/sessions/*/*/*/session.json'
-  )
-
-  if [[ "$focus_changed" == true && -n "$head_focus_owner" ]]; then
-    if ! head_owner_path="$(session_path_in_head "$head_focus_owner")"; then
-      echo "error: HEAD execution-focus owner $head_focus_owner does not resolve once." >&2
-      exit 1
-    fi
-    if [[ "$candidate_focus_owner" == "$head_focus_owner" ]]; then
-      if [[ "$staged_changes_are_closing_records" != true \
-            || "$commit_session" != "$head_focus_owner" ]]; then
-        echo "error: execution-focus metadata changes must be a record-only commit by the current owner." >&2
-        exit 1
-      fi
-    elif [[ "$staged_changes_are_closing_records" != true \
-            || "$commit_session" != "$head_focus_owner" \
-            || "${#closing_session_paths[@]}" -ne 1 \
-            || "${closing_session_paths[0]}" != "$head_owner_path" ]]; then
-      echo "error: focus handoff must be record-only, declared by the HEAD owner, and terminally close that owner." >&2
-      exit 1
-    fi
-  elif [[ "$focus_changed" == true ]]; then
-    if [[ "$commit_session" != "$candidate_focus_owner" ]]; then
-      echo "error: initial execution focus must be introduced by its candidate owner." >&2
-      exit 1
-    fi
-  elif [[ "$commit_session" == "$candidate_focus_owner" ]]; then
-    : # Ordinary focus-owned content, checkpoint, or record commit.
-  elif [[ "$staged_changes_are_closing_records" == true \
-          && "${#closing_session_paths[@]}" -eq 1 ]]; then
-    closing_path="${closing_session_paths[0]}"
-    if ! expected_closing_path="$(session_path_in_head "$commit_session")" \
-        || [[ "$expected_closing_path" != "$closing_path" ]]; then
-      echo "error: non-owner record close must terminally close exactly METAFLUX_SESSION_ID." >&2
-      exit 1
-    fi
-  else
-    echo "error: session $commit_session does not own the candidate execution focus." >&2
-    echo "       only $candidate_focus_owner may commit content; non-owners may use an exact record-only close." >&2
-    exit 1
-  fi
-fi
+git diff --cached --check

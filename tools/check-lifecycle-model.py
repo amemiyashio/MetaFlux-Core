@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate and exhaustively explore the bounded M0120 lifecycle model."""
+"""Validate and exhaustively explore the bounded milestone-0.1.2.0 lifecycle model."""
 
 from __future__ import annotations
 
@@ -90,7 +90,7 @@ def validate_inputs(base_path: Path, extension_path: Path, model_path: Path,
     if model.get("id") != "lifecycle.model.v1" or model.get("version") != "1.0":
         raise ModelError(f"{model_path}: expected lifecycle.model.v1 version 1.0")
     if model.get("base_manifest") != expected_base_rel:
-        raise ModelError(f"{model_path}: base_manifest must point to the frozen M0110 root")
+        raise ModelError(f"{model_path}: base_manifest must point to the frozen milestone-0.1.1.0 root")
     states = model.get("states")
     if states != ["ABSENT", "PRESENT", "ONLINE", "QUIESCING", "DRAINING", "RESETTING", "LOST"]:
         raise ModelError(f"{model_path}: canonical lifecycle states are incomplete or reordered")

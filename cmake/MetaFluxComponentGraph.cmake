@@ -1,5 +1,5 @@
 # Component registry and dependency-graph export for architecture checks
-# (D0011). Every boundary target registers itself with a stable component id,
+# (decision-0011). Every boundary target registers itself with a stable component id,
 # role, and language; the generated JSON is validated by
 # tools/check-component-graph.py so that illegal dependency directions fail the
 # build instead of surviving as convention.

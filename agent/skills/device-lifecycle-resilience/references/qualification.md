@@ -39,7 +39,7 @@
   unmap acknowledgement, or vendor resource displacement;
 - terminal state is published by deadline even when physical work cannot cancel.
 
-The M0120 core and experimental vroot have separate promotion gates. The vroot
+The milestone-0.1.2.0 core and experimental vroot have separate promotion gates. The vroot
 requires the planned Linux 6.12/6.18 `lspci`/sysfs/config qualification and 1,000
 concurrent-use add/remove and load/unload cycles; it does not gate lifecycle-core
 completion.

@@ -5,8 +5,8 @@ Load this reference for export generation, version aliases, typed stubs, or
 
 ## Repository checklist
 
-1. Name the selected header packages and hashes. The open M0100 header
-   acquisition decision must close before the W0104 manifest freezes.
+1. Name the selected header packages and hashes. The open milestone-0.1.0.0 header
+   acquisition decision must close before the work-item-0.1.0.4 manifest freezes.
 2. Generate, rather than manually duplicate, the canonical symbol, required
    `_v2`/`_v3`, PTDS alias, declaration, version node, and implementation status.
 3. Keep implementation symbols hidden. Export only the manifest surface through

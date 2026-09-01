@@ -40,5 +40,5 @@ parity. Co-loading both providers must not duplicate mutable registry state.
 
 Measure warm initialization, launch, copy, and event paths only after correctness
 passes. Archive distributions, affinity/NUMA setup, toolchain fingerprint, and
-raw samples. M0100 budgets remain provisional until the named harness records a
+raw samples. milestone-0.1.0.0 budgets remain provisional until the named harness records a
 baseline.

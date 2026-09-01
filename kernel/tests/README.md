@@ -25,7 +25,7 @@ busy; it is recorded as a skipped live qualification, never as a passing test.
 The binary does not load or unload the kernel module and does not fabricate
 device nodes.
 
-When host privilege is required, `manage-host-privilege` applies D0032 while
+When host privilege is required, `manage-host-privilege` applies decision-0032 while
 build and test semantics remain here:
 
 ```sh

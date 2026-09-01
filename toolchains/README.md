@@ -15,11 +15,11 @@ they do not redefine them.
 | Test selection and execution | CTest, component tests, and `tests/` harnesses |
 | Release artifact construction and installation policy | `packaging/` |
 | Qualification output | Owning test harnesses |
-| Durable work evidence and cleanup accounting | `agent/sessions/` |
+| Accepted work evidence | Git commits and owning test harnesses |
 | Build-directory retention and cleanup execution | The invoking build or test tool |
 | Nix store retention and garbage collection | The host Nix installation and its operator |
 
-## Tool Provider Boundary (D0022)
+## Tool Provider Boundary (decision-0022)
 
 Nix fixes and provides tool versions. It may resolve locked inputs, build a tool
 closure, and expose that closure through a development shell or tool output. It
@@ -30,7 +30,7 @@ cleanup, or Nix store garbage-collection policy.
 This boundary is strict: Nix declarations contain tool versions, source
 identities, inputs, patches, hashes, and shell exposure only. They do not encode
 task routing, Git operations, project configure/build/test/package commands,
-qualification meaning, focus/session governance, evidence, cleanup, or host
+qualification meaning, Agent execution governance, evidence, cleanup, or host
 installation. `nix develop . --command TOOL ...` provides the tool closure;
 the invoked tool and its owning workflow retain command semantics.
 
@@ -42,11 +42,15 @@ consumers; unrecorded ambient drift remains invalid.
 A repeatable workflow names the tools it requires, and those tool versions are
 added to the Nix-provided environment before the workflow relies on them. This
 keeps ambient host installations out of recorded evidence without transferring
-the workflow to Nix. D0022 supersedes D0021, whose broader "owning Nix
+the workflow to Nix. decision-0022 supersedes decision-0021, whose broader "owning Nix
 environment" wording blurred tool declaration with build, test, packaging, and
 qualification ownership.
 
-Under D0031, command resolution is Nix-first. Development enters the Git-aware
+The default repository Python closure includes PyYAML for the static skill and
+repository YAML validators. The pinned nixpkgs revision fixes both identities;
+the validators, not Nix, continue to own schema meaning and acceptance.
+
+Under decision-0031, command resolution is Nix-first. Development enters the Git-aware
 flake with `nix develop . --command ...` before any repository executable or
 tool/version/capability probe. This includes shell inspection utilities,
 Python/repository scripts, compilers, CMake, Ninja, CTest, packaging, and
@@ -70,12 +74,12 @@ Nix entry environment as explicit local prerequisite state. It is not a Nix
 declaration, reproducibly fixed identity, generic ambient fallback, or release
 evidence. The package helper never absorbs the consuming workflow.
 
-D0032 separately provides enumerated root actions for MetaFlux module lifecycle,
+decision-0032 separately provides enumerated root actions for MetaFlux module lifecycle,
 kernel logs, kmemleak, and the named live cdev qualification binary. Those
 actions are driver-debug privilege, not tool materialization, and remain outside
 Nix ownership. Neither helper accepts arbitrary commands or credentials.
 
-## Compiler Epoch 1 (D0018)
+## Compiler Epoch 1 (decision-0018)
 
 [`compiler-epoch-1.json`](compiler-epoch-1.json) is the machine-readable
 compiler tool declaration. Compiler epoch 1 selects Clang, MLIR, and LLD 22.1.8
@@ -96,7 +100,7 @@ Project PGO profiles are release optimization inputs, not compiler-tool
 versions. Their generation, selection, evidence, and retention belong to the
 performance and packaging workflows that consume them.
 
-## Generic Linux ABI Floor (D0009)
+## Generic Linux ABI Floor (decision-0009)
 
 Ubuntu 20.04 and glibc 2.31 are the mandatory minimum userspace compatibility
 target for generic Linux artifacts. The fixed Ubuntu 20.04 target SDK supplies
@@ -112,7 +116,7 @@ path, or a host-only helper. Running the complete package and its fixtures in
 the frozen Ubuntu 20.04 row is required evidence that the declared floor is
 real; tool materialization alone is not that evidence.
 
-## CUDA/NVML ABI Inputs (D0016)
+## CUDA/NVML ABI Inputs (decision-0016)
 
 [`nvidia-headers-1.json`](nvidia-headers-1.json) indexes the exact R535, R550,
 R570, R580, and R610 CUDA Driver and NVML header inputs. The family manifests
@@ -166,7 +170,7 @@ python3 toolchains/tests/verify_pytorch_cuda_clients.py
 ## Vulkan Compute Tool Epoch 1
 
 [`vulkan-1.json`](vulkan-1.json) fixes the Vulkan 1.3 compute tool set used by
-the M0130 capability and target-environment probe: Vulkan headers, loader,
+the milestone-0.1.3.0 capability and target-environment probe: Vulkan headers, loader,
 `vulkaninfo`, `glslangValidator`, and `spirv-val` are taken from the pinned
 nixpkgs input at the versions named by the manifest. They are exposed only by
 the on-demand `vulkan-tools` package and `.#vulkan` shell; the default,
@@ -181,7 +185,7 @@ nix shell .#vulkan-tools --command vulkaninfo --summary
 
 The package provides tools and headers only. Vulkan device selection,
 capability truth, target-environment serialization, CMake configuration, build,
-tests, and qualification remain owned by M0130/CMake/CTest. A host probe is
+tests, and qualification remain owned by milestone-0.1.3.0/CMake/CTest. A host probe is
 local evidence for the detected driver and does not satisfy the dual-driver
 qualification gate.
 
@@ -197,9 +201,9 @@ specific ICD with the Vulkan loader's normal environment variables.
 
 This profile proves provisioning and can enable local RADV or lavapipe smoke
 tests. Mesa is not a physical NVIDIA reference, and a single host smoke run
-does not satisfy M0130's two-driver-family, performance, or release gates.
+does not satisfy milestone-0.1.3.0's two-driver-family, performance, or release gates.
 
-## Artifact Download Routing (D0020)
+## Artifact Download Routing (decision-0020)
 
 Downloads first try a mirror in the current execution environment's configured
 timezone, then a mirror in the nearest adjacent timezone, and finally the

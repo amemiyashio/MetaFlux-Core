@@ -1,14 +1,14 @@
 ---
 name: runtime-contracts-registry
-description: Design or review ecosystem-neutral registry and provider views, client negotiation, shared-memory layouts, backend C ABI, and canonical schema generation. Use across milestones for M0100 runtime/contracts, M0110 data-plane schema ownership, M0120 process-view lifecycle, or M0130 neutral external-memory ABI. Do not use for ecosystem API semantics, target lowering, or layer-local transport mechanics.
+description: Design or review ecosystem-neutral registry and provider views, client negotiation, shared-memory layouts, backend C ABI, and canonical schema generation. Use across milestones for milestone-0.1.0.0 runtime/contracts, milestone-0.1.1.0 data-plane schema ownership, milestone-0.1.2.0 process-view lifecycle, or milestone-0.1.3.0 neutral external-memory ABI. Do not use for ecosystem API semantics, target lowering, or layer-local transport mechanics.
 ---
 
 # Runtime Contracts and Registry
 
 ## Inputs
 
-- The active contract-owning work item (for example W0102, W0111/W0114,
-  W0121, or W0131/W0132/W0136) and every consumer affected by the contract or
+- The active contract-owning work item (for example work-item-0.1.0.2, work-item-0.1.1.1/work-item-0.1.1.4,
+  work-item-0.1.2.1, or work-item-0.1.3.1/work-item-0.1.3.2/work-item-0.1.3.6) and every consumer affected by the contract or
   process-view change.
 - The canonical schema, generated-artifact manifest, registry/view policy,
   client-protocol versions, shared-layout definitions, and backend ABI versions.
@@ -161,5 +161,5 @@ Return or implement:
   them even if gate and lifecycle counters restart.
 - Stress queue wrap, false sharing, lost wakeups, process death, and concurrent
   producers/consumers under the active work item's syscall and ordering gates.
-- Prove every public M0110 data-plane layout is generated from the selected
+- Prove every public milestone-0.1.1.0 data-plane layout is generated from the selected
   canonical schema and that no kernel, server, provider, or backend copy drifts.

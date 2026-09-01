@@ -23,16 +23,16 @@ if(METAFLUX_BUILD_CLIENT_FASTPATH)
   )
 
   add_executable(
-    metaflux_m0100_ring_benchmark
-    performance/m0100_ring_audit.c
-    performance/m0100_ring_benchmark.c
+    metaflux_milestone_0_1_0_0_ring_benchmark
+    performance/milestone_0_1_0_0_ring_audit.c
+    performance/milestone_0_1_0_0_ring_benchmark.c
   )
   target_link_libraries(
-    metaflux_m0100_ring_benchmark
+    metaflux_milestone_0_1_0_0_ring_benchmark
     PRIVATE MetaFlux::ClientFastpath
   )
   target_link_options(
-    metaflux_m0100_ring_benchmark
+    metaflux_milestone_0_1_0_0_ring_benchmark
     PRIVATE
       "LINKER:--wrap=malloc"
       "LINKER:--wrap=calloc"
@@ -48,13 +48,13 @@ if(METAFLUX_BUILD_CLIENT_FASTPATH)
       "LINKER:--wrap=pthread_spin_lock"
       "LINKER:--wrap=pthread_spin_trylock"
   )
-  metaflux_configure_target(metaflux_m0100_ring_benchmark C)
+  metaflux_configure_target(metaflux_milestone_0_1_0_0_ring_benchmark C)
   add_test(
-    NAME metaflux.performance.m0100-ring-smoke
-    COMMAND metaflux_m0100_ring_benchmark 8 32
+    NAME metaflux.performance.milestone-0.1.0.0-ring-smoke
+    COMMAND metaflux_milestone_0_1_0_0_ring_benchmark 8 32
   )
   set_tests_properties(
-    metaflux.performance.m0100-ring-smoke
+    metaflux.performance.milestone-0.1.0.0-ring-smoke
     PROPERTIES LABELS "performance-smoke;runtime"
   )
 endif()
@@ -160,43 +160,23 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "lifecycle;model;unit"
   )
   add_test(
-    NAME metaflux.architecture.agent-records-selftest
-    COMMAND
-      Python3::Interpreter
-      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-check-agent-records.py"
-  )
-  set_tests_properties(
-    metaflux.architecture.agent-records-selftest
-    PROPERTIES LABELS "architecture"
-  )
-  add_test(
-    NAME metaflux.architecture.semantic-change-edit-selftest
-    COMMAND
-      Python3::Interpreter
-      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-semantic-change-edits.py"
-  )
-  set_tests_properties(
-    metaflux.architecture.semantic-change-edit-selftest
-    PROPERTIES LABELS "architecture"
-  )
-  add_test(
-    NAME metaflux.architecture.session-guidance-selftest
+    NAME metaflux.architecture.agent-state-selftest
     COMMAND
       Python3::Interpreter -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/session-guidance/scripts/test_guidance.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-check-agent-state.py"
   )
   set_tests_properties(
-    metaflux.architecture.session-guidance-selftest
+    metaflux.architecture.agent-state-selftest
     PROPERTIES LABELS "architecture"
   )
   add_test(
-    NAME metaflux.architecture.change-inventory-selftest
+    NAME metaflux.architecture.agent-commit-identity-selftest
     COMMAND
       Python3::Interpreter -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/converge-project-changes/scripts/test_change_inventory.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/start-work/scripts/test_commit_as_harness.py"
   )
   set_tests_properties(
-    metaflux.architecture.change-inventory-selftest
+    metaflux.architecture.agent-commit-identity-selftest
     PROPERTIES LABELS "architecture"
   )
   add_test(
@@ -234,7 +214,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     NAME metaflux.performance.optimization-runner-selftest
     COMMAND
       Python3::Interpreter -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_m0100_optimization.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_milestone_0_1_0_0_optimization.py"
   )
   set_tests_properties(
     metaflux.performance.optimization-runner-selftest
@@ -244,7 +224,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     NAME metaflux.performance.measurement-runner-selftest
     COMMAND
       Python3::Interpreter -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_m0100_performance.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_milestone_0_1_0_0_performance.py"
   )
   set_tests_properties(
     metaflux.performance.measurement-runner-selftest
@@ -306,7 +286,7 @@ if(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER OR METAFLUX_BUILD_NVML_PROVIDER)
       PROPERTIES LABELS "abi"
     )
 
-    # Provider DT_NEEDED universe per D0009: libc.so.6 plus libdl.so.2 only where
+    # Provider DT_NEEDED universe per decision-0009: libc.so.6 plus libdl.so.2 only where
     # the glibc 2.31 (Ubuntu 20.04) floor requires the historical DSO.
     # Passthrough discovery uses dlmopen/dlvsym. Those symbols live in libc on
     # glibc 2.34+ host builds, while the frozen 2.31 sysroot requires libdl.
@@ -447,7 +427,7 @@ if(TARGET metaflux_cuda_provider AND TARGET metafluxd AND METAFLUX_NVIDIA_HEADER
 endif()
 
 if(
-  TARGET metaflux_m0100_ring_benchmark
+  TARGET metaflux_milestone_0_1_0_0_ring_benchmark
   AND TARGET metaflux_cuda_provider
   AND TARGET metaflux_nvml_provider
   AND TARGET metafluxd
@@ -457,47 +437,47 @@ if(
     message(FATAL_ERROR "METAFLUX_NVIDIA_HEADER_DIR does not contain nvml.h")
   endif()
   add_executable(
-    metaflux_m0100_cuda_managed_benchmark
-    performance/m0100_cuda_managed_benchmark.c
+    metaflux_milestone_0_1_0_0_cuda_managed_benchmark
+    performance/milestone_0_1_0_0_cuda_managed_benchmark.c
   )
   target_include_directories(
-    metaflux_m0100_cuda_managed_benchmark
+    metaflux_milestone_0_1_0_0_cuda_managed_benchmark
     SYSTEM PRIVATE "${METAFLUX_NVIDIA_HEADER_DIR}"
   )
   target_link_libraries(
-    metaflux_m0100_cuda_managed_benchmark
+    metaflux_milestone_0_1_0_0_cuda_managed_benchmark
     PRIVATE metaflux_cuda_provider
   )
-  metaflux_configure_target(metaflux_m0100_cuda_managed_benchmark C)
+  metaflux_configure_target(metaflux_milestone_0_1_0_0_cuda_managed_benchmark C)
 
   add_executable(
-    metaflux_m0100_nvml_benchmark
-    performance/m0100_nvml_benchmark.c
+    metaflux_milestone_0_1_0_0_nvml_benchmark
+    performance/milestone_0_1_0_0_nvml_benchmark.c
   )
   target_include_directories(
-    metaflux_m0100_nvml_benchmark
+    metaflux_milestone_0_1_0_0_nvml_benchmark
     SYSTEM PRIVATE "${METAFLUX_NVIDIA_HEADER_DIR}"
   )
   target_link_libraries(
-    metaflux_m0100_nvml_benchmark
+    metaflux_milestone_0_1_0_0_nvml_benchmark
     PRIVATE metaflux_nvml_provider
   )
-  metaflux_configure_target(metaflux_m0100_nvml_benchmark C)
+  metaflux_configure_target(metaflux_milestone_0_1_0_0_nvml_benchmark C)
 
   add_test(
-    NAME metaflux.performance.m0100-managed-smoke
+    NAME metaflux.performance.milestone-0.1.0.0-managed-smoke
     COMMAND
       Python3::Interpreter -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/performance/run_m0100_performance.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/performance/run_milestone_0_1_0_0_performance.py"
       --mode smoke
       --budget-status provisional
-      --output-dir "${CMAKE_CURRENT_BINARY_DIR}/m0100-performance-smoke-evidence"
+      --output-dir "${CMAKE_CURRENT_BINARY_DIR}/milestone-0.1.0.0-performance-smoke-evidence"
       --repository "${PROJECT_SOURCE_DIR}"
       --milestone-plan
-      "${PROJECT_SOURCE_DIR}/agent/plan/M0100-core-foundation/plan.md"
-      --ring-benchmark $<TARGET_FILE:metaflux_m0100_ring_benchmark>
-      --cuda-benchmark $<TARGET_FILE:metaflux_m0100_cuda_managed_benchmark>
-      --nvml-benchmark $<TARGET_FILE:metaflux_m0100_nvml_benchmark>
+      "${PROJECT_SOURCE_DIR}/agent/plan/milestone-0.1.0.0-core-foundation/plan.md"
+      --ring-benchmark $<TARGET_FILE:metaflux_milestone_0_1_0_0_ring_benchmark>
+      --cuda-benchmark $<TARGET_FILE:metaflux_milestone_0_1_0_0_cuda_managed_benchmark>
+      --nvml-benchmark $<TARGET_FILE:metaflux_milestone_0_1_0_0_nvml_benchmark>
       --daemon $<TARGET_FILE:metafluxd>
       --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
       --cuda-provider $<TARGET_FILE:metaflux_cuda_provider>
@@ -511,7 +491,7 @@ if(
       --require-all-core-metrics
   )
   set_tests_properties(
-    metaflux.performance.m0100-managed-smoke
+    metaflux.performance.milestone-0.1.0.0-managed-smoke
     PROPERTIES LABELS "performance-smoke;integration;cuda;nvml;runtime" TIMEOUT 180
   )
 endif()

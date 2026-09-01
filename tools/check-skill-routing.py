@@ -1,39 +1,27 @@
 #!/usr/bin/env python3
-"""Validate the expert-skill routing corpus and score captured observations."""
+"""Validate MetaFlux's static bilingual expert-skill routing contract."""
 
 from __future__ import annotations
 
 import argparse
-import copy
-import datetime as dt
-import hashlib
 import json
 import re
 import runpy
 import sys
-import unicodedata
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
 
-CASE_ID_RE = re.compile(r"^[A-Z0-9]+(?:-[A-Z0-9]+)*$")
-SKILL_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-CASE_KINDS = {"single", "near-miss", "composition"}
-CORPUS_FIELDS = {
-    "schema_version",
-    "domain_skills",
-    "workflow_skills",
-    "coverage",
-    "cases",
-}
-COVERAGE_FIELDS = {
-    "required_locales",
-    "minimum_positive_per_skill",
-    "minimum_near_miss_per_skill",
-    "minimum_composition_cases",
-    "minimum_composition_per_workflow_skill",
-}
+CASE_ID_RE = re.compile(r"[A-Z0-9]+(?:-[A-Z0-9]+)*")
+SKILL_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+KINDS = {"single", "near-miss", "composition"}
+LOCALES = {"en", "zh-CN"}
+EXPLICIT_ONLY = {"integrate-batch", "govern-epoch", "roast"}
+MINIMUM_POSITIVE = {"en": 2, "zh-CN": 1}
+MINIMUM_NEAR_MISS = {"en": 1, "zh-CN": 1}
+MINIMUM_COMPOSITIONS = 12
+MINIMUM_WORKFLOW_COMPOSITION = {"en": 1, "zh-CN": 1}
 CASE_FIELDS = {
     "id",
     "kind",
@@ -41,589 +29,175 @@ CASE_FIELDS = {
     "prompt",
     "expected_skills",
     "forbidden_skills",
-    "allow_additional_routed_skills",
 }
-RUNNER_FIELDS = {"product", "model", "host", "recorded_at", "repetitions"}
-RUNNER_PLACEHOLDERS = {"HOST", "MODEL", "PLACEHOLDER", "TBD", "TODO"}
-RUNNER_PRODUCTS = {"Codex"}
-OBSERVATION_FIELDS = {
-    "schema_version",
-    "corpus_sha256",
-    "routing_inputs_sha256",
-    "runner",
-    "runs",
-}
-SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-REQUIRED_LOCALES = ("en", "zh-CN")
-MINIMUM_POSITIVE_PER_SKILL = {"en": 2, "zh-CN": 1}
-MINIMUM_NEAR_MISS_PER_SKILL = {"en": 1, "zh-CN": 1}
-MINIMUM_COMPOSITION_CASES = 12
-MINIMUM_COMPOSITION_PER_WORKFLOW_SKILL = {"en": 1, "zh-CN": 1}
 
 
 def read_json(path: Path) -> tuple[Any | None, list[str]]:
     try:
         return json.loads(path.read_text(encoding="utf-8")), []
-    except FileNotFoundError:
-        return None, [f"missing JSON file: {path}"]
-    except UnicodeDecodeError as exc:
-        return None, [f"invalid UTF-8 in {path}: {exc}"]
-    except json.JSONDecodeError as exc:
-        return None, [f"invalid JSON in {path}: {exc}"]
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        return None, [f"{path}: cannot read routing corpus: {error}"]
 
 
-def string_list(value: Any, field: str, where: str, errors: list[str]) -> list[str]:
+def policy_rosters(root: Path) -> tuple[set[str], set[str], list[str]]:
+    path = root / "tools" / "check-agent-state.py"
+    try:
+        namespace = runpy.run_path(str(path))
+    except (OSError, RuntimeError, SyntaxError) as error:
+        return set(), set(), [f"{path}: cannot load routing policy: {error}"]
+    domains = namespace.get("DOMAIN_SKILL_SLUGS")
+    workflows = namespace.get("WORKFLOW_SKILL_SLUGS")
+    if not isinstance(domains, set) or not isinstance(workflows, set):
+        return set(), set(), [f"{path}: routed-skill rosters must be sets"]
+    return set(domains), set(workflows), []
+
+
+def string_list(value: Any, where: str, errors: list[str]) -> list[str]:
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
-        errors.append(f"{where}: {field} must be a string list")
+        errors.append(f"{where} must be a string list")
         return []
     if len(value) != len(set(value)):
-        errors.append(f"{where}: {field} contains duplicates")
+        errors.append(f"{where} contains duplicates")
     return value
-
-
-def load_skill_policy(
-    root: Path, constant: str, errors: list[str]
-) -> set[str]:
-    """Load one canonical routed-skill roster from the independent records gate."""
-
-    policy_path = root / "tools" / "check-agent-records.py"
-    try:
-        namespace = runpy.run_path(str(policy_path))
-    except (OSError, RuntimeError, SyntaxError) as exc:
-        errors.append(f"cannot load routed-skill policy from {policy_path}: {exc}")
-        return set()
-    value = namespace.get(constant)
-    if not isinstance(value, set) or any(not isinstance(item, str) for item in value):
-        errors.append(f"{policy_path}: {constant} must be a set of string slugs")
-        return set()
-    return set(value)
-
-
-def corpus_sha256(corpus: dict[str, Any]) -> str:
-    encoded = json.dumps(
-        corpus,
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def routing_inputs_sha256(
-    root: Path, corpus: dict[str, Any]
-) -> tuple[str | None, list[str]]:
-    """Hash the corpus and repository files that drive checked skill routing."""
-
-    domains = corpus.get("domain_skills")
-    if not isinstance(domains, list) or any(not isinstance(item, str) for item in domains):
-        return None, ["cannot hash routing inputs without valid domain_skills"]
-    workflows = corpus.get("workflow_skills")
-    if not isinstance(workflows, list) or any(
-        not isinstance(item, str) for item in workflows
-    ):
-        return None, ["cannot hash routing inputs without valid workflow_skills"]
-
-    relative_paths = [Path("agent/skills/README.md")]
-    for slug in sorted(set(domains) | set(workflows)):
-        relative_paths.extend(
-            (
-                Path("agent/skills") / slug / "SKILL.md",
-                Path("agent/skills") / slug / "agents/openai.yaml",
-            )
-        )
-
-    files: list[dict[str, str]] = []
-    errors: list[str] = []
-    for relative_path in relative_paths:
-        path = root / relative_path
-        try:
-            content = path.read_bytes()
-        except OSError as exc:
-            errors.append(f"cannot read routing input {relative_path}: {exc}")
-            continue
-        files.append(
-            {
-                "path": relative_path.as_posix(),
-                "sha256": hashlib.sha256(content).hexdigest(),
-            }
-        )
-    if errors:
-        return None, errors
-
-    payload = {
-        "corpus_sha256": corpus_sha256(corpus),
-        "files": files,
-    }
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest(), []
-
-
-def normalized_prompt(prompt: str) -> str:
-    """Normalize superficial Unicode and whitespace variation for uniqueness."""
-
-    return " ".join(unicodedata.normalize("NFKC", prompt).casefold().split())
 
 
 def validate_corpus(root: Path, corpus: Any) -> list[str]:
     errors: list[str] = []
+    domains, workflows, policy_errors = policy_rosters(root)
+    errors.extend(policy_errors)
     if not isinstance(corpus, dict):
-        return ["corpus root must be an object"]
-    unknown_corpus_fields = set(corpus) - CORPUS_FIELDS
-    if unknown_corpus_fields:
-        errors.append(
-            "corpus has unknown fields: " + ", ".join(sorted(unknown_corpus_fields))
-        )
+        return errors + ["routing corpus must be an object"]
     if corpus.get("schema_version") != 2:
-        errors.append("corpus schema_version must be 2")
+        errors.append("schema_version must be 2")
 
-    domains = string_list(corpus.get("domain_skills"), "domain_skills", "corpus", errors)
-    if not domains:
-        errors.append("domain_skills must be non-empty")
-    domain_set = set(domains)
-    expected_domains = load_skill_policy(root, "DOMAIN_SKILL_SLUGS", errors)
-    if domain_set != expected_domains:
-        missing = sorted(expected_domains - domain_set)
-        extra = sorted(domain_set - expected_domains)
-        detail = []
-        if missing:
-            detail.append("missing " + ", ".join(missing))
-        if extra:
-            detail.append("unexpected " + ", ".join(extra))
-        errors.append("domain_skills must match the records-gate roster: " + "; ".join(detail))
-    for slug in domains:
-        if not SKILL_SLUG_RE.fullmatch(slug):
-            errors.append(f"domain_skills: invalid slug {slug!r}")
-        elif not (root / "agent" / "skills" / slug / "SKILL.md").is_file():
-            errors.append(f"domain_skills: missing package {slug}")
-
-    workflows = string_list(
-        corpus.get("workflow_skills"), "workflow_skills", "corpus", errors
+    declared_domains = string_list(corpus.get("domain_skills"), "domain_skills", errors)
+    declared_workflows = string_list(
+        corpus.get("workflow_skills"), "workflow_skills", errors
     )
-    if not workflows:
-        errors.append("workflow_skills must be non-empty")
-    workflow_set = set(workflows)
-    expected_workflows = load_skill_policy(root, "WORKFLOW_SKILL_SLUGS", errors)
-    if workflow_set != expected_workflows:
-        missing = sorted(expected_workflows - workflow_set)
-        extra = sorted(workflow_set - expected_workflows)
-        detail = []
-        if missing:
-            detail.append("missing " + ", ".join(missing))
-        if extra:
-            detail.append("unexpected " + ", ".join(extra))
-        errors.append(
-            "workflow_skills must match the records-gate roster: "
-            + "; ".join(detail)
-        )
-    if domain_set & workflow_set:
-        errors.append(
-            "domain_skills and workflow_skills overlap: "
-            + ", ".join(sorted(domain_set & workflow_set))
-        )
-    for slug in workflows:
-        if not SKILL_SLUG_RE.fullmatch(slug):
-            errors.append(f"workflow_skills: invalid slug {slug!r}")
-        elif not (root / "agent" / "skills" / slug / "SKILL.md").is_file():
-            errors.append(f"workflow_skills: missing package {slug}")
+    if set(declared_domains) != domains:
+        errors.append("domain_skills do not match check-agent-state.py")
+    if set(declared_workflows) != workflows:
+        errors.append("workflow_skills do not match check-agent-state.py")
+    known = domains | workflows
 
-    routed_skills = expected_domains | expected_workflows
-
-    coverage = corpus.get("coverage")
-    if not isinstance(coverage, dict):
-        errors.append("coverage must be an object")
-        coverage = {}
-    unknown_coverage_fields = set(coverage) - COVERAGE_FIELDS
-    if unknown_coverage_fields:
-        errors.append(
-            "coverage has unknown fields: "
-            + ", ".join(sorted(unknown_coverage_fields))
-        )
-    locales = string_list(
-        coverage.get("required_locales"), "required_locales", "coverage", errors
-    )
-    if locales != list(REQUIRED_LOCALES):
-        errors.append(
-            "coverage.required_locales must equal " + repr(list(REQUIRED_LOCALES))
-        )
-    positive_min = coverage.get("minimum_positive_per_skill")
-    negative_min = coverage.get("minimum_near_miss_per_skill")
-    if not isinstance(positive_min, dict):
-        errors.append("coverage.minimum_positive_per_skill must be an object")
-        positive_min = {}
-    if not isinstance(negative_min, dict):
-        errors.append("coverage.minimum_near_miss_per_skill must be an object")
-        negative_min = {}
-    if positive_min != MINIMUM_POSITIVE_PER_SKILL:
-        errors.append(
-            "coverage.minimum_positive_per_skill must equal "
-            + repr(MINIMUM_POSITIVE_PER_SKILL)
-        )
-    if negative_min != MINIMUM_NEAR_MISS_PER_SKILL:
-        errors.append(
-            "coverage.minimum_near_miss_per_skill must equal "
-            + repr(MINIMUM_NEAR_MISS_PER_SKILL)
-        )
-    minimum_compositions = coverage.get("minimum_composition_cases")
-    if minimum_compositions != MINIMUM_COMPOSITION_CASES:
-        errors.append(
-            "coverage.minimum_composition_cases must equal "
-            f"{MINIMUM_COMPOSITION_CASES}"
-        )
-    workflow_composition_min = coverage.get(
-        "minimum_composition_per_workflow_skill"
-    )
-    if workflow_composition_min != MINIMUM_COMPOSITION_PER_WORKFLOW_SKILL:
-        errors.append(
-            "coverage.minimum_composition_per_workflow_skill must equal "
-            + repr(MINIMUM_COMPOSITION_PER_WORKFLOW_SKILL)
-        )
+    expected_coverage = {
+        "required_locales": ["en", "zh-CN"],
+        "minimum_positive_per_skill": MINIMUM_POSITIVE,
+        "minimum_near_miss_per_skill": MINIMUM_NEAR_MISS,
+        "minimum_composition_cases": MINIMUM_COMPOSITIONS,
+        "minimum_composition_per_workflow_skill": MINIMUM_WORKFLOW_COMPOSITION,
+    }
+    if corpus.get("coverage") != expected_coverage:
+        errors.append("coverage policy must match the fixed routing gate")
 
     cases = corpus.get("cases")
     if not isinstance(cases, list) or not cases:
-        errors.append("cases must be a non-empty list")
-        return errors
+        return errors + ["cases must be a non-empty list"]
 
-    seen_ids: set[str] = set()
-    seen_prompts: dict[tuple[str, str], str] = {}
+    case_ids: set[str] = set()
+    prompts: set[tuple[str, str]] = set()
     positives: Counter[tuple[str, str]] = Counter()
-    negatives: Counter[tuple[str, str]] = Counter()
+    near_misses: Counter[tuple[str, str]] = Counter()
     workflow_compositions: Counter[tuple[str, str]] = Counter()
     composition_count = 0
-    for index, case in enumerate(cases, start=1):
+
+    for index, case in enumerate(cases):
         where = f"case[{index}]"
-        if not isinstance(case, dict):
-            errors.append(f"{where}: must be an object")
+        if not isinstance(case, dict) or set(case) != CASE_FIELDS:
+            errors.append(f"{where} fields must be exactly {sorted(CASE_FIELDS)}")
             continue
-        unknown = set(case) - CASE_FIELDS
-        if unknown:
-            errors.append(f"{where}: unknown fields: {', '.join(sorted(unknown))}")
-        case_id = case.get("id")
-        if not isinstance(case_id, str) or not CASE_ID_RE.fullmatch(case_id):
-            errors.append(f"{where}: invalid id")
-            case_id = where
-        elif case_id in seen_ids:
-            errors.append(f"{where}: duplicate id {case_id}")
-        seen_ids.add(case_id)
-        where = case_id
-
-        kind = case.get("kind")
-        if kind not in CASE_KINDS:
-            errors.append(f"{where}: invalid kind {kind!r}")
-        locale = case.get("locale")
-        if locale not in REQUIRED_LOCALES:
-            errors.append(f"{where}: locale {locale!r} is not required_locales")
-        prompt = case.get("prompt")
+        case_id = case["id"]
+        kind = case["kind"]
+        locale = case["locale"]
+        prompt = case["prompt"]
+        if not isinstance(case_id, str) or CASE_ID_RE.fullmatch(case_id) is None:
+            errors.append(f"{where}.id must be an uppercase hyphenated identifier")
+        elif case_id in case_ids:
+            errors.append(f"duplicate case id: {case_id}")
+        else:
+            case_ids.add(case_id)
+        if kind not in KINDS:
+            errors.append(f"{where}.kind is invalid")
+        if locale not in LOCALES:
+            errors.append(f"{where}.locale is invalid")
         if not isinstance(prompt, str) or not prompt.strip():
-            errors.append(f"{where}: prompt must be non-empty")
-        elif isinstance(locale, str):
-            prompt_key = (locale, normalized_prompt(prompt))
-            previous = seen_prompts.get(prompt_key)
-            if previous is not None:
-                errors.append(
-                    f"{where}: duplicate prompt for locale {locale!r} "
-                    f"(already used by {previous})"
-                )
-            else:
-                seen_prompts[prompt_key] = where
+            errors.append(f"{where}.prompt must be non-empty")
+            prompt = ""
+        prompt_key = (str(locale), prompt)
+        if prompt_key in prompts:
+            errors.append(f"{where} duplicates a locale/prompt pair")
+        prompts.add(prompt_key)
 
-        expected = string_list(case.get("expected_skills"), "expected_skills", where, errors)
-        forbidden = string_list(
-            case.get("forbidden_skills"), "forbidden_skills", where, errors
-        )
-        if set(expected) & set(forbidden):
-            errors.append(f"{where}: expected_skills and forbidden_skills overlap")
-        for slug in expected + forbidden:
-            if slug not in routed_skills:
-                errors.append(f"{where}: unknown routed skill {slug!r}")
-        allow_additional = case.get("allow_additional_routed_skills", False)
-        if not isinstance(allow_additional, bool):
-            errors.append(f"{where}: allow_additional_routed_skills must be boolean")
-
+        expected = string_list(case["expected_skills"], f"{where}.expected_skills", errors)
+        forbidden = string_list(case["forbidden_skills"], f"{where}.forbidden_skills", errors)
+        unknown = (set(expected) | set(forbidden)) - known
+        if unknown:
+            errors.append(f"{where} names unknown skills: {sorted(unknown)}")
+        overlap = set(expected) & set(forbidden)
+        if overlap:
+            errors.append(f"{where} expects and forbids the same skills: {sorted(overlap)}")
         if kind == "single" and len(expected) != 1:
-            errors.append(f"{where}: single case must expect exactly one routed skill")
-        if kind == "near-miss" and not forbidden:
-            errors.append(f"{where}: near-miss case must forbid at least one routed skill")
+            errors.append(f"{where} single case must expect exactly one skill")
         if kind == "composition":
             composition_count += 1
             if len(expected) < 2:
-                errors.append(f"{where}: composition case must expect at least two skills")
-            if isinstance(locale, str):
-                for slug in set(expected) & expected_workflows:
-                    workflow_compositions[(slug, locale)] += 1
+                errors.append(f"{where} composition must expect at least two skills")
 
-        if isinstance(locale, str):
-            if kind == "single":
-                for slug in expected:
-                    positives[(slug, locale)] += 1
-            if kind == "near-miss":
-                for slug in forbidden:
-                    negatives[(slug, locale)] += 1
+        for skill in expected:
+            positives[(skill, str(locale))] += 1
+            if skill in EXPLICIT_ONLY and f"${skill}" not in prompt:
+                errors.append(f"{where} must explicitly invoke ${skill}")
+            if kind == "composition" and skill in workflows:
+                workflow_compositions[(skill, str(locale))] += 1
+        if kind == "near-miss":
+            for skill in forbidden:
+                near_misses[(skill, str(locale))] += 1
 
-    for slug in routed_skills:
-        for locale in REQUIRED_LOCALES:
-            positive_required = MINIMUM_POSITIVE_PER_SKILL[locale]
-            negative_required = MINIMUM_NEAR_MISS_PER_SKILL[locale]
-            if positives[(slug, locale)] < positive_required:
-                errors.append(
-                    f"coverage: {slug} has {positives[(slug, locale)]} {locale} "
-                    f"positive case(s), requires {positive_required}"
-                )
-            if negatives[(slug, locale)] < negative_required:
-                errors.append(
-                    f"coverage: {slug} has {negatives[(slug, locale)]} {locale} "
-                    f"near-miss case(s), requires {negative_required}"
-                )
-    if composition_count < MINIMUM_COMPOSITION_CASES:
-        errors.append(
-            f"coverage: {composition_count} composition case(s), "
-            f"requires {MINIMUM_COMPOSITION_CASES}"
-        )
-    for slug in expected_workflows:
-        for locale in REQUIRED_LOCALES:
-            required = MINIMUM_COMPOSITION_PER_WORKFLOW_SKILL[locale]
-            actual = workflow_compositions[(slug, locale)]
-            if actual < required:
-                errors.append(
-                    f"coverage: {slug} has {actual} {locale} composition case(s), "
-                    f"requires {required}"
-                )
-    _, routing_errors = routing_inputs_sha256(root, corpus)
-    errors.extend(routing_errors)
+    for skill in sorted(known):
+        for locale, minimum in MINIMUM_POSITIVE.items():
+            if positives[(skill, locale)] < minimum:
+                errors.append(f"{skill} has too few {locale} positive cases")
+        for locale, minimum in MINIMUM_NEAR_MISS.items():
+            if near_misses[(skill, locale)] < minimum:
+                errors.append(f"{skill} has too few {locale} near-miss cases")
+    if composition_count < MINIMUM_COMPOSITIONS:
+        errors.append("too few composition cases")
+    for skill in sorted(workflows):
+        for locale, minimum in MINIMUM_WORKFLOW_COMPOSITION.items():
+            if workflow_compositions[(skill, locale)] < minimum:
+                errors.append(f"{skill} has too few {locale} composition cases")
+
+    for skill in sorted(known):
+        if SKILL_RE.fullmatch(skill) is None:
+            errors.append(f"invalid skill slug: {skill}")
+        skill_path = root / "agent" / "skills" / skill / "SKILL.md"
+        interface_path = root / "agent" / "skills" / skill / "agents" / "openai.yaml"
+        if not skill_path.is_file():
+            errors.append(f"missing routed skill: {skill_path}")
+        if not interface_path.is_file():
+            errors.append(f"missing routed skill interface: {interface_path}")
     return errors
 
 
-def build_observation_template(
-    root: Path, corpus: dict[str, Any], repetitions: int
-) -> dict[str, Any]:
-    routing_digest, errors = routing_inputs_sha256(root, corpus)
-    if errors or routing_digest is None:
-        raise ValueError("; ".join(errors))
-    runs = []
-    for case in corpus["cases"]:
-        for iteration in range(1, repetitions + 1):
-            runs.append(
-                {
-                    "case_id": case["id"],
-                    "iteration": iteration,
-                    "selected_skills": [],
-                }
-            )
-    return {
-        "schema_version": 2,
-        "corpus_sha256": corpus_sha256(corpus),
-        "routing_inputs_sha256": routing_digest,
-        "runner": {
-            "product": "Codex",
-            "model": "MODEL",
-            "host": "HOST",
-            "recorded_at": dt.date.today().isoformat(),
-            "repetitions": repetitions,
-        },
-        "runs": runs,
-    }
+def parser() -> argparse.ArgumentParser:
+    result = argparse.ArgumentParser(description=__doc__)
+    result.add_argument("root", nargs="?", default=".", type=Path)
+    return result
 
 
-def validate_observations(root: Path, corpus: dict[str, Any], observed: Any) -> list[str]:
-    errors: list[str] = []
-    if not isinstance(observed, dict):
-        return ["observations root must be an object"]
-    unknown_observation_fields = set(observed) - OBSERVATION_FIELDS
-    if unknown_observation_fields:
-        errors.append(
-            "observations has unknown fields: "
-            + ", ".join(sorted(unknown_observation_fields))
-        )
-    missing_observation_fields = OBSERVATION_FIELDS - set(observed)
-    if missing_observation_fields:
-        errors.append(
-            "observations missing fields: "
-            + ", ".join(sorted(missing_observation_fields))
-        )
-    if observed.get("schema_version") != 2:
-        errors.append("observations schema_version must be 2")
-    digest = observed.get("corpus_sha256")
-    if not isinstance(digest, str) or not SHA256_RE.fullmatch(digest):
-        errors.append("observations.corpus_sha256 must be a lowercase SHA-256")
-    elif digest != corpus_sha256(corpus):
-        errors.append("observations.corpus_sha256 does not match the current corpus")
-    routing_digest = observed.get("routing_inputs_sha256")
-    if not isinstance(routing_digest, str) or not SHA256_RE.fullmatch(routing_digest):
-        errors.append("observations.routing_inputs_sha256 must be a lowercase SHA-256")
-    else:
-        expected_routing_digest, routing_errors = routing_inputs_sha256(root, corpus)
-        errors.extend(routing_errors)
-        if expected_routing_digest is not None and routing_digest != expected_routing_digest:
-            errors.append(
-                "observations.routing_inputs_sha256 does not match the current "
-                "routed skill inputs"
-            )
-    runner = observed.get("runner")
-    if not isinstance(runner, dict):
-        errors.append("observations.runner must be an object")
-        return errors
-    unknown_runner = set(runner) - RUNNER_FIELDS
-    if unknown_runner:
-        errors.append(
-            "observations.runner has unknown fields: "
-            + ", ".join(sorted(unknown_runner))
-        )
-    missing_runner = RUNNER_FIELDS - set(runner)
-    if missing_runner:
-        errors.append(
-            "observations.runner missing fields: " + ", ".join(sorted(missing_runner))
-        )
-    for field in RUNNER_FIELDS - {"repetitions"}:
-        value = runner.get(field)
-        if not isinstance(value, str) or not value.strip():
-            errors.append(f"observations.runner.{field} must be non-empty")
-        elif value.strip().upper() in RUNNER_PLACEHOLDERS:
-            errors.append(f"observations.runner.{field} still contains a placeholder")
-    if runner.get("product") not in RUNNER_PRODUCTS:
-        errors.append(
-            "observations.runner.product must be one of "
-            + repr(sorted(RUNNER_PRODUCTS))
-        )
-    recorded_at = runner.get("recorded_at")
-    if isinstance(recorded_at, str) and recorded_at.strip():
-        try:
-            recorded_date = dt.date.fromisoformat(recorded_at)
-        except ValueError:
-            errors.append("observations.runner.recorded_at must be an ISO date")
-        else:
-            if recorded_date > dt.date.today():
-                errors.append("observations.runner.recorded_at must not be in the future")
-    repetitions = runner.get("repetitions")
-    if not isinstance(repetitions, int) or isinstance(repetitions, bool) or repetitions < 1:
-        errors.append("observations.runner.repetitions must be a positive integer")
-        return errors
-
-    all_skills = {
-        path.parent.name
-        for path in (root / "agent" / "skills").glob("*/SKILL.md")
-    }
-    routed_skills = set(corpus["domain_skills"]) | set(corpus["workflow_skills"])
-    cases = {case["id"]: case for case in corpus["cases"]}
-    runs = observed.get("runs")
-    if not isinstance(runs, list):
-        return errors + ["observations.runs must be a list"]
-
-    seen: defaultdict[str, list[int]] = defaultdict(list)
-    for index, run in enumerate(runs, start=1):
-        where = f"run[{index}]"
-        if not isinstance(run, dict):
-            errors.append(f"{where}: must be an object")
-            continue
-        if set(run) != {"case_id", "iteration", "selected_skills"}:
-            errors.append(f"{where}: fields must be case_id, iteration, selected_skills")
-        case_id = run.get("case_id")
-        if case_id not in cases:
-            errors.append(f"{where}: unknown case_id {case_id!r}")
-            continue
-        iteration = run.get("iteration")
-        if not isinstance(iteration, int) or isinstance(iteration, bool):
-            errors.append(f"{where}: iteration must be an integer")
-            continue
-        seen[case_id].append(iteration)
-        selected = string_list(run.get("selected_skills"), "selected_skills", where, errors)
-        unknown = set(selected) - all_skills
-        if unknown:
-            errors.append(f"{where}: unknown selected skills: {', '.join(sorted(unknown))}")
-
-        case = cases[case_id]
-        selected_routed = set(selected) & routed_skills
-        expected = set(case["expected_skills"])
-        forbidden = set(case["forbidden_skills"])
-        missing = expected - selected_routed
-        forbidden_loaded = forbidden & selected_routed
-        unexpected = selected_routed - expected
-        if missing:
-            errors.append(f"{where}: missing expected skills: {', '.join(sorted(missing))}")
-        if forbidden_loaded:
-            errors.append(
-                f"{where}: loaded forbidden skills: {', '.join(sorted(forbidden_loaded))}"
-            )
-        if unexpected and not case.get("allow_additional_routed_skills", False):
-            errors.append(
-                f"{where}: loaded unexpected routed skills: {', '.join(sorted(unexpected))}"
-            )
-
-    expected_iterations = list(range(1, repetitions + 1))
-    for case_id in cases:
-        if sorted(seen[case_id]) != expected_iterations:
-            errors.append(
-                f"observations: {case_id} iterations {sorted(seen[case_id])} "
-                f"do not equal {expected_iterations}"
-            )
-    return errors
-
-
-def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "root",
-        nargs="?",
-        type=Path,
-        default=Path(__file__).resolve().parents[1],
-        help="repository root (defaults to the script's parent repository)",
-    )
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--observed", type=Path, help="captured routing observations")
-    mode.add_argument(
-        "--emit-template",
-        action="store_true",
-        help="emit an observation JSON template to stdout",
-    )
-    parser.add_argument("--repetitions", type=int, default=3)
-    return parser.parse_args(argv)
-
-
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(sys.argv[1:] if argv is None else argv)
-    root = args.root.resolve()
-    corpus_path = root / "agent" / "skills" / "trigger-evals.json"
-    corpus, errors = read_json(corpus_path)
+def main() -> int:
+    arguments = parser().parse_args()
+    root = arguments.root.resolve()
+    corpus, errors = read_json(root / "agent" / "skills" / "trigger-evals.json")
     if not errors:
-        errors.extend(validate_corpus(root, corpus))
+        errors = validate_corpus(root, corpus)
     if errors:
-        for error in errors:
-            print(f"skill routing error: {error}", file=sys.stderr)
+        for error in sorted(set(errors)):
+            print(f"error: {error}", file=sys.stderr)
+        print(f"skill routing failed with {len(set(errors))} error(s)", file=sys.stderr)
         return 1
-
-    assert isinstance(corpus, dict)
-    if args.emit_template:
-        if args.repetitions < 1:
-            print("skill routing error: repetitions must be positive", file=sys.stderr)
-            return 1
-        json.dump(
-            build_observation_template(root, copy.deepcopy(corpus), args.repetitions),
-            sys.stdout,
-            ensure_ascii=False,
-            indent=2,
-        )
-        print()
-        return 0
-
-    if args.observed is not None:
-        observed, observation_errors = read_json(args.observed)
-        if not observation_errors:
-            observation_errors.extend(validate_observations(root, corpus, observed))
-        if observation_errors:
-            for error in observation_errors:
-                print(f"skill routing error: {error}", file=sys.stderr)
-            return 1
-        assert isinstance(observed, dict)
-        repetitions = observed["runner"]["repetitions"]
-        print(
-            f"skill routing observations: ok ({len(corpus['cases'])} cases, "
-            f"{repetitions} repetition(s))"
-        )
-        return 0
-
-    print(
-        f"skill routing corpus: ok ({len(corpus['domain_skills'])} domain skills, "
-        f"{len(corpus['workflow_skills'])} workflow skills, "
-        f"{len(corpus['cases'])} cases)"
-    )
+    count = len(corpus["cases"])
+    print(f"skill routing: ok ({count} bilingual cases)")
     return 0
 
 

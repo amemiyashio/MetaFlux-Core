@@ -1,215 +1,79 @@
-# MetaFlux Project Agent Context
+# MetaFlux Agent Context
 
-## Before changing anything
+MetaFlux uses a goal-first, training-shaped execution loop. Repository state
+describes product intent and accepted integration only; it does not track agent
+identity, conversations, worktrees, or activity.
 
-1. Follow [start-work](skills/start-work/SKILL.md) Stage Zero. Resolve the stable
-   harness product slug only from active system/developer runtime instruction
-   context (`codex` for Codex), emit it, and enter
-   `nix develop . --command ...` before every non-Git/Nix executable or probe.
-   Do not search for an agent CLI or inspect ambient host state first. Add a
-   missing tool to the repository Nix declaration. After a confirmed Nix gap,
-   load `manage-host-privilege` for exact host package resolution. Load that
-   same skill before any sudo/su, root-helper, persistent-grant, or privileged
-   driver operation. It owns bounded elevation only; never store or print a
-   credential and never expose an arbitrary root command.
-2. Read the machine [execution focus](progress/focus.json) before selecting
-   durable work. Require schema version 2 and `governance_epoch: D0029` on both
-   focus and owner, then resume its exact Exit Gate or governance authority.
-3. If a task matches an [expert skill](skills/README.md), follow it verbatim.
-4. Scaffold a session before durable work when a new ledger is needed:
-   `nix develop . --command python3 tools/new-session.py <MAJOR.MINOR.PATCH.WORK> <slug>`.
-   A session is
-   a curated ledger and cleanup boundary, not a snapshot, and scaffolding does
-   not claim execution focus.
-5. Never relax a durable constraint in [`memory/constraints.md`](memory/constraints.md)
-   without a recorded decision.
+## Read Order
 
-This directory serves only the `MetaFlux-Core` repository. It preserves project
-engineering context without turning Agent notes into a second architecture
-specification. It does not store a user profile, personal preferences, general
-Agent configuration, cross-project memory, or conversation transcripts.
+1. Follow [`start-work`](skills/start-work/SKILL.md) Stage Zero.
+2. Read [`memory/README.md`](memory/README.md), especially constraints and open
+   decisions.
+3. Read [`goal.json`](goal.json).
+4. Read the target milestone, work item, and its `Exit Gate`.
+5. Load every domain skill that owns a material part of the assigned lane.
 
-Product truth remains in source, tests, verified architecture records,
-contracts, and approved milestone plans.
+Current source and passing tests outrank verified architecture, approved plans,
+memory, and validated experience in that order. Proposed architecture and
+queued plans describe intent, not implemented behavior.
 
-Execution selection and durable commit authority are separate from product
-truth. Under D0029, [`progress/focus.json`](progress/focus.json) names exactly
-one `in_progress` owner and either one dependency-valid product Exit Gate or one
-decision-authorized governance migration. `progress/current.md` is its compact
-human projection. Other active sessions remain factual ledgers; they do not
-compete as scheduling or content-commit authority.
+## Execution Scale
 
-D0029 is a breaking governance epoch. Current focus and owner sessions use
-schema version 2 and declare the exact D0029 epoch. Schema version 1 and
-pre-epoch sessions cannot receive focus or be upgraded in place. SC0007 removes
-their detailed ledgers from the current tree after `$roast` verifies that every
-retained medium/dark claim already lives in one canonical owner. A compact
-liquidation tombstone may resolve old IDs, but it is not task context,
-knowledge storage, or compatibility authority.
+- **Epoch** (`epoch-0001`): one repository-wide semantic governance regime.
+  Only explicit `govern-epoch` may advance it, after a full current-authority
+  rewrite and passing regression.
+- **Batch** (`batch-0001`): one bounded collection of parallel product lanes
+  integrated and tested together. Batch numbering restarts in a new Epoch.
+- **Iteration** (`iteration-0001`): one lane candidate or one integration repair
+  that produces a new, independently testable Git state. Iteration numbering
+  restarts in a new Batch.
 
-Decision-authorized replacements of established meaning are indexed under
-[`semantic-changes/`](semantic-changes/README.md). An SC is migration authority
-and a compact reminder; it points to canonical truth instead of outranking or
-duplicating it.
+The full identity is always written as
+`epoch-0001 / batch-0001 / iteration-0001`. A worker delivers exact base and tip
+revisions. Only an explicitly created integration agent changes `goal.json`.
+Failed candidates and superseded Batch state are not archived in the current
+tree; Git and the originating conversation retain their evidence.
 
-## Source precedence
+## Repository Roles
 
-When records disagree, use this order:
-
-1. Current source and passing tests.
-2. `Verified` records in [`docs/architecture/`](../docs/architecture/README.md)
-   and implemented contracts in [`contracts/`](../contracts/README.md).
-3. The active approved milestone under [`plan/`](plan/).
-4. Durable summaries under [`memory/`](memory/).
-5. Current state and historical checkpoints under [`progress/`](progress/).
-6. Validated methods under [`experience/`](experience/).
-7. MetaFlux project work records.
-
-`Proposed` architecture and queued plans describe intent, not an implemented
-contract. Agent records link to canonical material instead of copying it.
-
-## Directory roles
-
-| Path | Purpose | Mutation rule |
-| --- | --- | --- |
-| `plan/M<delivery>/` | Approved milestone and its work items | Update through an explicit planning decision |
-| `memory/` | Stable project, constraints, ownership, terminology, and decision index | Change only when canonical sources change |
-| `semantic-changes/` | Decision-bound breaking migration permits and durable reminders | Activate before protected history changes; apply only after complete synchronization |
-| `experience/` | Reusable procedures supported by evidence | Validate before relying on them; supersede instead of silently rewriting conclusions |
-| `progress/focus.json` | Schema 2 machine execution owner, D0029 epoch, mode, and canonical product Exit Gate | Change only through a record-only current-owner update or atomic handoff to a new epoch-bearing successor |
-| `progress/current.md` | Compact human projection of the execution focus | Keep the same owner/target, current boundary, blockers, and one to three next actions |
-| `progress/checkpoints/` | Protected historical handoffs | Append corrections by default; exact D0025/SC migrations preserve factual evidence |
-| `sessions/` | Curated task objective, material decisions/results, cleanup, and resume summary | Keep compact; Git owns source history, and disposable failed-route artifacts are removed at handoff |
-| `skills/` | Codex skill packages for repository-specific work | Load on demand; keep `SKILL.md` standard-compatible and verify repository-changing procedures proportionately |
-| `templates/` | Required record shapes | Keep fields and status vocabularies stable |
-
-## Session-local guidance
-
-An active session may temporarily receive specialist direction or a candidate
-patch under its `guidance/` directory. This is an inbox, not another evidence or
-source archive. Do not load its contents as part of the daily read order and do
-not load the [`session-guidance`](skills/session-guidance/SKILL.md) skill unless
-a ready packet exists or the user explicitly asks to publish or process
-guidance.
-
-Check the active session for ready guidance when resuming it, after a specialist
-or colleague completion notice, before starting the next coherent work unit,
-and before checkpoint or close. A long-running command need not be interrupted;
-use its next control boundary. While acting as a guidance author, a specialist
-may provide evidence, direction, and a candidate patch but does not edit product
-source. The session owner claims the packet, validates it against current source,
-tests, the user's latest request, and canonical constraints, then records an
-`adopted`, `adapted`, `rejected`, or `deferred` disposition. Exactly one existing
-`work_note` or `decision` event carries both `guidance_id` and `disposition`; a
-deferred result also carries `deferred_to` naming the durable unresolved-work or
-open-decision target. A duplicate or obsolete packet may instead be resolved as
-no-material with a reason and no session event.
-
-Remove the raw packet and any attachment after resolution. Preserve only the
-compact material outcome in the existing session event vocabulary or promote it
-to the existing decision, progress, or experience records when their normal
-criteria apply. A terminal session's guidance inbox contains no file or
-symbolic link.
-
-## Collaborator change convergence
-
-A durable source or record delivery is reviewed as an explicit change set, not
-accepted from a completion message alone. At the next control boundary, use
-[`converge-project-changes`](skills/converge-project-changes/SKILL.md) to
-separate its committed, staged, unstaged, and untracked layers and audit the
-candidate against current project authority, architecture, contracts, records,
-and verification gates. Checkpoint and close provide a fallback when an earlier
-delivery boundary was missed.
-
-The focus-owning integration session may directly repair only its own exact
-increment or a completed batch explicitly handed to it. Source or records owned
-by another `in_progress` session receive transient `session-guidance`;
-ambiguous or concurrent material stays unchanged. An approved breaking
-replacement composes `govern-semantic-change`. Do not infer ownership from
-paths, Git identity, timestamps, processes, or a dirty worktree, and do not
-retain a review archive or source snapshot.
-
-## Stable identifiers
-
-Product and delivery identity follows the canonical
-[release-versioning policy](../docs/release-versioning.md). M, W, and S bodies
-are derived from an explicit four-part delivery coordinate; they are not
-allocated from an unrelated serial.
-
-- Milestone: `M<compact-delivery>`, for example `M0100` for `0.1.0.0`.
-- Work item: `W<compact-delivery>`, for example `W0101` for `0.1.0.1`.
-- Decision index entry: `DNNNN`.
-- Semantic change: `SCNNNN`.
-- Experience: `ENNNN`.
-- Checkpoint: `PYYYYMMDD-NNN`.
-- Project work record: `S<compact-delivery>-YYYYMMDD-NNN-<slug>`.
-- Skill: a durable lowercase-hyphenated slug naming one `skills/<slug>/`
-  directory; slugs are never renamed after links exist.
-
-The D0024 migration replaced every pre-policy M/W/S name, including historical
-sessions, so the repository has one scheme. It remains the first completed
-pre-framework semantic migration. Later replacements require D0025 and an
-`Active` SC already committed before any protected-history edit. Identifiers are
-never reused; ordinary evolution supersedes rather than renumbers them. The file
-name starts with the identifier where the record is an instance rather than a
-singleton index.
-
-## Status rules
-
-| Record | Allowed statuses |
+| Path | Authority |
 | --- | --- |
-| Milestone | `Draft`, `Queued`, `Active`, `Blocked`, `Complete`, `Superseded` |
-| Work item | `Draft`, `Queued`, `Active`, `Blocked`, `Complete`, `Superseded` |
-| Experience | `Candidate`, `Validated`, `Superseded` |
-| Checkpoint | `Recorded` |
-| Project work record | `in_progress`, `complete`, `blocked`, `abandoned` |
-| Architecture decision | `Proposed`, `Verified`, `Superseded` |
-| Semantic change | `Active`, `Applied`, `Superseded` |
-| Skill catalog entry | `Draft`, `Active`, `Retired` |
-| Performance budgets | `provisional`, `binding` |
+| `goal.json` | Current Epoch, Batch, target, lanes, dependencies, and acceptance |
+| `plan/` | Product milestones, work items, dependencies, and Exit Gates |
+| `memory/` | Compact stable constraints, decisions, ownership, and terminology |
+| `experience/` | Reusable engineering methods with reproducible evidence |
+| `skills/` | Task-specific operating instructions |
 
-`Complete` requires the record's acceptance evidence. `Validated` requires a
-reproducible command or artifact. `Blocked` names the blocking condition and the
-next recheck. `Superseded` links its replacement. A checkpoint is protected
-history and does not claim that uncommitted files can be reconstructed;
-ordinary corrections append, while exact semantic synchronization requires a
-committed Active SC under D0025. A numeric performance budget is `provisional`
-until the measurement harness it names exists and a baseline is archived;
-provisional budgets guide design but do not fail acceptance. Session summaries
-recorded from 2026-08-28 onward require one lowercase `roast` section with
-ordered `light roasts`, `medium roasts`, and `dark roasts` buckets for
-materially promoted claims, followed by an independent lowercase `session-only`
-section (`none` is valid after classification). Sessions from 2026-08-29 onward
-also require a `Cleanup` section
-naming removed and intentionally retained session-owned artifacts. Unresolved decisions are aggregated in
-[`memory/open-decisions.md`](memory/open-decisions.md) and scaffold new sessions
-with `tools/new-session.py`.
+There are no session, focus, checkpoint, guidance, semantic-change, or roast
+record directories. Git history is the sole prior-state recovery mechanism.
 
-## Daily read order
+## Stable Identifiers
 
-Use this fixed order for routine work:
+Repository-owned record identifiers use complete lowercase words:
 
-1. This `agent/README.md`.
-2. [`memory/README.md`](memory/README.md) and the indexed durable memory.
-3. [`progress/focus.json`](progress/focus.json), which selects the exact owner
-   and product Exit Gate or governance authority; reject schema or epoch drift.
-4. The [`semantic-changes`](semantic-changes/README.md) index; load only an
-   `Active` record or an `Applied` record relevant to the task.
-5. [`progress/current.md`](progress/current.md) and its latest checkpoint when
-   historical evidence is needed.
-6. The focused milestone/work item and its canonical Exit Gate under
-   [`plan/`](plan/).
-7. Only the related validated records from
-   [`experience/`](experience/README.md).
+- milestone: `milestone-MAJOR.MINOR.PATCH.0`
+- work item: `work-item-MAJOR.MINOR.PATCH.WORK`
+- decision: `decision-NNNN`
+- experience: `experience-NNNN`
+- Epoch, Batch, Iteration: `epoch-NNNN`, `batch-NNNN`, `iteration-NNNN`
+- lane: a descriptive lowercase slug beginning with `lane-`
 
-Use repository file APIs or Nix-provided read tools for this order. Then inspect
-Git status and current files before editing. Session records are
-project evidence for audits or reconstruction; do not load them by default.
-Load the focus owner's current-schema compact session record to resume it;
-inspect only whether
-its guidance inbox has a ready packet at the control boundaries above and load
-the packet on demand. A new scaffold is not authority. If the task does not fit
-the current focus, stop before content edits and route a record-only focus
-handoff through the current owner. Record new MetaFlux evidence, refresh current
-progress, and create a checkpoint at a material handoff boundary within the
-focused Exit Gate.
+Product SemVer, ABI/UAPI/schema versions, compiler epochs, external driver
+families such as R535, and tool diagnostics such as E402 are independent
+technical namespaces.
+
+## Delivery Loop
+
+1. Establish a Batch objective and preallocate one Iteration per parallel lane.
+2. Run each Iteration in a separate worktree from an exact base revision.
+3. Deliver committed base/tip revisions, tests, blockers, and roast candidates.
+4. In a separate user-requested integration run, invoke `integrate-batch` to
+   review, merge, repair bounded integration gaps, and run combined regression.
+5. Update lane and Batch status only after acceptance passes. Open the next
+   Batch in the same integration commit when the next bounded cohort is known.
+6. If governance drift is detected, leave the Batch state unchanged and invoke
+   `govern-epoch` explicitly. Publish a new Epoch only after full regression.
+
+At integration and governance boundaries, `roast` promotes each valuable claim
+to one canonical owner. Routine commands, duplicate prose, failed routes, local
+host facts, and conversation detail are discarded.

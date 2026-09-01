@@ -1,6 +1,6 @@
 # Kernel Core
 
-`metaflux_core.ko` now provides the first W0112 local cdev slice. It registers
+`metaflux_core.ko` now provides the first work-item-0.1.1.2 local cdev slice. It registers
 `/dev/metafluxctl` for an exclusive worker lease and `/dev/metaflux0` for
 generation-bound negotiation, a paired submission/completion ring mapping, and
 timeline waits. The public records come from the generated transport projection;

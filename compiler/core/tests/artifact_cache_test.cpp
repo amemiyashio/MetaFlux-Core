@@ -371,7 +371,7 @@ bool test_default_free_space_and_atomic_reservations() {
                   defaults.reserved_free_bytes == 2ULL * 1024ULL * 1024ULL * 1024ULL &&
                   defaults.reserved_free_percent == 5U &&
                   default_config.key_lock_timeout == std::chrono::seconds(30),
-              "D0014 quotas and the compiler resource-aligned 30-second lock bound must remain "
+              "decision-0014 quotas and the compiler resource-aligned 30-second lock bound must remain "
               "stable")) {
     return false;
   }

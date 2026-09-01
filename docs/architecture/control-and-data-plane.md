@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Status | Proposed |
-| Source plans | M0110 and M0120 |
+| Source plans | milestone-0.1.1.0 and milestone-0.1.2.0 |
 
 `metafluxd` is the sole registry, policy, generation, and worker-lease authority.
 Exactly one generation-bound data-plane worker owns a backend instance and
@@ -34,7 +34,7 @@ The `v0.1.0` memfd transport has no doorbell primitive. Its cold operations
 active-queue dispatch may perform at most one wake syscall. Whether a leased
 worker spins, adapts, or sleeps is a worker-side implementation freedom, never
 an application-visible contract. The zero-syscall steady-state obligation
-begins with M0110 and applies only to transports that expose a doorbell or
+begins with milestone-0.1.1.0 and applies only to transports that expose a doorbell or
 mapped wake primitive: local cdev and guest vfio-user BAR2.
 
 The MetaFlux device protocol is always little-endian. Host-native vfio-user

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create one Git commit with the active agent harness identity."""
+"""Create one Git commit with the fixed Codex identity and declared Epoch."""
 
 from __future__ import annotations
 
@@ -11,71 +11,30 @@ import sys
 from dataclasses import dataclass
 
 
-@dataclass(frozen=True)
-class HarnessIdentity:
-    subject: str
-    name: str
-    email: str
-
-
 HARNESS_DECLARATION = "METAFLUX_AGENT_HARNESS"
-HARNESS_SUBJECT = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
-MAX_SUBJECT_LENGTH = 24
-NON_HARNESS_SEGMENTS = {
-    "backend",
-    "build",
-    "cli",
-    "gpt",
-    "model",
-    "prompt",
-    "session",
-    "template",
-    "thread",
-}
+EPOCH_DECLARATION = "METAFLUX_AGENT_EPOCH"
+EXPECTED_HARNESS = "codex"
+EPOCH_RE = re.compile(r"epoch-[0-9]{4}")
 
 
-def validate_subject(value: str) -> str:
-    if not value or len(value) > MAX_SUBJECT_LENGTH:
+@dataclass(frozen=True)
+class AgentIdentity:
+    harness: str
+    epoch: str
+    name: str = "codex"
+    email: str = "codex@localhost"
+
+
+def declared_identity(environment: dict[str, str]) -> AgentIdentity:
+    harness = environment.get(HARNESS_DECLARATION)
+    if harness != EXPECTED_HARNESS:
         raise ValueError(
-            f"harness subject must contain 1-{MAX_SUBJECT_LENGTH} characters"
+            f"{HARNESS_DECLARATION} must be exactly {EXPECTED_HARNESS!r}"
         )
-    if not HARNESS_SUBJECT.fullmatch(value):
-        raise ValueError(
-            "harness subject must use lowercase ASCII letters, digits, and "
-            "single hyphen separators"
-        )
-    if NON_HARNESS_SEGMENTS.intersection(value.split("-")):
-        raise ValueError(
-            "harness subject must identify the stable harness product, not a "
-            "model, template, backend, build, CLI, session, thread, or prompt"
-        )
-    return value
-
-
-def identity_for_subject(subject: str) -> HarnessIdentity:
-    validated = validate_subject(subject)
-    return HarnessIdentity(
-        subject=validated,
-        name=f"Agent Harness ({validated})",
-        email=f"{validated}@localhost",
-    )
-
-
-def declared_harness(environment: dict[str, str]) -> str:
-    declared_value = environment.get(HARNESS_DECLARATION)
-    if not declared_value:
-        raise ValueError(
-            "agent harness declaration is missing; the agent must read the "
-            "stable harness product slug from active runtime instruction "
-            f"context and supply {HARNESS_DECLARATION}"
-        )
-    return validate_subject(declared_value)
-
-
-def resolve_identity(
-    environment: dict[str, str],
-) -> HarnessIdentity:
-    return identity_for_subject(declared_harness(environment))
+    epoch = environment.get(EPOCH_DECLARATION)
+    if epoch is None or EPOCH_RE.fullmatch(epoch) is None:
+        raise ValueError(f"{EPOCH_DECLARATION} must match epoch-NNNN")
+    return AgentIdentity(harness=harness, epoch=epoch)
 
 
 def commit_arguments(raw_arguments: list[str]) -> list[str]:
@@ -85,49 +44,29 @@ def commit_arguments(raw_arguments: list[str]) -> list[str]:
     if not arguments:
         raise ValueError("git commit arguments are required after --")
 
-    def matches_long_option(argument: str, protected: str) -> bool:
-        candidate = argument.partition("=")[0]
-        return (
-            candidate.startswith("--")
-            and len(candidate) > 2
-            and protected.startswith(candidate)
-        )
-
-    if any(matches_long_option(argument, "--author") for argument in arguments):
-        raise ValueError("--author conflicts with the required harness identity")
-    if any(matches_long_option(argument, "--amend") for argument in arguments):
-        raise ValueError(
-            "--amend is excluded because it can preserve or rewrite another "
-            "author's identity"
-        )
-    short_reuse = any(
-        argument.startswith("-")
-        and not argument.startswith("--")
-        and ("C" in argument[1:] or "c" in argument[1:])
-        for argument in arguments
+    protected = (
+        "--author",
+        "--amend",
+        "--reuse-message",
+        "--reedit-message",
     )
-    long_reuse = any(
-        matches_long_option(argument, option)
-        for argument in arguments
-        for option in ("--reuse-message", "--reedit-message")
-    )
-    if short_reuse or long_reuse:
-        raise ValueError(
-            "commit options that reuse another commit's authorship are excluded"
-        )
+    for argument in arguments:
+        long_name = argument.partition("=")[0]
+        if long_name.startswith("--") and any(
+            option.startswith(long_name) for option in protected
+        ):
+            raise ValueError(f"{long_name} conflicts with fixed agent identity")
+        if argument.startswith("-") and not argument.startswith("--"):
+            if "C" in argument[1:] or "c" in argument[1:]:
+                raise ValueError("message reuse conflicts with fixed agent identity")
     return arguments
 
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(
-        description="Run git commit with the active agent harness as Author and Committer."
+        description="Run git commit as codex under the declared MetaFlux Epoch."
     )
-    result.add_argument("--harness", dest="legacy_harness", help=argparse.SUPPRESS)
-    result.add_argument(
-        "--print-identity",
-        action="store_true",
-        help="print the resolved identity without creating a commit",
-    )
+    result.add_argument("--print-identity", action="store_true")
     result.add_argument("git_arguments", nargs=argparse.REMAINDER)
     return result
 
@@ -135,17 +74,11 @@ def parser() -> argparse.ArgumentParser:
 def main() -> int:
     arguments = parser().parse_args()
     try:
-        if arguments.legacy_harness is not None:
-            raise ValueError(
-                "--harness was removed; the agent must declare the stable "
-                "harness product slug from active runtime instruction context "
-                f"through {HARNESS_DECLARATION}"
-            )
-        identity = resolve_identity(dict(os.environ))
+        identity = declared_identity(dict(os.environ))
         if arguments.print_identity:
             if arguments.git_arguments:
-                raise ValueError("--print-identity does not accept git commit arguments")
-            print(f"{identity.name} <{identity.email}>")
+                raise ValueError("--print-identity does not accept commit arguments")
+            print(f"{identity.name} <{identity.email}> @ {identity.epoch}")
             return 0
         git_arguments = commit_arguments(arguments.git_arguments)
     except ValueError as error:
@@ -162,13 +95,11 @@ def main() -> int:
         }
     )
     print(
-        f"agent harness identity: {identity.name} <{identity.email}>",
+        f"agent identity: {identity.name} <{identity.email}> @ {identity.epoch}",
         file=sys.stderr,
     )
     return subprocess.run(
-        ["git", "commit", *git_arguments],
-        check=False,
-        env=environment,
+        ["git", "commit", *git_arguments], check=False, env=environment
     ).returncode
 
 

@@ -8,7 +8,7 @@
       "id": "device.descriptor.v1",
       "version": "1.0",
       "path": "contracts/protocol/device/v1/schema/descriptor.json",
-      "sha256": "1d1fd710289a7f110798221a4202bfca18b492854970a6dae073caa242d77697"
+      "sha256": "84649781e22c9727f26bb51b5cb5781713c030b96154f72856e9286bb89f85a9"
     },
     {
       "id": "shared.ring.v1",

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "epoch": "epoch-0001",
+  "batch": {
+    "id": "batch-0001",
+    "status": "open"
+  },
+  "target": {
+    "milestone": "milestone-0.1.1.0",
+    "work_item": "work-item-0.1.1.2"
+  },
+  "objective": "Close the live local-cdev Add/Copy, DMA import, and replacement-generation boundaries before the Linux qualification batch.",
+  "lanes": [
+    {
+      "id": "lane-cdev-dma",
+      "iteration": "iteration-0001",
+      "outcome": "Provide a real DMA-capable cdev parent/provider and qualify registered-memory mapping through the live device path.",
+      "status": "planned",
+      "depends_on": [],
+      "acceptance": [
+        "The cdev data device has an explicit DMA-capable parent/provider rather than a fixture-only capability.",
+        "The live qualification reaches registered-memory map/unmap without the no-DMA-target skip.",
+        "Focused kernel and cdev tests pass without weakening capability rejection for unsupported devices."
+      ]
+    },
+    {
+      "id": "lane-daemon-live-memory",
+      "iteration": "iteration-0002",
+      "outcome": "Connect daemon Add/Copy and object-table imports to live lease/query registered-memory handles.",
+      "status": "planned",
+      "depends_on": [],
+      "acceptance": [
+        "Daemon control and cdev data paths bind the same device, view, and generation.",
+        "Unmodified Add/Copy succeeds through live registered-memory handles and the mapped payload arena.",
+        "Opaque registered-memory handles never become host-pointer casts across the backend ABI."
+      ]
+    },
+    {
+      "id": "lane-generation-drain",
+      "iteration": "iteration-0003",
+      "outcome": "Complete daemon/provider replacement-generation rebind and reference drain.",
+      "status": "planned",
+      "depends_on": [],
+      "acceptance": [
+        "New work cannot use a stale daemon/provider binding after lifecycle commit.",
+        "Captured backend, lease, memory, queue, payload, and owner references drain before retirement.",
+        "Replacement and same-owner rebind tests prove no duplicate retirement or old-generation admission."
+      ]
+    }
+  ]
+}

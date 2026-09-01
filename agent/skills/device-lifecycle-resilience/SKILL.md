@@ -1,14 +1,14 @@
 ---
 name: device-lifecycle-resilience
-description: Design or review generation and epoch state machines across cdev, vfio-user, vPCI, registry, workers, QMP events, reset, remove, re-add, provider enumeration freeze, tombstones, idempotence, deadlines, and fault injection. Use for the M0120 lifecycle authority and any backend or transport adapter, including M0130 device loss. Do not use for layer-local wire layouts or target compiler/runtime behavior.
+description: Design or review generation and epoch state machines across cdev, vfio-user, vPCI, registry, workers, QMP events, reset, remove, re-add, provider enumeration freeze, tombstones, idempotence, deadlines, and fault injection. Use for the milestone-0.1.2.0 lifecycle authority and any backend or transport adapter, including milestone-0.1.3.0 device loss. Do not use for layer-local wire layouts or target compiler/runtime behavior.
 ---
 
 # Device Lifecycle Resilience
 
 ## Inputs
 
-- The active lifecycle-authority or adapter work item (for example M0120 core or
-  M0130 device loss), frozen M0110 transport-envelope manifest, lifecycle-extension
+- The active lifecycle-authority or adapter work item (for example milestone-0.1.2.0 core or
+  milestone-0.1.3.0 device loss), frozen milestone-0.1.1.0 transport-envelope manifest, lifecycle-extension
   manifest and model, model bounds, registry authority, daemon incarnation,
   generation/epoch persistence, and deadline policy.
 - Layer adapters for cdev, vfio-user, PCI/vroot, QMP, worker leases, providers,
@@ -46,7 +46,7 @@ tombstones; they do not invent replacement identity or advance epoch.
 
 1. Write the canonical transition schema first at
    `contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/model.json`.
-   Its sibling extension manifest imports the frozen M0110 root manifest by
+   Its sibling extension manifest imports the frozen milestone-0.1.1.0 root manifest by
    content hash; the dependency never points back from the base manifest. Model
    source/event, valid source states, guards, request identity, owner, staged
    resources, irreversible retirement point, published intermediate states,
@@ -164,5 +164,5 @@ Return or implement:
   bank cycles, exclusive publisher linkage, even-commit/record-marker recovery,
   proven-death helping, and live-owner deadline quarantine before either counter
   wraps or any bank is reused.
-- Keep performance and 1,000-cycle promotion claims tied to archived M0120
+- Keep performance and 1,000-cycle promotion claims tied to archived milestone-0.1.2.0
   evidence; a state-model unit test is necessary but not release qualification.
