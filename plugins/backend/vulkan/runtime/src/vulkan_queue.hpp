@@ -4,6 +4,7 @@
 #include "vulkan_device.hpp"
 
 #include "metaflux/backend/vulkan_streams.hpp"
+#include "metaflux/backend/vulkan_cache.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -45,6 +46,13 @@ public:
       std::uint64_t generation, std::uint64_t stream_id, OperationKind kind,
       Visibility visibility, std::span<const Dependency> dependencies,
       VkCommandBuffer command_buffer, QueueSubmission* out_submission);
+  // Composes the cache-hit warm path with queue admission. The session keeps
+  // its pipeline pin until the caller finishes the corresponding submission.
+  [[nodiscard]] QueueExecutionStatus submit_warm_launch(
+      WarmLaunchSession& session, std::uint64_t generation, std::uint64_t stream_id,
+      OperationKind kind, Visibility visibility, std::span<const Dependency> dependencies,
+      VkCommandBuffer command_buffer, std::uint64_t argument_block_size,
+      QueueSubmission* out_submission);
   [[nodiscard]] QueueExecutionStatus complete(std::uint64_t generation,
                                               std::uint64_t completed_value) noexcept;
   [[nodiscard]] std::size_t in_flight_count() const noexcept {

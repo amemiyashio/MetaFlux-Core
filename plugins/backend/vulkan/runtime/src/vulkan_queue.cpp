@@ -41,8 +41,9 @@ QueueExecutionStatus VulkanQueueExecutor::map(DeviceStatus status) noexcept {
   case DeviceStatus::success:
     return QueueExecutionStatus::success;
   case DeviceStatus::invalid_argument:
-  case DeviceStatus::invalid_timeline:
     return QueueExecutionStatus::invalid_argument;
+  case DeviceStatus::invalid_timeline:
+    return QueueExecutionStatus::invalid_timeline;
   case DeviceStatus::stale_generation:
     return QueueExecutionStatus::stale_generation;
   case DeviceStatus::not_ready:
@@ -127,6 +128,34 @@ QueueExecutionStatus VulkanQueueExecutor::submit(
   }
   *out_submission = submission;
   return QueueExecutionStatus::success;
+}
+
+QueueExecutionStatus VulkanQueueExecutor::submit_warm_launch(
+    WarmLaunchSession& session, std::uint64_t generation, std::uint64_t stream_id,
+    OperationKind kind, Visibility visibility, std::span<const Dependency> dependencies,
+    VkCommandBuffer command_buffer, std::uint64_t argument_block_size,
+    QueueSubmission* out_submission) {
+  if (!session.active() || session.generation() != generation) {
+    return session.active() && generation != 0U ? QueueExecutionStatus::stale_generation
+                                                : QueueExecutionStatus::invalid_argument;
+  }
+  const auto abort_session = [&session]() noexcept {
+    return session.cancel() == CacheStatus::success;
+  };
+  if (session.bind_arguments(argument_block_size) != WarmLaunchStatus::success) {
+    (void)abort_session();
+    return QueueExecutionStatus::invalid_argument;
+  }
+  if (session.submit() != WarmLaunchStatus::success) {
+    (void)abort_session();
+    return QueueExecutionStatus::invalid_argument;
+  }
+  const auto status = submit(generation, stream_id, kind, visibility, dependencies, command_buffer,
+                             out_submission);
+  if (status != QueueExecutionStatus::success) {
+    (void)abort_session();
+  }
+  return status;
 }
 
 QueueExecutionStatus VulkanQueueExecutor::complete(std::uint64_t generation,

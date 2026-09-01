@@ -1,6 +1,9 @@
 #include "../src/vulkan_queue.hpp"
 
 #include <cstdint>
+#include <filesystem>
+#include <string>
+#include <unistd.h>
 
 int main() {
   using metaflux::backend::vulkan::OperationKind;
@@ -32,5 +35,36 @@ int main() {
       executor.in_flight_count() != 0U) {
     return 2;
   }
-  return executor.complete(7U, 1U) == QueueExecutionStatus::invalid_timeline ? 0 : 3;
+
+  char directory_template[] = "/tmp/metaflux-vulkan-warm-XXXXXX";
+  const char* directory = ::mkdtemp(directory_template);
+  if (directory == nullptr) {
+    return 3;
+  }
+  const std::filesystem::path cache_path(directory);
+  metaflux::backend::vulkan::PersistentCacheRepository repository(cache_path / "cache", 4U,
+                                                                  1024U);
+  const std::string key = "device-key";
+  std::string payload;
+  metaflux::backend::vulkan::WarmLaunchSession session;
+  const bool started = repository.publish(key, "pipeline", true) ==
+                           metaflux::backend::vulkan::CacheStatus::success &&
+                       metaflux::backend::vulkan::WarmLaunchSession::start(
+                           repository, key, true, 7U, &payload, session) ==
+                           metaflux::backend::vulkan::CacheStatus::success;
+  if (!started || executor.submit_warm_launch(session, 7U, 1U, OperationKind::copy, visibility,
+                                               {}, fake_command_buffer, 64U, &submission) !=
+                      QueueExecutionStatus::not_ready ||
+      session.active() || repository.acquire_pipeline(key, 7U) !=
+                              metaflux::backend::vulkan::CacheStatus::success ||
+      repository.release_pipeline(key, 7U) !=
+          metaflux::backend::vulkan::CacheStatus::success ||
+      executor.complete(7U, 1U) != QueueExecutionStatus::invalid_timeline) {
+    std::error_code error;
+    std::filesystem::remove_all(cache_path, error);
+    return 4;
+  }
+  std::error_code error;
+  std::filesystem::remove_all(cache_path, error);
+  return 0;
 }

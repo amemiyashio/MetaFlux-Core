@@ -197,6 +197,8 @@ public:
     return std::span<const WarmLaunchEvent>(events_.data(), event_count_);
   }
   [[nodiscard]] bool active() const noexcept { return repository_ != nullptr; }
+  [[nodiscard]] std::uint64_t generation() const noexcept { return generation_; }
+  [[nodiscard]] bool submitted() const noexcept { return submitted_; }
 
 private:
   [[nodiscard]] WarmLaunchStatus append(WarmLaunchEvent event) noexcept;
