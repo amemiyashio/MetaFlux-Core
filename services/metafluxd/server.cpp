@@ -7,6 +7,7 @@
 #include "metaflux/compiler/kernel_ir.hpp"
 #include "metaflux/compiler/ptx_frontend.hpp"
 #include "metaflux/runtime/core.hpp"
+#include "metaflux/runtime/lifecycle_dispatch.hpp"
 #include "metaflux/transport/cdev_worker.hpp"
 #include "metaflux/uapi/transport.h"
 
@@ -560,6 +561,14 @@ public:
                                                   std::uint64_t& out_lifecycle_sequence) noexcept;
   [[nodiscard]] int borrow_fd() const noexcept { return fd_.get(); }
   [[nodiscard]] mf_registry_view_id_v1 view_id() const noexcept { return view_id_; }
+  [[nodiscard]] std::uint64_t device_generation() const noexcept;
+#if METAFLUX_DAEMON_CDEV_BACKEND
+  [[nodiscard]] bool attach_cdev_worker(
+      metaflux::transport::cdev::CdevWorker& worker) noexcept;
+  [[nodiscard]] bool detach_cdev_worker(
+      metaflux::transport::cdev::CdevWorker& worker) noexcept;
+  [[nodiscard]] mf_shared_status_v1 report_cdev_loss() noexcept;
+#endif
 
 private:
   struct WorkInterval final {
@@ -573,7 +582,7 @@ private:
                                                  std::uint64_t now_ns) noexcept;
   [[nodiscard]] mf_shared_status_v1 publish_locked(std::uint64_t now_ns) noexcept;
 
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   UniqueFd fd_;
   void* mapping_ = nullptr;
   std::uint64_t mapping_size_ = 0;
@@ -583,6 +592,8 @@ private:
   std::uint64_t committed_work_items_ = 0;
   std::uint64_t completed_work_items_ = 0;
   std::uint64_t lifecycle_sequence_ = 1U;
+  std::optional<runtime::lifecycle::Coordinator> lifecycle_;
+  std::uint64_t next_lifecycle_request_id_ = 1U;
   std::vector<WorkInterval> compute_intervals_;
   std::vector<WorkInterval> memory_intervals_;
   bool initialized_ = false;
@@ -658,8 +669,69 @@ mf_shared_status_v1 RegistryAuthority::initialize(mf_registry_view_id_v1 view_id
   }
   view_id_ = view_id;
   initialized_ = true;
+  runtime::lifecycle::Config lifecycle_config{};
+  lifecycle_config.logical_device_id = kIdentityRecordId;
+  lifecycle_config.daemon_incarnation = view_id.daemon_incarnation;
+  lifecycle_config.initial_identity_record_id = kIdentityRecordId;
+  lifecycle_config.initial_generation = kDeviceGeneration;
+  lifecycle_config.initial_epoch = 1U;
+  lifecycle_.emplace(lifecycle_config);
+  if (!lifecycle_->valid()) {
+    return MF_SHARED_SYSTEM_ERROR;
+  }
   return publish_locked(monotonic_time_ns());
 }
+
+std::uint64_t RegistryAuthority::device_generation() const noexcept {
+  const std::scoped_lock lock(mutex_);
+  return lifecycle_.has_value() ? lifecycle_->snapshot().generation : kDeviceGeneration;
+}
+
+#if METAFLUX_DAEMON_CDEV_BACKEND
+bool RegistryAuthority::attach_cdev_worker(
+    metaflux::transport::cdev::CdevWorker& worker) noexcept {
+  const std::scoped_lock lock(mutex_);
+  return initialized_ && lifecycle_.has_value() && worker.attach_lifecycle(*lifecycle_);
+}
+
+bool RegistryAuthority::detach_cdev_worker(
+    metaflux::transport::cdev::CdevWorker& worker) noexcept {
+  const std::scoped_lock lock(mutex_);
+  return lifecycle_.has_value() && lifecycle_->unregister_mirror(
+                                      metaflux::runtime::lifecycle::MirrorKind::Cdev, &worker);
+}
+
+mf_shared_status_v1 RegistryAuthority::report_cdev_loss() noexcept {
+  const std::scoped_lock lock(mutex_);
+  if (!initialized_ || !lifecycle_.has_value() ||
+      next_lifecycle_request_id_ == std::numeric_limits<std::uint64_t>::max()) {
+    return MF_SHARED_SYSTEM_ERROR;
+  }
+  const auto event = metaflux::runtime::lifecycle::capture_external_event(
+      metaflux::runtime::lifecycle::ExternalEventKind::Disconnect,
+      next_lifecycle_request_id_++, lifecycle_->snapshot());
+  metaflux::runtime::lifecycle::ResultDetails details{};
+  if (metaflux::runtime::lifecycle::submit_external_event(*lifecycle_, event, details) !=
+      metaflux::runtime::lifecycle::NormalizationResult::Accepted) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  switch (details.result) {
+  case metaflux::runtime::lifecycle::Result::Accepted:
+  case metaflux::runtime::lifecycle::Result::Duplicate:
+    return MF_SHARED_SUCCESS;
+  case metaflux::runtime::lifecycle::Result::DeviceLost:
+    return MF_SHARED_DEVICE_LOST;
+  case metaflux::runtime::lifecycle::Result::Stale:
+    return MF_SHARED_STALE_HANDLE;
+  case metaflux::runtime::lifecycle::Result::Timeout:
+    return MF_SHARED_TIMEOUT;
+  case metaflux::runtime::lifecycle::Result::ResourceExhausted:
+    return MF_SHARED_RESOURCE_EXHAUSTED;
+  default:
+    return MF_SHARED_SYSTEM_ERROR;
+  }
+}
+#endif
 
 void RegistryAuthority::insert_interval_locked(std::vector<WorkInterval>& intervals,
                                                WorkInterval interval) {
@@ -787,10 +859,15 @@ RegistryAuthority::update_policy(std::uint64_t identity_record_id, std::uint64_t
     return MF_SHARED_INVALID_ARGUMENT;
   }
 
+  const std::uint64_t generation =
+      lifecycle_.has_value() ? lifecycle_->snapshot().generation : kDeviceGeneration;
+  if (generation == 0U) {
+    return MF_SHARED_DEVICE_LOST;
+  }
   mf_generation_handle_v1 handle{};
   runtime::FenceSnapshot observed{};
   mf_shared_status_v1 status =
-      view_.make_handle(0U, kIdentityRecordId, kDeviceGeneration, MF_OBJECT_TYPE_CONTEXT, handle);
+      view_.make_handle(0U, kIdentityRecordId, generation, MF_OBJECT_TYPE_CONTEXT, handle);
   if (status == MF_SHARED_SUCCESS) {
     status = view_.validate_device(handle, observed);
   }
@@ -830,7 +907,7 @@ RegistryAuthority::update_policy(std::uint64_t identity_record_id, std::uint64_t
   (void)publish_locked(monotonic_time_ns());
 
   status =
-      view_.make_handle(0U, kIdentityRecordId, kDeviceGeneration, MF_OBJECT_TYPE_CONTEXT, handle);
+      view_.make_handle(0U, kIdentityRecordId, generation, MF_OBJECT_TYPE_CONTEXT, handle);
   if (status == MF_SHARED_SUCCESS) {
     status = view_.validate_device(handle, observed);
   }
@@ -1251,6 +1328,11 @@ mf_shared_status_v1 ProcessAuthority::snapshot(ProcessSnapshotPayload& out_paylo
     return MF_SHARED_SYSTEM_ERROR;
   }
   auto* bytes = static_cast<std::uint8_t*>(mapping);
+  const std::uint64_t generation = registry_authority_->device_generation();
+  if (generation == 0U) {
+    (void)munmap(mapping, static_cast<std::size_t>(byte_count));
+    return MF_SHARED_DEVICE_LOST;
+  }
   mf_client_process_snapshot_header_init_v1(
       reinterpret_cast<mf_client_process_snapshot_header_v1*>(bytes), revision,
       static_cast<std::uint32_t>(aggregates.size()));
@@ -1259,7 +1341,7 @@ mf_shared_status_v1 ProcessAuthority::snapshot(ProcessSnapshotPayload& out_paylo
     mf_client_process_snapshot_row_init_v1(
         mf_client_process_snapshot_mutable_row_v1_at(bytes, index), source.pid,
         MF_CLIENT_PROCESS_KIND_COMPUTE_V1, source.start_time_ticks, kIdentityRecordId,
-        kDeviceGeneration, source.used_memory_bytes, source.name.data(), source.name_length);
+        generation, source.used_memory_bytes, source.name.data(), source.name_length);
   }
   const bool valid =
       mf_client_process_snapshot_validate_v1(bytes, byte_count) == MF_CLIENT_CONTROL_OK;
@@ -1421,6 +1503,7 @@ private:
   static void cdev_worker_lease_release(void* context) noexcept;
   [[nodiscard]] mf_shared_status_v1 initialize_cdev_backend() noexcept;
   [[nodiscard]] mf_shared_status_v1 bind_cdev_worker() noexcept;
+  [[nodiscard]] mf_shared_status_v1 report_cdev_loss() noexcept;
   [[nodiscard]] mf_shared_status_v1 ensure_cdev_object_memory(
       Object& object, metaflux::transport::cdev::CdevBackendMemoryReference* out) noexcept;
   void release_cdev_payload_memory() noexcept;
@@ -1473,6 +1556,9 @@ private:
         (remaining % nanoseconds_per_millisecond != UINT64_C(0) ? 1U : 0U);
     return static_cast<int>(std::min<std::uint64_t>(rounded, kSessionPollMilliseconds));
   }
+  [[nodiscard]] std::uint64_t device_generation() const noexcept {
+    return registry_authority_->device_generation();
+  }
 
   UniqueFd peer_;
   ucred credentials_{};
@@ -1487,6 +1573,7 @@ private:
   metaflux::transport::cdev::CdevObjectTableResolver cdev_resolver_;
   std::unique_ptr<metaflux::transport::cdev::CdevWorker> cdev_worker_;
   mf_backend_memory_v1 cdev_payload_backend_memory_ = 0U;
+  bool cdev_lifecycle_attached_ = false;
 #endif
   std::shared_ptr<RegistryAuthority> registry_authority_;
   std::shared_ptr<ProcessAuthority> process_authority_;
@@ -1527,6 +1614,10 @@ Session::~Session() {
     process_admission_.reset();
   }
 #if METAFLUX_DAEMON_CDEV_BACKEND
+  if (cdev_worker_ != nullptr && cdev_lifecycle_attached_) {
+    (void)registry_authority_->detach_cdev_worker(*cdev_worker_);
+    cdev_lifecycle_attached_ = false;
+  }
   cdev_worker_.reset();
 #endif
   mf_client_ring_close_v1(&completion_);
@@ -1727,13 +1818,13 @@ mf_shared_status_v1 Session::cdev_launch_resolve(
     metaflux::transport::cdev::CdevLaunchResolution* out) noexcept {
   constexpr std::uint64_t kLaunchPayloadOffset = 0U;
   constexpr std::uint32_t kDefaultBlockSize = 64U;
-  if (context == nullptr || request == nullptr || out == nullptr ||
+  auto* session = static_cast<Session*>(context);
+  if (session == nullptr || request == nullptr || out == nullptr ||
       request->opcode != MF_RING_OPCODE_LAUNCH || request->flags != 0U ||
-      request->target_id != kDeviceGeneration || request->arguments[0] == 0U ||
+      request->target_id != session->device_generation() || request->arguments[0] == 0U ||
       request->arguments[1] == 0U || request->arguments[2] == 0U || request->arguments[3] == 0U) {
     return MF_SHARED_MALFORMED;
   }
-  auto* session = static_cast<Session*>(context);
   Object* module = nullptr;
   Object* argument_block = nullptr;
   if (session->resolve(request->arguments[0], request->arguments[1], ObjectKind::kModule, module) !=
@@ -1949,12 +2040,16 @@ mf_shared_status_v1 Session::bind_cdev_worker() noexcept {
   if (cdev_worker_ != nullptr) {
     return MF_SHARED_SUCCESS;
   }
+  const std::uint64_t generation = device_generation();
+  if (generation == 0U) {
+    return MF_SHARED_DEVICE_LOST;
+  }
   mf_shared_status_v1 status = initialize_cdev_backend();
   if (status != MF_SHARED_SUCCESS) {
     return status;
   }
   status = metaflux::transport::cdev::CdevWorkerSession::open(
-      nullptr, view_id_, kDeviceGeneration, cdev_worker_session_);
+      nullptr, view_id_, generation, cdev_worker_session_);
   if (status != MF_SHARED_SUCCESS) {
     return status;
   }
@@ -2013,7 +2108,7 @@ mf_shared_status_v1 Session::bind_cdev_worker() noexcept {
   binding.lease_acquire = &Session::cdev_worker_lease_acquire;
   binding.lease_release = &Session::cdev_worker_lease_release;
   binding.lease_context = this;
-  binding.generation = kDeviceGeneration;
+  binding.generation = generation;
   try {
     cdev_worker_ = std::make_unique<metaflux::transport::cdev::CdevWorker>(
         cdev_worker_session_.queue_view(), binding);
@@ -2028,7 +2123,18 @@ mf_shared_status_v1 Session::bind_cdev_worker() noexcept {
     cdev_worker_session_.close();
     return MF_SHARED_NOT_SUPPORTED;
   }
+  if (!registry_authority_->attach_cdev_worker(*cdev_worker_)) {
+    cdev_worker_.reset();
+    release_cdev_payload_memory();
+    cdev_worker_session_.close();
+    return MF_SHARED_WOULD_BLOCK;
+  }
+  cdev_lifecycle_attached_ = true;
   return MF_SHARED_SUCCESS;
+}
+
+mf_shared_status_v1 Session::report_cdev_loss() noexcept {
+  return registry_authority_->report_cdev_loss();
 }
 
 void Session::release_cdev_payload_memory() noexcept {
@@ -2461,6 +2567,7 @@ ControlReply Session::control(const mf_client_control_request_v1& request, Uniqu
   };
   const std::uint64_t object_id = mf_client_load_le64_v1(request.bytes + 48);
   const std::uint64_t argument = mf_client_load_le64_v1(request.bytes + 56);
+  const std::uint64_t generation = device_generation();
   ControlReply reply{};
   std::uint64_t response_id = object_id;
   std::uint64_t response_generation = argument;
@@ -2486,7 +2593,7 @@ ControlReply Session::control(const mf_client_control_request_v1& request, Uniqu
       if ((negotiated_capabilities_ & MF_CLIENT_CAP_CDEV_BINDING_V1) == 0U) {
         status = MF_SHARED_NOT_SUPPORTED;
       } else if (flags != 0U || payload.valid() ||
-                 object_id != MF_CLIENT_RUNTIME_CONTEXT_ID_V1 || argument != kDeviceGeneration) {
+                 object_id != MF_CLIENT_RUNTIME_CONTEXT_ID_V1 || argument != generation) {
         status = MF_SHARED_INVALID_ARGUMENT;
       } else {
         status = bind_cdev_worker();
@@ -2614,7 +2721,7 @@ ControlReply Session::control(const mf_client_control_request_v1& request, Uniqu
       } else {
         status = flags == 0U && !payload.valid() && process_registered_ &&
                          object_id == MF_CLIENT_RUNTIME_CONTEXT_ID_V1 &&
-                         argument == kDeviceGeneration
+                         argument == generation
                      ? process_authority_->context_acquire(process_session_id_)
                      : MF_SHARED_INVALID_ARGUMENT;
       }
@@ -2625,7 +2732,7 @@ ControlReply Session::control(const mf_client_control_request_v1& request, Uniqu
       } else {
         status = flags == 0U && !payload.valid() && process_registered_ &&
                          object_id == MF_CLIENT_RUNTIME_CONTEXT_ID_V1 &&
-                         argument == kDeviceGeneration
+                         argument == generation
                      ? process_authority_->context_release(process_session_id_)
                      : MF_SHARED_INVALID_ARGUMENT;
       }
@@ -3189,7 +3296,8 @@ mf_shared_status_v1 CdevDataPlaneWorker::pump_once() noexcept {
   case metaflux::transport::cdev::WorkerResult::Backpressure:
     return MF_SHARED_WOULD_BLOCK;
   case metaflux::transport::cdev::WorkerResult::Malformed:
-    return MF_SHARED_MALFORMED;
+    (void)session_.report_cdev_loss();
+    return MF_SHARED_DEVICE_LOST;
   }
   return MF_SHARED_SYSTEM_ERROR;
 }
