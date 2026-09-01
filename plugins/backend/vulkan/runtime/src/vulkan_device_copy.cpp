@@ -64,6 +64,33 @@ VulkanDeviceLocalCopy::select_memory_type(const VkPhysicalDeviceMemoryProperties
   return UINT32_MAX;
 }
 
+void VulkanDeviceLocalCopy::destroy_device_resources(VkDevice device,
+                                                     VulkanBufferAllocation& allocation,
+                                                     VkCommandPool& command_pool,
+                                                     VkCommandBuffer& command_buffer) noexcept {
+  if (device == VK_NULL_HANDLE) {
+    allocation = {};
+    command_pool = VK_NULL_HANDLE;
+    command_buffer = VK_NULL_HANDLE;
+    return;
+  }
+  if (command_buffer != VK_NULL_HANDLE && command_pool != VK_NULL_HANDLE) {
+    vkFreeCommandBuffers(device, command_pool, 1U, &command_buffer);
+  }
+  command_buffer = VK_NULL_HANDLE;
+  if (command_pool != VK_NULL_HANDLE) {
+    vkDestroyCommandPool(device, command_pool, nullptr);
+  }
+  command_pool = VK_NULL_HANDLE;
+  if (allocation.buffer != VK_NULL_HANDLE) {
+    vkDestroyBuffer(device, allocation.buffer, nullptr);
+  }
+  if (allocation.memory != VK_NULL_HANDLE) {
+    vkFreeMemory(device, allocation.memory, nullptr);
+  }
+  allocation = {};
+}
+
 AllocationStatus VulkanDeviceLocalCopy::allocate(VkDeviceSize size,
                                                  VkDeviceSize alignment) noexcept {
   const std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -74,8 +101,12 @@ AllocationStatus VulkanDeviceLocalCopy::allocate(VkDeviceSize size,
   if (size == 0U || alignment == 0U || (alignment & (alignment - 1U)) != 0U) {
     return AllocationStatus::invalid_argument;
   }
-  destroy();
-  AllocationStatus status = staging_.allocate(size, alignment);
+  const VkDevice device_handle = context_->device_handle();
+  VulkanStagingBuffer replacement_staging(*context_);
+  VulkanBufferAllocation replacement_device{};
+  VkCommandPool replacement_command_pool = VK_NULL_HANDLE;
+  VkCommandBuffer replacement_command_buffer = VK_NULL_HANDLE;
+  AllocationStatus status = replacement_staging.allocate(size, alignment);
   if (status != AllocationStatus::success) {
     return status;
   }
@@ -87,17 +118,17 @@ AllocationStatus VulkanDeviceLocalCopy::allocate(VkDeviceSize size,
                       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
   buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
   status =
-      map_result(vkCreateBuffer(context_->device_handle(), &buffer_info, nullptr, &device_.buffer));
+      map_result(vkCreateBuffer(device_handle, &buffer_info, nullptr, &replacement_device.buffer));
   if (status != AllocationStatus::success) {
-    staging_.destroy();
     return status;
   }
 
   VkMemoryRequirements requirements{};
-  vkGetBufferMemoryRequirements(context_->device_handle(), device_.buffer, &requirements);
+  vkGetBufferMemoryRequirements(device_handle, replacement_device.buffer, &requirements);
   if (requirements.size == 0U || requirements.memoryTypeBits == 0U ||
       requirements.alignment == 0U || requirements.size < size) {
-    destroy();
+    destroy_device_resources(device_handle, replacement_device, replacement_command_pool,
+                             replacement_command_buffer);
     return AllocationStatus::unsupported;
   }
   VkPhysicalDeviceMemoryProperties properties{};
@@ -115,45 +146,60 @@ AllocationStatus VulkanDeviceLocalCopy::allocate(VkDeviceSize size,
   allocation_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocation_info.allocationSize = requirements.size;
   allocation_info.memoryTypeIndex = memory_type;
+  status = map_result(vkAllocateMemory(device_handle, &allocation_info, nullptr,
+                                       &replacement_device.memory));
+  if (status != AllocationStatus::success) {
+    destroy_device_resources(device_handle, replacement_device, replacement_command_pool,
+                             replacement_command_buffer);
+    return status;
+  }
   status = map_result(
-      vkAllocateMemory(context_->device_handle(), &allocation_info, nullptr, &device_.memory));
+      vkBindBufferMemory(device_handle, replacement_device.buffer, replacement_device.memory, 0U));
   if (status != AllocationStatus::success) {
-    destroy();
+    destroy_device_resources(device_handle, replacement_device, replacement_command_pool,
+                             replacement_command_buffer);
     return status;
   }
-  status =
-      map_result(vkBindBufferMemory(context_->device_handle(), device_.buffer, device_.memory, 0U));
-  if (status != AllocationStatus::success) {
-    destroy();
-    return status;
-  }
-  device_.requested_size = size;
-  device_.allocation_size = requirements.size;
-  device_.alignment = requirements.alignment;
-  device_.atom_size = context_->non_coherent_atom_size();
-  device_.memory_properties = memory_properties;
+  replacement_device.requested_size = size;
+  replacement_device.allocation_size = requirements.size;
+  replacement_device.alignment = requirements.alignment;
+  replacement_device.atom_size = context_->non_coherent_atom_size();
+  replacement_device.memory_properties = memory_properties;
 
   VkCommandPoolCreateInfo pool_info{};
   pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
   pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
   pool_info.queueFamilyIndex = context_->queue_family_index();
-  status = map_result(
-      vkCreateCommandPool(context_->device_handle(), &pool_info, nullptr, &command_pool_));
+  status = map_result(vkCreateCommandPool(device_handle, &pool_info, nullptr,
+                                           &replacement_command_pool));
   if (status != AllocationStatus::success) {
-    destroy();
+    destroy_device_resources(device_handle, replacement_device, replacement_command_pool,
+                             replacement_command_buffer);
     return status;
   }
   VkCommandBufferAllocateInfo command_info{};
   command_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  command_info.commandPool = command_pool_;
+  command_info.commandPool = replacement_command_pool;
   command_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   command_info.commandBufferCount = 1U;
   status = map_result(
-      vkAllocateCommandBuffers(context_->device_handle(), &command_info, &command_buffer_));
+      vkAllocateCommandBuffers(device_handle, &command_info, &replacement_command_buffer));
   if (status != AllocationStatus::success) {
-    destroy();
+    destroy_device_resources(device_handle, replacement_device, replacement_command_pool,
+                             replacement_command_buffer);
+    return status;
   }
-  return status;
+
+  VulkanBufferAllocation previous_device = device_;
+  VkCommandPool previous_command_pool = command_pool_;
+  VkCommandBuffer previous_command_buffer = command_buffer_;
+  staging_.swap_allocation(replacement_staging);
+  device_ = replacement_device;
+  command_pool_ = replacement_command_pool;
+  command_buffer_ = replacement_command_buffer;
+  destroy_device_resources(device_handle, previous_device, previous_command_pool,
+                           previous_command_buffer);
+  return AllocationStatus::success;
 }
 
 AllocationStatus VulkanDeviceLocalCopy::map() noexcept {
@@ -248,18 +294,7 @@ void VulkanDeviceLocalCopy::destroy() noexcept {
     staging_.destroy();
     return;
   }
-  if (command_pool_ != VK_NULL_HANDLE) {
-    vkDestroyCommandPool(context_->device_handle(), command_pool_, nullptr);
-  }
-  command_pool_ = VK_NULL_HANDLE;
-  command_buffer_ = VK_NULL_HANDLE;
-  if (device_.buffer != VK_NULL_HANDLE) {
-    vkDestroyBuffer(context_->device_handle(), device_.buffer, nullptr);
-  }
-  if (device_.memory != VK_NULL_HANDLE) {
-    vkFreeMemory(context_->device_handle(), device_.memory, nullptr);
-  }
-  device_ = {};
+  destroy_device_resources(context_->device_handle(), device_, command_pool_, command_buffer_);
   staging_.destroy();
 }
 

@@ -44,6 +44,7 @@ public:
   [[nodiscard]] AllocationStatus flush(VkDeviceSize offset, VkDeviceSize size) noexcept;
   [[nodiscard]] AllocationStatus invalidate(VkDeviceSize offset, VkDeviceSize size) noexcept;
   void destroy() noexcept;
+  void swap_allocation(VulkanStagingBuffer& other) noexcept;
 
   [[nodiscard]] const VulkanBufferAllocation& allocation() const noexcept { return allocation_; }
   [[nodiscard]] bool ready() const noexcept {

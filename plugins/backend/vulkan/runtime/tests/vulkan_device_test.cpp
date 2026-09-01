@@ -241,6 +241,16 @@ int main() {
     if (!concurrent_uploads_ok.load(std::memory_order_relaxed)) {
       return 12;
     }
+    const VkBuffer original_device_buffer = transfer.device_allocation().buffer;
+    const VkDeviceMemory original_device_memory = transfer.device_allocation().memory;
+    const VkBuffer original_host_buffer = transfer.host_allocation().buffer;
+    if (transfer.allocate(std::numeric_limits<VkDeviceSize>::max(), 256U) ==
+            metaflux::backend::vulkan::AllocationStatus::success ||
+        transfer.device_allocation().buffer != original_device_buffer ||
+        transfer.device_allocation().memory != original_device_memory ||
+        transfer.host_allocation().buffer != original_host_buffer || !transfer.ready()) {
+      return 16;
+    }
     std::atomic<bool> concurrent_downloads_ok{true};
     std::thread first_download([&] {
       if (transfer.download(0U, 2048U, UINT64_C(5000000000)) !=

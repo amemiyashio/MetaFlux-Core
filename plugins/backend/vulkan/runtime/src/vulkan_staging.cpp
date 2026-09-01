@@ -253,6 +253,15 @@ void VulkanStagingBuffer::destroy() noexcept {
   destroy_allocation(*context_, allocation_);
 }
 
+void VulkanStagingBuffer::swap_allocation(VulkanStagingBuffer& other) noexcept {
+  if (this == &other) {
+    return;
+  }
+  VulkanBufferAllocation current = allocation_;
+  allocation_ = other.allocation_;
+  other.allocation_ = current;
+}
+
 const char* allocation_status_string(AllocationStatus status) noexcept {
   switch (status) {
   case AllocationStatus::success:

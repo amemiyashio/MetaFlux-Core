@@ -44,6 +44,9 @@ public:
 private:
   [[nodiscard]] static AllocationStatus map_result(VkResult result) noexcept;
   [[nodiscard]] static AllocationStatus map_device_status(DeviceStatus status) noexcept;
+  static void destroy_device_resources(VkDevice device, VulkanBufferAllocation& allocation,
+                                       VkCommandPool& command_pool,
+                                       VkCommandBuffer& command_buffer) noexcept;
   [[nodiscard]] static std::uint32_t
   select_memory_type(const VkPhysicalDeviceMemoryProperties& properties, std::uint32_t type_bits,
                      VkMemoryPropertyFlags required, VkMemoryPropertyFlags* out_flags) noexcept;
