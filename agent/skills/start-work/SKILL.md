@@ -58,6 +58,55 @@ Complete this stage before any shell executable except host `git` and `nix`.
    or privileged driver operation, load `manage-host-privilege` and the owning
    domain skill. Never persist, pass, or print a credential.
 
+## Task-Stop Diagnostics
+
+This section is the sole Agent-facing contract for a condition that blocks the
+next task phase. Apply it when a repository gate fails, a loaded Skill's hard
+prohibition is reached, or a required verification cannot advance. Do not turn
+routine compiler output into a new diagnostic stream: preserve the raw output
+and add one task-stop diagnostic per distinct root cause.
+
+Every diagnostic contains:
+
+```text
+code
+source
+summary
+evidence[]
+responsibility
+disposition
+required_action
+resume_when
+retry_command (only when an exact retry is valid)
+```
+
+Use a readable dotted code such as `git-topology.local-clone`; it is a
+diagnostic classification, not an identity, record, or sequence. Responsibility
+is exactly `current-agent`, `user-or-application`, `batch-integrator`,
+`epoch-governor`, or `host-operator`. Disposition is exactly
+`fix-and-retry`, `stop-and-report`, or `preserve-and-report`.
+
+Default CLI rendering is one human-readable `ERROR [code]` block on stderr.
+Governed CLIs accept `--diagnostic-format human|json`; JSON failures use the
+same fields in one versioned error envelope while successful interfaces and
+exit codes remain unchanged. If a child gate already emitted this contract,
+propagate its code, evidence, responsibility, action, and resume condition
+instead of replacing it with a generic rejection.
+
+For `current-agent / fix-and-retry`, change only the assigned candidate and
+retry only after evidence or a prerequisite changed. For any external
+responsibility, preserve relevant state, perform no implicit scheduling,
+privilege expansion, branch/worktree/clone/task/thread creation, or cleanup,
+and stop after reporting the exact requested action. An unchanged repeated
+diagnostic is not a retry signal: fix its cause or escalate to its declared
+responsibility.
+
+When a mandatory build or test fails, retain its command and raw output, then
+emit `verification.required-gate-failed` with the exact command, return code,
+bounded actionable evidence, the authority allowed to repair it, and the
+condition that the same command passes. Diagnostics remain conversation and
+command output only; never persist an error ledger, counter, or Goal field.
+
 ## Load Current Authority
 
 Read in order:
@@ -190,5 +239,6 @@ nix develop . --command python3 -B \
   agent/skills/detect-agent-tool/scripts/test_detect_agent_tool.py
 nix develop . --command python3 -B \
   agent/skills/start-work/scripts/test_commit_as_agent_tool.py
+nix develop . --command python3 -B tools/test-agent-diagnostics.py
 nix develop . --command python3 -B tools/check-agent-state.py .
 ```

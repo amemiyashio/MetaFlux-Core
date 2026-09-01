@@ -21,6 +21,7 @@ DETECTOR_SCRIPT = (
     / "scripts"
     / "detect_agent_tool.py"
 )
+DIAGNOSTICS_SCRIPT = SCRIPT.with_name("agent_diagnostics.py")
 
 
 def load_module():
@@ -177,6 +178,10 @@ Pass.
         DETECTOR_SCRIPT.read_text(encoding="utf-8"),
     )
     write(
+        root / "tools/agent_diagnostics.py",
+        DIAGNOSTICS_SCRIPT.read_text(encoding="utf-8"),
+    )
+    write(
         root / "agent/skills/README.md",
         "## Index\n\n"
         "| Skill | Status | Use when |\n"
@@ -203,10 +208,18 @@ Pass.
     (root / ".agents/skills").symlink_to("../agent/skills")
 
 
-def errors(root: Path) -> list[str]:
+def errors(root: Path):
     checker = STATE.Checker(root)
     checker.run()
     return checker.errors
+
+
+def diagnostic_text(diagnostic) -> str:
+    return " ".join((diagnostic.summary, *diagnostic.evidence))
+
+
+def has_fragment(diagnostics, fragment: str) -> bool:
+    return any(fragment in diagnostic_text(error) for error in diagnostics)
 
 
 def test_parsers() -> None:
@@ -232,12 +245,18 @@ def test_goal_variants(root: Path) -> None:
     document = goal()
     document["epoch"] = "E" + "0001"
     write(path, json.dumps(document))
-    assert any("epoch must match" in error for error in errors(root))
+    found = errors(root)
+    assert has_fragment(found, "epoch must match")
+    epoch_error = next(error for error in found if error.code == "agent-state.epoch-invalid")
+    assert epoch_error.responsibility == "epoch-governor"
+    assert epoch_error.disposition == "stop-and-report"
 
     document = goal()
     document["lanes"][0]["status"] = "in_progress"
     write(path, json.dumps(document))
-    assert any("status is invalid" in error for error in errors(root))
+    found = errors(root)
+    assert has_fragment(found, "status is invalid")
+    assert any(error.responsibility == "batch-integrator" for error in found)
 
     document = goal()
     second = dict(document["lanes"][0])
@@ -246,26 +265,26 @@ def test_goal_variants(root: Path) -> None:
     document["lanes"].append(second)
     write(path, json.dumps(document))
     found = errors(root)
-    assert any("duplicate iteration" in error for error in found)
-    assert any("unresolved dependency" in error for error in found)
+    assert has_fragment(found, "duplicate iteration")
+    assert has_fragment(found, "unresolved dependency")
 
 
 def test_plan_and_legacy(root: Path) -> None:
     create_fixture(root)
     work = root / "agent/plan/milestone-0.1.0.0-core/work/work-item-0.1.0.1-one.md"
     write(work, work.read_text(encoding="utf-8").replace("## Exit Gate", "## Acceptance"))
-    assert any("requires an Exit Gate" in error for error in errors(root))
+    assert has_fragment(errors(root), "requires an Exit Gate")
 
     legacy = "METAFLUX_" + "SESSION_ID"
     duplicate_epoch = "METAFLUX_AGENT_" + "EPOCH"
     write(root / "legacy.md", legacy + "\n" + duplicate_epoch + "\n")
-    assert any("legacy execution marker" in error for error in errors(root))
+    assert has_fragment(errors(root), "legacy execution marker")
 
 
 def test_broken_link(root: Path) -> None:
     create_fixture(root)
     write(root / "README.md", "[missing](missing.md)\n")
-    assert any("broken local link" in error for error in errors(root))
+    assert has_fragment(errors(root), "broken local link")
 
 
 def test_commit_environment(root: Path) -> None:
@@ -296,14 +315,22 @@ def test_commit_environment(root: Path) -> None:
     invalid["GIT_AUTHOR_NAME"] = "unrelated-name"
     checker = STATE.Checker(root)
     checker.validate_commit_environment(invalid)
-    assert any("GIT_AUTHOR_NAME" in error for error in checker.errors)
+    assert has_fragment(checker.errors, "GIT_AUTHOR_NAME")
+    assert all(error.code == "commit-gate.environment-invalid" for error in checker.errors)
 
     relative = dict(valid)
     relative["METAFLUX_AGENT_TOOL_EXECUTABLE"] = tool.name
     relative["PATH"] = str(root)
     checker = STATE.Checker(root)
     checker.validate_commit_environment(relative)
-    assert any("exact detected path" in error for error in checker.errors)
+    assert has_fragment(checker.errors, "exact detected path")
+
+    rejected = dict(valid)
+    rejected["METAFLUX_AGENT_TOOL_EXECUTABLE"] = str(root / "missing-agent")
+    checker = STATE.Checker(root)
+    checker.validate_commit_environment(rejected)
+    assert [error.code for error in checker.errors] == ["agent-tool.not-executable"]
+    assert checker.errors[0].responsibility == "user-or-application"
 
 
 def test_integration_ancestry(root: Path) -> None:
@@ -328,7 +355,40 @@ def test_integration_ancestry(root: Path) -> None:
     assert not checker.errors
     checker = STATE.Checker(root)
     checker.validate_integration_revisions(old_revision, activation)
-    assert any("predates the current Epoch" in error for error in checker.errors)
+    assert has_fragment(checker.errors, "predates the current Epoch")
+    assert checker.errors[0].code == "integration.revision-invalid"
+    assert checker.errors[0].responsibility == "user-or-application"
+    assert checker.errors[0].disposition == "preserve-and-report"
+
+
+def test_json_cli(root: Path) -> None:
+    create_fixture(root)
+    document = goal()
+    document["lanes"][0]["status"] = "invalid"
+    write(root / "agent/goal.json", json.dumps(document))
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            str(SCRIPT),
+            str(root),
+            "--diagnostic-format",
+            "json",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert result.stdout == ""
+    envelope = json.loads(result.stderr)
+    assert envelope["schema_version"] == 1
+    assert envelope["status"] == "error"
+    assert any(
+        error["code"] == "agent-state.goal-invalid"
+        and error["responsibility"] == "batch-integrator"
+        for error in envelope["errors"]
+    )
 
 
 def test_foreign_git_environment_isolation(root: Path) -> None:
@@ -383,8 +443,9 @@ def main() -> int:
         test_broken_link(Path(temp) / "link")
         test_commit_environment(Path(temp) / "commit")
         test_integration_ancestry(Path(temp) / "integration")
+        test_json_cli(Path(temp) / "json")
         test_foreign_git_environment_isolation(Path(temp) / "isolation")
-    print("agent state self-tests: 10 groups passed")
+    print("agent state self-tests: 11 groups passed")
     return 0
 
 

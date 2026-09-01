@@ -7,10 +7,17 @@ import argparse
 import json
 import re
 import runpy
-import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
+
+from agent_diagnostics import (
+    DiagnosticArgumentParser,
+    TaskStopDiagnostic,
+    add_diagnostic_format_argument,
+    emit_diagnostics,
+    task_stop_error,
+)
 
 
 CASE_ID_RE = re.compile(r"[A-Z0-9]+(?:-[A-Z0-9]+)*")
@@ -32,27 +39,58 @@ CASE_FIELDS = {
 }
 
 
-def read_json(path: Path) -> tuple[Any | None, list[str]]:
+def routing_diagnostic(message: str) -> TaskStopDiagnostic:
+    return task_stop_error(
+        code="skill-routing.invalid-authority",
+        source="check-skill-routing",
+        summary=message,
+        evidence=("agent/skills/trigger-evals.json and routed Skill metadata",),
+        responsibility="current-agent",
+        disposition="fix-and-retry",
+        required_action=(
+            "Correct the routed Skill metadata or trigger corpus in the current "
+            "candidate without changing unrelated routing policy."
+        ),
+        resume_when="The same skill-routing checker passes.",
+        retry_command=(
+            "nix develop . --command python3 -B tools/check-skill-routing.py ."
+        ),
+    ).diagnostic
+
+
+class DiagnosticList(list[TaskStopDiagnostic]):
+    def append(self, value: TaskStopDiagnostic | str) -> None:
+        super().append(
+            routing_diagnostic(value) if isinstance(value, str) else value
+        )
+
+
+def read_json(path: Path) -> tuple[Any | None, DiagnosticList]:
+    errors = DiagnosticList()
     try:
-        return json.loads(path.read_text(encoding="utf-8")), []
+        return json.loads(path.read_text(encoding="utf-8")), errors
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-        return None, [f"{path}: cannot read routing corpus: {error}"]
+        errors.append(f"{path}: cannot read routing corpus: {error}")
+        return None, errors
 
 
-def policy_rosters(root: Path) -> tuple[set[str], set[str], list[str]]:
+def policy_rosters(root: Path) -> tuple[set[str], set[str], DiagnosticList]:
     path = root / "tools" / "check-agent-state.py"
+    errors = DiagnosticList()
     try:
         namespace = runpy.run_path(str(path))
     except (OSError, RuntimeError, SyntaxError) as error:
-        return set(), set(), [f"{path}: cannot load routing policy: {error}"]
+        errors.append(f"{path}: cannot load routing policy: {error}")
+        return set(), set(), errors
     domains = namespace.get("DOMAIN_SKILL_SLUGS")
     workflows = namespace.get("WORKFLOW_SKILL_SLUGS")
     if not isinstance(domains, set) or not isinstance(workflows, set):
-        return set(), set(), [f"{path}: routed-skill rosters must be sets"]
-    return set(domains), set(workflows), []
+        errors.append(f"{path}: routed-skill rosters must be sets")
+        return set(), set(), errors
+    return set(domains), set(workflows), errors
 
 
-def string_list(value: Any, where: str, errors: list[str]) -> list[str]:
+def string_list(value: Any, where: str, errors: DiagnosticList) -> list[str]:
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
         errors.append(f"{where} must be a string list")
         return []
@@ -61,12 +99,13 @@ def string_list(value: Any, where: str, errors: list[str]) -> list[str]:
     return value
 
 
-def validate_corpus(root: Path, corpus: Any) -> list[str]:
-    errors: list[str] = []
+def validate_corpus(root: Path, corpus: Any) -> DiagnosticList:
+    errors = DiagnosticList()
     domains, workflows, policy_errors = policy_rosters(root)
     errors.extend(policy_errors)
     if not isinstance(corpus, dict):
-        return errors + ["routing corpus must be an object"]
+        errors.append("routing corpus must be an object")
+        return errors
     if corpus.get("schema_version") != 2:
         errors.append("schema_version must be 2")
 
@@ -92,7 +131,8 @@ def validate_corpus(root: Path, corpus: Any) -> list[str]:
 
     cases = corpus.get("cases")
     if not isinstance(cases, list) or not cases:
-        return errors + ["cases must be a non-empty list"]
+        errors.append("cases must be a non-empty list")
+        return errors
 
     case_ids: set[str] = set()
     prompts: set[tuple[str, str]] = set()
@@ -180,8 +220,11 @@ def validate_corpus(root: Path, corpus: Any) -> list[str]:
 
 
 def parser() -> argparse.ArgumentParser:
-    result = argparse.ArgumentParser(description=__doc__)
+    result = DiagnosticArgumentParser(
+        description=__doc__, diagnostic_source="check-skill-routing"
+    )
     result.add_argument("root", nargs="?", default=".", type=Path)
+    add_diagnostic_format_argument(result)
     return result
 
 
@@ -192,9 +235,7 @@ def main() -> int:
     if not errors:
         errors = validate_corpus(root, corpus)
     if errors:
-        for error in sorted(set(errors)):
-            print(f"error: {error}", file=sys.stderr)
-        print(f"skill routing failed with {len(set(errors))} error(s)", file=sys.stderr)
+        emit_diagnostics(errors, diagnostic_format=arguments.diagnostic_format)
         return 1
     count = len(corpus["cases"])
     print(f"skill routing: ok ({count} bilingual cases)")

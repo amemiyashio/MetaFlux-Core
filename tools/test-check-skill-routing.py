@@ -28,14 +28,21 @@ def load_module():
 ROUTING = load_module()
 
 
-def errors(corpus: dict) -> list[str]:
+def errors(corpus: dict):
     return ROUTING.validate_corpus(ROOT, corpus)
 
 
 def expect(corpus: dict, fragment: str) -> None:
     found = errors(corpus)
-    if not any(fragment in error for error in found):
+    if not any(
+        fragment in " ".join((error.summary, *error.evidence)) for error in found
+    ):
         raise AssertionError(f"expected {fragment!r}, got {found}")
+    for diagnostic in found:
+        assert diagnostic.code == "skill-routing.invalid-authority"
+        assert diagnostic.responsibility == "current-agent"
+        assert diagnostic.required_action
+        assert diagnostic.resume_when
 
 
 def main() -> int:

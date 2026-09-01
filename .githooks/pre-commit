@@ -4,6 +4,12 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
+diagnostic_format="${METAFLUX_DIAGNOSTIC_FORMAT:-human}"
+case "$diagnostic_format" in
+  human|json) ;;
+  *) diagnostic_format=human ;;
+esac
+
 if git diff --cached --quiet; then
   exit 0
 fi
@@ -34,12 +40,16 @@ git checkout-index --all --prefix="$candidate_root/"
 run_without_git_local_environment nix develop . --command python3 \
   "$candidate_root/tools/check-agent-state.py" \
   "$candidate_root" \
-  --commit-gate
+  --commit-gate \
+  --diagnostic-format "$diagnostic_format"
 run_without_git_local_environment nix develop . --command python3 \
   "$candidate_root/tools/test-check-agent-state.py"
 run_without_git_local_environment nix develop . --command python3 -B \
+  "$candidate_root/tools/test-agent-diagnostics.py"
+run_without_git_local_environment nix develop . --command python3 -B \
   "$candidate_root/tools/check-skill-routing.py" \
-  "$candidate_root"
+  "$candidate_root" \
+  --diagnostic-format "$diagnostic_format"
 run_without_git_local_environment nix develop . --command python3 -B \
   "$candidate_root/tools/test-check-skill-routing.py"
 run_without_git_local_environment nix develop . --command python3 -B \

@@ -64,6 +64,15 @@ configuration, or user-supplied identity labels. Never derive the subject from
 version output: derive it only from the resolved executable basename. Discard
 raw `--version` and `--help` output after extracting the bounded tool facts.
 
+## Task Stops
+
+Use the `start-work` task-stop contract. Missing, invalid, or ambiguous
+executable evidence emits `agent-tool.*` with
+`user-or-application / stop-and-report`: request the exact absolute harness or
+CLI executable and resume only when its bounded probes pass. Invalid CLI output
+selection is `current-agent / fix-and-retry`. Never replace these diagnostics
+with model, provider, template, PATH-order, or repository-prose guesses.
+
 ## Verification
 
 ```sh

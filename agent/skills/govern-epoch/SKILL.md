@@ -55,6 +55,18 @@ governance work unit and repeat the full regression. Only a completely passing
 tree is committed atomically through the `start-work` helper using the candidate
 Epoch declaration.
 
+## Task Stops
+
+Use the `start-work` task-stop contract. Missing explicit destructive authority
+or a missing/dirty supplied governance context is
+`epoch-governance.explicit-request-required` or
+`epoch-governance.context-invalid` with
+`user-or-application / preserve-and-report`; the Agent does not manufacture a
+context. Residual old authority or regression failure is
+`verification.required-gate-failed` with
+`epoch-governor / fix-and-retry`; keep the published Epoch unchanged and resume
+only after the complete candidate regression passes.
+
 ## Output
 
 Report the old/new Epoch, governing decision, deleted authority, canonical roast

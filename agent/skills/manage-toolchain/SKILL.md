@@ -115,6 +115,17 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
    Iteration or integration boundary. Host Nix-store retention and GC remain operator concerns;
    do not add project GC roots, timers, thresholds, or store paths as identity.
 
+## Task Stops
+
+Use the `start-work` task-stop contract. Ambient host probing or `path:.` use is
+`toolchain.nix-boundary-violated` with `current-agent / fix-and-retry`: discard
+that observation and repeat the exact probe through the Git-aware Nix entry.
+Host package escalation without proved Nix provision/materialization failure is
+`toolchain.nix-gap-unproved` with `current-agent / stop-and-report`; establish
+the Nix result before composing `manage-host-privilege`. A target SDK or glibc
+floor failure remains a product/toolchain error and must not be relabeled as a
+missing Nix tool.
+
 ## Output
 
 - A small, portable manifest and matching locked materialization.

@@ -13,8 +13,18 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "tools"))
 
-class TopologyError(ValueError):
+from agent_diagnostics import (  # noqa: E402
+    DiagnosticArgumentParser,
+    DiagnosticError,
+    add_diagnostic_format_argument,
+    emit_diagnostics,
+    task_stop_error,
+)
+
+
+class TopologyError(DiagnosticError):
     """Raised when the current Git topology is not a valid execution surface."""
 
 
@@ -24,6 +34,37 @@ class GitTopology:
     git_common_dir: str
     git_dir: str
     context_kind: str
+
+
+PRESERVE_CONTEXT_ACTION = (
+    "Preserve the current checkout and its Git evidence. The user or application "
+    "must supply or repair an existing registered primary checkout or linked "
+    "worktree; the Agent must not create a replacement context."
+)
+PRESERVE_CONTEXT_RESUME = (
+    "Stage Zero passes in the user- or application-supplied registered Git context."
+)
+
+
+def topology_error(
+    *,
+    code: str,
+    summary: str,
+    evidence: tuple[object, ...],
+    required_action: str = PRESERVE_CONTEXT_ACTION,
+    resume_when: str = PRESERVE_CONTEXT_RESUME,
+) -> TopologyError:
+    diagnostic = task_stop_error(
+        code=code,
+        source="start-work / Git topology",
+        summary=summary,
+        evidence=evidence,
+        responsibility="user-or-application",
+        disposition="preserve-and-report",
+        required_action=required_action,
+        resume_when=resume_when,
+    ).diagnostic
+    return TopologyError(diagnostic)
 
 
 def isolated_git_environment(
@@ -38,8 +79,13 @@ def isolated_git_environment(
         env=environment,
     )
     if result.returncode != 0:
-        raise TopologyError(
-            f"cannot enumerate Git local environment: {result.stderr.strip()}"
+        raise topology_error(
+            code="git-topology.local-environment-unavailable",
+            summary="Git local environment variables cannot be enumerated.",
+            evidence=(
+                f"return code: {result.returncode}",
+                f"git stderr: {result.stderr.strip() or '<empty>'}",
+            ),
         )
     for variable in result.stdout.splitlines():
         environment.pop(variable, None)
@@ -60,8 +106,15 @@ def git(
     )
     if result.returncode not in allowed_returncodes:
         detail = result.stderr.strip() or result.stdout.strip()
-        raise TopologyError(
-            f"git {' '.join(arguments)} failed in {repository}: {detail}"
+        raise topology_error(
+            code="git-topology.git-query-failed",
+            summary="A read-only Git topology query failed.",
+            evidence=(
+                f"repository: {repository}",
+                f"query: git {' '.join(arguments)}",
+                f"return code: {result.returncode}",
+                f"git output: {detail or '<empty>'}",
+            ),
         )
     return result
 
@@ -69,7 +122,11 @@ def git(
 def resolved_git_path(repository: Path, *arguments: str) -> Path:
     value = git(repository, *arguments).stdout.strip()
     if not value:
-        raise TopologyError(f"git {' '.join(arguments)} returned an empty path")
+        raise topology_error(
+            code="git-topology.empty-path",
+            summary="A Git topology query returned an empty path.",
+            evidence=(f"repository: {repository}", f"query: git {' '.join(arguments)}"),
+        )
     return Path(value).resolve()
 
 
@@ -133,8 +190,10 @@ def resolve_git_topology(repository: Path) -> GitTopology:
     git_dir = resolved_git_path(repository, "rev-parse", "--absolute-git-dir")
 
     if root not in registered_worktrees(repository):
-        raise TopologyError(
-            f"repository root is not registered by Git worktree metadata: {root}"
+        raise topology_error(
+            code="git-topology.unregistered-root",
+            summary="The repository root is not registered by Git worktree metadata.",
+            evidence=(f"repository root: {root}", f"Git common directory: {common_dir}"),
         )
 
     if git_dir == common_dir:
@@ -143,16 +202,25 @@ def resolve_git_topology(repository: Path) -> GitTopology:
         try:
             git_dir.relative_to(common_dir / "worktrees")
         except ValueError as error:
-            raise TopologyError(
-                f"linked worktree Git directory is outside {common_dir / 'worktrees'}"
+            raise topology_error(
+                code="git-topology.invalid-linked-worktree",
+                summary=(
+                    "The linked worktree Git directory is outside the registered "
+                    "common directory."
+                ),
+                evidence=(
+                    f"Git directory: {git_dir}",
+                    f"expected parent: {common_dir / 'worktrees'}",
+                ),
             ) from error
         context_kind = "linked-worktree"
 
     clone_evidence = local_clone_evidence(repository)
     if clone_evidence:
-        raise TopologyError(
-            "local standalone clone execution is forbidden: "
-            + "; ".join(clone_evidence)
+        raise topology_error(
+            code="git-topology.local-clone",
+            summary="The current checkout is a standalone local clone.",
+            evidence=tuple(clone_evidence),
         )
 
     return GitTopology(
@@ -164,11 +232,13 @@ def resolve_git_topology(repository: Path) -> GitTopology:
 
 
 def parser() -> argparse.ArgumentParser:
-    result = argparse.ArgumentParser(
-        description="Validate MetaFlux execution using existing Git topology."
+    result = DiagnosticArgumentParser(
+        description="Validate MetaFlux execution using existing Git topology.",
+        diagnostic_source="start-work / Git topology",
     )
     result.add_argument("repository", nargs="?", default=".")
     result.add_argument("--json", action="store_true")
+    add_diagnostic_format_argument(result)
     return result
 
 
@@ -177,7 +247,9 @@ def main() -> int:
     try:
         topology = resolve_git_topology(Path(arguments.repository))
     except TopologyError as error:
-        print(f"error: {error}", file=sys.stderr)
+        emit_diagnostics(
+            (error.diagnostic,), diagnostic_format=arguments.diagnostic_format
+        )
         return 2
 
     if arguments.json:

@@ -4,6 +4,12 @@ Repository scripts implement narrow checks owned by their domain. Nix provides
 their executable toolchain; the scripts, CMake, CTest, and Git retain command
 semantics and evidence ownership.
 
+`agent_diagnostics.py` provides the shared task-stop error shape used by Agent
+workflow gates. Governed CLIs default to human stderr blocks and accept
+`--diagnostic-format json` for a versioned error envelope. Successful payloads,
+exit codes, and raw product-tool output remain owned by the invoking tool; the
+diagnostic layer performs no repair and stores no state.
+
 ## Agent State
 
 `check-agent-state.py` validates the decision-0033 execution model and the

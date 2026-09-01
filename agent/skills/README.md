@@ -50,3 +50,7 @@ this directory.
 
 The trigger corpus and routing checker validate the routed domain and workflow
 descriptions. Routing success does not substitute for domain verification.
+Any loaded Skill condition that blocks the next phase uses the sole
+[`start-work` task-stop contract](start-work/SKILL.md#task-stop-diagnostics);
+individual Skills name their trigger and legal owner but do not redefine the
+diagnostic schema or persist failures.

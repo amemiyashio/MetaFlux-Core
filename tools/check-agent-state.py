@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import json
 import os
 import re
@@ -12,6 +13,15 @@ import sys
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
+
+from agent_diagnostics import (
+    DiagnosticArgumentParser,
+    TaskStopDiagnostic,
+    add_diagnostic_format_argument,
+    emit_diagnostics,
+    parse_diagnostic_envelope,
+    task_stop_error,
+)
 
 
 MILESTONE_ID_RE = re.compile(r"milestone-(\d+\.\d+\.\d+\.0)")
@@ -155,10 +165,20 @@ def find_cycle(graph: dict[str, list[str]]) -> list[str] | None:
 class Checker:
     def __init__(self, root: Path):
         self.root = root.resolve()
-        self.errors: list[str] = []
+        self.errors: list[TaskStopDiagnostic] = []
         self.records: dict[str, Path] = {}
         self.frontmatter: dict[str, dict[str, Any]] = {}
         self.decisions: set[str] = set()
+        self._diagnostic_policy = {
+            "code": "agent-state.invalid-authority",
+            "responsibility": "current-agent",
+            "disposition": "fix-and-retry",
+            "required_action": (
+                "Correct the canonical candidate file named in evidence without "
+                "changing unrelated authority."
+            ),
+            "resume_when": "The same Agent state checker passes.",
+        }
 
     def relative(self, path: Path) -> str:
         try:
@@ -166,8 +186,60 @@ class Checker:
         except ValueError:
             return str(path)
 
-    def error(self, path: Path, message: str) -> None:
-        self.errors.append(f"{self.relative(path)}: {message}")
+    @contextmanager
+    def diagnostic_policy(
+        self,
+        *,
+        code: str,
+        responsibility: str,
+        disposition: str,
+        required_action: str,
+        resume_when: str,
+    ):
+        previous = self._diagnostic_policy
+        self._diagnostic_policy = {
+            "code": code,
+            "responsibility": responsibility,
+            "disposition": disposition,
+            "required_action": required_action,
+            "resume_when": resume_when,
+        }
+        try:
+            yield
+        finally:
+            self._diagnostic_policy = previous
+
+    def error(
+        self,
+        path: Path,
+        message: str,
+        *,
+        code: str | None = None,
+        responsibility: str | None = None,
+        disposition: str | None = None,
+        required_action: str | None = None,
+        resume_when: str | None = None,
+        extra_evidence: tuple[object, ...] = (),
+    ) -> None:
+        policy = self._diagnostic_policy
+        effective_disposition = disposition or policy["disposition"]
+        self.errors.append(
+            task_stop_error(
+                code=code or policy["code"],
+                source="check-agent-state",
+                summary=message,
+                evidence=(f"path: {self.relative(path)}", *extra_evidence),
+                responsibility=responsibility or policy["responsibility"],
+                disposition=effective_disposition,
+                required_action=required_action or policy["required_action"],
+                resume_when=resume_when or policy["resume_when"],
+                retry_command=(
+                    "nix develop . --command python3 -B tools/check-agent-state.py ."
+                    if effective_disposition == "fix-and-retry"
+                    else None
+                ),
+            ).diagnostic
+        )
 
     def read_text(self, path: Path) -> str | None:
         try:
@@ -288,6 +360,20 @@ class Checker:
             self.error(root, "plan dependency cycle: " + " -> ".join(cycle))
 
     def validate_goal(self) -> None:
+        with self.diagnostic_policy(
+            code="agent-state.goal-invalid",
+            responsibility="batch-integrator",
+            disposition="stop-and-report",
+            required_action=(
+                "The explicit Batch integrator must correct Goal schema, target, "
+                "Batch, or lane authority in its product integration commit; a "
+                "worker must leave goal.json unchanged."
+            ),
+            resume_when="The corrected Goal passes this checker in the authorized integration context.",
+        ):
+            self._validate_goal()
+
+    def _validate_goal(self) -> None:
         path = self.root / "agent" / "goal.json"
         try:
             goal = json.loads(path.read_text(encoding="utf-8"))
@@ -304,7 +390,21 @@ class Checker:
             self.error(path, "schema_version must be 1")
         epoch = goal.get("epoch")
         if not isinstance(epoch, str) or EPOCH_ID_RE.fullmatch(epoch) is None:
-            self.error(path, "epoch must match epoch-NNNN")
+            self.error(
+                path,
+                "epoch must match epoch-NNNN",
+                code="agent-state.epoch-invalid",
+                responsibility="epoch-governor",
+                disposition="stop-and-report",
+                required_action=(
+                    "The explicit Epoch governor must correct Epoch authority; a "
+                    "worker or Batch integrator must not invent or advance it."
+                ),
+                resume_when=(
+                    "The published or candidate Epoch is valid in its authorized "
+                    "governance context."
+                ),
+            )
 
         batch = goal.get("batch")
         if not isinstance(batch, dict) or set(batch) != {"id", "status"}:
@@ -403,6 +503,21 @@ class Checker:
     def validate_commit_environment(
         self, environment: dict[str, str] | None = None
     ) -> None:
+        with self.diagnostic_policy(
+            code="commit-gate.environment-invalid",
+            responsibility="current-agent",
+            disposition="fix-and-retry",
+            required_action=(
+                "Use the start-work commit helper with the exact detected executable; "
+                "do not override Author, Committer, or the candidate gate."
+            ),
+            resume_when="The same candidate commit environment passes this gate.",
+        ):
+            self._validate_commit_environment(environment)
+
+    def _validate_commit_environment(
+        self, environment: dict[str, str] | None = None
+    ) -> None:
         values = os.environ if environment is None else environment
         path = self.root / "agent" / "goal.json"
         detector = (
@@ -415,23 +530,48 @@ class Checker:
         )
         try:
             result = subprocess.run(
-                [sys.executable, "-B", str(detector), "--json"],
+                [
+                    sys.executable,
+                    "-B",
+                    str(detector),
+                    "--json",
+                    "--diagnostic-format",
+                    "json",
+                ],
                 check=False,
                 capture_output=True,
                 text=True,
                 timeout=10,
                 env=values,
             )
-        except (OSError, subprocess.TimeoutExpired):
-            self.error(path, "agent-tool detector did not complete")
+        except (OSError, subprocess.TimeoutExpired) as error:
+            self.error(
+                path,
+                "agent-tool detector did not complete",
+                extra_evidence=(f"failure: {type(error).__name__}",),
+            )
             return
         if result.returncode != 0:
-            self.error(path, "agent-tool detector rejected the commit environment")
+            try:
+                self.errors.extend(parse_diagnostic_envelope(result.stderr))
+            except (ValueError, json.JSONDecodeError):
+                self.error(
+                    path,
+                    "agent-tool detector rejected the commit environment without a valid diagnostic",
+                    extra_evidence=(
+                        f"return code: {result.returncode}",
+                        f"detector stderr: {result.stderr.strip() or '<empty>'}",
+                    ),
+                )
             return
         try:
             tool = json.loads(result.stdout)
         except json.JSONDecodeError:
-            self.error(path, "agent-tool detector did not emit valid JSON")
+            self.error(
+                path,
+                "agent-tool detector did not emit valid JSON",
+                extra_evidence=(f"detector stdout: {result.stdout.strip() or '<empty>'}",),
+            )
             return
         expected_tool_fields = {
             "schema_version",
@@ -492,6 +632,22 @@ class Checker:
         )
 
     def validate_integration_revisions(self, base: str, tip: str) -> None:
+        with self.diagnostic_policy(
+            code="integration.revision-invalid",
+            responsibility="user-or-application",
+            disposition="preserve-and-report",
+            required_action=(
+                "Preserve the candidate and supply exact committed base/tip revisions "
+                "whose base is on current main at or after Epoch activation; do not "
+                "spawn a replacement worker or source copy."
+            ),
+            resume_when=(
+                "The supplied committed revisions pass Epoch and ancestry validation."
+            ),
+        ):
+            self._validate_integration_revisions(base, tip)
+
+    def _validate_integration_revisions(self, base: str, tip: str) -> None:
         path = self.root / "agent" / "goal.json"
         epoch = self.current_epoch()
         if epoch is None:
@@ -523,7 +679,18 @@ class Checker:
                 activation = revision
                 break
         if activation is None:
-            self.error(path, f"{epoch} has no published activation commit")
+            self.error(
+                path,
+                f"{epoch} has no published activation commit",
+                code="integration.epoch-activation-missing",
+                responsibility="epoch-governor",
+                disposition="stop-and-report",
+                required_action=(
+                    "The Epoch governor must publish or repair the activation commit; "
+                    "the integrator must leave candidates and Goal state unchanged."
+                ),
+                resume_when="The current Epoch resolves to one published activation commit.",
+            )
             return
 
         ancestry = (
@@ -764,6 +931,7 @@ class Checker:
         *,
         commit_gate: bool = False,
         integration_revisions: tuple[str, str] | None = None,
+        diagnostic_format: str = "human",
     ) -> bool:
         self.validate_forbidden_paths()
         self.validate_plans()
@@ -778,9 +946,18 @@ class Checker:
         self.validate_links()
         self.validate_legacy_markers()
         if self.errors:
-            for error in sorted(set(self.errors)):
-                print(f"error: {error}", file=sys.stderr)
-            print(f"agent state validation failed with {len(set(self.errors))} error(s)", file=sys.stderr)
+            emit_diagnostics(
+                sorted(
+                    set(self.errors),
+                    key=lambda error: (
+                        error.code,
+                        error.source,
+                        error.summary,
+                        error.evidence,
+                    ),
+                ),
+                diagnostic_format=diagnostic_format,
+            )
             return False
         print(
             "agent state: ok "
@@ -790,20 +967,35 @@ class Checker:
 
 
 def parser() -> argparse.ArgumentParser:
-    result = argparse.ArgumentParser(description=__doc__)
+    result = DiagnosticArgumentParser(
+        description=__doc__, diagnostic_source="check-agent-state"
+    )
     result.add_argument("root", nargs="?", default=".", type=Path)
     result.add_argument("--commit-gate", action="store_true")
     result.add_argument("--integration-base")
     result.add_argument("--integration-tip")
+    add_diagnostic_format_argument(result)
     return result
 
 
 def main() -> int:
     arguments = parser().parse_args()
     if (arguments.integration_base is None) != (arguments.integration_tip is None):
-        print(
-            "error: --integration-base and --integration-tip must be provided together",
-            file=sys.stderr,
+        error = task_stop_error(
+            code="integration.revision-pair-required",
+            source="check-agent-state",
+            summary="Integration base and tip must be provided together.",
+            evidence=(
+                f"integration base supplied: {arguments.integration_base is not None}",
+                f"integration tip supplied: {arguments.integration_tip is not None}",
+            ),
+            responsibility="current-agent",
+            disposition="fix-and-retry",
+            required_action="Supply both exact committed revisions in the same invocation.",
+            resume_when="The integration gate receives both base and tip revisions.",
+        )
+        emit_diagnostics(
+            (error.diagnostic,), diagnostic_format=arguments.diagnostic_format
         )
         return 2
     revisions = None
@@ -812,6 +1004,7 @@ def main() -> int:
     return 0 if Checker(arguments.root).run(
         commit_gate=arguments.commit_gate,
         integration_revisions=revisions,
+        diagnostic_format=arguments.diagnostic_format,
     ) else 1
 
 

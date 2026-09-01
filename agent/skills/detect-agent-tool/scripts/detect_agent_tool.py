@@ -15,6 +15,16 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "tools"))
+
+from agent_diagnostics import (  # noqa: E402
+    DiagnosticArgumentParser,
+    DiagnosticError,
+    add_diagnostic_format_argument,
+    emit_diagnostics,
+    task_stop_error,
+)
+
 
 TOOL_EXECUTABLE_ENV = "METAFLUX_AGENT_TOOL_EXECUTABLE"
 DEFAULT_CANDIDATES = (
@@ -48,7 +58,7 @@ MODEL_OUTPUT_RE = re.compile(
 )
 
 
-class DetectionError(ValueError):
+class DetectionError(DiagnosticError):
     """Raised when executable evidence is absent, ambiguous, or contaminated."""
 
 
@@ -65,35 +75,100 @@ class AgentToolInfo:
     executable_sha256: str
 
 
+def detection_error(
+    *,
+    code: str,
+    summary: str,
+    evidence: Sequence[object],
+    responsibility: str = "user-or-application",
+    disposition: str = "stop-and-report",
+    required_action: str,
+    resume_when: str,
+    retry_command: str | None = None,
+) -> DetectionError:
+    diagnostic = task_stop_error(
+        code=code,
+        source="detect-agent-tool",
+        summary=summary,
+        evidence=evidence,
+        responsibility=responsibility,
+        disposition=disposition,
+        required_action=required_action,
+        resume_when=resume_when,
+        retry_command=retry_command,
+    ).diagnostic
+    return DetectionError(diagnostic)
+
+
+EXACT_EXECUTABLE_ACTION = (
+    "Supply the absolute harness or CLI executable through --executable or the "
+    "launcher declaration; do not choose by PATH order or use model metadata."
+)
+EXACT_EXECUTABLE_RESUME = (
+    "The exact executable resolves, passes bounded version/help probes, and emits "
+    "only executable-tool facts."
+)
+
+
 def normalized_subject(executable: Path) -> str:
     raw = executable.name.lower()
     if raw.endswith(".exe"):
         raw = raw[:-4]
     subject = re.sub(r"[^a-z0-9]+", "-", raw).strip("-")
     if not subject or SUBJECT_RE.fullmatch(subject) is None:
-        raise DetectionError("agent tool executable has no valid tool-shaped subject")
+        raise detection_error(
+            code="agent-tool.invalid-subject",
+            summary="The executable basename has no valid tool-shaped subject.",
+            evidence=(f"executable: {executable}",),
+            required_action=EXACT_EXECUTABLE_ACTION,
+            resume_when=EXACT_EXECUTABLE_RESUME,
+        )
     tokens = set(subject.split("-"))
     blocked = sorted(tokens & MODEL_SUBJECT_TOKENS)
     if blocked:
-        raise DetectionError(
-            "agent tool executable subject contains model or runtime metadata token: "
-            + ", ".join(blocked)
+        raise detection_error(
+            code="agent-tool.prohibited-subject-input",
+            summary=(
+                "The executable basename contains prohibited model or runtime "
+                "metadata."
+            ),
+            evidence=("resolved executable basename is not valid tool evidence",),
+            required_action=EXACT_EXECUTABLE_ACTION,
+            resume_when=EXACT_EXECUTABLE_RESUME,
         )
     return subject
 
 
 def resolve_executable(candidate: str, environment: Mapping[str, str]) -> Path:
     if not candidate.strip():
-        raise DetectionError("agent tool executable declaration is empty")
+        raise detection_error(
+            code="agent-tool.empty-declaration",
+            summary="The agent-tool executable declaration is empty.",
+            evidence=("declaration contains no executable",),
+            required_action=EXACT_EXECUTABLE_ACTION,
+            resume_when=EXACT_EXECUTABLE_RESUME,
+        )
     if "/" in candidate:
         resolved = Path(os.path.abspath(Path(candidate).expanduser()))
     else:
         found = shutil.which(candidate, path=environment.get("PATH", ""))
         if found is None:
-            raise DetectionError(f"agent tool executable is not visible: {candidate}")
+            raise detection_error(
+                code="agent-tool.not-visible",
+                summary="The declared agent-tool executable is not visible.",
+                evidence=(f"declaration: {candidate}",),
+                required_action=EXACT_EXECUTABLE_ACTION,
+                resume_when=EXACT_EXECUTABLE_RESUME,
+            )
         resolved = Path(os.path.abspath(found))
     if not resolved.is_file() or not os.access(resolved, os.X_OK):
-        raise DetectionError(f"agent tool path is not executable: {resolved}")
+        raise detection_error(
+            code="agent-tool.not-executable",
+            summary="The declared agent-tool path is not an executable file.",
+            evidence=(f"resolved path: {resolved}",),
+            required_action=EXACT_EXECUTABLE_ACTION,
+            resume_when=EXACT_EXECUTABLE_RESUME,
+        )
     normalized_subject(resolved)
     return resolved
 
@@ -131,18 +206,42 @@ def run_probe(
             env=dict(environment),
         )
     except (OSError, subprocess.TimeoutExpired) as error:
-        raise DetectionError(f"agent tool {flag} probe failed") from error
+        raise detection_error(
+            code="agent-tool.probe-failed",
+            summary=f"The bounded agent-tool {flag} probe did not complete.",
+            evidence=(f"executable: {executable}", f"failure: {type(error).__name__}"),
+            required_action=EXACT_EXECUTABLE_ACTION,
+            resume_when=EXACT_EXECUTABLE_RESUME,
+        ) from error
 
 
 def extract_version(result: subprocess.CompletedProcess[str]) -> str:
     if result.returncode != 0:
-        raise DetectionError("agent tool --version probe returned failure")
+        raise detection_error(
+            code="agent-tool.version-probe-rejected",
+            summary="The agent-tool --version probe returned failure.",
+            evidence=(f"return code: {result.returncode}",),
+            required_action=EXACT_EXECUTABLE_ACTION,
+            resume_when=EXACT_EXECUTABLE_RESUME,
+        )
     raw = (result.stdout + "\n" + result.stderr)[:4096]
     if MODEL_OUTPUT_RE.search(raw):
-        raise DetectionError("agent tool --version output contains model metadata")
+        raise detection_error(
+            code="agent-tool.version-output-contaminated",
+            summary="The agent-tool --version output contains prohibited metadata.",
+            evidence=("raw version output was discarded",),
+            required_action=EXACT_EXECUTABLE_ACTION,
+            resume_when=EXACT_EXECUTABLE_RESUME,
+        )
     match = VERSION_RE.search(raw)
     if match is None:
-        raise DetectionError("agent tool --version output has no numeric tool version")
+        raise detection_error(
+            code="agent-tool.version-missing",
+            summary="The agent-tool --version output has no numeric tool version.",
+            evidence=("raw version output was discarded",),
+            required_action=EXACT_EXECUTABLE_ACTION,
+            resume_when=EXACT_EXECUTABLE_RESUME,
+        )
     return match.group(1)
 
 
@@ -153,7 +252,13 @@ def executable_sha256(executable: Path) -> str:
             for block in iter(lambda: stream.read(1024 * 1024), b""):
                 digest.update(block)
     except OSError as error:
-        raise DetectionError("agent tool executable cannot be hashed") from error
+        raise detection_error(
+            code="agent-tool.digest-failed",
+            summary="The resolved agent-tool executable cannot be hashed.",
+            evidence=(f"executable: {executable}", f"failure: {type(error).__name__}"),
+            required_action=EXACT_EXECUTABLE_ACTION,
+            resume_when=EXACT_EXECUTABLE_RESUME,
+        ) from error
     return digest.hexdigest()
 
 
@@ -177,9 +282,12 @@ def choose_executable(
             return resolve_executable(str(ancestors[0]), environment), "process-ancestor"
         if len(ancestors) > 1:
             names = ", ".join(path.name for path in ancestors)
-            raise DetectionError(
-                f"multiple agent tools appear in process ancestry: {names}; "
-                "supply an exact executable"
+            raise detection_error(
+                code="agent-tool.ambiguous-ancestry",
+                summary="Multiple agent tools appear in process ancestry.",
+                evidence=(f"candidates: {names}",),
+                required_action=EXACT_EXECUTABLE_ACTION,
+                resume_when=EXACT_EXECUTABLE_RESUME,
             )
 
     visible: list[Path] = []
@@ -190,14 +298,21 @@ def choose_executable(
             if path not in visible:
                 visible.append(path)
     if not visible:
-        raise DetectionError(
-            "no recognized agent harness or CLI executable is visible; "
-            "supply an exact executable"
+        raise detection_error(
+            code="agent-tool.not-found",
+            summary="No recognized agent harness or CLI executable is visible.",
+            evidence=("bounded candidate search returned no executable",),
+            required_action=EXACT_EXECUTABLE_ACTION,
+            resume_when=EXACT_EXECUTABLE_RESUME,
         )
     if len(visible) > 1:
         names = ", ".join(path.name for path in visible)
-        raise DetectionError(
-            f"multiple agent tools are visible: {names}; supply an exact executable"
+        raise detection_error(
+            code="agent-tool.ambiguous-visible-tools",
+            summary="Multiple agent tools are visible in the Nix environment.",
+            evidence=(f"candidates: {names}",),
+            required_action=EXACT_EXECUTABLE_ACTION,
+            resume_when=EXACT_EXECUTABLE_RESUME,
         )
     return resolve_executable(str(visible[0]), environment), "path-singleton"
 
@@ -232,26 +347,41 @@ def detect_agent_tool(
 
 
 def parser() -> argparse.ArgumentParser:
-    result = argparse.ArgumentParser(
-        description="Report bounded agent harness or CLI executable facts."
+    result = DiagnosticArgumentParser(
+        description="Report bounded agent harness or CLI executable facts.",
+        diagnostic_source="detect-agent-tool",
     )
     result.add_argument("--executable", help="exact harness or CLI executable")
     result.add_argument("--json", action="store_true", help="emit JSON")
     result.add_argument(
         "--subject", action="store_true", help="emit only the normalized subject"
     )
+    add_diagnostic_format_argument(result)
     return result
 
 
 def main() -> int:
     arguments = parser().parse_args()
     if arguments.json and arguments.subject:
-        print("error: choose either --json or --subject", file=sys.stderr)
+        error = detection_error(
+            code="agent-tool.output-mode-conflict",
+            summary="The detector received conflicting output modes.",
+            evidence=("--json and --subject were supplied together",),
+            responsibility="current-agent",
+            disposition="fix-and-retry",
+            required_action="Choose exactly one of --json or --subject.",
+            resume_when="The detector is invoked with at most one output mode.",
+        )
+        emit_diagnostics(
+            (error.diagnostic,), diagnostic_format=arguments.diagnostic_format
+        )
         return 2
     try:
         info = detect_agent_tool(explicit=arguments.executable)
     except DetectionError as error:
-        print(f"error: {error}", file=sys.stderr)
+        emit_diagnostics(
+            (error.diagnostic,), diagnostic_format=arguments.diagnostic_format
+        )
         return 2
     if arguments.subject:
         print(info.subject)

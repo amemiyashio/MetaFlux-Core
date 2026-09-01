@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import subprocess
 import sys
@@ -12,6 +13,7 @@ from pathlib import Path
 
 
 SCRIPT = Path(__file__).with_name("commit_as_agent_tool.py").resolve()
+TOPOLOGY_SCRIPT = SCRIPT.with_name("check_git_topology.py")
 SKILL = SCRIPT.parents[1] / "SKILL.md"
 
 
@@ -99,14 +101,16 @@ def initialize_repository(repository: Path) -> None:
     )
 
 
-def expect_error(action, fragment: str) -> None:
+def expect_error(action, code: str):
     try:
         action()
     except ValueError as error:
-        if fragment not in str(error):
-            raise AssertionError(f"expected {fragment!r}, got {error!r}") from error
-        return
-    raise AssertionError(f"expected error containing {fragment!r}")
+        diagnostic = error.diagnostic
+        assert diagnostic.code == code
+        assert diagnostic.required_action
+        assert diagnostic.resume_when
+        return diagnostic
+    raise AssertionError(f"expected diagnostic {code}")
 
 
 def test_declarations(root: Path) -> None:
@@ -120,7 +124,7 @@ def test_declarations(root: Path) -> None:
             {"PATH": ""},
             explicit_executable=str(root / "missing-agent-tool"),
         ),
-        "not executable",
+        "agent-tool.not-executable",
     )
 
 
@@ -188,14 +192,29 @@ def test_git_topology_boundary(root: Path) -> None:
 
     clone = root / "clone"
     require(run(root, "git", "clone", "-q", str(source), str(clone)), "local clone")
-    expect_error(
+    diagnostic = expect_error(
         lambda: TOPOLOGY_CHECKER.resolve_git_topology(clone),
-        "local standalone clone",
+        "git-topology.local-clone",
     )
+    assert diagnostic.responsibility == "user-or-application"
+    assert diagnostic.disposition == "preserve-and-report"
+    rendered = run(
+        clone,
+        sys.executable,
+        str(TOPOLOGY_SCRIPT),
+        "--json",
+        "--diagnostic-format",
+        "json",
+    )
+    assert rendered.returncode == 2
+    assert rendered.stdout == ""
+    document = json.loads(rendered.stderr)
+    assert document["errors"][0]["code"] == "git-topology.local-clone"
+    assert document["errors"][0]["responsibility"] == "user-or-application"
     require(run(clone, "git", "remote", "remove", "origin"), "remove clone remote")
     expect_error(
         lambda: TOPOLOGY_CHECKER.resolve_git_topology(clone),
-        "local standalone clone",
+        "git-topology.local-clone",
     )
 
     require(
@@ -208,8 +227,85 @@ def test_git_topology_boundary(root: Path) -> None:
 def test_conflicting_options() -> None:
     for arguments in (["--", "--amend"], ["--", "--author=x"], ["--", "-C", "HEAD"]):
         expect_error(
-            lambda arguments=arguments: HELPER.commit_arguments(arguments), "identity"
+            lambda arguments=arguments: HELPER.commit_arguments(arguments),
+            "commit-helper.identity-option-conflict",
         )
+
+
+def test_actionable_cli_errors(root: Path) -> None:
+    tool = make_tool(root / "tool")
+    repository = root / "repository"
+    initialize_repository(repository)
+
+    missing = run(
+        repository,
+        sys.executable,
+        str(SCRIPT),
+        "--diagnostic-format",
+        "json",
+        env=environment(tool),
+    )
+    assert missing.returncode == 2
+    document = json.loads(missing.stderr)
+    assert document["errors"][0]["code"] == "commit-helper.missing-arguments"
+
+    rejected = run(
+        repository,
+        sys.executable,
+        str(SCRIPT),
+        "--diagnostic-format",
+        "json",
+        "--",
+        "-m",
+        "empty candidate",
+        env=environment(tool),
+    )
+    assert rejected.returncode != 0
+    structured = next(
+        json.loads(line)
+        for line in rejected.stderr.splitlines()
+        if line.startswith("{")
+    )
+    assert structured["errors"][0]["code"] == "verification.required-gate-failed"
+    action = structured["errors"][0]["required_action"]
+    assert "bypass" in action
+
+    hook = repository / ".git" / "hooks" / "pre-commit"
+    hook.write_text(
+        "#!/bin/sh\n"
+        "printf '%s\\n' '{\"schema_version\": 1, \"status\": \"error\", "
+        "\"errors\": [{\"code\": \"fixture.child-failure\", "
+        "\"source\": \"fixture hook\", \"summary\": \"child failed\", "
+        "\"evidence\": [\"fixture evidence\"], "
+        "\"responsibility\": \"current-agent\", "
+        "\"disposition\": \"fix-and-retry\", "
+        "\"required_action\": \"repair fixture\", "
+        "\"resume_when\": \"fixture passes\"}]}' >&2\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    hook.chmod(0o755)
+    (repository / "candidate.txt").write_text("candidate\n", encoding="utf-8")
+    require(run(repository, "git", "add", "candidate.txt"), "stage candidate")
+    child = run(
+        repository,
+        sys.executable,
+        str(SCRIPT),
+        "--diagnostic-format",
+        "json",
+        "--",
+        "-m",
+        "child failure",
+        env=environment(tool),
+    )
+    assert child.returncode != 0
+    child_envelope = next(
+        json.loads(line)
+        for line in child.stderr.splitlines()
+        if line.startswith("{")
+    )
+    assert child_envelope["errors"][0]["code"] == "fixture.child-failure"
+    assert "verification.required-gate-failed" not in child.stderr
 
 
 def test_policy_text() -> None:
@@ -219,6 +315,10 @@ def test_policy_text() -> None:
     assert "nix develop . --command ..." in text
     assert "goal.json" in text
     assert "check_git_topology.py" in text
+    assert "## Task-Stop Diagnostics" in text
+    assert "verification.required-gate-failed" in text
+    assert "user-or-application" in text
+    assert "preserve-and-report" in text
     duplicate_epoch = "METAFLUX_AGENT_" + "EPOCH"
     assert duplicate_epoch not in text
     legacy_marker = "METAFLUX_AGENT_" + "HARNESS"
@@ -234,7 +334,8 @@ def main() -> int:
         test_identity_output(root / "output")
         test_commit_identity(root / "commit")
         test_git_topology_boundary(root / "context")
-    print("commit helper tests: 6 passed")
+        test_actionable_cli_errors(root / "errors")
+    print("commit helper tests: 7 passed")
     return 0
 
 

@@ -63,6 +63,13 @@ the repository gates.
    stores tool facts or changes Git configuration. Candidate checks and their
    self-tests are side-effect-free with respect to the invoking repository,
    including from linked worktrees.
+9. **Report actionable task stops.** Follow the sole diagnostic contract in
+   [`start-work`](agent/skills/start-work/SKILL.md#task-stop-diagnostics) whenever
+   a gate, required verification, or loaded Skill prohibition blocks the next
+   phase. Preserve child diagnostics and raw product-tool output; do not replace
+   them with a generic rejection, retry unchanged evidence, or turn an external
+   responsibility into implicit scheduling, source-copy creation, privilege,
+   cleanup, or repository state.
 
 Product boundaries live in `contracts/README.md` and
 `docs/architecture/repo-layout.md`; the language wall and dependency whitelist

@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -30,14 +32,16 @@ def load_module() -> ModuleType:
 HOST = load_module()
 
 
-def expect_value_error(action: Callable[[], object], text: str) -> None:
+def expect_value_error(action: Callable[[], object], code: str):
     try:
         action()
     except ValueError as error:
-        if text not in str(error):
-            raise AssertionError(f"expected {text!r} in {error!r}") from error
-        return
-    raise AssertionError(f"expected ValueError containing {text!r}")
+        diagnostic = error.diagnostic
+        assert diagnostic.code == code
+        assert diagnostic.required_action
+        assert diagnostic.resume_when
+        return diagnostic
+    raise AssertionError(f"expected diagnostic {code}")
 
 
 def test_package_command_is_bounded(root: Path) -> None:
@@ -51,7 +55,10 @@ def test_package_command_is_bounded(root: Path) -> None:
         "cmake",
     )
     for invalid in ("-S", "pkg name", "https://example.invalid/pkg", "../pkg", ""):
-        expect_value_error(lambda invalid=invalid: HOST.package_command((invalid,)), "invalid")
+        expect_value_error(
+            lambda invalid=invalid: HOST.package_command((invalid,)),
+            "host-privilege.invalid-package-name",
+        )
 
 
 def test_check_uses_noninteractive_exact_helpers(root: Path) -> None:
@@ -81,10 +88,12 @@ def test_driver_module_path_is_project_scoped(root: Path) -> None:
 
     outside = root.parent / "metaflux_core.ko"
     outside.write_bytes(b"outside")
-    expect_value_error(
+    diagnostic = expect_value_error(
         lambda: HOST.driver_command("load", (str(outside),), root=root),
-        "inside the repository",
+        "host-privilege.artifact-outside-repository",
     )
+    assert diagnostic.responsibility == "user-or-application"
+    assert diagnostic.disposition == "preserve-and-report"
 
 
 def test_live_path_requires_exact_executable(root: Path) -> None:
@@ -93,7 +102,7 @@ def test_live_path_requires_exact_executable(root: Path) -> None:
     live.write_text("fixture\n", encoding="utf-8")
     expect_value_error(
         lambda: HOST.driver_command("live", (str(live),), root=root),
-        "not executable",
+        "host-privilege.artifact-not-executable",
     )
     live.chmod(0o755)
     command = HOST.driver_command("live", (str(live),), root=root)
@@ -103,12 +112,35 @@ def test_live_path_requires_exact_executable(root: Path) -> None:
 def test_driver_actions_reject_extra_or_unknown_arguments(root: Path) -> None:
     expect_value_error(
         lambda: HOST.driver_command("logs", ("extra",), root=root),
-        "requires 0",
+        "host-privilege.driver-arity-invalid",
     )
     expect_value_error(
         lambda: HOST.driver_command("shell", (), root=root),
-        "unsupported",
+        "host-privilege.driver-action-unsupported",
     )
+
+
+def test_cli_json_error(root: Path) -> None:
+    del root
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--diagnostic-format",
+            "json",
+            "package",
+            "invalid package",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 2
+    document = json.loads(result.stderr)
+    diagnostic = document["errors"][0]
+    assert diagnostic["code"] == "host-privilege.invalid-package-name"
+    assert diagnostic["responsibility"] == "current-agent"
+    assert diagnostic["required_action"]
 
 
 def test_root_helpers_have_closed_command_sets(root: Path) -> None:
@@ -154,6 +186,7 @@ def main() -> int:
         test_driver_module_path_is_project_scoped,
         test_live_path_requires_exact_executable,
         test_driver_actions_reject_extra_or_unknown_arguments,
+        test_cli_json_error,
         test_root_helpers_have_closed_command_sets,
         test_no_credential_transport_or_generic_sudo_rule,
     )

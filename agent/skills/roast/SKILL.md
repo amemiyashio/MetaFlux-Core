@@ -40,3 +40,12 @@ the actual canonical-owner changes; Git preserves their prior form.
 Verify that every promoted claim changed exactly one owner, links resolve,
 experience status matches reproducible evidence, and no transient input remains
 in the current tree.
+
+## Task Stops
+
+Use the `start-work` task-stop contract. Implicit standalone use is
+`roast.explicit-request-required` with
+`user-or-application / stop-and-report`. A dark promotion without a current
+decision or a breaking replacement without explicit Epoch governance is
+`roast.authority-missing` with the corresponding decision or Epoch authority;
+leave canonical owners unchanged until that authority exists.

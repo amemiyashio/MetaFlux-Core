@@ -87,6 +87,21 @@ Batch regression. Only a passing combined tree may mark lanes or the Batch
 integrated, and that state change is included in the final product merge rather
 than a standalone record commit. Failure leaves main and `goal.json` unchanged.
 
+## Task-Stop Contract
+
+A task-stopping gate or Skill prohibition reports bounded evidence, the
+authority responsible for the next action, and the exact condition for
+resuming. A child gate's structured cause remains visible through callers;
+required product verification keeps its original command output and receives
+one actionable wrapper per distinct root cause. External responsibility never
+authorizes an Agent to create another execution context, widen privilege, or
+retry unchanged evidence.
+
+[`start-work`](../../agent/skills/start-work/SKILL.md#task-stop-diagnostics) is
+the operational authority and `tools/agent_diagnostics.py` is its shared
+renderer. Diagnostics are command/conversation output only and never become
+Goal state, Agent identity, a numbered record, or an archive.
+
 ## Epoch Governance
 
 `govern-epoch` is explicit-only. It applies when duplicate authority, ambiguous

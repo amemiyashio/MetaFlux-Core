@@ -47,14 +47,17 @@ def make_tool(root: Path, name: str, version_line: str = "fixture-cli 1.2.3") ->
     return path
 
 
-def expect_error(action, fragment: str) -> None:
+def expect_error(action, code: str):
     try:
         action()
     except DETECTOR.DetectionError as error:
-        if fragment not in str(error):
-            raise AssertionError(f"expected {fragment!r}, got {error!r}") from error
-        return
-    raise AssertionError(f"expected error containing {fragment!r}")
+        diagnostic = error.diagnostic
+        assert diagnostic.code == code
+        assert diagnostic.evidence
+        assert diagnostic.required_action
+        assert diagnostic.resume_when
+        return diagnostic
+    raise AssertionError(f"expected diagnostic {code}")
 
 
 def test_explicit(root: Path) -> None:
@@ -133,7 +136,7 @@ def test_ambiguity_and_contamination(root: Path) -> None:
             candidate_names=("tool-one", "tool-two"),
             inspect_ancestors=False,
         ),
-        "multiple agent tools",
+        "agent-tool.ambiguous-visible-tools",
     )
     model_name = make_tool(root, "fixture-model-derived-agent")
     expect_error(
@@ -142,7 +145,7 @@ def test_ambiguity_and_contamination(root: Path) -> None:
             environment={"PATH": ""},
             inspect_ancestors=False,
         ),
-        "model or runtime metadata token",
+        "agent-tool.prohibited-subject-input",
     )
     contaminated = make_tool(
         root, "clean-tool", "clean-tool 1.2.3 model=MODEL_VALUE"
@@ -153,7 +156,7 @@ def test_ambiguity_and_contamination(root: Path) -> None:
             environment={"PATH": ""},
             inspect_ancestors=False,
         ),
-        "contains model metadata",
+        "agent-tool.version-output-contaminated",
     )
 
 
@@ -172,6 +175,30 @@ def test_cli(root: Path) -> None:
     serialized = json.dumps(document).lower()
     assert "model" not in serialized
     assert "backend" not in serialized
+
+    rejected = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--executable",
+            str(root / "missing-agent"),
+            "--json",
+            "--diagnostic-format",
+            "json",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert rejected.returncode == 2
+    assert rejected.stdout == ""
+    failure = json.loads(rejected.stderr)
+    assert failure["status"] == "error"
+    diagnostic = failure["errors"][0]
+    assert diagnostic["code"] == "agent-tool.not-executable"
+    assert diagnostic["responsibility"] == "user-or-application"
+    assert diagnostic["required_action"]
+    assert diagnostic["resume_when"]
 
 
 def main() -> int:

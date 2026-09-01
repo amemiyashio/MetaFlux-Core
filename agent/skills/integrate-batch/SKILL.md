@@ -70,6 +70,19 @@ Fix a bounded integration defect in the same Batch, or return the exact defect
 for a new Iteration. Do not create an integration report, checkpoint, or Batch
 history file.
 
+## Task Stops
+
+Use the `start-work` task-stop contract. An implicit invocation or missing
+integration context is `integration.explicit-request-required` or
+`integration.context-invalid` with `user-or-application / preserve-and-report`.
+A planned lane without an exact committed delivery is
+`integration.candidate-missing` with the same external responsibility; it is
+never a dispatch signal. Revision ancestry errors come from the state checker
+unchanged. A focused or combined regression failure is
+`verification.required-gate-failed`; the Batch integrator may repair only a
+bounded integration defect, otherwise it preserves Goal state and requests a
+new committed Iteration.
+
 ## Output
 
 Report accepted/rejected Iterations, merge revisions, focused and combined test

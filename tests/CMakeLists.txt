@@ -170,6 +170,16 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "architecture"
   )
   add_test(
+    NAME metaflux.architecture.agent-diagnostics-selftest
+    COMMAND
+      Python3::Interpreter -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-agent-diagnostics.py"
+  )
+  set_tests_properties(
+    metaflux.architecture.agent-diagnostics-selftest
+    PROPERTIES LABELS "architecture"
+  )
+  add_test(
     NAME metaflux.architecture.agent-tool-detection-selftest
     COMMAND
       Python3::Interpreter -B

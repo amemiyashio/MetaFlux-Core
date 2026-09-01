@@ -105,6 +105,17 @@ ownership or mode is invalid, an action is unknown, argument arity is wrong, an
 artifact escapes the configured repository root, or a required kernel facility
 is absent. Do not widen the command set to bypass a failure.
 
+Render these failures through the `start-work` task-stop contract. Invalid
+package names, actions, arity, and canonical in-repository artifact shape are
+`current-agent / fix-and-retry`. An artifact outside the configured repository
+is `host-privilege.artifact-outside-repository` with
+`user-or-application / preserve-and-report`: request the canonical integrated
+artifact and do not copy or reconfigure the boundary. A root-owned helper,
+authorization, or kernel prerequisite rejection is
+`host-privilege.helper-rejected` with `host-operator / stop-and-report`; retain
+its raw output and never fall back to direct sudo, su, credential transport, or
+a wider command.
+
 ## Verification
 
 ```sh
