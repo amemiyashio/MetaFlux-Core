@@ -2,27 +2,29 @@
 status: Active
 updated: 2026-09-01
 governance_epoch: D0029
-focus_mode: governance
-focus_owner: S0100-20260901-002-agent-startup-resolution
+focus_mode: product
+focus_owner: S0112-20260901-003-m0110-w0112-post-startup-governance
 milestone: M0110
 workstream: W0112
-checkpoint: P20260901-100
+checkpoint: P20260901-101
 ---
 
 # Current Progress
 
 ## Execution Focus
 
-SC0008 is Active under D0029 as a destructive agent-startup migration. The sole
-governance owner is `S0100-20260901-002-agent-startup-resolution`; product
-changes are paused until harness-subject resolution and Nix-first startup are
-enforced across the current workflow surfaces.
+SC0008 is Applied at effective revision
+`a7e370d68c660a1d42210631641bef0d3406cf91`. D0031 now requires stable
+harness-product resolution and Nix-first command entry. The sole product owner
+is `S0112-20260901-003-m0110-w0112-post-startup-governance`, a newly
+scaffolded schema version 2 session under the D0029 epoch.
 
 The replacement has no compatibility route. Future Codex sessions must use the
 stable `codex` harness subject rather than a model, template, backend, build,
-session, thread, or prompt label. Repository executables and tool probes must
-start inside the Git-aware Nix development environment; agents do not search
-the ambient host for an agent CLI or infer harness identity.
+CLI, session, thread, or prompt label. Except for host Git/Nix bootstrap,
+repository executables and tool probes start inside the Git-aware Nix
+development environment; agents do not search the ambient host for an agent CLI
+or infer harness identity.
 
 ## Product Resume Target
 
@@ -82,11 +84,13 @@ default scheduling authority while M0110 is incomplete.
 
 ## Next Actions
 
-1. Create the canonical startup-resolution decision and migrate the start-work,
-   harness identity, and toolchain surfaces under Active SC0008.
-2. Pass helper, skill, routing, semantic-change, record, and Nix-first
-   regressions with no legacy startup route remaining.
-3. Apply SC0008 and atomically return W0112 to a newly scaffolded successor.
+1. Activate `/dev/metafluxctl` and `/dev/metafluxN`, then prove the current
+   daemon lease/query/object-table path against live cdev mappings and
+   registered-memory handles.
+2. Prove unmodified Add/Copy through `/dev/metafluxN`, including
+   replacement-generation isolation and fd/VMA tombstone behavior, then execute
+   the W0112 fault matrix with KUnit, KASAN, KCSAN, lockdep, and kmemleak on
+   Linux 6.12 and 6.18.
 
 ## Blockers
 
@@ -96,13 +100,12 @@ default scheduling authority while M0110 is incomplete.
 - W0112 remains incomplete until live device-node Add/Copy and kernel fault
   evidence exist. Host-independent fixtures and mapped COPY alone do not close
   it.
-- Product work remains paused until SC0008 has no Pending migration row and the
-  W0112 successor owns product focus.
 - M0120 and M0130 content work waits for an explicit focus handoff after the
   M0110 dependency boundary advances.
 
 ## Evidence Pointers
 
+- [P101 agent startup resolution](checkpoints/2026/P20260901-101-agent-startup-resolution.md)
 - [P100 live cdev qualification harness](checkpoints/2026/P20260901-100-m0110-cdev-live-qualification.md)
 - [P093 daemon cdev backend reference drain](checkpoints/2026/P20260901-093-m0110-daemon-cdev-reference-drain.md)
 - [P094 current cdev worker payload mapping](checkpoints/2026/P20260901-094-m0110-cdev-worker-payload-mapping.md)
@@ -134,7 +137,13 @@ default scheduling authority while M0110 is incomplete.
 
 ## Tool Boundary
 
-Nix fixes and exposes declared tools only. Git owns source identity; CMake and
-Ninja own builds; CTest and repository harnesses own verification; packaging
-owns artifacts; focus owns scheduling and commit authority; sessions own compact
-work evidence and cleanup; host operators own Nix-store retention.
+D0031 requires Git-aware Nix-first executable resolution. Missing tools are
+added to the repository Nix declaration first; only a tool that Nix cannot
+provide or materialize becomes an exact host-operator prerequisite. Nix owns
+only clear, reproducible, stable tool-version identity, materialization, and
+exposure. A fixed version describes the current revision, not a permanent
+freeze: later `manage-toolchain` changes may deliberately evolve manifests and
+locks. Git owns source identity, CMake/Ninja own builds, CTest and repository
+harnesses own verification, packaging owns artifacts, focus owns scheduling and
+commit authority, sessions own compact work evidence and cleanup, and host
+operators own Nix-store retention.

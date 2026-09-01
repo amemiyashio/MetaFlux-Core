@@ -2,32 +2,52 @@
 
 ## Objective and outcome
 
-Own the bounded destructive SC0008 migration. Activation has paused product
-work and transferred D0029 focus to this session. The migration is not yet
-applied.
+Applied the bounded destructive SC0008 migration at content revision
+`a7e370d68c660a1d42210631641bef0d3406cf91`. D0031 now owns stable
+harness-product resolution, exact Codex identity, mandatory preflight, and
+Nix-first executable entry and acquisition. Nix is restricted to clear,
+reproducible, stable version identity, materialization, and exposure; later
+governed toolchain revisions may evolve those versions. Product focus returns
+to a newly scaffolded W0112 successor.
 
 ## Durable changes
 
-- `agent/semantic-changes/SC0008-agent-startup-resolution.md`: Active migration
-  permit and complete surface inventory.
-- `agent/progress/focus.json`: governance focus with W0112 as resume target.
+- `docs/architecture/agent-startup-resolution.md`: Verified D0031 canonical
+  startup order and no-compatibility boundary.
+- `agent/skills/start-work/SKILL.md`: Stage Zero now precedes ordinary context
+  loading and commands.
+- `agent/skills/start-work/scripts/commit_as_harness.py`: reduced subject bound
+  and non-harness identity-class rejection.
+- `toolchains/README.md`: D0022 now carries the D0031 Nix-first amendment
+  without transferring workflow ownership to Nix.
+- `agent/semantic-changes/SC0008-agent-startup-resolution.md`: Applied migration
+  record with synchronized current surfaces and preserved history.
 
 ## Verification
 
 | Command/gate | Result |
 | --- | --- |
-| Activation record gate | Pending candidate-tree verification |
+| Harness helper and policy | Passed: 9/9 |
+| Codex skill validator | Passed |
+| Skill routing | Passed: 89 cases; self-test 34/34 |
+| Agent records | Passed; self-test 197 cases |
+| Semantic-change edit gate | Passed: 23/23 |
+| Wrong subject / Codex preflight | Passed: model/template label rejected; `codex` resolved exactly |
+| Nix-first probes | Passed: rg, Python, CMake, Ninja, and CTest |
+| Content pre-commit | Passed at `7db7bcf`, `73b471f`, and `a7e370d` |
 
 ## Cleanup
 
 - Removed: none.
-- Retained: P100 and earlier Git evidence; no old startup route is retained as
-  future authority.
+- Retained: D0031, current skill/tooling, P100 product evidence, and historical
+  Git objects as facts only.
 
 ## Decisions and experience
 
-- D0029 authorizes the bounded migration. The new canonical decision will own
-  the resulting startup resolution order.
+- D0031 amends D0022/D0028 and owns the new startup order. D0029/SC0008 own the
+  destructive migration and exact handoff.
+- Fixed tool versions are stable per revision, not permanently immutable;
+  deliberate version changes remain owned by `manage-toolchain`.
 
 ## roast
 
@@ -41,7 +61,10 @@ applied.
 
 ### dark roasts
 
-- none.
+- Destructive stable-harness and Nix-first startup resolution ->
+  `docs/architecture/agent-startup-resolution.md` (`a7e370d`; helper/skill
+  9/9, routing 89 plus 34/34, record self-test 197, semantic edits 23/23;
+  authority: D0031, SC0008)
 
 ## session-only
 
@@ -49,11 +72,14 @@ applied.
 
 ## Unresolved items
 
-- SC0008: migrate all Pending inventory rows, pass the declared gates, and apply
-  against an exact effective revision.
-- W0112: paused at P100 until a post-SC0008 successor receives product focus.
+- W0112: live `/dev/metafluxN` Add/Copy, registered-memory/DMA import,
+  replacement-generation isolation, and Linux 6.12/6.18 fault qualification
+  remain open.
 
 ## Handoff
 
-Continue only from Active SC0008, current focus, and current repository files.
-Use the Git-aware Nix environment for repository executables.
+Continue as
+`S0112-20260901-003-m0110-w0112-post-startup-governance`. Read current focus,
+current progress, D0031/start-work, and the W0112 Exit Gate. Resolve
+`Agent harness subject: codex` from runtime instruction context and enter the
+Git-aware Nix environment before repository executables.
