@@ -1,6 +1,6 @@
 ---
 name: start-work
-description: Cold-start one externally assigned MetaFlux Iteration with detected tool identity, Nix-first project tools, domain routing, bounded in-task subagents, and one committed delivery without allocating sibling lanes or execution contexts.
+description: Cold-start one externally assigned MetaFlux Iteration with detected tool identity, a provisioned Git execution context, Nix-first project tools, bounded in-task subagents, and one committed delivery without allocating sibling lanes or source copies.
 ---
 
 # Start Work
@@ -23,25 +23,38 @@ Complete this stage before any shell executable except host `git` and `nix`.
 
    Emit the detected subject, resolved executable, and tool version. These are
    ephemeral startup facts, not repository state.
-2. If discovery is ambiguous, pass the exact harness or CLI executable with
+2. Validate the current checkout before reading or running project tools:
+
+   ```sh
+   nix develop . --command python3 -B \
+     agent/skills/start-work/scripts/check_execution_context.py --json
+   ```
+
+   The shared Git config key `metaflux.agentExecutionCommonDir` must contain
+   the exact absolute `git-common-dir` provisioned by the user or application.
+   The primary checkout and its registered linked worktrees share that value;
+   a standalone clone or copied `.git` does not. An Agent never creates,
+   changes, copies, or repairs this registration. A missing or mismatched value
+   ends the work unit without a clone, worktree, directory, or config retry.
+3. If discovery is ambiguous, pass the exact harness or CLI executable with
    `--executable`. Do not choose by PATH order. Outside the detector, do not
    search for an agent CLI or inspect PATH, processes, `/proc`, environment,
    Git configuration, or repository prose to derive identity.
-3. Never inspect or derive identity from a model, provider, template, backend,
+4. Never inspect or derive identity from a model, provider, template, backend,
    build label, prompt, conversation, session, thread, or user-supplied label.
    The subject comes only from the resolved executable basename; the version
    comes only from its bounded `--version` probe.
-4. Run every project executable and every project version/capability probe
+5. Run every project executable and every project version/capability probe
    through the Git-aware `nix develop . --command ...` environment. Never probe
    the ambient host first and never use `path:.`. The observed caller harness
    is not a project tool and is not pinned by repository Nix.
-5. If a required project tool is missing, load `manage-toolchain` and add it to
+6. If a required project tool is missing, load `manage-toolchain` and add it to
    the repository Nix declaration first. Only after a confirmed Nix provision
    or materialization gap may `manage-host-privilege` resolve and install an
    exact host package. Nix owns version identity, materialization, and exposure
    only; fixed means reproducibly stable for the current revision, not
    immutable.
-6. Before sudo, su, a root helper, persistent authorization, package install,
+7. Before sudo, su, a root helper, persistent authorization, package install,
    or privileged driver operation, load `manage-host-privilege` and the owning
    domain skill. Never persist, pass, or print a credential.
 
@@ -67,6 +80,13 @@ worktree, clone, task, thread, or chat to manufacture a compliant context. Do
 not infer work from another worktree, uncommitted files, conversation history,
 or obsolete repository records.
 
+Re-run Stage Zero after a resumed or compacted task, after loading changed
+`start-work` authority, and before further durable work when `HEAD`, the index,
+or the execution path changed outside the current work unit. A context created
+earlier by an Agent is not grandfathered: if its current registration fails,
+stop there. Never fall back from a worktree, hook, index, or candidate-tree
+failure to `git clone`, file-tree copying, or a sibling source directory.
+
 ## Assignment And Subagent Boundary
 
 The user or application owns scheduling and supplies the task, execution
@@ -75,6 +95,12 @@ Batch integration topology; they are not a queue for the current worker to
 claim or dispatch. Existing parallel agents and worktrees are accepted as
 external facts, not authorization to create more. After delivering the assigned
 Iteration, report it and stop instead of selecting the next lane.
+
+A standalone clone is never an Iteration execution context, even when it is
+clean, local-only, based on the requested revision, or already contains a useful
+candidate. Preserve unexpected content long enough to identify its exact Git
+relationship, then let the user or application decide cleanup; do not continue
+work there or create another copy.
 
 Within the assigned Iteration, prefer bounded subagents over additional Git
 branches when independent analysis materially improves speed or review quality.
@@ -156,6 +182,8 @@ the helper.
 ## Verification
 
 ```sh
+nix develop . --command python3 -B \
+  agent/skills/start-work/scripts/check_execution_context.py --json
 nix develop . --command python3 -B \
   agent/skills/detect-agent-tool/scripts/test_detect_agent_tool.py
 nix develop . --command python3 -B \

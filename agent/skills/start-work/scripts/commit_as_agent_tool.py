@@ -23,6 +23,7 @@ DETECTOR_SCRIPT = (
     / "scripts"
     / "detect_agent_tool.py"
 )
+CONTEXT_CHECKER_SCRIPT = SCRIPT.with_name("check_execution_context.py")
 
 
 def load_detector():
@@ -38,6 +39,21 @@ def load_detector():
 
 
 DETECTOR = load_detector()
+
+
+def load_context_checker():
+    spec = importlib.util.spec_from_file_location(
+        "metaflux_execution_context_for_commit", CONTEXT_CHECKER_SCRIPT
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError("execution-context checker cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+CONTEXT_CHECKER = load_context_checker()
 
 
 @dataclass(frozen=True)
@@ -118,6 +134,7 @@ def main() -> int:
         identity = declared_identity(
             dict(os.environ), explicit_executable=arguments.agent_tool
         )
+        CONTEXT_CHECKER.resolve_execution_context(Path.cwd())
         if arguments.print_identity:
             if arguments.git_arguments:
                 raise ValueError("--print-identity does not accept commit arguments")
