@@ -41,7 +41,7 @@ The product Exit Gate remains open.
   mutable per-file negotiation, lease, queue, and registered-memory
   authorization state now execute under `mf_cdev_lock`, matching close and
   teardown updates while preserving errno and resource-unwind behavior.
-- `047ea9428fe28e56ae3dac5bbf6db96499dc070e`: the D0030 provider path now
+- `0404481`: the D0030 provider path now
   attempts cdev first, binds its data queue to the matching Unix session,
   view, and generation before committing initialization, and limits memfd
   fallback to the recorded pre-success unsupported cases.
@@ -55,6 +55,11 @@ The product Exit Gate remains open.
 - `transports/cdev/README.md`, `kernel/core/README.md`, and the W0112 plan:
   record the new mapping boundary and keep daemon live lease/import,
   generation replacement, and kernel qualification explicitly open.
+- `kernel/tests/kselftest/cdev_qualification.c`: an executable live gate now
+  covers the generated ioctl/mmap ABI, eventfd worker lease, payload query and
+  mapping, non-aligned long-term registration/unregister, malformed and stale
+  requests, unknown ioctl rejection, and owner-close VMA tombstones. CTest
+  records missing device nodes as a skip rather than a pass.
 - The current source audit confirms the live product seam is still unconnected:
   `Session::serve()` selects only `EmbeddedCpuWorker`, standalone cdev region
   descriptors require a daemon object table that the cdev client does not
@@ -82,6 +87,7 @@ The product Exit Gate remains open.
 | Cdev worker launch reference regression | Passed: 1/1 |
 | Provider-only cdev-disabled build and CTest | Passed: build and 40/40 |
 | Full development CTest after provider/daemon binding | Passed: 85/85 |
+| Full development CTest after live harness | Passed: 85 executed; live cdev qualification skipped because `/dev/metaflux0` is absent |
 | Linux 6.18 core Kbuild in repository Nix environment | Passed: compile, modpost, and BTF; compiler-version warning only |
 | Schema and lifecycle manifest closure | Passed: schema validator and lifecycle model checks |
 | Agent records | Passed before checkpoint-record commit |
@@ -142,13 +148,17 @@ The product Exit Gate remains open.
 - D0030 cdev-first provider selection and same-session binding ->
   `agent/plan/M0110-kernel-guest-transport/plan.md` (implementation evidence:
   `contracts/protocol/client/v1/include/metaflux/client/protocol.h` and
-  `plugins/compat/cuda/abi/driver/src/provider.c`; `047ea94`; full CTest 85/85;
+  `plugins/compat/cuda/abi/driver/src/provider.c`; `0404481`; full CTest 85/85;
   provider-only cdev-disabled CTest 40/40)
 - Bound daemon cdev worker with CPU COPY/LAUNCH object-table resolution ->
   `agent/plan/M0110-kernel-guest-transport/work/W0112-local-cdev.md`
   (implementation evidence: `services/metafluxd/server.cpp` and
-  `transports/cdev/worker/src/worker.cpp`; `047ea94`; focused worker CTest 1/1;
+  `transports/cdev/worker/src/worker.cpp`; `0404481`; focused worker CTest 1/1;
   full CTest 85/85; Linux 6.18 Kbuild)
+- Executable live cdev UAPI and VMA qualification gate ->
+  `agent/plan/M0110-kernel-guest-transport/work/W0112-local-cdev.md`
+  (implementation evidence: `kernel/tests/kselftest/cdev_qualification.c`;
+  `95c960d`; 85 executable CTest passes plus one explicit missing-device skip)
 
 ### dark roasts
 

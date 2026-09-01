@@ -155,6 +155,11 @@ and arithmetic operation is validated.
   negotiation, lease, queue, and registered-memory authorization state under
   `mf_cdev_lock`, preserving errno and resource-unwind behavior across close
   and teardown races.
+- [x] Add a live cdev qualification executable covering the generated ioctl and
+  mmap ABI, eventfd-backed lease, payload query, long-term registered-memory
+  pin/unregister, malformed and stale requests, unknown ioctl rejection, and
+  owner-close VMA tombstones. It is wired into CTest with an explicit skip code
+  when the device node or lease is unavailable.
 
 ## Remaining work
 
@@ -166,11 +171,13 @@ and arithmetic operation is validated.
 - [ ] Connect the daemon object table and leased worker/backend binding to the
   live cdev registered-memory handles and prove Add/Copy through the mapped
   payload arena. The source-level daemon lease/object-table binding and CPU
-  backend COPY/LAUNCH adapter are now connected under `047ea94`; live daemon
+  backend COPY/LAUNCH adapter are now connected under `0404481`; live daemon
   use of the lease/query path, kernel DMA-backed references, generation
   replacement, and physical device qualification remain open.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
-  teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak.
+  teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak. The userspace live
+  ABI harness is now present; kernel-configured sanitizer and fault-injection
+  runs remain unexecuted on the current host.
 
 ## Exit Gate
 

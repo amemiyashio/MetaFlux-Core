@@ -6,7 +6,7 @@ focus_mode: product
 focus_owner: S0112-20260901-001-m0110-w0112-current-epoch
 milestone: M0110
 workstream: W0112
-checkpoint: P20260901-099
+checkpoint: P20260901-100
 ---
 
 # Current Progress
@@ -60,7 +60,12 @@ default scheduling authority while M0110 is incomplete.
   6.18 Kbuild remain green. P099 adds the source-level provider cdev-first
   handshake, same-session/view/generation binding, daemon cdev worker pump,
   and CPU backend COPY/primary-entry LAUNCH resolution with explicit memory
-  references. These are source and fixture closures, not live device proof.
+  references. P100 adds an executable live cdev qualification gate for the
+  generated ioctl/mmap ABI, eventfd lease, payload query, registered-memory
+  unregister, malformed/stale requests, and owner-close VMA tombstones. The
+  full suite now has 86 tests; 85 execute successfully and this live gate is
+  explicitly skipped while `/dev/metaflux0` is absent. These are source and
+  fixture closures, not live device proof.
 - The live product path remains unqualified: `/dev/metafluxctl` and
   `/dev/metaflux0` are absent on this host. The provider and daemon now have a
   single initialization epoch and a cdev data-plane route under D0030, while
@@ -99,6 +104,7 @@ default scheduling authority while M0110 is incomplete.
 
 ## Evidence Pointers
 
+- [P100 live cdev qualification harness](checkpoints/2026/P20260901-100-m0110-cdev-live-qualification.md)
 - [P093 daemon cdev backend reference drain](checkpoints/2026/P20260901-093-m0110-daemon-cdev-reference-drain.md)
 - [P094 current cdev worker payload mapping](checkpoints/2026/P20260901-094-m0110-cdev-worker-payload-mapping.md)
 - [P095 lease-bound cdev payload query](checkpoints/2026/P20260901-095-m0110-cdev-payload-query.md)
