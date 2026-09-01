@@ -62,6 +62,14 @@ public:
       OperationKind kind, Visibility visibility, std::span<const Dependency> dependencies,
       VkCommandBuffer command_buffer, std::uint64_t argument_block_size,
       QueueSubmission* out_submission);
+  // Record and submit a cache-resident compute dispatch. The warm session owns
+  // the residency pin; this path never creates Vulkan objects or allocates.
+  [[nodiscard]] QueueExecutionStatus submit_warm_compute(
+      WarmLaunchSession& session, VulkanComputePipeline& pipeline, std::uint64_t generation,
+      std::uint64_t stream_id, std::span<const Dependency> dependencies,
+      VkCommandBuffer command_buffer, std::uint32_t groups_x, std::uint32_t groups_y,
+      std::uint32_t groups_z, std::uint64_t argument_block_size,
+      QueueSubmission* out_submission);
   [[nodiscard]] QueueExecutionStatus complete(std::uint64_t generation,
                                               std::uint64_t completed_value) noexcept;
   // Observe the Vulkan timeline and recycle every command resource at or below

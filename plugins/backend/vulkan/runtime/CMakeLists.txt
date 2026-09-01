@@ -24,11 +24,21 @@ target_include_directories(
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/contracts/plugin/backend/v1/include>"
     "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
-target_include_directories(metaflux_vulkan_backend SYSTEM PRIVATE "${METAFLUX_VULKAN_INCLUDE_DIR}")
+# The Nix clang wrapper can report the Vulkan SDK as an implicit include during
+# configure even though the runtime shell does not expose it to later commands.
+# Keep the discovered SDK explicit and public for source-local Vulkan headers in
+# both the backend and its tests.
+target_compile_options(metaflux_vulkan_backend PUBLIC
+                       "SHELL:-isystem ${METAFLUX_VULKAN_INCLUDE_DIR}")
 target_link_libraries(metaflux_vulkan_backend PRIVATE "${METAFLUX_VULKAN_LIBRARY}" Threads::Threads)
 metaflux_configure_target(metaflux_vulkan_backend CXX)
 
 if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
+  set(METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH "${METAFLUX_VULKAN_SDK_DIR}/lib")
+  foreach(implicit_library_dir IN LISTS CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES)
+    string(APPEND METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH ":${implicit_library_dir}")
+  endforeach()
+
   add_executable(metaflux_vulkan_capability_test tests/capability_test.cpp)
   target_link_libraries(metaflux_vulkan_capability_test PRIVATE MetaFlux::VulkanBackend)
   metaflux_configure_target(metaflux_vulkan_capability_test CXX)
@@ -36,6 +46,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   set_tests_properties(
     metaflux.backend.vulkan-capability
     PROPERTIES LABELS "backend;vulkan;capability"
+               ENVIRONMENT "LD_LIBRARY_PATH=${METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH}"
   )
 
   add_executable(metaflux_vulkan_memory_test tests/memory_test.cpp)
@@ -45,6 +56,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   set_tests_properties(
     metaflux.backend.vulkan-memory
     PROPERTIES LABELS "backend;vulkan;memory"
+               ENVIRONMENT "LD_LIBRARY_PATH=${METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH}"
   )
 
   add_executable(metaflux_vulkan_target_test tests/target_test.cpp)
@@ -54,6 +66,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   set_tests_properties(
     metaflux.backend.vulkan-target-preflight
     PROPERTIES LABELS "backend;vulkan;compiler"
+               ENVIRONMENT "LD_LIBRARY_PATH=${METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH}"
   )
 
   add_executable(metaflux_vulkan_streams_test tests/streams_test.cpp)
@@ -63,6 +76,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   set_tests_properties(
     metaflux.backend.vulkan-stream-graph
     PROPERTIES LABELS "backend;vulkan;execution"
+               ENVIRONMENT "LD_LIBRARY_PATH=${METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH}"
   )
 
   add_executable(metaflux_vulkan_cache_test tests/cache_test.cpp)
@@ -72,6 +86,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   set_tests_properties(
     metaflux.backend.vulkan-cache-model
     PROPERTIES LABELS "backend;vulkan;cache"
+               ENVIRONMENT "LD_LIBRARY_PATH=${METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH}"
   )
 
   add_executable(metaflux_vulkan_device_test tests/vulkan_device_test.cpp)
@@ -81,6 +96,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   set_tests_properties(
     metaflux.backend.vulkan-device
     PROPERTIES LABELS "backend;vulkan;device"
+               ENVIRONMENT "LD_LIBRARY_PATH=${METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH}"
   )
 
   add_executable(metaflux_vulkan_queue_test tests/vulkan_queue_test.cpp)
@@ -90,6 +106,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   set_tests_properties(
     metaflux.backend.vulkan-queue-executor
     PROPERTIES LABELS "backend;vulkan;execution"
+               ENVIRONMENT "LD_LIBRARY_PATH=${METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH}"
   )
 
   find_program(
@@ -125,6 +142,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
       set_tests_properties(
         metaflux.backend.vulkan-spirv-validation
         PROPERTIES LABELS "backend;vulkan;compiler"
+                   ENVIRONMENT "LD_LIBRARY_PATH=${METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH}"
       )
     endif()
   endif()
@@ -142,5 +160,6 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   set_tests_properties(
     metaflux.backend.vulkan-pipeline
     PROPERTIES LABELS "backend;vulkan;execution"
+               ENVIRONMENT "LD_LIBRARY_PATH=${METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH}"
   )
 endif()

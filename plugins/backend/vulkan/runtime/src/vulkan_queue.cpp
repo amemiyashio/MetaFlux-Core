@@ -202,6 +202,60 @@ QueueExecutionStatus VulkanQueueExecutor::submit_warm_launch(
   return status;
 }
 
+QueueExecutionStatus VulkanQueueExecutor::submit_warm_compute(
+    WarmLaunchSession& session, VulkanComputePipeline& pipeline, std::uint64_t generation,
+    std::uint64_t stream_id, std::span<const Dependency> dependencies,
+    VkCommandBuffer command_buffer, std::uint32_t groups_x, std::uint32_t groups_y,
+    std::uint32_t groups_z, std::uint64_t argument_block_size,
+    QueueSubmission* out_submission) {
+  if (context_ == nullptr || out_submission == nullptr || command_buffer == VK_NULL_HANDLE ||
+      !session.active() || session.generation() != generation ||
+      !pipeline.uses_context(*context_)) {
+    return session.active() && generation != 0U ? QueueExecutionStatus::stale_generation
+                                                : QueueExecutionStatus::invalid_argument;
+  }
+  const auto abort_session = [&session]() noexcept {
+    return session.cancel() == CacheStatus::success;
+  };
+  const auto bind_status = pipeline.bind(command_buffer);
+  switch (bind_status) {
+  case PipelineStatus::success:
+    break;
+  case PipelineStatus::not_ready:
+    (void)abort_session();
+    return QueueExecutionStatus::not_ready;
+  case PipelineStatus::device_lost:
+    (void)abort_session();
+    return QueueExecutionStatus::device_lost;
+  case PipelineStatus::target_mismatch:
+  case PipelineStatus::invalid_argument:
+  case PipelineStatus::invalid_module:
+  case PipelineStatus::unsupported:
+  case PipelineStatus::out_of_memory:
+  case PipelineStatus::compile_required:
+  case PipelineStatus::initialization_failed:
+    (void)abort_session();
+    return QueueExecutionStatus::invalid_argument;
+  }
+  const auto dispatch_status = pipeline.dispatch(command_buffer, groups_x, groups_y, groups_z);
+  if (dispatch_status != PipelineStatus::success) {
+    (void)abort_session();
+    return dispatch_status == PipelineStatus::device_lost ? QueueExecutionStatus::device_lost
+                                                           : QueueExecutionStatus::invalid_argument;
+  }
+  const auto end_result = vkEndCommandBuffer(command_buffer);
+  if (end_result != VK_SUCCESS) {
+    (void)abort_session();
+    return end_result == VK_ERROR_DEVICE_LOST ? QueueExecutionStatus::device_lost
+                                               : QueueExecutionStatus::submission_failed;
+  }
+  return submit_warm_launch(
+      session, generation, stream_id, OperationKind::launch,
+      Visibility{.stage_mask = kStageCompute,
+                 .access_mask = kAccessShaderRead | kAccessShaderWrite},
+      dependencies, command_buffer, argument_block_size, out_submission);
+}
+
 QueueExecutionStatus VulkanQueueExecutor::complete(std::uint64_t generation,
                                                    std::uint64_t completed_value) noexcept {
   return map(ledger_.complete(generation, completed_value));

@@ -9,9 +9,11 @@
 #include <array>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <unistd.h>
 #include <vector>
 
 namespace {
@@ -145,6 +147,68 @@ bool physical_pipeline_round_trip() {
                               ? executor.wait(7U, submission.completion_value,
                                               UINT64_C(5000000000))
                               : submitted;
+      if (waited != metaflux::backend::vulkan::QueueExecutionStatus::success) {
+        vkDestroyCommandPool(context.device_handle(), pool, nullptr);
+        vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
+        return false;
+      }
+      char directory_template[] = "/tmp/metaflux-vulkan-warm-XXXXXX";
+      const char* directory = ::mkdtemp(directory_template);
+      if (directory == nullptr) {
+        vkDestroyCommandPool(context.device_handle(), pool, nullptr);
+        vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
+        return false;
+      }
+      const std::filesystem::path cache_root(directory);
+      metaflux::backend::vulkan::PersistentCacheRepository repository(cache_root / "cache", 4U,
+                                                                       1024U * 1024U);
+      std::vector<std::uint8_t> warm_cache_bytes;
+      const auto warm_export = cache.export_data(&warm_cache_bytes);
+      const std::string warm_payload(reinterpret_cast<const char*>(warm_cache_bytes.data()),
+                                     warm_cache_bytes.size());
+      metaflux::backend::vulkan::WarmLaunchSession session;
+      std::string loaded_payload;
+      const auto warm_key = std::string("physical-device-pipeline");
+      const bool warm_started =
+          warm_export == metaflux::backend::vulkan::PipelineCacheStatus::success &&
+          !warm_payload.empty() &&
+          repository.publish(warm_key, warm_payload, true) ==
+              metaflux::backend::vulkan::CacheStatus::success &&
+          metaflux::backend::vulkan::WarmLaunchSession::start(
+              repository, warm_key, true, 7U, &loaded_payload, session) ==
+              metaflux::backend::vulkan::CacheStatus::success &&
+          loaded_payload == warm_payload;
+      if (!warm_started || vkResetCommandBuffer(command_buffer, 0U) != VK_SUCCESS ||
+          vkBeginCommandBuffer(command_buffer, &begin) != VK_SUCCESS) {
+        (void)session.cancel();
+        std::error_code error;
+        std::filesystem::remove_all(cache_root, error);
+        vkDestroyCommandPool(context.device_handle(), pool, nullptr);
+        vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
+        return false;
+      }
+      metaflux::backend::vulkan::QueueSubmission warm_submission{};
+      const auto warm_submitted = executor.submit_warm_compute(
+          session, pipeline, 7U, 1U, {}, command_buffer, 1U, 1U, 1U, 64U, &warm_submission);
+      const auto warm_waited =
+          warm_submitted == metaflux::backend::vulkan::QueueExecutionStatus::success
+              ? executor.wait(7U, warm_submission.completion_value, UINT64_C(5000000000))
+              : warm_submitted;
+      const bool warm_valid =
+          warm_waited == metaflux::backend::vulkan::QueueExecutionStatus::success &&
+          session.submitted() &&
+          metaflux::backend::vulkan::validate_warm_launch_trace(session.trace()) ==
+              metaflux::backend::vulkan::WarmLaunchStatus::success &&
+          session.finish() == metaflux::backend::vulkan::CacheStatus::success &&
+          !session.active();
+      std::error_code error;
+      std::filesystem::remove_all(cache_root, error);
+      if (!warm_valid) {
+        (void)session.cancel();
+        vkDestroyCommandPool(context.device_handle(), pool, nullptr);
+        vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
+        return false;
+      }
       vkDestroyCommandPool(context.device_handle(), pool, nullptr);
       if (waited != metaflux::backend::vulkan::QueueExecutionStatus::success) {
         vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
