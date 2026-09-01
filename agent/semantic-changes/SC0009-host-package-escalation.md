@@ -63,12 +63,14 @@ superseded_by: null
 | `agent/skills/start-work/scripts/host_privilege.py` | Tooling | Pending | Add deterministic package/action/path validation and bounded root-helper invocation |
 | `agent/skills/start-work/scripts/metaflux-pacman-install` | Tooling | Pending | Add auditable root helper source with exact pacman operation and argument validation |
 | `agent/skills/start-work/scripts/metaflux-driver-debug` | Tooling | Pending | Add auditable root helper source with enumerated module, log, kmemleak, and live-test actions |
+| `agent/skills/start-work/scripts/metaflux-host-privilege.sudoers.in` | Tooling | Pending | Add the two-command passwordless sudoers template without a generic privilege grant |
 | `agent/skills/start-work/scripts/test_host_privilege.py` | Tooling | Pending | Prove package/action/path validation, command bounds, dry checks, and secret-free behavior |
 | `agent/skills/start-work/scripts/test_commit_as_harness.py` | Tooling | Pending | Extend static startup policy regression to the new escalation order and ownership boundary |
 | `agent/skills/manage-toolchain/SKILL.md` | Current | Pending | Route only confirmed Nix gaps to the bounded host installer without changing Nix ownership |
 | `docs/architecture/agent-startup-resolution.md` | Current | Pending | Amend D0031's terminal gap branch and preserve all other startup semantics |
 | `docs/architecture/host-privilege-escalation.md` | Current | Pending | Create the canonical bounded package/driver escalation and credential boundary |
 | `docs/architecture/README.md` | Current | Pending | Index the canonical escalation decision and its amendment relationship |
+| `kernel/tests/README.md` | Current | Pending | Route privileged cdev qualification through fixed driver actions without moving test semantics |
 | `toolchains/README.md` | Current | Pending | Amend D0022 with the post-Nix host-install boundary while keeping Nix narrow |
 | `tools/README.md` | Current | Pending | Document exact helper invocation and failure classification |
 | `agent/sessions/2026/09/S0112-20260901-003-m0110-w0112-post-startup-governance/session.json` | Active session | Migrated | Activation terminally closes the product owner without product changes after P101 |
