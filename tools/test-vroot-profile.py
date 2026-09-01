@@ -32,6 +32,12 @@ def main() -> int:
     assert image[11] == 0x12
     assert len(image) == len(writable) == 256
     assert not any(writable)
+    userspace_header = validator.header_text(profile, image, writable)
+    kernel_header = validator.header_text(profile, image, writable, kernel=True)
+    assert "#include <stdint.h>" in userspace_header
+    assert "static const uint8_t mf_vroot_profile_config_template" in userspace_header
+    assert "#include <linux/types.h>" in kernel_header
+    assert "static const u8 mf_vroot_profile_config_template" in kernel_header
 
     with tempfile.TemporaryDirectory(prefix="metaflux-vroot-profile-", dir=ROOT) as directory:
         temporary = Path(directory)

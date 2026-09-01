@@ -1,8 +1,9 @@
 # Software PCI Root
 
-Planned home of the default-off experimental `metaflux_vroot.ko` presentation
-module. It exposes only validated config-space identity and lifecycle; execution
-continues through canonical MetaFlux queues and nodes.
+Home of the default-off experimental `metaflux_vroot.ko` presentation module.
+The Kbuild module creates one isolated software `pci_host_bridge`, exposes only
+validated config-space identity, and removes the root before module unload;
+execution continues through canonical MetaFlux queues and nodes.
 
 The host-independent `metaflux_vroot_model` is now the executable contract for
 the first vroot slice. It allocates at most eight functions in one domain and
@@ -19,9 +20,16 @@ remains, and remove clears logical presence so a later add receives a new
 generation. The model uses fixed storage and no allocation, sleep, RPC, or
 userspace access, making it suitable for callback and config-access tests.
 
-This model does not claim the kernel `pci_host_bridge`, sysfs/uevent, module
-signing, or Linux 6.12/6.18 qualification gates. Those remain the next
-kernel-owned integration stage.
+The Kbuild module consumes a kernel-compatible projection of the same profile.
+Its `function_count` parameter controls logical functions visible to a
+subsequent PCI rescan, while the root bus `remove` path handles disappearance.
+Config access uses fixed storage, a spinlock, and the generated writable mask;
+no allocation, sleep, RPC, or userspace access occurs in the callback.
+
+The presentation driver is intentionally named `metaflux_vroot`: the canonical
+vroot profile has no BAR or IRQ capability, so it must not bind the static guest
+`metaflux_pci` resource driver. The synthetic MetaFlux identity is not a vendor
+identity, and no vendor driver is matched by this module.
 
 A synthetic vendor identity (for example `identity=nvidia`) is a presentation
 disguise governed by decision-0008 and qualified in work-item-0.1.2.4. It must select
