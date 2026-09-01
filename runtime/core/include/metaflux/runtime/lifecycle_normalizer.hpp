@@ -17,6 +17,8 @@ enum class ExternalEventKind : std::uint8_t {
   QmpFailure = 7,
   Disconnect = 8,
   DaemonRestart = 9,
+  MemfdDisconnect = 10,
+  CdevDisconnect = 11,
 };
 
 enum class NormalizationResult : std::uint8_t {

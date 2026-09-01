@@ -112,9 +112,19 @@ bool captures_and_submits_immediate_producers() {
             details.candidate_generation == 2U);
   }
 
+  for (const ExternalEventKind kind : {ExternalEventKind::Disconnect,
+                                       ExternalEventKind::MemfdDisconnect}) {
+    Coordinator coordinator = online_coordinator();
+    ResultDetails details{};
+    REQUIRE(capture_and_submit_external_event(coordinator, kind, 61U, deadline, details) ==
+            NormalizationResult::Accepted);
+    REQUIRE(details.result == Result::Accepted && details.snapshot.state == State::Lost &&
+            details.snapshot.generation == 1U && details.snapshot.epoch == 1U);
+  }
+
   Coordinator coordinator = online_coordinator();
   ResultDetails details{};
-  REQUIRE(capture_and_submit_external_event(coordinator, ExternalEventKind::Disconnect, 61U,
+  REQUIRE(capture_and_submit_external_event(coordinator, ExternalEventKind::CdevDisconnect, 61U,
                                             deadline, details) == NormalizationResult::Accepted);
   REQUIRE(details.result == Result::Accepted && details.snapshot.state == State::Lost &&
           details.snapshot.generation == 1U && details.snapshot.epoch == 1U);

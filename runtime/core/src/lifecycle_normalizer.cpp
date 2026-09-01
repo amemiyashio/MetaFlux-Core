@@ -35,6 +35,12 @@ bool mapping_for(ExternalEventKind kind, Mapping& out) noexcept {
   case ExternalEventKind::Disconnect:
     out = {Source::Disconnect, Operation::TransportLoss, false};
     return true;
+  case ExternalEventKind::MemfdDisconnect:
+    out = {Source::Memfd, Operation::TransportLoss, false};
+    return true;
+  case ExternalEventKind::CdevDisconnect:
+    out = {Source::Cdev, Operation::TransportLoss, false};
+    return true;
   case ExternalEventKind::DaemonRestart:
     out = {Source::Restart, Operation::Recover, false};
     return true;

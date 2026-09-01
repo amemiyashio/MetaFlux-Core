@@ -8,6 +8,8 @@ bool is_immediate_producer_kind(ExternalEventKind kind) noexcept {
   case ExternalEventKind::AdminReset:
   case ExternalEventKind::VfioUserReset:
   case ExternalEventKind::Disconnect:
+  case ExternalEventKind::MemfdDisconnect:
+  case ExternalEventKind::CdevDisconnect:
   case ExternalEventKind::DaemonRestart:
     return true;
   case ExternalEventKind::AdminAdd:
