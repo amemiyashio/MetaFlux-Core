@@ -123,6 +123,22 @@ PipelineStatus VulkanComputePipeline::bind(VkCommandBuffer command_buffer) const
   return PipelineStatus::success;
 }
 
+PipelineStatus VulkanComputePipeline::dispatch(VkCommandBuffer command_buffer,
+                                               std::uint32_t groups_x,
+                                               std::uint32_t groups_y,
+                                               std::uint32_t groups_z) const noexcept {
+  if (context_ == nullptr || !context_->ready()) {
+    return context_ != nullptr && context_->lost() ? PipelineStatus::device_lost
+                                                    : PipelineStatus::not_ready;
+  }
+  if (pipeline_ == VK_NULL_HANDLE || command_buffer == VK_NULL_HANDLE || groups_x == 0U ||
+      groups_y == 0U || groups_z == 0U) {
+    return PipelineStatus::invalid_argument;
+  }
+  vkCmdDispatch(command_buffer, groups_x, groups_y, groups_z);
+  return PipelineStatus::success;
+}
+
 void VulkanComputePipeline::destroy() noexcept {
   if (context_ == nullptr || context_->device_handle() == VK_NULL_HANDLE) {
     pipeline_ = VK_NULL_HANDLE;

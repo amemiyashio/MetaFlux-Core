@@ -1,5 +1,6 @@
 #include "../src/vulkan_pipeline.hpp"
 #include "../src/vulkan_pipeline_cache.hpp"
+#include "../src/vulkan_queue.hpp"
 
 #include <metaflux/backend/vulkan_capability.hpp>
 #include <metaflux/backend/vulkan.h>
@@ -24,6 +25,7 @@ bool invalid_guards() {
   return pipeline.create({}, "main", VK_NULL_HANDLE) == PipelineStatus::not_ready &&
          pipeline.create(std::span<const std::uint32_t>(&invalid_word, 1U), "main",
                          VK_NULL_HANDLE) == PipelineStatus::not_ready &&
+         pipeline.dispatch(VK_NULL_HANDLE, 1U, 1U, 1U) == PipelineStatus::not_ready &&
          std::string(metaflux::backend::vulkan::pipeline_status_string(
              PipelineStatus::compile_required)) == "compile-required";
 }
@@ -104,6 +106,12 @@ bool physical_pipeline_round_trip() {
   const auto status = pipeline.create(words, "main", layout, cache.handle());
   const bool ready = status == PipelineStatus::success && pipeline.ready();
   if (ready) {
+    metaflux::backend::vulkan::VulkanQueueExecutor executor(context, 2U);
+    if (executor.create_stream(1U) !=
+        metaflux::backend::vulkan::QueueExecutionStatus::success) {
+      vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
+      return false;
+    }
     VkCommandPoolCreateInfo pool_info{};
     pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -126,16 +134,19 @@ bool physical_pipeline_round_trip() {
       VkCommandBufferBeginInfo begin{};
       begin.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
       begin.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-      const bool recorded = vkBeginCommandBuffer(command_buffer, &begin) == VK_SUCCESS &&
-                            pipeline.bind(command_buffer) == PipelineStatus::success;
-      const bool ended = recorded && vkEndCommandBuffer(command_buffer) == VK_SUCCESS;
-      const auto submitted = ended ? context.submit_commands(7U, command_buffer, 0U, 1U)
-                                   : metaflux::backend::vulkan::DeviceStatus::initialization_failed;
-      const auto waited = submitted == metaflux::backend::vulkan::DeviceStatus::success
-                              ? context.wait(7U, 1U, UINT64_C(5000000000))
+      const bool recorded = vkBeginCommandBuffer(command_buffer, &begin) == VK_SUCCESS;
+      metaflux::backend::vulkan::QueueSubmission submission{};
+      const auto submitted = recorded
+                                 ? executor.submit_compute(pipeline, 7U, 1U, {}, command_buffer,
+                                                           1U, 1U, 1U, &submission)
+                                 : metaflux::backend::vulkan::QueueExecutionStatus::submission_failed;
+      const auto waited = submitted ==
+                                  metaflux::backend::vulkan::QueueExecutionStatus::success
+                              ? executor.wait(7U, submission.completion_value,
+                                              UINT64_C(5000000000))
                               : submitted;
       vkDestroyCommandPool(context.device_handle(), pool, nullptr);
-      if (waited != metaflux::backend::vulkan::DeviceStatus::success) {
+      if (waited != metaflux::backend::vulkan::QueueExecutionStatus::success) {
         vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
         return false;
       }

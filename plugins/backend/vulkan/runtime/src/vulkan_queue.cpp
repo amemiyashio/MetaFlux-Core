@@ -1,5 +1,7 @@
 #include "vulkan_queue.hpp"
 
+#include "vulkan_pipeline.hpp"
+
 #include <algorithm>
 
 namespace metaflux::backend::vulkan {
@@ -128,6 +130,48 @@ QueueExecutionStatus VulkanQueueExecutor::submit(
   }
   *out_submission = submission;
   return QueueExecutionStatus::success;
+}
+
+QueueExecutionStatus VulkanQueueExecutor::submit_compute(
+    VulkanComputePipeline& pipeline, std::uint64_t generation, std::uint64_t stream_id,
+    std::span<const Dependency> dependencies, VkCommandBuffer command_buffer,
+    std::uint32_t groups_x, std::uint32_t groups_y, std::uint32_t groups_z,
+    QueueSubmission* out_submission) {
+  if (context_ == nullptr || out_submission == nullptr || command_buffer == VK_NULL_HANDLE ||
+      !pipeline.uses_context(*context_)) {
+    return QueueExecutionStatus::invalid_argument;
+  }
+  const auto bind_status = pipeline.bind(command_buffer);
+  switch (bind_status) {
+  case PipelineStatus::success:
+    break;
+  case PipelineStatus::not_ready:
+    return QueueExecutionStatus::not_ready;
+  case PipelineStatus::device_lost:
+    return QueueExecutionStatus::device_lost;
+  case PipelineStatus::target_mismatch:
+  case PipelineStatus::invalid_argument:
+  case PipelineStatus::invalid_module:
+  case PipelineStatus::unsupported:
+  case PipelineStatus::out_of_memory:
+  case PipelineStatus::compile_required:
+  case PipelineStatus::initialization_failed:
+    return QueueExecutionStatus::invalid_argument;
+  }
+  const auto dispatch_status = pipeline.dispatch(command_buffer, groups_x, groups_y, groups_z);
+  if (dispatch_status != PipelineStatus::success) {
+    return dispatch_status == PipelineStatus::device_lost ? QueueExecutionStatus::device_lost
+                                                           : QueueExecutionStatus::invalid_argument;
+  }
+  const auto end_result = vkEndCommandBuffer(command_buffer);
+  if (end_result != VK_SUCCESS) {
+    return end_result == VK_ERROR_DEVICE_LOST ? QueueExecutionStatus::device_lost
+                                               : QueueExecutionStatus::submission_failed;
+  }
+  return submit(generation, stream_id, OperationKind::launch,
+                Visibility{.stage_mask = kStageCompute,
+                           .access_mask = kAccessShaderRead | kAccessShaderWrite},
+                dependencies, command_buffer, out_submission);
 }
 
 QueueExecutionStatus VulkanQueueExecutor::submit_warm_launch(

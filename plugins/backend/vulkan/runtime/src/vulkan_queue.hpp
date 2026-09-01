@@ -13,6 +13,8 @@
 
 namespace metaflux::backend::vulkan {
 
+class VulkanComputePipeline;
+
 enum class QueueExecutionStatus : std::uint32_t {
   success = 0,
   invalid_argument = 1,
@@ -46,6 +48,13 @@ public:
       std::uint64_t generation, std::uint64_t stream_id, OperationKind kind,
       Visibility visibility, std::span<const Dependency> dependencies,
       VkCommandBuffer command_buffer, QueueSubmission* out_submission);
+  // Record one pipeline dispatch into a caller-owned command buffer, close the
+  // recording, and submit it through the same resource/timeline ledger.
+  [[nodiscard]] QueueExecutionStatus submit_compute(
+      VulkanComputePipeline& pipeline, std::uint64_t generation, std::uint64_t stream_id,
+      std::span<const Dependency> dependencies, VkCommandBuffer command_buffer,
+      std::uint32_t groups_x, std::uint32_t groups_y, std::uint32_t groups_z,
+      QueueSubmission* out_submission);
   // Composes the cache-hit warm path with queue admission. The session keeps
   // its pipeline pin until the caller finishes the corresponding submission.
   [[nodiscard]] QueueExecutionStatus submit_warm_launch(

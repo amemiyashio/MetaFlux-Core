@@ -45,10 +45,16 @@ public:
       const SpirvReflection& reflection, std::span<const std::uint32_t> spirv,
       VkPipelineLayout layout, VkPipelineCache cache = VK_NULL_HANDLE) noexcept;
   [[nodiscard]] PipelineStatus bind(VkCommandBuffer command_buffer) const noexcept;
+  [[nodiscard]] PipelineStatus dispatch(VkCommandBuffer command_buffer, std::uint32_t groups_x,
+                                        std::uint32_t groups_y,
+                                        std::uint32_t groups_z) const noexcept;
   void destroy() noexcept;
 
   [[nodiscard]] VkPipeline handle() const noexcept { return pipeline_; }
   [[nodiscard]] bool ready() const noexcept { return pipeline_ != VK_NULL_HANDLE; }
+  [[nodiscard]] bool uses_context(const VulkanDeviceContext& context) const noexcept {
+    return context_ == &context;
+  }
 
 private:
   [[nodiscard]] static PipelineStatus map_result(VkResult result) noexcept;
