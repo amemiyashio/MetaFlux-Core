@@ -88,10 +88,14 @@ pending operation cannot be cancelled; when cancellation is supported, drain
 first completes the pending operation before inspecting the submission ring.
 This mirror changes no ring, ioctl, mmap, or BAR record.
 
-Each backend binding carries its device generation. After a lifecycle commit, an
-old binding is not usable for new COPY or LAUNCH requests and is rejected as
-stale until the daemon installs a binding for the committed generation. A pending
-operation keeps its captured old binding until drain completes.
+Each backend binding carries its device generation. The worker accepts a binding
+only while its lifecycle mirror is online and the binding names the committed
+worker generation; a pre-commit or stale-generation rebind is rejected. After a
+lifecycle commit, an old binding is cleared and its optional retire callback is
+called once it has no pending operation. A pending operation keeps its captured
+old binding, lease, and memory references until drain completes; only then is
+the old binding's owner notified that its generation-bound backend can be
+destroyed.
 
 The worker also exposes an explicit `CdevBackendBinding` for worker-side
 `mf_backend_api_v1` calls. A COPY binding must advertise

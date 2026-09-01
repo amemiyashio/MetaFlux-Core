@@ -748,6 +748,49 @@ bool CdevWorker::valid_backend(const CdevBackendBinding& backend) noexcept {
           valid_launch_backend(backend));
 }
 
+bool CdevWorker::same_backend_binding(const CdevBackendBinding& left,
+                                      const CdevBackendBinding& right) noexcept {
+  return left.api == right.api && left.instance == right.instance && left.queue == right.queue &&
+         left.memory == right.memory && left.memory_reference.handle == right.memory_reference.handle &&
+         left.memory_reference.retain == right.memory_reference.retain &&
+         left.memory_reference.release == right.memory_reference.release &&
+         left.memory_reference.context == right.memory_reference.context &&
+         left.completion_event == right.completion_event && left.copy_resolver == right.copy_resolver &&
+         left.copy_context == right.copy_context && left.launch_resolver == right.launch_resolver &&
+         left.launch_context == right.launch_context && left.lease_acquire == right.lease_acquire &&
+         left.lease_release == right.lease_release && left.lease_context == right.lease_context &&
+         left.retire == right.retire && left.retire_context == right.retire_context &&
+         left.generation == right.generation;
+}
+
+void CdevWorker::retire_backend_binding(const CdevBackendBinding& backend) noexcept {
+  if (backend.retire != nullptr) {
+    backend.retire(backend.retire_context);
+  }
+}
+
+bool CdevWorker::bind_backend(CdevBackendBinding backend) noexcept {
+  if (!lifecycle_online_ || view_.generation == 0U || !valid_backend(backend) ||
+      backend.generation != view_.generation) {
+    return false;
+  }
+  if (same_backend_binding(backend_, backend)) {
+    return true;
+  }
+  const CdevBackendBinding previous = backend_;
+  if (pending_.active) {
+    if (!same_backend_binding(previous, pending_.backend)) {
+      retire_backend_binding(previous);
+    }
+    backend_ = backend;
+    pending_.retire_backend = !same_backend_binding(backend_, pending_.backend);
+  } else {
+    backend_ = backend;
+    retire_backend_binding(previous);
+  }
+  return true;
+}
+
 bool CdevWorker::backend_matches_generation() const noexcept {
   return backend_.api == nullptr ||
          (backend_.generation != 0U && backend_.generation == view_.generation);
@@ -1001,6 +1044,7 @@ WorkerResult CdevWorker::progress_pending() noexcept {
       const CdevBackendMemoryReference pending_memory_reference = pending_.memory_reference;
       const bool has_launch_memory_references = pending_.has_launch_memory_references;
       const CdevLaunchResolution pending_launch_resolution = pending_.launch_resolution;
+      const bool retire_backend = pending_.retire_backend;
       pending_ = {};
       if (has_memory_references) {
         release_copy_references(pending_resolution);
@@ -1012,6 +1056,9 @@ WorkerResult CdevWorker::progress_pending() noexcept {
         release_launch_references(pending_launch_resolution);
       }
       release_backend_lease(pending_backend);
+      if (retire_backend) {
+        retire_backend_binding(pending_backend);
+      }
     }
     return result;
   }
@@ -1024,6 +1071,7 @@ WorkerResult CdevWorker::progress_pending() noexcept {
     const CdevBackendMemoryReference pending_memory_reference = pending_.memory_reference;
     const bool has_launch_memory_references = pending_.has_launch_memory_references;
     const CdevLaunchResolution pending_launch_resolution = pending_.launch_resolution;
+    const bool retire_backend = pending_.retire_backend;
     pending_ = {};
     if (has_memory_references) {
       release_copy_references(pending_resolution);
@@ -1035,6 +1083,9 @@ WorkerResult CdevWorker::progress_pending() noexcept {
       release_launch_references(pending_launch_resolution);
     }
     release_backend_lease(pending_backend);
+    if (retire_backend) {
+      retire_backend_binding(pending_backend);
+    }
     return complete(request, MF_SHARED_NOT_SUPPORTED);
   }
   std::uint32_t complete_flag = 0U;
@@ -1055,6 +1106,7 @@ WorkerResult CdevWorker::progress_pending() noexcept {
     const CdevBackendMemoryReference pending_memory_reference = pending_.memory_reference;
     const bool has_launch_memory_references = pending_.has_launch_memory_references;
     const CdevLaunchResolution pending_launch_resolution = pending_.launch_resolution;
+    const bool retire_backend = pending_.retire_backend;
     pending_ = {};
     if (has_memory_references) {
       release_copy_references(pending_resolution);
@@ -1066,6 +1118,9 @@ WorkerResult CdevWorker::progress_pending() noexcept {
       release_launch_references(pending_launch_resolution);
     }
     release_backend_lease(pending_backend);
+    if (retire_backend) {
+      retire_backend_binding(pending_backend);
+    }
   }
   return result;
 }
@@ -1291,9 +1346,12 @@ bool CdevWorker::lifecycle_drain(void* context,
 bool CdevWorker::lifecycle_commit(void* context,
                                   const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept {
   auto* worker = static_cast<CdevWorker*>(context);
-  if (worker == nullptr) {
+  if (worker == nullptr || worker->pending_.active) {
     return false;
   }
+  const CdevBackendBinding previous = worker->backend_;
+  worker->backend_ = {};
+  retire_backend_binding(previous);
   if (event.candidate.generation != 0U) {
     worker->view_.generation = event.candidate.generation;
   } else if (event.state_after == metaflux::runtime::lifecycle::State::Absent) {

@@ -37,6 +37,7 @@ struct BackendFixture final {
   mf_backend_status_v1 query_result = MF_BACKEND_SUCCESS;
   std::uint32_t cancel_calls = 0U;
   mf_backend_status_v1 cancel_result = MF_BACKEND_SUCCESS;
+  std::uint32_t retire_calls = 0U;
 };
 
 mf_shared_status_v1 fixture_lease_acquire(void* context) noexcept {
@@ -57,6 +58,13 @@ void fixture_lease_release(void* context) noexcept {
   if (fixture != nullptr && fixture->lease_active) {
     fixture->lease_active = false;
     ++fixture->lease_releases;
+  }
+}
+
+void fixture_retire(void* context) noexcept {
+  auto* fixture = static_cast<BackendFixture*>(context);
+  if (fixture != nullptr) {
+    ++fixture->retire_calls;
   }
 }
 
@@ -536,6 +544,8 @@ int main() {
       .lease_acquire = fixture_lease_acquire,
       .lease_release = fixture_lease_release,
       .lease_context = &async_fixture,
+      .retire = fixture_retire,
+      .retire_context = &async_fixture,
       .generation = 4U};
   const metaflux::transport::cdev::CdevBackendBinding replacement_binding{
       .api = &replacement_api,
@@ -547,6 +557,8 @@ int main() {
       .lease_acquire = fixture_lease_acquire,
       .lease_release = fixture_lease_release,
       .lease_context = &replacement_fixture,
+      .retire = fixture_retire,
+      .retire_context = &replacement_fixture,
       .generation = 4U};
   metaflux::transport::cdev::CdevWorker async_worker(
       {.submission = submission.header,
@@ -585,15 +597,16 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
-  async_worker.bind_backend(replacement_binding);
+  const bool async_rebind = async_worker.bind_backend(replacement_binding);
   async_fixture.event_complete = true;
   const auto async_done = async_worker.consume_once();
-  if (async_done != metaflux::transport::cdev::WorkerResult::Completed ||
+  if (!async_rebind || async_done != metaflux::transport::cdev::WorkerResult::Completed ||
       async_worker.backend_operation_pending() || async_fixture.query_calls != 2U ||
       async_fixture.lease_acquires != 1U || async_fixture.lease_releases != 1U ||
       async_memory_refs.retains != 1U || async_memory_refs.releases != 1U ||
       async_memory_refs.active != 0U ||
-      async_fixture.lease_active || replacement_fixture.query_calls != 0U ||
+      async_fixture.lease_active || async_fixture.retire_calls != 1U ||
+      replacement_fixture.query_calls != 0U ||
       replacement_fixture.lease_releases != 0U ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
       result.request_id != 44U ||
@@ -602,19 +615,27 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
-  async_worker.bind_backend(async_binding);
+  if (!async_worker.bind_backend(async_binding)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
   async_fixture.event_complete = false;
   async_fixture.query_result = MF_BACKEND_TIMEOUT;
   request.request_id = 45U;
   const auto async_error_submit = mf_client_ring_try_submit_v1(&submission, &request);
   const auto async_error_start = async_worker.consume_once();
+  const bool async_second_rebind = async_worker.bind_backend(replacement_binding);
+  const bool async_second_rebind_back = async_worker.bind_backend(async_binding);
   const auto async_error_done = async_worker.consume_once();
-  if (async_error_submit != MF_SHARED_SUCCESS ||
+  if (async_error_submit != MF_SHARED_SUCCESS || !async_second_rebind ||
+      !async_second_rebind_back ||
       async_error_start != metaflux::transport::cdev::WorkerResult::Idle ||
       async_error_done != metaflux::transport::cdev::WorkerResult::Completed ||
       async_worker.backend_operation_pending() || async_fixture.lease_releases != 2U ||
       async_memory_refs.retains != 2U || async_memory_refs.releases != 2U ||
       async_memory_refs.active != 0U ||
+      async_fixture.retire_calls != 1U || replacement_fixture.retire_calls != 2U ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
       result.request_id != 45U ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_TIMEOUT)) {
@@ -924,7 +945,27 @@ int main() {
        .lease_acquire = fixture_lease_acquire,
        .lease_release = fixture_lease_release,
        .lease_context = &reset_fixture,
+       .retire = fixture_retire,
+       .retire_context = &reset_fixture,
        .generation = 4U});
+  BackendFixture rebound_fixture{};
+  const auto rebound_api = make_fixture_api();
+  const metaflux::transport::cdev::CdevBackendBinding rebound_binding{
+      .api = &rebound_api,
+      .instance = static_cast<mf_backend_instance_v1>(
+          reinterpret_cast<std::uintptr_t>(&rebound_fixture)),
+      .queue = 17U,
+      .memory = 23U,
+      .completion_event = 0U,
+      .lease_acquire = fixture_lease_acquire,
+      .lease_release = fixture_lease_release,
+      .lease_context = &rebound_fixture,
+      .generation = 5U};
+  if (reset_worker.bind_backend(rebound_binding)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
   request.request_id = 437U;
   request.target_id = 4U;
   metaflux::runtime::lifecycle::Config reset_config{};
@@ -952,6 +993,7 @@ int main() {
       reset_worker.generation() != 5U || !reset_worker.lifecycle_online() ||
       reset_fixture.cancel_calls != 1U || reset_worker.backend_operation_pending() ||
       reset_fixture.lease_releases != 1U || reset_fixture.lease_active ||
+      reset_fixture.retire_calls != 1U ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
       result.request_id != 437U ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_DEVICE_LOST)) {
@@ -967,7 +1009,7 @@ int main() {
   request = {};
   request.opcode = MF_RING_OPCODE_COPY;
   request.request_id = 438U;
-  request.target_id = 5U;
+  request.target_id = 4U;
   request.arguments[0] = 320U;
   request.arguments[1] = 128U;
   request.arguments[2] = 32U;
@@ -976,6 +1018,22 @@ int main() {
       reset_fixture.calls != 1U || reset_fixture.lease_acquires != 1U ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_STALE_HANDLE)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  if (!reset_worker.bind_backend(rebound_binding) || !reset_worker.backend_bound()) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  request.target_id = 5U;
+  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      reset_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      rebound_fixture.calls != 1U || rebound_fixture.lease_acquires != 1U ||
+      rebound_fixture.lease_releases != 1U ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
     return 1;

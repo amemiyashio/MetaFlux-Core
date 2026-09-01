@@ -213,6 +213,7 @@ using CdevCopyResolver = mf_shared_status_v1 (*)(void* context,
  */
 using CdevBackendLeaseAcquire = mf_shared_status_v1 (*)(void* context) noexcept;
 using CdevBackendLeaseRelease = void (*)(void* context) noexcept;
+using CdevBackendBindingRetire = void (*)(void* context) noexcept;
 
 /* The worker borrows these backend-owned handles for COPY and launch calls. */
 struct CdevBackendBinding final {
@@ -229,6 +230,12 @@ struct CdevBackendBinding final {
   CdevBackendLeaseAcquire lease_acquire = nullptr;
   CdevBackendLeaseRelease lease_release = nullptr;
   void* lease_context = nullptr;
+  /*
+   * The owner is notified only after this binding has no current or pending
+   * operation references. It may then destroy the generation-bound backend.
+   */
+  CdevBackendBindingRetire retire = nullptr;
+  void* retire_context = nullptr;
   /* A binding is usable only while it names the worker's current generation. */
   std::uint64_t generation = 0U;
 };
@@ -246,7 +253,7 @@ public:
   CdevWorker(WorkerQueueView view, CdevBackendBinding backend) noexcept
       : view_(view), backend_(backend) {}
 
-  void bind_backend(CdevBackendBinding backend) noexcept { backend_ = backend; }
+  [[nodiscard]] bool bind_backend(CdevBackendBinding backend) noexcept;
   [[nodiscard]] bool backend_bound() const noexcept;
   [[nodiscard]] bool backend_operation_pending() const noexcept { return pending_.active; }
 
@@ -290,6 +297,9 @@ private:
   static bool valid_backend_cancellation(const CdevBackendBinding& backend) noexcept;
   static bool valid_launch_backend(const CdevBackendBinding& backend) noexcept;
   static bool valid_backend_lease(const CdevBackendBinding& backend) noexcept;
+  static bool same_backend_binding(const CdevBackendBinding& left,
+                                   const CdevBackendBinding& right) noexcept;
+  static void retire_backend_binding(const CdevBackendBinding& backend) noexcept;
   [[nodiscard]] bool backend_matches_generation() const noexcept;
   static mf_shared_status_v1 retain_copy_references(CdevCopyResolution& resolution) noexcept;
   static void release_copy_references(const CdevCopyResolution& resolution) noexcept;
@@ -337,6 +347,7 @@ private:
     CdevLaunchResolution launch_resolution{};
     bool has_launch_memory_references = false;
     bool cancellation_requested = false;
+    bool retire_backend = false;
     mf_backend_event_v1 event = 0U;
   } pending_{};
 };
