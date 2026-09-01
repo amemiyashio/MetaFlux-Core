@@ -10,3 +10,6 @@ run repository executables through `nix develop . --command ...`. Add missing
 tools to the governed Nix declaration first. Nix owns only clear, reproducible,
 stable tool-version identity, materialization, and exposure; a later
 `manage-toolchain` revision may deliberately evolve versions.
+
+No W0112 content changed after P101. SC0009 now owns the requested replacement;
+this terminal session is not an execution or compatibility fallback.

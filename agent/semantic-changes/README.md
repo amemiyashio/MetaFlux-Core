@@ -24,3 +24,4 @@ committed to `HEAD`, bound to an in-progress session, can authorize exact
 | [SC0006](SC0006-execution-focus-governance.md) | Applied | D0029 | execution-focus-governance | 2026-08-31 |
 | [SC0007](SC0007-breaking-governance-epoch.md) | Applied | D0029 | breaking-governance-epoch | 2026-09-01 |
 | [SC0008](SC0008-agent-startup-resolution.md) | Applied | D0029 | agent-startup-resolution | 2026-09-01 |
+| [SC0009](SC0009-host-package-escalation.md) | Active | D0029 | host-privilege-escalation | 2026-09-01 |

@@ -2,8 +2,8 @@
 status: Active
 updated: 2026-09-01
 governance_epoch: D0029
-focus_mode: product
-focus_owner: S0112-20260901-003-m0110-w0112-post-startup-governance
+focus_mode: governance
+focus_owner: S0100-20260901-004-host-package-bootstrap
 milestone: M0110
 workstream: W0112
 checkpoint: P20260901-101
@@ -13,18 +13,20 @@ checkpoint: P20260901-101
 
 ## Execution Focus
 
-SC0008 is Applied at effective revision
-`a7e370d68c660a1d42210631641bef0d3406cf91`. D0031 now requires stable
-harness-product resolution and Nix-first command entry. The sole product owner
-is `S0112-20260901-003-m0110-w0112-post-startup-governance`, a newly
-scaffolded schema version 2 session under the D0029 epoch.
+SC0009 is Active under D0029 as a destructive host-privilege escalation
+migration. The sole governance owner is
+`S0100-20260901-004-host-package-bootstrap`; product changes are paused while
+the confirmed Nix-gap terminal branch and W0112 driver-debug privilege path are
+replaced with bounded helpers and non-secret persistent host authorization.
 
-The replacement has no compatibility route. Future Codex sessions must use the
-stable `codex` harness subject rather than a model, template, backend, build,
-CLI, session, thread, or prompt label. Except for host Git/Nix bootstrap,
-repository executables and tool probes start inside the Git-aware Nix
-development environment; agents do not search the ambient host for an agent CLI
-or infer harness identity.
+Nix remains the first and canonical tool provider. The proposed replacement
+applies only after the repository declaration has been tried and Nix is
+confirmed unable to provide or materialize the tool. When pacman can resolve an
+exact package, a narrowly validated sudo path will install it without storing a
+password. A separate action allowlist will own MetaFlux module lifecycle,
+kernel-log/kmemleak inspection, and the named live qualification executable.
+The current stop-and-report behavior remains authoritative until SC0009 is
+Applied.
 
 ## Product Resume Target
 
@@ -84,13 +86,12 @@ default scheduling authority while M0110 is incomplete.
 
 ## Next Actions
 
-1. Activate `/dev/metafluxctl` and `/dev/metafluxN`, then prove the current
-   daemon lease/query/object-table path against live cdev mappings and
-   registered-memory handles.
-2. Prove unmodified Add/Copy through `/dev/metafluxN`, including
-   replacement-generation isolation and fd/VMA tombstone behavior, then execute
-   the W0112 fault matrix with KUnit, KASAN, KCSAN, lockdep, and kmemleak on
-   Linux 6.12 and 6.18.
+1. Create the canonical host-privilege decision and migrate start-work,
+   manage-toolchain, toolchain ownership, and bounded host-privilege tooling
+   under Active SC0009.
+2. Configure and verify root-owned pacman and driver-debug helpers with
+   non-secret persistent sudo authorization; do not persist a password.
+3. Apply SC0009 and atomically return W0112 to a newly scaffolded successor.
 
 ## Blockers
 
@@ -100,6 +101,8 @@ default scheduling authority while M0110 is incomplete.
 - W0112 remains incomplete until live device-node Add/Copy and kernel fault
   evidence exist. Host-independent fixtures and mapped COPY alone do not close
   it.
+- Product work remains paused until SC0009 has no Pending migration row and a
+  current-epoch W0112 successor owns product focus.
 - M0120 and M0130 content work waits for an explicit focus handoff after the
   M0110 dependency boundary advances.
 

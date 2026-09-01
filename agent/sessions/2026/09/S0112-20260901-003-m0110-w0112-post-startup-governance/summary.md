@@ -4,7 +4,9 @@
 
 Receive M0110/W0112 product focus after Applied SC0008. The session resumes
 from current canonical files and P100 product evidence under D0031; the W0112
-Exit Gate remains open.
+Exit Gate remains open. No product unit began before the user-authorized SC0009
+replacement arrived, so the session phase-converges at P101 and closes directly
+into the governance owner.
 
 ## Durable changes
 
@@ -61,7 +63,7 @@ Exit Gate remains open.
 
 ## Handoff
 
-Read current focus, current progress, D0031/start-work, P100, and the W0112 Exit
-Gate. Resolve `Agent harness subject: codex` from system/developer context, then
-enter the Git-aware Nix development environment before any repository
-executable or tool probe.
+SC0009 owns execution focus through
+`S0100-20260901-004-host-package-bootstrap`. After that migration applies,
+resume W0112 from P101, current source, and the canonical Exit Gate in a newly
+scaffolded successor. This closed ledger remains evidence only.

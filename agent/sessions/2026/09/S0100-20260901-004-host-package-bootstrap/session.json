@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "governance_epoch": "D0029",
+  "id": "S0100-20260901-004-host-package-bootstrap",
+  "repository": "MetaFlux-Core",
+  "delivery": "0.1.0.0",
+  "started_at": "2026-09-01",
+  "ended_at": null,
+  "time_precision": "date",
+  "status": "in_progress",
+  "fidelity": "exact",
+  "agents": [
+    {
+      "id": "A001",
+      "role": "destructive host-privilege escalation governance owner"
+    }
+  ],
+  "milestones": [],
+  "work_items": [],
+  "base_revision": "5eab5a829c41e9a824c7a07273650b5a464bd836",
+  "final_revision": null,
+  "event_log": "events.jsonl",
+  "summary": "summary.md",
+  "notes": "notes.md"
+}
