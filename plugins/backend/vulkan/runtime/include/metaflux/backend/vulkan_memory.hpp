@@ -68,6 +68,11 @@ struct ExternalMemoryImport final {
   bool revoked = false;
 };
 
+struct ExternalMemoryHandleImport final {
+  ExternalMemoryImport allocation{};
+  int owned_fd = -1;
+};
+
 // Models direct external-memory admission and lifetime without importing an OS
 // fd or owning a Vulkan allocation. The physical adapter must repeat these
 // checks before taking ownership of its native handles.
@@ -112,6 +117,57 @@ private:
   std::size_t capacity_ = 0;
   std::uint64_t next_id_ = 1;
   std::vector<ExternalMemoryImport> imports_;
+};
+
+// Owns the duplicated native handle only after the metadata ledger accepts an
+// import. The caller retains the source fd; the owned duplicate is closed when
+// the final ledger reference is released or the object is destroyed.
+class ExternalMemoryHandleLedger final {
+public:
+  ExternalMemoryHandleLedger() = default;
+  explicit ExternalMemoryHandleLedger(std::uint64_t generation,
+                                      std::uint32_t memory_type_bits,
+                                      std::uint32_t handle_type_bits,
+                                      std::uint32_t sync_type_bits,
+                                      std::size_t capacity = 0U) noexcept;
+  ~ExternalMemoryHandleLedger() noexcept;
+
+  ExternalMemoryHandleLedger(const ExternalMemoryHandleLedger&) = delete;
+  ExternalMemoryHandleLedger& operator=(const ExternalMemoryHandleLedger&) = delete;
+
+  [[nodiscard]] ExternalMemoryStatus configure(std::uint64_t generation,
+                                               std::uint32_t memory_type_bits,
+                                               std::uint32_t handle_type_bits,
+                                               std::uint32_t sync_type_bits,
+                                               std::size_t capacity = 0U) noexcept;
+  [[nodiscard]] ExternalMemoryStatus import_fd(
+      const mf_vulkan_external_memory_profile_v0& profile, int source_fd,
+      std::uint64_t offset, std::uint32_t memory_type_index,
+      ExternalMemoryHandleImport* out_import) noexcept;
+  [[nodiscard]] ExternalMemoryStatus retain(const ExternalMemoryHandleImport& import) noexcept;
+  [[nodiscard]] ExternalMemoryStatus release(const ExternalMemoryHandleImport& import) noexcept;
+  [[nodiscard]] ExternalMemoryStatus revoke(const ExternalMemoryHandleImport& import) noexcept;
+  [[nodiscard]] ExternalMemoryStatus validate(
+      const ExternalMemoryHandleImport& import) const noexcept;
+  [[nodiscard]] std::size_t active_count() const noexcept { return handles_.size(); }
+  [[nodiscard]] std::uint64_t generation() const noexcept { return ledger_.generation(); }
+
+private:
+  struct OwnedHandle final {
+    ExternalMemoryHandleImport import{};
+  };
+
+  static bool same_import(const ExternalMemoryImport& left,
+                          const ExternalMemoryImport& right) noexcept;
+  static int duplicate_fd(int source_fd) noexcept;
+  static void close_fd(int* fd) noexcept;
+  [[nodiscard]] std::vector<OwnedHandle>::iterator
+  find(const ExternalMemoryHandleImport& import) noexcept;
+  [[nodiscard]] std::vector<OwnedHandle>::const_iterator
+  find(const ExternalMemoryHandleImport& import) const noexcept;
+
+  ExternalMemoryLedger ledger_{};
+  std::vector<OwnedHandle> handles_{};
 };
 
 class StagingLedger final {

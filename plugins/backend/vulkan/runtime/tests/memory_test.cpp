@@ -1,7 +1,10 @@
 #include "metaflux/backend/vulkan_memory.hpp"
 
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
+#include <fcntl.h>
+#include <unistd.h>
 
 namespace {
 
@@ -93,6 +96,48 @@ bool external_memory_admission_and_drain() {
   return ledger.import(dedicated, 256U, 0U, &first) == ExternalMemoryStatus::invalid_argument &&
          ledger.configure(8U, UINT32_C(0x3), UINT32_C(0x1), UINT32_C(0x1), 2U) ==
              ExternalMemoryStatus::success;
+}
+
+bool external_memory_fd_ownership() {
+  using metaflux::backend::vulkan::ExternalMemoryHandleImport;
+  using metaflux::backend::vulkan::ExternalMemoryHandleLedger;
+  using metaflux::backend::vulkan::ExternalMemoryStatus;
+  int pipe_fds[2] = {-1, -1};
+  if (::pipe(pipe_fds) != 0) {
+    return false;
+  }
+  ExternalMemoryHandleImport imported{};
+  bool result = false;
+  {
+    ExternalMemoryHandleLedger ledger(7U, UINT32_C(0x3), UINT32_C(0x1), UINT32_C(0x1), 1U);
+    const auto profile = direct_profile();
+    auto rejected = profile;
+    rejected.generation = 8U;
+    if (ledger.import_fd(rejected, pipe_fds[0], 0U, 0U, &imported) !=
+            ExternalMemoryStatus::stale_generation ||
+        ::fcntl(pipe_fds[0], F_GETFD) < 0 || ledger.active_count() != 0U ||
+        ledger.import_fd(profile, -1, 0U, 0U, &imported) !=
+            ExternalMemoryStatus::invalid_argument ||
+        ledger.import_fd(profile, pipe_fds[0], 0U, 0U, &imported) !=
+            ExternalMemoryStatus::success ||
+        imported.owned_fd < 0 || imported.owned_fd == pipe_fds[0] ||
+        ::fcntl(imported.owned_fd, F_GETFD) < 0 ||
+        ledger.retain(imported) != ExternalMemoryStatus::success ||
+        ledger.revoke(imported) != ExternalMemoryStatus::busy ||
+        ledger.release(imported) != ExternalMemoryStatus::success ||
+        ::fcntl(imported.owned_fd, F_GETFD) < 0 ||
+        ledger.release(imported) != ExternalMemoryStatus::success ||
+        (errno = 0, ::fcntl(imported.owned_fd, F_GETFD) != -1) || errno != EBADF ||
+        ledger.active_count() != 0U) {
+      ::close(pipe_fds[0]);
+      ::close(pipe_fds[1]);
+      return false;
+    }
+    result = true;
+  }
+  ::close(pipe_fds[0]);
+  ::close(pipe_fds[1]);
+  return result;
 }
 
 bool staging_lifetime_and_reuse() {
@@ -302,7 +347,8 @@ bool visibility_partial_and_lifetime_guards() {
 } // namespace
 
 int main() {
-  const bool ok = external_memory_admission_and_drain() && staging_lifetime_and_reuse() &&
+  const bool ok = external_memory_admission_and_drain() && external_memory_fd_ownership() &&
+                  staging_lifetime_and_reuse() &&
                   profile_and_generation_guards() &&
                   timeline_guards() && non_coherent_visibility() &&
                   visibility_range_and_coherent_guards() &&

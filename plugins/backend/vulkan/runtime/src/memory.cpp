@@ -1,8 +1,11 @@
 #include "metaflux/backend/vulkan_memory.hpp"
 
 #include <algorithm>
+#include <cerrno>
+#include <fcntl.h>
 #include <limits>
 #include <utility>
+#include <unistd.h>
 
 namespace metaflux::backend::vulkan {
 
@@ -184,6 +187,162 @@ ExternalMemoryStatus ExternalMemoryLedger::revoke(const ExternalMemoryImport& im
   position->revoked = true;
   return position->references > 1U ? ExternalMemoryStatus::busy
                                    : ExternalMemoryStatus::success;
+}
+
+ExternalMemoryHandleLedger::ExternalMemoryHandleLedger(
+    std::uint64_t generation, std::uint32_t memory_type_bits,
+    std::uint32_t handle_type_bits, std::uint32_t sync_type_bits,
+    std::size_t capacity) noexcept {
+  (void)configure(generation, memory_type_bits, handle_type_bits, sync_type_bits, capacity);
+}
+
+ExternalMemoryHandleLedger::~ExternalMemoryHandleLedger() noexcept {
+  for (auto& handle : handles_) {
+    close_fd(&handle.import.owned_fd);
+  }
+}
+
+ExternalMemoryStatus ExternalMemoryHandleLedger::configure(
+    std::uint64_t generation, std::uint32_t memory_type_bits,
+    std::uint32_t handle_type_bits, std::uint32_t sync_type_bits,
+    std::size_t capacity) noexcept {
+  const auto status = ledger_.configure(generation, memory_type_bits, handle_type_bits,
+                                        sync_type_bits, capacity);
+  if (status != ExternalMemoryStatus::success) {
+    return status;
+  }
+  handles_.clear();
+  return ExternalMemoryStatus::success;
+}
+
+bool ExternalMemoryHandleLedger::same_import(const ExternalMemoryImport& left,
+                                             const ExternalMemoryImport& right) noexcept {
+  return left.id == right.id && left.generation == right.generation &&
+         left.offset == right.offset && left.size == right.size &&
+         left.memory_type_index == right.memory_type_index;
+}
+
+int ExternalMemoryHandleLedger::duplicate_fd(int source_fd) noexcept {
+  if (source_fd < 0 || ::fcntl(source_fd, F_GETFD) < 0) {
+    return -1;
+  }
+#ifdef F_DUPFD_CLOEXEC
+  return ::fcntl(source_fd, F_DUPFD_CLOEXEC, 0);
+#else
+  const int duplicate = ::dup(source_fd);
+  if (duplicate >= 0 && ::fcntl(duplicate, F_SETFD, FD_CLOEXEC) < 0) {
+    const int saved_errno = errno;
+    (void)::close(duplicate);
+    errno = saved_errno;
+    return -1;
+  }
+  return duplicate;
+#endif
+}
+
+void ExternalMemoryHandleLedger::close_fd(int* fd) noexcept {
+  if (fd == nullptr || *fd < 0) {
+    return;
+  }
+  (void)::close(*fd);
+  *fd = -1;
+}
+
+std::vector<ExternalMemoryHandleLedger::OwnedHandle>::iterator
+ExternalMemoryHandleLedger::find(const ExternalMemoryHandleImport& import) noexcept {
+  return std::find_if(handles_.begin(), handles_.end(), [&import](const auto& current) {
+    return same_import(current.import.allocation, import.allocation);
+  });
+}
+
+std::vector<ExternalMemoryHandleLedger::OwnedHandle>::const_iterator
+ExternalMemoryHandleLedger::find(const ExternalMemoryHandleImport& import) const noexcept {
+  return std::find_if(handles_.begin(), handles_.end(), [&import](const auto& current) {
+    return same_import(current.import.allocation, import.allocation);
+  });
+}
+
+ExternalMemoryStatus ExternalMemoryHandleLedger::import_fd(
+    const mf_vulkan_external_memory_profile_v0& profile, int source_fd,
+    std::uint64_t offset, std::uint32_t memory_type_index,
+    ExternalMemoryHandleImport* out_import) noexcept {
+  if (out_import == nullptr || source_fd < 0) {
+    return ExternalMemoryStatus::invalid_argument;
+  }
+  const int owned_fd = duplicate_fd(source_fd);
+  if (owned_fd < 0) {
+    return ExternalMemoryStatus::invalid_argument;
+  }
+  ExternalMemoryImport allocation{};
+  const auto status = ledger_.import(profile, offset, memory_type_index, &allocation);
+  if (status != ExternalMemoryStatus::success) {
+    int disposable_fd = owned_fd;
+    close_fd(&disposable_fd);
+    return status;
+  }
+  try {
+    handles_.push_back(OwnedHandle{.import = ExternalMemoryHandleImport{
+                                       .allocation = allocation, .owned_fd = owned_fd}});
+  } catch (...) {
+    (void)ledger_.release(allocation);
+    int disposable_fd = owned_fd;
+    close_fd(&disposable_fd);
+    return ExternalMemoryStatus::exhausted;
+  }
+  *out_import = handles_.back().import;
+  return ExternalMemoryStatus::success;
+}
+
+ExternalMemoryStatus ExternalMemoryHandleLedger::retain(
+    const ExternalMemoryHandleImport& import) noexcept {
+  if (find(import) == handles_.end()) {
+    return import.allocation.generation != ledger_.generation()
+               ? ExternalMemoryStatus::stale_generation
+               : ExternalMemoryStatus::not_found;
+  }
+  return ledger_.retain(import.allocation);
+}
+
+ExternalMemoryStatus ExternalMemoryHandleLedger::release(
+    const ExternalMemoryHandleImport& import) noexcept {
+  const auto position = find(import);
+  if (position == handles_.end()) {
+    return import.allocation.generation != ledger_.generation()
+               ? ExternalMemoryStatus::stale_generation
+               : ExternalMemoryStatus::not_found;
+  }
+  const std::size_t before = ledger_.active_count();
+  const auto status = ledger_.release(import.allocation);
+  if (status != ExternalMemoryStatus::success) {
+    return status;
+  }
+  if (ledger_.active_count() < before) {
+    close_fd(&position->import.owned_fd);
+    handles_.erase(position);
+  }
+  return ExternalMemoryStatus::success;
+}
+
+ExternalMemoryStatus ExternalMemoryHandleLedger::revoke(
+    const ExternalMemoryHandleImport& import) noexcept {
+  const auto position = find(import);
+  if (position == handles_.end()) {
+    return import.allocation.generation != ledger_.generation()
+               ? ExternalMemoryStatus::stale_generation
+               : ExternalMemoryStatus::not_found;
+  }
+  return ledger_.revoke(import.allocation);
+}
+
+ExternalMemoryStatus ExternalMemoryHandleLedger::validate(
+    const ExternalMemoryHandleImport& import) const noexcept {
+  const auto position = find(import);
+  if (position == handles_.end()) {
+    return import.allocation.generation != ledger_.generation()
+               ? ExternalMemoryStatus::stale_generation
+               : ExternalMemoryStatus::not_found;
+  }
+  return ledger_.validate(import.allocation);
 }
 
 StagingLedger::StagingLedger(const mf_vulkan_capability_profile_v1& profile,
