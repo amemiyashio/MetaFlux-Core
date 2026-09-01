@@ -212,6 +212,7 @@ private:
     std::uint32_t touched_mask = 0;
     std::uint32_t committed_mask = 0;
     std::uint32_t committed_count = 0;
+    bool timed_out = false;
   };
 
   [[nodiscard]] bool valid_request(const Request& request) const noexcept;

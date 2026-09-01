@@ -39,6 +39,7 @@ struct MirrorLog final {
   std::uint32_t fail_after_commits = 0;
   std::uint32_t commit_count = 0;
   std::uint32_t lost_count = 0;
+  std::uint64_t* clock_value = nullptr;
 };
 
 bool record(void* context, const MirrorEvent& event) noexcept {
@@ -54,6 +55,9 @@ bool record(void* context, const MirrorEvent& event) noexcept {
     if (log->fail_after_commits != 0U && log->commit_count > log->fail_after_commits) {
       return false;
     }
+  }
+  if (log->clock_value != nullptr) {
+    ++(*log->clock_value);
   }
   return static_cast<std::uint32_t>(event.stage) != log->fail_stage;
 }
@@ -312,6 +316,9 @@ bool stale_identity_and_expired_deadline_are_rejected_without_callbacks() {
   static std::uint64_t now = 100;
   config.clock = []() noexcept -> std::uint64_t { return now; };
   Coordinator deadline_coordinator(config);
+  deadline_memfd.clock_value = &now;
+  deadline_cdev.clock_value = &now;
+  deadline_vfio.clock_value = &now;
   (void)deadline_coordinator.register_mirror(
       make_mirror(MirrorKind::Memfd, "memfd", deadline_memfd));
   (void)deadline_coordinator.register_mirror(
@@ -319,11 +326,14 @@ bool stale_identity_and_expired_deadline_are_rejected_without_callbacks() {
   (void)deadline_coordinator.register_mirror(
       make_mirror(MirrorKind::VfioUser, "vfio-user", deadline_vfio));
   Request expired = request(13, Operation::Reset, 1, 1);
-  expired.deadline_tick = now;
+  expired.deadline_tick = now + 2U;
   REQUIRE(deadline_coordinator.apply(expired) == Result::Timeout);
   REQUIRE(deadline_coordinator.snapshot().generation == 1U);
   REQUIRE(deadline_coordinator.snapshot().epoch == 1U);
-  REQUIRE(deadline_memfd.count == 0U && deadline_cdev.count == 0U && deadline_vfio.count == 0U);
+  REQUIRE(deadline_coordinator.snapshot().generation_high_water == 2U);
+  REQUIRE(deadline_memfd.count != 0U && deadline_cdev.count != 0U && deadline_vfio.count == 0U);
+  REQUIRE(deadline_coordinator.apply(request(14, Operation::Reset, 1, 1)) == Result::Accepted);
+  REQUIRE(deadline_coordinator.snapshot().generation == 3U);
   return true;
 }
 

@@ -267,6 +267,11 @@ bool Coordinator::invoke(Transaction& transaction, MirrorStage stage,
                          MirrorCallback callback) noexcept {
   bool success = true;
   for (std::uint32_t index = 0; index < mirror_count_; ++index) {
+    if (transaction.request.deadline_tick != 0U && config_.clock != nullptr &&
+        config_.clock() >= transaction.request.deadline_tick) {
+      transaction.timed_out = true;
+      return false;
+    }
     Mirror& mirror = mirrors_[index];
     MirrorCallback selected = callback;
     if (stage == MirrorStage::Prepare) {
@@ -385,13 +390,15 @@ Result Coordinator::apply_add(const Request& request, ResultDetails& out) noexce
       !invoke(transaction, MirrorStage::Quiesce, nullptr) ||
       !invoke(transaction, MirrorStage::Drain, nullptr)) {
     abort(transaction);
-    fill_details(Result::CallbackRejected, transaction, out);
+    fill_details(transaction.timed_out ? Result::Timeout : Result::CallbackRejected, transaction,
+                 out);
     return out.result;
   }
   if (!invoke(transaction, MirrorStage::Commit, nullptr)) {
     if (transaction.committed_count == 0U) {
       abort(transaction);
-      fill_details(Result::CallbackRejected, transaction, out);
+      fill_details(transaction.timed_out ? Result::Timeout : Result::CallbackRejected, transaction,
+                   out);
       return out.result;
     }
     abort(transaction);
@@ -399,7 +406,8 @@ Result Coordinator::apply_add(const Request& request, ResultDetails& out) noexce
     identity_record_id_ = candidate.identity_record_id;
     state_ = State::Lost;
     publish_lost(transaction);
-    fill_details(Result::CallbackRejected, transaction, out);
+    fill_details(transaction.timed_out ? Result::Timeout : Result::CallbackRejected, transaction,
+                 out);
     return out.result;
   }
   generation_ = candidate.generation;
@@ -438,7 +446,8 @@ Result Coordinator::apply_remove(const Request& request, ResultDetails& out) noe
     abort(transaction);
     state_ = State::Lost;
     publish_lost(transaction);
-    fill_details(Result::CallbackRejected, transaction, out);
+    fill_details(transaction.timed_out ? Result::Timeout : Result::CallbackRejected, transaction,
+                 out);
     return out.result;
   }
   if (!invoke(transaction, MirrorStage::Commit, nullptr)) {
@@ -446,7 +455,8 @@ Result Coordinator::apply_remove(const Request& request, ResultDetails& out) noe
       abort(transaction);
       state_ = State::Lost;
       publish_lost(transaction);
-      fill_details(Result::CallbackRejected, transaction, out);
+      fill_details(transaction.timed_out ? Result::Timeout : Result::CallbackRejected, transaction,
+                   out);
       return out.result;
     }
     abort(transaction);
@@ -455,7 +465,8 @@ Result Coordinator::apply_remove(const Request& request, ResultDetails& out) noe
     generation_ = 0U;
     identity_record_id_ = 0U;
     state_ = State::Absent;
-    fill_details(Result::CallbackRejected, transaction, out);
+    fill_details(transaction.timed_out ? Result::Timeout : Result::CallbackRejected, transaction,
+                 out);
     return out.result;
   }
   append_tombstone(generation_, identity_record_id_, next_epoch);
@@ -503,13 +514,15 @@ Result Coordinator::apply_reset_or_recover(const Request& request, ResultDetails
       !invoke(transaction, MirrorStage::Quiesce, nullptr) ||
       !invoke(transaction, MirrorStage::Drain, nullptr)) {
     abort(transaction);
-    fill_details(Result::CallbackRejected, transaction, out);
+    fill_details(transaction.timed_out ? Result::Timeout : Result::CallbackRejected, transaction,
+                 out);
     return out.result;
   }
   if (!invoke(transaction, MirrorStage::Commit, nullptr)) {
     if (transaction.committed_count == 0U) {
       abort(transaction);
-      fill_details(Result::CallbackRejected, transaction, out);
+      fill_details(transaction.timed_out ? Result::Timeout : Result::CallbackRejected, transaction,
+                   out);
       return out.result;
     }
     abort(transaction);
@@ -519,7 +532,8 @@ Result Coordinator::apply_reset_or_recover(const Request& request, ResultDetails
     identity_record_id_ = candidate.identity_record_id;
     state_ = State::Lost;
     publish_lost(transaction);
-    fill_details(Result::CallbackRejected, transaction, out);
+    fill_details(transaction.timed_out ? Result::Timeout : Result::CallbackRejected, transaction,
+                 out);
     return out.result;
   }
   append_tombstone(generation_, identity_record_id_, next_epoch);
