@@ -110,6 +110,7 @@ int main() {
   server_config.max_bytes = 0x2000U;
   metaflux::transport::vfio_user::VfioUserServer server(sockets[1], server_config);
   std::array<std::uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> packet{};
+  std::array<std::uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> no_reply_packet{};
   std::uint32_t packet_size = 0;
 
   mf_transport_negotiate_v0 negotiation{};
@@ -151,6 +152,25 @@ int main() {
       negotiated.dma_alignment != 4096U || negotiated.max_regions != 64U ||
       negotiated.max_inflight != 256U || negotiated.max_bytes != 0x2000U ||
       server.state() != metaflux::transport::vfio_user::ServerState::Configuring) {
+    return 1;
+  }
+
+  if (mf_vfio_user_guest_encode_get_info_v0(7U, no_reply_packet.data(), no_reply_packet.size(),
+                                             &packet_size) != MF_SHARED_SUCCESS) {
+    return 1;
+  }
+  auto* no_reply_header =
+      reinterpret_cast<mf_transport_message_header_v0*>(no_reply_packet.data());
+  no_reply_header->flags = MF_TRANSPORT_FLAG_NO_REPLY_V0;
+  if (!send_packet(sockets[0], no_reply_packet.data(), packet_size) ||
+      mf_vfio_user_guest_encode_get_info_v0(7U, packet.data(), packet.size(), &packet_size) !=
+          MF_SHARED_SUCCESS ||
+      !send_packet(sockets[0], packet.data(), packet_size) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::NoReply ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied) {
+    return 1;
+  }
+  if (!receive_info(sockets[0], 7U, nullptr)) {
     return 1;
   }
 
