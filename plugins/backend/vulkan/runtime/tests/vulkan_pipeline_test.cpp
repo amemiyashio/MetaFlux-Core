@@ -6,15 +6,72 @@
 #include <metaflux/backend/vulkan.h>
 
 #include <algorithm>
+#include <atomic>
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <new>
 #include <unistd.h>
 #include <vector>
+
+namespace {
+
+std::atomic<bool> g_track_warm_allocations{false};
+std::atomic<std::uint64_t> g_warm_allocations{0U};
+
+void* allocate_test_memory(std::size_t size, std::size_t alignment) {
+  if (size == 0U) {
+    size = 1U;
+  }
+  void* result = nullptr;
+  if (alignment <= alignof(std::max_align_t)) {
+    result = std::malloc(size);
+  } else if (posix_memalign(&result, alignment, size) != 0) {
+    result = nullptr;
+  }
+  if (result == nullptr) {
+    throw std::bad_alloc();
+  }
+  if (g_track_warm_allocations.load(std::memory_order_relaxed)) {
+    g_warm_allocations.fetch_add(1U, std::memory_order_relaxed);
+  }
+  return result;
+}
+
+} // namespace
+
+void* operator new(std::size_t size) { return allocate_test_memory(size, alignof(std::max_align_t)); }
+
+void* operator new[](std::size_t size) {
+  return allocate_test_memory(size, alignof(std::max_align_t));
+}
+
+void* operator new(std::size_t size, std::align_val_t alignment) {
+  return allocate_test_memory(size, static_cast<std::size_t>(alignment));
+}
+
+void* operator new[](std::size_t size, std::align_val_t alignment) {
+  return allocate_test_memory(size, static_cast<std::size_t>(alignment));
+}
+
+void operator delete(void* pointer) noexcept { std::free(pointer); }
+void operator delete[](void* pointer) noexcept { std::free(pointer); }
+void operator delete(void* pointer, std::size_t) noexcept { std::free(pointer); }
+void operator delete[](void* pointer, std::size_t) noexcept { std::free(pointer); }
+void operator delete(void* pointer, std::align_val_t) noexcept { std::free(pointer); }
+void operator delete[](void* pointer, std::align_val_t) noexcept { std::free(pointer); }
+void operator delete(void* pointer, std::size_t, std::align_val_t) noexcept {
+  std::free(pointer);
+}
+void operator delete[](void* pointer, std::size_t, std::align_val_t) noexcept {
+  std::free(pointer);
+}
 
 namespace {
 
@@ -188,18 +245,26 @@ bool physical_pipeline_round_trip() {
         return false;
       }
       metaflux::backend::vulkan::QueueSubmission warm_submission{};
+      g_warm_allocations.store(0U, std::memory_order_relaxed);
+      g_track_warm_allocations.store(true, std::memory_order_release);
       const auto warm_submitted = executor.submit_warm_compute(
           session, pipeline, 7U, 1U, {}, command_buffer, 1U, 1U, 1U, 64U, &warm_submission);
       const auto warm_waited =
           warm_submitted == metaflux::backend::vulkan::QueueExecutionStatus::success
               ? executor.wait(7U, warm_submission.completion_value, UINT64_C(5000000000))
               : warm_submitted;
+      const auto warm_finished =
+          warm_waited == metaflux::backend::vulkan::QueueExecutionStatus::success
+              ? session.finish()
+              : metaflux::backend::vulkan::CacheStatus::invalid_argument;
+      g_track_warm_allocations.store(false, std::memory_order_release);
       const bool warm_valid =
           warm_waited == metaflux::backend::vulkan::QueueExecutionStatus::success &&
           session.submitted() &&
           metaflux::backend::vulkan::validate_warm_launch_trace(session.trace()) ==
               metaflux::backend::vulkan::WarmLaunchStatus::success &&
-          session.finish() == metaflux::backend::vulkan::CacheStatus::success &&
+          warm_finished == metaflux::backend::vulkan::CacheStatus::success &&
+          g_warm_allocations.load(std::memory_order_relaxed) == 0U &&
           !session.active();
       std::error_code error;
       std::filesystem::remove_all(cache_root, error);
