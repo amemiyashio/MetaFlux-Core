@@ -600,7 +600,6 @@ Result Coordinator::apply(const Request& request, ResultDetails& out) noexcept {
       config_.clock() >= request.deadline_tick) {
     out.result = Result::Timeout;
     out.snapshot = snapshot();
-    remember_request(request, out.result, out);
     return out.result;
   }
   if (!valid_request(request)) {
@@ -610,7 +609,6 @@ Result Coordinator::apply(const Request& request, ResultDetails& out) noexcept {
                      ? Result::Stale
                      : Result::Invalid;
     out.snapshot = snapshot();
-    remember_request(request, out.result, out);
     return out.result;
   }
 

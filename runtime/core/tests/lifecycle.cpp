@@ -412,6 +412,22 @@ bool stale_identity_and_expired_deadline_are_rejected_without_callbacks() {
   return true;
 }
 
+bool rejected_requests_do_not_consume_replay_capacity() {
+  MirrorLog memfd{};
+  MirrorLog cdev{};
+  MirrorLog vfio{};
+  Coordinator coordinator = make_coordinator(memfd, cdev, vfio);
+
+  for (std::uint64_t id = 1U; id <= Coordinator::kRequestCapacity + 1U; ++id) {
+    Request stale = request(1000U + id, Operation::Reset, 1U, 1U);
+    stale.daemon_incarnation = 99U;
+    REQUIRE(coordinator.apply(stale) == Result::Stale);
+  }
+  REQUIRE(coordinator.apply(request(9000U, Operation::Reset, 1U, 1U)) == Result::Accepted);
+  REQUIRE(coordinator.snapshot().generation == 2U && coordinator.snapshot().epoch == 2U);
+  return true;
+}
+
 } // namespace
 
 int main() {
@@ -425,6 +441,7 @@ int main() {
                   exhaustion_rejects_before_side_effect() &&
                   exhaustion_after_committed_replacements_preserves_last_state() &&
                   every_mirror_stage_failure_is_bounded() &&
-                  stale_identity_and_expired_deadline_are_rejected_without_callbacks();
+                  stale_identity_and_expired_deadline_are_rejected_without_callbacks() &&
+                  rejected_requests_do_not_consume_replay_capacity();
   return ok ? 0 : 1;
 }
