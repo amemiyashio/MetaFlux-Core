@@ -362,6 +362,51 @@ bool filesystem_device_invalidation_and_inputs() {
              metaflux::backend::vulkan::CacheStatus::invalid_argument;
 }
 
+bool warm_launch_session_keeps_compiler_out_of_the_path() {
+  TemporaryDirectory temporary;
+  if (!temporary.valid()) {
+    return false;
+  }
+  const auto key = identity().device_key();
+  metaflux::backend::vulkan::PersistentCacheRepository repository(temporary.path() / "cache", 4U,
+                                                                   1024U);
+  if (repository.publish(key, "resident-pipeline", true) !=
+      metaflux::backend::vulkan::CacheStatus::success) {
+    return false;
+  }
+  metaflux::backend::vulkan::WarmLaunchSession session;
+  std::string payload;
+  if (metaflux::backend::vulkan::WarmLaunchSession::start(repository, key, true, 7U, &payload,
+                                                          session) !=
+          metaflux::backend::vulkan::CacheStatus::success ||
+      payload != "resident-pipeline" ||
+      session.bind_arguments(64U) != metaflux::backend::vulkan::WarmLaunchStatus::success ||
+      session.submit() != metaflux::backend::vulkan::WarmLaunchStatus::success ||
+      metaflux::backend::vulkan::validate_warm_launch_trace(session.trace()) !=
+          metaflux::backend::vulkan::WarmLaunchStatus::success ||
+      session.finish() != metaflux::backend::vulkan::CacheStatus::success || session.active()) {
+    return false;
+  }
+
+  metaflux::backend::vulkan::WarmLaunchSession incomplete;
+  if (metaflux::backend::vulkan::WarmLaunchSession::start(repository, key, true, 8U, &payload,
+                                                          incomplete) !=
+          metaflux::backend::vulkan::CacheStatus::success ||
+      incomplete.submit() != metaflux::backend::vulkan::WarmLaunchStatus::invalid_order ||
+      incomplete.finish() != metaflux::backend::vulkan::CacheStatus::invalid_argument ||
+      incomplete.cancel() != metaflux::backend::vulkan::CacheStatus::success ||
+      incomplete.active()) {
+    return false;
+  }
+  if (repository.invalidate_device(key) != metaflux::backend::vulkan::CacheStatus::success ||
+      metaflux::backend::vulkan::WarmLaunchSession::start(repository, key, true, 9U, &payload,
+                                                          session) !=
+          metaflux::backend::vulkan::CacheStatus::miss) {
+    return false;
+  }
+  return true;
+}
+
 bool persistent_repository_hydrates_and_preserves_pins() {
   TemporaryDirectory temporary;
   if (!temporary.valid()) {
@@ -534,6 +579,7 @@ int main() {
                   pinned_quota() && filesystem_round_trip_and_atomic_replace() &&
                   filesystem_corruption_is_removed() &&
                   filesystem_device_invalidation_and_inputs() &&
+                  warm_launch_session_keeps_compiler_out_of_the_path() &&
                   persistent_repository_hydrates_and_preserves_pins() &&
                   persistent_repository_binds_pipeline_generations() &&
                   persistent_repository_coalesces_process_misses();

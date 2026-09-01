@@ -227,6 +227,107 @@ const char* warm_launch_status_string(WarmLaunchStatus status) noexcept {
   return "unknown";
 }
 
+WarmLaunchSession::~WarmLaunchSession() noexcept { release(); }
+
+WarmLaunchStatus WarmLaunchSession::append(WarmLaunchEvent event) noexcept {
+  if (event_count_ >= events_.size()) {
+    return WarmLaunchStatus::invalid_order;
+  }
+  events_[event_count_++] = event;
+  return WarmLaunchStatus::success;
+}
+
+void WarmLaunchSession::release() noexcept {
+  if (repository_ != nullptr) {
+    static_cast<void>(repository_->release_pipeline(key_, generation_));
+  }
+  repository_ = nullptr;
+  key_ = {};
+  device_bound_ = false;
+  generation_ = 0U;
+  event_count_ = 0U;
+  arguments_bound_ = false;
+  submitted_ = false;
+}
+
+CacheStatus WarmLaunchSession::start(PersistentCacheRepository& repository, std::string_view key,
+                                     bool device_bound, std::uint64_t generation,
+                                     std::string* out_payload, WarmLaunchSession& out) noexcept {
+  if (key.empty() || generation == 0U || out_payload == nullptr || out.active()) {
+    return CacheStatus::invalid_argument;
+  }
+  std::string payload;
+  const auto lookup = repository.lookup(key, device_bound, &payload);
+  if (lookup != CacheStatus::hit) {
+    return lookup;
+  }
+  const auto acquired = repository.acquire_pipeline(key, generation);
+  if (acquired != CacheStatus::success) {
+    return acquired;
+  }
+  out.repository_ = &repository;
+  out.key_ = key;
+  out.device_bound_ = device_bound;
+  out.generation_ = generation;
+  out.event_count_ = 0U;
+  out.arguments_bound_ = false;
+  out.submitted_ = false;
+  *out_payload = std::move(payload);
+  if (out.append(WarmLaunchEvent::cache_lookup) != WarmLaunchStatus::success ||
+      out.append(WarmLaunchEvent::pipeline_binding) != WarmLaunchStatus::success) {
+    out.release();
+    return CacheStatus::invalid_argument;
+  }
+  return CacheStatus::success;
+}
+
+WarmLaunchStatus WarmLaunchSession::bind_arguments(std::uint64_t argument_block_size) noexcept {
+  if (repository_ == nullptr || event_count_ != 2U || argument_block_size == 0U ||
+      arguments_bound_ || submitted_) {
+    return WarmLaunchStatus::invalid_argument;
+  }
+  const auto status = append(WarmLaunchEvent::argument_binding);
+  if (status == WarmLaunchStatus::success) {
+    arguments_bound_ = true;
+  }
+  return status;
+}
+
+WarmLaunchStatus WarmLaunchSession::submit() noexcept {
+  if (repository_ == nullptr || event_count_ != 3U || !arguments_bound_ || submitted_) {
+    return WarmLaunchStatus::invalid_order;
+  }
+  const auto status = append(WarmLaunchEvent::submit);
+  if (status == WarmLaunchStatus::success) {
+    submitted_ = true;
+  }
+  return status;
+}
+
+CacheStatus WarmLaunchSession::finish() noexcept {
+  if (repository_ == nullptr || !submitted_) {
+    return CacheStatus::invalid_argument;
+  }
+  return cancel();
+}
+
+CacheStatus WarmLaunchSession::cancel() noexcept {
+  if (repository_ == nullptr) {
+    return CacheStatus::invalid_argument;
+  }
+  PersistentCacheRepository* repository = repository_;
+  const std::string_view key = key_;
+  const std::uint64_t generation = generation_;
+  repository_ = nullptr;
+  key_ = {};
+  device_bound_ = false;
+  generation_ = 0U;
+  event_count_ = 0U;
+  arguments_bound_ = false;
+  submitted_ = false;
+  return repository->release_pipeline(key, generation);
+}
+
 CacheStatus CacheCatalog::publish(std::string key, std::string payload, bool device_bound) {
   if (key.empty() || payload.empty() || max_entries_ == 0U) {
     return CacheStatus::invalid_argument;

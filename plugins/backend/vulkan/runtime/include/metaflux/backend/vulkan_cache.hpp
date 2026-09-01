@@ -173,6 +173,45 @@ private:
   std::map<std::string, std::uint64_t> active_pipeline_bindings_;
 };
 
+// Host-independent warm-launch admission. A successful session owns one
+// generation-scoped pipeline binding and exposes only the four allowed steps;
+// compiler, validator, object creation, and allocation are outside this path.
+class WarmLaunchSession final {
+public:
+  WarmLaunchSession() noexcept = default;
+  ~WarmLaunchSession() noexcept;
+
+  WarmLaunchSession(const WarmLaunchSession&) = delete;
+  WarmLaunchSession& operator=(const WarmLaunchSession&) = delete;
+
+  [[nodiscard]] static CacheStatus start(PersistentCacheRepository& repository,
+                                          std::string_view key, bool device_bound,
+                                          std::uint64_t generation,
+                                          std::string* out_payload,
+                                          WarmLaunchSession& out) noexcept;
+  [[nodiscard]] WarmLaunchStatus bind_arguments(std::uint64_t argument_block_size) noexcept;
+  [[nodiscard]] WarmLaunchStatus submit() noexcept;
+  [[nodiscard]] CacheStatus cancel() noexcept;
+  [[nodiscard]] CacheStatus finish() noexcept;
+  [[nodiscard]] std::span<const WarmLaunchEvent> trace() const noexcept {
+    return std::span<const WarmLaunchEvent>(events_.data(), event_count_);
+  }
+  [[nodiscard]] bool active() const noexcept { return repository_ != nullptr; }
+
+private:
+  [[nodiscard]] WarmLaunchStatus append(WarmLaunchEvent event) noexcept;
+  void release() noexcept;
+
+  PersistentCacheRepository* repository_ = nullptr;
+  std::string_view key_{};
+  bool device_bound_ = false;
+  std::uint64_t generation_ = 0U;
+  std::array<WarmLaunchEvent, 4> events_{};
+  std::size_t event_count_ = 0U;
+  bool arguments_bound_ = false;
+  bool submitted_ = false;
+};
+
 [[nodiscard]] const char* cache_status_string(CacheStatus status) noexcept;
 [[nodiscard]] WarmLaunchStatus
 validate_warm_launch_trace(std::span<const WarmLaunchEvent> events) noexcept;
