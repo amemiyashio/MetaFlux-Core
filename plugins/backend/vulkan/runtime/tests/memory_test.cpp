@@ -176,6 +176,16 @@ bool profile_and_generation_guards() {
   if (ledger.configure(unsupported, 1U) != metaflux::backend::vulkan::MemoryStatus::unsupported) {
     return false;
   }
+  metaflux::backend::vulkan::StagingLedger active(profile(), 7U);
+  metaflux::backend::vulkan::StagingAllocation active_allocation{};
+  if (active.allocate(64U, 64U, 7U, &active_allocation) !=
+          metaflux::backend::vulkan::MemoryStatus::success ||
+      active.configure(profile(), 8U) != metaflux::backend::vulkan::MemoryStatus::busy ||
+      active.configure(unsupported, 8U) != metaflux::backend::vulkan::MemoryStatus::unsupported ||
+      active.generation() != 7U || active.active_bytes() != 64U ||
+      active.validate(active_allocation) != metaflux::backend::vulkan::MemoryStatus::success) {
+    return false;
+  }
   metaflux::backend::vulkan::StagingAllocation allocation{};
   const auto status = ledger.configure(profile(), 3U);
   return status == metaflux::backend::vulkan::MemoryStatus::success &&

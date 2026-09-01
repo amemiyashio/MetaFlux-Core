@@ -352,18 +352,24 @@ StagingLedger::StagingLedger(const mf_vulkan_capability_profile_v1& profile,
 
 MemoryStatus StagingLedger::configure(const mf_vulkan_capability_profile_v1& profile,
                                       std::uint64_t generation) noexcept {
-  allocations_.clear();
-  active_bytes_ = 0;
-  next_id_ = 1;
-  capacity_ = 0;
-  generation_ = generation;
   if (profile.status != MF_VULKAN_PROBE_SUCCESS || generation == 0U ||
       (profile.memory_tier_flags & MF_VULKAN_MEMORY_TIER_STAGING) == 0U ||
       profile.device_local_heap_bytes == 0U || profile.host_visible_heap_bytes == 0U) {
     return MemoryStatus::unsupported;
   }
-  capacity_ = std::min(profile.device_local_heap_bytes, profile.host_visible_heap_bytes);
-  return capacity_ == 0U ? MemoryStatus::unsupported : MemoryStatus::success;
+  const std::uint64_t capacity =
+      std::min(profile.device_local_heap_bytes, profile.host_visible_heap_bytes);
+  if (capacity == 0U) {
+    return MemoryStatus::unsupported;
+  }
+  if (!allocations_.empty()) {
+    return MemoryStatus::busy;
+  }
+  capacity_ = capacity;
+  generation_ = generation;
+  next_id_ = 1U;
+  active_bytes_ = 0U;
+  return MemoryStatus::success;
 }
 
 bool StagingLedger::is_power_of_two(std::uint64_t value) noexcept {
