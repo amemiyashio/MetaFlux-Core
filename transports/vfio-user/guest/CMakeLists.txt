@@ -46,4 +46,20 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   metaflux_configure_target(metaflux_transport_vfio_user_guest_test C)
   add_test(NAME metaflux.transport.vfio-user-guest COMMAND metaflux_transport_vfio_user_guest_test)
   set_tests_properties(metaflux.transport.vfio-user-guest PROPERTIES LABELS "transport;unit")
+
+  add_executable(metaflux_transport_vfio_user_guest_protocol_fuzz_test
+                 tests/protocol_fuzz_test.c)
+  target_link_libraries(
+    metaflux_transport_vfio_user_guest_protocol_fuzz_test
+    PRIVATE MetaFlux::TransportVfioUserGuest
+  )
+  metaflux_configure_target(metaflux_transport_vfio_user_guest_protocol_fuzz_test C)
+  add_test(
+    NAME metaflux.transport.vfio-user-guest-protocol-fuzz
+    COMMAND metaflux_transport_vfio_user_guest_protocol_fuzz_test
+  )
+  set_tests_properties(
+    metaflux.transport.vfio-user-guest-protocol-fuzz
+    PROPERTIES LABELS "transport;qualification;fuzz"
+  )
 endif()
