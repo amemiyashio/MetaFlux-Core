@@ -53,6 +53,10 @@ identity and provisioning boundaries live in
   identity inference are invalid. Except for host Git/Nix bootstrap, every
   executable and tool/version/capability probe runs through the Git-aware
   `nix develop . --command ...` environment before ambient host inspection.
+  Newly required tools are added to the repository Nix declaration first. Only
+  a confirmed Nix materialization gap may be reported as an exact host
+  installation prerequisite; it never permits a silent ambient-tool fallback
+  or automatic host package-manager mutation.
   SC0008 provides no compatibility route for the superseded startup order.
 - Breaking replacements of established semantics, identifiers, constraints,
   record shapes, or authority use a decision-bound `SCNNNN` migration (D0025).

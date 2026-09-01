@@ -35,6 +35,11 @@ executable other than the host bootstrap `git` and `nix` commands.
    shell. Host `git` may inspect source identity, topology, status, and diffs;
    host `nix` may enter the declared environment. Never probe ambient host
    tools first and never use `path:.`.
+   If a required tool is absent, follow `manage-toolchain` and add it to the
+   repository Nix declaration before use. Only after Nix is confirmed not to
+   provide or materialize the tool may the agent stop and tell the host operator
+   exactly what must be installed. Do not silently use an ambient copy or run a
+   host package manager.
 4. Before staging the first agent-created commit, run the identity preflight
    inside that Nix environment and compare the complete output with the emitted
    declaration. A mismatch stops the commit path.

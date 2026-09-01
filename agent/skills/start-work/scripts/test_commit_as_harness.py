@@ -180,6 +180,7 @@ def test_start_work_policy_is_nix_first(root: Path) -> None:
         "For Codex, the subject is\n   exactly `codex`",
         "Do not search for an\n   agent binary or CLI",
         "nix develop . --command ...",
+        "add it to the\n   repository Nix declaration before use",
         "mandatory before staging",
         "Never probe ambient host\n   tools first",
     )

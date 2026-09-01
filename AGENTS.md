@@ -72,7 +72,10 @@ enforced by repository checks.
 7. **Keep tool ownership narrow.** Follow `manage-toolchain` for versions,
    manifests, shells, and Nix. Nix-first command resolution is mandatory, while
    Nix still only pins and provides tools; Git, CMake, CTest, packaging, tests,
-   and sessions keep their own semantics.
+   and sessions keep their own semantics. Add a newly required tool to the
+   repository Nix declaration first. If Nix cannot provide it, stop and tell the
+   host operator the exact installation prerequisite; do not silently use an
+   ambient executable or run a host package manager.
 8. **Record outcomes and clean work.** Invoke `$roast` explicitly to route each
    materially promoted claim to one durable owner and semantic-transformation
    depth; keep `session-only` as an independent disposition. Record

@@ -70,6 +70,19 @@ entering the declared environment. The flake entry is always Git-aware
 `nix develop .`; `path:.` is excluded because it bypasses Git's source
 boundary.
 
+## Tool Acquisition Order
+
+When a workflow needs an executable absent from the declared shell, the first
+action is to add the narrow tool package to the repository Nix declaration and
+verify it through the Git-aware flake. Absence from the current shell does not
+authorize an ambient host lookup.
+
+If Nix cannot provide or materialize the tool, or the prerequisite is inherently
+host-managed, the agent stops the affected command path and tells the host
+operator exactly which software or facility must be installed and why. The
+agent does not silently switch to a host executable and does not run a host
+package manager unless the user separately authorizes that host mutation.
+
 ## Failure And Compatibility
 
 A missing stable harness subject, a failed identity preflight, or an unavailable

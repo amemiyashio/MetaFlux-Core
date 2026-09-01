@@ -15,6 +15,9 @@ directory through the Git-aware `nix develop . --command ...` environment;
 do not probe ambient PATH, Python, or tool versions first. Host Git and Nix are
 the only executable bootstrap exceptions. This selects declared executables
 without transferring each tool's behavior or evidence ownership to Nix.
+When a needed tool is absent, add it to the repository Nix declaration first.
+If Nix cannot provide it, report the exact host installation prerequisite; do
+not silently use an ambient executable or mutate host packages.
 
 ## Agent records
 

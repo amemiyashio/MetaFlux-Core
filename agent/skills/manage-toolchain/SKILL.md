@@ -25,8 +25,13 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
   tool/version/capability probe, enter the Git-aware environment with
   `nix develop . --command ...`. Do not inspect ambient `PATH`, use
   `which`/`command -v`, or run a host executable to decide whether the Nix
-  declaration is needed. Host `git` and `nix` are the only bootstrap
-  executables; repository file APIs may read tracked text directly.
+   declaration is needed. Host `git` and `nix` are the only bootstrap
+   executables; repository file APIs may read tracked text directly.
+- A newly required repeatable tool is added to the narrow repository Nix
+  declaration before use. If Nix cannot provide or materialize it, stop and
+  report the exact host installation prerequisite to the operator. Do not
+  silently consume an ambient executable and do not invoke a host package
+  manager on the operator's behalf.
 - Git owns source identity and history.
 - CMake and Ninja own configure, build, install, and build-directory behavior.
 - CTest and repository scripts own tests and qualification.

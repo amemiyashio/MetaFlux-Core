@@ -49,6 +49,12 @@ tree identity rather than a Nix source-store path or a second per-file source
 snapshot. Nix-first resolution does not transfer CMake, CTest, packaging, or
 qualification semantics to Nix.
 
+A newly required repeatable tool is added to the narrow repository Nix
+declaration before it is used. If Nix cannot provide or materialize that tool,
+the workflow stops and reports the exact host installation prerequisite to the
+operator. It does not silently consume an ambient executable or invoke a host
+package manager without separate user authorization.
+
 ## Compiler Epoch 1 (D0018)
 
 [`compiler-epoch-1.json`](compiler-epoch-1.json) is the machine-readable
