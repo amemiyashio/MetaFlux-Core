@@ -1,6 +1,7 @@
 #include <metaflux/transport/vfio_user_server.hpp>
 
 #include <array>
+#include <algorithm>
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
@@ -55,15 +56,20 @@ VfioUserServer::VfioUserServer(int fd, ServerConfig config) noexcept : fd_(fd), 
   }
   if (state_ != ServerState::Lost) {
     mappings_.reserve(config_.max_mappings);
+    retired_mappings_.reserve(config_.max_mappings);
   }
 }
 
 VfioUserServer::~VfioUserServer() {
-  for (const DmaMapping& mapping : mappings_) {
-    if (mapping.fd >= 0) {
-      (void)::close(mapping.fd);
+  const auto close_mappings = [](const std::vector<DmaMapping>& mappings) noexcept {
+    for (const DmaMapping& mapping : mappings) {
+      if (mapping.fd >= 0) {
+        (void)::close(mapping.fd);
+      }
     }
-  }
+  };
+  close_mappings(mappings_);
+  close_mappings(retired_mappings_);
 }
 
 void VfioUserServer::mark_lost() noexcept {
@@ -92,12 +98,13 @@ VfioUserServer::mark_lost_and_submit(const metaflux::runtime::lifecycle::Externa
 
 bool VfioUserServer::dma_lookup(std::uint64_t iova, std::uint64_t size,
                                 std::uint32_t permission) const noexcept {
-  if (!lifecycle_online_ || !lifecycle_accepting_ || range_overflows(iova, size)) {
+  if (!lifecycle_online_ || !lifecycle_accepting_ || permission == 0U ||
+      range_overflows(iova, size)) {
     return false;
   }
   for (const DmaMapping& mapping : mappings_) {
     const std::uint64_t end = mapping.iova + mapping.size;
-    if (iova >= mapping.iova && iova + size <= end &&
+    if (!mapping.revoking && !mapping.finalized && iova >= mapping.iova && iova + size <= end &&
         (mapping.permissions & permission) == permission &&
         mapping.device_generation == config_.device_generation &&
         mapping.mapping_epoch == config_.mapping_epoch) {
@@ -105,6 +112,91 @@ bool VfioUserServer::dma_lookup(std::uint64_t iova, std::uint64_t size,
     }
   }
   return false;
+}
+
+bool VfioUserServer::dma_acquire(std::uint64_t iova, std::uint64_t size,
+                                 std::uint32_t permission, DmaLease& out) noexcept {
+  out = DmaLease{};
+  if (!dma_lookup(iova, size, permission) || next_lease_id_ == 0U) {
+    return false;
+  }
+  for (DmaMapping& mapping : mappings_) {
+    const std::uint64_t end = mapping.iova + mapping.size;
+    if (mapping.revoking || mapping.finalized || iova < mapping.iova || iova + size > end ||
+        (mapping.permissions & permission) != permission ||
+        mapping.device_generation != config_.device_generation ||
+        mapping.mapping_epoch != config_.mapping_epoch) {
+      continue;
+    }
+    const std::uint64_t lease_id = next_lease_id_++;
+    try {
+      mapping.lease_ids.push_back(lease_id);
+    } catch (...) {
+      return false;
+    }
+    out.lease_id = lease_id;
+    out.iova = iova;
+    out.size = size;
+    out.mapping_epoch = mapping.mapping_epoch;
+    out.device_generation = mapping.device_generation;
+    out.permissions = permission;
+    return true;
+  }
+  return false;
+}
+
+void VfioUserServer::finalize_mapping(DmaMapping& mapping) noexcept {
+  if (mapping.finalized) {
+    return;
+  }
+  if (mapping.fd >= 0) {
+    (void)::close(mapping.fd);
+    mapping.fd = -1;
+  }
+  if (mapped_bytes_ >= mapping.size) {
+    mapped_bytes_ -= mapping.size;
+  } else {
+    mapped_bytes_ = 0U;
+  }
+  mapping.finalized = true;
+}
+
+bool VfioUserServer::dma_release(const DmaLease& lease) noexcept {
+  if (lease.lease_id == 0U || range_overflows(lease.iova, lease.size) || lease.permissions == 0U) {
+    return false;
+  }
+  const auto release_from = [&](std::vector<DmaMapping>& mappings) noexcept {
+    for (DmaMapping& mapping : mappings) {
+      if (mapping.iova > lease.iova || range_overflows(mapping.iova, mapping.size) ||
+          lease.iova + lease.size > mapping.iova + mapping.size ||
+          mapping.mapping_epoch != lease.mapping_epoch ||
+          mapping.device_generation != lease.device_generation ||
+          (mapping.permissions & lease.permissions) != lease.permissions) {
+        continue;
+      }
+      const auto iterator =
+          std::find(mapping.lease_ids.begin(), mapping.lease_ids.end(), lease.lease_id);
+      if (iterator == mapping.lease_ids.end()) {
+        continue;
+      }
+      mapping.lease_ids.erase(iterator);
+      if (mapping.revoking && mapping.lease_ids.empty()) {
+        finalize_mapping(mapping);
+      }
+      return true;
+    }
+    return false;
+  };
+  return release_from(mappings_) || release_from(retired_mappings_);
+}
+
+void VfioUserServer::clear_finalized_tombstones() noexcept {
+  retired_mappings_.erase(
+      std::remove_if(retired_mappings_.begin(), retired_mappings_.end(),
+                    [](const DmaMapping& mapping) {
+                      return mapping.finalized && mapping.lease_ids.empty();
+                    }),
+      retired_mappings_.end());
 }
 
 ServerResult VfioUserServer::reply_payload(std::uint64_t message_id, std::uint16_t request_type,
@@ -272,16 +364,26 @@ ServerResult VfioUserServer::handle_dma_map(const mf_transport_message_header_v0
   if (range_overflows(request.iova, request.size) || !aligned(request.iova) ||
       !aligned(request.size) || !aligned(request.file_offset) ||
       request.iova + request.size > (UINT64_C(1) << config_.address_width) ||
-      mappings_.size() >= config_.max_mappings || ::fstat(received_fd, &file_stat) != 0 ||
+      ::fstat(received_fd, &file_stat) != 0 ||
       file_stat.st_size < 0 ||
       request.file_offset > static_cast<std::uint64_t>(file_stat.st_size) ||
       request.size > static_cast<std::uint64_t>(file_stat.st_size) - request.file_offset) {
     return fail(MF_SHARED_INVALID_ARGUMENT);
   }
-  for (const DmaMapping& mapping : mappings_) {
-    if (request.iova < mapping.iova + mapping.size && mapping.iova < request.iova + request.size) {
-      return fail(MF_SHARED_INVALID_ARGUMENT);
+  if (mappings_.size() + retired_mappings_.size() >= config_.max_mappings ||
+      request.size > config_.max_bytes - mapped_bytes_) {
+    return fail(MF_SHARED_RESOURCE_EXHAUSTED);
+  }
+  const auto overlaps = [&](const std::vector<DmaMapping>& mappings) noexcept {
+    for (const DmaMapping& mapping : mappings) {
+      if (request.iova < mapping.iova + mapping.size && mapping.iova < request.iova + request.size) {
+        return true;
+      }
     }
+    return false;
+  };
+  if (overlaps(mappings_) || overlaps(retired_mappings_)) {
+    return fail(MF_SHARED_INVALID_ARGUMENT);
   }
   duplicate_fd = ::fcntl(received_fd, F_DUPFD_CLOEXEC, 0);
   (void)::close(received_fd);
@@ -289,8 +391,15 @@ ServerResult VfioUserServer::handle_dma_map(const mf_transport_message_header_v0
     return reply(header.message_id, header.message_type, MF_SHARED_SYSTEM_ERROR, nullptr, 0U,
                  no_reply);
   }
-  mappings_.push_back({request.iova, request.size, request.file_offset, request.mapping_epoch,
-                       request.device_generation, request.flags, duplicate_fd});
+  try {
+    mappings_.push_back({request.iova, request.size, request.file_offset, request.mapping_epoch,
+                         request.device_generation, request.flags, duplicate_fd});
+  } catch (...) {
+    (void)::close(duplicate_fd);
+    return reply(header.message_id, header.message_type, MF_SHARED_SYSTEM_ERROR, nullptr, 0U,
+                 no_reply);
+  }
+  mapped_bytes_ += request.size;
   state_ = ServerState::Running;
   return reply(header.message_id, header.message_type, MF_SHARED_SUCCESS, nullptr, 0U, no_reply);
 }
@@ -326,16 +435,39 @@ ServerResult VfioUserServer::handle_dma_unmap(const mf_transport_message_header_
   }
   for (auto iterator = mappings_.begin(); iterator != mappings_.end(); ++iterator) {
     if (iterator->iova == request.iova && iterator->size == request.size) {
-      if (iterator->fd >= 0) {
-        (void)::close(iterator->fd);
-      }
+      DmaMapping retired = std::move(*iterator);
       mappings_.erase(iterator);
-      if (mappings_.empty()) {
+      retired.revoking = true;
+      retired_mappings_.push_back(std::move(retired));
+      DmaMapping& pending = retired_mappings_.back();
+      if (!pending.lease_ids.empty()) {
+        return reply(header.message_id, header.message_type, MF_SHARED_WOULD_BLOCK, nullptr, 0U,
+                     no_reply);
+      }
+      finalize_mapping(pending);
+      retired_mappings_.pop_back();
+      if (mappings_.empty() && retired_mappings_.empty()) {
         state_ = ServerState::Configuring;
       }
       return reply(header.message_id, header.message_type, MF_SHARED_SUCCESS, nullptr, 0U,
                    no_reply);
     }
+  }
+  for (auto iterator = retired_mappings_.begin(); iterator != retired_mappings_.end(); ++iterator) {
+    if (iterator->iova != request.iova || iterator->size != request.size) {
+      continue;
+    }
+    if (!iterator->lease_ids.empty()) {
+      return reply(header.message_id, header.message_type, MF_SHARED_WOULD_BLOCK, nullptr, 0U,
+                   no_reply);
+    }
+    finalize_mapping(*iterator);
+    retired_mappings_.erase(iterator);
+    if (mappings_.empty() && retired_mappings_.empty()) {
+      state_ = ServerState::Configuring;
+    }
+    return reply(header.message_id, header.message_type, MF_SHARED_SUCCESS, nullptr, 0U,
+                 no_reply);
   }
   return reply(header.message_id, header.message_type, MF_SHARED_STALE_HANDLE, nullptr, 0U,
                no_reply);
@@ -458,7 +590,12 @@ VfioUserServer::process_once(metaflux::runtime::lifecycle::Coordinator& coordina
   return mark_lost_and_submit(disconnect_event, coordinator, out);
 }
 
-bool VfioUserServer::drain_lifecycle() noexcept { return mappings_.empty(); }
+bool VfioUserServer::drain_lifecycle() noexcept {
+  return mappings_.empty() && std::all_of(retired_mappings_.begin(), retired_mappings_.end(),
+                                          [](const DmaMapping& mapping) {
+                                            return mapping.finalized && mapping.lease_ids.empty();
+                                          });
+}
 
 bool VfioUserServer::lifecycle_prepare(
     void* context, const metaflux::runtime::lifecycle::MirrorEvent& event) noexcept {
@@ -495,6 +632,7 @@ bool VfioUserServer::lifecycle_commit(
     return false;
   }
   if (event.state_after == metaflux::runtime::lifecycle::State::Absent) {
+    server->clear_finalized_tombstones();
     server->state_ = ServerState::Closed;
     server->lifecycle_online_ = false;
     server->lifecycle_accepting_ = false;
@@ -510,6 +648,7 @@ bool VfioUserServer::lifecycle_commit(
   if (event.candidate.epoch != 0U) {
     server->config_.mapping_epoch = event.candidate.epoch;
   }
+  server->clear_finalized_tombstones();
   server->state_ = ServerState::Configuring;
   server->lifecycle_online_ = true;
   server->lifecycle_accepting_ = true;
@@ -525,7 +664,9 @@ bool VfioUserServer::lifecycle_abort(
   if (event.state_before == metaflux::runtime::lifecycle::State::Lost) {
     server->mark_lost();
   } else if (event.state_before == metaflux::runtime::lifecycle::State::Online) {
-    server->state_ = server->mappings_.empty() ? ServerState::Configuring : ServerState::Running;
+    server->state_ = server->mappings_.empty() && server->retired_mappings_.empty()
+                         ? ServerState::Configuring
+                         : ServerState::Running;
     server->lifecycle_online_ = true;
     server->lifecycle_accepting_ = true;
   } else {

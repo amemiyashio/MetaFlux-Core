@@ -90,7 +90,7 @@ bool receive_negotiate(int fd, std::uint64_t message_id, mf_transport_negotiate_
 
 int make_memfd() {
   const long fd = syscall(SYS_memfd_create, "metaflux-vfio-test", MFD_CLOEXEC);
-  if (fd < 0 || fd > INT_MAX || ftruncate(static_cast<int>(fd), 4096) != 0) {
+  if (fd < 0 || fd > INT_MAX || ftruncate(static_cast<int>(fd), 8192) != 0) {
     if (fd >= 0 && fd <= INT_MAX) {
       (void)close(static_cast<int>(fd));
     }
@@ -106,7 +106,9 @@ int main() {
   if (socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sockets) != 0) {
     return 1;
   }
-  metaflux::transport::vfio_user::VfioUserServer server(sockets[1]);
+  metaflux::transport::vfio_user::ServerConfig server_config{};
+  server_config.max_bytes = 0x2000U;
+  metaflux::transport::vfio_user::VfioUserServer server(sockets[1], server_config);
   std::array<std::uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> packet{};
   std::uint32_t packet_size = 0;
 
@@ -147,7 +149,7 @@ int main() {
       negotiated.ring_version != 1U || negotiated.max_queues != 2U ||
       negotiated.ring_order != 8U || negotiated.dma_width != 48U ||
       negotiated.dma_alignment != 4096U || negotiated.max_regions != 64U ||
-      negotiated.max_inflight != 256U || negotiated.max_bytes != 0x10000000U ||
+      negotiated.max_inflight != 256U || negotiated.max_bytes != 0x2000U ||
       server.state() != metaflux::transport::vfio_user::ServerState::Configuring) {
     return 1;
   }
@@ -186,7 +188,37 @@ int main() {
       server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
       !receive_completion(sockets[0], 7U, MF_VFIO_USER_MESSAGE_DMA_MAP_V0, MF_SHARED_SUCCESS) ||
       !server.dma_lookup(0x1200U, 0x100U, MF_VFIO_USER_DMA_READ_V0) ||
-      server.mapping_count() != 1U) {
+      server.mapping_count() != 1U || server.mapped_bytes() != 0x1000U) {
+    close(memfd);
+    return 1;
+  }
+
+  mf_vfio_user_dma_map_v0 quota_map = map;
+  quota_map.iova = 0x3000U;
+  quota_map.size = 0x2000U;
+  if (mf_vfio_user_guest_encode_dma_map_v0(71U, &quota_map, packet.data(), packet.size(),
+                                           &packet_size) != MF_SHARED_SUCCESS ||
+      !send_packet(sockets[0], packet.data(), packet_size, memfd) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+      !receive_completion(sockets[0], 71U, MF_VFIO_USER_MESSAGE_DMA_MAP_V0,
+                          MF_SHARED_RESOURCE_EXHAUSTED) ||
+      server.mapping_count() != 1U || server.mapped_bytes() != 0x1000U) {
+    close(memfd);
+    return 1;
+  }
+
+  if (mf_vfio_user_guest_encode_dma_map_v0(7U, &map, packet.data(), packet.size(), &packet_size) !=
+      MF_SHARED_SUCCESS) {
+    close(memfd);
+    return 1;
+  }
+
+  metaflux::transport::vfio_user::DmaLease lease{};
+  metaflux::transport::vfio_user::DmaLease invalid_lease{};
+  const bool acquired = server.dma_acquire(0x1200U, 0x100U, MF_VFIO_USER_DMA_READ_V0, lease);
+  const bool invalid_acquired =
+      server.dma_acquire(0x1200U, 0U, MF_VFIO_USER_DMA_READ_V0, invalid_lease);
+  if (!acquired || lease.lease_id == 0U || invalid_acquired) {
     close(memfd);
     return 1;
   }
@@ -226,7 +258,26 @@ int main() {
                                              &packet_size) != MF_SHARED_SUCCESS ||
       !send_packet(sockets[0], packet.data(), packet_size) ||
       server.process_once() != metaflux::transport::vfio_user::ServerResult::NoReply ||
-      server.mapping_count() != 0U) {
+      server.mapping_count() != 0U || server.retired_mapping_count() != 1U ||
+      server.dma_lookup(0x1200U, 0x100U, MF_VFIO_USER_DMA_READ_V0) ||
+      server.mapped_bytes() != 0x1000U) {
+    close(memfd);
+    return 1;
+  }
+
+  if (!server.dma_release(lease) || server.retired_mapping_count() != 1U ||
+      server.mapped_bytes() != 0U || server.dma_release(lease)) {
+    close(memfd);
+    return 1;
+  }
+
+  if (mf_vfio_user_guest_encode_dma_unmap_v0(12U, &unmap, UINT16_C(0), packet.data(), packet.size(),
+                                             &packet_size) != MF_SHARED_SUCCESS ||
+      !send_packet(sockets[0], packet.data(), packet_size) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+      !receive_completion(sockets[0], 12U, MF_VFIO_USER_MESSAGE_DMA_UNMAP_V0, MF_SHARED_SUCCESS) ||
+      server.retired_mapping_count() != 0U || server.mapping_count() != 0U ||
+      server.mapped_bytes() != 0U) {
     close(memfd);
     return 1;
   }
