@@ -34,11 +34,6 @@ target_link_libraries(metaflux_vulkan_backend PRIVATE "${METAFLUX_VULKAN_LIBRARY
 metaflux_configure_target(metaflux_vulkan_backend CXX)
 
 if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
-  set(METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH "${METAFLUX_VULKAN_SDK_DIR}/lib")
-  foreach(implicit_library_dir IN LISTS CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES)
-    string(APPEND METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH ":${implicit_library_dir}")
-  endforeach()
-
   add_executable(metaflux_vulkan_capability_test tests/capability_test.cpp)
   target_link_libraries(metaflux_vulkan_capability_test PRIVATE MetaFlux::VulkanBackend)
   metaflux_configure_target(metaflux_vulkan_capability_test CXX)
