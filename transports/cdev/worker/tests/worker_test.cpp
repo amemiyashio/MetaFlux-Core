@@ -41,6 +41,13 @@ struct BackendFixture final {
   std::uint32_t retire_calls = 0U;
 };
 
+struct RebindFixture final {
+  metaflux::transport::cdev::WorkerQueueView view{};
+  metaflux::transport::cdev::CdevBackendBinding backend{};
+  std::uint32_t calls = 0U;
+  bool succeed = true;
+};
+
 mf_shared_status_v1 fixture_lease_acquire(void* context) noexcept {
   auto* fixture = static_cast<BackendFixture*>(context);
   if (fixture == nullptr || fixture->lease_active) {
@@ -67,6 +74,21 @@ void fixture_retire(void* context) noexcept {
   if (fixture != nullptr) {
     ++fixture->retire_calls;
   }
+}
+
+bool fixture_rebind(void* context, std::uint64_t generation,
+                    metaflux::transport::cdev::WorkerQueueView* out_view,
+                    metaflux::transport::cdev::CdevBackendBinding* out_backend) noexcept {
+  auto* fixture = static_cast<RebindFixture*>(context);
+  if (fixture == nullptr || out_view == nullptr || out_backend == nullptr || !fixture->succeed) {
+    return false;
+  }
+  ++fixture->calls;
+  *out_view = fixture->view;
+  *out_backend = fixture->backend;
+  out_view->generation = generation;
+  out_backend->generation = generation;
+  return true;
 }
 
 mf_backend_status_v1 fixture_copy(mf_backend_instance_v1 instance, mf_backend_queue_v1 queue,
@@ -939,24 +961,7 @@ int main() {
   BackendFixture reset_fixture{};
   const auto reset_api = make_async_fixture_api();
   reset_fixture.expected_completion_event = 103U;
-  metaflux::transport::cdev::CdevWorker reset_worker(
-      {.submission = submission.header,
-       .completion = completion.header,
-       .payload = payload.data(),
-       .payload_size = payload.size(),
-       .generation = 4U},
-      {.api = &reset_api,
-       .instance = static_cast<mf_backend_instance_v1>(
-           reinterpret_cast<std::uintptr_t>(&reset_fixture)),
-       .queue = 17U,
-       .memory = 23U,
-       .completion_event = reset_fixture.expected_completion_event,
-       .lease_acquire = fixture_lease_acquire,
-       .lease_release = fixture_lease_release,
-       .lease_context = &reset_fixture,
-       .retire = fixture_retire,
-       .retire_context = &reset_fixture,
-       .generation = 4U});
+  RebindFixture reset_rebind{};
   BackendFixture rebound_fixture{};
   const auto rebound_api = make_fixture_api();
   const metaflux::transport::cdev::CdevBackendBinding rebound_binding{
@@ -969,7 +974,39 @@ int main() {
       .lease_acquire = fixture_lease_acquire,
       .lease_release = fixture_lease_release,
       .lease_context = &rebound_fixture,
-      .generation = 5U};
+      .generation = 5U,
+      .rebind = fixture_rebind,
+      .rebind_context = &reset_rebind};
+  reset_rebind.view = {
+      .submission = submission.header,
+      .completion = completion.header,
+      .payload = payload.data(),
+      .payload_size = payload.size(),
+      .generation = 5U,
+  };
+  reset_rebind.backend = rebound_binding;
+  const metaflux::transport::cdev::CdevBackendBinding reset_binding{
+      .api = &reset_api,
+      .instance = static_cast<mf_backend_instance_v1>(
+          reinterpret_cast<std::uintptr_t>(&reset_fixture)),
+      .queue = 17U,
+      .memory = 23U,
+      .completion_event = reset_fixture.expected_completion_event,
+      .lease_acquire = fixture_lease_acquire,
+      .lease_release = fixture_lease_release,
+      .lease_context = &reset_fixture,
+      .retire = fixture_retire,
+      .retire_context = &reset_fixture,
+      .generation = 4U,
+      .rebind = fixture_rebind,
+      .rebind_context = &reset_rebind};
+  metaflux::transport::cdev::CdevWorker reset_worker(
+      {.submission = submission.header,
+       .completion = completion.header,
+       .payload = payload.data(),
+       .payload_size = payload.size(),
+       .generation = 4U},
+      reset_binding);
   if (reset_worker.bind_backend(rebound_binding)) {
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
@@ -1000,6 +1037,7 @@ int main() {
       !reset_worker.attach_lifecycle(reset_coordinator) ||
       reset_coordinator.apply(reset_request) != metaflux::runtime::lifecycle::Result::Accepted ||
       reset_worker.generation() != 5U || !reset_worker.lifecycle_online() ||
+      reset_rebind.calls != 1U ||
       reset_fixture.cancel_calls != 1U || reset_worker.backend_operation_pending() ||
       reset_fixture.lease_releases != 1U || reset_fixture.lease_active ||
       reset_fixture.retire_calls != 1U ||
@@ -1010,7 +1048,7 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
-  if (reset_worker.backend_bound()) {
+  if (!reset_worker.backend_bound()) {
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
     return 1;
@@ -1027,11 +1065,6 @@ int main() {
       reset_fixture.calls != 1U || reset_fixture.lease_acquires != 1U ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_STALE_HANDLE)) {
-    mf_client_ring_close_v1(&submission);
-    mf_client_ring_close_v1(&completion);
-    return 1;
-  }
-  if (!reset_worker.bind_backend(rebound_binding) || !reset_worker.backend_bound()) {
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
     return 1;
