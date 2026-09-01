@@ -174,6 +174,7 @@ private:
   bool lifecycle_online_ = true;
   bool lifecycle_accepting_ = true;
   bool negotiated_ = false;
+  std::uint64_t negotiated_features_ = 0U;
   MsixNotificationLedger msix_{};
   MsixInjectCallback msix_inject_ = nullptr;
   void* msix_context_ = nullptr;

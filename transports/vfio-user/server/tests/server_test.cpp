@@ -99,9 +99,51 @@ int make_memfd() {
   return static_cast<int>(fd);
 }
 
+bool test_dma_requires_shared_memory_negotiation() {
+  int sockets[2] = {-1, -1};
+  if (::socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sockets) != 0) {
+    return false;
+  }
+  metaflux::transport::vfio_user::VfioUserServer server(sockets[1]);
+  const int memfd = make_memfd();
+  if (memfd < 0) {
+    close(sockets[0]);
+    close(sockets[1]);
+    return false;
+  }
+  std::array<std::uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> packet{};
+  std::uint32_t packet_size = 0U;
+  mf_vfio_user_dma_map_v0 map{};
+  map.struct_size = sizeof(map);
+  map.flags = MF_VFIO_USER_DMA_READ_V0;
+  map.iova = 0x1000U;
+  map.size = 0x1000U;
+  map.mapping_epoch = 1U;
+  map.device_generation = 1U;
+  if (mf_vfio_user_guest_encode_dma_map_v0(1U, &map, packet.data(), packet.size(), &packet_size) !=
+          MF_SHARED_SUCCESS ||
+      !send_packet(sockets[0], packet.data(), packet_size, memfd) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+      !receive_completion(sockets[0], 1U, MF_VFIO_USER_MESSAGE_DMA_MAP_V0,
+                          MF_SHARED_NOT_SUPPORTED) ||
+      server.mapping_count() != 0U) {
+    close(memfd);
+    close(sockets[0]);
+    close(sockets[1]);
+    return false;
+  }
+  close(memfd);
+  close(sockets[0]);
+  close(sockets[1]);
+  return true;
+}
+
 } // namespace
 
 int main() {
+  if (!test_dma_requires_shared_memory_negotiation()) {
+    return 1;
+  }
   int sockets[2] = {-1, -1};
   if (socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sockets) != 0) {
     return 1;

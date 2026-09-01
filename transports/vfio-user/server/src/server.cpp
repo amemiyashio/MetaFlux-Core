@@ -370,6 +370,7 @@ ServerResult VfioUserServer::handle_negotiate(const mf_transport_message_header_
   response.max_inflight = config_.max_inflight;
   response.max_bytes = config_.max_bytes;
   negotiated_ = true;
+  negotiated_features_ = request.required_features | response.optional_features;
   state_ = ServerState::Configuring;
   return reply_payload(header.message_id, header.message_type, &response, sizeof(response), no_reply);
 }
@@ -413,6 +414,10 @@ ServerResult VfioUserServer::handle_dma_map(const mf_transport_message_header_v0
   if (!lifecycle_online_ || !lifecycle_accepting_ || state_ == ServerState::Lost ||
       state_ == ServerState::Closed) {
     return fail(MF_SHARED_DEVICE_LOST);
+  }
+  if (!negotiated_ ||
+      (negotiated_features_ & MF_TRANSPORT_FEATURE_SHARED_MEMORY_V0) == 0U) {
+    return fail(MF_SHARED_NOT_SUPPORTED);
   }
   if ((state_ != ServerState::Configuring && state_ != ServerState::Running) ||
       payload == nullptr || payload_size != sizeof(request) || received_fd < 0) {
