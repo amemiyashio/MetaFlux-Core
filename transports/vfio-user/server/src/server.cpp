@@ -180,7 +180,8 @@ void* VfioUserServer::dma_host_address(std::uint64_t iova, std::uint64_t size,
 bool VfioUserServer::dma_acquire(std::uint64_t iova, std::uint64_t size,
                                  std::uint32_t permission, DmaLease& out) noexcept {
   out = DmaLease{};
-  if (!dma_lookup(iova, size, permission) || next_lease_id_ == 0U) {
+  if (!dma_lookup(iova, size, permission) || next_lease_id_ == 0U ||
+      next_lease_id_ == std::numeric_limits<std::uint64_t>::max()) {
     return false;
   }
   for (DmaMapping& mapping : mappings_) {
@@ -287,8 +288,18 @@ ServerResult VfioUserServer::reply_payload(std::uint64_t message_id, std::uint16
   if (payload_size != 0U) {
     std::memcpy(packet.data() + sizeof(header), payload, payload_size);
   }
-  const ssize_t sent = ::send(fd_, packet.data(), sizeof(header) + payload_size, MSG_NOSIGNAL);
-  if (sent != static_cast<ssize_t>(sizeof(header) + payload_size)) {
+  const std::size_t packet_size = sizeof(header) + payload_size;
+  std::size_t sent_total = 0U;
+  while (sent_total < packet_size) {
+    const ssize_t sent = ::send(fd_, packet.data() + sent_total, packet_size - sent_total,
+                                MSG_NOSIGNAL);
+    if (sent > 0) {
+      sent_total += static_cast<std::size_t>(sent);
+      continue;
+    }
+    if (sent < 0 && errno == EINTR) {
+      continue;
+    }
     mark_lost();
     return ServerResult::Closed;
   }
@@ -440,10 +451,12 @@ ServerResult VfioUserServer::handle_dma_map(const mf_transport_message_header_v0
       ::fstat(received_fd, &file_stat) != 0 ||
       file_stat.st_size < 0 ||
       request.file_offset > static_cast<std::uint64_t>(file_stat.st_size) ||
-      request.size > static_cast<std::uint64_t>(file_stat.st_size) - request.file_offset) {
+      request.size > static_cast<std::uint64_t>(file_stat.st_size) - request.file_offset ||
+      request.size > std::numeric_limits<std::size_t>::max()) {
     return fail(MF_SHARED_INVALID_ARGUMENT);
   }
   if (mappings_.size() + retired_mappings_.size() >= config_.max_mappings ||
+      mapped_bytes_ > config_.max_bytes ||
       request.size > config_.max_bytes - mapped_bytes_) {
     return fail(MF_SHARED_RESOURCE_EXHAUSTED);
   }
