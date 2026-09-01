@@ -6,7 +6,7 @@ focus_mode: product
 focus_owner: S0112-20260901-005-m0110-w0112-post-privilege-governance
 milestone: M0110
 workstream: W0112
-checkpoint: P20260901-103
+checkpoint: P20260901-104
 ---
 
 # Current Progress
@@ -63,15 +63,19 @@ default scheduling authority while M0110 is incomplete.
   explicitly skipped while `/dev/metaflux0` is absent. P103 adds worker-side
   backend binding generation isolation: a valid old binding cannot serve new
   work after lifecycle commit, while an in-flight operation retains its
-  captured binding through drain. These are source and fixture closures, not
-  live device proof.
-- The live product path remains unqualified: `/dev/metafluxctl` and
-  `/dev/metaflux0` are absent on this host. The provider and daemon now have a
-  single initialization epoch and a cdev data-plane route under D0030, while
-  kernel registered-memory/DMA import, daemon-controlled replacement and
-  rebind drain, and fd/VMA tombstone behavior still require an activated device
-  node. The host-independent worker binding generation check is recorded at
-  P103.
+  captured binding through drain. P104 fixes cdev paired-ring page alignment
+  and forces control-fd negotiation before lease-bound payload query.
+  Privileged live qualification reaches registered-memory, which is accurately
+  skipped on this host because the virtual misc cdev has no DMA mask or parent;
+  the full 86-test suite is green with the module unloaded. These are source
+  and fixture closures, not physical-device proof.
+- The live product path is partially qualified: the module was activated and
+  session, queue, lease, payload query, and payload mapping reached the
+  registered-memory boundary. This host's standalone virtual cdev has no
+  DMA-capable parent, so the kernel returns unsupported before pinning and the
+  module is unloaded with no active device nodes. Daemon Add/Copy through live
+  registered memory, daemon-controlled replacement and rebind drain, and the
+  Linux fault matrix remain open.
 - P089 records the runtime-owned immediate producer ingress at `6152efa`: admin
   reset, VFIO-user reset, disconnect, and daemon restart capture one authority
   snapshot; wrong-route QMP, malformed, unknown, and stale observations are
@@ -84,18 +88,18 @@ default scheduling authority while M0110 is incomplete.
 
 ## Next Actions
 
-1. Activate the current `metaflux_core.ko` and `/dev/metafluxctl` plus
-   `/dev/metafluxN` through `$manage-host-privilege` and the W0112 workflow.
-2. Run the live cdev qualification for CPU Add/Copy and registered-memory/DMA
-   import, preserving exact device/view/generation binding.
-3. Complete replacement-generation isolation and the Linux 6.12/6.18 fault,
+1. Attach or provide a real DMA-capable cdev parent/provider through the
+   host/domain workflow, then rerun the bounded live qualification.
+2. Connect daemon Add/Copy and registered-memory import through the live
+   lease/query path while preserving exact device/view/generation binding.
+3. Complete replacement-generation drain and the Linux 6.12/6.18 fault,
    sanitizer, lockdep, and kmemleak matrix required by the Exit Gate.
 
 ## Blockers
 
-- Live cdev qualification needs Linux 6.12 or 6.18 with module/device-node
-  activation and the required privileges. This is an environment requirement,
-  not a physical NVIDIA dependency.
+- The current host exposes only a virtual misc cdev without a DMA mask or
+  parent master, so registered-memory/DMA import stops at its explicit
+  capability boundary.
 - W0112 remains incomplete until live device-node Add/Copy and kernel fault
   evidence exist. Host-independent fixtures and mapped COPY alone do not close
   it.
@@ -105,6 +109,7 @@ default scheduling authority while M0110 is incomplete.
 ## Evidence Pointers
 
 - [P102 host privilege escalation](checkpoints/2026/P20260901-102-host-privilege-escalation.md)
+- [P104 cdev mmap and DMA capability boundary](checkpoints/2026/P20260901-104-m0110-cdev-mmap-dma-boundary.md)
 - [P103 cdev backend generation isolation](checkpoints/2026/P20260901-103-m0110-cdev-backend-generation.md)
 - [P101 agent startup resolution](checkpoints/2026/P20260901-101-agent-startup-resolution.md)
 - [P100 live cdev qualification harness](checkpoints/2026/P20260901-100-m0110-cdev-live-qualification.md)

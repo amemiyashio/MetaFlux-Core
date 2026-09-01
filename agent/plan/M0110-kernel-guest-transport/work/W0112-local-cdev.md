@@ -48,8 +48,9 @@ and arithmetic operation is validated.
   and `/dev/metaflux0`, negotiate the fixed candidate UAPI, map the paired rings,
   and enforce one worker lease per generation.
 - [x] Add `CdevWorkerSession` to activate a generation/view-bound worker lease,
-  discover the current view on the same control fd, validate the exact
-  paired-ring mapping, and close the leased control fd after unmapping. The
+  negotiate and validate the current view on every control fd before taking the
+  lease, validate the exact page-aligned paired-ring mapping, and close the
+  leased control fd after unmapping. The
   kernel control fops expose the queue mmap at offset zero and allow the leased
   control fd to map the exact payload arena after its data-file owner allocates
   it; payload ownership remains with the data fd.
@@ -71,7 +72,8 @@ and arithmetic operation is validated.
   SG table, partial-pin unwind, dirty unpin, owner-close or explicit unregister
   revocation, and direction-aware `dma_map_sg`/`dma_unmap_sg` lifetime through
   the data cdev DMA device. Enforce unique generation-bound handles and a 256
-  MiB aggregate quota; backend in-flight device references remain open.
+  MiB aggregate quota; reject a standalone cdev without a DMA mask or parent
+  master before pinning, while backend in-flight device references remain open.
 - [x] Add a worker-side `mf_backend_api_v1` COPY dispatch seam with sized-table,
   capability, handle, offset, and backend-status validation. An unbound worker
   retains the local fixture copy path; a malformed bound API returns
@@ -162,8 +164,8 @@ and arithmetic operation is validated.
 - [x] Add a live cdev qualification executable covering the generated ioctl and
   mmap ABI, eventfd-backed lease, payload query, long-term registered-memory
   pin/unregister, malformed and stale requests, unknown ioctl rejection, and
-  owner-close VMA tombstones. It is wired into CTest with an explicit skip code
-  when the device node or lease is unavailable.
+  owner-close VMA tombstones. It is wired into CTest with explicit skip codes
+  when the device node, lease, or DMA target is unavailable.
 
 ## Remaining work
 
