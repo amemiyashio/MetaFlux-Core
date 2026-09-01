@@ -1,0 +1,85 @@
+{
+  "id": "transport.measurement.v0",
+  "version": "0.1",
+  "scope": "milestone-0.1.1.0",
+  "clock": {
+    "name": "CLOCK_MONOTONIC_RAW",
+    "unit": "ns",
+    "timestamps": [
+      "submit_start",
+      "submit_return",
+      "completion_return"
+    ]
+  },
+  "queue": {
+    "states": [
+      "empty",
+      "active",
+      "polling",
+      "armed",
+      "sleeping",
+      "draining",
+      "lost"
+    ],
+    "active_modes": ["poll", "block"],
+    "producer": "single-producer-per-stream",
+    "consumer": "one-worker-per-lease",
+    "warm_path": {
+      "syscalls": 0,
+      "allocations": 0,
+      "global_locks": 0,
+      "vfio_user_messages": 0,
+      "qemu_main_loop_writes": 0,
+      "per_command_interrupts": 0
+    }
+  },
+  "affinity": {
+    "client": "lowest-cpu-in-effective-sched-affinity-unless-explicit",
+    "worker": "lowest-effective-cpu-on-client-numa-node-without-shared-core",
+    "numa": "record-effective-cpuset-and-memory-nodes",
+    "cross_numa": "ineligible"
+  },
+  "warmup": {
+    "count": 1000,
+    "excluded_from_summary": true,
+    "must_complete": true
+  },
+  "samples": {
+    "count": 10000,
+    "unit": "ns",
+    "positive": true,
+    "retain_raw": true,
+    "summaries": ["p50", "p90", "p99"]
+  },
+  "workloads": [
+    {
+      "id": "local-cdev-add-copy",
+      "transport": "cdev",
+      "operations": ["add", "copy"],
+      "baseline": "direct-cpu"
+    },
+    {
+      "id": "guest-vfio-user-add-copy",
+      "transport": "vfio-user",
+      "operations": ["add", "copy"],
+      "baseline": "direct-cpu"
+    }
+  ],
+  "baselines": {
+    "direct-cpu": {
+      "directions": ["h2d", "d2h", "d2d"],
+      "copy_bytes": 16777216,
+      "allocation": "same-pages-and-numa-policy",
+      "completion_boundary": "operation-completion",
+      "match_fields": [
+        "cpu",
+        "worker_cpu",
+        "numa_node",
+        "copy_bytes",
+        "warmup_count",
+        "sample_count",
+        "clock"
+      ]
+    }
+  }
+}

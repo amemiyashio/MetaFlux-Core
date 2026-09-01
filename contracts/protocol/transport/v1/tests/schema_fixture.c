@@ -20,6 +20,17 @@ int main(void) {
       MF_SCHEMA_MF_VFIO_USER_GET_INFO_REPLY_V0_SIZE != sizeof(mf_vfio_user_get_info_reply_v0)) {
     return 1;
   }
+  if (sizeof(mf_transport_message_header_v0) !=
+          MF_SCHEMA_MF_TRANSPORT_MESSAGE_HEADER_V0_GOLDEN_SIZE ||
+      sizeof(mf_transport_completion_v0) != MF_SCHEMA_MF_TRANSPORT_COMPLETION_V0_GOLDEN_SIZE ||
+      sizeof(mf_transport_bar_layout_v0) != MF_SCHEMA_MF_TRANSPORT_BAR_LAYOUT_V0_GOLDEN_SIZE ||
+      sizeof(mf_vfio_user_dma_map_v0) != MF_SCHEMA_MF_VFIO_USER_DMA_MAP_V0_GOLDEN_SIZE ||
+      sizeof(mf_uapi_wait_v0) != MF_SCHEMA_MF_UAPI_WAIT_V0_GOLDEN_SIZE ||
+      mf_schema_mf_transport_message_header_v0_golden[0] == 0u ||
+      mf_schema_mf_transport_completion_v0_golden[0] == 0u ||
+      mf_schema_mf_uapi_wait_v0_golden[0] == 0u) {
+    return 1;
+  }
   memset(&negotiation, 0, sizeof(negotiation));
   memcpy(&magic, mf_transport_negotiate_golden_v0, sizeof(magic));
   if (magic != UINT32_C(0x3054464d) || negotiation.reserved[0] != 0u ||
@@ -34,6 +45,10 @@ int main(void) {
   if (queue.struct_size != 128u || queue.queue_id != UINT64_C(41) ||
       queue.reserved[0] != 0u || MF_UAPI_IOCTL_QUEUE_CREATE == 0 ||
       MF_UAPI_IOCTL_MEMORY_QUERY == 0) {
+    return 1;
+  }
+  if (mf_transport_negotiate_golden_v0[112] != 0u ||
+      mf_schema_mf_uapi_wait_v0_golden[40] != 0u) {
     return 1;
   }
   return 0;

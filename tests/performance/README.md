@@ -1,5 +1,14 @@
 # milestone-0.1.0.0 Performance Evidence
 
+The transport measurement contract for milestone-0.1.1.0 is canonicalized in
+[`milestone-0.1.1.0-measurement.json`](milestone-0.1.1.0-measurement.json) and
+validated during CMake configuration. Local cdev and guest vfio-user harnesses
+must use its `CLOCK_MONOTONIC_RAW` timestamps, queue states, poll/block modes,
+affinity and NUMA eligibility, fixed warm-up/sample counts, raw retention, and
+the same-path direct CPU baseline fields. The contract describes measurement
+semantics only; it does not claim that an unavailable live device or guest has
+been qualified.
+
 This directory owns the reproducible milestone-0.1.0.0 CPU-backed performance harness. The
 timed executables use `CLOCK_MONOTONIC_RAW`, allocate their sample arrays before
 warm-up, retain every sample, and emit a line-oriented protocol. The Python

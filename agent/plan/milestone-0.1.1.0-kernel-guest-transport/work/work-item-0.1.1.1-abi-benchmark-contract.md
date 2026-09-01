@@ -73,8 +73,8 @@ until milestone-0.1.2.0 qualification.
   revoke/death/credential rules.
 - [ ] Pin Linux, QEMU, libvfio-user, guest memory, and image inputs.
 - [ ] Generate all language/layout assertions and byte fixtures.
-- [ ] Define timestamps, queue state, poll/block mode, affinity, NUMA, warm-up,
-  samples, and direct baselines.
+- [x] Define timestamps, queue state, poll/block mode, affinity, NUMA, warm-up,
+  samples, and direct baselines in the canonical transport measurement contract.
 
 ## Exit Gate
 

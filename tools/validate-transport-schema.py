@@ -178,6 +178,8 @@ def emit_field_lines(record: dict[str, Any]) -> list[str]:
 
 
 def pack_at(buffer: bytearray, offset: int, field_type: str, value: Any) -> None:
+    if value is None and field_type in {"u16", "u32", "u64", "s32"}:
+        value = offset + 1
     if field_type == "u16":
         buffer[offset : offset + 2] = struct.pack("<H", int(value))
     elif field_type == "u32":
@@ -186,10 +188,32 @@ def pack_at(buffer: bytearray, offset: int, field_type: str, value: Any) -> None
         buffer[offset : offset + 8] = struct.pack("<Q", int(value))
     elif field_type == "s32":
         buffer[offset : offset + 4] = struct.pack("<i", int(value))
-    elif field_type == "bytes[16]":
-        buffer[offset : offset + 16] = bytes(range(16))
-    elif field_type == "bytes[8]":
-        buffer[offset : offset + 8] = b"\0" * 8
+    else:
+        match = re.fullmatch(r"(bytes|u64)\[(\d+)\]", field_type)
+        if match is None:
+            raise SchemaError(f"unsupported golden field type {field_type!r}")
+        base, count_text = match.groups()
+        count = int(count_text)
+        if base == "bytes":
+            if value is None:
+                value = bytes((index + offset) & 0xFF for index in range(count))
+            if len(value) != count:
+                raise SchemaError(f"golden value width mismatch for {field_type}")
+            buffer[offset : offset + count] = value
+        else:
+            values = list(value or range(1, count + 1))
+            if len(values) != count:
+                raise SchemaError(f"golden value count mismatch for {field_type}")
+            for index, item in enumerate(values):
+                buffer[offset + index * 8 : offset + (index + 1) * 8] = struct.pack(
+                    "<Q", int(item)
+                )
+
+
+def golden_name(record_name: str) -> str:
+    if record_name == "mf_transport_negotiate_v0":
+        return "mf_transport_negotiate_golden_v0"
+    return "mf_schema_" + record_name.lower() + "_golden"
 
 
 def emit_golden_array(record: dict[str, Any], name: str) -> list[str]:
@@ -217,7 +241,7 @@ def emit_golden_array(record: dict[str, Any], name: str) -> list[str]:
         field_name = field["name"]
         if field_name in values:
             pack_at(buffer, field["offset"], field["type"], values[field_name])
-        elif field["type"] in {"bytes[16]", "bytes[8]"} and not field.get("reserved"):
+        elif not field.get("reserved"):
             pack_at(buffer, field["offset"], field["type"], None)
     values_text = ", ".join(f"0x{byte:02x}" for byte in buffer)
     return [f"static const MF_SCHEMA_U8 {name}[{record['size']}] = {{", f"  {values_text}", "};"]
@@ -318,10 +342,15 @@ def emit_header(root: Path, manifest_path: Path, manifest: dict[str, Any], loade
                 raise SchemaError(f"{document['id']}: invalid ioctl direction")
             lines.append(f"#define {ioctl['name']} {direction}('M', {int(ioctl['number'])}, {record_name})")
         lines.append("")
-    negotiation = next((record for record in all_records if record["name"] == "mf_transport_negotiate_v0"), None)
-    if negotiation is not None:
-        lines.append("/* Canonical little-endian negotiation bytes used by C/C++ fixtures. */")
-        lines.extend(emit_golden_array(negotiation, "mf_transport_negotiate_golden_v0"))
+    lines.append("/* Canonical little-endian bytes used by C/C++ layout fixtures. */")
+    emitted_golden_names: set[str] = set()
+    for record in all_records:
+        name = golden_name(record["name"])
+        if name in emitted_golden_names:
+            continue
+        emitted_golden_names.add(name)
+        lines.append(f"#define {macro_name(record['name'], '_GOLDEN_SIZE')} {record['size']}u")
+        lines.extend(emit_golden_array(record, name))
         lines.append("")
     lines.append("#endif")
     output.parent.mkdir(parents=True, exist_ok=True)

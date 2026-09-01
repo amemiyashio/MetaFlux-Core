@@ -28,6 +28,30 @@ add_library(metaflux_transport_schema_projection INTERFACE)
 add_library(MetaFlux::TransportSchema ALIAS metaflux_transport_schema_projection)
 add_dependencies(metaflux_transport_schema_projection metaflux_transport_schema)
 list(APPEND metaflux_runtime_contract_targets metaflux_transport_schema_projection)
+
+if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
+  add_test(
+    NAME metaflux.contract.transport-measurement-validator
+    COMMAND
+      Python3::Interpreter -B
+      "${PROJECT_SOURCE_DIR}/tools/validate-transport-measurement.py"
+      --root "${PROJECT_SOURCE_DIR}"
+  )
+  set_tests_properties(
+    metaflux.contract.transport-measurement-validator
+    PROPERTIES LABELS "abi;contract"
+  )
+  add_test(
+    NAME metaflux.contract.transport-measurement-selftest
+    COMMAND
+      Python3::Interpreter -B
+      "${PROJECT_SOURCE_DIR}/tools/test-transport-measurement.py"
+  )
+  set_tests_properties(
+    metaflux.contract.transport-measurement-selftest
+    PROPERTIES LABELS "abi;contract"
+  )
+endif()
 target_include_directories(
   metaflux_transport_schema_projection
   INTERFACE

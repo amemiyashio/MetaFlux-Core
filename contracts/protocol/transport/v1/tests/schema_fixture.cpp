@@ -7,6 +7,11 @@
 int main() {
   static_assert(sizeof(mf_transport_message_header_v0) == 16);
   static_assert(alignof(mf_transport_completion_v0) == 8);
+  static_assert(sizeof(mf_schema_mf_transport_message_header_v0_golden) ==
+                MF_SCHEMA_MF_TRANSPORT_MESSAGE_HEADER_V0_GOLDEN_SIZE);
+  static_assert(sizeof(mf_schema_mf_transport_completion_v0_golden) ==
+                MF_SCHEMA_MF_TRANSPORT_COMPLETION_V0_GOLDEN_SIZE);
+  static_assert(sizeof(mf_schema_mf_uapi_wait_v0_golden) == MF_SCHEMA_MF_UAPI_WAIT_V0_GOLDEN_SIZE);
   mf_transport_message_header_v0 header{};
   header.message_id = UINT64_C(17);
   header.message_type = 3;
@@ -26,5 +31,9 @@ int main() {
   info.bar2_size = bars.bar2_size;
   info.bar4_size = bars.bar4_size;
   info.msix_vectors = bars.msix_vectors;
-  return bars.reserved[0] == 0 && info.reserved[0] == 0 ? 0 : 1;
+  return bars.reserved[0] == 0 && info.reserved[0] == 0 &&
+                 mf_schema_mf_transport_bar_layout_v0_golden[56] == 0 &&
+                 mf_schema_mf_vfio_user_get_info_reply_v0_golden[72] == 0
+             ? 0
+             : 1;
 }
