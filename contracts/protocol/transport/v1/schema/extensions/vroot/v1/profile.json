@@ -1,0 +1,41 @@
+{
+  "id": "transport.vroot-profile.v1",
+  "version": "1.0",
+  "zone": "protocol/transport/v1",
+  "kind": "pci-type0-presentation-profile",
+  "config_size": 256,
+  "max_functions": 8,
+  "bdf": {
+    "domain_bits": 16,
+    "bus_bits": 8,
+    "devfn_stride": 8,
+    "stable_scope": "enumeration-domain"
+  },
+  "identity": {
+    "vendor_id": 19782,
+    "device_id": 1,
+    "class_code": 1179648,
+    "header_type": 0
+  },
+  "config_fields": [
+    {"name": "vendor_id", "offset": 0, "width": 2, "value": 19782, "writable_mask": 0},
+    {"name": "device_id", "offset": 2, "width": 2, "value": 1, "writable_mask": 0},
+    {"name": "revision_id", "offset": 8, "width": 1, "value": 0, "writable_mask": 0},
+    {"name": "prog_if", "offset": 9, "width": 1, "value": 0, "writable_mask": 0},
+    {"name": "subclass", "offset": 10, "width": 1, "value": 0, "writable_mask": 0},
+    {"name": "class_code", "offset": 11, "width": 1, "value": 18, "writable_mask": 0},
+    {"name": "header_type", "offset": 14, "width": 1, "value": 0, "writable_mask": 0},
+    {"name": "subsystem_vendor_id", "offset": 44, "width": 2, "value": 19782, "writable_mask": 0},
+    {"name": "subsystem_device_id", "offset": 46, "width": 2, "value": 1, "writable_mask": 0}
+  ],
+  "capabilities": [],
+  "regions": [],
+  "notifications": [],
+  "binding": {
+    "driver": "metaflux_pci",
+    "vendor_matching": false,
+    "stages": ["present", "prepare_driver", "enable_matching", "probe", "online"],
+    "probe_failure": "quarantine_and_remove",
+    "rescan_requires_logical_presence": true
+  }
+}

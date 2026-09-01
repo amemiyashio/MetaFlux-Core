@@ -1,0 +1,25 @@
+{
+  "id": "transport.vroot-extension.v1",
+  "version": "1.0",
+  "kind": "vroot-presentation-extension-manifest",
+  "imports": [
+    {
+      "id": "transport.base.v0",
+      "version": "0.1",
+      "path": "contracts/protocol/transport/v1/schema/manifest.json",
+      "sha256": "f5cdc88ff18d53ff7ae0bb901ca5c5d77b004fb3c3e86aa75e921b4cde167cdf"
+    },
+    {
+      "id": "transport.lifecycle-extension.v1",
+      "version": "1.0",
+      "path": "contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/manifest.json",
+      "sha256": "a40ac452b6c32c53906c36fd5354768bdd705c4888ac879918042f0ce0cd6366"
+    }
+  ],
+  "profile": {
+    "id": "transport.vroot-profile.v1",
+    "version": "1.0",
+    "path": "contracts/protocol/transport/v1/schema/extensions/vroot/v1/profile.json",
+    "sha256": "56dd51c289ec16820b34c565a21790977515a0338b366b3e38bbd638f10d45e3"
+  }
+}

@@ -1,4 +1,5 @@
 #include "metaflux/vroot/config_model.h"
+#include "metaflux/vroot/generated_profile.h"
 
 #include <string.h>
 
@@ -34,19 +35,9 @@ static mf_vroot_status get_function_const(const mf_vroot_model* model, uint8_t f
 static void initialize_config(mf_vroot_function* function, const uint8_t uuid[16],
                               uint16_t domain, uint8_t bus, uint8_t devfn, uint64_t generation) {
   memset(function, 0, sizeof(*function));
-  function->config[0] = 0x46U;
-  function->config[1] = 0x4dU;
-  function->config[2] = 0x01U;
-  function->config[3] = 0x00U;
-  function->config[8] = 0x00U;
-  function->config[9] = 0x00U;
-  function->config[10] = 0x00U;
-  function->config[11] = 0x12U;
-  function->config[14] = 0x00U;
-  function->config[44] = 0x46U;
-  function->config[45] = 0x4dU;
-  function->config[46] = 0x01U;
-  function->config[47] = 0x00U;
+  memcpy(function->config, mf_vroot_profile_config_template, MF_VROOT_PROFILE_CONFIG_SIZE);
+  memcpy(function->writable_mask, mf_vroot_profile_writable_mask,
+         MF_VROOT_PROFILE_CONFIG_SIZE);
   memcpy(function->uuid, uuid, sizeof(function->uuid));
   function->domain = domain;
   function->bus = bus;
