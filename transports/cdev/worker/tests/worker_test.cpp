@@ -1,4 +1,5 @@
 #include "metaflux/transport/cdev_worker.hpp"
+#include "metaflux/uapi/transport.h"
 
 #include "metaflux/client/fastpath.h"
 
@@ -399,12 +400,20 @@ int main() {
                                                          worker_session) !=
           MF_SHARED_NOT_SUPPORTED ||
       worker_session.is_open() || worker_session.control_fd() != -1 ||
+      worker_session.data_fd() != -1 ||
       metaflux::transport::cdev::CdevWorkerSession::open(nullptr, {}, 4U, worker_session) !=
           MF_SHARED_INVALID_ARGUMENT ||
       metaflux::transport::cdev::CdevWorkerSession::open_current("/dev/null", worker_session) !=
           MF_SHARED_NOT_SUPPORTED || worker_session.map_payload(4096U) !=
           MF_SHARED_INVALID_ARGUMENT || worker_session.map_current_payload() !=
           MF_SHARED_INVALID_ARGUMENT) {
+    return 1;
+  }
+  metaflux::transport::cdev::CdevRegisteredMemory registered_memory{};
+  if (worker_session.register_memory(reinterpret_cast<void*>(0x1000U), 4096U,
+                                     MF_UAPI_MEMORY_REGISTER_FLAG_READ_V0,
+                                     registered_memory) != MF_SHARED_INVALID_ARGUMENT ||
+      registered_memory.handle != 0U) {
     return 1;
   }
   mf_client_ring_v1 submission{};

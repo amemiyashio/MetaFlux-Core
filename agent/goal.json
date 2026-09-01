@@ -27,7 +27,7 @@
       "id": "lane-daemon-live-memory",
       "iteration": "iteration-0002",
       "outcome": "Connect daemon Add/Copy and object-table imports to live lease/query registered-memory handles.",
-      "status": "planned",
+      "status": "integrated",
       "depends_on": [],
       "acceptance": [
         "Daemon control and cdev data paths bind the same device, view, and generation.",

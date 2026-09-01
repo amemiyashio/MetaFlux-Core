@@ -26,6 +26,14 @@ struct CdevWorkerLeaseView final {
   std::uint64_t mapping_size = 0U;
 };
 
+/* A cdev registration handle remains transport-owned and never crosses the backend ABI. */
+struct CdevRegisteredMemory final {
+  void* address = nullptr;
+  std::uint64_t byte_count = 0U;
+  std::uint64_t handle = 0U;
+  std::uint64_t generation = 0U;
+};
+
 /*
  * Owns one generation-bound worker lease, paired shared queue mapping, and the
  * optional payload mapping granted by that lease. The data-plane payload
@@ -54,6 +62,7 @@ public:
   [[nodiscard]] mf_shared_status_v1 map_current_payload() noexcept;
   [[nodiscard]] bool is_open() const noexcept { return control_fd_ >= 0; }
   [[nodiscard]] int control_fd() const noexcept { return control_fd_; }
+  [[nodiscard]] int data_fd() const noexcept { return data_fd_; }
   [[nodiscard]] const CdevWorkerLeaseView& lease() const noexcept { return lease_; }
   [[nodiscard]] std::uint8_t* payload_mapping() const noexcept {
     return static_cast<std::uint8_t*>(payload_mapping_);
@@ -61,6 +70,10 @@ public:
   [[nodiscard]] std::uint64_t payload_mapping_size() const noexcept {
     return payload_mapping_size_;
   }
+  [[nodiscard]] mf_shared_status_v1 register_memory(void* address, std::uint64_t byte_count,
+                                                     std::uint32_t flags,
+                                                     CdevRegisteredMemory& out) noexcept;
+  void close_registered_memory(CdevRegisteredMemory& memory) noexcept;
   [[nodiscard]] WorkerQueueView queue_view(std::uint8_t* payload = nullptr,
                                             std::uint64_t payload_size = 0U) const noexcept;
 
@@ -73,6 +86,7 @@ private:
   [[nodiscard]] mf_shared_status_v1 query_payload_size(std::uint64_t& out_size) const noexcept;
 
   int control_fd_ = -1;
+  int data_fd_ = -1;
   void* mapping_ = nullptr;
   std::uint64_t mapping_size_ = 0U;
   void* payload_mapping_ = nullptr;

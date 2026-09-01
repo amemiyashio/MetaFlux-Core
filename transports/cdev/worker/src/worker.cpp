@@ -1,6 +1,7 @@
 #include "metaflux/transport/cdev_worker.hpp"
 
 #include <cerrno>
+#include <cstdlib>
 #include <fcntl.h>
 #include <algorithm>
 #include <cstring>
@@ -23,6 +24,7 @@ constexpr std::uint32_t kBackendLaunchRequiredSize = static_cast<std::uint32_t>(
 constexpr std::uint32_t kBackendCancellationRequiredSize = static_cast<std::uint32_t>(
     offsetof(mf_backend_api_v1, cancel_queue) + sizeof(((mf_backend_api_v1*)nullptr)->cancel_queue));
 constexpr char kDefaultControlPath[] = "/dev/metafluxctl";
+constexpr char kDefaultDataPath[] = "/dev/metaflux0";
 constexpr std::uint32_t kCdevRingCapacity = 256U;
 constexpr std::uint64_t kCdevSubmissionQueueId = 1U;
 constexpr std::uint64_t kCdevCompletionQueueId = 2U;
@@ -138,6 +140,33 @@ mf_shared_status_v1 map_open_error(int error) noexcept {
   }
 }
 
+mf_shared_status_v1 map_memory_error(int error) noexcept {
+  switch (error) {
+  case ENOENT:
+  case ENODEV:
+  case ENOTTY:
+  case EOPNOTSUPP:
+    return MF_SHARED_NOT_SUPPORTED;
+  case EBUSY:
+  case ENOMEM:
+    return MF_SHARED_RESOURCE_EXHAUSTED;
+  case EACCES:
+  case EPERM:
+    return MF_SHARED_PERMISSION_DENIED;
+  case EOVERFLOW:
+    return MF_SHARED_OVERFLOW;
+  case EFAULT:
+  case EINVAL:
+    return MF_SHARED_INVALID_ARGUMENT;
+  case ESTALE:
+    return MF_SHARED_STALE_HANDLE;
+  case EAGAIN:
+    return MF_SHARED_RETRY;
+  default:
+    return MF_SHARED_SYSTEM_ERROR;
+  }
+}
+
 bool valid_worker_lease_response(const mf_uapi_worker_lease_v0& response,
                                  mf_registry_view_id_v1 expected_view_id,
                                  std::uint64_t expected_generation,
@@ -225,12 +254,14 @@ CdevWorkerSession::~CdevWorkerSession() { close(); }
 
 CdevWorkerSession::CdevWorkerSession(CdevWorkerSession&& other) noexcept
     : control_fd_(other.control_fd_),
+      data_fd_(other.data_fd_),
       mapping_(other.mapping_),
       mapping_size_(other.mapping_size_),
       payload_mapping_(other.payload_mapping_),
       payload_mapping_size_(other.payload_mapping_size_),
       lease_(other.lease_) {
   other.control_fd_ = -1;
+  other.data_fd_ = -1;
   other.mapping_ = nullptr;
   other.mapping_size_ = 0U;
   other.payload_mapping_ = nullptr;
@@ -242,12 +273,14 @@ CdevWorkerSession& CdevWorkerSession::operator=(CdevWorkerSession&& other) noexc
   if (this != &other) {
     close();
     control_fd_ = other.control_fd_;
+    data_fd_ = other.data_fd_;
     mapping_ = other.mapping_;
     mapping_size_ = other.mapping_size_;
     payload_mapping_ = other.payload_mapping_;
     payload_mapping_size_ = other.payload_mapping_size_;
     lease_ = other.lease_;
     other.control_fd_ = -1;
+    other.data_fd_ = -1;
     other.mapping_ = nullptr;
     other.mapping_size_ = 0U;
     other.payload_mapping_ = nullptr;
@@ -275,6 +308,8 @@ mf_shared_status_v1 CdevWorkerSession::open_internal(const char* control_path,
                                                      bool discover_current,
                                                      CdevWorkerSession& out) noexcept {
   const char* path = control_path == nullptr ? kDefaultControlPath : control_path;
+  const char* configured_data_path = std::getenv("METAFLUX_CDEV_PATH");
+  const char* data_path = configured_data_path == nullptr ? kDefaultDataPath : configured_data_path;
   if (path == nullptr || path[0] == '\0' ||
       (!discover_current && (expected_view_id.daemon_incarnation == 0U ||
                              expected_view_id.view_serial == 0U || expected_generation == 0U))) {
@@ -310,6 +345,42 @@ mf_shared_status_v1 CdevWorkerSession::open_internal(const char* control_path,
     return MF_SHARED_STALE_HANDLE;
   }
 
+  const int data_fd = ::open(data_path, O_RDWR | O_CLOEXEC);
+  if (data_fd < 0) {
+    const int error = errno;
+    (void)::close(fd);
+    return map_open_error(error);
+  }
+  mf_uapi_negotiate_v0 data_negotiate{};
+  data_negotiate.struct_size = sizeof(data_negotiate);
+  data_negotiate.version = MF_UAPI_VERSION_V0;
+  data_negotiate.required_features =
+      MF_UAPI_FEATURE_QUEUE_MMAP_V0 | MF_UAPI_FEATURE_REGISTERED_MEMORY_V0;
+  if (::ioctl(data_fd, MF_UAPI_IOCTL_NEGOTIATE, &data_negotiate) < 0) {
+    const int error = errno;
+    (void)::close(data_fd);
+    (void)::close(fd);
+    return map_open_error(error);
+  }
+  mf_registry_view_id_v1 data_view_id{};
+  std::uint64_t data_generation = 0U;
+  if (!valid_negotiate_response(data_negotiate, data_view_id, data_generation)) {
+    (void)::close(data_fd);
+    (void)::close(fd);
+    return MF_SHARED_MALFORMED;
+  }
+  if ((data_negotiate.required_features & MF_UAPI_FEATURE_REGISTERED_MEMORY_V0) == 0U) {
+    (void)::close(data_fd);
+    (void)::close(fd);
+    return MF_SHARED_NOT_SUPPORTED;
+  }
+  if (!mf_registry_view_id_equal_v1(data_view_id, expected_view_id) ||
+      data_generation != expected_generation) {
+    (void)::close(data_fd);
+    (void)::close(fd);
+    return MF_SHARED_STALE_HANDLE;
+  }
+
   mf_uapi_worker_lease_v0 request{};
   request.struct_size = sizeof(request);
   request.daemon_incarnation = expected_view_id.daemon_incarnation;
@@ -319,6 +390,7 @@ mf_shared_status_v1 CdevWorkerSession::open_internal(const char* control_path,
   request.completion_eventfd = -1;
   if (::ioctl(fd, MF_UAPI_IOCTL_WORKER_LEASE, &request) < 0) {
     const int error = errno;
+    (void)::close(data_fd);
     (void)::close(fd);
     return map_open_error(error);
   }
@@ -326,6 +398,7 @@ mf_shared_status_v1 CdevWorkerSession::open_internal(const char* control_path,
   std::uint64_t single_mapping_size = 0U;
   if (!valid_worker_lease_response(request, expected_view_id, expected_generation,
                                    single_mapping_size)) {
+    (void)::close(data_fd);
     (void)::close(fd);
     return MF_SHARED_MALFORMED;
   }
@@ -334,6 +407,7 @@ mf_shared_status_v1 CdevWorkerSession::open_internal(const char* control_path,
                          static_cast<off_t>(request.queue_mmap_offset));
   if (mapping == MAP_FAILED) {
     const int error = errno;
+    (void)::close(data_fd);
     (void)::close(fd);
     return map_open_error(error);
   }
@@ -355,11 +429,13 @@ mf_shared_status_v1 CdevWorkerSession::open_internal(const char* control_path,
       !mf_registry_view_id_equal_v1(submission->metadata.registry_view_id,
                                     completion->metadata.registry_view_id)) {
     (void)::munmap(mapping, static_cast<std::size_t>(request.queue_mapping_size));
+    (void)::close(data_fd);
     (void)::close(fd);
     return MF_SHARED_MALFORMED;
   }
 
   out.control_fd_ = fd;
+  out.data_fd_ = data_fd;
   out.mapping_ = mapping;
   out.mapping_size_ = request.queue_mapping_size;
   out.payload_mapping_ = nullptr;
@@ -382,7 +458,11 @@ void CdevWorkerSession::close() noexcept {
   if (control_fd_ >= 0) {
     (void)::close(control_fd_);
   }
+  if (data_fd_ >= 0) {
+    (void)::close(data_fd_);
+  }
   control_fd_ = -1;
+  data_fd_ = -1;
   mapping_ = nullptr;
   mapping_size_ = 0U;
   payload_mapping_ = nullptr;
@@ -429,6 +509,61 @@ mf_shared_status_v1 CdevWorkerSession::map_current_payload() noexcept {
   std::uint64_t mapping_size = 0U;
   const mf_shared_status_v1 query_status = query_payload_size(mapping_size);
   return query_status == MF_SHARED_SUCCESS ? map_payload(mapping_size) : query_status;
+}
+
+mf_shared_status_v1 CdevWorkerSession::register_memory(void* address, std::uint64_t byte_count,
+                                                       std::uint32_t flags,
+                                                       CdevRegisteredMemory& out) noexcept {
+  out = {};
+  if (!is_open() || data_fd_ < 0 || address == nullptr || byte_count == 0U ||
+      byte_count > kPayloadMaximumSize ||
+      (flags & ~static_cast<std::uint32_t>(MF_UAPI_MEMORY_REGISTER_KNOWN_FLAGS_V0)) != 0U ||
+      (flags & (MF_UAPI_MEMORY_REGISTER_FLAG_READ_V0 | MF_UAPI_MEMORY_REGISTER_FLAG_WRITE_V0)) ==
+          0U) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  mf_uapi_memory_v0 request{};
+  request.struct_size = sizeof(request);
+  request.flags = flags;
+  request.generation = lease_.generation;
+  request.byte_count = byte_count;
+  request.alignment = kPageSize;
+  request.offset = reinterpret_cast<std::uintptr_t>(address);
+  request.fd = -1;
+  if (::ioctl(data_fd_, MF_UAPI_IOCTL_MEMORY_REGISTER, &request) < 0) {
+    return map_memory_error(errno);
+  }
+  if (request.struct_size != sizeof(request) || request.flags != flags || request.handle == 0U ||
+      request.generation != lease_.generation || request.byte_count != byte_count ||
+      request.alignment != kPageSize || request.offset != reinterpret_cast<std::uintptr_t>(address) ||
+      request.fd != -1 || !bytes_zero(request.reserved, sizeof(request.reserved))) {
+    if (request.handle != 0U && request.generation != 0U) {
+      mf_uapi_memory_v0 unregister_request{};
+      unregister_request.struct_size = sizeof(unregister_request);
+      unregister_request.handle = request.handle;
+      unregister_request.generation = request.generation;
+      unregister_request.fd = -1;
+      (void)::ioctl(data_fd_, MF_UAPI_IOCTL_MEMORY_REGISTER, &unregister_request);
+    }
+    return MF_SHARED_MALFORMED;
+  }
+  out.address = address;
+  out.byte_count = byte_count;
+  out.handle = request.handle;
+  out.generation = request.generation;
+  return MF_SHARED_SUCCESS;
+}
+
+void CdevWorkerSession::close_registered_memory(CdevRegisteredMemory& memory) noexcept {
+  if (data_fd_ >= 0 && memory.handle != 0U && memory.generation != 0U) {
+    mf_uapi_memory_v0 request{};
+    request.struct_size = sizeof(request);
+    request.handle = memory.handle;
+    request.generation = memory.generation;
+    request.fd = -1;
+    (void)::ioctl(data_fd_, MF_UAPI_IOCTL_MEMORY_REGISTER, &request);
+  }
+  memory = {};
 }
 
 WorkerQueueView CdevWorkerSession::queue_view(std::uint8_t* payload,
