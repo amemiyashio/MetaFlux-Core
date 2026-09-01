@@ -8,6 +8,7 @@
 
 #include <metaflux/runtime/lifecycle_dispatch.hpp>
 #include <metaflux/transport/generated.h>
+#include <metaflux/transport/msix.hpp>
 
 namespace metaflux::transport::vfio_user {
 
@@ -98,6 +99,18 @@ public:
   [[nodiscard]] bool dma_acquire(std::uint64_t iova, std::uint64_t size,
                                  std::uint32_t permission, DmaLease& out) noexcept;
   [[nodiscard]] bool dma_release(const DmaLease& lease) noexcept;
+  [[nodiscard]] MsixStatus configure_msix(MsixInjectCallback inject,
+                                           void* context) noexcept;
+  [[nodiscard]] MsixStatus msix_set_mask(std::uint64_t generation, std::uint32_t vector,
+                                         bool masked) noexcept;
+  [[nodiscard]] MsixStatus msix_arm_completion(std::uint64_t generation,
+                                               std::uint64_t timeline) noexcept;
+  [[nodiscard]] MsixStatus msix_notify(std::uint64_t generation, std::uint32_t vector,
+                                       std::uint64_t timeline) noexcept;
+  [[nodiscard]] MsixStatus msix_retry_pending(std::uint64_t generation,
+                                               std::uint32_t vector) noexcept;
+  [[nodiscard]] MsixStatus msix_snapshot(std::uint64_t generation, std::uint32_t vector,
+                                         MsixVectorState* out_state) const noexcept;
   [[nodiscard]] bool
   attach_lifecycle(metaflux::runtime::lifecycle::Coordinator& coordinator) noexcept;
   [[nodiscard]] ServerResult
@@ -157,6 +170,9 @@ private:
   bool lifecycle_online_ = true;
   bool lifecycle_accepting_ = true;
   bool negotiated_ = false;
+  MsixNotificationLedger msix_{};
+  MsixInjectCallback msix_inject_ = nullptr;
+  void* msix_context_ = nullptr;
 };
 
 } // namespace metaflux::transport::vfio_user

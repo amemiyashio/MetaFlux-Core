@@ -57,6 +57,11 @@ VfioUserServer::VfioUserServer(int fd, ServerConfig config) noexcept : fd_(fd), 
   if (state_ != ServerState::Lost) {
     mappings_.reserve(config_.max_mappings);
     retired_mappings_.reserve(config_.max_mappings);
+    if (msix_.configure(config_.device_generation, nullptr, nullptr) != MsixStatus::success) {
+      state_ = ServerState::Lost;
+      lifecycle_online_ = false;
+      lifecycle_accepting_ = false;
+    }
   }
 }
 
@@ -76,6 +81,41 @@ void VfioUserServer::mark_lost() noexcept {
   state_ = ServerState::Lost;
   lifecycle_online_ = false;
   lifecycle_accepting_ = false;
+  (void)msix_.mark_lost(config_.device_generation);
+}
+
+MsixStatus VfioUserServer::configure_msix(MsixInjectCallback inject, void* context) noexcept {
+  if (state_ == ServerState::Closed || config_.device_generation == 0U) {
+    return MsixStatus::device_lost;
+  }
+  msix_inject_ = inject;
+  msix_context_ = context;
+  return msix_.configure(config_.device_generation, inject, context);
+}
+
+MsixStatus VfioUserServer::msix_set_mask(std::uint64_t generation, std::uint32_t vector,
+                                         bool masked) noexcept {
+  return msix_.set_mask(generation, vector, masked);
+}
+
+MsixStatus VfioUserServer::msix_arm_completion(std::uint64_t generation,
+                                               std::uint64_t timeline) noexcept {
+  return msix_.arm_completion(generation, timeline);
+}
+
+MsixStatus VfioUserServer::msix_notify(std::uint64_t generation, std::uint32_t vector,
+                                       std::uint64_t timeline) noexcept {
+  return msix_.notify(generation, vector, timeline);
+}
+
+MsixStatus VfioUserServer::msix_retry_pending(std::uint64_t generation,
+                                              std::uint32_t vector) noexcept {
+  return msix_.retry_pending(generation, vector);
+}
+
+MsixStatus VfioUserServer::msix_snapshot(std::uint64_t generation, std::uint32_t vector,
+                                         MsixVectorState* out_state) const noexcept {
+  return msix_.snapshot(generation, vector, out_state);
 }
 
 ServerResult
@@ -649,6 +689,11 @@ bool VfioUserServer::lifecycle_commit(
     server->config_.mapping_epoch = event.candidate.epoch;
   }
   server->clear_finalized_tombstones();
+  if (server->msix_.configure(server->config_.device_generation, server->msix_inject_,
+                              server->msix_context_) != MsixStatus::success) {
+    server->mark_lost();
+    return false;
+  }
   server->state_ = ServerState::Configuring;
   server->lifecycle_online_ = true;
   server->lifecycle_accepting_ = true;
