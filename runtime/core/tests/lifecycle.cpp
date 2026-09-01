@@ -287,6 +287,40 @@ bool exhaustion_rejects_before_side_effect() {
   return true;
 }
 
+bool every_mirror_stage_failure_is_bounded() {
+  constexpr std::array<MirrorStage, 4> stages{
+      MirrorStage::Prepare, MirrorStage::Quiesce, MirrorStage::Drain, MirrorStage::Commit};
+  for (std::size_t failing_mirror = 0U; failing_mirror < 3U; ++failing_mirror) {
+    for (const auto stage : stages) {
+      MirrorLog memfd{};
+      MirrorLog cdev{};
+      MirrorLog vfio{};
+      MirrorLog* logs[] = {&memfd, &cdev, &vfio};
+      logs[failing_mirror]->fail_stage = static_cast<std::uint32_t>(stage);
+      Coordinator coordinator = make_coordinator(memfd, cdev, vfio);
+      ResultDetails details{};
+      REQUIRE(coordinator.apply(request(100U + failing_mirror * 10U +
+                                              static_cast<std::uint64_t>(stage),
+                                        Operation::Reset, 1U, 1U),
+                                details) == Result::CallbackRejected);
+      const bool partial_commit = stage == MirrorStage::Commit && failing_mirror != 0U;
+      REQUIRE(details.snapshot.state == (partial_commit ? State::Lost : State::Online));
+      REQUIRE(details.snapshot.generation == (partial_commit ? 2U : 1U));
+      REQUIRE(details.snapshot.identity_record_id == (partial_commit ? 2U : 1U));
+      REQUIRE(details.snapshot.epoch == (partial_commit ? 2U : 1U));
+      REQUIRE(details.snapshot.generation_high_water == 2U);
+      REQUIRE(coordinator.resolve(1U) ==
+              (partial_commit ? ResolveResult::DeviceLost : ResolveResult::Online));
+      REQUIRE(coordinator.resolve(2U) ==
+              (partial_commit ? ResolveResult::DeviceLost : ResolveResult::Unknown));
+      REQUIRE(memfd.lost_count == (partial_commit ? 1U : 0U) &&
+              cdev.lost_count == (partial_commit ? 1U : 0U) &&
+              vfio.lost_count == (partial_commit ? 1U : 0U));
+    }
+  }
+  return true;
+}
+
 bool stale_identity_and_expired_deadline_are_rejected_without_callbacks() {
   MirrorLog memfd{};
   MirrorLog cdev{};
@@ -348,6 +382,7 @@ int main() {
                   partial_commit_never_restores_retired_generation() &&
                   remove_then_add_uses_new_generation_and_epoch() &&
                   exhaustion_rejects_before_side_effect() &&
+                  every_mirror_stage_failure_is_bounded() &&
                   stale_identity_and_expired_deadline_are_rejected_without_callbacks();
   return ok ? 0 : 1;
 }
