@@ -1571,6 +1571,14 @@ bool CdevWorker::attach_lifecycle(metaflux::runtime::lifecycle::Coordinator& coo
   return coordinator.register_mirror(lifecycle_mirror());
 }
 
+metaflux::runtime::lifecycle::NormalizationResult CdevWorker::report_disconnect(
+    metaflux::runtime::lifecycle::Coordinator& coordinator, std::uint64_t request_id,
+    std::uint64_t deadline_tick, metaflux::runtime::lifecycle::ResultDetails& out) noexcept {
+  return metaflux::runtime::lifecycle::capture_and_submit_external_event(
+      coordinator, metaflux::runtime::lifecycle::ExternalEventKind::CdevDisconnect, request_id,
+      deadline_tick, out);
+}
+
 metaflux::runtime::lifecycle::Mirror CdevWorker::lifecycle_mirror() noexcept {
   return metaflux::runtime::lifecycle::Mirror{
       .kind = metaflux::runtime::lifecycle::MirrorKind::Cdev,

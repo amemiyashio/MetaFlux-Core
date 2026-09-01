@@ -6,8 +6,10 @@
 using metaflux::runtime::lifecycle::Config;
 using metaflux::runtime::lifecycle::Coordinator;
 using metaflux::runtime::lifecycle::Operation;
+using metaflux::runtime::lifecycle::NormalizationResult;
 using metaflux::runtime::lifecycle::Request;
 using metaflux::runtime::lifecycle::Result;
+using metaflux::runtime::lifecycle::ResultDetails;
 using metaflux::runtime::lifecycle::Source;
 using metaflux::transport::memfd::MemfdWorker;
 using metaflux::transport::memfd::SubmitResult;
@@ -99,8 +101,28 @@ bool remove_and_add_retire_local_identity() {
   return true;
 }
 
+bool reports_transport_disconnect_through_authority() {
+  MemfdWorker worker;
+  Coordinator lifecycle = coordinator();
+  ResultDetails details{};
+  REQUIRE(worker.attach_lifecycle(lifecycle));
+  REQUIRE(worker.report_disconnect(lifecycle, 7U, 19U, details) ==
+          NormalizationResult::Accepted);
+  REQUIRE(details.result == Result::Accepted && details.snapshot.state ==
+          metaflux::runtime::lifecycle::State::Lost);
+  REQUIRE(!worker.lifecycle_online() && !worker.lifecycle_accepting());
+  REQUIRE(worker.report_disconnect(lifecycle, 0U, 19U, details) ==
+          NormalizationResult::Invalid);
+  REQUIRE(details.result == Result::Invalid && details.snapshot.state ==
+          metaflux::runtime::lifecycle::State::Lost);
+  return true;
+}
+
 } // namespace
 
 int main() {
-  return drain_replacement_and_recover() && remove_and_add_retire_local_identity() ? 0 : 1;
+  return drain_replacement_and_recover() && remove_and_add_retire_local_identity() &&
+                 reports_transport_disconnect_through_authority()
+             ? 0
+             : 1;
 }

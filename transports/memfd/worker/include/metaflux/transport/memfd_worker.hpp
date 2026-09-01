@@ -3,7 +3,7 @@
 
 #include <cstdint>
 
-#include "metaflux/runtime/lifecycle.hpp"
+#include "metaflux/runtime/lifecycle_dispatch.hpp"
 
 namespace metaflux::transport::memfd {
 
@@ -26,6 +26,10 @@ public:
 
   [[nodiscard]] bool attach_lifecycle(
       metaflux::runtime::lifecycle::Coordinator& coordinator) noexcept;
+  [[nodiscard]] metaflux::runtime::lifecycle::NormalizationResult report_disconnect(
+      metaflux::runtime::lifecycle::Coordinator& coordinator, std::uint64_t request_id,
+      std::uint64_t deadline_tick,
+      metaflux::runtime::lifecycle::ResultDetails& out) noexcept;
   [[nodiscard]] metaflux::runtime::lifecycle::Mirror lifecycle_mirror() noexcept;
 
   [[nodiscard]] bool lifecycle_online() const noexcept { return online_; }

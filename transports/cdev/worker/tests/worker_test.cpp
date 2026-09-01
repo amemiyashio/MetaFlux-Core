@@ -1958,7 +1958,10 @@ int main() {
       .source = metaflux::runtime::lifecycle::Source::Disconnect,
       .operation = metaflux::runtime::lifecycle::Operation::TransportLoss,
   };
-  if (coordinator.apply(loss) != metaflux::runtime::lifecycle::Result::Accepted ||
+  metaflux::runtime::lifecycle::ResultDetails loss_details{};
+  if (worker.report_disconnect(coordinator, loss.request_id, 0U, loss_details) !=
+          metaflux::runtime::lifecycle::NormalizationResult::Accepted ||
+      loss_details.result != metaflux::runtime::lifecycle::Result::Accepted ||
       worker.lifecycle_online()) {
     mf_client_ring_close_v1(&submission);
     mf_client_ring_close_v1(&completion);
