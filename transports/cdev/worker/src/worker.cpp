@@ -1520,12 +1520,14 @@ bool CdevWorker::lifecycle_prepare(
                                  worker->view_.payload_size != 0U;
   const bool region_backend_available = worker != nullptr &&
                                         valid_region_copy_backend(worker->backend_);
-  if (worker == nullptr || !valid_worker_queue_view(worker->view_) ||
-      (!payload_available && !region_backend_available)) {
+  if (worker == nullptr || !valid_worker_queue_view(worker->view_)) {
     return false;
   }
   if (event.candidate.generation == 0U) {
     return event.request.operation == metaflux::runtime::lifecycle::Operation::Remove;
+  }
+  if (!payload_available && !region_backend_available) {
+    return false;
   }
   return worker->stage_rebind(event.candidate.generation);
 }

@@ -493,6 +493,54 @@ bool backendless_replacement_requires_staged_view() {
   return unchanged;
 }
 
+bool queue_only_remove_is_allowed_without_payload() {
+  const mf_registry_view_id_v1 view{.daemon_incarnation = 7U, .view_serial = 9U};
+  mf_client_ring_v1 submission{};
+  mf_client_ring_v1 completion{};
+  if (mf_client_ring_create_v1(8U, view, 1U, 4U, &submission) != MF_SHARED_SUCCESS ||
+      mf_client_ring_create_v1(8U, view, 2U, 4U, &completion) != MF_SHARED_SUCCESS) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return false;
+  }
+  metaflux::transport::cdev::CdevWorker worker({
+      .submission = submission.header,
+      .completion = completion.header,
+      .payload = nullptr,
+      .payload_size = 0U,
+      .generation = 4U,
+  });
+  metaflux::runtime::lifecycle::Config config{};
+  config.logical_device_id = 7U;
+  config.daemon_incarnation = 7U;
+  config.initial_identity_record_id = 4U;
+  config.initial_generation = 4U;
+  config.initial_epoch = 1U;
+  config.generation_terminal = 32U;
+  config.identity_record_terminal = 32U;
+  config.epoch_terminal = 32U;
+  metaflux::runtime::lifecycle::Coordinator coordinator(config);
+  const metaflux::runtime::lifecycle::Request remove{
+      .request_id = 902U,
+      .logical_device_id = 7U,
+      .daemon_incarnation = 7U,
+      .expected_identity_record_id = 4U,
+      .expected_generation = 4U,
+      .expected_epoch = 1U,
+      .source = metaflux::runtime::lifecycle::Source::Admin,
+      .operation = metaflux::runtime::lifecycle::Operation::Remove,
+  };
+  const auto result = worker.attach_lifecycle(coordinator)
+                          ? coordinator.apply(remove)
+                          : metaflux::runtime::lifecycle::Result::Invalid;
+  const bool removed = result == metaflux::runtime::lifecycle::Result::Accepted &&
+                       worker.generation() == 0U && !worker.lifecycle_online() &&
+                       coordinator.snapshot().state == metaflux::runtime::lifecycle::State::Absent;
+  mf_client_ring_close_v1(&submission);
+  mf_client_ring_close_v1(&completion);
+  return removed;
+}
+
 #if defined(METAFLUX_CPU_CDEV_LAUNCH)
 std::string read_file(const char* path) {
   std::ifstream input(path, std::ios::binary | std::ios::ate);
@@ -535,6 +583,9 @@ int main() {
     return 1;
   }
   if (!backendless_replacement_requires_staged_view()) {
+    return 1;
+  }
+  if (!queue_only_remove_is_allowed_without_payload()) {
     return 1;
   }
   mf_registry_view_id_v1 view{.daemon_incarnation = 7U, .view_serial = 9U};
