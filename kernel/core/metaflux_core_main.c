@@ -27,9 +27,10 @@
 #define MF_CDEV_DAEMON_INCARNATION UINT64_C(1)
 #define MF_CDEV_VIEW_SERIAL UINT64_C(1)
 
-#define MF_CDEV_SINGLE_MAPPING_SIZE                                                   \
+#define MF_CDEV_RAW_SINGLE_MAPPING_SIZE                                               \
 	(sizeof(mf_ring_header_v1) +                                                   \
 	 (sizeof(mf_ring_descriptor_v1) * (size_t)MF_CDEV_RING_CAPACITY))
+#define MF_CDEV_SINGLE_MAPPING_SIZE PAGE_ALIGN(MF_CDEV_RAW_SINGLE_MAPPING_SIZE)
 #define MF_CDEV_MAPPING_SIZE (MF_CDEV_SINGLE_MAPPING_SIZE * (size_t)2)
 #define MF_CDEV_PAYLOAD_PGOFF_V0 2UL
 #define MF_CDEV_PAYLOAD_MAX_SIZE (UINT64_C(67108864))
@@ -150,6 +151,11 @@ static enum dma_data_direction mf_cdev_dma_direction(u32 flags)
 	if (device_reads && device_writes)
 		return DMA_BIDIRECTIONAL;
 	return device_reads ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
+}
+
+static bool mf_cdev_dma_mapping_available(struct device *device)
+{
+	return device != NULL && device->dma_mask != NULL && *device->dma_mask != 0U;
 }
 
 static void mf_cdev_init_ring(struct mf_ring_header_v1 *header, u64 queue_id)
@@ -510,6 +516,9 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 		return -EOVERFLOW;
 	if (request.offset + request.byte_count > (u64)ULONG_MAX - (PAGE_SIZE - 1U))
 		return -EOVERFLOW;
+	dma_device = READ_ONCE(mf_cdev_data_device.this_device);
+	if (!mf_cdev_dma_mapping_available(dma_device))
+		return -EOPNOTSUPP;
 
 	start = (unsigned long)request.offset;
 	end = start + (unsigned long)request.byte_count;
@@ -553,13 +562,7 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 							     dma_direction, dma_nents, mm, request.flags);
 		return result;
 	}
-	dma_device = READ_ONCE(mf_cdev_data_device.this_device);
 	dma_direction = mf_cdev_dma_direction(request.flags);
-	if (dma_device == NULL) {
-		mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,
-							     dma_direction, dma_nents, mm, request.flags);
-		return -ENODEV;
-	}
 	dma_nents = dma_map_sg(dma_device, sg_table.sgl, sg_table.orig_nents, dma_direction);
 	if (dma_nents <= 0) {
 		mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,

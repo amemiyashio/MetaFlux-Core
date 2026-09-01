@@ -11,6 +11,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#define MF_CDEV_PAGE_SIZE_V0 UINT64_C(4096)
+
 static int mf_cdev_reserved_zero(const uint8_t* bytes, size_t count) {
   size_t index = 0;
   for (index = 0; index < count; ++index) {
@@ -19,6 +21,21 @@ static int mf_cdev_reserved_zero(const uint8_t* bytes, size_t count) {
     }
   }
   return 1;
+}
+
+static mf_shared_status_v1 mf_cdev_ring_mapping_size_v0(uint32_t capacity,
+                                                        uint64_t* out_mapping_size) {
+  mf_shared_status_v1 status = mf_client_ring_mapping_size_v1(capacity, out_mapping_size);
+  if (status != MF_SHARED_SUCCESS) {
+    return status;
+  }
+  if (*out_mapping_size > UINT64_MAX - (MF_CDEV_PAGE_SIZE_V0 - UINT64_C(1))) {
+    return MF_SHARED_OVERFLOW;
+  }
+  *out_mapping_size =
+      (*out_mapping_size + (MF_CDEV_PAGE_SIZE_V0 - UINT64_C(1))) &
+      ~(MF_CDEV_PAGE_SIZE_V0 - UINT64_C(1));
+  return MF_SHARED_SUCCESS;
 }
 
 static mf_shared_status_v1 mf_cdev_validate_ring(void* mapping, uint64_t mapping_size,
@@ -40,8 +57,9 @@ static mf_shared_status_v1 mf_cdev_validate_ring(void* mapping, uint64_t mapping
       header->metadata.descriptor_size != sizeof(mf_ring_descriptor_v1) ||
       header->metadata.flags != 0U || capacity < 2U ||
       (capacity & (capacity - 1U)) != 0U ||
-      mf_client_ring_mapping_size_v1(capacity, &single_size) != MF_SHARED_SUCCESS ||
+      mf_cdev_ring_mapping_size_v0(capacity, &single_size) != MF_SHARED_SUCCESS ||
       single_size > UINT64_MAX / 2U || (expected_size = single_size * 2U) != mapping_size ||
+      (single_size % MF_CDEV_PAGE_SIZE_V0) != 0U ||
       header->metadata.mapping_size != single_size ||
       header->metadata.queue_id != queue->queue_id ||
       header->metadata.queue_generation != queue->queue_generation ||
@@ -155,6 +173,7 @@ static mf_shared_status_v1 mf_cdev_session_open_internal_v0(const char* device_p
   if (queue.struct_size != sizeof(queue) || queue.queue_id == 0U ||
       queue.queue_generation != negotiate.device_generation || queue.mapping_size == 0U ||
       queue.mapping_size > (uint64_t)SIZE_MAX || (queue.mmap_offset % 4096U) != 0U ||
+      (queue.mapping_size % MF_CDEV_PAGE_SIZE_V0) != 0U ||
       (queue.submission_eventfd < -1 || queue.completion_eventfd < -1) ||
       !mf_cdev_reserved_zero(queue.reserved, sizeof(queue.reserved))) {
     (void)close(fd);

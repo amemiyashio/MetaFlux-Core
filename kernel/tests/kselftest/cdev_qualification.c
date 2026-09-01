@@ -49,6 +49,10 @@ static int validate_ring_mapping(const mf_ring_header_v1* submission,
       completion->metadata.capacity != MF_CDEV_RING_CAPACITY_V0 ||
       submission->metadata.queue_id != session->queue_id ||
       completion->metadata.queue_id != session->queue_id + UINT64_C(1) ||
+      submission->metadata.mapping_size == 0U ||
+      (submission->metadata.mapping_size % MF_CDEV_TEST_PAGE_SIZE) != 0U ||
+      submission->metadata.mapping_size != session->submission.mapping_size ||
+      completion->metadata.mapping_size != session->completion.mapping_size ||
       submission->metadata.queue_generation != session->device_generation ||
       completion->metadata.queue_generation != session->device_generation ||
       !mf_registry_view_id_equal_v1(submission->metadata.registry_view_id,
@@ -67,6 +71,7 @@ int main(void) {
   mf_cdev_memory_v0 payload = {.device_fd = -1};
   mf_cdev_memory_v0 registered_memory = {.device_fd = -1};
   mf_uapi_worker_lease_v0 lease;
+  mf_uapi_negotiate_v0 control_negotiate;
   mf_uapi_memory_v0 query;
   mf_uapi_memory_v0 stale_memory;
   mf_uapi_memory_v0 unregister_check;
@@ -124,6 +129,24 @@ int main(void) {
   completion_eventfd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
   if (kick_eventfd < 0 || completion_eventfd < 0) {
     (void)failf("create lease eventfds", strerror(errno));
+    goto cleanup;
+  }
+
+  (void)memset(&control_negotiate, 0, sizeof(control_negotiate));
+  control_negotiate.struct_size = sizeof(control_negotiate);
+  control_negotiate.version = MF_UAPI_VERSION_V0;
+  control_negotiate.required_features = MF_UAPI_FEATURE_QUEUE_MMAP_V0;
+  if (ioctl(control_fd, MF_UAPI_IOCTL_NEGOTIATE, &control_negotiate) != 0) {
+    (void)failf("negotiate control device", strerror(errno));
+    goto cleanup;
+  }
+  if (control_negotiate.struct_size != sizeof(control_negotiate) ||
+      control_negotiate.version != MF_UAPI_VERSION_V0 ||
+      (control_negotiate.required_features & MF_UAPI_FEATURE_QUEUE_MMAP_V0) == 0U ||
+      control_negotiate.registry_view_daemon != session.registry_view_id.daemon_incarnation ||
+      control_negotiate.registry_view_serial != session.registry_view_id.view_serial ||
+      control_negotiate.device_generation != session.device_generation) {
+    (void)failf("validate control negotiation", "returned control view does not match data queue");
     goto cleanup;
   }
 
@@ -209,6 +232,12 @@ int main(void) {
       &session, registered_base + 128U, MF_CDEV_TEST_REGISTER_BYTES,
       MF_CDEV_MEMORY_REGISTER_FLAG_READ_V0 | MF_CDEV_MEMORY_REGISTER_FLAG_WRITE_V0,
       &registered_memory);
+  if (status == MF_SHARED_NOT_SUPPORTED) {
+    (void)fprintf(stdout,
+                  "cdev qualification: SKIP: registered-memory DMA target is unavailable\n");
+    result_code = MF_CDEV_TEST_SKIP;
+    goto cleanup;
+  }
   if (status != MF_SHARED_SUCCESS) {
     (void)fprintf(stderr, "cdev qualification: registered-memory status %d\n", status);
     goto cleanup;

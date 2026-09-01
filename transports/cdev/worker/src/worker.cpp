@@ -106,6 +106,10 @@ bool ring_mapping_size(std::uint32_t capacity, std::uint64_t& out) noexcept {
     return false;
   }
   out = sizeof(mf_ring_header_v1) + descriptor_bytes;
+  if (out > UINT64_MAX - (kPageSize - 1U)) {
+    return false;
+  }
+  out = (out + (kPageSize - 1U)) & ~(kPageSize - 1U);
   return true;
 }
 
@@ -282,20 +286,28 @@ mf_shared_status_v1 CdevWorkerSession::open_internal(const char* control_path,
     return map_open_error(errno);
   }
 
+  mf_uapi_negotiate_v0 negotiate{};
+  negotiate.struct_size = sizeof(negotiate);
+  negotiate.version = MF_UAPI_VERSION_V0;
+  negotiate.required_features = MF_UAPI_FEATURE_QUEUE_MMAP_V0;
+  if (::ioctl(fd, MF_UAPI_IOCTL_NEGOTIATE, &negotiate) < 0) {
+    const int error = errno;
+    (void)::close(fd);
+    return map_open_error(error);
+  }
+  mf_registry_view_id_v1 negotiated_view_id{};
+  std::uint64_t negotiated_generation = 0U;
+  if (!valid_negotiate_response(negotiate, negotiated_view_id, negotiated_generation)) {
+    (void)::close(fd);
+    return MF_SHARED_MALFORMED;
+  }
   if (discover_current) {
-    mf_uapi_negotiate_v0 negotiate{};
-    negotiate.struct_size = sizeof(negotiate);
-    negotiate.version = MF_UAPI_VERSION_V0;
-    negotiate.required_features = MF_UAPI_FEATURE_QUEUE_MMAP_V0;
-    if (::ioctl(fd, MF_UAPI_IOCTL_NEGOTIATE, &negotiate) < 0) {
-      const int error = errno;
-      (void)::close(fd);
-      return map_open_error(error);
-    }
-    if (!valid_negotiate_response(negotiate, expected_view_id, expected_generation)) {
-      (void)::close(fd);
-      return MF_SHARED_MALFORMED;
-    }
+    expected_view_id = negotiated_view_id;
+    expected_generation = negotiated_generation;
+  } else if (!mf_registry_view_id_equal_v1(negotiated_view_id, expected_view_id) ||
+             negotiated_generation != expected_generation) {
+    (void)::close(fd);
+    return MF_SHARED_STALE_HANDLE;
   }
 
   mf_uapi_worker_lease_v0 request{};

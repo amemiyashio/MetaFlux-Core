@@ -18,6 +18,9 @@ quota per generation. It charges the current process's
 memlock quota, pins full pages with `pin_user_pages_fast()` using
 `FOLL_LONGTERM` and optional `FOLL_WRITE`, and builds an independent SG table
 per slot. Each SG table is direction-mapped through the data cdev's DMA device.
+If the standalone virtual cdev has no DMA mask or parent DMA master, registration
+returns `-EOPNOTSUPP` before pinning; a physical provider must supply that DMA
+boundary before registered-memory qualification can proceed.
 Unregister and owner close remove live slots under the cdev lock, then unmap
 each SG table, free it, dirty-unpin device-written pages, release the memlock
 charge, and drop the mm reference outside the lock. A map failure unwinds in

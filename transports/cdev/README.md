@@ -28,7 +28,9 @@ file. A fifth slot or an aggregate quota overflow returns `-EBUSY`. The kernel
 maps each SG table with one direction derived from the READ/WRITE flags through
 the data cdev's DMA device, and every unregister, owner-close, module-exit, and
 map-failure path unmaps before SG teardown, dirty-unpin for device-written
-pages, and memlock release. This stage does not expose backend memory import or
+pages, and memlock release. A standalone virtual cdev without a DMA mask or
+parent master returns `MF_SHARED_NOT_SUPPORTED` before pinning; this stage does
+not expose backend memory import or
 in-flight worker references, and it does not qualify a physical GPU DMA master;
 those remain W0112/W0114 work.
 
@@ -52,10 +54,10 @@ payload remain shared-memory fast-path data.
 same `/dev/metafluxctl` fd that receives `MF_UAPI_IOCTL_WORKER_LEASE`; the
 expected-value overload remains available for a caller that already owns the
 authority record. Both paths validate the returned identity, lease, exact
-paired-ring size, queue IDs, and ring metadata, then map the queue through the
-leased control fd. After the data-plane owner has allocated its exact,
-page-aligned payload arena, `map_payload()` maps that arena through the same
-leased control fd. The data fd remains the payload owner; the worker lease only
+page-aligned paired-ring size, queue IDs, and ring metadata, then map the queue
+through the leased control fd. After the data-plane owner has allocated its
+exact, page-aligned payload arena, `map_payload()` maps that arena through the
+same leased control fd. The data fd remains the payload owner; the worker lease only
 grants a generation-bound mapping, and the VMA reference keeps the offline
 tombstone alive until its final close. `close()` unmaps payload first, then the
 rings, before closing the fd so the kernel release revokes the lease. `ENOENT`/
