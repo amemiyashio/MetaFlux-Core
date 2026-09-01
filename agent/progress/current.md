@@ -6,7 +6,7 @@ focus_mode: product
 focus_owner: S0112-20260901-005-m0110-w0112-post-privilege-governance
 milestone: M0110
 workstream: W0112
-checkpoint: P20260901-102
+checkpoint: P20260901-103
 ---
 
 # Current Progress
@@ -60,13 +60,18 @@ default scheduling authority while M0110 is incomplete.
   generated ioctl/mmap ABI, eventfd lease, payload query, registered-memory
   unregister, malformed/stale requests, and owner-close VMA tombstones. The
   full suite now has 86 tests; 85 execute successfully and this live gate is
-  explicitly skipped while `/dev/metaflux0` is absent. These are source and
-  fixture closures, not live device proof.
+  explicitly skipped while `/dev/metaflux0` is absent. P103 adds worker-side
+  backend binding generation isolation: a valid old binding cannot serve new
+  work after lifecycle commit, while an in-flight operation retains its
+  captured binding through drain. These are source and fixture closures, not
+  live device proof.
 - The live product path remains unqualified: `/dev/metafluxctl` and
   `/dev/metaflux0` are absent on this host. The provider and daemon now have a
   single initialization epoch and a cdev data-plane route under D0030, while
-  kernel registered-memory/DMA import, replacement-generation isolation, and
-  fd/VMA tombstone behavior still require an activated device node.
+  kernel registered-memory/DMA import, daemon-controlled replacement and
+  rebind drain, and fd/VMA tombstone behavior still require an activated device
+  node. The host-independent worker binding generation check is recorded at
+  P103.
 - P089 records the runtime-owned immediate producer ingress at `6152efa`: admin
   reset, VFIO-user reset, disconnect, and daemon restart capture one authority
   snapshot; wrong-route QMP, malformed, unknown, and stale observations are
@@ -100,6 +105,7 @@ default scheduling authority while M0110 is incomplete.
 ## Evidence Pointers
 
 - [P102 host privilege escalation](checkpoints/2026/P20260901-102-host-privilege-escalation.md)
+- [P103 cdev backend generation isolation](checkpoints/2026/P20260901-103-m0110-cdev-backend-generation.md)
 - [P101 agent startup resolution](checkpoints/2026/P20260901-101-agent-startup-resolution.md)
 - [P100 live cdev qualification harness](checkpoints/2026/P20260901-100-m0110-cdev-live-qualification.md)
 - [P093 daemon cdev backend reference drain](checkpoints/2026/P20260901-093-m0110-daemon-cdev-reference-drain.md)

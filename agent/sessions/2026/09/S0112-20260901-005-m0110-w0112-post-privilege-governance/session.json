@@ -21,7 +21,9 @@
       "title": "Kernel and Guest Transport",
       "status": "active",
       "event_seqs": [
-        1
+        1,
+        2,
+        3
       ]
     }
   ],
