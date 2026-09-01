@@ -119,7 +119,7 @@ eviction. `CacheFileStore` persists either key class with a complete envelope,
 payload digest, process-unique temporary file, `fsync`, and atomic rename;
 truncated or mismatched entries are removed before returning `corrupt`, and a
 device-bound key can be explicitly invalidated. Cross-process stampede control
-and warm-launch tracing remain open. The runtime now owns a source-local
+and warm-launch tracing remain bounded by the source-local qualification. The runtime now owns a source-local
 `VkPipelineCache` boundary: a cold pipeline build can import a device-bound
 opaque payload, export the updated payload after build, and hand the bytes back
 to `PersistentCacheRepository`. The cache object is destroyed with its
@@ -143,4 +143,9 @@ tests mutate every portable and device-bound identity field and require a miss
 for each changed key. A host-independent warm-launch trace validator accepts
 only cache lookup, pipeline binding, argument binding, and submit in order; it
 rejects compiler, validator, module/pipeline creation, and allocation events.
-An actual ICD trace is still required for the warm-launch gate.
+The physical pipeline qualification now exports a device pipeline cache,
+hydrates a device-bound repository hit, reuses the already-created pipeline,
+submits through the real queue, waits for completion, validates the exact
+four-event trace, and observes zero host allocations during warm submission.
+The remaining release evidence is driver-family and fault/soak qualification,
+not the warm-path object-creation boundary itself.

@@ -54,12 +54,20 @@ where available; other platforms use traces and a separate p99 creation budget.
 - [x] Add a host-independent warm-launch trace admission contract. It accepts
   only cache lookup, pipeline binding, argument binding, and submit in order,
   and rejects compiler, validator, shader-module, pipeline, Vulkan-allocation,
-  and MetaFlux-allocation events. Actual trace capture remains open.
-- [ ] Prove warm launch invokes no MLIR/SPIR-V compiler or validator, creates no
+  and MetaFlux-allocation events. Physical trace capture is exercised by the
+  Vulkan pipeline qualification test.
+- [x] Prove warm launch invokes no MLIR/SPIR-V compiler or validator, creates no
   shader module/pipeline/Vulkan allocation, and performs no MetaFlux-owned heap
-  allocation.
+  allocation. The physical warm test starts from an exported device pipeline
+  cache, hydrates a device-bound repository hit, reuses the already-created
+  `VulkanComputePipeline`, submits through the real queue, waits for completion,
+  validates the four-event trace, and observes zero host allocations during
+  warm submission. The source boundary contains no compiler, validator, or
+  Vulkan object creation call.
 
 ## Exit Gate
 
 Corrupt/truncated caches recover; all identity/target/ABI mutations miss; warm
 traces contain no compiler, validation, shader-module, or pipeline creation.
+The physical cache-hit qualification is `metaflux.backend.vulkan-pipeline` and
+the host-independent trace matrix is `metaflux.backend.vulkan-cache-model`.
