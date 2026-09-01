@@ -1,6 +1,7 @@
 #include "../src/vulkan_device.hpp"
 #include "../src/vulkan_staging.hpp"
 
+#include "../src/vulkan_admission.hpp"
 #include "../src/vulkan_device_copy.hpp"
 #include "metaflux/backend/vulkan_capability.hpp"
 
@@ -9,7 +10,71 @@
 #include <cstdio>
 #include <cstring>
 
+namespace {
+
+mf_vulkan_capability_profile_v1 admission_profile() {
+  mf_vulkan_capability_profile_v1 profile{};
+  profile.struct_size = sizeof(profile);
+  profile.abi_version = MF_VULKAN_CAPABILITY_ABI_VERSION_1;
+  profile.status = MF_VULKAN_PROBE_SUCCESS;
+  profile.api_version = MF_VULKAN_API_VERSION_1_3;
+  profile.vendor_id = 1U;
+  profile.queue_count = 1U;
+  profile.feature_flags = MF_VULKAN_FEATURE_TIMELINE_SEMAPHORE |
+                          MF_VULKAN_FEATURE_SYNCHRONIZATION2 |
+                          MF_VULKAN_FEATURE_BUFFER_DEVICE_ADDRESS;
+  profile.memory_tier_flags = MF_VULKAN_MEMORY_TIER_STAGING;
+  profile.target_environment[0] = 'x';
+  profile.device_uuid[0] = 1U;
+  profile.target_digest[0] = 1U;
+  return profile;
+}
+
+bool admission_guards() {
+  using metaflux::backend::vulkan::AdmissionStatus;
+  using metaflux::backend::vulkan::VulkanBackendAdmission;
+  using metaflux::backend::vulkan::VulkanTransport;
+  const auto profile = admission_profile();
+
+  VulkanBackendAdmission admission;
+  if (admission.admit(profile, 42U, VulkanTransport::local_cdev) != AdmissionStatus::success ||
+      admission.admit(profile, 43U, VulkanTransport::local_cdev) !=
+          AdmissionStatus::stale_generation ||
+      admission.admit(profile, 42U, VulkanTransport::local_cdev) !=
+          AdmissionStatus::already_admitted ||
+      admission.context() != nullptr) {
+    return false;
+  }
+
+  VulkanBackendAdmission invalid_transport;
+  if (invalid_transport.admit(profile, 42U, static_cast<VulkanTransport>(UINT32_C(99))) !=
+      AdmissionStatus::unsupported_transport) {
+    return false;
+  }
+
+  const auto activation = admission.activate();
+  if (activation != AdmissionStatus::success && activation != AdmissionStatus::no_device &&
+      activation != AdmissionStatus::unsupported_features &&
+      activation != AdmissionStatus::initialization_failed) {
+    return false;
+  }
+  if (activation == AdmissionStatus::success &&
+      (admission.context() == nullptr || admission.context()->generation() != 42U)) {
+    return false;
+  }
+  if (admission.retire() != AdmissionStatus::success || admission.context() != nullptr ||
+      admission.retire() != AdmissionStatus::stale_generation) {
+    return false;
+  }
+  return true;
+}
+
+} // namespace
+
 int main() {
+  if (!admission_guards()) {
+    return 1;
+  }
   mf_vulkan_capability_profile_v1 profile{};
   const auto probe_status = metaflux::backend::vulkan::probe(&profile);
   if (probe_status == MF_VULKAN_PROBE_INVALID_ARGUMENT) {

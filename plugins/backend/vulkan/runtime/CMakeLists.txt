@@ -8,6 +8,7 @@ add_library(
   src/streams.cpp
   src/cache.cpp
   src/vulkan_device.cpp
+  src/vulkan_admission.cpp
   src/vulkan_staging.cpp
   src/vulkan_device_copy.cpp
 )

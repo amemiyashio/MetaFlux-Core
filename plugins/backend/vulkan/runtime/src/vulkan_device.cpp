@@ -1,4 +1,4 @@
-#include "vulkan_device.hpp"
+#include "vulkan_admission.hpp"
 
 #include <algorithm>
 #include <array>
@@ -10,16 +10,8 @@ namespace metaflux::backend::vulkan {
 
 namespace {
 
-constexpr std::uint32_t kRequiredFeatures = MF_VULKAN_FEATURE_TIMELINE_SEMAPHORE |
-                                            MF_VULKAN_FEATURE_SYNCHRONIZATION2 |
-                                            MF_VULKAN_FEATURE_BUFFER_DEVICE_ADDRESS;
-
 bool nonzero_uuid(const std::uint8_t* uuid) noexcept {
   return std::any_of(uuid, uuid + VK_UUID_SIZE, [](std::uint8_t byte) { return byte != 0U; });
-}
-
-bool nonzero_digest(const std::uint8_t* digest) noexcept {
-  return std::any_of(digest, digest + 32U, [](std::uint8_t byte) { return byte != 0U; });
 }
 
 bool compute_queue_matches(VkPhysicalDevice device, std::uint32_t family_index,
@@ -154,17 +146,6 @@ SelectionResult select_profile_device(VkInstance instance,
   return identity_match ? SelectionResult::unsupported : SelectionResult::no_device;
 }
 
-bool valid_profile(const mf_vulkan_capability_profile_v1& profile) noexcept {
-  return profile.struct_size == sizeof(profile) &&
-         profile.abi_version == MF_VULKAN_CAPABILITY_ABI_VERSION_1 &&
-         profile.status == MF_VULKAN_PROBE_SUCCESS && profile.api_version >= VK_API_VERSION_1_3 &&
-         profile.queue_count != 0U && profile.vendor_id != 0U &&
-         (profile.feature_flags & kRequiredFeatures) == kRequiredFeatures &&
-         (profile.memory_tier_flags & MF_VULKAN_MEMORY_TIER_STAGING) != 0U &&
-         profile.target_environment[0] != '\0' && nonzero_uuid(profile.device_uuid) &&
-         nonzero_digest(profile.target_digest);
-}
-
 } // namespace
 
 VulkanDeviceContext::~VulkanDeviceContext() noexcept { destroy_handles(); }
@@ -228,7 +209,7 @@ DeviceStatus VulkanDeviceContext::map_runtime_result(VkResult result) noexcept {
 
 DeviceStatus
 VulkanDeviceContext::initialize(const mf_vulkan_capability_profile_v1& profile) noexcept {
-  if (generation_ == 0U || !valid_profile(profile)) {
+  if (generation_ == 0U || !valid_capability_profile(profile)) {
     return DeviceStatus::invalid_argument;
   }
   if (lost_) {
