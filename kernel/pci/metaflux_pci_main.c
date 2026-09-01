@@ -1,4 +1,5 @@
 #include <linux/io.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
@@ -14,11 +15,27 @@
 #define MF_PCI_BAR4_SIZE 4096U
 #define MF_PCI_MSIX_VECTORS 2
 
+struct mf_pci_irq_slot {
+	atomic64_t notifications;
+};
+
 struct mf_pci_device {
 	void __iomem *bar0;
 	void __iomem *bar2;
 	int irq_vectors;
+	unsigned int irq_requested;
+	struct mf_pci_irq_slot irq_slots[MF_PCI_MSIX_VECTORS];
 };
+
+static irqreturn_t mf_pci_irq_handler(int irq, void *context)
+{
+	struct mf_pci_irq_slot *slot = context;
+
+	if (slot == NULL || irq < 0)
+		return IRQ_NONE;
+	atomic64_inc(&slot->notifications);
+	return IRQ_HANDLED;
+}
 
 static bool mf_pci_mem_bar_matches(const struct pci_dev *pdev, int bar,
 					  resource_size_t expected_size)
@@ -68,12 +85,26 @@ static int mf_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		result = device->irq_vectors;
 		goto unmap_bar2;
 	}
+	for (device->irq_requested = 0; device->irq_requested < MF_PCI_MSIX_VECTORS;
+	     ++device->irq_requested) {
+		result = request_irq(pci_irq_vector(pdev, device->irq_requested), mf_pci_irq_handler, 0,
+				     "metaflux_pci", &device->irq_slots[device->irq_requested]);
+		if (result != 0)
+			goto free_irqs;
+	}
 	pci_set_master(pdev);
 	pci_set_drvdata(pdev, device);
 	dev_info(&pdev->dev, "static MetaFlux guest function ready (BAR0/BAR2/BAR4, %d MSI-X vectors)\n",
 		 device->irq_vectors);
 	return 0;
 
+free_irqs:
+	while (device->irq_requested > 0) {
+		--device->irq_requested;
+		free_irq(pci_irq_vector(pdev, device->irq_requested),
+			 &device->irq_slots[device->irq_requested]);
+	}
+	pci_free_irq_vectors(pdev);
 unmap_bar2:
 	pci_iounmap(pdev, device->bar2);
 unmap_bar0:
@@ -92,6 +123,11 @@ static void mf_pci_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 	if (device == NULL)
 		goto disable_device;
+	while (device->irq_requested > 0) {
+		--device->irq_requested;
+		free_irq(pci_irq_vector(pdev, device->irq_requested),
+			 &device->irq_slots[device->irq_requested]);
+	}
 	if (device->irq_vectors > 0)
 		pci_free_irq_vectors(pdev);
 	if (device->bar2 != NULL)
