@@ -22,9 +22,12 @@ userspace access, making it suitable for callback and config-access tests.
 
 The Kbuild module consumes a kernel-compatible projection of the same profile.
 Its `function_count` parameter controls logical functions visible to a
-subsequent PCI rescan, while the root bus `remove` path handles disappearance.
-Config access uses fixed storage, a spinlock, and the generated writable mask;
-no allocation, sleep, RPC, or userspace access occurs in the callback.
+subsequent PCI rescan. While the bridge is online the value may grow, but a
+decrease is rejected because the current kernel projection has no matching
+device-removal transaction; this keeps config callbacks and the PCI device list
+consistent. The root bus `remove` path handles complete disappearance. Config
+access uses fixed storage, a spinlock, and the generated writable mask; no
+allocation, sleep, RPC, or userspace access occurs in the callback.
 
 The presentation driver is intentionally named `metaflux_vroot`: the canonical
 vroot profile has no BAR or IRQ capability, so it must not bind the static guest

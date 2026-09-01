@@ -29,18 +29,25 @@ static int mf_vroot_set_function_count(const char *value,
 {
 	unsigned int count;
 	unsigned long flags;
+	unsigned int current_count;
 	int result;
 
 	(void)parameter;
 	result = kstrtouint(value, 0, &count);
 	if (result != 0 || count == 0U || count > MF_VROOT_PROFILE_MAX_FUNCTIONS)
 		return -EINVAL;
-	mf_vroot_function_count = count;
 	if (mf_vroot != NULL) {
 		spin_lock_irqsave(&mf_vroot->config_lock, flags);
+		current_count = mf_vroot->function_count;
+		/* A lower count cannot remove already scanned PCI functions safely. */
+		if (count < current_count) {
+			spin_unlock_irqrestore(&mf_vroot->config_lock, flags);
+			return -EBUSY;
+		}
 		mf_vroot->function_count = count;
 		spin_unlock_irqrestore(&mf_vroot->config_lock, flags);
 	}
+	mf_vroot_function_count = count;
 	return 0;
 }
 
@@ -213,6 +220,7 @@ static int __init mf_vroot_init(void)
 	if (result != 0) {
 		mf_vroot = NULL;
 		pci_unregister_driver(&mf_vroot_driver);
+		pci_free_host_bridge(bridge);
 		return result;
 	}
 	dev_info(&bridge->dev, "MetaFlux software PCI root ready: domain=%04x bus=%02x functions=%u\n",
