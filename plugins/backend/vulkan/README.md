@@ -52,8 +52,10 @@ target digest, workgroup and feature/address-space parity with preflight,
 `LocalInvocationId` coverage, Workgroup storage parity, and a packed argument
 block whose size follows the versioned 64-byte header plus 48-byte entry layout.
 Malformed or mismatched observations are rejected before shader-module creation.
-The contract is ready for a future MLIR/SPIR-V reflection producer; it does not
-claim module emission or `spirv-val` execution.
+The pinned Vulkan tool shell now runs `spirv-val --target-env vulkan1.3` against
+the generated compute fixture before the physical pipeline test. The contract
+is ready for a future MLIR/SPIR-V reflection producer; actual lowering remains
+separate from this validation gate.
 
 The runtime also contains a host-independent stream graph planner. It assigns
 monotonic timeline values, preserves same-stream FIFO, requires cross-stream

@@ -97,6 +97,11 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     NAMES glslangValidator
     HINTS "${METAFLUX_VULKAN_SDK_DIR}/bin"
   )
+  find_program(
+    METAFLUX_SPIRV_VAL
+    NAMES spirv-val
+    HINTS "${METAFLUX_VULKAN_SDK_DIR}/bin"
+  )
   set(METAFLUX_VULKAN_PIPELINE_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/metaflux-pipeline-fixture.spv")
   if(METAFLUX_GLSLANG_VALIDATOR)
     add_custom_command(
@@ -110,6 +115,18 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     )
     add_custom_target(metaflux_vulkan_pipeline_fixture
                       DEPENDS "${METAFLUX_VULKAN_PIPELINE_FIXTURE}")
+    if(METAFLUX_SPIRV_VAL)
+      add_dependencies(metaflux_vulkan_backend metaflux_vulkan_pipeline_fixture)
+      add_test(
+        NAME metaflux.backend.vulkan-spirv-validation
+        COMMAND "${METAFLUX_SPIRV_VAL}" --target-env vulkan1.3
+                "${METAFLUX_VULKAN_PIPELINE_FIXTURE}"
+      )
+      set_tests_properties(
+        metaflux.backend.vulkan-spirv-validation
+        PROPERTIES LABELS "backend;vulkan;compiler"
+      )
+    endif()
   endif()
   add_executable(metaflux_vulkan_pipeline_test tests/vulkan_pipeline_test.cpp)
   target_link_libraries(metaflux_vulkan_pipeline_test PRIVATE MetaFlux::VulkanBackend)
