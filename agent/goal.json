@@ -38,8 +38,8 @@
     {
       "id": "lane-generation-drain",
       "iteration": "iteration-0003",
-      "outcome": "Complete daemon/provider replacement-generation rebind and reference drain.",
-      "status": "integrated",
+      "outcome": "Establish daemon-owned lifecycle ingress, cdev mirror lifetime, and fault-to-loss routing; continue replacement-generation rebind and physical drain.",
+      "status": "deferred",
       "depends_on": [],
       "acceptance": [
         "New work cannot use a stale daemon/provider binding after lifecycle commit.",
