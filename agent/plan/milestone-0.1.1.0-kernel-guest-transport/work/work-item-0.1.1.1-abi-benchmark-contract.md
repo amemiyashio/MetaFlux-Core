@@ -67,8 +67,13 @@ until milestone-0.1.2.0 qualification.
 
 ## Work
 
-- [ ] Define ABI 0.x capability, ioctl, BAR, and DMA layouts while importing the
-  milestone-0.1.0.0 descriptor unchanged.
+- [x] Define ABI 0.x capability, ioctl, BAR, and DMA layouts while importing the
+  milestone-0.1.0.0 descriptor unchanged. Added `mf_transport_capability_v0` (128 bytes)
+  with backend_type, supported_opcodes, max_descriptor_args, max_copy_bytes,
+  max_launch_grid_dim, max_shared_memory_words, notification_modes, dma_coherency,
+  dma_max_segment_size, max_registered_regions, max_inflight_operations,
+  max_payload_bytes, eventfd_modes, and cancellation_support. Ioctl layouts already
+  defined in uapi.json; BAR layouts in mf_transport_bar_layout_v0.
 - [ ] Define local/guest buffer lifetimes and worker register/lease/attach/drain/
   revoke/death/credential rules.
 - [ ] Pin Linux, QEMU, libvfio-user, guest memory, and image inputs.
