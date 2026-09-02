@@ -1335,10 +1335,6 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
-  // Exercise the invalid backend/event cleanup branch after transport loss. The
-  // pending operation must keep its forced loss disposition even after the
-  // pending record is cleared.
-  reject_api.query_event = nullptr;
   reject_fixture.event_complete = true;
   if (reject_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
       reject_worker.backend_operation_pending() || reject_fixture.lease_releases != 1U ||
@@ -1352,6 +1348,9 @@ int main() {
   }
 
   request.request_id = 441U;
+  // Exercise the invalid backend/event cleanup branch after transport loss. The
+  // pending operation must keep its forced loss disposition even after the
+  // pending record is cleared.
   if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
       reject_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Idle ||
       !reject_worker.backend_operation_pending() || !reject_fixture.lease_active) {
@@ -1359,6 +1358,7 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
+  reject_api.query_event = nullptr;
   const metaflux::runtime::lifecycle::Request reject_loss{
       .request_id = 442U,
       .logical_device_id = 7U,
