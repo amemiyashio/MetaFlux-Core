@@ -200,8 +200,13 @@ Implemented stage:
   `ViewGateSnapshot`, `assert_view_gate_snapshot`, `view_gate_direct_scenarios`
   (21 checks), and `explore_view_gate` (2520 states, 5098 transitions) to
   `check-lifecycle-model.py`.
-- [ ] Generate positive, invalid, repeated, racing, and injected-failure model
-  fixtures from one schema.
+- [x] Generate positive, invalid, repeated, racing, and injected-failure model
+  fixtures from one schema. Added `generate_fixtures()` to `check-lifecycle-model.py`
+  with `--generate-fixtures` CLI option. Generates 32 fixtures across 5 categories:
+  positive (5 valid transitions), invalid (10 guard-violating sequences), repeated
+  (5 idempotent replay scenarios), racing (4 concurrent event pairs), and
+  injected_failure (8 pre_commit/post_commit fault points). Output is
+  language-neutral JSON consumable by any test harness.
 
 ## Exit Gate
 
