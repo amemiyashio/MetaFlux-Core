@@ -75,6 +75,21 @@ bool admission_guards() {
       AdmissionStatus::invalid_argument) {
     return false;
   }
+  auto unknown_feature = profile;
+  unknown_feature.feature_flags |= (UINT32_C(1) << 31U);
+  VulkanBackendAdmission unknown_feature_admission;
+  if (unknown_feature_admission.admit(unknown_feature, 42U, VulkanTransport::local_cdev) !=
+      AdmissionStatus::invalid_argument) {
+    return false;
+  }
+  auto unknown_memory_tier = profile;
+  unknown_memory_tier.memory_tier_flags |= (UINT32_C(1) << 31U);
+  VulkanBackendAdmission unknown_memory_tier_admission;
+  if (unknown_memory_tier_admission.admit(unknown_memory_tier, 42U,
+                                          VulkanTransport::local_cdev) !=
+      AdmissionStatus::invalid_argument) {
+    return false;
+  }
 
   VulkanBackendAdmission admission;
   if (admission.admit(profile, 42U, VulkanTransport::local_cdev) != AdmissionStatus::success ||

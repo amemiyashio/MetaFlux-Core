@@ -103,6 +103,18 @@ bool target_profile_guards() {
     return false;
   }
   target = profile();
+  target.feature_flags |= (UINT32_C(1) << 31U);
+  if (metaflux::backend::vulkan::validate_target_profile(target, 0U) !=
+      metaflux::backend::vulkan::TargetStatus::invalid_profile) {
+    return false;
+  }
+  target = profile();
+  target.memory_tier_flags |= (UINT32_C(1) << 31U);
+  if (metaflux::backend::vulkan::validate_target_profile(target, 0U) !=
+      metaflux::backend::vulkan::TargetStatus::invalid_profile) {
+    return false;
+  }
+  target = profile();
   target.reserved[0] = 1U;
   return metaflux::backend::vulkan::validate_target_profile(target, 0U) ==
          metaflux::backend::vulkan::TargetStatus::invalid_profile;

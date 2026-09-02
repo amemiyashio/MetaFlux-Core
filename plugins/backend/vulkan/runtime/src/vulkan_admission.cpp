@@ -74,6 +74,8 @@ bool valid_capability_profile(const mf_vulkan_capability_profile_v1& profile) no
          (profile.memory_tier_flags & MF_VULKAN_MEMORY_TIER_STAGING) != 0U &&
          profile.memory_heap_count != 0U && profile.memory_type_count != 0U &&
          profile.device_local_heap_bytes != 0U && profile.host_visible_heap_bytes != 0U &&
+         (profile.feature_flags & ~MF_VULKAN_KNOWN_FEATURE_FLAGS) == 0U &&
+         (profile.memory_tier_flags & ~MF_VULKAN_KNOWN_MEMORY_TIER_FLAGS) == 0U &&
          terminated_string(profile.target_environment, sizeof(profile.target_environment)) &&
          nonzero_bytes(profile.device_uuid, sizeof(profile.device_uuid)) &&
          nonzero_bytes(profile.driver_uuid, sizeof(profile.driver_uuid)) &&
