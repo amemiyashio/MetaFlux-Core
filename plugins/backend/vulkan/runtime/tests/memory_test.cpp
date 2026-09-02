@@ -324,6 +324,26 @@ bool visibility_range_and_coherent_guards() {
   return visibility.configure(0U, 64U) == VisibilityStatus::invalid_argument;
 }
 
+bool visibility_rejects_forged_allocation_tokens() {
+  using metaflux::backend::vulkan::MemoryVisibilityLedger;
+  using metaflux::backend::vulkan::VisibilityStatus;
+  const metaflux::backend::vulkan::StagingAllocation allocation{
+      .id = 21U, .generation = 6U, .offset = 0U, .size = 128U, .alignment = 64U};
+  MemoryVisibilityLedger visibility(6U, 64U);
+  if (visibility.register_allocation(allocation, true) != VisibilityStatus::success) {
+    return false;
+  }
+  auto forged = allocation;
+  forged.alignment = 128U;
+  if (visibility.host_write(forged, 0U, 1U, 6U) != VisibilityStatus::not_found ||
+      visibility.unregister_allocation(forged) != VisibilityStatus::not_found ||
+      visibility.host_write(allocation, 0U, 1U, 6U) != VisibilityStatus::success ||
+      visibility.unregister_allocation(allocation) != VisibilityStatus::success) {
+    return false;
+  }
+  return true;
+}
+
 bool visibility_partial_and_lifetime_guards() {
   using metaflux::backend::vulkan::MemoryVisibilityLedger;
   using metaflux::backend::vulkan::VisibilityStatus;
@@ -390,6 +410,7 @@ int main() {
                   profile_and_generation_guards() &&
                   timeline_guards() && non_coherent_visibility() &&
                   visibility_range_and_coherent_guards() &&
+                  visibility_rejects_forged_allocation_tokens() &&
                   visibility_partial_and_lifetime_guards();
   std::printf("vulkan memory model: %s\n", ok ? "pass" : "fail");
   return ok ? 0 : 1;

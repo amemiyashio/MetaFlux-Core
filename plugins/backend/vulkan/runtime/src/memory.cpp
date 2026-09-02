@@ -580,7 +580,8 @@ MemoryVisibilityLedger::unregister_allocation(const StagingAllocation& allocatio
         return record.allocation.id == allocation.id &&
                record.allocation.generation == allocation.generation &&
                record.allocation.offset == allocation.offset &&
-               record.allocation.size == allocation.size;
+               record.allocation.size == allocation.size &&
+               record.allocation.alignment == allocation.alignment;
       });
   if (position == records_.end()) {
     return VisibilityStatus::not_found;
@@ -760,7 +761,8 @@ MemoryVisibilityLedger::find(const StagingAllocation& allocation) noexcept {
         return record.allocation.id == allocation.id &&
                record.allocation.generation == allocation.generation &&
                record.allocation.offset == allocation.offset &&
-               record.allocation.size == allocation.size;
+               record.allocation.size == allocation.size &&
+               record.allocation.alignment == allocation.alignment;
       });
   return position == records_.end() ? nullptr : &*position;
 }
@@ -772,7 +774,8 @@ MemoryVisibilityLedger::find(const StagingAllocation& allocation) const noexcept
         return record.allocation.id == allocation.id &&
                record.allocation.generation == allocation.generation &&
                record.allocation.offset == allocation.offset &&
-               record.allocation.size == allocation.size;
+               record.allocation.size == allocation.size &&
+               record.allocation.alignment == allocation.alignment;
       });
   return position == records_.end() ? nullptr : &*position;
 }
