@@ -150,6 +150,20 @@ CommandResourcePool::find_slot(const CommandResource& resource) const noexcept {
   return position == slots_.end() ? nullptr : &*position;
 }
 
+CommandResourcePool::Slot*
+CommandResourcePool::find_exact_slot(const CommandResource& resource) noexcept {
+  Slot* slot = find_slot(resource);
+  return slot != nullptr && slot->resource.completion_value == resource.completion_value ? slot
+                                                                                           : nullptr;
+}
+
+const CommandResourcePool::Slot*
+CommandResourcePool::find_exact_slot(const CommandResource& resource) const noexcept {
+  const Slot* slot = find_slot(resource);
+  return slot != nullptr && slot->resource.completion_value == resource.completion_value ? slot
+                                                                                           : nullptr;
+}
+
 CommandResourceStatus CommandResourcePool::acquire(std::uint64_t generation,
                                                    std::uint64_t stream_id,
                                                    CommandResource* out_resource) noexcept {
@@ -225,7 +239,7 @@ CommandResourceStatus CommandResourcePool::discard(const CommandResource& resour
   if (resource.generation == 0U || resource.generation != generation_) {
     return CommandResourceStatus::stale_generation;
   }
-  Slot* slot = find_slot(resource);
+  Slot* slot = find_exact_slot(resource);
   if (slot == nullptr) {
     return CommandResourceStatus::not_found;
   }
@@ -425,6 +439,7 @@ QueueSubmissionStatus QueueSubmissionLedger::submit(std::uint64_t generation,
     static_cast<void>(resources_.cancel(resource));
     return map(submitted);
   }
+  resource.completion_value = completion_value;
   out_submission->plan = plan;
   out_submission->resource = resource;
   out_submission->completion_value = completion_value;

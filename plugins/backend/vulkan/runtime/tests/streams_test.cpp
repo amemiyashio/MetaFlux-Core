@@ -170,12 +170,19 @@ bool queue_submission_ledger_is_transactional() {
       submission.plan.generation != 7U || submission.plan.stream_id != 1U ||
       submission.resource.id == 0U || submission.resource.generation != 7U ||
       submission.resource.stream_id != 1U || submission.completion_value != 1U ||
+      submission.resource.completion_value != submission.completion_value ||
       ledger.available_count() != 0U || ledger.in_flight_count() != 1U ||
       ledger.next_completion_value() != 2U) {
     return false;
   }
 
   const auto accepted = submission;
+  auto forged = accepted;
+  forged.resource.completion_value += 1U;
+  if (ledger.discard(forged) != QueueSubmissionStatus::not_found ||
+      ledger.in_flight_count() != 1U) {
+    return false;
+  }
   status = ledger.submit(7U, 1U, OperationKind::copy, copy_visibility, {}, &submission);
   if (status != QueueSubmissionStatus::resource_exhausted || ledger.in_flight_count() != 1U ||
       ledger.next_completion_value() != 2U || submission.completion_value != 0U ||

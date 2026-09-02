@@ -138,6 +138,8 @@ private:
 
   [[nodiscard]] Slot* find_slot(const CommandResource& resource) noexcept;
   [[nodiscard]] const Slot* find_slot(const CommandResource& resource) const noexcept;
+  [[nodiscard]] Slot* find_exact_slot(const CommandResource& resource) noexcept;
+  [[nodiscard]] const Slot* find_exact_slot(const CommandResource& resource) const noexcept;
 
   std::vector<Slot> slots_;
   std::uint64_t generation_ = 0;
