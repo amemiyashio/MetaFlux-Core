@@ -66,6 +66,9 @@ private:
 
 [[nodiscard]] const char* pipeline_status_string(PipelineStatus status) noexcept;
 
+[[nodiscard]] PipelineStatus validate_spirv_binary(
+    std::span<const std::uint32_t> spirv) noexcept;
+
 } // namespace metaflux::backend::vulkan
 
 #endif

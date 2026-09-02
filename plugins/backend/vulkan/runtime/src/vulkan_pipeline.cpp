@@ -17,6 +17,15 @@ bool valid_entry_point(std::string_view entry_point) noexcept {
 
 } // namespace
 
+PipelineStatus validate_spirv_binary(std::span<const std::uint32_t> spirv) noexcept {
+  if (spirv.size() < 5U || spirv[0] != UINT32_C(0x07230203) ||
+      spirv[1] < UINT32_C(0x00010000) || (spirv[1] >> 16U) != 1U || spirv[3] == 0U ||
+      spirv[4] != 0U) {
+    return PipelineStatus::invalid_module;
+  }
+  return PipelineStatus::success;
+}
+
 VulkanComputePipeline::~VulkanComputePipeline() noexcept { destroy(); }
 
 PipelineStatus VulkanComputePipeline::map_result(VkResult result) noexcept {
@@ -51,9 +60,9 @@ PipelineStatus VulkanComputePipeline::create(std::span<const std::uint32_t> spir
     return context_ != nullptr && context_->lost() ? PipelineStatus::device_lost
                                                     : PipelineStatus::not_ready;
   }
-  if (spirv.empty() || layout == VK_NULL_HANDLE || !valid_entry_point(entry_point) ||
+  if (layout == VK_NULL_HANDLE || !valid_entry_point(entry_point) ||
       spirv.size() > std::numeric_limits<std::size_t>::max() / sizeof(std::uint32_t) ||
-      spirv.front() != UINT32_C(0x07230203)) {
+      validate_spirv_binary(spirv) != PipelineStatus::success) {
     return PipelineStatus::invalid_argument;
   }
 

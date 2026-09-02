@@ -89,6 +89,22 @@ bool invalid_guards() {
              PipelineStatus::compile_required)) == "compile-required";
 }
 
+bool validates_spirv_header() {
+  using metaflux::backend::vulkan::PipelineStatus;
+  const std::array<std::uint32_t, 5> valid{
+      UINT32_C(0x07230203), UINT32_C(0x00010000), 0U, 1U, 0U};
+  const auto expect_invalid = [](std::array<std::uint32_t, 5> words) {
+    return metaflux::backend::vulkan::validate_spirv_binary(words) ==
+           PipelineStatus::invalid_module;
+  };
+  return metaflux::backend::vulkan::validate_spirv_binary(valid) == PipelineStatus::success &&
+         metaflux::backend::vulkan::validate_spirv_binary({}) == PipelineStatus::invalid_module &&
+         expect_invalid({0U, valid[1], valid[2], valid[3], valid[4]}) &&
+         expect_invalid({valid[0], 0U, valid[2], valid[3], valid[4]}) &&
+         expect_invalid({valid[0], valid[1], valid[2], 0U, valid[4]}) &&
+         expect_invalid({valid[0], valid[1], valid[2], valid[3], 1U});
+}
+
 bool invalid_cache_guard() {
   using metaflux::backend::vulkan::PipelineCacheStatus;
   using metaflux::backend::vulkan::VulkanPipelineCache;
@@ -337,7 +353,7 @@ bool physical_pipeline_round_trip() {
 } // namespace
 
 int main() {
-  if (!invalid_guards() || !invalid_cache_guard()) {
+  if (!invalid_guards() || !validates_spirv_header() || !invalid_cache_guard()) {
     return 1;
   }
 #ifdef METAFLUX_VULKAN_PIPELINE_FIXTURE
