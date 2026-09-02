@@ -87,10 +87,22 @@ def records(document: dict[str, Any], path: Path) -> list[dict[str, Any]]:
                 raise SchemaError(f"{path}:{name}.{field_name}: extends past record size")
             if field.get("reserved") and not field_name.startswith("reserved"):
                 raise SchemaError(f"{path}:{name}.{field_name}: reserved field must be named reserved*")
+            if field.get("reserved") and not field_type.startswith("bytes["):
+                raise SchemaError(f"{path}:{name}.{field_name}: reserved field must be byte storage")
             for old_offset, old_end, old_name in occupied:
                 if offset < old_end and old_offset < end:
                     raise SchemaError(f"{path}:{name}: fields {old_name} and {field_name} overlap")
             occupied.append((offset, end, field_name))
+        occupied.sort()
+        cursor = 0
+        for offset, end, field_name in occupied:
+            if offset != cursor:
+                raise SchemaError(
+                    f"{path}:{name}: uncovered bytes between {cursor} and {offset}"
+                )
+            cursor = end
+        if cursor != size:
+            raise SchemaError(f"{path}:{name}: uncovered bytes between {cursor} and {size}")
         record_copy = dict(record)
         record_copy["_path"] = str(path)
         result.append(record_copy)

@@ -24,6 +24,7 @@
         {"name": "max_inflight", "offset": 72, "width": 4, "type": "u32"},
         {"name": "dma_width", "offset": 76, "width": 4, "type": "u32"},
         {"name": "dma_alignment", "offset": 80, "width": 4, "type": "u32"},
+        {"name": "reserved0", "offset": 84, "width": 4, "type": "bytes[4]", "reserved": true},
         {"name": "reserved", "offset": 88, "width": 40, "type": "bytes[40]", "reserved": true}
       ]
     },

@@ -132,6 +132,13 @@ Kernel copy_kernel() {
   return kernel;
 }
 
+Kernel arithmetic_kernel(Opcode opcode, const char* name) {
+  Kernel kernel = add_kernel();
+  kernel.name = name;
+  kernel.operations[16] = op(opcode, 15U, {13U, 14U});
+  return kernel;
+}
+
 Kernel shared_barrier_kernel() {
   Kernel kernel{
       .name = "shared_reverse",
@@ -273,6 +280,24 @@ bool valid_copy_lowering() {
   return valid;
 }
 
+bool valid_elementwise_u32_lowering() {
+  const auto profile = target();
+  const auto validate = [&profile](Opcode opcode, SpirvSemanticOpcode semantic,
+                                   const char* mlir_opcode, const char* name) {
+    SpirvLoweredModule module{};
+    const auto result = metaflux::backend::vulkan::lower_kernel(
+        arithmetic_kernel(opcode, name), profile, {8U, 1U, 1U}, &module);
+    return result.status == LoweringStatus::success && module.instructions.size() == 19U &&
+           module.instructions[16].opcode == semantic &&
+           module.mlir_text.find(mlir_opcode) != std::string::npos &&
+           module.spirv_binary.size() > 5U && module.spirv_binary[0] == 0x07230203U;
+  };
+  return validate(Opcode::SubU32, SpirvSemanticOpcode::subtract_u32, "arith.subi",
+                  "subtract_u32") &&
+         validate(Opcode::MultiplyLoU32, SpirvSemanticOpcode::multiply_low_u32, "arith.muli",
+                  "multiply_u32");
+}
+
 bool valid_shared_barrier_lowering() {
   const auto profile = target();
   SpirvLoweredModule module{};
@@ -355,7 +380,9 @@ bool independently_validates_spirv() {
     }
     return valid;
   };
-  return validate(add_kernel()) && validate(copy_kernel()) && validate(shared_barrier_kernel());
+  return validate(add_kernel()) && validate(copy_kernel()) && validate(shared_barrier_kernel()) &&
+         validate(arithmetic_kernel(Opcode::SubU32, "subtract_u32")) &&
+         validate(arithmetic_kernel(Opcode::MultiplyLoU32, "multiply_u32"));
 #else
   std::cout << "Vulkan lowering: spirv-val unavailable; independent validation skipped\n";
   return true;
@@ -364,12 +391,18 @@ bool independently_validates_spirv() {
 
 bool unsupported_semantics_fail_before_emission() {
   auto kernel = add_kernel();
-  kernel.operations[16] = op(Opcode::SubU32, 15U, {13U, 14U});
+  kernel.registers[13].kind = ValueKind::F32;
+  kernel.registers[14].kind = ValueKind::F32;
+  kernel.registers[15].kind = ValueKind::F32;
+  kernel.operations[14] = op(Opcode::LoadGlobalF32, 13U, {11U});
+  kernel.operations[15] = op(Opcode::LoadGlobalF32, 14U, {12U});
+  kernel.operations[16] = op(Opcode::AddRnF32, 15U, {13U, 14U});
+  kernel.operations[17] = op(Opcode::StoreGlobalF32, metaflux::compiler::kNoValue, {10U, 15U});
   SpirvLoweredModule module{};
   const auto result = metaflux::backend::vulkan::lower_kernel(
       kernel, target(), {8U, 1U, 1U}, &module);
   return result.status == LoweringStatus::unsupported_semantics &&
-         result.diagnostic.find("verified u32 Add/Copy form") != std::string::npos &&
+         result.diagnostic.find("verified u32 Add/Sub/Multiply/Copy forms") != std::string::npos &&
          module.spirv_binary.empty() && module.mlir_text.empty();
 }
 
@@ -397,7 +430,7 @@ bool invalid_inputs() {
 
 int main() {
   return valid_add_lowering() && valid_copy_lowering() && valid_shared_barrier_lowering() &&
-         independently_validates_spirv() &&
+         valid_elementwise_u32_lowering() && independently_validates_spirv() &&
                  unsupported_semantics_fail_before_emission() && invalid_inputs()
              ? 0
              : 1;

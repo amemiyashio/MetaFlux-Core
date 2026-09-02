@@ -225,7 +225,7 @@ std::string text_for(const SpirvLoweredModule& module) {
   return output.str();
 }
 
-bool is_add_u32_kernel(const compiler::Kernel& kernel) noexcept {
+bool is_elementwise_u32_kernel(const compiler::Kernel& kernel, Opcode arithmetic) noexcept {
   using enum Opcode;
   constexpr std::array<Opcode, 19> kOperations{
       LoadParameterAddress, LoadParameterAddress, LoadParameterAddress, LoadParameterU32,
@@ -242,16 +242,23 @@ bool is_add_u32_kernel(const compiler::Kernel& kernel) noexcept {
     return false;
   }
   for (std::size_t index = 0U; index < kOperations.size(); ++index) {
+    if (index == 16U) {
+      continue;
+    }
     if (kernel.operations[index].opcode != kOperations[index]) {
       return false;
     }
   }
-  return kernel.operations[4].attribute ==
+  return kernel.operations[16].opcode == arithmetic && kernel.operations[4].attribute ==
              static_cast<std::uint32_t>(SpecialRegister::ThreadIdX) &&
          kernel.operations[5].attribute ==
              static_cast<std::uint32_t>(SpecialRegister::BlockIdX) &&
          kernel.operations[6].attribute ==
              static_cast<std::uint32_t>(SpecialRegister::BlockDimX);
+}
+
+bool is_add_u32_kernel(const compiler::Kernel& kernel) noexcept {
+  return is_elementwise_u32_kernel(kernel, Opcode::AddU32);
 }
 
 bool is_copy_u32_kernel(const compiler::Kernel& kernel) noexcept {
@@ -325,7 +332,8 @@ std::string mlir_symbol(std::string_view name) {
 
 std::string actual_mlir_source(const compiler::Kernel& kernel,
                                const std::array<std::uint32_t, 3>& workgroup_size,
-                               bool copy_form, bool static_shared_barrier_form) {
+                               bool copy_form, bool static_shared_barrier_form,
+                               Opcode elementwise_operation) {
   std::ostringstream output;
   output << "module attributes {\n"
          << "  gpu.container_module,\n"
@@ -388,7 +396,11 @@ std::string actual_mlir_source(const compiler::Kernel& kernel,
                  "#spirv.storage_class<StorageBuffer>>\n"
               << "        %b = memref.load %arg1[%idx] : memref<?xi32, "
                  "#spirv.storage_class<StorageBuffer>>\n"
-              << "        %sum = arith.addi %a, %b : i32\n"
+              << "        %sum = arith."
+              << (elementwise_operation == Opcode::SubU32
+                      ? "subi"
+                      : elementwise_operation == Opcode::MultiplyLoU32 ? "muli" : "addi")
+              << " %a, %b : i32\n"
               << "        memref.store %sum, %arg2[%idx] : memref<?xi32, "
                  "#spirv.storage_class<StorageBuffer>>\n";
     }
@@ -415,17 +427,24 @@ LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
                                  const std::array<std::uint32_t, 3>& workgroup_size,
                                  SpirvLoweredModule* module) {
   const bool add_form = is_add_u32_kernel(kernel);
+  const bool subtract_form = is_elementwise_u32_kernel(kernel, Opcode::SubU32);
+  const bool multiply_form = is_elementwise_u32_kernel(kernel, Opcode::MultiplyLoU32);
   const bool copy_form = is_copy_u32_kernel(kernel);
   const bool static_shared_barrier_form = is_static_shared_barrier_kernel(kernel);
-  if (!add_form && !copy_form && !static_shared_barrier_form) {
+  if (!add_form && !subtract_form && !multiply_form && !copy_form &&
+      !static_shared_barrier_form) {
     return {.status = LoweringStatus::unsupported_semantics,
             .diagnostic =
-                "actual MLIR/SPIR-V emission currently supports the verified u32 Add/Copy form"};
+                "actual MLIR/SPIR-V emission currently supports verified u32 Add/Sub/Multiply/Copy forms"};
   }
 
   try {
-    const auto source =
-        actual_mlir_source(kernel, workgroup_size, copy_form, static_shared_barrier_form);
+    const auto source = actual_mlir_source(
+        kernel, workgroup_size, copy_form, static_shared_barrier_form,
+        add_form     ? Opcode::AddU32
+        : subtract_form ? Opcode::SubU32
+        : multiply_form ? Opcode::MultiplyLoU32
+                        : Opcode::Return);
     mlir::DialectRegistry registry;
     registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect, mlir::gpu::GPUDialect,
                     mlir::memref::MemRefDialect, mlir::scf::SCFDialect,
