@@ -26,13 +26,14 @@ using metaflux::compiler::SpecialRegister;
 using metaflux::compiler::ValueKind;
 
 Operation op(Opcode opcode, std::uint32_t result, std::initializer_list<std::uint32_t> inputs,
-             std::uint32_t attribute = 0U) {
+             std::uint32_t attribute = 0U, bool flag = false) {
   Operation result_operation{
       .opcode = opcode,
       .result = result,
       .inputs = {},
       .input_count = static_cast<std::uint32_t>(inputs.size()),
       .attribute = attribute,
+      .flag = flag,
   };
   std::size_t index = 0U;
   for (const auto input : inputs) {
@@ -180,6 +181,34 @@ Kernel conversion_kernel(Opcode opcode, const char* name) {
   kernel.operations[16] = op(opcode, 15U, {13U});
   kernel.operations[17] = op(store, metaflux::compiler::kNoValue, {10U, 15U});
   return kernel;
+}
+
+Kernel predicate_f32_kernel() {
+  return Kernel{
+      .name = "predicate_lt_f32",
+      .parameters = {Parameter{.kind = ParameterKind::BufferU32},
+                     Parameter{.kind = ParameterKind::BufferU32},
+                     Parameter{.kind = ParameterKind::ScalarF32}},
+      .shared_allocations = {},
+      .registers = {Register{.kind = ValueKind::GlobalAddress}, Register{.kind = ValueKind::GlobalAddress},
+                    Register{.kind = ValueKind::F32}, Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::U64}, Register{.kind = ValueKind::GlobalAddress},
+                    Register{.kind = ValueKind::GlobalAddress}, Register{.kind = ValueKind::F32},
+                    Register{.kind = ValueKind::Predicate}},
+      .operations = {op(Opcode::LoadParameterAddress, 0U, {}, 0U),
+                     op(Opcode::LoadParameterAddress, 1U, {}, 1U),
+                     op(Opcode::LoadParameterF32, 2U, {}, 2U),
+                     op(Opcode::MoveSpecialU32, 3U, {},
+                        static_cast<std::uint32_t>(SpecialRegister::ThreadIdX)),
+                     op(Opcode::MultiplyWideU32, 4U, {3U}, 4U),
+                     op(Opcode::AddGlobalAddress, 5U, {1U, 4U}),
+                     op(Opcode::AddGlobalAddress, 6U, {0U, 4U}),
+                     op(Opcode::LoadGlobalF32, 7U, {5U}),
+                     op(Opcode::SetPredicateLtF32, 8U, {7U, 2U}),
+                     op(Opcode::BranchIf, metaflux::compiler::kNoValue, {8U}, 11U, true),
+                     op(Opcode::StoreGlobalF32, metaflux::compiler::kNoValue, {6U, 7U}),
+                     op(Opcode::Return, metaflux::compiler::kNoValue, {})},
+  };
 }
 
 Kernel shared_barrier_kernel() {
@@ -431,6 +460,30 @@ bool valid_elementwise_conversion_lowering() {
                   "arith.fptoui", "convert_u32_f32");
 }
 
+bool valid_f32_predicate_lowering() {
+  SpirvLoweredModule module{};
+  const auto result = metaflux::backend::vulkan::lower_kernel(
+      predicate_f32_kernel(), target(), {8U, 1U, 1U}, &module);
+  const bool valid = result.status == LoweringStatus::success && module.instructions.size() == 12U &&
+         module.instructions[8].opcode == SpirvSemanticOpcode::compare_f32 &&
+         module.instructions[9].opcode == SpirvSemanticOpcode::branch_conditional &&
+         module.mlir_text.find("arith.cmpf") != std::string::npos &&
+         module.mlir_text.find("scf.if") != std::string::npos &&
+         module.mlir_text.find("memref.store") != std::string::npos &&
+         module.spirv_binary.size() > 5U && module.spirv_binary[0] == 0x07230203U;
+  if (!valid) {
+    std::cerr << "Vulkan predicate lowering failure: status="
+              << metaflux::backend::vulkan::lowering_status_string(result.status)
+              << " diagnostic=" << result.diagnostic << " instructions="
+              << module.instructions.size() << " mlir-bytes=" << module.mlir_text.size()
+              << " spirv-words=" << module.spirv_binary.size() << '\n';
+    if (!module.mlir_text.empty()) {
+      std::cerr << module.mlir_text << '\n';
+    }
+  }
+  return valid;
+}
+
 bool valid_shared_barrier_lowering() {
   const auto profile = target();
   SpirvLoweredModule module{};
@@ -529,7 +582,8 @@ bool independently_validates_spirv() {
          validate(arithmetic_f32_kernel(Opcode::MultiplyRnF32, "multiply_f32")) &&
          validate(arithmetic_f32_kernel(Opcode::MadRnF32, "mad_f32")) &&
          validate(conversion_kernel(Opcode::ConvertRnF32U32, "convert_f32_u32")) &&
-         validate(conversion_kernel(Opcode::ConvertRziU32F32, "convert_u32_f32"));
+         validate(conversion_kernel(Opcode::ConvertRziU32F32, "convert_u32_f32")) &&
+         validate(predicate_f32_kernel());
 #else
   std::cout << "Vulkan lowering: spirv-val unavailable; independent validation skipped\n";
   return true;
@@ -542,7 +596,7 @@ bool unsupported_semantics_fail_before_emission() {
   const auto result = metaflux::backend::vulkan::lower_kernel(
       kernel, target(), {8U, 1U, 1U}, &module);
   const bool valid = result.status == LoweringStatus::unsupported_semantics &&
-         result.diagnostic.find("verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad, u32<->f32 conversions, and Copy forms") != std::string::npos &&
+         result.diagnostic.find("verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad, u32<->f32 conversions, f32 predicates, and Copy forms") != std::string::npos &&
          module.spirv_binary.empty() && module.mlir_text.empty();
   if (!valid) {
     std::cerr << "Vulkan unsupported semantics failure: status="
@@ -603,6 +657,10 @@ int main() {
   }
   if (!valid_elementwise_conversion_lowering()) {
     std::cerr << "Vulkan lowering stage failed: conversions\n";
+    return 1;
+  }
+  if (!valid_f32_predicate_lowering()) {
+    std::cerr << "Vulkan lowering stage failed: f32-predicate\n";
     return 1;
   }
   if (!independently_validates_spirv()) {
