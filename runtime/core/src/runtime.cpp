@@ -830,6 +830,142 @@ mf_shared_status_v1 RegistryView::make_handle(std::uint32_t device_index, std::u
   return MF_SHARED_SUCCESS;
 }
 
+mf_shared_status_v1 RegistryView::publish_device_identity(
+    std::uint32_t device_index, std::uint64_t expected_identity_record_id,
+    std::uint64_t expected_generation, std::uint64_t next_identity_record_id,
+    std::uint64_t next_generation, const FenceSnapshot& intended_fence) noexcept {
+  if (device_index >= device_count_ || expected_identity_record_id == 0U ||
+      expected_generation == 0U || next_identity_record_id <= expected_identity_record_id ||
+      next_generation <= expected_generation || intended_fence.identity_record_id !=
+                                                   next_identity_record_id ||
+      intended_fence.lifecycle_sequence == 0U || intended_fence.device_state !=
+                                                   MF_DEVICE_STATE_ONLINE ||
+      mf_view_admission_state_v1(mf_atomic_load_u64_acquire(&view_admission_->state_generation)) !=
+          MF_VIEW_ADMISSION_OPEN) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  if (identities_[device_index].identity_record_id != expected_identity_record_id ||
+      identities_[device_index].committed_generation != expected_generation) {
+    return MF_SHARED_STALE_HANDLE;
+  }
+
+  FenceSnapshot current_fence{};
+  std::uint64_t current_fence_latch = 0U;
+  if (stable_fence(device_index, current_fence, current_fence_latch) != MF_SHARED_SUCCESS) {
+    return MF_SHARED_RETRY;
+  }
+  if (intended_fence.lifecycle_sequence <= current_fence.lifecycle_sequence) {
+    return MF_SHARED_STALE_HANDLE;
+  }
+
+  auto& device_control = device_admission_[device_index].state_generation_tag;
+  const std::uint64_t expected_device = mf_atomic_load_u64_seq_cst(&device_control);
+  if (mf_device_admission_state_v1(expected_device) != MF_DEVICE_ADMISSION_OPEN) {
+    return mf_device_admission_state_v1(expected_device) == MF_DEVICE_ADMISSION_UPDATING
+               ? MF_SHARED_RETRY
+               : MF_SHARED_DEVICE_LOST;
+  }
+  const std::uint32_t validation_generation =
+      mf_device_admission_generation_v1(expected_device);
+  if (validation_generation == 0U || validation_generation >= MF_DEVICE_GENERATION_MAX_NORMAL) {
+    return MF_SHARED_RESOURCE_EXHAUSTED;
+  }
+  const std::uint32_t next_validation_generation = validation_generation + 1U;
+  const std::uint32_t update_tag = static_cast<std::uint32_t>(intended_fence.lifecycle_sequence);
+  const std::uint64_t updating = mf_device_admission_pack_v1(
+      next_validation_generation, MF_DEVICE_ADMISSION_UPDATING, update_tag == 0U ? 1U : update_tag);
+  std::uint64_t expected = expected_device;
+  if (!mf_atomic_compare_exchange_u64_seq_cst(&device_control, &expected, updating)) {
+    return mf_device_admission_state_v1(expected) == MF_DEVICE_ADMISSION_CLOSED
+               ? MF_SHARED_DEVICE_LOST
+               : MF_SHARED_RETRY;
+  }
+
+  const auto restore_device = [&]() noexcept -> mf_shared_status_v1 {
+    std::uint64_t restore_expected = updating;
+    if (!mf_atomic_compare_exchange_u64_seq_cst(&device_control, &restore_expected,
+                                                expected_device)) {
+      return MF_SHARED_DEVICE_LOST;
+    }
+    return MF_SHARED_RETRY;
+  };
+
+  const std::uint64_t control_even =
+      mf_atomic_load_u64_acquire(&view_control_->control_latch_sequence);
+  if ((control_even & 1U) != 0U ||
+      control_even > std::numeric_limits<std::uint64_t>::max() - 2U) {
+    return restore_device();
+  }
+  expected = control_even;
+  if (!mf_atomic_compare_exchange_u64_seq_cst(&view_control_->control_latch_sequence, &expected,
+                                              control_even + 1U)) {
+    return restore_device();
+  }
+
+  const std::uint64_t fence_even =
+      mf_atomic_load_u64_acquire(&fences_[device_index].fence_latch_sequence);
+  if ((fence_even & 1U) != 0U || fence_even > std::numeric_limits<std::uint64_t>::max() - 2U) {
+    mf_atomic_store_u64_release(&view_control_->control_latch_sequence, control_even + 2U);
+    const mf_shared_status_v1 restored = restore_device();
+    return fence_even > std::numeric_limits<std::uint64_t>::max() - 2U ? MF_SHARED_OVERFLOW
+                                                                       : restored;
+  }
+  expected = fence_even;
+  if (!mf_atomic_compare_exchange_u64_seq_cst(&fences_[device_index].fence_latch_sequence,
+                                              &expected, fence_even + 1U)) {
+    mf_atomic_store_u64_release(&view_control_->control_latch_sequence, control_even + 2U);
+    return restore_device();
+  }
+
+  const std::uint64_t telemetry_even =
+      mf_atomic_load_u64_acquire(&telemetry_control_->telemetry_latch_sequence);
+  if ((telemetry_even & 1U) != 0U ||
+      telemetry_even > std::numeric_limits<std::uint64_t>::max() - 2U) {
+    mf_atomic_store_u64_release(&fences_[device_index].fence_latch_sequence, fence_even + 2U);
+    mf_atomic_store_u64_release(&view_control_->control_latch_sequence, control_even + 2U);
+    const mf_shared_status_v1 restored = restore_device();
+    return telemetry_even > std::numeric_limits<std::uint64_t>::max() - 2U
+               ? MF_SHARED_OVERFLOW
+               : restored;
+  }
+  expected = telemetry_even;
+  if (!mf_atomic_compare_exchange_u64_seq_cst(&telemetry_control_->telemetry_latch_sequence,
+                                              &expected, telemetry_even + 1U)) {
+    mf_atomic_store_u64_release(&fences_[device_index].fence_latch_sequence, fence_even + 2U);
+    mf_atomic_store_u64_release(&view_control_->control_latch_sequence, control_even + 2U);
+    return restore_device();
+  }
+
+  identities_[device_index].identity_record_id = next_identity_record_id;
+  identities_[device_index].committed_generation = next_generation;
+  device_admission_[device_index].identity_record_id = next_identity_record_id;
+  auto& fence = fences_[device_index];
+  mf_atomic_store_u64_relaxed(&fence.identity_record_id, intended_fence.identity_record_id);
+  mf_atomic_store_u64_relaxed(&fence.lifecycle_sequence, intended_fence.lifecycle_sequence);
+  mf_atomic_store_u64_relaxed(&fence.epoch, intended_fence.epoch);
+  mf_atomic_store_u64_relaxed(&fence.effective_quota_bytes, intended_fence.effective_quota_bytes);
+  mf_atomic_store_u64_relaxed(&fence.policy_bits, intended_fence.policy_bits);
+  mf_atomic_store_u32_relaxed(&fence.device_state, intended_fence.device_state);
+  for (std::uint32_t bank = 0U; bank < 2U; ++bank) {
+    auto& row = telemetry_banks_[bank][device_index];
+    mf_atomic_store_u64_relaxed(&row.identity_record_id, next_identity_record_id);
+    mf_atomic_store_u64_relaxed(&row.observed_lifecycle_sequence,
+                                intended_fence.lifecycle_sequence);
+  }
+  mf_atomic_thread_fence_release();
+  mf_atomic_store_u64_release(&telemetry_control_->telemetry_latch_sequence, telemetry_even + 2U);
+  mf_atomic_store_u64_release(&fences_[device_index].fence_latch_sequence, fence_even + 2U);
+  mf_atomic_store_u64_release(&view_control_->control_latch_sequence, control_even + 2U);
+
+  std::uint64_t reopen_expected = updating;
+  if (!mf_atomic_compare_exchange_u64_seq_cst(
+          &device_control, &reopen_expected,
+          mf_device_admission_pack_v1(next_validation_generation, MF_DEVICE_ADMISSION_OPEN, 0U))) {
+    return MF_SHARED_DEVICE_LOST;
+  }
+  return MF_SHARED_SUCCESS;
+}
+
 mf_shared_status_v1 RegistryView::validate_device(const mf_generation_handle_v1& handle,
                                                   FenceSnapshot& out_fence) const noexcept {
   if (!mf_registry_view_id_equal_v1(handle.registry_view_id, view_id_)) {

@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <limits>
 #include <span>
 #include <thread>
@@ -119,11 +120,114 @@ void release_mapping(void* mapping, std::uint64_t bytes) {
   return ok;
 }
 
+[[nodiscard]] bool replacement_identity_publication_tests() {
+  std::uint64_t mapping_size = 0U;
+  if (RegistryView::required_recovery_mapping_size(UINT32_C(1), mapping_size) != MF_SHARED_SUCCESS) {
+    return false;
+  }
+  void* mapping = allocate_mapping(mapping_size);
+  if (mapping == MAP_FAILED) {
+    return false;
+  }
+  std::array<mf_virtual_device_identity_v1, 1> identities{make_identity()};
+  std::array<FenceSnapshot, 1> fences{{{
+      .identity_record_id = UINT64_C(101),
+      .lifecycle_sequence = UINT64_C(1),
+      .epoch = UINT64_C(1),
+      .effective_quota_bytes = UINT64_C(4096),
+      .policy_bits = UINT64_C(7),
+      .device_state = MF_DEVICE_STATE_ONLINE,
+  }}};
+  RegistryView view;
+  if (RegistryView::initialize(mapping, mapping_size, {UINT64_C(0xdef), UINT64_C(9)}, UINT64_C(1),
+                               identities, fences, view) != MF_SHARED_SUCCESS) {
+    release_mapping(mapping, mapping_size);
+    return false;
+  }
+  const auto fail = [&](const char* stage) noexcept {
+    std::fprintf(stderr, "replacement failure: %s\\n", stage);
+    (void)view.close();
+    release_mapping(mapping, mapping_size);
+    return false;
+  };
+  mf_generation_handle_v1 old_handle{};
+  if (view.make_handle(0U, UINT64_C(55), UINT64_C(1), UINT32_C(9), old_handle) !=
+          MF_SHARED_SUCCESS ||
+      old_handle.identity_record_id != UINT64_C(101) || old_handle.device_generation != UINT64_C(7)) {
+    return fail("old handle");
+  }
+
+  const FenceSnapshot replacement{
+      .identity_record_id = UINT64_C(202),
+      .lifecycle_sequence = UINT64_C(2),
+      .epoch = UINT64_C(2),
+      .effective_quota_bytes = UINT64_C(8192),
+      .policy_bits = UINT64_C(11),
+      .device_state = MF_DEVICE_STATE_ONLINE,
+  };
+  if (view.publish_device_identity(0U, UINT64_C(101), UINT64_C(7), UINT64_C(202), UINT64_C(8),
+                                   replacement) != MF_SHARED_SUCCESS) {
+    return fail("publish identity");
+  }
+  mf_generation_handle_v1 new_handle{};
+  FenceSnapshot observed{};
+  if (view.make_handle(0U, UINT64_C(55), UINT64_C(1), UINT32_C(9), new_handle) !=
+          MF_SHARED_SUCCESS ||
+      new_handle.identity_record_id != UINT64_C(202) ||
+      new_handle.device_generation != UINT64_C(8)) {
+    return fail("new handle");
+  }
+  if (view.validate_device(old_handle, observed) != MF_SHARED_STALE_HANDLE) {
+    return fail("old validation");
+  }
+  if (view.validate_device(new_handle, observed) != MF_SHARED_SUCCESS ||
+      observed.identity_record_id != UINT64_C(202) ||
+      observed.lifecycle_sequence != UINT64_C(2)) {
+    return fail("new validation");
+  }
+
+  std::array<mf_virtual_device_telemetry_v1, 1> rows{};
+  rows[0].identity_record_id = UINT64_C(202);
+  rows[0].observed_lifecycle_sequence = UINT64_C(2);
+  const mf_shared_status_v1 telemetry_status = view.publish_telemetry(rows);
+  if (telemetry_status != MF_SHARED_SUCCESS) {
+    std::fprintf(stderr, "replacement telemetry status=%d\\n", telemetry_status);
+    return fail("telemetry publish");
+  }
+  TelemetrySnapshot telemetry{};
+  if (view.read_telemetry(new_handle, telemetry) != MF_SHARED_SUCCESS ||
+      telemetry.identity_record_id != UINT64_C(202) ||
+      telemetry.observed_lifecycle_sequence != UINT64_C(2)) {
+    return fail("telemetry read");
+  }
+  const FenceSnapshot stale_replacement{
+      .identity_record_id = UINT64_C(303),
+      .lifecycle_sequence = UINT64_C(3),
+      .epoch = UINT64_C(3),
+      .effective_quota_bytes = UINT64_C(8192),
+      .policy_bits = UINT64_C(11),
+      .device_state = MF_DEVICE_STATE_ONLINE,
+  };
+  if (view.publish_device_identity(0U, UINT64_C(101), UINT64_C(7), UINT64_C(303), UINT64_C(9),
+                                   stale_replacement) != MF_SHARED_STALE_HANDLE) {
+    return fail("stale identity publish");
+  }
+  if (view.close() != MF_SHARED_SUCCESS) {
+    release_mapping(mapping, mapping_size);
+    return false;
+  }
+  release_mapping(mapping, mapping_size);
+  return true;
+}
+
 } // namespace
 
 int main() {
   if (!legacy_telemetry_fence_tests()) {
     return 15;
+  }
+  if (!replacement_identity_publication_tests()) {
+    return 16;
   }
   std::uint64_t mapping_size = 0;
   if (RegistryView::required_recovery_mapping_size(UINT32_C(1), mapping_size) !=

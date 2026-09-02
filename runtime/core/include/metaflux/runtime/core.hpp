@@ -100,6 +100,12 @@ public:
                                                 std::uint32_t object_type,
                                                 mf_generation_handle_v1& out_handle) const noexcept;
 
+  /* Commit a replacement identity and generation under the shared-view latches. */
+  [[nodiscard]] mf_shared_status_v1 publish_device_identity(
+      std::uint32_t device_index, std::uint64_t expected_identity_record_id,
+      std::uint64_t expected_generation, std::uint64_t next_identity_record_id,
+      std::uint64_t next_generation, const FenceSnapshot& intended_fence) noexcept;
+
   [[nodiscard]] mf_shared_status_v1 validate_device(const mf_generation_handle_v1& handle,
                                                     FenceSnapshot& out_fence) const noexcept;
 

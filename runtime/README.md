@@ -47,3 +47,10 @@ lease from escaping the central scan. Telemetry uses one tagged publisher, atomi
 bank/control payload words, and a dedicated 64-bit no-wrap odd/even latch. Exact
 commit recovery never replays a bank, and a live expired publisher quarantines the
 mapping before bank reuse can alias a slow reader.
+
+Replacement authorities publish a new identity record and committed generation
+through `RegistryView::publish_device_identity`. The operation holds the device
+admission and shared publication latches together, updates lifecycle and telemetry
+identity fields, and makes handles from the previous generation stale before the
+device is reopened. Transport owners must complete their staged resource transfer
+before calling this publication primitive.
