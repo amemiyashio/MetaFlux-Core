@@ -32,7 +32,33 @@
       "epoch_action": "unchanged",
       "commit": "install_candidate_without_retirement",
       "replay": "recorded_outcome",
-      "failure_points": ["pre_commit", "post_commit"]
+      "failure_points": ["pre_commit", "post_commit"],
+      "guards": [
+        "state == ABSENT",
+        "request identity matches authority",
+        "generation and identity high-water reservation fits",
+        "deadline is live"
+      ],
+      "owner": "metafluxd.lifecycle.Coordinator",
+      "commit_points": ["candidate_reservation", "candidate_installation"],
+      "high_water": {
+        "generation": "reserve_and_persist",
+        "identity_record": "reserve_and_persist",
+        "epoch": "unchanged"
+      },
+      "deadline": {
+        "terminal_states": ["ONLINE", "LOST", "ABSENT"],
+        "timeout_error": "MF_SHARED_TIMEOUT",
+        "physical_cancellation": false
+      },
+      "terminal_errors": [
+        "MF_SHARED_SUCCESS",
+        "MF_SHARED_DEVICE_LOST",
+        "MF_SHARED_INVALID_ARGUMENT",
+        "MF_SHARED_OVERFLOW",
+        "MF_SHARED_RESOURCE_EXHAUSTED",
+        "MF_SHARED_TIMEOUT"
+      ]
     },
     {
       "event": "remove",
@@ -43,7 +69,33 @@
       "epoch_action": "increment_at_retirement",
       "commit": "retire_current",
       "replay": "recorded_outcome",
-      "failure_points": ["pre_commit", "post_commit"]
+      "failure_points": ["pre_commit", "post_commit"],
+      "guards": [
+        "state == ONLINE or LOST",
+        "request identity matches authority",
+        "epoch increment and tombstone reservation fit",
+        "deadline is live"
+      ],
+      "owner": "metafluxd.lifecycle.Coordinator",
+      "commit_points": ["retirement_epoch_increment"],
+      "high_water": {
+        "generation": "unchanged_until_tombstone",
+        "identity_record": "unchanged_until_tombstone",
+        "epoch": "reserve_and_increment_at_retirement"
+      },
+      "deadline": {
+        "terminal_states": ["ABSENT"],
+        "timeout_error": "MF_SHARED_TIMEOUT",
+        "physical_cancellation": false
+      },
+      "terminal_errors": [
+        "MF_SHARED_SUCCESS",
+        "MF_SHARED_DEVICE_LOST",
+        "MF_SHARED_INVALID_ARGUMENT",
+        "MF_SHARED_OVERFLOW",
+        "MF_SHARED_RESOURCE_EXHAUSTED",
+        "MF_SHARED_TIMEOUT"
+      ]
     },
     {
       "event": "reset",
@@ -54,7 +106,37 @@
       "epoch_action": "increment_at_retirement",
       "commit": "retire_current_and_install_candidate_atomically",
       "replay": "recorded_outcome",
-      "failure_points": ["pre_commit", "post_commit"]
+      "failure_points": ["pre_commit", "post_commit"],
+      "guards": [
+        "state == ONLINE",
+        "request identity matches authority",
+        "generation, identity, and epoch reservations fit",
+        "deadline is live"
+      ],
+      "owner": "metafluxd.lifecycle.Coordinator",
+      "commit_points": [
+        "candidate_reservation",
+        "retirement_epoch_increment",
+        "candidate_installation"
+      ],
+      "high_water": {
+        "generation": "reserve_and_persist",
+        "identity_record": "reserve_and_persist",
+        "epoch": "reserve_and_increment_at_retirement"
+      },
+      "deadline": {
+        "terminal_states": ["ONLINE", "LOST"],
+        "timeout_error": "MF_SHARED_TIMEOUT",
+        "physical_cancellation": false
+      },
+      "terminal_errors": [
+        "MF_SHARED_SUCCESS",
+        "MF_SHARED_DEVICE_LOST",
+        "MF_SHARED_INVALID_ARGUMENT",
+        "MF_SHARED_OVERFLOW",
+        "MF_SHARED_RESOURCE_EXHAUSTED",
+        "MF_SHARED_TIMEOUT"
+      ]
     },
     {
       "event": "transport_loss",
@@ -65,7 +147,29 @@
       "epoch_action": "unchanged",
       "commit": "publish_lost_tombstone",
       "replay": "recorded_outcome",
-      "failure_points": []
+      "failure_points": [],
+      "guards": [
+        "state is a live lifecycle state",
+        "request identity matches authority"
+      ],
+      "owner": "metafluxd.lifecycle.Coordinator",
+      "commit_points": ["provider_view_publication"],
+      "high_water": {
+        "generation": "unchanged",
+        "identity_record": "unchanged",
+        "epoch": "unchanged"
+      },
+      "deadline": {
+        "terminal_states": ["LOST"],
+        "timeout_error": "MF_SHARED_TIMEOUT",
+        "physical_cancellation": false
+      },
+      "terminal_errors": [
+        "MF_SHARED_SUCCESS",
+        "MF_SHARED_DEVICE_LOST",
+        "MF_SHARED_INVALID_ARGUMENT",
+        "MF_SHARED_TIMEOUT"
+      ]
     },
     {
       "event": "recover",
@@ -76,9 +180,71 @@
       "epoch_action": "increment_at_retirement",
       "commit": "retire_lost_and_install_candidate_atomically",
       "replay": "recorded_outcome",
-      "failure_points": ["pre_commit", "post_commit"]
+      "failure_points": ["pre_commit", "post_commit"],
+      "guards": [
+        "state == LOST",
+        "request identity matches authority",
+        "generation, identity, and epoch reservations fit",
+        "deadline is live"
+      ],
+      "owner": "metafluxd.lifecycle.Coordinator",
+      "commit_points": [
+        "candidate_reservation",
+        "retirement_epoch_increment",
+        "candidate_installation"
+      ],
+      "high_water": {
+        "generation": "reserve_and_persist",
+        "identity_record": "reserve_and_persist",
+        "epoch": "reserve_and_increment_at_retirement"
+      },
+      "deadline": {
+        "terminal_states": ["ONLINE", "LOST"],
+        "timeout_error": "MF_SHARED_TIMEOUT",
+        "physical_cancellation": false
+      },
+      "terminal_errors": [
+        "MF_SHARED_SUCCESS",
+        "MF_SHARED_DEVICE_LOST",
+        "MF_SHARED_INVALID_ARGUMENT",
+        "MF_SHARED_OVERFLOW",
+        "MF_SHARED_RESOURCE_EXHAUSTED",
+        "MF_SHARED_TIMEOUT"
+      ]
     }
   ],
+  "request_contract": {
+    "identity": [
+      "request_id",
+      "source",
+      "operation",
+      "logical_device_uuid",
+      "expected_generation",
+      "expected_epoch",
+      "daemon_incarnation_id",
+      "deadline"
+    ],
+    "daemon_incarnation": {
+      "bits": 128,
+      "reusable": false
+    },
+    "duplicate": "recorded_outcome_without_side_effect",
+    "conflict": "reject_without_side_effect",
+    "stale": "reject_without_side_effect",
+    "late_completion": "generation_tombstone_returns_DEVICE_LOST"
+  },
+  "lease_contract": {
+    "states": ["FREE", "STAGED", "REVOKED", "DRAINED", "TOMBSTONED"],
+    "stage_before_identity_commit": true,
+    "revoke_before_retirement": true,
+    "worker_death": "publish_LOST_and_tombstone",
+    "stale_completion": "reject_by_generation_and_epoch"
+  },
+  "deadline_policy": {
+    "public_terminal_states": ["ONLINE", "LOST", "ABSENT"],
+    "physical_cancellation": false,
+    "timeout_error": "MF_SHARED_TIMEOUT"
+  },
   "provider_views": {
     "registry_view_id": "shared_per_process",
     "cuda": {

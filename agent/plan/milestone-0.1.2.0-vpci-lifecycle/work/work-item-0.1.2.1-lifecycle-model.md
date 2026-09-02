@@ -135,11 +135,11 @@ Implemented stage:
 - [x] Add positive and tampered-manifest checker fixtures and register the exact
   bounded command in CTest.
 
-- [ ] Specify guards, owner, commit points, deadlines, terminal errors, and
+- [x] Specify guards, owner, commit points, deadlines, terminal errors, and
   high-water persistence for every transition.
-- [ ] Define request ID, incarnation, generation, epoch, idempotence, lease
+- [x] Define request ID, incarnation, generation, epoch, idempotence, lease
   staging/revocation, worker death, and stale-completion rules.
-- [ ] Exercise shortened generation and epoch widths: exhaustion rejects before
+- [x] Exercise shortened generation and epoch widths: exhaustion rejects before
   acceptance/intermediate publication, preserves state/identity/epoch, consumes
   no candidate, and never wraps.
 - [x] Define a typed normalizer for admin, vfio-user, QMP, disconnect, and

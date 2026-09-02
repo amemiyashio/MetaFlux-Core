@@ -47,10 +47,13 @@ owner.
 Candidate generation and identity-record high-water marks are checked before
 acceptance and are never reused, including when staging fails. Epoch is checked
 before a retirement and advances only with the single authority commit. A
-partial commit marks the candidate `Lost` instead of reopening the retired
-generation. Transport loss preserves the current generation and epoch; recovery
-uses a new candidate. Removed and replaced generations remain bounded
-tombstones and resolve as `DeviceLost`.
+partial replacement commit marks the candidate `Lost` instead of reopening the
+retired generation. An accepted remove reserves its retirement epoch and
+tombstone before mirror callbacks; if a mirror fails during prepare, drain, or
+commit, the authority still retires the old identity to `Absent` and publishes a
+loss fence to every mirror. Transport loss preserves the current generation and
+epoch; recovery uses a new candidate. Removed and replaced generations remain
+bounded tombstones and resolve as `DeviceLost`.
 
 The bounded replay and tombstone tables are sized for the work-item-0.1.2.3 qualification
 envelope: 4,096 request records and 2,048 immutable tombstones. A 1,000-cycle

@@ -262,6 +262,34 @@ bool remove_then_add_uses_new_generation_and_epoch() {
   return true;
 }
 
+bool accepted_remove_always_retires_after_mirror_failure() {
+  constexpr std::array<MirrorStage, 4> stages{
+      MirrorStage::Prepare, MirrorStage::Quiesce, MirrorStage::Drain, MirrorStage::Commit};
+  for (std::size_t failing_mirror = 0U; failing_mirror < 3U; ++failing_mirror) {
+    for (const auto stage : stages) {
+      MirrorLog memfd{};
+      MirrorLog cdev{};
+      MirrorLog vfio{};
+      MirrorLog* logs[] = {&memfd, &cdev, &vfio};
+      logs[failing_mirror]->fail_stage = static_cast<std::uint32_t>(stage);
+      Coordinator coordinator = make_coordinator(memfd, cdev, vfio);
+      ResultDetails details{};
+
+      REQUIRE(coordinator.apply(request(40U + failing_mirror * 10U +
+                                              static_cast<std::uint64_t>(stage),
+                                        Operation::Remove, 1U, 1U),
+                                details) == Result::CallbackRejected);
+      REQUIRE(details.snapshot.state == State::Absent);
+      REQUIRE(details.snapshot.generation == 0U && details.snapshot.identity_record_id == 0U);
+      REQUIRE(details.snapshot.epoch == 2U);
+      REQUIRE(coordinator.resolve(1U) == ResolveResult::DeviceLost);
+      REQUIRE(coordinator.tombstone_count() == 1U);
+      REQUIRE(memfd.lost_count == 1U && cdev.lost_count == 1U && vfio.lost_count == 1U);
+    }
+  }
+  return true;
+}
+
 bool exhaustion_rejects_before_side_effect() {
   MirrorLog memfd{};
   MirrorLog cdev{};
@@ -438,6 +466,7 @@ int main() {
                   transport_loss_and_recovery_preserve_then_advance_epoch() &&
                   partial_commit_never_restores_retired_generation() &&
                   remove_then_add_uses_new_generation_and_epoch() &&
+                  accepted_remove_always_retires_after_mirror_failure() &&
                   exhaustion_rejects_before_side_effect() &&
                   exhaustion_after_committed_replacements_preserves_last_state() &&
                   every_mirror_stage_failure_is_bounded() &&

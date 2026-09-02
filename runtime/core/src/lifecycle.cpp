@@ -444,22 +444,23 @@ Result Coordinator::apply_remove(const Request& request, ResultDetails& out) noe
       !invoke(transaction, MirrorStage::Quiesce, nullptr) ||
       !invoke(transaction, MirrorStage::Drain, nullptr)) {
     abort(transaction);
+    // Removal has already reserved its retirement epoch and tombstone. Once
+    // accepted, authority must not leave a live identity behind because a
+    // mirror could not finish local cleanup; keep the mirror fenced and
+    // settle the authority as ABSENT.
     state_ = State::Lost;
     publish_lost(transaction);
-    fill_details(transaction.timed_out ? Result::Timeout : Result::CallbackRejected, transaction,
-                 out);
+    append_tombstone(generation_, identity_record_id_, next_epoch);
+    epoch_ = next_epoch;
+    generation_ = 0U;
+    identity_record_id_ = 0U;
+    state_ = State::Absent;
+    fill_details(transaction.timed_out ? Result::Timeout : Result::CallbackRejected, transaction, out);
     return out.result;
   }
   if (!invoke(transaction, MirrorStage::Commit, nullptr)) {
-    if (transaction.committed_count == 0U) {
-      abort(transaction);
-      state_ = State::Lost;
-      publish_lost(transaction);
-      fill_details(transaction.timed_out ? Result::Timeout : Result::CallbackRejected, transaction,
-                   out);
-      return out.result;
-    }
     abort(transaction);
+    publish_lost(transaction);
     append_tombstone(generation_, identity_record_id_, next_epoch);
     epoch_ = next_epoch;
     generation_ = 0U;

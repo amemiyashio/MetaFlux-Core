@@ -69,6 +69,34 @@ def main() -> int:
         if invalid_model.returncode == 0 or "stale ONLINE" not in invalid_model.stderr:
             return 1
 
+        tampered_contract_model = temporary / "tampered-contract-model.json"
+        contract_document = json.loads(MODEL.read_text(encoding="utf-8"))
+        contract_document["transitions"][0]["owner"] = ""
+        tampered_contract_model.write_text(json.dumps(contract_document), encoding="utf-8")
+        tampered_contract_extension = temporary / "tampered-contract-extension.json"
+        contract_extension_document = json.loads(EXTENSION.read_text(encoding="utf-8"))
+        contract_extension_document["model"]["path"] = tampered_contract_model.relative_to(ROOT).as_posix()
+        contract_extension_document["model"]["sha256"] = hashlib.sha256(
+            tampered_contract_model.read_bytes()
+        ).hexdigest()
+        tampered_contract_extension.write_text(
+            json.dumps(contract_extension_document), encoding="utf-8"
+        )
+        invalid_contract = subprocess.run(
+            command(
+                tampered_contract_extension,
+                temporary / "invalid-contract-model.json",
+                model=tampered_contract_model,
+            ),
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if (invalid_contract.returncode == 0 or
+                "ownership, guard, deadline, or commit contract" not in invalid_contract.stderr):
+            return 1
+
         tampered_bounds = temporary / "tampered-publication-bounds.json"
         bounds_document = json.loads(BOUNDS.read_text(encoding="utf-8"))
         bounds_document["fence_telemetry"]["initial"]["telemetry_latch"] = 3
@@ -88,7 +116,7 @@ def main() -> int:
                                  text=True, capture_output=True, check=False)
         if invalid.returncode == 0 or "hash mismatch" not in invalid.stderr:
             return 1
-    print("lifecycle model checker self-test: 5/5 passed")
+    print("lifecycle model checker self-test: 6/6 passed")
     return 0
 
 

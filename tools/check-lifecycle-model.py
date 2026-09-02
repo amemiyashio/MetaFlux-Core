@@ -106,8 +106,15 @@ def validate_inputs(base_path: Path, extension_path: Path, model_path: Path,
         raise ModelError(f"{model_path}: transition set must contain each lifecycle event exactly once")
     required_transition_keys = {
         "event", "sources", "intermediate", "terminals", "generation_action",
-        "epoch_action", "commit", "replay", "failure_points",
+        "epoch_action", "commit", "replay", "failure_points", "guards", "owner",
+        "commit_points", "high_water", "deadline", "terminal_errors",
     }
+    expected_commit_points = {
+        "candidate_reservation", "retirement_epoch_increment", "candidate_installation",
+        "provider_view_publication",
+    }
+    expected_terminal_states = set(TERMINAL_STATES)
+    expected_terminal_errors = set(model.get("terminal_errors", []))
     for transition in transitions:
         if not isinstance(transition, dict) or not required_transition_keys.issubset(transition):
             raise ModelError(f"{model_path}: malformed transition entry")
@@ -115,8 +122,49 @@ def validate_inputs(base_path: Path, extension_path: Path, model_path: Path,
             raise ModelError(f"{model_path}: transition source/terminal lists are required")
         if not set(transition["sources"]).issubset(set(states)) or not set(transition["terminals"]).issubset(set(states)):
             raise ModelError(f"{model_path}: transition references an unknown state")
-        if not isinstance(transition["failure_points"], list):
-            raise ModelError(f"{model_path}: failure_points must be a list")
+        if (not isinstance(transition["failure_points"], list) or
+                not isinstance(transition["guards"], list) or
+                not transition["guards"] or
+                not isinstance(transition["owner"], str) or
+                transition["owner"] != "metafluxd.lifecycle.Coordinator" or
+                not isinstance(transition["commit_points"], list) or
+                not set(transition["commit_points"]).issubset(expected_commit_points) or
+                not isinstance(transition["high_water"], dict) or
+                set(transition["high_water"]) != {"generation", "identity_record", "epoch"} or
+                not isinstance(transition["deadline"], dict) or
+                set(transition["deadline"]) != {"terminal_states", "timeout_error", "physical_cancellation"} or
+                not set(transition["deadline"]["terminal_states"]).issubset(expected_terminal_states) or
+                transition["deadline"]["timeout_error"] != "MF_SHARED_TIMEOUT" or
+                transition["deadline"]["physical_cancellation"] is not False or
+                not isinstance(transition["terminal_errors"], list) or
+                not set(transition["terminal_errors"]).issubset(expected_terminal_errors)):
+            raise ModelError(f"{model_path}: transition ownership, guard, deadline, or commit contract is invalid")
+
+    request_contract = model.get("request_contract")
+    if (not isinstance(request_contract, dict) or
+            request_contract.get("identity") != expected_identity or
+            request_contract.get("daemon_incarnation") != {"bits": 128, "reusable": False} or
+            request_contract.get("duplicate") != "recorded_outcome_without_side_effect" or
+            request_contract.get("conflict") != "reject_without_side_effect" or
+            request_contract.get("stale") != "reject_without_side_effect" or
+            request_contract.get("late_completion") != "generation_tombstone_returns_DEVICE_LOST"):
+        raise ModelError(f"{model_path}: request identity/idempotence contract is incomplete")
+
+    lease_contract = model.get("lease_contract")
+    if (not isinstance(lease_contract, dict) or
+            lease_contract.get("states") != ["FREE", "STAGED", "REVOKED", "DRAINED", "TOMBSTONED"] or
+            lease_contract.get("stage_before_identity_commit") is not True or
+            lease_contract.get("revoke_before_retirement") is not True or
+            lease_contract.get("worker_death") != "publish_LOST_and_tombstone" or
+            lease_contract.get("stale_completion") != "reject_by_generation_and_epoch"):
+        raise ModelError(f"{model_path}: lease staging/revocation contract is incomplete")
+
+    deadline_policy = model.get("deadline_policy")
+    if (not isinstance(deadline_policy, dict) or
+            deadline_policy.get("public_terminal_states") != ["ONLINE", "LOST", "ABSENT"] or
+            deadline_policy.get("physical_cancellation") is not False or
+            deadline_policy.get("timeout_error") != "MF_SHARED_TIMEOUT"):
+        raise ModelError(f"{model_path}: public deadline contract is incomplete")
     provider_views = model.get("provider_views")
     if not isinstance(provider_views, dict) or provider_views.get("registry_view_id") != "shared_per_process":
         raise ModelError(f"{model_path}: provider view authority is missing")
@@ -1018,11 +1066,26 @@ def direct_scenarios(bounds: dict[str, Any]) -> int:
     exhausted_generation = replace(base, high_water=int(bounds["limits"]["generation_terminal"]) - 1,
                                     accepted=tuple(range(1, int(bounds["limits"]["generation_terminal"]))))
     rejected = apply_lifecycle(exhausted_generation, "reset", 1, "none", bounds)
-    if rejected.generation != exhausted_generation.generation or rejected.epoch != exhausted_generation.epoch:
+    if (rejected.state != exhausted_generation.state or
+            rejected.generation != exhausted_generation.generation or
+            rejected.epoch != exhausted_generation.epoch or
+            rejected.high_water != exhausted_generation.high_water or
+            rejected.accepted != exhausted_generation.accepted or
+            rejected.committed != exhausted_generation.committed or
+            rejected.retired != exhausted_generation.retired or
+            rejected.tombstones != exhausted_generation.tombstones or
+            rejected.high_water >= int(bounds["limits"]["generation_terminal"])):
         raise ModelError("generation exhaustion changed identity or epoch")
     exhausted_epoch = replace(base, epoch=int(bounds["limits"]["epoch_terminal"]) - 1)
     rejected_remove = apply_lifecycle(exhausted_epoch, "remove", 1, "none", bounds)
-    if rejected_remove.state != exhausted_epoch.state or rejected_remove.epoch != exhausted_epoch.epoch:
+    if (rejected_remove.state != exhausted_epoch.state or
+            rejected_remove.generation != exhausted_epoch.generation or
+            rejected_remove.epoch != exhausted_epoch.epoch or
+            rejected_remove.high_water != exhausted_epoch.high_water or
+            rejected_remove.committed != exhausted_epoch.committed or
+            rejected_remove.retired != exhausted_epoch.retired or
+            rejected_remove.tombstones != exhausted_epoch.tombstones or
+            rejected_remove.epoch >= int(bounds["limits"]["epoch_terminal"])):
         raise ModelError("epoch exhaustion changed state or epoch")
     checks += 2
     return checks
