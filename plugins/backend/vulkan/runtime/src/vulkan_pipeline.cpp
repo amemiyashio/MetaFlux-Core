@@ -61,9 +61,11 @@ PipelineStatus VulkanComputePipeline::create(std::span<const std::uint32_t> spir
                                                     : PipelineStatus::not_ready;
   }
   if (layout == VK_NULL_HANDLE || !valid_entry_point(entry_point) ||
-      spirv.size() > std::numeric_limits<std::size_t>::max() / sizeof(std::uint32_t) ||
-      validate_spirv_binary(spirv) != PipelineStatus::success) {
+      spirv.size() > std::numeric_limits<std::size_t>::max() / sizeof(std::uint32_t)) {
     return PipelineStatus::invalid_argument;
+  }
+  if (validate_spirv_binary(spirv) != PipelineStatus::success) {
+    return PipelineStatus::invalid_module;
   }
 
   VkShaderModule replacement_shader_module = VK_NULL_HANDLE;
