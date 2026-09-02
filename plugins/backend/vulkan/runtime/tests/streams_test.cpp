@@ -178,8 +178,20 @@ bool queue_submission_ledger_is_transactional() {
 
   const auto accepted = submission;
   auto forged = accepted;
-  forged.resource.completion_value += 1U;
+  forged.resource.id += 1U;
   if (ledger.discard(forged) != QueueSubmissionStatus::not_found ||
+      ledger.in_flight_count() != 1U) {
+    return false;
+  }
+  forged = accepted;
+  forged.resource.completion_value += 1U;
+  if (ledger.discard(forged) != QueueSubmissionStatus::invalid_argument ||
+      ledger.in_flight_count() != 1U) {
+    return false;
+  }
+  forged = accepted;
+  forged.completion_value += 1U;
+  if (ledger.discard(forged) != QueueSubmissionStatus::invalid_argument ||
       ledger.in_flight_count() != 1U) {
     return false;
   }

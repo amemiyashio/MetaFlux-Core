@@ -458,6 +458,9 @@ QueueSubmissionStatus QueueSubmissionLedger::complete(std::uint64_t generation,
 QueueSubmissionStatus QueueSubmissionLedger::discard(
     const QueueSubmission& submission) noexcept {
   std::lock_guard lock(mutex_);
+  if (submission.completion_value != submission.resource.completion_value) {
+    return QueueSubmissionStatus::invalid_argument;
+  }
   return map(resources_.discard(submission.resource));
 }
 
