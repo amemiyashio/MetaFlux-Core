@@ -153,14 +153,32 @@ Kernel arithmetic_f32_kernel(Opcode opcode, const char* name) {
   kernel.registers[15].kind = ValueKind::F32;
   kernel.operations[14] = op(Opcode::LoadGlobalF32, 13U, {11U});
   kernel.operations[15] = op(Opcode::LoadGlobalF32, 14U, {12U});
-  kernel.operations[16] = op(opcode, 15U, {13U, 14U});
+  kernel.operations[16] = opcode == Opcode::MadRnF32 || opcode == Opcode::FmaRnF32
+                              ? op(opcode, 15U, {13U, 14U, 13U})
+                              : op(opcode, 15U, {13U, 14U});
   kernel.operations[17] = op(Opcode::StoreGlobalF32, metaflux::compiler::kNoValue, {10U, 15U});
   return kernel;
 }
 
 Kernel unsupported_f32_kernel() {
-  Kernel kernel = arithmetic_f32_kernel(Opcode::AddRnF32, "mad_f32");
-  kernel.operations[16] = op(Opcode::MadRnF32, 15U, {13U, 14U, 13U});
+  Kernel kernel = arithmetic_f32_kernel(Opcode::MadRnF32, "unsupported_fma_f32");
+  kernel.operations[16] = op(Opcode::FmaRnF32, 15U, {13U, 14U, 13U});
+  return kernel;
+}
+
+Kernel conversion_kernel(Opcode opcode, const char* name) {
+  Kernel kernel = add_kernel();
+  kernel.name = name;
+  const bool f32_from_u32 = opcode == Opcode::ConvertRnF32U32;
+  kernel.registers[13].kind = f32_from_u32 ? ValueKind::U32 : ValueKind::F32;
+  kernel.registers[14].kind = f32_from_u32 ? ValueKind::U32 : ValueKind::F32;
+  kernel.registers[15].kind = f32_from_u32 ? ValueKind::F32 : ValueKind::U32;
+  const auto load = f32_from_u32 ? Opcode::LoadGlobalU32 : Opcode::LoadGlobalF32;
+  const auto store = f32_from_u32 ? Opcode::StoreGlobalF32 : Opcode::StoreGlobalU32;
+  kernel.operations[14] = op(load, 13U, {11U});
+  kernel.operations[15] = op(load, 14U, {12U});
+  kernel.operations[16] = op(opcode, 15U, {13U});
+  kernel.operations[17] = op(store, metaflux::compiler::kNoValue, {10U, 15U});
   return kernel;
 }
 
@@ -376,7 +394,41 @@ bool valid_elementwise_f32_lowering() {
          validate(Opcode::SubRnF32, SpirvSemanticOpcode::subtract_f32, "arith.subf",
                   "subtract_f32") &&
          validate(Opcode::MultiplyRnF32, SpirvSemanticOpcode::multiply_f32, "arith.mulf",
-                  "multiply_f32");
+                  "multiply_f32") &&
+         validate(Opcode::MadRnF32, SpirvSemanticOpcode::multiply_add_f32, "spirv.FAdd",
+                  "mad_f32");
+}
+
+bool valid_elementwise_conversion_lowering() {
+  const auto profile = target();
+  const auto validate = [&profile](Opcode opcode, SpirvSemanticOpcode semantic,
+                                   const char* source_type, const char* result_type,
+                                   const char* mlir_opcode, const char* name) {
+    SpirvLoweredModule module{};
+    const auto result = metaflux::backend::vulkan::lower_kernel(
+        conversion_kernel(opcode, name), profile, {8U, 1U, 1U}, &module);
+    const bool valid = result.status == LoweringStatus::success && module.instructions.size() == 19U &&
+           module.instructions[16].opcode == semantic &&
+           module.mlir_text.find(std::string("memref<?x") + source_type) != std::string::npos &&
+           module.mlir_text.find(std::string("memref<?x") + result_type) != std::string::npos &&
+           module.mlir_text.find(mlir_opcode) != std::string::npos &&
+           module.spirv_binary.size() > 5U && module.spirv_binary[0] == 0x07230203U;
+    if (!valid) {
+      std::cerr << "Vulkan conversion lowering failure: " << name
+                << " status=" << metaflux::backend::vulkan::lowering_status_string(result.status)
+                << " diagnostic=" << result.diagnostic << " instructions="
+                << module.instructions.size() << " mlir-bytes=" << module.mlir_text.size()
+                << " spirv-words=" << module.spirv_binary.size() << '\n';
+      if (!module.mlir_text.empty()) {
+        std::cerr << module.mlir_text << '\n';
+      }
+    }
+    return valid;
+  };
+  return validate(Opcode::ConvertRnF32U32, SpirvSemanticOpcode::convert_f32_u32, "i32", "f32",
+                  "arith.uitofp", "convert_f32_u32") &&
+         validate(Opcode::ConvertRziU32F32, SpirvSemanticOpcode::convert_u32_f32, "f32", "i32",
+                  "arith.fptoui", "convert_u32_f32");
 }
 
 bool valid_shared_barrier_lowering() {
@@ -474,7 +526,10 @@ bool independently_validates_spirv() {
          validate(arithmetic_mad_kernel()) &&
          validate(arithmetic_f32_kernel(Opcode::AddRnF32, "add_f32")) &&
          validate(arithmetic_f32_kernel(Opcode::SubRnF32, "subtract_f32")) &&
-         validate(arithmetic_f32_kernel(Opcode::MultiplyRnF32, "multiply_f32"));
+         validate(arithmetic_f32_kernel(Opcode::MultiplyRnF32, "multiply_f32")) &&
+         validate(arithmetic_f32_kernel(Opcode::MadRnF32, "mad_f32")) &&
+         validate(conversion_kernel(Opcode::ConvertRnF32U32, "convert_f32_u32")) &&
+         validate(conversion_kernel(Opcode::ConvertRziU32F32, "convert_u32_f32"));
 #else
   std::cout << "Vulkan lowering: spirv-val unavailable; independent validation skipped\n";
   return true;
@@ -487,7 +542,7 @@ bool unsupported_semantics_fail_before_emission() {
   const auto result = metaflux::backend::vulkan::lower_kernel(
       kernel, target(), {8U, 1U, 1U}, &module);
   const bool valid = result.status == LoweringStatus::unsupported_semantics &&
-         result.diagnostic.find("verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply, and Copy forms") != std::string::npos &&
+         result.diagnostic.find("verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad, u32<->f32 conversions, and Copy forms") != std::string::npos &&
          module.spirv_binary.empty() && module.mlir_text.empty();
   if (!valid) {
     std::cerr << "Vulkan unsupported semantics failure: status="
@@ -544,6 +599,10 @@ int main() {
   }
   if (!valid_elementwise_f32_lowering()) {
     std::cerr << "Vulkan lowering stage failed: f32-arithmetic\n";
+    return 1;
+  }
+  if (!valid_elementwise_conversion_lowering()) {
+    std::cerr << "Vulkan lowering stage failed: conversions\n";
     return 1;
   }
   if (!independently_validates_spirv()) {

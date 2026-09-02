@@ -288,9 +288,38 @@ bool is_elementwise_f32_kernel(const compiler::Kernel& kernel, Opcode arithmetic
       kernel.operations[17].opcode != Opcode::StoreGlobalF32) {
     return false;
   }
-  return kernel.registers.size() > 15U && kernel.registers[13].kind == ValueKind::F32 &&
-         kernel.registers[14].kind == ValueKind::F32 &&
-         kernel.registers[15].kind == ValueKind::F32;
+  if (kernel.registers.size() <= 15U || kernel.registers[13].kind != ValueKind::F32 ||
+      kernel.registers[14].kind != ValueKind::F32 || kernel.registers[15].kind != ValueKind::F32) {
+    return false;
+  }
+  const auto& arithmetic_operation = kernel.operations[16];
+  if (arithmetic == Opcode::MadRnF32) {
+    return arithmetic_operation.input_count == 3U && arithmetic_operation.inputs[0] == 13U &&
+           arithmetic_operation.inputs[1] == 14U && arithmetic_operation.inputs[2] == 13U;
+  }
+  return arithmetic_operation.input_count == 2U && arithmetic_operation.inputs[0] == 13U &&
+         arithmetic_operation.inputs[1] == 14U;
+}
+
+bool is_elementwise_conversion_kernel(const compiler::Kernel& kernel, Opcode conversion) noexcept {
+  if (!has_elementwise_shape(kernel) || kernel.operations[16].opcode != conversion ||
+      kernel.registers.size() <= 15U || kernel.operations[16].input_count != 1U ||
+      kernel.operations[16].inputs[0] != 13U || kernel.operations[17].inputs[1] != 15U) {
+    return false;
+  }
+  const bool f32_from_u32 = conversion == Opcode::ConvertRnF32U32;
+  const bool u32_from_f32 = conversion == Opcode::ConvertRziU32F32;
+  if (!f32_from_u32 && !u32_from_f32) {
+    return false;
+  }
+  const auto expected_load = f32_from_u32 ? Opcode::LoadGlobalU32 : Opcode::LoadGlobalF32;
+  const auto expected_store = f32_from_u32 ? Opcode::StoreGlobalF32 : Opcode::StoreGlobalU32;
+  return kernel.operations[14].opcode == expected_load &&
+         kernel.operations[15].opcode == expected_load &&
+         kernel.operations[17].opcode == expected_store &&
+         kernel.registers[13].kind == (f32_from_u32 ? ValueKind::U32 : ValueKind::F32) &&
+         kernel.registers[14].kind == (f32_from_u32 ? ValueKind::U32 : ValueKind::F32) &&
+         kernel.registers[15].kind == (f32_from_u32 ? ValueKind::F32 : ValueKind::U32);
 }
 
 bool is_copy_u32_kernel(const compiler::Kernel& kernel) noexcept {
@@ -365,8 +394,13 @@ std::string mlir_symbol(std::string_view name) {
 std::string actual_mlir_source(const compiler::Kernel& kernel,
                                const std::array<std::uint32_t, 3>& workgroup_size,
                                bool copy_form, bool static_shared_barrier_form,
-                               Opcode elementwise_operation, bool elementwise_f32) {
-  const char* const buffer_element = elementwise_f32 ? "f32" : "i32";
+                               Opcode elementwise_operation, bool elementwise_f32,
+                               bool convert_f32_u32, bool convert_u32_f32) {
+  const char* const input_element =
+      (elementwise_f32 || convert_u32_f32) ? "f32" : "i32";
+  const char* const output_element =
+      (elementwise_f32 || convert_f32_u32) ? "f32" : "i32";
+  const char* const buffer_element = input_element;
   const char* const arithmetic_operation =
       elementwise_f32
           ? (elementwise_operation == Opcode::SubRnF32
@@ -384,18 +418,18 @@ std::string actual_mlir_source(const compiler::Kernel& kernel,
          << "} {\n"
          << "  gpu.module @kernels {\n"
          << "    gpu.func " << mlir_symbol(kernel.name)
-         << "(%arg0: memref<?x" << buffer_element
+         << "(%arg0: memref<?x" << (static_shared_barrier_form ? "i32" : input_element)
          << ", #spirv.storage_class<StorageBuffer>>, ";
   if (static_shared_barrier_form) {
     output << "%arg1: i32, %arg2: i32) kernel ";
   } else if (copy_form) {
-    output << "%arg1: memref<?x" << buffer_element
+    output << "%arg1: memref<?x" << input_element
              << ", #spirv.storage_class<StorageBuffer>>, "
              << "%arg2: i32) kernel ";
   } else {
-    output << "%arg1: memref<?x" << buffer_element
+    output << "%arg1: memref<?x" << input_element
              << ", #spirv.storage_class<StorageBuffer>>, "
-             << "%arg2: memref<?x" << buffer_element
+             << "%arg2: memref<?x" << output_element
              << ", #spirv.storage_class<StorageBuffer>>, %arg3: i32) kernel ";
   }
   output
@@ -432,21 +466,34 @@ std::string actual_mlir_source(const compiler::Kernel& kernel,
   }
   if (!static_shared_barrier_form) {
     if (copy_form) {
-      output << "        %value = memref.load %arg1[%idx] : memref<?x" << buffer_element << ", "
+      output << "        %value = memref.load %arg1[%idx] : memref<?x" << input_element << ", "
                  "#spirv.storage_class<StorageBuffer>>\n"
-                 << "        memref.store %value, %arg0[%idx] : memref<?x" << buffer_element << ", "
+                 << "        memref.store %value, %arg0[%idx] : memref<?x" << output_element << ", "
+                 "#spirv.storage_class<StorageBuffer>>\n";
+    } else if (convert_f32_u32 || convert_u32_f32) {
+      output << "        %a = memref.load %arg0[%idx] : memref<?x" << input_element << ", "
+                 "#spirv.storage_class<StorageBuffer>>\n";
+      if (convert_f32_u32) {
+        output << "        %sum = arith.uitofp %a : i32 to f32\n";
+      } else {
+        output << "        %sum = arith.fptoui %a : f32 to i32\n";
+      }
+      output << "        memref.store %sum, %arg2[%idx] : memref<?x" << output_element << ", "
                  "#spirv.storage_class<StorageBuffer>>\n";
     } else {
-      output << "        %a = memref.load %arg0[%idx] : memref<?x" << buffer_element << ", "
+      output << "        %a = memref.load %arg0[%idx] : memref<?x" << input_element << ", "
                  "#spirv.storage_class<StorageBuffer>>\n"
-              << "        %b = memref.load %arg1[%idx] : memref<?x" << buffer_element << ", "
+              << "        %b = memref.load %arg1[%idx] : memref<?x" << input_element << ", "
                  "#spirv.storage_class<StorageBuffer>>\n"
               << (elementwise_operation == Opcode::MadLoU32
                       ? "        %product = arith.muli %a, %b : i32\n"
                         "        %sum = arith.addi %product, %arg3 : i32\n"
+                      : elementwise_operation == Opcode::MadRnF32
+                          ? "        %product = arith.mulf %a, %b : f32\n"
+                            "        %sum = arith.addf %product, %a : f32\n"
                       : "        %sum = arith."
                         + std::string(arithmetic_operation) + " %a, %b : " + buffer_element + "\n")
-              << "        memref.store %sum, %arg2[%idx] : memref<?x" << buffer_element << ", "
+              << "        memref.store %sum, %arg2[%idx] : memref<?x" << output_element << ", "
                  "#spirv.storage_class<StorageBuffer>>\n";
     }
   }
@@ -478,14 +525,20 @@ LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
   const bool add_f32_form = is_elementwise_f32_kernel(kernel, Opcode::AddRnF32);
   const bool subtract_f32_form = is_elementwise_f32_kernel(kernel, Opcode::SubRnF32);
   const bool multiply_f32_form = is_elementwise_f32_kernel(kernel, Opcode::MultiplyRnF32);
+  const bool mad_f32_form = is_elementwise_f32_kernel(kernel, Opcode::MadRnF32);
+  const bool convert_f32_u32_form =
+      is_elementwise_conversion_kernel(kernel, Opcode::ConvertRnF32U32);
+  const bool convert_u32_f32_form =
+      is_elementwise_conversion_kernel(kernel, Opcode::ConvertRziU32F32);
   const bool copy_form = is_copy_u32_kernel(kernel);
   const bool static_shared_barrier_form = is_static_shared_barrier_kernel(kernel);
   if (!add_form && !subtract_form && !multiply_form && !multiply_add_form && !add_f32_form &&
-      !subtract_f32_form && !multiply_f32_form && !copy_form &&
+      !subtract_f32_form && !multiply_f32_form && !mad_f32_form &&
+      !convert_f32_u32_form && !convert_u32_f32_form && !copy_form &&
       !static_shared_barrier_form) {
     return {.status = LoweringStatus::unsupported_semantics,
             .diagnostic =
-                "actual MLIR/SPIR-V emission currently supports verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply, and Copy forms"};
+                "actual MLIR/SPIR-V emission currently supports verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad, u32<->f32 conversions, and Copy forms"};
   }
 
   try {
@@ -498,8 +551,12 @@ LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
         : add_f32_form  ? Opcode::AddRnF32
         : subtract_f32_form ? Opcode::SubRnF32
         : multiply_f32_form ? Opcode::MultiplyRnF32
+        : mad_f32_form ? Opcode::MadRnF32
+        : convert_f32_u32_form ? Opcode::ConvertRnF32U32
+        : convert_u32_f32_form ? Opcode::ConvertRziU32F32
                             : Opcode::Return,
-        add_f32_form || subtract_f32_form || multiply_f32_form);
+        add_f32_form || subtract_f32_form || multiply_f32_form || mad_f32_form,
+        convert_f32_u32_form, convert_u32_f32_form);
     mlir::DialectRegistry registry;
     registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect, mlir::gpu::GPUDialect,
                     mlir::memref::MemRefDialect, mlir::scf::SCFDialect,
