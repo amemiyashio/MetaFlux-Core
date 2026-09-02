@@ -30,6 +30,7 @@ static int mf_vroot_set_function_count(const char *value,
 	unsigned int count;
 	unsigned long flags;
 	unsigned int current_count;
+	struct pci_bus *bus = NULL;
 	int result;
 
 	(void)parameter;
@@ -45,7 +46,10 @@ static int mf_vroot_set_function_count(const char *value,
 			return -EBUSY;
 		}
 		mf_vroot->function_count = count;
+		bus = mf_vroot->bridge == NULL ? NULL : mf_vroot->bridge->bus;
 		spin_unlock_irqrestore(&mf_vroot->config_lock, flags);
+		if (bus != NULL && count > current_count)
+			pci_rescan_bus(bus);
 	}
 	mf_vroot_function_count = count;
 	return 0;
