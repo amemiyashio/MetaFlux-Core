@@ -1347,6 +1347,44 @@ int main() {
     return 1;
   }
 
+  request.request_id = 441U;
+  if (mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
+      reject_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Idle ||
+      !reject_worker.backend_operation_pending() || !reject_fixture.lease_active) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  const metaflux::runtime::lifecycle::Request reject_loss{
+      .request_id = 442U,
+      .logical_device_id = 7U,
+      .daemon_incarnation = 7U,
+      .expected_identity_record_id = 4U,
+      .expected_generation = 4U,
+      .expected_epoch = 1U,
+      .source = metaflux::runtime::lifecycle::Source::Disconnect,
+      .operation = metaflux::runtime::lifecycle::Operation::TransportLoss,
+  };
+  if (reject_coordinator.apply(reject_loss) !=
+          metaflux::runtime::lifecycle::Result::Accepted ||
+      reject_worker.lifecycle_online() || !reject_worker.backend_operation_pending() ||
+      reject_fixture.cancel_calls != 0U || !reject_fixture.lease_active) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  reject_fixture.event_complete = true;
+  if (reject_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
+      reject_worker.backend_operation_pending() || reject_fixture.lease_releases != 2U ||
+      reject_fixture.lease_active ||
+      mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
+      result.request_id != 441U ||
+      result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_DEVICE_LOST)) {
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+
   backend_fixture.result = MF_BACKEND_SUCCESS;
   LaunchResolutionFixture launch_resolution{};
   MemoryReferenceFixture launch_references{};

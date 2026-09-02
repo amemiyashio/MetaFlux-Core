@@ -1300,7 +1300,8 @@ WorkerResult CdevWorker::progress_pending() noexcept {
     if (retire_backend) {
       retire_backend_binding(pending_backend);
     }
-    return complete(request, MF_SHARED_NOT_SUPPORTED);
+    return complete(request, pending_.force_device_lost ? MF_SHARED_DEVICE_LOST
+                                                        : MF_SHARED_NOT_SUPPORTED);
   }
   std::uint32_t complete_flag = 0U;
   const mf_backend_status_v1 query_status =
@@ -1310,7 +1311,10 @@ WorkerResult CdevWorker::progress_pending() noexcept {
     return WorkerResult::Idle;
   }
   const mf_shared_status_v1 status =
-      query_status == MF_BACKEND_SUCCESS ? MF_SHARED_SUCCESS : map_backend_status(query_status);
+      pending_.force_device_lost
+          ? MF_SHARED_DEVICE_LOST
+          : (query_status == MF_BACKEND_SUCCESS ? MF_SHARED_SUCCESS
+                                                 : map_backend_status(query_status));
   const mf_ring_descriptor_v1 request = pending_.request;
   if (status == MF_SHARED_DEVICE_LOST && pending_.has_disconnect_event) {
     report_backend_loss(pending_.disconnect_event);
@@ -1616,6 +1620,9 @@ void CdevWorker::lifecycle_lost(void* context,
     worker->discard_staged_rebind();
     worker->lifecycle_online_ = false;
     worker->lifecycle_accepting_ = false;
+    if (worker->pending_.active) {
+      worker->pending_.force_device_lost = true;
+    }
     (void)worker->cancel_pending();
   }
 }

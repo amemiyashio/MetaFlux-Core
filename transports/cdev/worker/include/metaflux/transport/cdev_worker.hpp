@@ -381,6 +381,7 @@ private:
     CdevLaunchResolution launch_resolution{};
     bool has_launch_memory_references = false;
     bool cancellation_requested = false;
+    bool force_device_lost = false;
     bool retire_backend = false;
     mf_backend_event_v1 event = 0U;
     metaflux::runtime::lifecycle::ExternalEvent disconnect_event{};
