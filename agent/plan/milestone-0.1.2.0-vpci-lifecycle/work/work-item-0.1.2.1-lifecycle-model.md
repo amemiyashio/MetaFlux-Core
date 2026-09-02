@@ -160,7 +160,7 @@ Implemented stage:
 - [x] Bind `RegistryView` telemetry producers to stable online fence/admission
   snapshots before, during, and after bank staging; recovery validates a
   marker-complete target bank before promoting it.
-- [ ] Compose the runtime view gate and enumerate reserve(A), reserve(B), A partial
+- [x] Compose the runtime view gate and enumerate reserve(A), reserve(B), A partial
   publish, B blocked publish, A complete/abort/compensate/suffix-skip, owner death,
   B authority loss plus admission/read and loss-deadline close, one shared admission
   attempt through seq-cst ENTERING/open-read/quiescence and its lease through
@@ -193,7 +193,13 @@ Implemented stage:
   expose no mutable lease head/index, telemetry never wraps or returns a mixed bank,
   stale telemetry targets abort/retry without bank touch or stuck ownership, stable
   readers never tear or reopen independent latches, invalidated/old-view actors
-  never publish, and a closed mirror does not roll back authority.
+  never publish, and a closed mirror does not roll back authority. Added
+  `view_gate_model` to model.json with all 7 state machines (ViewState, DeviceState,
+  AttemptState, LeaseState, UpdateState, PublishState, RangeState), transitions,
+  and16 invariants. Added `view_gate` bounds to model-bounds.json. Added
+  `ViewGateSnapshot`, `assert_view_gate_snapshot`, `view_gate_direct_scenarios`
+  (21 checks), and `explore_view_gate` (2520 states, 5098 transitions) to
+  `check-lifecycle-model.py`.
 - [ ] Generate positive, invalid, repeated, racing, and injected-failure model
   fixtures from one schema.
 
