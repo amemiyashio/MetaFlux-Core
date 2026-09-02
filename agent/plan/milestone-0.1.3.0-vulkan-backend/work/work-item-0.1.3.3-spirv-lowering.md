@@ -50,9 +50,11 @@ fallback inside a Vulkan context.
 - [x] Cover the currently advertised forms' limits, required features, address
   spaces, barriers, malformed modules, and stable negative diagnostics.
 - [x] Build differential fixtures for every currently advertised semantic form.
+- [x] Add SetPredicateGeU32 and SetPredicateEqU32 predicate lowering forms with
+  `arith.cmpi uge`/`eq` + `scf.if` emission and SPIR-V binary validation.
 - [ ] Extend the lowering and differential matrix to the remaining Kernel IR
-  arithmetic, predicate, and memory forms, including wide-integer and
-  qualifier/edge cases.
+  arithmetic, wide-integer, and memory forms, including `MultiplyWideU32`
+  standalone and mixed-type elementwise kernels.
 
 ## Exit Gate
 
