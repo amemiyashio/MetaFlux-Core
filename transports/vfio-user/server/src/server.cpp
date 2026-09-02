@@ -125,6 +125,10 @@ VfioUserServer::~VfioUserServer() {
   };
   close_mappings(mappings_);
   close_mappings(retired_mappings_);
+  if (fd_ >= 0) {
+    (void)::close(fd_);
+    fd_ = -1;
+  }
 }
 
 void VfioUserServer::mark_lost() noexcept {

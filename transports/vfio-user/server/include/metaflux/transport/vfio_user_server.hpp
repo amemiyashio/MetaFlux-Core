@@ -78,6 +78,7 @@ struct DmaMapping final {
 
 class VfioUserServer final {
 public:
+  // The server takes ownership of fd and closes it on destruction or terminal close.
   explicit VfioUserServer(int fd, ServerConfig config = {}) noexcept;
   ~VfioUserServer();
 

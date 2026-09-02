@@ -137,6 +137,25 @@ int make_memfd() {
   return static_cast<int>(fd);
 }
 
+bool test_server_releases_transport_fd() {
+  int sockets[2] = {-1, -1};
+  if (::socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sockets) != 0) {
+    return false;
+  }
+  const int owned_fd = sockets[1];
+  {
+    metaflux::transport::vfio_user::VfioUserServer server(owned_fd);
+    if (server.state() == metaflux::transport::vfio_user::ServerState::Lost) {
+      close(sockets[0]);
+      close(sockets[1]);
+      return false;
+    }
+  }
+  const bool released = ::fcntl(owned_fd, F_GETFD) < 0 && errno == EBADF;
+  close(sockets[0]);
+  return released;
+}
+
 bool test_dma_requires_shared_memory_negotiation() {
   int sockets[2] = {-1, -1};
   if (::socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sockets) != 0) {
@@ -366,7 +385,8 @@ bool test_transport_loss_drains_dma_before_recovery() {
 } // namespace
 
 int main() {
-  if (!test_dma_requires_shared_memory_negotiation() ||
+  if (!test_server_releases_transport_fd() ||
+      !test_dma_requires_shared_memory_negotiation() ||
       !test_invalid_loss_event_does_not_mutate_server() ||
       !test_fatal_control_error_reports_transport_loss() ||
       !test_transport_loss_drains_dma_before_recovery()) {
