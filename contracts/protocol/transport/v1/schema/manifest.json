@@ -32,7 +32,7 @@
       "id": "linux.uapi.v0",
       "version": "0.1",
       "path": "contracts/uapi/linux/v1/schema/uapi.json",
-      "sha256": "62abaf41de4536fe427c86a4e4245870a51efd2299b993308774aa2c24c9e827"
+      "sha256": "53aaaa24e8c41f9434f95ba424d4a24135d013a30c38797418fe27823b6f2ab6"
     }
   ]
 }

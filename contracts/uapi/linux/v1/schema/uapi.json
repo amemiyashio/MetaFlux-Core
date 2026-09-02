@@ -109,6 +109,51 @@
     "MF_UAPI_MMAP_REGISTRY_V0": "1",
     "MF_UAPI_MMAP_PAYLOAD_V0": "2"
   },
+  "buffer_lifetime": {
+    "description": "A buffer handle is valid if and only if all conditions hold simultaneously.",
+    "valid_conditions": [
+      "buffer.generation == device.generation",
+      "buffer.handle != 0",
+      "device.state != LOST",
+      "device.state != REMOVED",
+      "worker_lease.state in (ACTIVE, COMMITTED, PUBLISHED)"
+    ],
+    "invalidation_events": [
+      {"event": "lifecycle_commit", "reason": "generation advances; old handles return DEVICE_LOST"},
+      {"event": "worker_lease_revoke", "reason": "lease revocation invalidates all handles on that lease"},
+      {"event": "transport_loss", "reason": "device enters LOST; all handles return DEVICE_LOST"},
+      {"event": "worker_death", "reason": "owner close invalidates all handles held by that worker"},
+      {"event": "explicit_unregister", "reason": "caller revokes a specific registered range"},
+      {"event": "payload_vma_close", "reason": "last VMA on payload arena invalidates mapped handles"}
+    ],
+    "error_on_invalid": "MF_SHARED_DEVICE_LOST",
+    "notes": [
+      "Opaque registered-memory handles are never cast to host pointers across the C ABI.",
+      "Buffer handle reuse within a generation is prohibited; handles are monotonically increasing.",
+      "A stale handle from a previous generation always returns DEVICE_LOST, never a false success."
+    ]
+  },
+  "worker_lifecycle": {
+    "description": "Worker register/lease/attach/drain/revoke/death sequence.",
+    "states": ["UNREGISTERED", "REGISTERED", "LEASED", "ATTACHED", "DRAINING", "REVOKED", "DEAD"],
+    "transitions": [
+      {"event": "register", "from": "UNREGISTERED", "to": "REGISTERED", "guard": "valid credentials and daemon incarnation"},
+      {"event": "lease_acquire", "from": "REGISTERED", "to": "LEASED", "guard": "generation matches and no other active lease"},
+      {"event": "attach_queue", "from": "LEASED", "to": "ATTACHED", "guard": "queue generation matches lease generation"},
+      {"event": "drain_begin", "from": "ATTACHED", "to": "DRAINING", "guard": "lifecycle commit or explicit drain request"},
+      {"event": "drain_complete", "from": "DRAINING", "to": "LEASED", "guard": "all pending operations completed or cancelled"},
+      {"event": "revoke", "from": ["LEASED", "ATTACHED", "DRAINING"], "to": "REVOKED", "guard": "lease revocation or generation mismatch"},
+      {"event": "worker_death", "from": ["REGISTERED", "LEASED", "ATTACHED", "DRAINING"], "to": "DEAD", "guard": "process exit or fd close detected"},
+      {"event": "unregister", "from": ["REGISTERED", "REVOKED", "DEAD"], "to": "UNREGISTERED", "guard": "explicit close or cleanup"}
+    ],
+    "invariants": [
+      "Only one active lease per generation per worker.",
+      "Queue attach requires matching generation; stale generation rejects with DEVICE_LOST.",
+      "Drain completes only when all in-flight operations have status or are cancelled.",
+      "Worker death publishes LOST on all owned queues and invalidates all held handles.",
+      "Revoked workers cannot attach replacement queues or publish completions."
+    ]
+  },
   "ioctls": [
     {"name": "MF_UAPI_IOCTL_NEGOTIATE", "number": 0, "direction": "readwrite", "record": "mf_uapi_negotiate_v0"},
     {"name": "MF_UAPI_IOCTL_QUEUE_CREATE", "number": 1, "direction": "readwrite", "record": "mf_uapi_queue_v0"},
