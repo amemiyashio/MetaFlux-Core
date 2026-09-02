@@ -70,6 +70,15 @@ the repository gates.
    them with a generic rejection, retry unchanged evidence, or turn an external
    responsibility into implicit scheduling, source-copy creation, privilege,
    cleanup, or repository state.
+10. **Push only through the governed transport.** A local commit, integration,
+    or governance result is not authorization to push. On an explicit user or
+    application request, invoke
+    [`push-repository`](agent/skills/push-repository/SKILL.md) with one full
+    commit object ID. It alone configures and validates the canonical GitHub
+    remote, Nix Git/OpenSSH, external SSH-key path and public fingerprint, and
+    fixed `refs/heads/main` destination. Never read or copy private-key bytes,
+    infer a revision, allocate another branch, broaden a refspec, or force a
+    push. Only an explicit first push may initialize canonical main.
 
 Product boundaries live in `contracts/README.md` and
 `docs/architecture/repo-layout.md`; the language wall and dependency whitelist

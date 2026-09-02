@@ -20,6 +20,7 @@ this directory.
 | [roast](roast/SKILL.md) | Active | Explicitly promoting valuable knowledge at integration or governance boundaries |
 | [manage-toolchain](manage-toolchain/SKILL.md) | Active | Pinning tools, manifests, shells, SDK inputs, or Nix exposure |
 | [manage-host-privilege](manage-host-privilege/SKILL.md) | Active | Bounded sudo/su, confirmed-gap package installation, or driver debugging |
+| [push-repository](push-repository/SKILL.md) | Active | Configuring, validating, or explicitly pushing one exact revision to canonical GitHub |
 | [add-component](add-component/SKILL.md) | Active | Adding a new checked build/component boundary |
 | [close-decision](close-decision/SKILL.md) | Active | Resolving an open product decision into canonical authority |
 | [implementation-readiness](implementation-readiness/SKILL.md) | Active | Assessing architecture and workstream implementation readiness |
@@ -45,6 +46,8 @@ this directory.
   skills retain product semantics.
 - Tool changes use `manage-toolchain`. A confirmed Nix gap or privileged driver
   action additionally uses `manage-host-privilege`.
+- Explicit repository pushes use `push-repository`; local completion never
+  triggers a push, branch allocation, or broad refspec implicitly.
 - Decision closure uses `close-decision`; a breaking repository-wide
   replacement instead belongs to explicit `govern-epoch`.
 

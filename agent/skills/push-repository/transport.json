@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "remote_name": "origin",
+  "remote_url": "git@github.com:amemiyashio/MetaFlux-Core.git",
+  "destination_ref": "refs/heads/main",
+  "private_key_relative_to_repository": "../../keys/github-ssh-key",
+  "public_key_relative_to_repository": "../../keys/github-ssh-key.pub",
+  "public_key_fingerprint": "SHA256:0YXW/JsmtXujXEogA/o/f8TYgxZy6x+31uLseEw7JXc",
+  "ssh_options": [
+    "IdentitiesOnly=yes",
+    "BatchMode=yes",
+    "StrictHostKeyChecking=yes",
+    "ConnectTimeout=10",
+    "LogLevel=ERROR"
+  ]
+}

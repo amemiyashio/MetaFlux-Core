@@ -200,6 +200,16 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "architecture"
   )
   add_test(
+    NAME metaflux.architecture.repository-push-selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/push-repository/scripts/test_push_repository.py"
+  )
+  set_tests_properties(
+    metaflux.architecture.repository-push-selftest
+    PROPERTIES LABELS "architecture"
+  )
+  add_test(
     NAME metaflux.architecture.skill-routing
     COMMAND
       "${Python3_EXECUTABLE}" -B

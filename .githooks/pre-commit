@@ -56,5 +56,7 @@ run_without_git_local_environment nix develop . --command python3 -B \
   "$candidate_root/agent/skills/detect-agent-tool/scripts/test_detect_agent_tool.py"
 run_without_git_local_environment nix develop . --command python3 -B \
   "$candidate_root/agent/skills/start-work/scripts/test_commit_as_agent_tool.py"
+run_without_git_local_environment nix develop . --command python3 -B \
+  "$candidate_root/agent/skills/push-repository/scripts/test_push_repository.py"
 
 git diff --cached --check

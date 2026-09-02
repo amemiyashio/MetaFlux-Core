@@ -64,6 +64,7 @@ WORKFLOW_SKILL_SLUGS = {
     "detect-agent-tool",
     "integrate-batch",
     "govern-epoch",
+    "push-repository",
     "roast",
 }
 EXPLICIT_ONLY_SKILLS = {"integrate-batch", "govern-epoch", "roast"}

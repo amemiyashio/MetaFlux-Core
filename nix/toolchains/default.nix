@@ -30,6 +30,7 @@ pkgs.buildEnv {
     pkgs.cmake
     pkgs.ninja
     pkgs.nixfmt
+    pkgs.openssh
     pkgs.pkg-config
     repositoryPython
     gccRuntime

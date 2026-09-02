@@ -17,6 +17,7 @@
     "detect-agent-tool",
     "integrate-batch",
     "govern-epoch",
+    "push-repository",
     "roast"
   ],
   "coverage": {
@@ -804,6 +805,62 @@
       "locale": "zh-CN",
       "prompt": "先使用 $integrate-batch 审查精确 Iteration revisions；若确认存在全仓治理漂移，则由用户显式调用 $govern-epoch 直接同步当前权威。",
       "expected_skills": ["integrate-batch", "govern-epoch"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PUSH-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Configure this MetaFlux checkout to use its canonical GitHub SSH remote and governed external key for future pushes.",
+      "expected_skills": ["push-repository"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PUSH-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Push the supplied full MetaFlux commit object ID to canonical main using the repository SSH transport, without force or inferred refs.",
+      "expected_skills": ["push-repository"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PUSH-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "检查并使用规定的外部 SSH key，把给定的完整 MetaFlux commit 精确推送到 canonical GitHub main。",
+      "expected_skills": ["push-repository"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PUSH-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Use $integrate-batch to integrate the supplied revisions, but keep the result local and do not configure or contact a Git remote.",
+      "expected_skills": ["integrate-batch"],
+      "forbidden_skills": ["push-repository"]
+    },
+    {
+      "id": "PUSH-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "使用 $roast 提升本地知识结论，但不要配置远端、认证或执行 Git 推送。",
+      "expected_skills": ["roast"],
+      "forbidden_skills": ["push-repository"]
+    },
+    {
+      "id": "COMBO-INTEGRATE-PUSH",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Use $integrate-batch for the supplied committed Iterations, then explicitly validate and push the resulting full commit ID to canonical GitHub main.",
+      "expected_skills": ["integrate-batch", "push-repository"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-ZH-GOVERN-PUSH",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "使用 $govern-epoch 完成显式纪元治理并通过回归，然后按用户明确要求将其完整 commit ID 推送到 canonical GitHub main。",
+      "expected_skills": ["govern-epoch", "push-repository"],
       "forbidden_skills": []
     }
   ]

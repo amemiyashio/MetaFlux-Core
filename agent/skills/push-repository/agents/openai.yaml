@@ -1,0 +1,4 @@
+interface:
+  display_name: "Push Repository"
+  short_description: "Push exact MetaFlux revisions through pinned SSH"
+  default_prompt: "Use $push-repository to validate and push an exact committed revision to the canonical MetaFlux GitHub repository."

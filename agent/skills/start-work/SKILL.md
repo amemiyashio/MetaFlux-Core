@@ -176,7 +176,10 @@ identified and the existing candidate is preserved.
 
 If the user explicitly requests Batch integration, load `integrate-batch`. If
 the user explicitly requests destructive governance, load `govern-epoch`.
-Neither workflow is inferred from ordinary implementation or review.
+If the user or application explicitly requests an external Git push, load
+`push-repository` and supply one full committed object ID. None of these
+workflows is inferred from ordinary implementation, review, commit, integration,
+or governance completion.
 
 ## Deliver The Iteration
 
