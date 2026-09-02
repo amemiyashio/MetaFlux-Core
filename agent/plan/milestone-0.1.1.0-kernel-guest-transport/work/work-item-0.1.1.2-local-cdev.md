@@ -193,10 +193,14 @@ and arithmetic operation is validated.
   replacement, and physical device qualification remain open.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak. The userspace live
-  ABI harness is now present; kernel-configured sanitizer and fault-injection
-  runs remain unexecuted on the current host. After `batch-0001` integrates its
-  three live-path Iterations, the integrator advances `agent/goal.json` to
-  `batch-0002` for the Linux 6.12/6.18 fault and sanitizer qualification matrix.
+  ABI harness now PASSES on a live 6.18.42 host kernel through the
+  decision-0032 `driver live` action (`cdev qualification: PASS`, covering
+  negotiate, queue mmap, eventfd lease, payload query, long-term
+  registered-memory pin/unregister, malformed/stale rejection, and owner-close
+  tombstones). The module builds and loads against the running 6.18 LTS kernel.
+  Kernel-configured sanitizer and fault-injection runs remain unexecuted
+  (current host has `CONFIG_DEBUG_KMEMLEAK` unset); they stay in the
+  `batch-0002` Linux 6.12/6.18 fault and sanitizer qualification matrix.
 
 ## Exit Gate
 
