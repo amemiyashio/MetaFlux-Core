@@ -708,7 +708,7 @@ mf_shared_status_v1 RegistryAuthority::report_cdev_loss() noexcept {
     return MF_SHARED_SYSTEM_ERROR;
   }
   const auto event = metaflux::runtime::lifecycle::capture_external_event(
-      metaflux::runtime::lifecycle::ExternalEventKind::Disconnect,
+      metaflux::runtime::lifecycle::ExternalEventKind::CdevDisconnect,
       next_lifecycle_request_id_++, lifecycle_->snapshot());
   metaflux::runtime::lifecycle::ResultDetails details{};
   if (metaflux::runtime::lifecycle::submit_external_event(*lifecycle_, event, details) !=
