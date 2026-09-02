@@ -369,11 +369,62 @@ def emit_header(root: Path, manifest_path: Path, manifest: dict[str, Any], loade
     output.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def generate_golden_json(loaded: list[tuple[Path, dict[str, Any], list[dict[str, Any]]]]) -> dict[str, Any]:
+    """Generate language-neutral golden bytes as a JSON object."""
+    result: dict[str, Any] = {
+        "schema_version": 1,
+        "description": "Language-neutral golden byte arrays for transport schema records.",
+        "endianness": "little",
+        "records": {},
+    }
+    for _path, _doc, rec_list in loaded:
+        for record in rec_list:
+            name = record["name"]
+            buffer = bytearray(record["size"])
+            values: dict[str, Any] = {
+                "magic": 0x3054464D,
+                "major": 0,
+                "minor": 1,
+                "struct_size": record["size"],
+                "required_features": 1,
+                "daemon_incarnation": 0x0102030405060708,
+                "view_serial": 9,
+                "device_generation": 7,
+                "descriptor_version": 1,
+                "ring_version": 1,
+                "max_queues": 2,
+                "ring_order": 8,
+                "dma_width": 64,
+                "dma_alignment": 4096,
+                "max_regions": 64,
+                "max_inflight": 256,
+                "max_bytes": 0x10000000,
+            }
+            for field in record["fields"]:
+                field_name = field["name"]
+                if field_name in values:
+                    pack_at(buffer, field["offset"], field["type"], values[field_name])
+                elif not field.get("reserved"):
+                    pack_at(buffer, field["offset"], field["type"], None)
+            result["records"][name] = {
+                "size": record["size"],
+                "alignment": record["alignment"],
+                "golden_bytes": list(buffer),
+                "golden_hex": buffer.hex(),
+                "fields": [
+                    {"name": f["name"], "offset": f["offset"], "width": f["width"], "type": f["type"]}
+                    for f in record["fields"]
+                ],
+            }
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, default=Path("contracts/protocol/transport/v1/schema/manifest.json"))
     parser.add_argument("--generate-header", type=Path)
+    parser.add_argument("--generate-json", type=Path, help="Generate language-neutral golden bytes JSON")
     args = parser.parse_args()
     root = args.root.resolve()
     manifest_path = (root / args.manifest).resolve() if not args.manifest.is_absolute() else args.manifest.resolve()
@@ -381,6 +432,11 @@ def main() -> int:
         manifest, loaded = load_manifest(root, manifest_path)
         if args.generate_header is not None:
             emit_header(root, manifest_path, manifest, loaded, args.generate_header.resolve())
+        if args.generate_json is not None:
+            golden = generate_golden_json(loaded)
+            json_path = args.generate_json.resolve()
+            json_path.parent.mkdir(parents=True, exist_ok=True)
+            json_path.write_text(json.dumps(golden, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     except (OSError, SchemaError) as error:
         print(f"transport schema: error: {error}", file=sys.stderr)
         return 1

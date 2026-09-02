@@ -13,6 +13,7 @@ add_custom_command(
     "${PROJECT_SOURCE_DIR}/tools/validate-transport-schema.py"
     --root "${PROJECT_SOURCE_DIR}"
     --generate-header "${METAFLUX_TRANSPORT_SCHEMA_HEADER}"
+    --generate-json "${CMAKE_CURRENT_BINARY_DIR}/generated/transport_golden_bytes.json"
   DEPENDS
     "${PROJECT_SOURCE_DIR}/tools/validate-transport-schema.py"
     "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/manifest.json"
