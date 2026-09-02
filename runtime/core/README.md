@@ -30,6 +30,12 @@ the pre-captured event overload so command correlation retains the
 observation-time identity. A concurrent authority advance is reported as
 `Stale`; the helper never recaptures against the replacement generation.
 
+`ProducerIngress` owns request-ID sequencing for a coordinator-owned producer
+boundary. Its `capture` method records the authority tuple once and is passed to
+correlated QMP or transport completion adapters; `submit_immediate` is reserved
+for reset, loss, and restart events that have no delayed completion. IDs never
+wrap: exhaustion returns an invalid event and does not reuse an earlier request.
+
 Transport implementations register at most one bounded `Mirror` for each of
 `memfd`, `cdev`, and `vfio-user`. The coordinator invokes all registered mirrors
 in the same prepare, quiesce, drain, commit sequence. The callbacks receive a

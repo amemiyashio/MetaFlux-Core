@@ -94,6 +94,10 @@ public:
   process_once(metaflux::runtime::lifecycle::Coordinator& coordinator, std::uint64_t request_id,
                std::uint64_t deadline_tick,
                metaflux::runtime::lifecycle::ResultDetails& out) noexcept;
+  [[nodiscard]] ServerResult
+  process_once(metaflux::runtime::lifecycle::ProducerIngress& ingress,
+               std::uint64_t deadline_tick,
+               metaflux::runtime::lifecycle::ResultDetails& out) noexcept;
   ServerState state() const noexcept { return state_; }
   std::size_t mapping_count() const noexcept { return mappings_.size(); }
   std::size_t retired_mapping_count() const noexcept { return retired_mappings_.size(); }

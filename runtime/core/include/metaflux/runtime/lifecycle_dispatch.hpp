@@ -19,6 +19,28 @@ namespace metaflux::runtime::lifecycle {
                                                                     std::uint64_t deadline_tick,
                                                                     ResultDetails& out) noexcept;
 
+// Allocate request IDs and capture producer observations from one authority.
+// Immediate producers can submit through the same object; correlated producers
+// pass the captured event to their transport-specific completion adapter.
+class ProducerIngress final {
+public:
+  explicit ProducerIngress(Coordinator& coordinator,
+                           std::uint64_t first_request_id = 1U) noexcept;
+
+  [[nodiscard]] ExternalEvent capture(ExternalEventKind kind,
+                                      std::uint64_t deadline_tick = 0U) noexcept;
+  [[nodiscard]] NormalizationResult submit_immediate(ExternalEventKind kind,
+                                                      std::uint64_t deadline_tick,
+                                                      ResultDetails& out) noexcept;
+
+  [[nodiscard]] Coordinator& coordinator() noexcept { return coordinator_; }
+  [[nodiscard]] std::uint64_t next_request_id() const noexcept { return next_request_id_; }
+
+private:
+  Coordinator& coordinator_;
+  std::uint64_t next_request_id_ = 0U;
+};
+
 } // namespace metaflux::runtime::lifecycle
 
 #endif

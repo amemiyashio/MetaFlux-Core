@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <limits>
 
 using metaflux::runtime::lifecycle::capture_and_submit_external_event;
 using metaflux::runtime::lifecycle::capture_external_event;
@@ -10,6 +11,7 @@ using metaflux::runtime::lifecycle::Coordinator;
 using metaflux::runtime::lifecycle::ExternalEvent;
 using metaflux::runtime::lifecycle::ExternalEventKind;
 using metaflux::runtime::lifecycle::NormalizationResult;
+using metaflux::runtime::lifecycle::ProducerIngress;
 using metaflux::runtime::lifecycle::Result;
 using metaflux::runtime::lifecycle::ResultDetails;
 using metaflux::runtime::lifecycle::Snapshot;
@@ -170,13 +172,45 @@ bool preserves_a_stale_observation_instead_of_recapturing() {
   return true;
 }
 
+bool sequences_and_captures_producer_observations() {
+  Coordinator coordinator = online_coordinator();
+  ProducerIngress ingress(coordinator);
+  const ExternalEvent add = ingress.capture(ExternalEventKind::QmpAdd, 77U);
+  REQUIRE(add.request_id == 1U && add.expected_identity_record_id == 0U &&
+          add.expected_generation == 0U && add.expected_epoch == 1U);
+
+  const ExternalEvent remove = ingress.capture(ExternalEventKind::QmpRemove, 78U);
+  REQUIRE(remove.request_id == 2U && remove.expected_identity_record_id == 1U &&
+          remove.expected_generation == 1U && remove.expected_epoch == 1U);
+
+  ResultDetails details{};
+  REQUIRE(ingress.submit_immediate(ExternalEventKind::AdminReset, 79U, details) ==
+          NormalizationResult::Accepted);
+  REQUIRE(details.result == Result::Accepted && details.snapshot.generation == 2U &&
+          details.snapshot.epoch == 2U && ingress.next_request_id() == 4U);
+
+  REQUIRE(ingress.submit_immediate(ExternalEventKind::QmpRemove, 80U, details) ==
+          NormalizationResult::Unsupported);
+  REQUIRE(details.result == Result::Invalid && ingress.next_request_id() == 4U);
+
+  ProducerIngress exhausted(coordinator, std::numeric_limits<std::uint64_t>::max());
+  REQUIRE(exhausted.capture(ExternalEventKind::Disconnect).request_id ==
+          std::numeric_limits<std::uint64_t>::max());
+  REQUIRE(exhausted.submit_immediate(ExternalEventKind::Disconnect, 0U, details) ==
+          NormalizationResult::Invalid);
+  REQUIRE(details.result == Result::Invalid);
+  REQUIRE(exhausted.capture(ExternalEventKind::Disconnect).request_id == 0U);
+  return true;
+}
+
 } // namespace
 
 int main() {
   return rejects_before_authority_submission() &&
                  submits_only_normalized_requests_and_replays_idempotently() &&
                  captures_and_submits_immediate_producers() &&
-                 preserves_a_stale_observation_instead_of_recapturing()
+                 preserves_a_stale_observation_instead_of_recapturing() &&
+                 sequences_and_captures_producer_observations()
              ? 0
              : 1;
 }

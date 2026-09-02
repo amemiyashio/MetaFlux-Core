@@ -133,6 +133,13 @@ bool captures_authority_tuple_at_event_observation() {
   const ExternalEvent add = capture_external_event(ExternalEventKind::QmpAdd, 72U, absent);
   REQUIRE(add.expected_identity_record_id == 0U && add.expected_generation == 0U);
   REQUIRE(RequestNormalizer::normalize(add, request) == NormalizationResult::Accepted);
+
+  const ExternalEvent add_after_restart =
+      capture_external_event(ExternalEventKind::AdminAdd, 73U, online, 100U);
+  REQUIRE(add_after_restart.expected_identity_record_id == 0U &&
+          add_after_restart.expected_generation == 0U && add_after_restart.expected_epoch == 2U &&
+          add_after_restart.deadline_tick == 100U);
+  REQUIRE(RequestNormalizer::normalize(add_after_restart, request) == NormalizationResult::Accepted);
   return true;
 }
 

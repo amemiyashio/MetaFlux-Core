@@ -42,6 +42,16 @@ QmpCommand QmpCommand::from_snapshot(std::uint64_t command_id, ExternalEventKind
   };
 }
 
+QmpCommand QmpCommand::from_ingress(
+    std::uint64_t command_id, ExternalEventKind kind,
+    metaflux::runtime::lifecycle::ProducerIngress& ingress,
+    std::uint64_t deadline_tick) noexcept {
+  return QmpCommand{
+      .command_id = command_id,
+      .event = ingress.capture(kind, deadline_tick),
+  };
+}
+
 void QmpLifecycleAdapter::clear_pending() noexcept {
   pending_ = false;
   pending_command_id_ = 0U;

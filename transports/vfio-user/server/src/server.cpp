@@ -749,6 +749,20 @@ VfioUserServer::process_once(metaflux::runtime::lifecycle::Coordinator& coordina
   return mark_lost_and_submit(disconnect_event, coordinator, out);
 }
 
+ServerResult VfioUserServer::process_once(
+    metaflux::runtime::lifecycle::ProducerIngress& ingress, std::uint64_t deadline_tick,
+    metaflux::runtime::lifecycle::ResultDetails& out) noexcept {
+  out = metaflux::runtime::lifecycle::ResultDetails{};
+  const ServerResult result = process_once();
+  if (result != ServerResult::Closed &&
+      !(result == ServerResult::Malformed && state_ == ServerState::Lost)) {
+    return result;
+  }
+  const auto disconnect_event = ingress.capture(
+      metaflux::runtime::lifecycle::ExternalEventKind::Disconnect, deadline_tick);
+  return mark_lost_and_submit(disconnect_event, ingress.coordinator(), out);
+}
+
 bool VfioUserServer::drain_lifecycle() noexcept {
   return mappings_.empty() && std::all_of(retired_mappings_.begin(), retired_mappings_.end(),
                                           [](const DmaMapping& mapping) {

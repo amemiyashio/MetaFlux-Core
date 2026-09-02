@@ -32,6 +32,10 @@ struct QmpCommand final {
   from_snapshot(std::uint64_t command_id, metaflux::runtime::lifecycle::ExternalEventKind kind,
                 std::uint64_t request_id, const metaflux::runtime::lifecycle::Snapshot& snapshot,
                 std::uint64_t deadline_tick = 0U) noexcept;
+  [[nodiscard]] static QmpCommand
+  from_ingress(std::uint64_t command_id, metaflux::runtime::lifecycle::ExternalEventKind kind,
+               metaflux::runtime::lifecycle::ProducerIngress& ingress,
+               std::uint64_t deadline_tick = 0U) noexcept;
 };
 
 struct QmpReply final {

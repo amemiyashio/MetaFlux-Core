@@ -593,7 +593,7 @@ private:
   std::uint64_t completed_work_items_ = 0;
   std::uint64_t lifecycle_sequence_ = 1U;
   std::optional<runtime::lifecycle::Coordinator> lifecycle_;
-  std::uint64_t next_lifecycle_request_id_ = 1U;
+  std::optional<runtime::lifecycle::ProducerIngress> lifecycle_ingress_;
   std::vector<WorkInterval> compute_intervals_;
   std::vector<WorkInterval> memory_intervals_;
   bool initialized_ = false;
@@ -679,6 +679,7 @@ mf_shared_status_v1 RegistryAuthority::initialize(mf_registry_view_id_v1 view_id
   if (!lifecycle_->valid()) {
     return MF_SHARED_SYSTEM_ERROR;
   }
+  lifecycle_ingress_.emplace(*lifecycle_);
   return publish_locked(monotonic_time_ns());
 }
 
@@ -703,15 +704,12 @@ bool RegistryAuthority::detach_cdev_worker(
 
 mf_shared_status_v1 RegistryAuthority::report_cdev_loss() noexcept {
   const std::scoped_lock lock(mutex_);
-  if (!initialized_ || !lifecycle_.has_value() ||
-      next_lifecycle_request_id_ == std::numeric_limits<std::uint64_t>::max()) {
+  if (!initialized_ || !lifecycle_.has_value() || !lifecycle_ingress_.has_value()) {
     return MF_SHARED_SYSTEM_ERROR;
   }
-  const auto event = metaflux::runtime::lifecycle::capture_external_event(
-      metaflux::runtime::lifecycle::ExternalEventKind::CdevDisconnect,
-      next_lifecycle_request_id_++, lifecycle_->snapshot());
   metaflux::runtime::lifecycle::ResultDetails details{};
-  if (metaflux::runtime::lifecycle::submit_external_event(*lifecycle_, event, details) !=
+  if (lifecycle_ingress_->submit_immediate(
+          metaflux::runtime::lifecycle::ExternalEventKind::CdevDisconnect, 0U, details) !=
       metaflux::runtime::lifecycle::NormalizationResult::Accepted) {
     return MF_SHARED_INVALID_ARGUMENT;
   }

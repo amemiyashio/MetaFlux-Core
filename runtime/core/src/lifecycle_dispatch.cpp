@@ -24,6 +24,36 @@ bool is_immediate_producer_kind(ExternalEventKind kind) noexcept {
 
 } // namespace
 
+ProducerIngress::ProducerIngress(Coordinator& coordinator,
+                                 std::uint64_t first_request_id) noexcept
+    : coordinator_(coordinator), next_request_id_(first_request_id) {}
+
+ExternalEvent ProducerIngress::capture(ExternalEventKind kind,
+                                       std::uint64_t deadline_tick) noexcept {
+  if (next_request_id_ == 0U) {
+    return capture_external_event(kind, 0U, coordinator_.snapshot(), deadline_tick);
+  }
+  const std::uint64_t request_id = next_request_id_;
+  if (next_request_id_ != std::numeric_limits<std::uint64_t>::max()) {
+    ++next_request_id_;
+  } else {
+    next_request_id_ = 0U;
+  }
+  return capture_external_event(kind, request_id, coordinator_.snapshot(), deadline_tick);
+}
+
+NormalizationResult ProducerIngress::submit_immediate(ExternalEventKind kind,
+                                                      std::uint64_t deadline_tick,
+                                                      ResultDetails& out) noexcept {
+  if (!is_immediate_producer_kind(kind) || next_request_id_ == 0U) {
+    out = ResultDetails{};
+    out.snapshot = coordinator_.snapshot();
+    return next_request_id_ == 0U ? NormalizationResult::Invalid
+                                  : NormalizationResult::Unsupported;
+  }
+  return submit_external_event(coordinator_, capture(kind, deadline_tick), out);
+}
+
 NormalizationResult submit_external_event(Coordinator& coordinator, const ExternalEvent& event,
                                           ResultDetails& out) noexcept {
   out = ResultDetails{};

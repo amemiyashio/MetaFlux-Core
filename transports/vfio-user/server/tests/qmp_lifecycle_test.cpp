@@ -111,11 +111,12 @@ bool submits_qmp_completion_through_ingress() {
                                  .generation_terminal = 32U,
                                  .epoch_terminal = 32U});
   QmpLifecycleAdapter adapter;
-  const auto add = event(ExternalEventKind::QmpAdd, 61U, 0U, 0U, 1U);
-  const auto add_command =
-      QmpCommand::from_snapshot(300U, ExternalEventKind::QmpAdd, 61U, coordinator.snapshot());
+  metaflux::runtime::lifecycle::ProducerIngress ingress(coordinator);
+  const auto add_command = QmpCommand::from_ingress(300U, ExternalEventKind::QmpAdd, ingress);
+  const auto add = add_command.event;
   REQUIRE(add_command.event.logical_device_id == add.logical_device_id &&
-          add_command.event.expected_epoch == add.expected_epoch);
+          add_command.event.request_id == 1U && add_command.event.expected_epoch == add.expected_epoch &&
+          add_command.event.expected_generation == 0U);
   REQUIRE(adapter.begin(add_command) == QmpResult::Accepted);
   ResultDetails details{};
   REQUIRE(adapter.complete_and_submit({.command_id = 300U, .kind = QmpReplyKind::DeviceAdded},

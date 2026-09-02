@@ -714,9 +714,10 @@ int main() {
     return 1;
   }
   metaflux::runtime::lifecycle::ResultDetails disconnect_details{};
+  metaflux::runtime::lifecycle::ProducerIngress ingress(coordinator);
   close(sockets[0]);
   sockets[0] = -1;
-  if (server.process_once(coordinator, 9U, 0U, disconnect_details) !=
+  if (server.process_once(ingress, 0U, disconnect_details) !=
           metaflux::transport::vfio_user::ServerResult::Closed ||
       server.state() != metaflux::transport::vfio_user::ServerState::Lost ||
       disconnect_details.result != metaflux::runtime::lifecycle::Result::Accepted ||

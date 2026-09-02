@@ -53,12 +53,13 @@ bool mapping_for(ExternalEventKind kind, Mapping& out) noexcept {
 ExternalEvent capture_external_event(ExternalEventKind kind, std::uint64_t request_id,
                                      const Snapshot& snapshot,
                                      std::uint64_t deadline_tick) noexcept {
+  const bool add = kind == ExternalEventKind::AdminAdd || kind == ExternalEventKind::QmpAdd;
   return ExternalEvent{
       .request_id = request_id,
       .logical_device_id = snapshot.logical_device_id,
       .daemon_incarnation = snapshot.daemon_incarnation,
-      .expected_identity_record_id = snapshot.identity_record_id,
-      .expected_generation = snapshot.generation,
+      .expected_identity_record_id = add ? 0U : snapshot.identity_record_id,
+      .expected_generation = add ? 0U : snapshot.generation,
       .expected_epoch = snapshot.epoch,
       .deadline_tick = deadline_tick,
       .kind = kind,
