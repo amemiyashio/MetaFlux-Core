@@ -674,6 +674,10 @@ mf_shared_status_v1 CdevObjectTableResolver::resolve_memory(
       backend_context_ == 0U) {
     return MF_SHARED_NOT_SUPPORTED;
   }
+  const auto object_address = reinterpret_cast<std::uintptr_t>(object.address);
+  if (object_address > std::numeric_limits<std::uintptr_t>::max() - entry.value) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
   auto* address = static_cast<std::uint8_t*>(object.address) + entry.value;
   const mf_shared_status_v1 import_status = importer_(
       importer_context_, instance_, backend_context_, address, byte_count, out_reference);

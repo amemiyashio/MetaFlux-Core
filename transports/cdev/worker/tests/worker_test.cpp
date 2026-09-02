@@ -13,9 +13,11 @@
 #endif
 
 #include <array>
+#include <cstdio>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <limits>
 #include <span>
 #include <string>
 #include <vector>
@@ -1884,6 +1886,38 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
+  object_table.destination = reinterpret_cast<void*>(
+      std::numeric_limits<std::uintptr_t>::max() - static_cast<std::uintptr_t>(8U));
+  metaflux::transport::cdev::CdevCopyResolution overflow_resolution{};
+  const mf_shared_status_v1 overflow_status =
+      table_resolver.resolve_copy(&request, &overflow_resolution);
+  if (overflow_status != MF_SHARED_INVALID_ARGUMENT || table_import.calls != 2U) {
+    std::fprintf(stderr, "object-table overflow check: status=%d importer_calls=%u\n",
+                 overflow_status, table_import.calls);
+    for (const auto imported : table_import.imported) {
+      if (imported != 0U && cpu_api->free_memory != nullptr) {
+        cpu_api->free_memory(cpu_instance, imported);
+      }
+    }
+    if (cpu_api->free_memory != nullptr) {
+      cpu_api->free_memory(cpu_instance, region_destination_memory);
+      cpu_api->free_memory(cpu_instance, region_source_memory);
+      cpu_api->free_memory(cpu_instance, cpu_memory);
+    }
+    if (cpu_api->destroy_queue != nullptr) {
+      cpu_api->destroy_queue(cpu_instance, cpu_queue);
+    }
+    if (cpu_api->destroy_context != nullptr) {
+      cpu_api->destroy_context(cpu_instance, cpu_context);
+    }
+    if (cpu_api->destroy_instance != nullptr) {
+      cpu_api->destroy_instance(cpu_instance);
+    }
+    mf_client_ring_close_v1(&submission);
+    mf_client_ring_close_v1(&completion);
+    return 1;
+  }
+  object_table.destination = table_destination.data();
 
   metaflux::transport::cdev::CdevWorker queue_only_table_worker(
       {.submission = submission.header,
@@ -1907,12 +1941,18 @@ int main() {
   if (!queue_only_table_worker.backend_bound() ||
       mf_client_ring_try_submit_v1(&submission, &request) != MF_SHARED_SUCCESS ||
       queue_only_table_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
-      object_table.calls != 6U || table_import.calls != 4U || table_lease.lease_acquires != 2U ||
+      object_table.calls != 8U || table_import.calls != 4U || table_lease.lease_acquires != 2U ||
       table_lease.lease_releases != 2U || table_refs.retains != 4U || table_refs.releases != 4U ||
       table_refs.active != 0U ||
       std::memcmp(table_destination.data() + 16U, table_source.data() + 32U, 64U) != 0 ||
       mf_client_ring_try_consume_v1(&completion, &result) != MF_SHARED_SUCCESS ||
       result.arguments[0] != static_cast<std::uint64_t>(MF_SHARED_SUCCESS)) {
+    std::fprintf(stderr,
+                 "object-table queue check: calls=%u imports=%u acquires=%u releases=%u "
+                 "retains=%u active=%u result=%u\n",
+                 object_table.calls, table_import.calls, table_lease.lease_acquires,
+                 table_lease.lease_releases, table_refs.retains, table_refs.active,
+                 result.arguments[0]);
     for (const auto imported : table_import.imported) {
       if (imported != 0U && cpu_api->free_memory != nullptr) {
         cpu_api->free_memory(cpu_instance, imported);
