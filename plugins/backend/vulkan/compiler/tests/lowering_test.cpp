@@ -211,6 +211,62 @@ Kernel predicate_f32_kernel() {
   };
 }
 
+Kernel predicate_ge_u32_kernel() {
+  return Kernel{
+      .name = "predicate_ge_u32",
+      .parameters = {Parameter{.kind = ParameterKind::BufferU32},
+                     Parameter{.kind = ParameterKind::BufferU32},
+                     Parameter{.kind = ParameterKind::ScalarU32}},
+      .shared_allocations = {},
+      .registers = {Register{.kind = ValueKind::GlobalAddress}, Register{.kind = ValueKind::GlobalAddress},
+                    Register{.kind = ValueKind::U32}, Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::U64}, Register{.kind = ValueKind::GlobalAddress},
+                    Register{.kind = ValueKind::GlobalAddress}, Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::Predicate}},
+      .operations = {op(Opcode::LoadParameterAddress, 0U, {}, 0U),
+                     op(Opcode::LoadParameterAddress, 1U, {}, 1U),
+                     op(Opcode::LoadParameterU32, 2U, {}, 2U),
+                     op(Opcode::MoveSpecialU32, 3U, {},
+                        static_cast<std::uint32_t>(SpecialRegister::ThreadIdX)),
+                     op(Opcode::MultiplyWideU32, 4U, {3U}, 4U),
+                     op(Opcode::AddGlobalAddress, 5U, {1U, 4U}),
+                     op(Opcode::AddGlobalAddress, 6U, {0U, 4U}),
+                     op(Opcode::LoadGlobalU32, 7U, {5U}),
+                     op(Opcode::SetPredicateGeU32, 8U, {7U, 2U}),
+                     op(Opcode::BranchIf, metaflux::compiler::kNoValue, {8U}, 11U, true),
+                     op(Opcode::StoreGlobalU32, metaflux::compiler::kNoValue, {6U, 7U}),
+                     op(Opcode::Return, metaflux::compiler::kNoValue, {})},
+  };
+}
+
+Kernel predicate_eq_u32_kernel() {
+  return Kernel{
+      .name = "predicate_eq_u32",
+      .parameters = {Parameter{.kind = ParameterKind::BufferU32},
+                     Parameter{.kind = ParameterKind::BufferU32},
+                     Parameter{.kind = ParameterKind::ScalarU32}},
+      .shared_allocations = {},
+      .registers = {Register{.kind = ValueKind::GlobalAddress}, Register{.kind = ValueKind::GlobalAddress},
+                    Register{.kind = ValueKind::U32}, Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::U64}, Register{.kind = ValueKind::GlobalAddress},
+                    Register{.kind = ValueKind::GlobalAddress}, Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::Predicate}},
+      .operations = {op(Opcode::LoadParameterAddress, 0U, {}, 0U),
+                     op(Opcode::LoadParameterAddress, 1U, {}, 1U),
+                     op(Opcode::LoadParameterU32, 2U, {}, 2U),
+                     op(Opcode::MoveSpecialU32, 3U, {},
+                        static_cast<std::uint32_t>(SpecialRegister::ThreadIdX)),
+                     op(Opcode::MultiplyWideU32, 4U, {3U}, 4U),
+                     op(Opcode::AddGlobalAddress, 5U, {1U, 4U}),
+                     op(Opcode::AddGlobalAddress, 6U, {0U, 4U}),
+                     op(Opcode::LoadGlobalU32, 7U, {5U}),
+                     op(Opcode::SetPredicateEqU32, 8U, {7U, 2U}),
+                     op(Opcode::BranchIf, metaflux::compiler::kNoValue, {8U}, 11U, true),
+                     op(Opcode::StoreGlobalU32, metaflux::compiler::kNoValue, {6U, 7U}),
+                     op(Opcode::Return, metaflux::compiler::kNoValue, {})},
+  };
+}
+
 Kernel shared_barrier_kernel() {
   Kernel kernel{
       .name = "shared_reverse",
@@ -484,6 +540,52 @@ bool valid_f32_predicate_lowering() {
   return valid;
 }
 
+bool valid_ge_u32_predicate_lowering() {
+  SpirvLoweredModule module{};
+  const auto result = metaflux::backend::vulkan::lower_kernel(
+      predicate_ge_u32_kernel(), target(), {8U, 1U, 1U}, &module);
+  const bool valid = result.status == LoweringStatus::success &&
+         module.mlir_text.find("arith.cmpi") != std::string::npos &&
+         module.mlir_text.find("uge") != std::string::npos &&
+         module.mlir_text.find("scf.if") != std::string::npos &&
+         module.mlir_text.find("memref.store") != std::string::npos &&
+         module.spirv_binary.size() > 5U && module.spirv_binary[0] == 0x07230203U;
+  if (!valid) {
+    std::cerr << "Vulkan ge_u32 predicate lowering failure: status="
+              << metaflux::backend::vulkan::lowering_status_string(result.status)
+              << " diagnostic=" << result.diagnostic << " instructions="
+              << module.instructions.size() << " mlir-bytes=" << module.mlir_text.size()
+              << " spirv-words=" << module.spirv_binary.size() << '\n';
+    if (!module.mlir_text.empty()) {
+      std::cerr << module.mlir_text << '\n';
+    }
+  }
+  return valid;
+}
+
+bool valid_eq_u32_predicate_lowering() {
+  SpirvLoweredModule module{};
+  const auto result = metaflux::backend::vulkan::lower_kernel(
+      predicate_eq_u32_kernel(), target(), {8U, 1U, 1U}, &module);
+  const bool valid = result.status == LoweringStatus::success &&
+         module.mlir_text.find("arith.cmpi") != std::string::npos &&
+         module.mlir_text.find("eq") != std::string::npos &&
+         module.mlir_text.find("scf.if") != std::string::npos &&
+         module.mlir_text.find("memref.store") != std::string::npos &&
+         module.spirv_binary.size() > 5U && module.spirv_binary[0] == 0x07230203U;
+  if (!valid) {
+    std::cerr << "Vulkan eq_u32 predicate lowering failure: status="
+              << metaflux::backend::vulkan::lowering_status_string(result.status)
+              << " diagnostic=" << result.diagnostic << " instructions="
+              << module.instructions.size() << " mlir-bytes=" << module.mlir_text.size()
+              << " spirv-words=" << module.spirv_binary.size() << '\n';
+    if (!module.mlir_text.empty()) {
+      std::cerr << module.mlir_text << '\n';
+    }
+  }
+  return valid;
+}
+
 bool valid_shared_barrier_lowering() {
   const auto profile = target();
   SpirvLoweredModule module{};
@@ -596,7 +698,7 @@ bool unsupported_semantics_fail_before_emission() {
   const auto result = metaflux::backend::vulkan::lower_kernel(
       kernel, target(), {8U, 1U, 1U}, &module);
   const bool valid = result.status == LoweringStatus::unsupported_semantics &&
-         result.diagnostic.find("verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad/Fma, u32<->f32 conversions, f32 predicates, and Copy forms") != std::string::npos &&
+         result.diagnostic.find("verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad/Fma, u32<->f32 conversions, f32/u32 predicates, and Copy forms") != std::string::npos &&
          module.spirv_binary.empty() && module.mlir_text.empty();
   if (!valid) {
     std::cerr << "Vulkan unsupported semantics failure: status="
@@ -661,6 +763,14 @@ int main() {
   }
   if (!valid_f32_predicate_lowering()) {
     std::cerr << "Vulkan lowering stage failed: f32-predicate\n";
+    return 1;
+  }
+  if (!valid_ge_u32_predicate_lowering()) {
+    std::cerr << "Vulkan lowering stage failed: ge-u32-predicate\n";
+    return 1;
+  }
+  if (!valid_eq_u32_predicate_lowering()) {
+    std::cerr << "Vulkan lowering stage failed: eq-u32-predicate\n";
     return 1;
   }
   if (!independently_validates_spirv()) {
