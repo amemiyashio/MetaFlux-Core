@@ -40,11 +40,13 @@ generation-bound device-address entries. Tier 3 staging is the baseline; direct
 OPAQUE_FD or DMA-BUF import is advertised only when a future device probe proves
 the matching handle and synchronization capabilities.
 
-Before a future SPIR-V module is created, the runtime target preflight checks
+Before a SPIR-V module is created, the runtime target preflight checks
 the queried profile, required feature bits, target digest, workgroup limits,
 address-space flags, and subgroup assumptions. It produces stable diagnostics
-for mismatches and unsupported semantics; it does not yet perform MLIR
-conversion or SPIR-V validation.
+for mismatches and unsupported semantics. The compiler now lowers the currently
+advertised u32 Add, u32 Copy, and static shared-barrier forms through MLIR
+GPU-to-SPIR-V conversion and emits target-constrained SPIR-V. Other Kernel IR
+forms fail before emission with an explicit unsupported-semantics diagnostic.
 
 work-item-0.1.3.3 also defines a host-independent `SpirvReflection` contract for the
 post-conversion boundary. Its verifier requires a compute entry point, exact
@@ -52,16 +54,18 @@ target digest, workgroup and feature/address-space parity with preflight,
 `LocalInvocationId` coverage, Workgroup storage parity, and a packed argument
 block whose size follows the versioned 64-byte header plus 48-byte entry layout.
 Malformed or mismatched observations are rejected before shader-module creation.
-The pinned Vulkan tool shell now runs `spirv-val --target-env vulkan1.3` against
-the generated compute fixture before the physical pipeline test. The contract
-is ready for a future MLIR/SPIR-V reflection producer; actual lowering remains
-separate from this validation gate.
+The lowering test and pinned Vulkan tool shell run
+`spirv-val --target-env vulkan1.3` against the generated compute fixtures before
+the physical pipeline test. The reflection producer and binary emission are
+implemented for the current advertised subset; complete Kernel IR coverage and
+the dual-driver matrix remain separate qualification gates.
 
 The runtime also contains a host-independent stream graph planner. It assigns
 monotonic timeline values, preserves same-stream FIFO, requires cross-stream
 waits to be explicit, and validates transfer/compute stage-access masks before
-future `vkQueueSubmit2` submission. It does not claim queue submission,
-pipeline execution, or device timing.
+`vkQueueSubmit2` submission. The source-local queue executor binds accepted
+submissions to `vkQueueSubmit2`, timeline completion, and recycled command
+resources; cross-transport and dual-driver qualification remain open.
 
 work-item-0.1.3.2 also includes a host-independent memory visibility ledger for the staging
 baseline. It binds each allocation to a generation and submission timeline,

@@ -5,7 +5,7 @@ milestone: milestone-0.1.3.0
 status: Active
 area: backend.vulkan.memory
 depends_on: [work-item-0.1.3.1]
-updated: 2026-08-31
+updated: 2026-09-02
 ---
 
 # Vulkan Device, Queue, and Memory
@@ -67,11 +67,11 @@ memory or host heap object.
   upload/download operations, submits them through the generation-bound Vulkan
   timeline context, and verifies an AMD/RADV round trip without changing
   `mf_backend_api_v1`.
-- [ ] Expose the context through the backend admission path without changing
-  the stable C ABI, then implement allocation/suballocation, staging, optional
-  direct tiers, non-coherent flush/invalidate, and timeline synchronization.
-- [ ] Implement allocation/suballocation, staging, optional direct tiers,
-  non-coherent flush/invalidate, and timeline synchronization.
+- [x] Expose the context through the backend admission path without changing
+  the stable C ABI. The current path provides generation-bound staging,
+  non-coherent visibility, and timeline synchronization.
+- [ ] Add optional direct tiers and complete the physical allocation/import
+  ownership matrix after the exact device capabilities are qualified.
 - [ ] Test fd ownership on success/failure, `memoryTypeBits`, overlapping imports,
   cross-process semaphore visibility, teardown, reset, and device loss.
 - [ ] Keep external-memory ABI 0.x until baseline staging and every advertised

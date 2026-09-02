@@ -5,7 +5,7 @@ milestone: milestone-0.1.3.0
 status: Active
 area: backend.vulkan.execution
 depends_on: [work-item-0.1.3.2, work-item-0.1.3.3]
-updated: 2026-08-31
+updated: 2026-09-02
 ---
 
 # Execution, Streams, and Events
@@ -43,11 +43,12 @@ a capability diagnostic and never switch an established context to CPU.
   `QueueSubmissionLedger`: failed graph validation returns the acquired resource,
   successful admission yields one generation-bound completion tuple, and
   reconfiguration resets both authorities only after in-flight work drains.
-- [ ] Bind the resource model to pipeline creation, batching, and
-  `vkQueueSubmit2` timeline completion into the milestone-0.1.1.0 timeline.
-- [ ] Implement Graph IR FIFO/cross-stream dependencies, copy visibility,
-  concurrent submission, and bounded error propagation; verify composed
-  provider/runtime default-stream translation separately.
+- [x] Bind the resource model to source-local pipeline creation, batching, and
+  `vkQueueSubmit2` timeline completion. Cross-transport integration remains a
+  separate qualification gate.
+- [x] Implement and test the host-independent Graph IR FIFO/cross-stream
+  dependency, copy-visibility, concurrent-submission, and bounded-error
+  behavior; provider/runtime default-stream translation remains separate.
 - [ ] Run Add/Copy/static-shared-barrier differential tests on both driver
   families through memfd, cdev, and guest vfio-user.
 - [ ] Run Vulkan validation and synchronization validation with reset/device

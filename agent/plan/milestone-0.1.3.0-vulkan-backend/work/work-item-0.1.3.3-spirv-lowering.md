@@ -5,7 +5,7 @@ milestone: milestone-0.1.3.0
 status: Active
 area: compiler.spirv
 depends_on: [work-item-0.1.3.1]
-updated: 2026-08-31
+updated: 2026-09-02
 ---
 
 # Target-Constrained SPIR-V Lowering
@@ -40,12 +40,17 @@ fallback inside a Vulkan context.
   checks the compute entry point, target digest, workgroup, required features,
   address spaces, builtins, Workgroup storage, and versioned argument-block
   size after target preflight.
-- [ ] Implement target-constrained Kernel IR to MLIR SPIR-V lowering and actual
-  SPIR-V emission.
-- [ ] Validate every module against Vulkan 1.3 and the actually enabled target.
-- [ ] Cover FP edges, limits, missing features, address spaces, barriers,
-  malformed modules, and stable negative diagnostics.
-- [ ] Build differential fixtures for every advertised semantic form.
+- [x] Implement target-constrained Kernel IR to MLIR SPIR-V lowering and actual
+  SPIR-V emission for the currently advertised u32 Add, u32 Copy, and static
+  shared-barrier forms. Unsupported forms fail before emission.
+- [x] Validate every currently advertised module against Vulkan 1.3 and the
+  selected target, including independent `spirv-val` validation when the pinned
+  tool is present.
+- [x] Cover the currently advertised forms' limits, required features, address
+  spaces, barriers, malformed modules, and stable negative diagnostics.
+- [x] Build differential fixtures for every currently advertised semantic form.
+- [ ] Extend the lowering and differential matrix to the remaining Kernel IR
+  arithmetic, conversion, predicate, and memory forms, including FP edges.
 
 ## Exit Gate
 
