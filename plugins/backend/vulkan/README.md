@@ -1,6 +1,6 @@
 # Vulkan Backend
 
-The first milestone-0.1.3.0 stage is a capability-only probe. The C ABI record in
+The initial milestone-0.1.3.0 capability stage is the probe boundary. The C ABI record in
 `contracts/plugin/backend/v1/include/metaflux/backend/vulkan.h` contains fixed-width
 API, queue, subgroup, memory-tier, UUID, and target-environment fields; Vulkan
 handles and C++ objects remain private to the implementation.

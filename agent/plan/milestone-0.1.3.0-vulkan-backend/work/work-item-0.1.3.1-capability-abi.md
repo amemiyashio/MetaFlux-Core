@@ -5,7 +5,7 @@ milestone: milestone-0.1.3.0
 status: Active
 area: backend.vulkan.contract
 depends_on: [milestone-0.1.1.0]
-updated: 2026-08-31
+updated: 2026-09-02
 ---
 
 # Vulkan Capability and ABI 0.x
@@ -54,10 +54,12 @@ Implemented stage:
 
 - [ ] Select the exact feature/limit baseline, minimum versions, and two
   independent Vulkan driver families.
-- [ ] Draft packed BDA argument layouts and external-memory 0.x fixtures.
-- [ ] Define the exact Kernel IR capability matrix and negative diagnostics.
-- [ ] Define target-environment serialization, cache keys, pipeline residency,
-  compile-required proof, corruption behavior, and epoch fingerprints.
+- [x] Draft packed BDA argument layouts and external-memory 0.x fixtures.
+- [x] Define the currently advertised Kernel IR capability subset and stable
+  negative diagnostics; complete Kernel IR coverage remains open.
+- [x] Define target-environment serialization, cache keys, pipeline residency,
+  compile-required handling, corruption behavior, and epoch fingerprints for
+  the current host-independent/runtime paths.
 - [ ] Lock direct-Vulkan baselines plus enqueue, submit, start, and completion
   timestamp points.
 
