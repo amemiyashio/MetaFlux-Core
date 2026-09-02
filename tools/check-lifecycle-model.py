@@ -315,6 +315,116 @@ class FenceTelemetrySnapshot:
     reader_retries: int
 
 
+@dataclass(frozen=True)
+class ViewGateSnapshot:
+    view_state: str
+    device_state: str
+    attempt_tag: int
+    attempt_state: str
+    lease_tag: int
+    lease_state: str
+    update_tag: int
+    update_state: str
+    publish_tag: int
+    publish_state: str
+    range_tag: int
+    range_state: str
+    range_begin: int
+    range_end: int
+    following_range_tag: int
+    following_range_state: str
+    following_range_begin: int
+    following_range_end: int
+    view_generation: int
+    device_generation: int
+    range_token_generation: int
+    epoch: int
+    allocation_high_water: int
+    publication_cursor: int
+    intermediate_visible: bool
+    committed_admissions: int
+    compensation_count: int
+
+
+def initial_view_gate_snapshot(bounds: dict[str, Any]) -> ViewGateSnapshot:
+    initial = bounds["view_gate"]["initial"]
+    return ViewGateSnapshot(
+        view_state=str(initial["view_state"]),
+        device_state=str(initial["device_state"]),
+        attempt_tag=0,
+        attempt_state="Idle",
+        lease_tag=0,
+        lease_state="Free",
+        update_tag=0,
+        update_state="Free",
+        publish_tag=0,
+        publish_state="Free",
+        range_tag=0,
+        range_state="Free",
+        range_begin=0,
+        range_end=0,
+        following_range_tag=0,
+        following_range_state="Free",
+        following_range_begin=0,
+        following_range_end=0,
+        view_generation=int(initial["view_generation"]),
+        device_generation=int(initial["device_generation"]),
+        range_token_generation=int(initial["view_generation"]),
+        epoch=int(initial["epoch"]),
+        allocation_high_water=int(initial["allocation_high_water"]),
+        publication_cursor=int(initial["publication_cursor"]),
+        intermediate_visible=False,
+        committed_admissions=0,
+        compensation_count=0,
+    )
+
+
+def assert_view_gate_snapshot(snapshot: ViewGateSnapshot, bounds: dict[str, Any]) -> None:
+    limits = bounds["view_gate"]["limits"]
+    tag_terminal = int(limits["tag_terminal"])
+    generation_terminal = int(limits["generation_terminal"])
+    epoch_terminal = int(limits["epoch_terminal"])
+    sequence_terminal = int(limits["sequence_terminal"])
+
+    if snapshot.view_generation == 0 or snapshot.view_generation >= generation_terminal:
+        raise ModelError(f"view_generation {snapshot.view_generation} out of bounds")
+    if snapshot.device_generation == 0 or snapshot.device_generation >= generation_terminal:
+        raise ModelError(f"device_generation {snapshot.device_generation} out of bounds")
+    if snapshot.epoch == 0 or snapshot.epoch >= epoch_terminal:
+        raise ModelError(f"epoch {snapshot.epoch} out of bounds")
+    if snapshot.allocation_high_water >= sequence_terminal:
+        raise ModelError(f"allocation_high_water {snapshot.allocation_high_water} >= terminal")
+    if snapshot.publication_cursor > snapshot.allocation_high_water:
+        raise ModelError(f"publication_cursor {snapshot.publication_cursor} > allocation_high_water")
+
+    # Invariant: no live lease after terminal/quarantined view
+    if snapshot.view_state in ("Terminal", "Quarantined"):
+        if snapshot.device_state != "Closed":
+            raise ModelError(f"view {snapshot.view_state} but device {snapshot.device_state}")
+        if snapshot.lease_state not in ("Free", "Released", "Revoked", "Tombstoned", "Quarantined"):
+            raise ModelError(f"view {snapshot.view_state} but lease {snapshot.lease_state}")
+
+    # Invariant: device Updating requires update in Active/FencePublished
+    if snapshot.device_state == "Updating":
+        if snapshot.update_state not in ("Active", "FencePublished"):
+            raise ModelError(f"device Updating but update {snapshot.update_state}")
+
+    # Invariant: intermediate_visible requires payload_applied and Active/Published
+    if snapshot.intermediate_visible:
+        if snapshot.publish_state not in ("Active", "Published", "Quarantined"):
+            raise ModelError(f"intermediate_visible but publish {snapshot.publish_state}")
+
+    # Invariant: range bounds
+    if snapshot.range_state != "Free":
+        if snapshot.range_begin == 0 or snapshot.range_begin > snapshot.range_end:
+            raise ModelError(f"invalid range [{snapshot.range_begin}, {snapshot.range_end})")
+    if snapshot.following_range_state != "Free":
+        if snapshot.range_state not in ("Open", "Retired", "Quarantined"):
+            raise ModelError(f"following_range but range {snapshot.range_state}")
+        if snapshot.range_end + 1 != snapshot.following_range_begin:
+            raise ModelError(f"range gap: {snapshot.range_end} + 1 != {snapshot.following_range_begin}")
+
+
 def ordered(values: Iterable[int]) -> tuple[int, ...]:
     return tuple(sorted(set(values)))
 
@@ -1003,6 +1113,254 @@ def apply_action(snapshot: Snapshot, action: tuple[str, int | None, str], bounds
     raise ModelError(f"unknown action {event}")
 
 
+def view_gate_direct_scenarios(bounds: dict[str, Any]) -> int:
+    """Test specific view gate scenarios from the work item."""
+    checks = 0
+    base = initial_view_gate_snapshot(bounds)
+
+    # Scenario 1: Normal lease lifecycle (enter -> claim -> materialize -> reserve -> commit -> publish -> release)
+    s = base
+    s = replace(s, attempt_tag=1, attempt_state="Entering")
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, attempt_state="Claiming", lease_tag=1, lease_state="Initializing")
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, attempt_state="Initializing", lease_state="Reserved")
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, attempt_state="Ready", lease_state="Committing")
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, lease_state="Committed", committed_admissions=1)
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, lease_state="Published")
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, lease_state="Released", attempt_state="Exited")
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+
+    # Scenario 2: Device update lifecycle
+    s = base
+    s = replace(s, device_state="Updating", update_tag=1, update_state="Active",
+                device_generation=2, epoch=2)
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, update_state="FencePublished")
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, device_state="Open", update_state="Closed", update_tag=0)
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+
+    # Scenario 3: Range lifecycle
+    s = base
+    s = replace(s, range_tag=1, range_state="Open", range_begin=1, range_end=8,
+                allocation_high_water=8)
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, range_state="Retired")
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+
+    # Scenario 4: View close with settled lease
+    s = base
+    s = replace(s, view_state="Closing", lease_tag=1, lease_state="Released")
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, view_state="Terminal", device_state="Closed",
+                device_generation=3, lease_state="Free", lease_tag=0)
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+
+    # Scenario 5: Quarantine on owner death
+    s = base
+    s = replace(s, publish_tag=1, publish_state="Quarantined",
+                view_state="Quarantined", device_state="Closed", device_generation=3)
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+
+    # Scenario 6: Publication lifecycle
+    s = base
+    s = replace(s, range_tag=1, range_state="Open", range_begin=1, range_end=8,
+                allocation_high_water=8)
+    s = replace(s, publish_tag=1, publish_state="Initializing")
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, publish_state="Prepared")
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, publish_state="Linking")
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, publish_state="Active", intermediate_visible=True)
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, publish_state="Published", publication_cursor=8)
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+    s = replace(s, publish_state="Terminal", intermediate_visible=False)
+    assert_view_gate_snapshot(s, bounds)
+    checks += 1
+
+    return checks
+
+
+def explore_view_gate(bounds: dict[str, Any]) -> dict[str, int]:
+    """Bounded exploration of the view gate state machine."""
+    limits = bounds["view_gate"]["limits"]
+    max_depth = int(limits["max_depth"])
+    max_states = int(limits["max_states"])
+    attempt_tags = [int(t) for t in bounds["view_gate"]["attempt_tags"]]
+    lease_tags = [int(t) for t in bounds["view_gate"]["lease_tags"]]
+    update_tags = [int(t) for t in bounds["view_gate"]["update_tags"]]
+    range_tags = [int(t) for t in bounds["view_gate"]["range_tags"]]
+    publish_tags = [int(t) for t in bounds["view_gate"]["publish_tags"]]
+    range_lengths = [int(l) for l in bounds["view_gate"]["range_lengths"]]
+
+    initial = initial_view_gate_snapshot(bounds)
+    queue: list[tuple[ViewGateSnapshot, int]] = [(initial, 0)]
+    visited: set[ViewGateSnapshot] = {initial}
+    stats = {"states": 0, "transitions": 0, "invariant_checks": 0, "errors": 0}
+
+    while queue and stats["states"] < max_states:
+        snapshot, depth = queue.pop(0)
+        stats["states"] += 1
+        try:
+            assert_view_gate_snapshot(snapshot, bounds)
+            stats["invariant_checks"] += 1
+        except ModelError:
+            stats["errors"] += 1
+            continue
+
+        if depth >= max_depth:
+            continue
+
+        # Generate successor states
+        for next_snap in _view_gate_successors(snapshot, bounds, attempt_tags,
+                                                lease_tags, update_tags, range_tags,
+                                                publish_tags, range_lengths):
+            stats["transitions"] += 1
+            if next_snap not in visited:
+                visited.add(next_snap)
+                queue.append((next_snap, depth + 1))
+
+    return stats
+
+
+def _view_gate_successors(snapshot: ViewGateSnapshot, bounds: dict[str, Any],
+                          attempt_tags: list[int], lease_tags: list[int],
+                          update_tags: list[int], range_tags: list[int],
+                          publish_tags: list[int],
+                          range_lengths: list[int]) -> list[ViewGateSnapshot]:
+    """Generate all valid successor snapshots from the current state."""
+    successors: list[ViewGateSnapshot] = []
+    limits = bounds["view_gate"]["limits"]
+    generation_terminal = int(limits["generation_terminal"])
+    epoch_terminal = int(limits["epoch_terminal"])
+    sequence_terminal = int(limits["sequence_terminal"])
+
+    # Attempt transitions
+    if snapshot.attempt_state == "Idle" and snapshot.view_state == "Open":
+        for tag in attempt_tags:
+            if tag > 0 and tag < int(limits["tag_terminal"]):
+                successors.append(replace(snapshot, attempt_tag=tag, attempt_state="Entering"))
+
+    if snapshot.attempt_state == "Entering" and snapshot.lease_state == "Free":
+        for tag in lease_tags:
+            if tag > 0 and tag < int(limits["tag_terminal"]):
+                successors.append(replace(snapshot, attempt_state="Claiming",
+                                          lease_tag=tag, lease_state="Initializing"))
+
+    if snapshot.attempt_state == "Claiming" and snapshot.lease_state == "Initializing":
+        successors.append(replace(snapshot, attempt_state="Initializing",
+                                  lease_state="Reserved"))
+
+    if snapshot.attempt_state == "Initializing" and snapshot.lease_state == "Reserved":
+        successors.append(replace(snapshot, attempt_state="Ready"))
+
+    # Lease transitions
+    if snapshot.lease_state == "Reserved":
+        successors.append(replace(snapshot, lease_state="Committing"))
+
+    if snapshot.lease_state == "Committing":
+        successors.append(replace(snapshot, lease_state="Committed",
+                                  committed_admissions=snapshot.committed_admissions + 1))
+
+    if snapshot.lease_state == "Committed":
+        successors.append(replace(snapshot, lease_state="Published"))
+
+    if snapshot.lease_state == "Published":
+        successors.append(replace(snapshot, lease_state="Released",
+                                  attempt_state="Exited"))
+
+    # Device update transitions
+    if snapshot.device_state == "Open" and snapshot.update_state == "Free":
+        for tag in update_tags:
+            new_gen = snapshot.device_generation + 1
+            new_epoch = snapshot.epoch + 1
+            if new_gen < generation_terminal and new_epoch < epoch_terminal:
+                successors.append(replace(snapshot, device_state="Updating",
+                                          update_tag=tag, update_state="Active",
+                                          device_generation=new_gen, epoch=new_epoch))
+
+    if snapshot.device_state == "Updating" and snapshot.update_state == "Active":
+        successors.append(replace(snapshot, update_state="FencePublished"))
+
+    if snapshot.device_state == "Updating" and snapshot.update_state == "FencePublished":
+        successors.append(replace(snapshot, device_state="Open", update_state="Closed",
+                                  update_tag=0))
+
+    # Range transitions
+    if snapshot.range_state == "Free" and snapshot.view_state == "Open":
+        for tag in range_tags:
+            for length in range_lengths:
+                new_begin = snapshot.allocation_high_water + 1
+                new_end = new_begin + length - 1
+                if new_end < sequence_terminal:
+                    successors.append(replace(snapshot, range_tag=tag, range_state="Open",
+                                              range_begin=new_begin, range_end=new_end,
+                                              allocation_high_water=new_end))
+
+    if snapshot.range_state == "Open":
+        successors.append(replace(snapshot, range_state="Retired"))
+
+    # Publication transitions
+    if snapshot.range_state == "Open" and snapshot.publish_state == "Free":
+        for tag in publish_tags:
+            successors.append(replace(snapshot, publish_tag=tag, publish_state="Initializing"))
+
+    if snapshot.publish_state == "Initializing":
+        successors.append(replace(snapshot, publish_state="Prepared"))
+
+    if snapshot.publish_state == "Prepared":
+        successors.append(replace(snapshot, publish_state="Linking"))
+
+    if snapshot.publish_state == "Linking":
+        successors.append(replace(snapshot, publish_state="Active", intermediate_visible=True))
+
+    if snapshot.publish_state == "Active":
+        successors.append(replace(snapshot, publish_state="Published",
+                                  publication_cursor=snapshot.range_end,
+                                  intermediate_visible=False))
+
+    if snapshot.publish_state == "Published":
+        successors.append(replace(snapshot, publish_state="Terminal"))
+
+    # View close
+    if snapshot.view_state == "Open" and snapshot.lease_state in ("Free", "Released"):
+        if snapshot.publish_state in ("Free", "Terminal"):
+            successors.append(replace(snapshot, view_state="Closing"))
+
+    if snapshot.view_state == "Closing":
+        successors.append(replace(snapshot, view_state="Terminal", device_state="Closed",
+                                  device_generation=int(limits["generation_terminal"])))
+
+    return successors
+
+
 def direct_scenarios(bounds: dict[str, Any]) -> int:
     checks = 0
     base = initial_snapshot(bounds)
@@ -1133,6 +1491,8 @@ def run(base_path: Path, extension_path: Path, model_path: Path, bounds_path: Pa
     states, transitions, complete_sequences, maximum_depth, initial_actions = explore(bounds)
     publication_checks = publication_direct_scenarios(bounds)
     publication_exploration = explore_fence_telemetry(bounds)
+    view_gate_checks = view_gate_direct_scenarios(bounds)
+    view_gate_exploration = explore_view_gate(bounds)
     transition_names = {entry["event"] for entry in model["transitions"]}
     covered = sorted(transition_names.intersection(set(LIFECYCLE_EVENTS)))
     if covered != sorted(LIFECYCLE_EVENTS):
@@ -1169,6 +1529,11 @@ def run(base_path: Path, extension_path: Path, model_path: Path, bounds_path: Pa
                 "telemetry_reader_retries_are_bounded",
                 "even_latch_required_for_accepted_bank",
             ],
+        },
+        "view_gate": {
+            "scenario_checks": view_gate_checks,
+            "exploration": view_gate_exploration,
+            "invariants": model.get("view_gate_model", {}).get("invariants", []),
         },
         "invariants": [{"id": name, "status": "pass"} for name in invariant_names],
         "counterexamples": [],

@@ -14,6 +14,6 @@
     "id": "lifecycle.model.v1",
     "version": "1.0",
     "path": "contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/model.json",
-    "sha256": "03e05b932299cf537a76456a0f3766852a39265eaa011bf964af76444fbb093a"
+    "sha256": "0e005d2dc1292f5deb44afb11902828fda721ea93b7163a6273a57722158402c"
   }
 }

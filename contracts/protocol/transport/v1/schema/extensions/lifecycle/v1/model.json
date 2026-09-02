@@ -270,6 +270,92 @@
       "bounded_retry": true
     }
   },
+  "view_gate_model": {
+    "view_states": ["Open", "Closing", "Terminal", "Quarantined"],
+    "device_states": ["Open", "Updating", "Closed"],
+    "owner_states": ["Live", "Dead"],
+    "attempt_states": ["Idle", "Entering", "Claiming", "Initializing", "Ready", "Exited"],
+    "lease_states": ["Free", "Initializing", "Reserved", "Committing", "Committed", "Published", "Released", "Revoked", "Tombstoned", "Quarantined"],
+    "update_states": ["Free", "Initializing", "Prepared", "Linking", "Active", "FencePublished", "Reopened", "Aborted", "Closed", "Terminal", "Quarantined"],
+    "publish_states": ["Free", "Initializing", "Prepared", "Linking", "Active", "Published", "Aborted", "Terminal", "Quarantined"],
+    "range_states": ["Free", "Initializing", "Prepared", "Open", "Retired", "Terminal", "Quarantined"],
+    "attempt_transitions": [
+      {"event": "enter_attempt", "from": "Idle", "to": "Entering"},
+      {"event": "claim_lease", "from": "Entering", "to": "Claiming"},
+      {"event": "materialize_lease", "from": "Claiming", "to": "Initializing"},
+      {"event": "reserve_lease", "from": "Initializing", "to": "Ready"},
+      {"event": "exit_attempt", "from": "Ready", "to": "Exited"}
+    ],
+    "lease_transitions": [
+      {"event": "claim_lease", "from": "Free", "to": "Initializing"},
+      {"event": "materialize_lease", "from": "Initializing", "to": "Reserved"},
+      {"event": "begin_lease_commit", "from": "Reserved", "to": "Committing"},
+      {"event": "finish_lease_commit", "from": "Committing", "to": "Committed"},
+      {"event": "publish_lease", "from": "Committed", "to": "Published"},
+      {"event": "release_lease", "from": "Published", "to": "Released"},
+      {"event": "recover_dead_lease", "from": ["Reserved", "Committing", "Committed", "Published"], "to": "Tombstoned"},
+      {"event": "expire_live_lease", "from": ["Reserved", "Committing", "Committed", "Published"], "to": "Revoked"},
+      {"event": "reclaim_lease", "from": ["Released", "Revoked", "Tombstoned"], "to": "Free"}
+    ],
+    "update_transitions": [
+      {"event": "claim_device_update", "from": "Free", "to": "Initializing"},
+      {"event": "prepare_device_update", "from": "Initializing", "to": "Prepared"},
+      {"event": "link_device_update", "from": "Prepared", "to": "Linking"},
+      {"event": "complete_device_update_link", "from": "Linking", "to": "Active"},
+      {"event": "publish_device_update", "from": "Active", "to": "FencePublished"},
+      {"event": "reopen_device_update", "from": "FencePublished", "to": "Reopened"},
+      {"event": "finish_device_update", "from": ["Active", "FencePublished", "Reopened"], "to": "Closed"},
+      {"event": "recover_dead_device_update", "from": ["Initializing", "Prepared", "Linking", "Active", "FencePublished"], "to": "Aborted"},
+      {"event": "expire_live_device_update", "from": ["Initializing", "Prepared", "Linking", "Active", "FencePublished"], "to": "Aborted"}
+    ],
+    "publish_transitions": [
+      {"event": "claim_publication", "from": "Free", "to": "Initializing"},
+      {"event": "prepare_publication", "from": "Initializing", "to": "Prepared"},
+      {"event": "link_publication", "from": "Prepared", "to": "Linking"},
+      {"event": "activate_publication", "from": "Linking", "to": "Active"},
+      {"event": "apply_publication", "from": "Active", "to": "Active"},
+      {"event": "mark_publication", "from": "Active", "to": "Published"},
+      {"event": "finish_publication", "from": "Published", "to": "Terminal"},
+      {"event": "abort_publication", "from": ["Initializing", "Prepared", "Linking", "Active"], "to": "Aborted"},
+      {"event": "recover_dead_publication", "from": ["Initializing", "Prepared", "Linking", "Active", "Published"], "to": "Quarantined"},
+      {"event": "expire_live_publication", "from": ["Initializing", "Prepared", "Linking", "Active", "Published"], "to": "Quarantined"}
+    ],
+    "range_transitions": [
+      {"event": "claim_range", "from": "Free", "to": "Initializing"},
+      {"event": "prepare_range", "from": "Initializing", "to": "Prepared"},
+      {"event": "open_range", "from": "Prepared", "to": "Open"},
+      {"event": "retire_range", "from": "Open", "to": "Retired"},
+      {"event": "close_range", "from": "Retired", "to": "Terminal"}
+    ],
+    "view_transitions": [
+      {"event": "close_view", "from": "Open", "to": "Closing"},
+      {"event": "settle_view", "from": "Closing", "to": "Terminal"},
+      {"event": "quarantine_view", "from": ["Open", "Closing"], "to": "Quarantined"}
+    ],
+    "device_transitions": [
+      {"event": "claim_device_update", "from": "Open", "to": "Updating"},
+      {"event": "finish_device_update", "from": "Updating", "to": "Open"},
+      {"event": "close_device", "from": ["Open", "Updating"], "to": "Closed"}
+    ],
+    "invariants": [
+      "no_live_lease_after_terminal_view",
+      "device_updating_tuple_matches",
+      "intermediate_visible_implies_payload_applied",
+      "publication_range_matches_when_active",
+      "only_lowest_unclosed_range_publishes",
+      "no_mutable_token_position_separate_from_cursor",
+      "blocked_loss_closes_admission",
+      "settled_close_retains_reserved_pairs",
+      "live_writer_quarantine",
+      "policy_reopens_after_old_leases_resolve",
+      "updater_death_does_not_strand_updating",
+      "stale_cas_cannot_defeat_loss",
+      "telemetry_never_wraps_or_mixed_bank",
+      "stable_reader_never_tears",
+      "invalidated_actor_never_publishes",
+      "closed_mirror_rolls_back_never"
+    ]
+  },
   "side_effects": [
     "reserve_generation_candidate",
     "persist_generation_high_water",
