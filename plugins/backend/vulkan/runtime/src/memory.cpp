@@ -57,7 +57,10 @@ ExternalMemoryLedger::find(const ExternalMemoryImport& import) noexcept {
   return std::find_if(imports_.begin(), imports_.end(), [&import](const auto& current) {
     return current.id == import.id && current.generation == import.generation &&
            current.offset == import.offset && current.size == import.size &&
-           current.memory_type_index == import.memory_type_index;
+           current.alignment == import.alignment &&
+           current.memory_type_index == import.memory_type_index &&
+           current.handle_type == import.handle_type && current.sync_type == import.sync_type &&
+           current.flags == import.flags && current.permissions == import.permissions;
   });
 }
 
@@ -66,7 +69,10 @@ ExternalMemoryLedger::find(const ExternalMemoryImport& import) const noexcept {
   return std::find_if(imports_.begin(), imports_.end(), [&import](const auto& current) {
     return current.id == import.id && current.generation == import.generation &&
            current.offset == import.offset && current.size == import.size &&
-           current.memory_type_index == import.memory_type_index;
+           current.alignment == import.alignment &&
+           current.memory_type_index == import.memory_type_index &&
+           current.handle_type == import.handle_type && current.sync_type == import.sync_type &&
+           current.flags == import.flags && current.permissions == import.permissions;
   });
 }
 
@@ -219,7 +225,10 @@ bool ExternalMemoryHandleLedger::same_import(const ExternalMemoryImport& left,
                                              const ExternalMemoryImport& right) noexcept {
   return left.id == right.id && left.generation == right.generation &&
          left.offset == right.offset && left.size == right.size &&
-         left.memory_type_index == right.memory_type_index;
+         left.alignment == right.alignment &&
+         left.memory_type_index == right.memory_type_index &&
+         left.handle_type == right.handle_type && left.sync_type == right.sync_type &&
+         left.flags == right.flags && left.permissions == right.permissions;
 }
 
 int ExternalMemoryHandleLedger::duplicate_fd(int source_fd) noexcept {
@@ -251,14 +260,16 @@ void ExternalMemoryHandleLedger::close_fd(int* fd) noexcept {
 std::vector<ExternalMemoryHandleLedger::OwnedHandle>::iterator
 ExternalMemoryHandleLedger::find(const ExternalMemoryHandleImport& import) noexcept {
   return std::find_if(handles_.begin(), handles_.end(), [&import](const auto& current) {
-    return same_import(current.import.allocation, import.allocation);
+    return same_import(current.import.allocation, import.allocation) &&
+           current.import.owned_fd == import.owned_fd;
   });
 }
 
 std::vector<ExternalMemoryHandleLedger::OwnedHandle>::const_iterator
 ExternalMemoryHandleLedger::find(const ExternalMemoryHandleImport& import) const noexcept {
   return std::find_if(handles_.begin(), handles_.end(), [&import](const auto& current) {
-    return same_import(current.import.allocation, import.allocation);
+    return same_import(current.import.allocation, import.allocation) &&
+           current.import.owned_fd == import.owned_fd;
   });
 }
 

@@ -64,6 +64,20 @@ bool external_memory_admission_and_drain() {
     return false;
   }
 
+  ExternalMemoryImport forged{};
+  if (ledger.import(profile, 0U, 0U, &forged) != ExternalMemoryStatus::success) {
+    return false;
+  }
+  auto altered_permissions = forged;
+  altered_permissions.permissions ^= UINT64_C(1);
+  auto altered_alignment = forged;
+  altered_alignment.alignment *= 2U;
+  if (ledger.validate(altered_permissions) != ExternalMemoryStatus::not_found ||
+      ledger.retain(altered_alignment) != ExternalMemoryStatus::not_found ||
+      ledger.release(forged) != ExternalMemoryStatus::success) {
+    return false;
+  }
+
   ExternalMemoryImport second{};
   if (ledger.import(profile, 4096U, 1U, &second) != ExternalMemoryStatus::success ||
       ledger.import(profile, 6144U, 1U, &first) != ExternalMemoryStatus::overlap ||
@@ -121,7 +135,17 @@ bool external_memory_fd_ownership() {
         ledger.import_fd(profile, pipe_fds[0], 0U, 0U, &imported) !=
             ExternalMemoryStatus::success ||
         imported.owned_fd < 0 || imported.owned_fd == pipe_fds[0] ||
-        ::fcntl(imported.owned_fd, F_GETFD) < 0 ||
+        ::fcntl(imported.owned_fd, F_GETFD) < 0) {
+      ::close(pipe_fds[0]);
+      ::close(pipe_fds[1]);
+      return false;
+    }
+    auto forged = imported;
+    forged.allocation.flags ^= MF_VULKAN_MEMORY_FLAG_HOST_VISIBLE_V0;
+    auto forged_fd = imported;
+    forged_fd.owned_fd = pipe_fds[0];
+    if (ledger.validate(forged) != ExternalMemoryStatus::not_found ||
+        ledger.validate(forged_fd) != ExternalMemoryStatus::not_found ||
         ledger.retain(imported) != ExternalMemoryStatus::success ||
         ledger.revoke(imported) != ExternalMemoryStatus::busy ||
         ledger.release(imported) != ExternalMemoryStatus::success ||
