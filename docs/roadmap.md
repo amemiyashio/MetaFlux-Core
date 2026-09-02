@@ -20,10 +20,16 @@ context to another backend.
 
 ## vfio-user Service (`services/metaflux-vfio-userd/`, milestone-0.1.1.0)
 
-Planned QEMU vfio-user PCI server and leased guest data-plane worker. One
-process instance owns the backend instance and queue mappings for each accepted
-generation, while `metafluxd` remains the registry, policy, and lease
-authority. Its transport half follows the halves convention in
+`metaflux-vfio-userd` now provides the bounded Unix `SOCK_SEQPACKET` service
+entrypoint for the generated vfio-user control envelope. It accepts one static
+guest connection at a time, delegates negotiation, GET_INFO, DMA map/unmap, and
+terminal-loss handling to the transport server adapter, and closes its socket
+without deleting a replacement path owned by another process. The current
+entrypoint remains a control-plane service: backend lease binding, guest PCI
+data-plane rings, and libvfio-user/QEMU qualification remain separate 0.x gates.
+One process instance is intended to own the backend instance and queue mappings
+for each accepted generation, while `metafluxd` remains the registry, policy,
+and lease authority. Its transport half follows the halves convention in
 [`transports/README.md`](../transports/README.md).
 
 ## Compiler Worker (`services/compiler-worker/`, milestone-0.1.0.0)
