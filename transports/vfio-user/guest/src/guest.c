@@ -338,6 +338,12 @@ static int bytes_zero(const uint8_t* bytes, size_t count) {
   return 1;
 }
 
+static int guest_dma_range_valid(uint64_t start, uint64_t size) {
+  return size != UINT64_C(0) && start <= UINT64_MAX - size &&
+         (start % MF_VFIO_USER_PROFILE_PAGE_SIZE) == UINT64_C(0) &&
+         (size % MF_VFIO_USER_PROFILE_PAGE_SIZE) == UINT64_C(0);
+}
+
 static mf_shared_status_v1 get_info_status(uint32_t encoded_status) {
   const int32_t status = (int32_t)encoded_status;
   switch (status) {
@@ -416,7 +422,13 @@ mf_shared_status_v1 mf_vfio_user_guest_encode_negotiate_v0(
 mf_shared_status_v1 mf_vfio_user_guest_encode_dma_map_v0(
     uint64_t message_id, const mf_vfio_user_dma_map_v0* request, uint8_t* buffer,
     uint32_t buffer_capacity, uint32_t* out_size) {
-  if (request == NULL || request->struct_size != sizeof(*request)) {
+  if (request == NULL || request->struct_size != sizeof(*request) ||
+      (request->flags & (uint32_t)~(uint32_t)MF_VFIO_USER_DMA_KNOWN_FLAGS_V0) != 0U ||
+      request->flags == 0U ||
+      request->fd_index != 0 || !guest_dma_range_valid(request->iova, request->size) ||
+      (request->file_offset % MF_VFIO_USER_PROFILE_PAGE_SIZE) != UINT64_C(0) ||
+      request->mapping_epoch == UINT64_C(0) || request->device_generation == UINT64_C(0) ||
+      !bytes_zero(request->reserved, sizeof(request->reserved))) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
   return encode_packet(message_id, MF_VFIO_USER_MESSAGE_DMA_MAP_V0, UINT16_C(0), request,
@@ -426,7 +438,11 @@ mf_shared_status_v1 mf_vfio_user_guest_encode_dma_map_v0(
 mf_shared_status_v1 mf_vfio_user_guest_encode_dma_unmap_v0(
     uint64_t message_id, const mf_vfio_user_dma_unmap_v0* request, uint16_t message_flags,
     uint8_t* buffer, uint32_t buffer_capacity, uint32_t* out_size) {
-  if (request == NULL || request->struct_size != sizeof(*request)) {
+  if (request == NULL || request->struct_size != sizeof(*request) || request->flags != 0U ||
+      (message_flags & (uint16_t)~MF_TRANSPORT_FLAG_NO_REPLY_V0) != 0U ||
+      !guest_dma_range_valid(request->iova, request->size) ||
+      request->mapping_epoch == UINT64_C(0) || request->device_generation == UINT64_C(0) ||
+      !bytes_zero(request->reserved, sizeof(request->reserved))) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
   return encode_packet(message_id, MF_VFIO_USER_MESSAGE_DMA_UNMAP_V0, message_flags, request,

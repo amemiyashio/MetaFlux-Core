@@ -290,9 +290,60 @@ int main(void) {
       packet_size != sizeof(mf_transport_message_header_v0) + sizeof(map)) {
     return 1;
   }
+  map.flags = UINT32_C(4);
+  if (mf_vfio_user_guest_encode_dma_map_v0(UINT64_C(7), &map, packet, sizeof(packet),
+                                           &packet_size) != MF_SHARED_INVALID_ARGUMENT) {
+    return 1;
+  }
+  map.flags = MF_VFIO_USER_DMA_READ_V0 | MF_VFIO_USER_DMA_WRITE_V0;
+  map.iova = UINT64_C(0x1001);
+  if (mf_vfio_user_guest_encode_dma_map_v0(UINT64_C(7), &map, packet, sizeof(packet),
+                                           &packet_size) != MF_SHARED_INVALID_ARGUMENT) {
+    return 1;
+  }
+  map.iova = UINT64_C(0x1000);
+  map.size = UINT64_C(0);
+  if (mf_vfio_user_guest_encode_dma_map_v0(UINT64_C(7), &map, packet, sizeof(packet),
+                                           &packet_size) != MF_SHARED_INVALID_ARGUMENT) {
+    return 1;
+  }
+  map.size = UINT64_C(0x1000);
+  map.reserved[0] = UINT8_C(1);
+  if (mf_vfio_user_guest_encode_dma_map_v0(UINT64_C(7), &map, packet, sizeof(packet),
+                                           &packet_size) != MF_SHARED_INVALID_ARGUMENT) {
+    return 1;
+  }
+  map.reserved[0] = UINT8_C(0);
+  map.mapping_epoch = UINT64_C(0);
+  if (mf_vfio_user_guest_encode_dma_map_v0(UINT64_C(7), &map, packet, sizeof(packet),
+                                           &packet_size) != MF_SHARED_INVALID_ARGUMENT) {
+    return 1;
+  }
+  map.mapping_epoch = UINT64_C(1);
+  map.file_offset = UINT64_C(1);
+  if (mf_vfio_user_guest_encode_dma_map_v0(UINT64_C(7), &map, packet, sizeof(packet),
+                                           &packet_size) != MF_SHARED_INVALID_ARGUMENT) {
+    return 1;
+  }
+  map.file_offset = UINT64_C(0);
   if (mf_vfio_user_guest_encode_dma_unmap_v0(UINT64_C(7), NULL, UINT16_C(0), packet,
                                              sizeof(packet), &packet_size) !=
       MF_SHARED_INVALID_ARGUMENT) {
+    return 1;
+  }
+  mf_vfio_user_dma_unmap_v0 unmap;
+  (void)memset(&unmap, 0, sizeof(unmap));
+  unmap.struct_size = sizeof(unmap);
+  unmap.iova = UINT64_C(0x1000);
+  unmap.size = UINT64_C(0x1000);
+  unmap.mapping_epoch = UINT64_C(1);
+  unmap.device_generation = UINT64_C(1);
+  if (mf_vfio_user_guest_encode_dma_unmap_v0(UINT64_C(7), &unmap, UINT16_C(2), packet,
+                                             sizeof(packet), &packet_size) !=
+          MF_SHARED_INVALID_ARGUMENT ||
+      mf_vfio_user_guest_encode_dma_unmap_v0(UINT64_C(7), &unmap,
+                                             MF_TRANSPORT_FLAG_NO_REPLY_V0, packet,
+                                             sizeof(packet), &packet_size) != MF_SHARED_SUCCESS) {
     return 1;
   }
   return run_ring_test();

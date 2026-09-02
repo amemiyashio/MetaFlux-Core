@@ -486,9 +486,14 @@ int main() {
   overflow_map.size = UINT64_C(0x1000);
   overflow_map.mapping_epoch = 1U;
   overflow_map.device_generation = 1U;
-  if (mf_vfio_user_guest_encode_dma_map_v0(11U, &overflow_map, packet.data(), packet.size(),
-                                           &packet_size) != MF_SHARED_SUCCESS ||
-      !send_packet(sockets[0], packet.data(), packet_size, memfd) ||
+  if (mf_vfio_user_guest_encode_dma_map_v0(11U, &map, packet.data(), packet.size(),
+                                           &packet_size) != MF_SHARED_SUCCESS) {
+    close(memfd);
+    return 1;
+  }
+  (void)std::memcpy(packet.data() + sizeof(mf_transport_message_header_v0), &overflow_map,
+                    sizeof(overflow_map));
+  if (!send_packet(sockets[0], packet.data(), packet_size, memfd) ||
       server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
       !receive_completion(sockets[0], 11U, MF_VFIO_USER_MESSAGE_DMA_MAP_V0,
                           MF_SHARED_INVALID_ARGUMENT) ||
