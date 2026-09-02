@@ -45,6 +45,7 @@ an index row does not promote `Proposed` material to `Verified`.
 | decision-0033 | Goal-first multi-Agent execution uses destructive Epoch governance, parallel Batch Iterations, independent integration, ephemeral roast promotion, and no execution-history ledger | [Goal-first execution](../../docs/architecture/agent-execution.md) | Verified topology; fixed identity boundary superseded by decision-0034 |
 | decision-0034 | Agent identity comes from bounded harness/CLI executable detection and never from model metadata | [Agent tool detection](../../docs/architecture/agent-tool-detection.md) | Verified; activates epoch-0002 |
 | decision-0035 | Epoch-0003 governance: remove stale out-of-repository worktrees, advance Epoch, and continue non-1.0 plan completion with deferred lane carried forward | [agent/goal.json](../goal.json) | Active governance; activates epoch-0003 |
+| decision-0036 | Tool provisioning is a resolvable task, not a blocker: when a required tool is absent, always attempt Nix then manage-host-privilege/pacman before declaring inability to proceed | [AGENTS.md](../../AGENTS.md) rule 7, [manage-host-privilege](../skills/manage-host-privilege/SKILL.md) | Active; prevents agents from treating missing tools as absolute blockers |
 
 New decisions receive the next `decision-NNNN` identifier and point to a plan or
 architecture record containing rationale, consequences, and verification state.

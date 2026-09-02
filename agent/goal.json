@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "epoch": "epoch-0003",
+  "epoch": "epoch-0004",
   "batch": {
     "id": "batch-0001",
     "status": "open"

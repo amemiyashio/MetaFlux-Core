@@ -11,6 +11,13 @@ privileged MetaFlux driver debugging. It grants only the privilege needed by an
 owning workflow; it does not take over that workflow's commands, semantics, or
 evidence.
 
+**When to invoke (decision-0036)**: When a required tool or dependency is
+absent from the current environment, do NOT treat it as a task blocker.
+Instead, attempt provisioning in this order: (1) add the tool to the repository
+Nix declaration; (2) if Nix cannot provide or materialize it, invoke this
+skill's package installation path for the exact pacman package. Only declare
+inability to proceed after exhausting both provisioning paths.
+
 ## Inputs
 
 - Read [decision-0032](../../../docs/architecture/host-privilege-escalation.md) before

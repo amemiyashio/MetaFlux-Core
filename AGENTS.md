@@ -52,7 +52,10 @@ the repository gates.
    Nix first. After a confirmed Nix gap, compose `manage-host-privilege` for
    bounded pacman/root operations. Route every sudo/su, persistent grant, and
    privileged driver action through that skill. Never persist or print a
-   credential.
+   credential. When a required tool or dependency is absent from the current
+   environment, treat it as a provisioning task (Nix first, then
+   manage-host-privilege), not as a task blocker. Only declare inability to
+   proceed after exhausting both provisioning paths (decision-0036).
 8. **Verify and identify commits.** Run
    `nix develop . --command python3 tools/check-agent-state.py .` plus relevant
    CTest/domain gates. Agent commits use the `start-work` commit helper. The
