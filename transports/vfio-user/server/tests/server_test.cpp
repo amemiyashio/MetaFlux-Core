@@ -312,6 +312,15 @@ bool test_transport_loss_drains_dma_before_recovery() {
     close(sockets[1]);
     return false;
   }
+  auto forged_lease = lease;
+  forged_lease.size = 0x80U;
+  if (server.dma_release(forged_lease) ||
+      !server.dma_lookup(0x1200U, 0x100U, MF_VFIO_USER_DMA_READ_V0)) {
+    close(memfd);
+    close(sockets[0]);
+    close(sockets[1]);
+    return false;
+  }
   const auto disconnect = metaflux::runtime::lifecycle::capture_external_event(
       metaflux::runtime::lifecycle::ExternalEventKind::Disconnect, 3U, coordinator.snapshot());
   metaflux::runtime::lifecycle::ResultDetails details{};

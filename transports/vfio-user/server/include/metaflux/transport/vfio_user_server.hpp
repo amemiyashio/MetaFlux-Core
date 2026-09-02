@@ -52,6 +52,15 @@ struct ServerConfig final {
   std::uint64_t max_bytes = UINT64_C(0x10000000);
 };
 
+struct DmaLease final {
+	std::uint64_t lease_id = 0U;
+	std::uint64_t iova = 0U;
+	std::uint64_t size = 0U;
+	std::uint64_t mapping_epoch = 0U;
+	std::uint64_t device_generation = 0U;
+	std::uint32_t permissions = 0U;
+};
+
 struct DmaMapping final {
   std::uint64_t iova = 0U;
   std::uint64_t size = 0U;
@@ -64,16 +73,7 @@ struct DmaMapping final {
   std::uint64_t mapped_size = 0U;
   bool revoking = false;
   bool finalized = false;
-  std::vector<std::uint64_t> lease_ids{};
-};
-
-struct DmaLease final {
-  std::uint64_t lease_id = 0U;
-  std::uint64_t iova = 0U;
-  std::uint64_t size = 0U;
-  std::uint64_t mapping_epoch = 0U;
-  std::uint64_t device_generation = 0U;
-  std::uint32_t permissions = 0U;
+  std::vector<DmaLease> leases{};
 };
 
 class VfioUserServer final {
