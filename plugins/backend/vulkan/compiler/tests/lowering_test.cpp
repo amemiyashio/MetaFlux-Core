@@ -139,6 +139,24 @@ Kernel arithmetic_kernel(Opcode opcode, const char* name) {
   return kernel;
 }
 
+Kernel arithmetic_f32_kernel(Opcode opcode, const char* name) {
+  Kernel kernel = arithmetic_kernel(opcode, name);
+  kernel.registers[13].kind = ValueKind::F32;
+  kernel.registers[14].kind = ValueKind::F32;
+  kernel.registers[15].kind = ValueKind::F32;
+  kernel.operations[14] = op(Opcode::LoadGlobalF32, 13U, {11U});
+  kernel.operations[15] = op(Opcode::LoadGlobalF32, 14U, {12U});
+  kernel.operations[16] = op(opcode, 15U, {13U, 14U});
+  kernel.operations[17] = op(Opcode::StoreGlobalF32, metaflux::compiler::kNoValue, {10U, 15U});
+  return kernel;
+}
+
+Kernel unsupported_f32_kernel() {
+  Kernel kernel = arithmetic_f32_kernel(Opcode::AddRnF32, "mad_f32");
+  kernel.operations[16] = op(Opcode::MadRnF32, 15U, {13U, 14U, 13U});
+  return kernel;
+}
+
 Kernel shared_barrier_kernel() {
   Kernel kernel{
       .name = "shared_reverse",
@@ -298,6 +316,39 @@ bool valid_elementwise_u32_lowering() {
                   "multiply_u32");
 }
 
+bool valid_elementwise_f32_lowering() {
+  const auto profile = target();
+  const auto validate = [&profile](Opcode opcode, SpirvSemanticOpcode semantic,
+                                   const char* mlir_opcode, const char* name) {
+    SpirvLoweredModule module{};
+    const auto result = metaflux::backend::vulkan::lower_kernel(
+        arithmetic_f32_kernel(opcode, name), profile, {8U, 1U, 1U}, &module);
+    const bool valid = result.status == LoweringStatus::success && module.instructions.size() == 19U &&
+           module.instructions[14].opcode == SpirvSemanticOpcode::load_global_f32 &&
+           module.instructions[16].opcode == semantic &&
+           module.instructions[17].opcode == SpirvSemanticOpcode::store_global_f32 &&
+           module.mlir_text.find("memref<?xf32") != std::string::npos &&
+           module.mlir_text.find(mlir_opcode) != std::string::npos &&
+           module.spirv_binary.size() > 5U && module.spirv_binary[0] == 0x07230203U;
+    if (!valid) {
+      std::cerr << "Vulkan F32 lowering failure: " << name
+                << " status=" << metaflux::backend::vulkan::lowering_status_string(result.status)
+                << " diagnostic=" << result.diagnostic << " instructions="
+                << module.instructions.size() << " mlir-bytes=" << module.mlir_text.size()
+                << " spirv-words=" << module.spirv_binary.size() << '\n';
+      if (!module.mlir_text.empty()) {
+        std::cerr << module.mlir_text << '\n';
+      }
+    }
+    return valid;
+  };
+  return validate(Opcode::AddRnF32, SpirvSemanticOpcode::add_f32, "arith.addf", "add_f32") &&
+         validate(Opcode::SubRnF32, SpirvSemanticOpcode::subtract_f32, "arith.subf",
+                  "subtract_f32") &&
+         validate(Opcode::MultiplyRnF32, SpirvSemanticOpcode::multiply_f32, "arith.mulf",
+                  "multiply_f32");
+}
+
 bool valid_shared_barrier_lowering() {
   const auto profile = target();
   SpirvLoweredModule module{};
@@ -337,13 +388,18 @@ bool independently_validates_spirv() {
     const auto result = metaflux::backend::vulkan::lower_kernel(
         kernel, profile, {8U, 1U, 1U}, &module);
     if (result.status != LoweringStatus::success || module.spirv_binary.empty()) {
+      std::cerr << "SPIR-V validation setup failed for " << kernel.name
+                << ": status="
+                << metaflux::backend::vulkan::lowering_status_string(result.status)
+                << " diagnostic=" << result.diagnostic << " words="
+                << module.spirv_binary.size() << '\n';
       return false;
     }
 
     char path[] = "/tmp/metaflux-vulkan-lowering-XXXXXX";
     const int fd = ::mkstemp(path);
     if (fd < 0) {
-      (void)::unlink(path);
+      std::cerr << "SPIR-V validation temporary file creation failed for " << kernel.name << '\n';
       return false;
     }
     const auto* bytes = reinterpret_cast<const std::uint8_t*>(module.spirv_binary.data());
@@ -351,6 +407,7 @@ bool independently_validates_spirv() {
     while (remaining != 0U) {
       const ssize_t written = ::write(fd, bytes, remaining);
       if (written <= 0) {
+        std::cerr << "SPIR-V validation temporary file write failed for " << kernel.name << '\n';
         (void)::close(fd);
         (void)::unlink(path);
         return false;
@@ -367,6 +424,7 @@ bool independently_validates_spirv() {
       _exit(127);
     }
     if (child < 0) {
+      std::cerr << "SPIR-V validation fork failed for " << kernel.name << '\n';
       (void)::unlink(path);
       return false;
     }
@@ -376,13 +434,16 @@ bool independently_validates_spirv() {
     const bool valid = waited && WIFEXITED(status) && WEXITSTATUS(status) == 0;
     if (!valid) {
       std::cerr << "SPIR-V validation failed for " << kernel.name << "; converted MLIR:\n"
-                << module.mlir_text << '\n';
+                << module.mlir_text << "exit-status=" << status << '\n';
     }
     return valid;
   };
   return validate(add_kernel()) && validate(copy_kernel()) && validate(shared_barrier_kernel()) &&
          validate(arithmetic_kernel(Opcode::SubU32, "subtract_u32")) &&
-         validate(arithmetic_kernel(Opcode::MultiplyLoU32, "multiply_u32"));
+         validate(arithmetic_kernel(Opcode::MultiplyLoU32, "multiply_u32")) &&
+         validate(arithmetic_f32_kernel(Opcode::AddRnF32, "add_f32")) &&
+         validate(arithmetic_f32_kernel(Opcode::SubRnF32, "subtract_f32")) &&
+         validate(arithmetic_f32_kernel(Opcode::MultiplyRnF32, "multiply_f32"));
 #else
   std::cout << "Vulkan lowering: spirv-val unavailable; independent validation skipped\n";
   return true;
@@ -390,20 +451,21 @@ bool independently_validates_spirv() {
 }
 
 bool unsupported_semantics_fail_before_emission() {
-  auto kernel = add_kernel();
-  kernel.registers[13].kind = ValueKind::F32;
-  kernel.registers[14].kind = ValueKind::F32;
-  kernel.registers[15].kind = ValueKind::F32;
-  kernel.operations[14] = op(Opcode::LoadGlobalF32, 13U, {11U});
-  kernel.operations[15] = op(Opcode::LoadGlobalF32, 14U, {12U});
-  kernel.operations[16] = op(Opcode::AddRnF32, 15U, {13U, 14U});
-  kernel.operations[17] = op(Opcode::StoreGlobalF32, metaflux::compiler::kNoValue, {10U, 15U});
+  auto kernel = unsupported_f32_kernel();
   SpirvLoweredModule module{};
   const auto result = metaflux::backend::vulkan::lower_kernel(
       kernel, target(), {8U, 1U, 1U}, &module);
-  return result.status == LoweringStatus::unsupported_semantics &&
+  const bool valid = result.status == LoweringStatus::unsupported_semantics &&
          result.diagnostic.find("verified u32 Add/Sub/Multiply/Copy forms") != std::string::npos &&
          module.spirv_binary.empty() && module.mlir_text.empty();
+  if (!valid) {
+    std::cerr << "Vulkan unsupported semantics failure: status="
+              << metaflux::backend::vulkan::lowering_status_string(result.status)
+              << " diagnostic=" << result.diagnostic << " instructions="
+              << module.instructions.size() << " mlir-bytes=" << module.mlir_text.size()
+              << " spirv-words=" << module.spirv_binary.size() << '\n';
+  }
+  return valid;
 }
 
 bool invalid_inputs() {
@@ -429,9 +491,37 @@ bool invalid_inputs() {
 } // namespace
 
 int main() {
-  return valid_add_lowering() && valid_copy_lowering() && valid_shared_barrier_lowering() &&
-         valid_elementwise_u32_lowering() && independently_validates_spirv() &&
-                 unsupported_semantics_fail_before_emission() && invalid_inputs()
-             ? 0
-             : 1;
+  if (!valid_add_lowering()) {
+    std::cerr << "Vulkan lowering stage failed: add\n";
+    return 1;
+  }
+  if (!valid_copy_lowering()) {
+    std::cerr << "Vulkan lowering stage failed: copy\n";
+    return 1;
+  }
+  if (!valid_shared_barrier_lowering()) {
+    std::cerr << "Vulkan lowering stage failed: shared-barrier\n";
+    return 1;
+  }
+  if (!valid_elementwise_u32_lowering()) {
+    std::cerr << "Vulkan lowering stage failed: u32-arithmetic\n";
+    return 1;
+  }
+  if (!valid_elementwise_f32_lowering()) {
+    std::cerr << "Vulkan lowering stage failed: f32-arithmetic\n";
+    return 1;
+  }
+  if (!independently_validates_spirv()) {
+    std::cerr << "Vulkan lowering stage failed: independent-spirv-validation\n";
+    return 1;
+  }
+  if (!unsupported_semantics_fail_before_emission()) {
+    std::cerr << "Vulkan lowering stage failed: unsupported-semantics\n";
+    return 1;
+  }
+  if (!invalid_inputs()) {
+    std::cerr << "Vulkan lowering stage failed: invalid-inputs\n";
+    return 1;
+  }
+  return 0;
 }
