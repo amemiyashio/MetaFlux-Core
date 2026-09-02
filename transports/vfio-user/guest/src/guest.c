@@ -239,6 +239,10 @@ mf_shared_status_v1 mf_vfio_user_guest_ring_arm_completion_v0(
   if (!guest_ring_bound(ring) || timeline_value == UINT64_C(0)) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
+  if (ring->armed_completion_timeline != UINT64_C(0) &&
+      timeline_value < ring->armed_completion_timeline) {
+    return MF_SHARED_WOULD_BLOCK;
+  }
   ring->armed_completion_timeline = timeline_value;
   return MF_SHARED_SUCCESS;
 }
