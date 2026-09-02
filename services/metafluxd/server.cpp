@@ -1499,6 +1499,10 @@ private:
   static void cdev_memory_release(void* context, mf_backend_memory_v1 memory) noexcept;
   [[nodiscard]] static mf_shared_status_v1 cdev_worker_lease_acquire(void* context) noexcept;
   static void cdev_worker_lease_release(void* context) noexcept;
+  [[nodiscard]] static bool cdev_worker_rebind(void* context, std::uint64_t generation,
+                                                metaflux::transport::cdev::WorkerQueueView* out_view,
+                                                metaflux::transport::cdev::CdevBackendBinding* out_backend) noexcept;
+  static void cdev_worker_retire(void* context) noexcept;
   [[nodiscard]] mf_shared_status_v1 initialize_cdev_backend() noexcept;
   [[nodiscard]] mf_shared_status_v1 bind_cdev_worker() noexcept;
   [[nodiscard]] mf_shared_status_v1 report_cdev_loss() noexcept;
@@ -1977,6 +1981,62 @@ mf_shared_status_v1 Session::cdev_worker_lease_acquire(void* context) noexcept {
 
 void Session::cdev_worker_lease_release(void* context) noexcept { (void)context; }
 
+bool Session::cdev_worker_rebind(void* context, std::uint64_t generation,
+                                  metaflux::transport::cdev::WorkerQueueView* out_view,
+                                  metaflux::transport::cdev::CdevBackendBinding* out_backend) noexcept {
+  auto* session = static_cast<Session*>(context);
+  if (session == nullptr || out_view == nullptr || out_backend == nullptr || generation == 0U) {
+    return false;
+  }
+  // Open a new cdev session for the candidate generation.
+  metaflux::transport::cdev::CdevWorkerSession new_session{};
+  const mf_shared_status_v1 open_status =
+      metaflux::transport::cdev::CdevWorkerSession::open(nullptr, session->view_id_, generation, new_session);
+  if (open_status != MF_SHARED_SUCCESS) {
+    return false;
+  }
+  // Map the payload arena.
+  const mf_shared_status_v1 map_status = new_session.map_current_payload();
+  if (map_status != MF_SHARED_SUCCESS) {
+    new_session.close();
+    return false;
+  }
+  // Import payload into the backend.
+  mf_backend_memory_v1 payload_memory = 0U;
+  const mf_backend_status_v1 import_status = mf_cpu_backend_import_host_memory_v1(
+      session->cdev_backend_instance_, session->cdev_backend_context_,
+      new_session.payload_mapping(), new_session.payload_mapping_size(), &payload_memory);
+  if (import_status != MF_BACKEND_SUCCESS || payload_memory == 0U) {
+    new_session.close();
+    return false;
+  }
+  // Return the new queue view and backend binding.
+  *out_view = new_session.queue_view();
+  out_view->generation = generation;
+  *out_backend = {};
+  out_backend->api = session->cdev_backend_api_;
+  out_backend->instance = session->cdev_backend_instance_;
+  out_backend->queue = session->cdev_backend_queue_;
+  out_backend->memory = payload_memory;
+  out_backend->memory_reference = {
+      .handle = payload_memory,
+      .retain = &Session::cdev_memory_retain,
+      .release = &Session::cdev_memory_release,
+      .context = session,
+  };
+  out_backend->generation = generation;
+  return true;
+}
+
+void Session::cdev_worker_retire(void* context) noexcept {
+  auto* session = static_cast<Session*>(context);
+  if (session == nullptr) {
+    return;
+  }
+  // Release the retired payload memory.
+  session->release_cdev_payload_memory();
+}
+
 mf_shared_status_v1 Session::initialize_cdev_backend() noexcept {
   if (cdev_backend_api_ != nullptr) {
     return MF_SHARED_SUCCESS;
@@ -2106,6 +2166,10 @@ mf_shared_status_v1 Session::bind_cdev_worker() noexcept {
   binding.lease_acquire = &Session::cdev_worker_lease_acquire;
   binding.lease_release = &Session::cdev_worker_lease_release;
   binding.lease_context = this;
+  binding.rebind = &Session::cdev_worker_rebind;
+  binding.rebind_context = this;
+  binding.retire = &Session::cdev_worker_retire;
+  binding.retire_context = this;
   binding.generation = generation;
   try {
     cdev_worker_ = std::make_unique<metaflux::transport::cdev::CdevWorker>(
