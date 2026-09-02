@@ -190,10 +190,11 @@ bool valid_worker_lease_response(const mf_uapi_worker_lease_v0& response,
 
 bool valid_negotiate_response(const mf_uapi_negotiate_v0& response,
                               mf_registry_view_id_v1& out_view_id,
-                              std::uint64_t& out_generation) noexcept {
+                              std::uint64_t& out_generation,
+                              std::uint64_t required_features) noexcept {
   if (response.struct_size != sizeof(response) || response.version != MF_UAPI_VERSION_V0 ||
       response.flags != 0U ||
-      (response.required_features & MF_UAPI_FEATURE_QUEUE_MMAP_V0) == 0U ||
+      (response.required_features & required_features) != required_features ||
       response.registry_view_daemon == 0U || response.registry_view_serial == 0U ||
       response.device_generation == 0U ||
       response.descriptor_size != sizeof(mf_ring_descriptor_v1) || response.ring_order != 8U ||
@@ -352,7 +353,8 @@ mf_shared_status_v1 CdevWorkerSession::open_internal(const char* control_path,
   mf_uapi_negotiate_v0 negotiate{};
   negotiate.struct_size = sizeof(negotiate);
   negotiate.version = MF_UAPI_VERSION_V0;
-  negotiate.required_features = MF_UAPI_FEATURE_QUEUE_MMAP_V0;
+  negotiate.required_features =
+      MF_UAPI_FEATURE_QUEUE_MMAP_V0 | MF_UAPI_FEATURE_WORKER_BROKER_V0;
   if (::ioctl(fd, MF_UAPI_IOCTL_NEGOTIATE, &negotiate) < 0) {
     const int error = errno;
     (void)::close(fd);
@@ -360,7 +362,9 @@ mf_shared_status_v1 CdevWorkerSession::open_internal(const char* control_path,
   }
   mf_registry_view_id_v1 negotiated_view_id{};
   std::uint64_t negotiated_generation = 0U;
-  if (!valid_negotiate_response(negotiate, negotiated_view_id, negotiated_generation)) {
+  if (!valid_negotiate_response(negotiate, negotiated_view_id, negotiated_generation,
+                                MF_UAPI_FEATURE_QUEUE_MMAP_V0 |
+                                    MF_UAPI_FEATURE_WORKER_BROKER_V0)) {
     (void)::close(fd);
     return MF_SHARED_MALFORMED;
   }
@@ -392,15 +396,12 @@ mf_shared_status_v1 CdevWorkerSession::open_internal(const char* control_path,
   }
   mf_registry_view_id_v1 data_view_id{};
   std::uint64_t data_generation = 0U;
-  if (!valid_negotiate_response(data_negotiate, data_view_id, data_generation)) {
+  if (!valid_negotiate_response(data_negotiate, data_view_id, data_generation,
+                                MF_UAPI_FEATURE_QUEUE_MMAP_V0 |
+                                    MF_UAPI_FEATURE_REGISTERED_MEMORY_V0)) {
     (void)::close(data_fd);
     (void)::close(fd);
     return MF_SHARED_MALFORMED;
-  }
-  if ((data_negotiate.required_features & MF_UAPI_FEATURE_REGISTERED_MEMORY_V0) == 0U) {
-    (void)::close(data_fd);
-    (void)::close(fd);
-    return MF_SHARED_NOT_SUPPORTED;
   }
   if (!mf_registry_view_id_equal_v1(data_view_id, expected_view_id) ||
       data_generation != expected_generation) {
