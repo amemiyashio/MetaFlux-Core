@@ -172,13 +172,13 @@ ServerResult
 VfioUserServer::mark_lost_and_submit(const metaflux::runtime::lifecycle::ExternalEvent& event,
                                      metaflux::runtime::lifecycle::Coordinator& coordinator,
                                      metaflux::runtime::lifecycle::ResultDetails& out) noexcept {
-  mark_lost();
   if (event.kind != metaflux::runtime::lifecycle::ExternalEventKind::Disconnect) {
     out = metaflux::runtime::lifecycle::ResultDetails{};
     out.result = metaflux::runtime::lifecycle::Result::Invalid;
     out.snapshot = coordinator.snapshot();
     return ServerResult::Malformed;
   }
+  mark_lost();
   const auto normalized =
       metaflux::runtime::lifecycle::submit_external_event(coordinator, event, out);
   return normalized == metaflux::runtime::lifecycle::NormalizationResult::Accepted

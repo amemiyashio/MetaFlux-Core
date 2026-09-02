@@ -176,6 +176,32 @@ bool test_dma_requires_shared_memory_negotiation() {
   return true;
 }
 
+bool test_invalid_loss_event_does_not_mutate_server() {
+  int sockets[2] = {-1, -1};
+  if (::socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sockets) != 0) {
+    return false;
+  }
+  metaflux::transport::vfio_user::VfioUserServer server(sockets[1]);
+  metaflux::runtime::lifecycle::Coordinator coordinator;
+  metaflux::runtime::lifecycle::ResultDetails details{};
+  const metaflux::runtime::lifecycle::ExternalEvent invalid_event{
+      .request_id = 1U,
+      .logical_device_id = 1U,
+      .daemon_incarnation = 1U,
+      .expected_identity_record_id = 1U,
+      .expected_generation = 1U,
+      .expected_epoch = 1U,
+      .kind = metaflux::runtime::lifecycle::ExternalEventKind::AdminReset,
+  };
+  const auto result = server.mark_lost_and_submit(invalid_event, coordinator, details);
+  const bool valid = result == metaflux::transport::vfio_user::ServerResult::Malformed &&
+                     server.state() == metaflux::transport::vfio_user::ServerState::Negotiating &&
+                     details.result == metaflux::runtime::lifecycle::Result::Invalid;
+  close(sockets[0]);
+  close(sockets[1]);
+  return valid;
+}
+
 bool test_fatal_control_error_reports_transport_loss() {
   int sockets[2] = {-1, -1};
   if (::socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sockets) != 0) {
@@ -218,6 +244,7 @@ bool test_fatal_control_error_reports_transport_loss() {
 
 int main() {
   if (!test_dma_requires_shared_memory_negotiation() ||
+      !test_invalid_loss_event_does_not_mutate_server() ||
       !test_fatal_control_error_reports_transport_loss()) {
     return 1;
   }
