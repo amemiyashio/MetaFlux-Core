@@ -179,6 +179,12 @@ bool staging_lifetime_and_reuse() {
       ledger.validate(first) != metaflux::backend::vulkan::MemoryStatus::success) {
     return false;
   }
+  auto forged = first;
+  forged.alignment *= 2U;
+  if (ledger.release(forged) != metaflux::backend::vulkan::MemoryStatus::not_found ||
+      ledger.validate(first) != metaflux::backend::vulkan::MemoryStatus::success) {
+    return false;
+  }
   auto stale = first;
   stale.generation = 8U;
   if (ledger.validate(stale) != metaflux::backend::vulkan::MemoryStatus::stale_generation ||

@@ -457,7 +457,8 @@ MemoryStatus StagingLedger::release(const StagingAllocation& allocation) noexcep
   const auto position = std::find_if(
       allocations_.begin(), allocations_.end(), [&allocation](const StagingAllocation& current) {
         return current.id == allocation.id && current.generation == allocation.generation &&
-               current.offset == allocation.offset && current.size == allocation.size;
+               current.offset == allocation.offset && current.size == allocation.size &&
+               current.alignment == allocation.alignment;
       });
   if (position == allocations_.end()) {
     return MemoryStatus::not_found;
