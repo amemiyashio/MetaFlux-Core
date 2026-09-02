@@ -75,7 +75,7 @@ static struct mf_vroot_host *mf_vroot_from_bus(struct pci_bus *bus)
 static bool mf_vroot_config_access_valid(int where, int size)
 {
 	return (size == 1 || size == 2 || size == 4) && where >= 0 &&
-	       where + size <= MF_VROOT_PROFILE_CONFIG_SIZE &&
+	       where <= (int)MF_VROOT_PROFILE_CONFIG_SIZE - size &&
 	       (where & (size - 1)) == 0;
 }
 
