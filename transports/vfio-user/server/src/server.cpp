@@ -128,6 +128,19 @@ VfioUserServer::~VfioUserServer() {
 }
 
 void VfioUserServer::mark_lost() noexcept {
+  if (state_ != ServerState::Lost) {
+    for (DmaMapping& mapping : mappings_) {
+      mapping.revoking = true;
+      retired_mappings_.push_back(std::move(mapping));
+    }
+    mappings_.clear();
+    for (DmaMapping& mapping : retired_mappings_) {
+      if (mapping.lease_ids.empty()) {
+        finalize_mapping(mapping);
+      }
+    }
+    clear_finalized_tombstones();
+  }
   state_ = ServerState::Lost;
   lifecycle_online_ = false;
   lifecycle_accepting_ = false;

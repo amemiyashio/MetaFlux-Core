@@ -240,12 +240,127 @@ bool test_fatal_control_error_reports_transport_loss() {
   return valid;
 }
 
+bool test_transport_loss_drains_dma_before_recovery() {
+  int sockets[2] = {-1, -1};
+  if (::socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sockets) != 0) {
+    return false;
+  }
+  metaflux::transport::vfio_user::VfioUserServer server(sockets[1]);
+  std::array<std::uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> packet{};
+  std::uint32_t packet_size = 0U;
+  mf_transport_negotiate_v0 negotiation{};
+  negotiation.magic = MF_TRANSPORT_MAGIC_V0;
+  negotiation.major = MF_TRANSPORT_MAJOR_V0;
+  negotiation.minor = MF_TRANSPORT_MINOR_V0;
+  negotiation.struct_size = sizeof(negotiation);
+  negotiation.required_features = MF_TRANSPORT_FEATURE_VFIO_USER_V0 |
+                                  MF_TRANSPORT_FEATURE_SHARED_MEMORY_V0;
+  if (mf_vfio_user_guest_encode_negotiate_v0(1U, &negotiation, packet.data(), packet.size(),
+                                             &packet_size) != MF_SHARED_SUCCESS ||
+      !send_packet(sockets[0], packet.data(), packet_size) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied) {
+    close(sockets[0]);
+    close(sockets[1]);
+    return false;
+  }
+  mf_transport_negotiate_v0 negotiated{};
+  if (!receive_negotiate(sockets[0], 1U, &negotiated)) {
+    close(sockets[0]);
+    close(sockets[1]);
+    return false;
+  }
+
+  const int memfd = make_memfd();
+  if (memfd < 0) {
+    close(sockets[0]);
+    close(sockets[1]);
+    return false;
+  }
+  mf_vfio_user_dma_map_v0 map{};
+  map.struct_size = sizeof(map);
+  map.flags = MF_VFIO_USER_DMA_READ_V0 | MF_VFIO_USER_DMA_WRITE_V0;
+  map.iova = 0x1000U;
+  map.size = 0x1000U;
+  map.mapping_epoch = 1U;
+  map.device_generation = 1U;
+  if (mf_vfio_user_guest_encode_dma_map_v0(2U, &map, packet.data(), packet.size(), &packet_size) !=
+          MF_SHARED_SUCCESS ||
+      !send_packet(sockets[0], packet.data(), packet_size, memfd) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+      !receive_completion(sockets[0], 2U, MF_VFIO_USER_MESSAGE_DMA_MAP_V0, MF_SHARED_SUCCESS)) {
+    close(memfd);
+    close(sockets[0]);
+    close(sockets[1]);
+    return false;
+  }
+
+  metaflux::runtime::lifecycle::Config lifecycle_config{};
+  lifecycle_config.generation_terminal = 32U;
+  lifecycle_config.identity_record_terminal = 32U;
+  lifecycle_config.epoch_terminal = 32U;
+  metaflux::runtime::lifecycle::Coordinator coordinator(lifecycle_config);
+  if (!server.attach_lifecycle(coordinator)) {
+    close(memfd);
+    close(sockets[0]);
+    close(sockets[1]);
+    return false;
+  }
+  metaflux::transport::vfio_user::DmaLease lease{};
+  if (!server.dma_acquire(0x1200U, 0x100U, MF_VFIO_USER_DMA_READ_V0, lease)) {
+    close(memfd);
+    close(sockets[0]);
+    close(sockets[1]);
+    return false;
+  }
+  const auto disconnect = metaflux::runtime::lifecycle::capture_external_event(
+      metaflux::runtime::lifecycle::ExternalEventKind::Disconnect, 3U, coordinator.snapshot());
+  metaflux::runtime::lifecycle::ResultDetails details{};
+  const auto loss_result = server.mark_lost_and_submit(disconnect, coordinator, details);
+  const bool loss_valid =
+      loss_result == metaflux::transport::vfio_user::ServerResult::Closed &&
+      server.state() == metaflux::transport::vfio_user::ServerState::Lost &&
+      server.mapping_count() == 0U && server.retired_mapping_count() == 1U &&
+      server.mapped_bytes() == 0x1000U && !server.dma_lookup(0x1200U, 0x100U,
+                                                              MF_VFIO_USER_DMA_READ_V0) &&
+      details.result == metaflux::runtime::lifecycle::Result::Accepted &&
+      details.snapshot.state == metaflux::runtime::lifecycle::State::Lost;
+  if (!loss_valid || !server.dma_release(lease) || server.mapped_bytes() != 0U ||
+      server.retired_mapping_count() != 1U || server.dma_release(lease)) {
+    close(memfd);
+    close(sockets[0]);
+    close(sockets[1]);
+    return false;
+  }
+
+  const metaflux::runtime::lifecycle::Request recover{
+      .request_id = 4U,
+      .logical_device_id = 1U,
+      .daemon_incarnation = 1U,
+      .expected_identity_record_id = 1U,
+      .expected_generation = 1U,
+      .expected_epoch = 1U,
+      .source = metaflux::runtime::lifecycle::Source::Restart,
+      .operation = metaflux::runtime::lifecycle::Operation::Recover,
+  };
+  const bool recovered =
+      coordinator.apply(recover, details) == metaflux::runtime::lifecycle::Result::Accepted &&
+      server.device_generation() == 2U && server.mapping_epoch() == 2U &&
+      server.lifecycle_online() &&
+      server.state() == metaflux::transport::vfio_user::ServerState::Configuring &&
+      server.retired_mapping_count() == 0U;
+  close(memfd);
+  close(sockets[0]);
+  close(sockets[1]);
+  return recovered;
+}
+
 } // namespace
 
 int main() {
   if (!test_dma_requires_shared_memory_negotiation() ||
       !test_invalid_loss_event_does_not_mutate_server() ||
-      !test_fatal_control_error_reports_transport_loss()) {
+      !test_fatal_control_error_reports_transport_loss() ||
+      !test_transport_loss_drains_dma_before_recovery()) {
     return 1;
   }
   int sockets[2] = {-1, -1};
