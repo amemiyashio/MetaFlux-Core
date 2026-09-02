@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "epoch": 1,
+  "target": "kernel-module-validation",
+  "description": "Pinned kernel versions and guest inputs for milestone-0.1.1.0 validation.",
+  "kernel_versions": [
+    {
+      "version": "6.12",
+      "series": "LTS",
+      "kbuild_config": "defconfig",
+      "compiler": "gcc",
+      "status": "primary-validation-target",
+      "notes": "Primary LTS target for metaflux_core.ko, metaflux_pci.ko, and cdev qualification."
+    },
+    {
+      "version": "6.18",
+      "series": "LTS",
+      "kbuild_config": "defconfig",
+      "compiler": "gcc",
+      "status": "secondary-validation-target",
+      "notes": "Secondary LTS target. LLVM=1 used where kernel configuration supports it."
+    }
+  ],
+  "guest_inputs": {
+    "qemu_version": "10.2.4",
+    "libvfio_user": {
+      "status": "host-qualification-prerequisite",
+      "reason": "No nixpkgs package attribute; host-installed version used."
+    },
+    "guest_memory": {
+      "page_size": "4K",
+      "dma_zone_constraint": "None beyond standard x86_64",
+      "iommu": "Not required for milestone-0.1.1.0 static guest"
+    },
+    "guest_image": {
+      "rootfs": "Minimal Linux with CUDA runtime",
+      "kernel_config": "Match host kernel series (6.12 or 6.18)",
+      "status": "To be defined in work-item-0.1.1.3"
+    }
+  },
+  "distribution_matrix": {
+    "reference": "decision-0012",
+    "rows": [
+      {"distribution": "Ubuntu 20.04.6", "glibc": "2.31", "gcc": "9.x"},
+      {"distribution": "Ubuntu 22.04.5", "glibc": "2.35", "gcc": "12.x"},
+      {"distribution": "Ubuntu 24.04.4", "glibc": "2.39", "gcc": "13.x"},
+      {"distribution": "Rocky Linux 9.8", "glibc": "2.34", "gcc": "11.x"}
+    ]
+  },
+  "references": [
+    "agent/plan/milestone-0.1.1.0-kernel-guest-transport/plan.md",
+    "agent/memory/constraints.md",
+    "toolchains/vfio-user-1.json"
+  ]
+}

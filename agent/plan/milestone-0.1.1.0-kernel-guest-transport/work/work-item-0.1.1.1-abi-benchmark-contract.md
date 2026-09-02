@@ -74,9 +74,22 @@ until milestone-0.1.2.0 qualification.
   dma_max_segment_size, max_registered_regions, max_inflight_operations,
   max_payload_bytes, eventfd_modes, and cancellation_support. Ioctl layouts already
   defined in uapi.json; BAR layouts in mf_transport_bar_layout_v0.
-- [ ] Define local/guest buffer lifetimes and worker register/lease/attach/drain/
-  revoke/death/credential rules.
-- [ ] Pin Linux, QEMU, libvfio-user, guest memory, and image inputs.
+- [x] Define local/guest buffer lifetimes and worker register/lease/attach/drain/
+  revoke/death/credential rules. Added `buffer_lifetime` section to
+  `contracts/uapi/linux/v1/schema/uapi.json` with valid_conditions
+  (generation match, handle non-zero, device not LOST/REMOVED, lease active),
+  invalidation_events (lifecycle_commit, worker_lease_revoke, transport_loss,
+  worker_death, explicit_unregister, payload_vma_close), and error_on_invalid
+  semantics. Added `worker_lifecycle` section with 7 states, 8 transitions,
+  and 5 invariants (one active lease per generation, queue attach requires
+  matching generation, drain completes only when all in-flight operations
+  resolved, worker death publishes LOST, revoked workers cannot attach).
+- [x] Pin Linux, QEMU, libvfio-user, guest memory, and image inputs. Created
+  `toolchains/kernel-inputs-1.json` with pinned kernel versions (6.12 LTS primary,
+  6.18 LTS secondary), QEMU 10.2.4 (from vfio-user-1.json), libvfio-user
+  host-qualification prerequisite, guest memory constraints (4K page, no IOMMU
+  for static guest), guest image spec (minimal Linux + CUDA runtime), and
+  distribution matrix (Ubuntu 20.04/22.04/24.04, Rocky 9.8 per decision-0012).
 - [x] Generate all language/layout assertions and byte fixtures. Added
   `--generate-json` option to `validate-transport-schema.py` that emits
   language-neutral golden bytes as JSON (15 records with byte arrays, hex,
