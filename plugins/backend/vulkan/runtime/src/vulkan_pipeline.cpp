@@ -57,16 +57,16 @@ PipelineStatus VulkanComputePipeline::create(std::span<const std::uint32_t> spir
     return PipelineStatus::invalid_argument;
   }
 
+  VkShaderModule replacement_shader_module = VK_NULL_HANDLE;
+  VkPipeline replacement_pipeline = VK_NULL_HANDLE;
   try {
-    destroy();
     VkShaderModuleCreateInfo module_info{};
     module_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     module_info.codeSize = spirv.size_bytes();
     module_info.pCode = spirv.data();
     PipelineStatus status = map_result(vkCreateShaderModule(
-        context_->device_handle(), &module_info, nullptr, &shader_module_));
+        context_->device_handle(), &module_info, nullptr, &replacement_shader_module));
     if (status != PipelineStatus::success) {
-      shader_module_ = VK_NULL_HANDLE;
       return status;
     }
 
@@ -74,24 +74,41 @@ PipelineStatus VulkanComputePipeline::create(std::span<const std::uint32_t> spir
     VkPipelineShaderStageCreateInfo stage{};
     stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    stage.module = shader_module_;
+    stage.module = replacement_shader_module;
     stage.pName = name.c_str();
     VkComputePipelineCreateInfo pipeline_info{};
     pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     pipeline_info.stage = stage;
     pipeline_info.layout = layout;
     status = map_result(vkCreateComputePipelines(context_->device_handle(), cache, 1U,
-                                                  &pipeline_info, nullptr, &pipeline_));
+                                                  &pipeline_info, nullptr, &replacement_pipeline));
     if (status != PipelineStatus::success) {
-      if (shader_module_ != VK_NULL_HANDLE) {
-        vkDestroyShaderModule(context_->device_handle(), shader_module_, nullptr);
-        shader_module_ = VK_NULL_HANDLE;
+      if (replacement_pipeline != VK_NULL_HANDLE) {
+        vkDestroyPipeline(context_->device_handle(), replacement_pipeline, nullptr);
       }
-      pipeline_ = VK_NULL_HANDLE;
+      if (replacement_shader_module != VK_NULL_HANDLE) {
+        vkDestroyShaderModule(context_->device_handle(), replacement_shader_module, nullptr);
+      }
+      return status;
     }
-    return status;
+    const VkPipeline previous_pipeline = pipeline_;
+    const VkShaderModule previous_shader_module = shader_module_;
+    pipeline_ = replacement_pipeline;
+    shader_module_ = replacement_shader_module;
+    if (previous_pipeline != VK_NULL_HANDLE) {
+      vkDestroyPipeline(context_->device_handle(), previous_pipeline, nullptr);
+    }
+    if (previous_shader_module != VK_NULL_HANDLE) {
+      vkDestroyShaderModule(context_->device_handle(), previous_shader_module, nullptr);
+    }
+    return PipelineStatus::success;
   } catch (...) {
-    destroy();
+    if (replacement_pipeline != VK_NULL_HANDLE) {
+      vkDestroyPipeline(context_->device_handle(), replacement_pipeline, nullptr);
+    }
+    if (replacement_shader_module != VK_NULL_HANDLE) {
+      vkDestroyShaderModule(context_->device_handle(), replacement_shader_module, nullptr);
+    }
     return PipelineStatus::out_of_memory;
   }
 }

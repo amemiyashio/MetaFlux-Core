@@ -71,20 +71,30 @@ PipelineCacheStatus VulkanPipelineCache::create(
     return PipelineCacheStatus::corrupt;
   }
 
+  VkPipelineCache replacement_cache = VK_NULL_HANDLE;
   try {
-    destroy();
     VkPipelineCacheCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
     info.initialDataSize = initial_data.size();
     info.pInitialData = initial_data.empty() ? nullptr : initial_data.data();
     const auto status = map_result(
-        vkCreatePipelineCache(context_->device_handle(), &info, nullptr, &cache_));
+        vkCreatePipelineCache(context_->device_handle(), &info, nullptr, &replacement_cache));
     if (status != PipelineCacheStatus::success) {
-      cache_ = VK_NULL_HANDLE;
+      if (replacement_cache != VK_NULL_HANDLE) {
+        vkDestroyPipelineCache(context_->device_handle(), replacement_cache, nullptr);
+      }
+      return status;
     }
-    return status;
+    const VkPipelineCache previous_cache = cache_;
+    cache_ = replacement_cache;
+    if (previous_cache != VK_NULL_HANDLE) {
+      vkDestroyPipelineCache(context_->device_handle(), previous_cache, nullptr);
+    }
+    return PipelineCacheStatus::success;
   } catch (...) {
-    destroy();
+    if (replacement_cache != VK_NULL_HANDLE) {
+      vkDestroyPipelineCache(context_->device_handle(), replacement_cache, nullptr);
+    }
     return PipelineCacheStatus::out_of_memory;
   }
 }
