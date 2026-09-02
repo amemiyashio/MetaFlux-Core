@@ -239,6 +239,8 @@ static void __exit mf_vroot_exit(void)
 		pci_stop_root_bus(bridge->bus);
 		pci_remove_root_bus(bridge->bus);
 	}
+	if (bridge != NULL)
+		pci_free_host_bridge(bridge);
 }
 
 module_init(mf_vroot_init);
