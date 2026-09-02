@@ -3,7 +3,9 @@
 `metaflux_core.ko` now provides the first work-item-0.1.1.2 local cdev slice. It registers
 `/dev/metafluxctl` for an exclusive worker lease and `/dev/metaflux0` for
 generation-bound negotiation, a paired submission/completion ring mapping, and
-timeline waits. The public records come from the generated transport projection;
+timeline waits. A wait observes the user-written completion producer with bounded
+kernel sleeps and wakes immediately on queue owner/module loss; the public records
+come from the generated transport projection;
 the module keeps one online generation (`daemon_incarnation=1`, `view_serial=1`,
 generation 1) as a deterministic fixture until the daemon lifecycle authority is
 connected.

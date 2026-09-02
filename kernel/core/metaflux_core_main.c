@@ -970,6 +970,8 @@ static long mf_cdev_wait(struct mf_cdev_file *file, void __user *argument)
 	long timeout;
 	long result;
 	long final_result;
+	long remaining;
+	bool satisfied = false;
 
 	if (copy_from_user(&request, argument, sizeof(request)) != 0)
 		return -EFAULT;
@@ -984,6 +986,7 @@ static long mf_cdev_wait(struct mf_cdev_file *file, void __user *argument)
 		timeout = 1;
 	if (timeout < 0 || timeout > MAX_SCHEDULE_TIMEOUT)
 		timeout = MAX_SCHEDULE_TIMEOUT;
+	remaining = timeout;
 
 	mutex_lock(&mf_cdev_lock);
 	if (!file->queue_created) {
@@ -998,12 +1001,38 @@ static long mf_cdev_wait(struct mf_cdev_file *file, void __user *argument)
 	completion = (struct mf_ring_header_v1 *)((u8 *)mf_cdev_queue.mapping +
 							  MF_CDEV_SINGLE_MAPPING_SIZE);
 	mutex_unlock(&mf_cdev_lock);
-	result = wait_event_interruptible_timeout(
-		mf_cdev_queue.wait,
-		(!READ_ONCE(mf_cdev_queue.online) ||
-		 READ_ONCE(completion->producer.position) >= request.timeline),
-		timeout);
+	/*
+	 * Completion producers update the shared mapping from user space, so they
+	 * cannot wake this kernel wait queue. Observe that producer with a bounded
+	 * sleep while retaining immediate owner-death wakeups.
+	 */
+	result = 0;
+	for (;;) {
+		if (!READ_ONCE(mf_cdev_queue.online))
+			break;
+		if (READ_ONCE(completion->producer.position) >= request.timeline) {
+			satisfied = true;
+			break;
+		}
+		if (remaining == 0)
+			break;
+		result = wait_event_interruptible_timeout(
+			mf_cdev_queue.wait,
+			(!READ_ONCE(mf_cdev_queue.online) ||
+			 READ_ONCE(completion->producer.position) >= request.timeline),
+			remaining == MAX_SCHEDULE_TIMEOUT ? 1 : min_t(long, remaining, 1));
+		if (result < 0)
+			break;
+		if (remaining != MAX_SCHEDULE_TIMEOUT && result == 0) {
+			if (remaining <= 1)
+				remaining = 0;
+			else
+				--remaining;
+		}
+	}
 	observed = READ_ONCE(completion->producer.position);
+	if (!satisfied && READ_ONCE(mf_cdev_queue.online) && observed >= request.timeline)
+		satisfied = true;
 	request.observed_timeline = observed;
 	final_result = 0;
 	if (copy_to_user(argument, &request, sizeof(request)) != 0)
@@ -1012,7 +1041,7 @@ static long mf_cdev_wait(struct mf_cdev_file *file, void __user *argument)
 		final_result = -ENODEV;
 	else if (result < 0)
 		final_result = -ERESTARTSYS;
-	else if (result == 0 && observed < request.timeline)
+	else if (!satisfied)
 		final_result = -ETIMEDOUT;
 	mutex_lock(&mf_cdev_lock);
 	kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
