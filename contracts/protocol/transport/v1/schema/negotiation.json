@@ -57,6 +57,28 @@
       ]
     },
     {
+      "name": "mf_transport_capability_v0",
+      "size": 128,
+      "alignment": 8,
+      "fields": [
+        {"name": "backend_type", "offset": 0, "width": 4, "type": "u32"},
+        {"name": "supported_opcodes", "offset": 4, "width": 4, "type": "u32"},
+        {"name": "max_descriptor_args", "offset": 8, "width": 4, "type": "u32"},
+        {"name": "max_copy_bytes", "offset": 12, "width": 4, "type": "u32"},
+        {"name": "max_launch_grid_dim", "offset": 16, "width": 4, "type": "u32"},
+        {"name": "max_shared_memory_words", "offset": 20, "width": 4, "type": "u32"},
+        {"name": "notification_modes", "offset": 24, "width": 4, "type": "u32"},
+        {"name": "dma_coherency", "offset": 28, "width": 4, "type": "u32"},
+        {"name": "dma_max_segment_size", "offset": 32, "width": 8, "type": "u64"},
+        {"name": "max_registered_regions", "offset": 40, "width": 4, "type": "u32"},
+        {"name": "max_inflight_operations", "offset": 44, "width": 4, "type": "u32"},
+        {"name": "max_payload_bytes", "offset": 48, "width": 8, "type": "u64"},
+        {"name": "eventfd_modes", "offset": 56, "width": 4, "type": "u32"},
+        {"name": "cancellation_support", "offset": 60, "width": 4, "type": "u32"},
+        {"name": "reserved", "offset": 64, "width": 64, "type": "bytes[64]", "reserved": true}
+      ]
+    },
+    {
       "name": "mf_transport_bar_layout_v0",
       "size": 64,
       "alignment": 8,
@@ -82,6 +104,16 @@
     "MF_TRANSPORT_FEATURE_IOEVENTFD_V0": "1 << 2",
     "MF_TRANSPORT_FEATURE_MSIX_V0": "1 << 3",
     "MF_TRANSPORT_FEATURE_SHARED_MEMORY_V0": "1 << 4",
-    "MF_TRANSPORT_FLAG_NO_REPLY_V0": "1 << 0"
+    "MF_TRANSPORT_FLAG_NO_REPLY_V0": "1 << 0",
+    "MF_CAPABILITY_BACKEND_CPU_V0": 0,
+    "MF_CAPABILITY_BACKEND_VULKAN_V0": 1,
+    "MF_CAPABILITY_OPCODE_COPY_V0": "1 << 0",
+    "MF_CAPABILITY_OPCODE_LAUNCH_V0": "1 << 1",
+    "MF_CAPABILITY_NOTIFICATION_EVENTFD_V0": "1 << 0",
+    "MF_CAPABILITY_NOTIFICATION_MSIX_V0": "1 << 1",
+    "MF_CAPABILITY_DMA_COHERENT_V0": "1 << 0",
+    "MF_CAPABILITY_EVENTFD_QUEUE_V0": "1 << 0",
+    "MF_CAPABILITY_EVENTFD_WORKER_V0": "1 << 1",
+    "MF_CAPABILITY_CANCELLATION_V0": "1 << 0"
   }
 }

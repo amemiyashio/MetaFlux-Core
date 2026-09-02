@@ -7,13 +7,13 @@
       "id": "transport.base.v0",
       "version": "0.1",
       "path": "contracts/protocol/transport/v1/schema/manifest.json",
-      "sha256": "fe6ccdf64661d15f2cac99f53fa5212efde731a0b2db95b36537c8d124336fd8"
+      "sha256": "ac574bc8c7ec55ac1a59da9f5b5b714130f7f61491fa744d5d72563cb588ff8b"
     },
     {
       "id": "transport.lifecycle-extension.v1",
       "version": "1.0",
       "path": "contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/manifest.json",
-      "sha256": "efec726c0eb4d4e9800493940550d8f63459cdb6febe848ad5eb9c370e4a451f"
+      "sha256": "f5a81280b07afa4afa060b67ce287ebf0912dc4c31ad21eceefe1a616c042c36"
     }
   ],
   "profile": {

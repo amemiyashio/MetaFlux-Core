@@ -20,7 +20,7 @@
       "id": "transport.negotiation.v0",
       "version": "0.1",
       "path": "contracts/protocol/transport/v1/schema/negotiation.json",
-      "sha256": "9e202479c116cc34b5078935f99be2d0034ee7d3063060cbff67bf7d0e633f55"
+      "sha256": "ad295d1e3b5fb6cdba98919f3e9c37ba8240a64979d9c57455d681c27e847fd2"
     },
     {
       "id": "transport.vfio-user.v0",
