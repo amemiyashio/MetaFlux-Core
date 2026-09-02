@@ -264,7 +264,16 @@ bool is_elementwise_u32_kernel(const compiler::Kernel& kernel, Opcode arithmetic
       kernel.operations[17].opcode != Opcode::StoreGlobalU32) {
     return false;
   }
-  return kernel.registers.size() > 15U && kernel.registers[13].kind == ValueKind::U32 &&
+  const auto& arithmetic_operation = kernel.operations[16];
+  const bool operands = arithmetic == Opcode::MadLoU32
+                            ? arithmetic_operation.input_count == 3U &&
+                                  arithmetic_operation.inputs[0] == 13U &&
+                                  arithmetic_operation.inputs[1] == 14U &&
+                                  arithmetic_operation.inputs[2] == 3U
+                            : arithmetic_operation.input_count == 2U &&
+                                  arithmetic_operation.inputs[0] == 13U &&
+                                  arithmetic_operation.inputs[1] == 14U;
+  return operands && kernel.registers.size() > 15U && kernel.registers[13].kind == ValueKind::U32 &&
          kernel.registers[14].kind == ValueKind::U32 && kernel.registers[15].kind == ValueKind::U32;
 }
 
@@ -432,8 +441,11 @@ std::string actual_mlir_source(const compiler::Kernel& kernel,
                  "#spirv.storage_class<StorageBuffer>>\n"
               << "        %b = memref.load %arg1[%idx] : memref<?x" << buffer_element << ", "
                  "#spirv.storage_class<StorageBuffer>>\n"
-              << "        %sum = arith." << arithmetic_operation << " %a, %b : "
-              << buffer_element << "\n"
+              << (elementwise_operation == Opcode::MadLoU32
+                      ? "        %product = arith.muli %a, %b : i32\n"
+                        "        %sum = arith.addi %product, %arg3 : i32\n"
+                      : "        %sum = arith."
+                        + std::string(arithmetic_operation) + " %a, %b : " + buffer_element + "\n")
               << "        memref.store %sum, %arg2[%idx] : memref<?x" << buffer_element << ", "
                  "#spirv.storage_class<StorageBuffer>>\n";
     }
@@ -462,17 +474,18 @@ LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
   const bool add_form = is_add_u32_kernel(kernel);
   const bool subtract_form = is_elementwise_u32_kernel(kernel, Opcode::SubU32);
   const bool multiply_form = is_elementwise_u32_kernel(kernel, Opcode::MultiplyLoU32);
+  const bool multiply_add_form = is_elementwise_u32_kernel(kernel, Opcode::MadLoU32);
   const bool add_f32_form = is_elementwise_f32_kernel(kernel, Opcode::AddRnF32);
   const bool subtract_f32_form = is_elementwise_f32_kernel(kernel, Opcode::SubRnF32);
   const bool multiply_f32_form = is_elementwise_f32_kernel(kernel, Opcode::MultiplyRnF32);
   const bool copy_form = is_copy_u32_kernel(kernel);
   const bool static_shared_barrier_form = is_static_shared_barrier_kernel(kernel);
-  if (!add_form && !subtract_form && !multiply_form && !add_f32_form && !subtract_f32_form &&
-      !multiply_f32_form && !copy_form &&
+  if (!add_form && !subtract_form && !multiply_form && !multiply_add_form && !add_f32_form &&
+      !subtract_f32_form && !multiply_f32_form && !copy_form &&
       !static_shared_barrier_form) {
     return {.status = LoweringStatus::unsupported_semantics,
             .diagnostic =
-                "actual MLIR/SPIR-V emission currently supports verified u32 Add/Sub/Multiply/Copy forms"};
+                "actual MLIR/SPIR-V emission currently supports verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply, and Copy forms"};
   }
 
   try {
@@ -481,6 +494,7 @@ LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
         add_form       ? Opcode::AddU32
         : subtract_form ? Opcode::SubU32
         : multiply_form ? Opcode::MultiplyLoU32
+        : multiply_add_form ? Opcode::MadLoU32
         : add_f32_form  ? Opcode::AddRnF32
         : subtract_f32_form ? Opcode::SubRnF32
         : multiply_f32_form ? Opcode::MultiplyRnF32

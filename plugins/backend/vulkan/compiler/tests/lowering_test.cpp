@@ -139,6 +139,13 @@ Kernel arithmetic_kernel(Opcode opcode, const char* name) {
   return kernel;
 }
 
+Kernel arithmetic_mad_kernel() {
+  Kernel kernel = add_kernel();
+  kernel.name = "mad_lo_u32";
+  kernel.operations[16] = op(Opcode::MadLoU32, 15U, {13U, 14U, 3U});
+  return kernel;
+}
+
 Kernel arithmetic_f32_kernel(Opcode opcode, const char* name) {
   Kernel kernel = arithmetic_kernel(opcode, name);
   kernel.registers[13].kind = ValueKind::F32;
@@ -316,6 +323,29 @@ bool valid_elementwise_u32_lowering() {
                   "multiply_u32");
 }
 
+bool valid_mad_lo_u32_lowering() {
+  const auto profile = target();
+  SpirvLoweredModule module{};
+  const auto result = metaflux::backend::vulkan::lower_kernel(
+      arithmetic_mad_kernel(), profile, {8U, 1U, 1U}, &module);
+  const bool valid = result.status == LoweringStatus::success && module.instructions.size() == 19U &&
+         module.instructions[16].opcode == SpirvSemanticOpcode::multiply_add_low_u32 &&
+         module.mlir_text.find("spirv.IMul") != std::string::npos &&
+         module.mlir_text.find("spirv.IAdd") != std::string::npos &&
+         module.spirv_binary.size() > 5U && module.spirv_binary[0] == 0x07230203U;
+  if (!valid) {
+    std::cerr << "Vulkan MadLo lowering failure: status="
+              << metaflux::backend::vulkan::lowering_status_string(result.status)
+              << " diagnostic=" << result.diagnostic << " instructions="
+              << module.instructions.size() << " mlir-bytes=" << module.mlir_text.size()
+              << " spirv-words=" << module.spirv_binary.size() << '\n';
+    if (!module.mlir_text.empty()) {
+      std::cerr << module.mlir_text << '\n';
+    }
+  }
+  return valid;
+}
+
 bool valid_elementwise_f32_lowering() {
   const auto profile = target();
   const auto validate = [&profile](Opcode opcode, SpirvSemanticOpcode semantic,
@@ -441,6 +471,7 @@ bool independently_validates_spirv() {
   return validate(add_kernel()) && validate(copy_kernel()) && validate(shared_barrier_kernel()) &&
          validate(arithmetic_kernel(Opcode::SubU32, "subtract_u32")) &&
          validate(arithmetic_kernel(Opcode::MultiplyLoU32, "multiply_u32")) &&
+         validate(arithmetic_mad_kernel()) &&
          validate(arithmetic_f32_kernel(Opcode::AddRnF32, "add_f32")) &&
          validate(arithmetic_f32_kernel(Opcode::SubRnF32, "subtract_f32")) &&
          validate(arithmetic_f32_kernel(Opcode::MultiplyRnF32, "multiply_f32"));
@@ -456,7 +487,7 @@ bool unsupported_semantics_fail_before_emission() {
   const auto result = metaflux::backend::vulkan::lower_kernel(
       kernel, target(), {8U, 1U, 1U}, &module);
   const bool valid = result.status == LoweringStatus::unsupported_semantics &&
-         result.diagnostic.find("verified u32 Add/Sub/Multiply/Copy forms") != std::string::npos &&
+         result.diagnostic.find("verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply, and Copy forms") != std::string::npos &&
          module.spirv_binary.empty() && module.mlir_text.empty();
   if (!valid) {
     std::cerr << "Vulkan unsupported semantics failure: status="
@@ -505,6 +536,10 @@ int main() {
   }
   if (!valid_elementwise_u32_lowering()) {
     std::cerr << "Vulkan lowering stage failed: u32-arithmetic\n";
+    return 1;
+  }
+  if (!valid_mad_lo_u32_lowering()) {
+    std::cerr << "Vulkan lowering stage failed: u32-mad\n";
     return 1;
   }
   if (!valid_elementwise_f32_lowering()) {
