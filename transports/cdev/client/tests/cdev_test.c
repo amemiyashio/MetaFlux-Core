@@ -73,6 +73,9 @@ int main(void) {
       mf_cdev_memory_register_v0(&session, &session, UINT64_C(4096),
                                  MF_CDEV_MEMORY_REGISTER_FLAG_READ_V0, NULL) !=
           MF_SHARED_INVALID_ARGUMENT ||
+      mf_cdev_memory_register_v0(&session, (void*)(uintptr_t)(UINTPTR_MAX - (uintptr_t)1),
+                                 UINT64_C(2), MF_CDEV_MEMORY_REGISTER_FLAG_READ_V0, &memory) !=
+          MF_SHARED_OVERFLOW ||
       mf_cdev_memory_register_v0(&session, &session, UINT64_C(4096),
                                  MF_CDEV_MEMORY_REGISTER_FLAG_READ_V0, &memory) !=
           MF_SHARED_NOT_SUPPORTED ||

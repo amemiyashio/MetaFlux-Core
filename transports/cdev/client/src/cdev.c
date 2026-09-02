@@ -315,6 +315,9 @@ mf_shared_status_v1 mf_cdev_memory_register_v0(mf_cdev_session_v0* session, void
                 MF_CDEV_MEMORY_REGISTER_FLAG_WRITE_V0)) == 0U || out_memory == NULL) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
+  if (byte_count > UINTPTR_MAX - (uintptr_t)address) {
+    return MF_SHARED_OVERFLOW;
+  }
   if ((session->negotiated_features & (uint32_t)MF_UAPI_FEATURE_REGISTERED_MEMORY_V0) == 0U) {
     return MF_SHARED_NOT_SUPPORTED;
   }

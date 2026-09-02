@@ -550,6 +550,10 @@ mf_shared_status_v1 CdevWorkerSession::register_memory(void* address, std::uint6
           0U) {
     return MF_SHARED_INVALID_ARGUMENT;
   }
+  const auto address_value = reinterpret_cast<std::uintptr_t>(address);
+  if (byte_count > std::numeric_limits<std::uintptr_t>::max() - address_value) {
+    return MF_SHARED_OVERFLOW;
+  }
   mf_uapi_memory_v0 request{};
   request.struct_size = sizeof(request);
   request.flags = flags;
