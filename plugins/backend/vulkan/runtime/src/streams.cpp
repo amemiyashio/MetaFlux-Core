@@ -243,9 +243,8 @@ CommandResourceStatus CommandResourcePool::discard(const CommandResource& resour
   if (slot == nullptr) {
     return CommandResourceStatus::not_found;
   }
-  if (slot->state != SlotState::submitted) {
-    return slot->state == SlotState::acquired ? CommandResourceStatus::success
-                                               : CommandResourceStatus::not_found;
+  if (slot->state != SlotState::acquired && slot->state != SlotState::submitted) {
+    return CommandResourceStatus::not_found;
   }
   slot->state = SlotState::available;
   slot->resource = CommandResource{};

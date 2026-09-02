@@ -228,12 +228,34 @@ bool command_resource_cancel_is_bounded() {
   return true;
 }
 
+bool command_resource_discard_releases_acquired_reservation() {
+  CommandResourcePool pool(1U, 13U);
+  metaflux::backend::vulkan::CommandResource resource{};
+  if (pool.acquire(13U, 1U, &resource) != CommandResourceStatus::success ||
+      pool.in_flight_count() != 1U || pool.discard(resource) != CommandResourceStatus::success ||
+      pool.in_flight_count() != 0U || pool.available_count() != 1U ||
+      pool.discard(resource) != CommandResourceStatus::not_found ||
+      pool.acquire(13U, 2U, &resource) != CommandResourceStatus::success) {
+    return false;
+  }
+  if (pool.submit(resource, 1U) != CommandResourceStatus::success) {
+    return false;
+  }
+  resource.completion_value = 1U;
+  auto forged = resource;
+  forged.completion_value = 2U;
+  return pool.discard(forged) == CommandResourceStatus::not_found &&
+         pool.in_flight_count() == 1U && pool.discard(resource) == CommandResourceStatus::success &&
+         pool.in_flight_count() == 0U;
+}
+
 } // namespace
 
 int main() {
   const bool ok = fifo_and_cross_stream_dependencies() && negative_paths() &&
                   command_resources_recycle_only_after_completion() &&
                   command_resource_cancel_is_bounded() &&
+                  command_resource_discard_releases_acquired_reservation() &&
                   queue_submission_ledger_is_transactional();
   std::printf("vulkan stream graph: %s\n", ok ? "pass" : "fail");
   return ok ? 0 : 1;
