@@ -152,9 +152,13 @@ static struct pci_ops mf_vroot_pci_ops = {
 
 static int mf_vroot_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	struct mf_vroot_host *host;
 	unsigned int bar;
 
 	(void)id;
+	host = mf_vroot_from_bus(pdev == NULL ? NULL : pdev->bus);
+	if (pdev == NULL || host == NULL || host != READ_ONCE(mf_vroot))
+		return -ENODEV;
 	if (pdev->class != MF_VROOT_PROFILE_CLASS_CODE)
 		return -ENODEV;
 	for (bar = 0; bar < PCI_STD_NUM_BARS; ++bar) {
@@ -162,7 +166,7 @@ static int mf_vroot_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		    (pci_resource_flags(pdev, bar) & (IORESOURCE_MEM | IORESOURCE_IO)) != 0U)
 			return -ENODEV;
 	}
-	pci_set_drvdata(pdev, mf_vroot);
+	pci_set_drvdata(pdev, host);
 	dev_info(&pdev->dev, "MetaFlux software root presentation function ready\n");
 	return 0;
 }
