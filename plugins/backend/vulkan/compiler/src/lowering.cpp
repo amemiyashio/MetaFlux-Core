@@ -1,6 +1,7 @@
 #include "metaflux/backend/vulkan_lowering.hpp"
 
 #include "mlir/Conversion/GPUToSPIRV/GPUToSPIRVPass.h"
+#include "mlir/Conversion/MathToSPIRV/MathToSPIRVPass.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/GPU/IR/GPUDialect.h"
@@ -14,6 +15,7 @@
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/DialectRegistry.h"
 #include "mlir/IR/MLIRContext.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
@@ -293,7 +295,7 @@ bool is_elementwise_f32_kernel(const compiler::Kernel& kernel, Opcode arithmetic
     return false;
   }
   const auto& arithmetic_operation = kernel.operations[16];
-  if (arithmetic == Opcode::MadRnF32) {
+  if (arithmetic == Opcode::MadRnF32 || arithmetic == Opcode::FmaRnF32) {
     return arithmetic_operation.input_count == 3U && arithmetic_operation.inputs[0] == 13U &&
            arithmetic_operation.inputs[1] == 14U && arithmetic_operation.inputs[2] == 13U;
   }
@@ -530,6 +532,8 @@ std::string actual_mlir_source(const compiler::Kernel& kernel,
                       : elementwise_operation == Opcode::MadRnF32
                           ? "        %product = arith.mulf %a, %b : f32\n"
                             "        %sum = arith.addf %product, %a : f32\n"
+                      : elementwise_operation == Opcode::FmaRnF32
+                          ? "        %sum = math.fma %a, %b, %a : f32\n"
                       : "        %sum = arith."
                         + std::string(arithmetic_operation) + " %a, %b : " + buffer_element + "\n")
               << "        memref.store %sum, %arg2[%idx] : memref<?x" << output_element << ", "
@@ -565,6 +569,7 @@ LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
   const bool subtract_f32_form = is_elementwise_f32_kernel(kernel, Opcode::SubRnF32);
   const bool multiply_f32_form = is_elementwise_f32_kernel(kernel, Opcode::MultiplyRnF32);
   const bool mad_f32_form = is_elementwise_f32_kernel(kernel, Opcode::MadRnF32);
+  const bool fma_f32_form = is_elementwise_f32_kernel(kernel, Opcode::FmaRnF32);
   const bool convert_f32_u32_form =
       is_elementwise_conversion_kernel(kernel, Opcode::ConvertRnF32U32);
   const bool convert_u32_f32_form =
@@ -573,12 +578,12 @@ LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
   const bool copy_form = is_copy_u32_kernel(kernel);
   const bool static_shared_barrier_form = is_static_shared_barrier_kernel(kernel);
   if (!add_form && !subtract_form && !multiply_form && !multiply_add_form && !add_f32_form &&
-      !subtract_f32_form && !multiply_f32_form && !mad_f32_form &&
+      !subtract_f32_form && !multiply_f32_form && !mad_f32_form && !fma_f32_form &&
       !convert_f32_u32_form && !convert_u32_f32_form && !predicate_f32_form && !copy_form &&
       !static_shared_barrier_form) {
     return {.status = LoweringStatus::unsupported_semantics,
             .diagnostic =
-                "actual MLIR/SPIR-V emission currently supports verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad, u32<->f32 conversions, f32 predicates, and Copy forms"};
+                "actual MLIR/SPIR-V emission currently supports verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad/Fma, u32<->f32 conversions, f32 predicates, and Copy forms"};
   }
 
   try {
@@ -592,13 +597,15 @@ LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
         : subtract_f32_form ? Opcode::SubRnF32
         : multiply_f32_form ? Opcode::MultiplyRnF32
         : mad_f32_form ? Opcode::MadRnF32
+        : fma_f32_form ? Opcode::FmaRnF32
         : convert_f32_u32_form ? Opcode::ConvertRnF32U32
         : convert_u32_f32_form ? Opcode::ConvertRziU32F32
                             : Opcode::Return,
-        add_f32_form || subtract_f32_form || multiply_f32_form || mad_f32_form,
+        add_f32_form || subtract_f32_form || multiply_f32_form || mad_f32_form || fma_f32_form,
         convert_f32_u32_form, convert_u32_f32_form, predicate_f32_form);
     mlir::DialectRegistry registry;
     registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect, mlir::gpu::GPUDialect,
+                    mlir::math::MathDialect,
                     mlir::memref::MemRefDialect, mlir::scf::SCFDialect,
                     mlir::spirv::SPIRVDialect>();
     mlir::spirv::registerSPIRVTargetInterfaceExternalModels(registry);
@@ -621,6 +628,7 @@ LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
 
     mlir::PassManager pass_manager(&context);
     pass_manager.enableVerifier(true);
+    pass_manager.addPass(mlir::createConvertMathToSPIRVPass());
     pass_manager.addPass(mlir::createConvertGPUToSPIRVPass());
     pass_manager.addNestedPass<mlir::spirv::ModuleOp>(
         mlir::spirv::createSPIRVLowerABIAttributesPass());

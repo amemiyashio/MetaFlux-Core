@@ -44,7 +44,7 @@ Before a SPIR-V module is created, the runtime target preflight checks
 the queried profile, required feature bits, target digest, workgroup limits,
 address-space flags, and subgroup assumptions. It produces stable diagnostics
 for mismatches and unsupported semantics. The compiler now lowers the currently
-advertised u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad, u32<->f32
+advertised u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad/Fma, u32<->f32
 conversions, f32 predicates, u32 Copy, and static shared-barrier forms through
 MLIR GPU-to-SPIR-V conversion and emits target-constrained SPIR-V. Other Kernel
 IR forms fail before emission with an explicit unsupported-semantics diagnostic.

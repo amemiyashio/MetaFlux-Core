@@ -42,8 +42,8 @@ fallback inside a Vulkan context.
   size after target preflight.
 - [x] Implement target-constrained Kernel IR to MLIR SPIR-V lowering and actual
   SPIR-V emission for the currently advertised u32 Add/Sub/Multiply/MadLo, f32
-  Add/Sub/Multiply/Mad, u32<->f32 conversions, f32 predicates, u32 Copy, and
-  static shared-barrier forms. Unsupported forms fail before emission.
+  Add/Sub/Multiply/Mad/Fma, u32<->f32 conversions, f32 predicates, u32 Copy,
+  and static shared-barrier forms. Unsupported forms fail before emission.
 - [x] Validate every currently advertised module against Vulkan 1.3 and the
   selected target, including independent `spirv-val` validation when the pinned
   tool is present.
@@ -51,8 +51,8 @@ fallback inside a Vulkan context.
   spaces, barriers, malformed modules, and stable negative diagnostics.
 - [x] Build differential fixtures for every currently advertised semantic form.
 - [ ] Extend the lowering and differential matrix to the remaining Kernel IR
-  arithmetic, predicate, and memory forms, including fused FP and wide-integer
-  edges.
+  arithmetic, predicate, and memory forms, including wide-integer and
+  qualifier/edge cases.
 
 ## Exit Gate
 

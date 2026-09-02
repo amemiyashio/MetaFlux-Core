@@ -52,6 +52,8 @@ else()
       MLIRIndexToSPIRV
       MLIRMemRefDialect
       MLIRMemRefToSPIRV
+      MLIRMathDialect
+      MLIRMathToSPIRV
       MLIRParser
       MLIRPass
       MLIRSCFDialect

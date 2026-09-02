@@ -163,7 +163,7 @@ Kernel arithmetic_f32_kernel(Opcode opcode, const char* name) {
 
 Kernel unsupported_f32_kernel() {
   Kernel kernel = arithmetic_f32_kernel(Opcode::MadRnF32, "unsupported_fma_f32");
-  kernel.operations[16] = op(Opcode::FmaRnF32, 15U, {13U, 14U, 13U});
+  kernel.operations[16] = op(Opcode::FmaRnF32, 15U, {13U, 14U, 14U});
   return kernel;
 }
 
@@ -596,7 +596,7 @@ bool unsupported_semantics_fail_before_emission() {
   const auto result = metaflux::backend::vulkan::lower_kernel(
       kernel, target(), {8U, 1U, 1U}, &module);
   const bool valid = result.status == LoweringStatus::unsupported_semantics &&
-         result.diagnostic.find("verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad, u32<->f32 conversions, f32 predicates, and Copy forms") != std::string::npos &&
+         result.diagnostic.find("verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad/Fma, u32<->f32 conversions, f32 predicates, and Copy forms") != std::string::npos &&
          module.spirv_binary.empty() && module.mlir_text.empty();
   if (!valid) {
     std::cerr << "Vulkan unsupported semantics failure: status="
