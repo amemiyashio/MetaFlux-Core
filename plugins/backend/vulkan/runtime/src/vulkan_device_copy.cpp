@@ -138,7 +138,8 @@ AllocationStatus VulkanDeviceLocalCopy::allocate(VkDeviceSize size,
       select_memory_type(properties, requirements.memoryTypeBits,
                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memory_properties);
   if (memory_type == UINT32_MAX) {
-    destroy();
+    destroy_device_resources(device_handle, replacement_device, replacement_command_pool,
+                             replacement_command_buffer);
     return AllocationStatus::unsupported;
   }
 
