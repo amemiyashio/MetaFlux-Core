@@ -1543,6 +1543,108 @@ def run(base_path: Path, extension_path: Path, model_path: Path, bounds_path: Pa
     return evidence
 
 
+def generate_fixtures(model: dict[str, Any], bounds: dict[str, Any]) -> dict[str, Any]:
+    """Generate positive, invalid, repeated, racing, and injected-failure fixtures from the model schema."""
+    transitions = model.get("transitions", [])
+    states = model.get("states", [])
+    fixtures: dict[str, Any] = {
+        "schema_version": 1,
+        "description": "Lifecycle model test fixtures generated from model.json",
+        "categories": {
+            "positive": [],
+            "invalid": [],
+            "repeated": [],
+            "racing": [],
+            "injected_failure": [],
+        },
+    }
+
+    # Positive fixtures: valid event sequences that should pass all invariants
+    for transition in transitions:
+        event = transition.get("event", "")
+        sources = transition.get("sources", [])
+        terminals = transition.get("terminals", [])
+        failure_points = transition.get("failure_points", [])
+        if sources and terminals:
+            fixtures["categories"]["positive"].append({
+                "name": f"positive_{event}_from_{sources[0]}_to_{terminals[0]}",
+                "event": event,
+                "source_state": sources[0],
+                "expected_terminal": terminals[0],
+                "fault_point": "none",
+                "description": f"Valid {event} from {sources[0]} reaching {terminals[0]}",
+            })
+
+    # Invalid fixtures: guard-violating sequences that must be rejected
+    for transition in transitions:
+        event = transition.get("event", "")
+        sources = transition.get("sources", [])
+        # Invalid: event from a non-source state
+        invalid_sources = [s for s in states if s not in sources]
+        for inv_state in invalid_sources[:2]:  # limit to 2 per event
+            fixtures["categories"]["invalid"].append({
+                "name": f"invalid_{event}_from_{inv_state}",
+                "event": event,
+                "source_state": inv_state,
+                "expected_error": "reject_without_side_effect",
+                "description": f"Invalid {event} from non-source state {inv_state}",
+            })
+
+    # Repeated fixtures: duplicate request replay scenarios
+    for transition in transitions:
+        event = transition.get("event", "")
+        sources = transition.get("sources", [])
+        if sources:
+            fixtures["categories"]["repeated"].append({
+                "name": f"repeated_{event}_from_{sources[0]}",
+                "event": event,
+                "source_state": sources[0],
+                "replay_count": 3,
+                "expected_behavior": "idempotent_without_side_effect",
+                "description": f"Duplicate {event} replay from {sources[0]} must be idempotent",
+            })
+
+    # Racing fixtures: concurrent/interleaved event sequences
+    race_pairs = [
+        ("reset", "transport_loss", "ONLINE"),
+        ("recover", "transport_loss", "LOST"),
+        ("add", "transport_loss", "PRESENT"),
+        ("remove", "reset", "ONLINE"),
+    ]
+    for event_a, event_b, state in race_pairs:
+        fixtures["categories"]["racing"].append({
+            "name": f"racing_{event_a}_vs_{event_b}_in_{state}",
+            "events": [event_a, event_b],
+            "source_state": state,
+            "expected_behavior": "first_wins_second_rejected_or_lost",
+            "description": f"Concurrent {event_a} and {event_b} in {state}; first wins, second rejected or lost",
+        })
+
+    # Injected-failure fixtures: fault points at pre_commit/post_commit
+    faultable_events = model.get("faultable_events", ["add", "remove", "reset", "recover"])
+    for transition in transitions:
+        event = transition.get("event", "")
+        failure_points = transition.get("failure_points", [])
+        sources = transition.get("sources", [])
+        if event in faultable_events and failure_points and sources:
+            for fault in failure_points:
+                fixtures["categories"]["injected_failure"].append({
+                    "name": f"fault_{event}_{fault}_from_{sources[0]}",
+                    "event": event,
+                    "source_state": sources[0],
+                    "fault_point": fault,
+                    "expected_behavior": "candidate_consumed_no_identity_change" if fault == "pre_commit" else "committed_generation_lost",
+                    "description": f"Injected {fault} failure during {event} from {sources[0]}",
+                })
+
+    # Summary
+    fixtures["summary"] = {
+        "total_fixtures": sum(len(v) for v in fixtures["categories"].values()),
+        "per_category": {k: len(v) for k, v in fixtures["categories"].items()},
+    }
+    return fixtures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-manifest", type=Path, required=True)
@@ -1550,6 +1652,7 @@ def main() -> int:
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--bounds", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--generate-fixtures", type=Path, help="Generate test fixtures JSON")
     arguments = parser.parse_args()
     try:
         base_path = arguments.base_manifest.resolve()
@@ -1558,6 +1661,13 @@ def main() -> int:
         bounds_path = arguments.bounds.resolve()
         output_path = arguments.output.resolve()
         evidence = run(base_path, extension_path, model_path, bounds_path, output_path)
+        if arguments.generate_fixtures is not None:
+            model = load_json(model_path)
+            bounds_data = load_json(bounds_path)
+            fixtures = generate_fixtures(model, bounds_data)
+            fixtures_path = arguments.generate_fixtures.resolve()
+            fixtures_path.parent.mkdir(parents=True, exist_ok=True)
+            fixtures_path.write_text(json.dumps(fixtures, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     except (ModelError, OSError) as error:
         print(f"lifecycle model: error: {error}", file=sys.stderr)
         return 1
