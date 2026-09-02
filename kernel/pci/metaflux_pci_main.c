@@ -22,6 +22,7 @@ struct mf_pci_irq_slot {
 struct mf_pci_device {
 	void __iomem *bar0;
 	void __iomem *bar2;
+	unsigned int dma_width;
 	int irq_vectors;
 	unsigned int irq_requested;
 	struct mf_pci_irq_slot irq_slots[MF_PCI_MSIX_VECTORS];
@@ -47,6 +48,7 @@ static bool mf_pci_mem_bar_matches(const struct pci_dev *pdev, int bar,
 static int mf_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct mf_pci_device *device;
+	unsigned int dma_width = 64U;
 	int result;
 
 	if (pdev->class != MF_PCI_CLASS ||
@@ -61,12 +63,20 @@ static int mf_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	result = pci_request_regions(pdev, "metaflux_pci");
 	if (result != 0)
 		goto disable_device;
+	result = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (result != 0) {
+		result = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		if (result != 0)
+			goto release_regions;
+		dma_width = 32U;
+	}
 
 	device = devm_kzalloc(&pdev->dev, sizeof(*device), GFP_KERNEL);
 	if (device == NULL) {
 		result = -ENOMEM;
 		goto release_regions;
 	}
+	device->dma_width = dma_width;
 	device->bar0 = pci_iomap(pdev, MF_PCI_BAR0, MF_PCI_BAR0_SIZE);
 	if (device->bar0 == NULL) {
 		result = -ENOMEM;
@@ -94,8 +104,9 @@ static int mf_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	pci_set_master(pdev);
 	pci_set_drvdata(pdev, device);
-	dev_info(&pdev->dev, "static MetaFlux guest function ready (BAR0/BAR2/BAR4, %d MSI-X vectors)\n",
-		 device->irq_vectors);
+	dev_info(&pdev->dev,
+		 "static MetaFlux guest function ready (BAR0/BAR2/BAR4, %d MSI-X vectors, %u-bit DMA)\n",
+		 device->irq_vectors, device->dma_width);
 	return 0;
 
 free_irqs:
