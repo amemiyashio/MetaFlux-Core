@@ -41,6 +41,51 @@ bool bytes_zero(const std::uint8_t* bytes, std::size_t count) noexcept {
   return true;
 }
 
+bool collect_received_fd(msghdr& message, int& out_fd) noexcept {
+  out_fd = -1;
+  bool malformed = false;
+  bool saw_rights = false;
+  for (cmsghdr* header = CMSG_FIRSTHDR(&message); header != nullptr;
+       header = CMSG_NXTHDR(&message, header)) {
+    if (header->cmsg_level != SOL_SOCKET || header->cmsg_type != SCM_RIGHTS ||
+        header->cmsg_len < CMSG_LEN(0U)) {
+      malformed = true;
+      continue;
+    }
+    const std::size_t payload_size = header->cmsg_len - CMSG_LEN(0U);
+    const std::size_t descriptor_count = payload_size / sizeof(int);
+    const auto* descriptors = reinterpret_cast<const int*>(CMSG_DATA(header));
+    if (payload_size == 0U || payload_size % sizeof(int) != 0U) {
+      for (std::size_t index = 0U; index < descriptor_count; ++index) {
+        (void)::close(descriptors[index]);
+      }
+      malformed = true;
+      saw_rights = true;
+      continue;
+    }
+    const bool accept = descriptor_count == 1U && !saw_rights && !malformed;
+    for (std::size_t index = 0U; index < descriptor_count; ++index) {
+      if (accept) {
+        out_fd = descriptors[index];
+      } else {
+        (void)::close(descriptors[index]);
+      }
+    }
+    if (!accept) {
+      malformed = true;
+    }
+    saw_rights = true;
+  }
+  if (malformed) {
+    if (out_fd >= 0) {
+      (void)::close(out_fd);
+      out_fd = -1;
+    }
+    return false;
+  }
+  return true;
+}
+
 } // namespace
 
 VfioUserServer::VfioUserServer(int fd, ServerConfig config) noexcept : fd_(fd), config_(config) {
@@ -609,7 +654,7 @@ ServerResult VfioUserServer::handle_message(const mf_transport_message_header_v0
 
 ServerResult VfioUserServer::process_once() noexcept {
   std::array<std::uint8_t, kMaximumPacketSize> packet{};
-  std::array<std::uint8_t, CMSG_SPACE(sizeof(int))> control{};
+  std::array<std::uint8_t, CMSG_SPACE(sizeof(int) * 4U)> control{};
   struct iovec vector{packet.data(), packet.size()};
   struct msghdr message{};
   message.msg_iov = &vector;
@@ -629,17 +674,9 @@ ServerResult VfioUserServer::process_once() noexcept {
     return ServerResult::Closed;
   }
   int received_fd = -1;
-  for (struct cmsghdr* header = CMSG_FIRSTHDR(&message); header != nullptr;
-       header = CMSG_NXTHDR(&message, header)) {
-    if (header->cmsg_level != SOL_SOCKET || header->cmsg_type != SCM_RIGHTS ||
-        header->cmsg_len != CMSG_LEN(sizeof(int)) || received_fd >= 0) {
-      if (received_fd >= 0) {
-        (void)::close(received_fd);
-      }
-      mark_lost();
-      return ServerResult::Malformed;
-    }
-    std::memcpy(&received_fd, CMSG_DATA(header), sizeof(received_fd));
+  if (!collect_received_fd(message, received_fd)) {
+    mark_lost();
+    return ServerResult::Malformed;
   }
   if ((message.msg_flags & (MSG_TRUNC | MSG_CTRUNC)) != 0 ||
       static_cast<std::size_t>(received) < sizeof(mf_transport_message_header_v0)) {

@@ -6,6 +6,7 @@
 #include <climits>
 #include <cstdint>
 #include <cstring>
+#include <dirent.h>
 #include <fcntl.h>
 #include <linux/memfd.h>
 #include <sys/socket.h>
@@ -51,6 +52,22 @@ bool send_multiple_rights(int fd, const std::uint8_t* bytes, std::uint32_t size,
   const int descriptors[2] = {passed_fd, passed_fd};
   std::memcpy(CMSG_DATA(header), descriptors, sizeof(descriptors));
   return ::sendmsg(fd, &message, MSG_NOSIGNAL) == static_cast<ssize_t>(size);
+}
+
+std::size_t open_fd_count() {
+  DIR* directory = ::opendir("/proc/self/fd");
+  if (directory == nullptr) {
+    return 0U;
+  }
+  std::size_t count = 0U;
+  for (const dirent* entry = ::readdir(directory); entry != nullptr;
+       entry = ::readdir(directory)) {
+    if (entry->d_name[0] != '.') {
+      ++count;
+    }
+  }
+  (void)::closedir(directory);
+  return count;
 }
 
 bool receive_completion(int fd, std::uint64_t message_id, std::uint16_t request_type,
@@ -181,14 +198,17 @@ bool test_fatal_control_error_reports_transport_loss() {
       .flags = 0U,
       .payload_size = 0U,
   };
+  const std::size_t descriptors_before = open_fd_count();
   metaflux::runtime::lifecycle::ResultDetails details{};
   const bool sent = send_multiple_rights(
       sockets[0], reinterpret_cast<const std::uint8_t*>(&header), sizeof(header), sockets[0]);
   const auto result = server.process_once(coordinator, 2U, 0U, details);
+  const std::size_t descriptors_after = open_fd_count();
   const bool valid = sent && result == metaflux::transport::vfio_user::ServerResult::Closed &&
                      server.state() == metaflux::transport::vfio_user::ServerState::Lost &&
                      details.result == metaflux::runtime::lifecycle::Result::Accepted &&
-                     details.snapshot.state == metaflux::runtime::lifecycle::State::Lost;
+                     details.snapshot.state == metaflux::runtime::lifecycle::State::Lost &&
+                     descriptors_before == descriptors_after;
   close(sockets[0]);
   close(sockets[1]);
   return valid;
