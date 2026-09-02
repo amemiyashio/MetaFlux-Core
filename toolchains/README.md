@@ -203,6 +203,23 @@ This profile proves provisioning and can enable local RADV or lavapipe smoke
 tests. Mesa is not a physical NVIDIA reference, and a single host smoke run
 does not satisfy milestone-0.1.3.0's two-driver-family, performance, or release gates.
 
+## Static vfio-user Qualification Tools
+
+[`vfio-user-1.json`](vfio-user-1.json) pins the on-demand QEMU and Unix socket
+tool set used by the static guest qualification workflow. Nix exposes it only
+as `vfio-user-tools` and `.#vfio-user`; it is absent from the default, provider,
+runtime, release, and Vulkan shells. The manifest also records that the current
+nixpkgs input has no `libvfio-user` package attribute. That library remains an
+explicit host-qualification prerequisite and is not silently replaced by a
+different implementation or ambient copy.
+
+Enter the shell when the owning guest workflow needs these executables:
+
+```sh
+nix develop .#vfio-user
+nix shell .#vfio-user-tools --command qemu-system-x86_64 --version
+```
+
 ## Artifact Download Routing (decision-0020)
 
 Downloads first try a mirror in the current execution environment's configured
@@ -228,6 +245,7 @@ frozen hash.
 | `nvidia-tools-1.json`, `nvidia-tools/` | Stock compatibility-tool manifests |
 | `pytorch-cuda-clients-1.json`, `pytorch-cuda-clients/` | On-demand PyTorch CUDA client profiles and complete wheel locks |
 | `vulkan-runtime-1.json` | On-demand Mesa ICD and Vulkan validation-layer profile for host smoke tests |
+| `vfio-user-1.json` | On-demand QEMU and Unix socket tools plus the libvfio-user prerequisite declaration |
 | `ubuntu-20.04-target-sdk-provenance.json` | Generic Linux target SDK input provenance |
 | `tests/` | Verification helpers for the declared inputs |
 

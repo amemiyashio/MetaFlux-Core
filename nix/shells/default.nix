@@ -120,4 +120,9 @@ in
       export LD_LIBRARY_PATH="${toolPackages.vulkan-runtime}/lib:${toolPackages.vulkan-tools}/lib:${toolPackages.toolchain}/lib''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     '';
   };
+
+  vfio-user = mkClangShell {
+    name = "metaflux-vfio-user-tools";
+    prependPackages = [ toolPackages.vfio-user-tools ];
+  };
 }

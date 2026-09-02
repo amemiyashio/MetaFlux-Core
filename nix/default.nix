@@ -54,6 +54,9 @@ let
   vulkanRuntime = import ./toolchains/vulkan-runtime.nix {
     inherit lib pkgs;
   };
+  vfioUserTools = import ./toolchains/vfio-user.nix {
+    inherit lib pkgs;
+  };
   pytorchBaseline = import ./toolchains/pytorch-cuda-client.nix {
     inherit lib pkgs;
     profileName = "baseline";
@@ -71,6 +74,7 @@ let
     nvidia-stock-tools = providerTools;
     vulkan-tools = vulkanTools;
     vulkan-runtime = vulkanRuntime;
+    vfio-user-tools = vfioUserTools;
     pytorch-baseline = pytorchBaseline;
     pytorch-frontier = pytorchFrontier;
   };

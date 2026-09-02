@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "epoch": 1,
+  "target": "static-vfio-user",
+  "packages": {
+    "qemu": {
+      "nix_attribute": "qemu",
+      "version": "10.2.4",
+      "executables": ["qemu-system-x86_64"]
+    },
+    "socat": {
+      "nix_attribute": "socat",
+      "version": "1.8.1.3",
+      "executables": ["socat"]
+    }
+  },
+  "external_prerequisites": {
+    "libvfio_user": {
+      "status": "host-qualification-prerequisite",
+      "reason": "The pinned nixpkgs input exposes no libvfio-user package attribute."
+    }
+  }
+}
