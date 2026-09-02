@@ -685,7 +685,8 @@ bool independently_validates_spirv() {
          validate(arithmetic_f32_kernel(Opcode::MadRnF32, "mad_f32")) &&
          validate(conversion_kernel(Opcode::ConvertRnF32U32, "convert_f32_u32")) &&
          validate(conversion_kernel(Opcode::ConvertRziU32F32, "convert_u32_f32")) &&
-         validate(predicate_f32_kernel());
+         validate(predicate_f32_kernel()) && validate(predicate_ge_u32_kernel()) &&
+         validate(predicate_eq_u32_kernel());
 #else
   std::cout << "Vulkan lowering: spirv-val unavailable; independent validation skipped\n";
   return true;

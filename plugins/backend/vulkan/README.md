@@ -27,6 +27,15 @@ nix develop .#vulkan --command cmake --build \
   ../.metaflux-build/MetaFlux-Core/vulkan
 ```
 
+The `#vulkan` shell exports `VULKAN_SDK` from the pinned Nix Vulkan tools, so the
+equivalent preset invocation is `nix develop .#vulkan --command cmake --preset
+vulkan -DMETAFLUX_BUILD_TESTS=ON` followed by `ctest --preset vulkan`. Do not
+point `METAFLUX_VULKAN_SDK_DIR` at host `/usr`: mixing the host loader with the
+Nix toolchain fails on glibc private-symbol conflicts. The full local suite,
+including SPIR-V lowering with independent `spirv-val`, pipeline, cache-model,
+and queue-executor host-smoke tests, passes on the pinned Mesa software ICD;
+that remains single-driver provisioning evidence only.
+
 The capability CTest accepts an unavailable or incompatible host as a skipped
 local probe. A successful AMD-host probe is provisioning and single-driver
 evidence only; it does not close the work-item-0.1.3.1 dual-driver or milestone-0.1.3.0 release gates.
