@@ -206,6 +206,10 @@ bool timeline_guards() {
       timeline.complete(11U, first.value) != metaflux::backend::vulkan::MemoryStatus::success ||
       timeline.wait(11U, first.value) != metaflux::backend::vulkan::MemoryStatus::success ||
       timeline.complete(11U, 3U) != metaflux::backend::vulkan::MemoryStatus::invalid_argument ||
+      timeline.wait(0U, first.value) !=
+          metaflux::backend::vulkan::MemoryStatus::invalid_argument ||
+      timeline.complete(0U, first.value) !=
+          metaflux::backend::vulkan::MemoryStatus::invalid_argument ||
       timeline.complete(10U, second.value) !=
           metaflux::backend::vulkan::MemoryStatus::stale_generation) {
     return false;

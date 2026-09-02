@@ -483,7 +483,10 @@ MemoryStatus TimelineGate::submit(std::uint64_t generation,
 }
 
 MemoryStatus TimelineGate::complete(std::uint64_t generation, std::uint64_t value) noexcept {
-  if (generation == 0U || generation != generation_) {
+  if (generation == 0U) {
+    return MemoryStatus::invalid_argument;
+  }
+  if (generation != generation_) {
     return MemoryStatus::stale_generation;
   }
   if (value == 0U || value >= next_value_) {
@@ -497,7 +500,10 @@ MemoryStatus TimelineGate::complete(std::uint64_t generation, std::uint64_t valu
 }
 
 MemoryStatus TimelineGate::wait(std::uint64_t generation, std::uint64_t value) const noexcept {
-  if (generation == 0U || generation != generation_) {
+  if (generation == 0U) {
+    return MemoryStatus::invalid_argument;
+  }
+  if (generation != generation_) {
     return MemoryStatus::stale_generation;
   }
   if (value == 0U || value >= next_value_) {
