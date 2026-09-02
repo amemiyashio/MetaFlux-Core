@@ -431,7 +431,7 @@ CacheStatus CacheCatalog::pin(const std::string& key) noexcept {
   return CacheStatus::success;
 }
 
-CacheStatus CacheCatalog::unpin(const std::string& key) noexcept {
+CacheStatus CacheCatalog::unpin(std::string_view key) noexcept {
   const auto position = entries_.find(key);
   if (position == entries_.end()) {
     return CacheStatus::not_found;
@@ -819,16 +819,15 @@ CacheStatus PersistentCacheRepository::release_pipeline(std::string_view key,
   if (!valid_key(key) || generation == 0U) {
     return CacheStatus::invalid_argument;
   }
-  const std::string owned_key(key);
   std::lock_guard lock(mutex_);
-  const auto active = active_pipeline_bindings_.find(owned_key);
+  const auto active = active_pipeline_bindings_.find(key);
   if (active == active_pipeline_bindings_.end()) {
     return CacheStatus::not_found;
   }
   if (active->second != generation) {
     return CacheStatus::stale_generation;
   }
-  const auto unpinned = catalog_.unpin(owned_key);
+  const auto unpinned = catalog_.unpin(key);
   if (unpinned != CacheStatus::success) {
     return unpinned;
   }

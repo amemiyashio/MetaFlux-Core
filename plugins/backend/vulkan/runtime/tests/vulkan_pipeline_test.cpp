@@ -199,8 +199,9 @@ bool physical_pipeline_round_trip() {
     pool_info.queueFamilyIndex = context.queue_family_index();
     VkCommandPool pool = VK_NULL_HANDLE;
     VkCommandBuffer command_buffer = VK_NULL_HANDLE;
-    const bool pool_ready = vkCreateCommandPool(context.device_handle(), &pool_info, nullptr, &pool) ==
-                            VK_SUCCESS;
+    const VkResult pool_status =
+        vkCreateCommandPool(context.device_handle(), &pool_info, nullptr, &pool);
+    const bool pool_ready = pool_status == VK_SUCCESS;
     if (pool_ready) {
       VkCommandBufferAllocateInfo allocation{};
       allocation.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -300,6 +301,9 @@ bool physical_pipeline_round_trip() {
           warm_submitted == metaflux::backend::vulkan::QueueExecutionStatus::success
               ? executor.wait(7U, warm_submission.completion_value, UINT64_C(5000000000))
               : warm_submitted;
+      const bool warm_submission_recorded = session.submitted();
+      const auto warm_trace_status =
+          metaflux::backend::vulkan::validate_warm_launch_trace(session.trace());
       const auto warm_finished =
           warm_waited == metaflux::backend::vulkan::QueueExecutionStatus::success
               ? session.finish()
@@ -307,12 +311,23 @@ bool physical_pipeline_round_trip() {
       g_track_warm_allocations.store(false, std::memory_order_release);
       const bool warm_valid =
           warm_waited == metaflux::backend::vulkan::QueueExecutionStatus::success &&
-          session.submitted() &&
-          metaflux::backend::vulkan::validate_warm_launch_trace(session.trace()) ==
-              metaflux::backend::vulkan::WarmLaunchStatus::success &&
+          warm_submission_recorded &&
+          warm_trace_status == metaflux::backend::vulkan::WarmLaunchStatus::success &&
           warm_finished == metaflux::backend::vulkan::CacheStatus::success &&
           g_warm_allocations.load(std::memory_order_relaxed) == 0U &&
           !session.active();
+      if (!warm_valid) {
+        std::fprintf(stderr,
+                     "vulkan pipeline: warm path failed submitted=%d waited=%d finished=%d "
+                     "recorded=%d trace=%d allocations=%llu active=%d\n",
+                     static_cast<int>(warm_submitted), static_cast<int>(warm_waited),
+                     static_cast<int>(warm_finished),
+                     warm_submission_recorded ? 1 : 0,
+                     static_cast<int>(warm_trace_status),
+                     static_cast<unsigned long long>(
+                         g_warm_allocations.load(std::memory_order_relaxed)),
+                     session.active() ? 1 : 0);
+      }
       std::error_code error;
       std::filesystem::remove_all(cache_root, error);
       if (!warm_valid) {
@@ -327,6 +342,8 @@ bool physical_pipeline_round_trip() {
         return false;
       }
     } else {
+      std::fprintf(stderr, "vulkan pipeline: command pool creation failed result=%d family=%u\n",
+                   static_cast<int>(pool_status), context.queue_family_index());
       vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
       return false;
     }

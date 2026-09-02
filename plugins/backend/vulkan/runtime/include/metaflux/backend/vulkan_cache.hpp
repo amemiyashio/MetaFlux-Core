@@ -84,7 +84,7 @@ public:
   [[nodiscard]] CacheStatus admit_publish(const std::string& key) const noexcept;
   [[nodiscard]] CacheStatus mark_corrupt(const std::string& key) noexcept;
   [[nodiscard]] CacheStatus pin(const std::string& key) noexcept;
-  [[nodiscard]] CacheStatus unpin(const std::string& key) noexcept;
+  [[nodiscard]] CacheStatus unpin(std::string_view key) noexcept;
   [[nodiscard]] CacheStatus admit_remove(const std::string& key, bool device_bound) const noexcept;
   [[nodiscard]] CacheStatus remove(const std::string& key, bool device_bound) noexcept;
   [[nodiscard]] CacheStatus evict_one() noexcept;
@@ -102,7 +102,7 @@ private:
 
   std::size_t max_entries_ = 0;
   std::uint64_t clock_ = 0;
-  std::map<std::string, Entry> entries_;
+  std::map<std::string, Entry, std::less<>> entries_;
 };
 
 // Filesystem persistence for portable metadata and device-bound cache blobs.
@@ -170,7 +170,7 @@ private:
   CacheCatalog catalog_;
   CacheFileStore files_;
   std::chrono::milliseconds key_lock_timeout_;
-  std::map<std::string, std::uint64_t> active_pipeline_bindings_;
+  std::map<std::string, std::uint64_t, std::less<>> active_pipeline_bindings_;
 };
 
 // Host-independent warm-launch admission. A successful session owns one
