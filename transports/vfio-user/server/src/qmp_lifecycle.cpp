@@ -7,6 +7,29 @@ namespace metaflux::transport::vfio_user {
 using metaflux::runtime::lifecycle::ExternalEventKind;
 using metaflux::runtime::lifecycle::NormalizationResult;
 using metaflux::runtime::lifecycle::RequestNormalizer;
+using metaflux::runtime::lifecycle::Result;
+
+namespace {
+
+QmpResult map_lifecycle_result(Result result) noexcept {
+  switch (result) {
+  case Result::Accepted:
+  case Result::Duplicate:
+    return QmpResult::Accepted;
+  case Result::Invalid:
+    return QmpResult::Invalid;
+  case Result::Stale:
+  case Result::Conflict:
+  case Result::ResourceExhausted:
+  case Result::CallbackRejected:
+  case Result::DeviceLost:
+  case Result::Timeout:
+    return QmpResult::Failed;
+  }
+  return QmpResult::Failed;
+}
+
+} // namespace
 
 QmpCommand QmpCommand::from_snapshot(std::uint64_t command_id, ExternalEventKind kind,
                                      std::uint64_t request_id,
@@ -100,7 +123,7 @@ QmpResult QmpLifecycleAdapter::complete_and_submit(
     out.snapshot = coordinator.snapshot();
     return QmpResult::Invalid;
   }
-  return QmpResult::Accepted;
+  return map_lifecycle_result(out.result);
 }
 
 QmpLifecycleSocketOutcome QmpLifecycleAdapter::receive_and_submit(

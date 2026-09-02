@@ -165,7 +165,7 @@ bool preserves_captured_tuple_when_authority_advances() {
   REQUIRE(coordinator.apply(reset) == Result::Accepted);
   ResultDetails details{};
   REQUIRE(adapter.complete_and_submit({.command_id = 400U, .kind = QmpReplyKind::DeviceDeleted},
-                                      coordinator, details) == QmpResult::Accepted);
+                                      coordinator, details) == QmpResult::Failed);
   REQUIRE(details.result == Result::Stale && details.snapshot.generation == 2U);
   return true;
 }
