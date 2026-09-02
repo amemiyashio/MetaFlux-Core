@@ -96,6 +96,63 @@ bool parse_string(const char* bytes, std::size_t size, std::size_t& cursor,
   return false;
 }
 
+bool consume_literal(const char* bytes, std::size_t size, std::size_t& cursor,
+                     std::string_view literal) noexcept {
+  if (size - cursor < literal.size() ||
+      std::memcmp(bytes + cursor, literal.data(), literal.size()) != 0) {
+    return false;
+  }
+  cursor += literal.size();
+  return true;
+}
+
+bool parse_number(const char* bytes, std::size_t size, std::size_t& cursor) noexcept {
+  const std::size_t begin = cursor;
+  if (cursor < size && bytes[cursor] == '-') {
+    ++cursor;
+  }
+  if (cursor >= size) {
+    return false;
+  }
+  if (bytes[cursor] == '0') {
+    ++cursor;
+    if (cursor < size && bytes[cursor] >= '0' && bytes[cursor] <= '9') {
+      return false;
+    }
+  } else {
+    if (bytes[cursor] < '1' || bytes[cursor] > '9') {
+      return false;
+    }
+    do {
+      ++cursor;
+    } while (cursor < size && bytes[cursor] >= '0' && bytes[cursor] <= '9');
+  }
+  if (cursor < size && bytes[cursor] == '.') {
+    ++cursor;
+    const std::size_t fraction_begin = cursor;
+    while (cursor < size && bytes[cursor] >= '0' && bytes[cursor] <= '9') {
+      ++cursor;
+    }
+    if (cursor == fraction_begin) {
+      return false;
+    }
+  }
+  if (cursor < size && (bytes[cursor] == 'e' || bytes[cursor] == 'E')) {
+    ++cursor;
+    if (cursor < size && (bytes[cursor] == '+' || bytes[cursor] == '-')) {
+      ++cursor;
+    }
+    const std::size_t exponent_begin = cursor;
+    while (cursor < size && bytes[cursor] >= '0' && bytes[cursor] <= '9') {
+      ++cursor;
+    }
+    if (cursor == exponent_begin) {
+      return false;
+    }
+  }
+  return cursor != begin;
+}
+
 bool skip_value(const char* bytes, std::size_t size, std::size_t& cursor,
                 std::size_t depth = 0U) noexcept {
   if (depth > kMaximumJsonDepth) {
@@ -144,13 +201,12 @@ bool skip_value(const char* bytes, std::size_t size, std::size_t& cursor,
     }
     return false;
   }
-
-  const std::size_t begin = cursor;
-  while (cursor < size && bytes[cursor] != ',' && bytes[cursor] != '}' && bytes[cursor] != ']' &&
-         !is_space(bytes[cursor])) {
-    ++cursor;
+  if (consume_literal(bytes, size, cursor, "true") ||
+      consume_literal(bytes, size, cursor, "false") ||
+      consume_literal(bytes, size, cursor, "null")) {
+    return true;
   }
-  return cursor != begin;
+  return parse_number(bytes, size, cursor);
 }
 
 bool is_json_object(std::string_view value) noexcept {

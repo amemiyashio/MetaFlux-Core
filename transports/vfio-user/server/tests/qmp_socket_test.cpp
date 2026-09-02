@@ -141,6 +141,14 @@ bool rejects_invalid_commands() {
   REQUIRE(client.send_command(1U, "bad\"command") == QmpSocketResult::Invalid);
   REQUIRE(client.send_command(1U, "qmp_capabilities", "[]") == QmpSocketResult::Invalid);
   REQUIRE(client.send_command(1U, "qmp_capabilities", "{bad}") == QmpSocketResult::Invalid);
+  REQUIRE(client.send_command(1U, "qmp_capabilities", "{\"value\":nonsense}") ==
+          QmpSocketResult::Invalid);
+  REQUIRE(client.send_command(1U, "qmp_capabilities", "{\"value\":01}") ==
+          QmpSocketResult::Invalid);
+  REQUIRE(client.send_command(1U, "qmp_capabilities", "{\"value\":1e}") ==
+          QmpSocketResult::Invalid);
+  REQUIRE(client.send_command(1U, "qmp_capabilities", "{\"value\":true}") ==
+          QmpSocketResult::Ok);
   QmpReply reply{};
   REQUIRE(client.receive_lifecycle_reply(0U, reply) == QmpSocketResult::Invalid);
   ::close(sockets[1]);
