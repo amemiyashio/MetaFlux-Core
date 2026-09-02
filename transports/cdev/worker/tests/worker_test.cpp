@@ -1335,6 +1335,10 @@ int main() {
     mf_client_ring_close_v1(&completion);
     return 1;
   }
+  // Exercise the invalid backend/event cleanup branch after transport loss. The
+  // pending operation must keep its forced loss disposition even after the
+  // pending record is cleared.
+  reject_api.query_event = nullptr;
   reject_fixture.event_complete = true;
   if (reject_worker.consume_once() != metaflux::transport::cdev::WorkerResult::Completed ||
       reject_worker.backend_operation_pending() || reject_fixture.lease_releases != 1U ||

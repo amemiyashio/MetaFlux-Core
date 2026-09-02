@@ -1287,6 +1287,7 @@ WorkerResult CdevWorker::progress_pending() noexcept {
     const bool has_launch_memory_references = pending_.has_launch_memory_references;
     const CdevLaunchResolution pending_launch_resolution = pending_.launch_resolution;
     const bool retire_backend = pending_.retire_backend;
+    const bool force_device_lost = pending_.force_device_lost;
     pending_ = {};
     if (has_memory_references) {
       release_copy_references(pending_resolution);
@@ -1301,8 +1302,7 @@ WorkerResult CdevWorker::progress_pending() noexcept {
     if (retire_backend) {
       retire_backend_binding(pending_backend);
     }
-    return complete(request, pending_.force_device_lost ? MF_SHARED_DEVICE_LOST
-                                                        : MF_SHARED_NOT_SUPPORTED);
+    return complete(request, force_device_lost ? MF_SHARED_DEVICE_LOST : MF_SHARED_NOT_SUPPORTED);
   }
   std::uint32_t complete_flag = 0U;
   const mf_backend_status_v1 query_status =
