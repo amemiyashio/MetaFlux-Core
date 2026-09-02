@@ -110,7 +110,7 @@ ExternalMemoryStatus ExternalMemoryLedger::import(
       return ExternalMemoryStatus::overlap;
     }
   }
-  if (next_id_ == 0U) {
+  if (next_id_ == 0U || next_id_ == std::numeric_limits<std::uint64_t>::max()) {
     return ExternalMemoryStatus::exhausted;
   }
   ExternalMemoryImport candidate{
@@ -415,6 +415,9 @@ MemoryStatus StagingLedger::allocate(std::uint64_t size, std::uint64_t alignment
   }
   if (!round_up(candidate, alignment, &candidate) || candidate > capacity_ ||
       size > capacity_ - candidate) {
+    return MemoryStatus::out_of_memory;
+  }
+  if (next_id_ == 0U || next_id_ == std::numeric_limits<std::uint64_t>::max()) {
     return MemoryStatus::out_of_memory;
   }
 

@@ -29,11 +29,26 @@ bool compute_queue_matches(VkPhysicalDevice device, std::uint32_t family_index,
          family.queueCount == expected_count;
 }
 
-void memory_totals(VkPhysicalDevice device, std::uint32_t* out_heap_count,
-                   std::uint32_t* out_type_count, std::uint64_t* out_device_local,
-                   std::uint64_t* out_host_visible) noexcept {
+bool add_memory_bytes(std::uint64_t* total, VkDeviceSize size) noexcept {
+  if (total == nullptr || size > std::numeric_limits<std::uint64_t>::max() - *total) {
+    return false;
+  }
+  *total += size;
+  return true;
+}
+
+bool memory_totals(VkPhysicalDevice device, std::uint32_t* out_heap_count,
+                  std::uint32_t* out_type_count, std::uint64_t* out_device_local,
+                  std::uint64_t* out_host_visible) noexcept {
+  if (out_heap_count == nullptr || out_type_count == nullptr || out_device_local == nullptr ||
+      out_host_visible == nullptr) {
+    return false;
+  }
   VkPhysicalDeviceMemoryProperties memory{};
   vkGetPhysicalDeviceMemoryProperties(device, &memory);
+  if (memory.memoryHeapCount > VK_MAX_MEMORY_HEAPS || memory.memoryTypeCount > VK_MAX_MEMORY_TYPES) {
+    return false;
+  }
   std::array<bool, VK_MAX_MEMORY_HEAPS> host_visible{};
   for (std::uint32_t index = 0U; index < memory.memoryTypeCount; ++index) {
     const auto& type = memory.memoryTypes[index];
@@ -49,12 +64,17 @@ void memory_totals(VkPhysicalDevice device, std::uint32_t* out_heap_count,
   for (std::uint32_t index = 0U; index < memory.memoryHeapCount; ++index) {
     const auto& heap = memory.memoryHeaps[index];
     if ((heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0U) {
-      *out_device_local += heap.size;
+      if (!add_memory_bytes(out_device_local, heap.size)) {
+        return false;
+      }
     }
     if (host_visible[index]) {
-      *out_host_visible += heap.size;
+      if (!add_memory_bytes(out_host_visible, heap.size)) {
+        return false;
+      }
     }
   }
+  return true;
 }
 
 enum class SelectionResult : std::uint32_t {
@@ -130,7 +150,10 @@ SelectionResult select_profile_device(VkInstance instance,
     std::uint32_t type_count = 0U;
     std::uint64_t device_local_bytes = 0U;
     std::uint64_t host_visible_bytes = 0U;
-    memory_totals(device, &heap_count, &type_count, &device_local_bytes, &host_visible_bytes);
+    if (!memory_totals(device, &heap_count, &type_count, &device_local_bytes,
+                       &host_visible_bytes)) {
+      continue;
+    }
     const auto staging = device_local_bytes != 0U && host_visible_bytes != 0U
                              ? MF_VULKAN_MEMORY_TIER_STAGING
                              : UINT32_C(0);

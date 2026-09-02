@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -146,8 +147,20 @@ bool has_compute_queue(VkPhysicalDevice device, std::uint32_t* out_index,
   return false;
 }
 
-void populate_memory(const VkPhysicalDeviceMemoryProperties& memory,
+bool add_memory_bytes(std::uint64_t* total, VkDeviceSize size) noexcept {
+  if (total == nullptr || size > std::numeric_limits<std::uint64_t>::max() - *total) {
+    return false;
+  }
+  *total += size;
+  return true;
+}
+
+bool populate_memory(const VkPhysicalDeviceMemoryProperties& memory,
                      mf_vulkan_capability_profile_v1* profile) noexcept {
+  if (profile == nullptr || memory.memoryHeapCount > VK_MAX_MEMORY_HEAPS ||
+      memory.memoryTypeCount > VK_MAX_MEMORY_TYPES) {
+    return false;
+  }
   std::array<bool, VK_MAX_MEMORY_HEAPS> host_visible{};
   for (std::uint32_t index = 0U; index < memory.memoryTypeCount; ++index) {
     const auto& type = memory.memoryTypes[index];
@@ -159,10 +172,14 @@ void populate_memory(const VkPhysicalDeviceMemoryProperties& memory,
   for (std::uint32_t index = 0U; index < memory.memoryHeapCount; ++index) {
     const auto& heap = memory.memoryHeaps[index];
     if ((heap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0U) {
-      profile->device_local_heap_bytes += heap.size;
+      if (!add_memory_bytes(&profile->device_local_heap_bytes, heap.size)) {
+        return false;
+      }
     }
     if (host_visible[index]) {
-      profile->host_visible_heap_bytes += heap.size;
+      if (!add_memory_bytes(&profile->host_visible_heap_bytes, heap.size)) {
+        return false;
+      }
     }
   }
   profile->memory_heap_count = memory.memoryHeapCount;
@@ -170,6 +187,7 @@ void populate_memory(const VkPhysicalDeviceMemoryProperties& memory,
   if (profile->device_local_heap_bytes != 0U && profile->host_visible_heap_bytes != 0U) {
     profile->memory_tier_flags |= MF_VULKAN_MEMORY_TIER_STAGING;
   }
+  return true;
 }
 
 std::string target_environment(const mf_vulkan_capability_profile_v1& profile) {
@@ -245,7 +263,9 @@ bool compatible_device(VkPhysicalDevice device, mf_vulkan_capability_profile_v1*
   std::memcpy(profile->pipeline_cache_uuid, properties.properties.pipelineCacheUUID,
               sizeof(profile->pipeline_cache_uuid));
   copy_string(profile->device_name, properties.properties.deviceName);
-  populate_memory(memory, profile);
+  if (!populate_memory(memory, profile)) {
+    return false;
+  }
   const auto environment = target_environment(*profile);
   if (environment.size() >= sizeof(profile->target_environment)) {
     return false;
