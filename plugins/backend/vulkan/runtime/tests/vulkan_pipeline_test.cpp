@@ -174,7 +174,7 @@ bool physical_pipeline_round_trip() {
   }
   VulkanComputePipeline pipeline(context);
   const std::array<std::uint32_t, 5> malformed{
-      UINT32_C(0U), UINT32_C(0x00010000), 0U, 1U, 0U};
+      UINT32_C(0), UINT32_C(0x00010000), 0U, 1U, 0U};
   if (pipeline.create(malformed, "main", layout) != PipelineStatus::invalid_module) {
     vkDestroyPipelineLayout(context.device_handle(), layout, nullptr);
     return false;
