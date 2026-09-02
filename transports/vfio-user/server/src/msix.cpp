@@ -115,9 +115,11 @@ MsixStatus MsixNotificationLedger::deliver(std::uint32_t vector) noexcept {
 }
 
 MsixStatus MsixNotificationLedger::mark_lost(std::uint64_t generation) noexcept {
-  if (generation == 0U || generation != generation_) {
-    return generation != generation_ ? MsixStatus::stale_generation
-                                     : MsixStatus::invalid_argument;
+  if (generation == 0U) {
+    return MsixStatus::invalid_argument;
+  }
+  if (generation != generation_) {
+    return MsixStatus::stale_generation;
   }
   online_ = false;
   return MsixStatus::success;

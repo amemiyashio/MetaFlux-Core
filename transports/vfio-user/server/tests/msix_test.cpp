@@ -63,6 +63,9 @@ bool overflow_and_coalescing() {
   using metaflux::transport::vfio_user::MsixStatus;
   InjectionFixture fixture{};
   MsixNotificationLedger ledger(3U, inject, &fixture);
+  if (ledger.mark_lost(0U) != MsixStatus::invalid_argument || !ledger.online()) {
+    return false;
+  }
   if (ledger.set_mask(3U, 0U, true) != MsixStatus::success ||
       ledger.notify(3U, 0U, UINT64_MAX) != MsixStatus::masked ||
       ledger.notify(3U, 0U, 4U) != MsixStatus::masked ||
