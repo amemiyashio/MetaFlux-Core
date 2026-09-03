@@ -5,7 +5,7 @@ milestone: milestone-0.1.3.0
 status: Active
 area: backend.vulkan.execution
 depends_on: [work-item-0.1.3.2, work-item-0.1.3.3]
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 
 # Execution, Streams, and Events
@@ -51,6 +51,9 @@ a capability diagnostic and never switch an established context to CPU.
   behavior; provider/runtime default-stream translation remains separate.
 - [ ] Run Add/Copy/static-shared-barrier differential tests on both driver
   families through memfd, cdev, and guest vfio-user.
+- [x] Verify device-loss injection: after `context.reset()`, the device is not
+  ready, `submit_signal` returns `not_ready`, and re-initialization either
+  succeeds with a usable queue or gracefully declines.
 - [ ] Run Vulkan validation and synchronization validation with reset/device
   loss injection.
 - [ ] Freeze packed arguments and the lowering epoch only after the dual-driver

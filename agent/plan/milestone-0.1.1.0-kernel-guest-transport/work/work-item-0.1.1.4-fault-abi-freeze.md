@@ -21,6 +21,14 @@ updated: 2026-09-03
   armed-timeline gating with disarmed suppression, masked coalescing, injection
   failure with bounded retry, lost/stale-generation fencing, and timeline
   overflow handling.
+- [x] Fuzz the vfio-user server control boundary: random byte sequences,
+  malformed headers, invalid flags, payload mismatches, unknown message types,
+  burst floods, and close-mid-session — all outcomes are defined `ServerResult`
+  values with no crashes.
+- [x] Verify cross-version negotiation matrix: minor=0 (rejected), minor=1
+  (accepted), minor=99 (rejected) with correct completion status codes.
+- [x] Verify DMA read-only mapping: acquire with READ permission succeeds,
+  acquire with WRITE permission on a READ-only region is rejected.
 - [ ] Fuzz ioctl, BAR, descriptor, DMA map/unmap, arithmetic, BAR probe/sizing,
   and config-space writable masks.
 - [ ] Verify MSI-X delivery end to end under the pinned QEMU/libvfio-user pair:

@@ -111,6 +111,13 @@ Implemented stage:
   and no-success-before-drain unmap.
 - [ ] Generate guest/server config, BAR, capability, and UAPI fixtures from the
   root manifest; reject any handwritten competing layout.
+- [x] Test concurrent opposite-direction interleaving: guest sends N DMA map
+  requests without reading replies, server processes all N, guest reads all
+  completions and verifies ordering. Also test No_reply followed by replied
+  command on the same socket.
+- [x] Test CPU Add/Copy execution through the guest ring fastpath: submit COPY
+  descriptors from the guest side, consume from the server side of the
+  submission ring, produce completions, and verify timeline advancement.
 - [ ] Test concurrent opposite-direction interleaving without deduplication or
   global ordering.
 - [ ] Freeze the unsupported-reset result for each pinned pair, execute CPU

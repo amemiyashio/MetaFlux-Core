@@ -55,9 +55,17 @@ fallback inside a Vulkan context.
   open matrix extension below.
 - [x] Add SetPredicateGeU32 and SetPredicateEqU32 predicate lowering forms with
   `arith.cmpi uge`/`eq` + `scf.if` emission and SPIR-V binary validation.
+- [x] Add FmaRnF32 as a standalone lowering form with a dedicated validation
+  that checks success status, `fused_multiply_add_f32` opcode presence,
+  `math.fma` in MLIR, and valid SPIR-V binary magic — using adaptive instruction
+  inspection rather than hardcoded count (fma emits fewer SPIR-V instructions
+  than the equivalent mulf+addf sequence).
+- [x] Add a second synthetic profile fixture (NVIDIA vendor 0x10DE, fixed
+  subgroup size 32, distinct UUIDs) and verify the full lowering suite produces
+  valid SPIR-V for both profiles — host-independent dual-driver coverage without
+  physical hardware.
 - [ ] Extend the lowering and differential matrix to the remaining Kernel IR
-  arithmetic, wide-integer, and memory forms, including `MultiplyWideU32`
-  standalone and mixed-type elementwise kernels.
+  arithmetic, wide-integer, and memory forms.
 
 ## Exit Gate
 

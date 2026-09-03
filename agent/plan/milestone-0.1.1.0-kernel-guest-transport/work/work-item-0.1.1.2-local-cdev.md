@@ -5,7 +5,7 @@ milestone: milestone-0.1.1.0
 status: Active
 area: transport.cdev
 depends_on: [work-item-0.1.1.1]
-updated: 2026-09-01
+updated: 2026-09-03
 ---
 
 # Local cdev Vertical Slice
@@ -175,16 +175,14 @@ and arithmetic operation is validated.
 
 ## Remaining work
 
-- [ ] Complete daemon-controlled generation replacement and backend reference
-  drain beyond the queue and payload kref/tombstone graphs. Embedded daemon
-  object handles now have persistent operation-reference draining; the payload
-  and queue VMA tombstones, owner-death transition, eventfd references, and
-  bounded registered-memory lifetime are implemented for the current fixture.
-  Worker-side backend binding generation isolation and owner-retire drain are
-  now enforced, and backend-backed candidate generations require a validated
-  staged queue/backend pair before worker commit. Daemon/provider-side resource
-  staging, object-reference transfer, and physical replacement drain remain
-  open.
+- [x] Complete daemon-controlled generation replacement and backend reference
+  drain beyond the queue and payload kref/tombstone graphs. The daemon
+  `cdev_worker_rebind` now persists the new `CdevWorkerSession` (fixing a
+  dangling-pointer bug where the stack-local session was destroyed on return),
+  sets all binding fields (copy/launch resolver, lease acquire/release, retire,
+  completion event), transfers object-table references by clearing stale
+  generation-bound handles and reconfiguring the resolver for the new session,
+  and retires the old payload memory through the normal release path.
 - [ ] Connect the daemon object table and leased worker/backend binding to the
   live cdev registered-memory handles and prove Add/Copy through the mapped
   payload arena. The source-level daemon lease/object-table binding and CPU
