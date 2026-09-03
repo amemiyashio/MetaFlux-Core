@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-09-01
+updated: 2026-09-03
 ---
 
 # Durable Constraints
@@ -66,7 +66,8 @@ identity and provisioning boundaries live in
   The caller harness is not pinned or installed as a repository Nix tool.
   Newly required tools are added to the repository Nix declaration first. Only
   a confirmed Nix materialization gap permits decision-0032 host escalation through
-  `manage-host-privilege`: an exact pacman package is installed through the
+  `manage-host-privilege` (decision-0036): an exact pacman package is installed
+  through the
   package-name-only root helper, then
   its exact host executable may run from inside the Nix entry environment. This
   host copy is a local prerequisite, not declared repeatable tool identity or
