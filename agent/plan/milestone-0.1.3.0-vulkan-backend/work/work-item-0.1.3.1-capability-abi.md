@@ -5,7 +5,7 @@ milestone: milestone-0.1.3.0
 status: Active
 area: backend.vulkan.contract
 depends_on: [milestone-0.1.1.0]
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 
 # Vulkan Capability and ABI 0.x
