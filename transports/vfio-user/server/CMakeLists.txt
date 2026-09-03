@@ -52,6 +52,15 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(NAME metaflux.transport.vfio-user-server COMMAND metaflux_transport_vfio_user_server_test)
   set_tests_properties(metaflux.transport.vfio-user-server PROPERTIES LABELS "transport;unit")
 
+  add_executable(metaflux_transport_vfio_user_server_fuzz_test tests/server_fuzz_test.cpp)
+  target_link_libraries(
+    metaflux_transport_vfio_user_server_fuzz_test
+    PRIVATE MetaFlux::TransportVfioUserServer
+  )
+  metaflux_configure_target(metaflux_transport_vfio_user_server_fuzz_test CXX)
+  add_test(NAME metaflux.transport.vfio-user-server-fuzz COMMAND metaflux_transport_vfio_user_server_fuzz_test)
+  set_tests_properties(metaflux.transport.vfio-user-server-fuzz PROPERTIES LABELS "transport;fuzz;unit")
+
   add_test(
     NAME metaflux.transport.vfio-user-profile
     COMMAND
@@ -108,4 +117,17 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     metaflux.transport.vfio-user-qmp-socket
     PROPERTIES LABELS "transport;lifecycle;unit"
   )
+
+  add_executable(metaflux_transport_vfio_user_interleave_test tests/interleave_test.cpp)
+  target_link_libraries(
+    metaflux_transport_vfio_user_interleave_test
+    PRIVATE MetaFlux::TransportVfioUserServer MetaFlux::TransportVfioUserGuest
+  )
+  target_include_directories(
+    metaflux_transport_vfio_user_interleave_test
+    PRIVATE "${PROJECT_SOURCE_DIR}/transports/vfio-user/guest/include"
+  )
+  metaflux_configure_target(metaflux_transport_vfio_user_interleave_test CXX)
+  add_test(NAME metaflux.transport.vfio-user-interleave COMMAND metaflux_transport_vfio_user_interleave_test)
+  set_tests_properties(metaflux.transport.vfio-user-interleave PROPERTIES LABELS "transport;unit")
 endif()

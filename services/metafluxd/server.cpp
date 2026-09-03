@@ -2010,8 +2010,27 @@ bool Session::cdev_worker_rebind(void* context, std::uint64_t generation,
     new_session.close();
     return false;
   }
-  // Return the new queue view and backend binding.
-  *out_view = new_session.queue_view();
+  // Swap the new session into the persistent field so out_view pointers remain valid.
+  session->cdev_worker_session_ = std::move(new_session);
+  // Track the new payload memory in the ownership map.
+  try {
+    const auto [entry, inserted] = session->cdev_memories_.try_emplace(
+        payload_memory, CdevMemoryEntry{.persistent = true, .retired = false, .active_references = 0U});
+    if (!inserted || !entry->second.persistent) {
+      if (session->cdev_backend_api_->free_memory != nullptr) {
+        session->cdev_backend_api_->free_memory(session->cdev_backend_instance_, payload_memory);
+      }
+      return false;
+    }
+  } catch (const std::bad_alloc&) {
+    if (session->cdev_backend_api_->free_memory != nullptr) {
+      session->cdev_backend_api_->free_memory(session->cdev_backend_instance_, payload_memory);
+    }
+    return false;
+  }
+  session->cdev_payload_backend_memory_ = payload_memory;
+  // Populate the complete backend binding (matching bind_cdev_worker).
+  *out_view = session->cdev_worker_session_.queue_view();
   out_view->generation = generation;
   *out_backend = {};
   out_backend->api = session->cdev_backend_api_;
@@ -2024,7 +2043,37 @@ bool Session::cdev_worker_rebind(void* context, std::uint64_t generation,
       .release = &Session::cdev_memory_release,
       .context = session,
   };
+  out_backend->copy_resolver = &metaflux::transport::cdev::CdevObjectTableResolver::callback;
+  out_backend->copy_context = &session->cdev_resolver_;
+  out_backend->launch_resolver = &Session::cdev_launch_resolve;
+  out_backend->launch_context = session;
+  out_backend->lease_acquire = &Session::cdev_worker_lease_acquire;
+  out_backend->lease_release = &Session::cdev_worker_lease_release;
+  out_backend->lease_context = session;
+  out_backend->rebind = &Session::cdev_worker_rebind;
+  out_backend->rebind_context = session;
+  out_backend->retire = &Session::cdev_worker_retire;
+  out_backend->retire_context = session;
   out_backend->generation = generation;
+  // Clear stale generation-bound object memory handles; the resolver will
+  // re-import them through the new session on next use.
+  for (const auto& object : session->objects_) {
+    if (object != nullptr && object->cdev_backend_memory != 0U) {
+      object->cdev_backend_memory = 0U;
+    }
+  }
+  session->cdev_resolver_.configure(session, &Session::cdev_object_lookup, session,
+                                    &Session::cdev_memory_import, session->cdev_backend_instance_,
+                                    session->cdev_backend_context_);
+  // Retire and release the old payload memory.
+  const mf_backend_memory_v1 old_payload = session->cdev_payload_backend_memory_;
+  if (old_payload != 0U && old_payload != payload_memory) {
+    const auto found = session->cdev_memories_.find(old_payload);
+    if (found != session->cdev_memories_.end()) {
+      found->second.retired = true;
+    }
+    session->cdev_memory_release(session, old_payload);
+  }
   return true;
 }
 

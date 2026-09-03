@@ -342,6 +342,37 @@ mf_vulkan_capability_profile_v1 target() {
   return result;
 }
 
+mf_vulkan_capability_profile_v1 nvidia_target() {
+  mf_vulkan_capability_profile_v1 result{};
+  result.struct_size = sizeof(result);
+  result.abi_version = MF_VULKAN_CAPABILITY_ABI_VERSION_1;
+  result.status = MF_VULKAN_PROBE_SUCCESS;
+  result.api_version = MF_VULKAN_API_VERSION_1_3;
+  result.vendor_id = 0x10DEU;
+  result.queue_family_index = 0U;
+  result.queue_count = 1U;
+  result.subgroup_size_min = 32U;
+  result.subgroup_size_max = 32U;
+  result.max_compute_workgroup_invocations = 1024U;
+  result.max_compute_workgroup_size[0] = 1024U;
+  result.max_compute_workgroup_size[1] = 1024U;
+  result.max_compute_workgroup_size[2] = 64U;
+  result.max_storage_buffer_range = 1U;
+  result.max_uniform_buffer_range = 1U;
+  result.feature_flags = MF_VULKAN_FEATURE_BUFFER_DEVICE_ADDRESS;
+  result.memory_tier_flags = MF_VULKAN_MEMORY_TIER_STAGING;
+  result.memory_heap_count = 1U;
+  result.memory_type_count = 1U;
+  result.device_local_heap_bytes = 1U;
+  result.host_visible_heap_bytes = 1U;
+  result.device_uuid[0] = 0xDEU;
+  result.driver_uuid[0] = 0xDEU;
+  result.pipeline_cache_uuid[0] = 0xDEU;
+  std::strcpy(result.target_environment, "schema=metaflux.vulkan.target.v1");
+  std::fill(std::begin(result.target_digest), std::end(result.target_digest), 0xBDU);
+  return result;
+}
+
 bool valid_add_lowering() {
   const auto profile = target();
   SpirvLoweredModule module{};
@@ -482,6 +513,29 @@ bool valid_elementwise_f32_lowering() {
                   "multiply_f32") &&
          validate(Opcode::MadRnF32, SpirvSemanticOpcode::multiply_add_f32, "spirv.FAdd",
                   "mad_f32");
+}
+
+bool valid_fma_f32_lowering() {
+  const auto profile = target();
+  SpirvLoweredModule module{};
+  const auto result = metaflux::backend::vulkan::lower_kernel(
+      arithmetic_f32_kernel(Opcode::FmaRnF32, "fma_f32"), profile, {8U, 1U, 1U}, &module);
+  if (result.status != LoweringStatus::success) {
+    std::cerr << "Vulkan FmaRnF32 lowering failed: "
+              << metaflux::backend::vulkan::lowering_status_string(result.status)
+              << " diagnostic=" << result.diagnostic << '\n';
+    return false;
+  }
+  const bool has_fma_opcode =
+      std::any_of(module.instructions.begin(), module.instructions.end(),
+                  [](const auto& i) { return i.opcode == SpirvSemanticOpcode::fused_multiply_add_f32; });
+  const bool valid = has_fma_opcode && module.mlir_text.find("math.fma") != std::string::npos &&
+         module.spirv_binary.size() > 5U && module.spirv_binary[0] == 0x07230203U;
+  if (!valid) {
+    std::cerr << "Vulkan FmaRnF32 validation failed: instructions=" << module.instructions.size()
+              << " has_fma_opcode=" << has_fma_opcode << '\n';
+  }
+  return valid;
 }
 
 bool valid_elementwise_conversion_lowering() {
@@ -733,6 +787,28 @@ bool invalid_inputs() {
 
 } // namespace
 
+bool valid_dual_driver_lowering() {
+  const auto nv = nvidia_target();
+  SpirvLoweredModule module{};
+  const bool add_ok =
+      metaflux::backend::vulkan::lower_kernel(add_kernel(), nv, {8U, 1U, 1U}, &module).status ==
+          LoweringStatus::success &&
+      module.entry_point == "add_u32";
+  const bool copy_ok =
+      metaflux::backend::vulkan::lower_kernel(copy_kernel(), nv, {8U, 1U, 1U}, &module).status ==
+          LoweringStatus::success;
+  const bool f32_ok =
+      metaflux::backend::vulkan::lower_kernel(
+          arithmetic_f32_kernel(Opcode::FmaRnF32, "fma_f32"), nv, {8U, 1U, 1U}, &module)
+              .status == LoweringStatus::success;
+  if (!add_ok || !copy_ok || !f32_ok) {
+    std::cerr << "Vulkan dual-driver lowering: add=" << add_ok << " copy=" << copy_ok
+              << " f32=" << f32_ok << '\n';
+    return false;
+  }
+  return true;
+}
+
 int main() {
   if (!valid_add_lowering()) {
     std::cerr << "Vulkan lowering stage failed: add\n";
@@ -756,6 +832,10 @@ int main() {
   }
   if (!valid_elementwise_f32_lowering()) {
     std::cerr << "Vulkan lowering stage failed: f32-arithmetic\n";
+    return 1;
+  }
+  if (!valid_fma_f32_lowering()) {
+    std::cerr << "Vulkan lowering stage failed: fma-f32\n";
     return 1;
   }
   if (!valid_elementwise_conversion_lowering()) {
@@ -784,6 +864,10 @@ int main() {
   }
   if (!invalid_inputs()) {
     std::cerr << "Vulkan lowering stage failed: invalid-inputs\n";
+    return 1;
+  }
+  if (!valid_dual_driver_lowering()) {
+    std::cerr << "Vulkan lowering stage failed: dual-driver\n";
     return 1;
   }
   return 0;

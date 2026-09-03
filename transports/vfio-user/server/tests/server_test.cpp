@@ -731,5 +731,125 @@ int main() {
     close(sockets[0]);
   }
   close(sockets[1]);
+
+  // Test: DMA read-only mapping rejects write-acquire.
+  {
+    int ro_sockets[2] = {-1, -1};
+    if (socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, ro_sockets) != 0) {
+      return 20;
+    }
+    metaflux::transport::vfio_user::VfioUserServer ro_server(ro_sockets[1]);
+    mf_transport_negotiate_v0 ro_neg{};
+    ro_neg.magic = MF_TRANSPORT_MAGIC_V0;
+    ro_neg.major = MF_TRANSPORT_MAJOR_V0;
+    ro_neg.minor = MF_TRANSPORT_MINOR_V0;
+    ro_neg.struct_size = sizeof(ro_neg);
+    ro_neg.required_features = MF_TRANSPORT_FEATURE_VFIO_USER_V0 |
+                               MF_TRANSPORT_FEATURE_SHARED_MEMORY_V0;
+    std::array<std::uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> ro_pkt{};
+    std::uint32_t ro_pkt_size = 0U;
+    if (mf_vfio_user_guest_encode_negotiate_v0(90U, &ro_neg, ro_pkt.data(), ro_pkt.size(),
+                                                &ro_pkt_size) != MF_SHARED_SUCCESS ||
+        !send_packet(ro_sockets[0], ro_pkt.data(), ro_pkt_size) ||
+        ro_server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+        !receive_negotiate(ro_sockets[0], 90U, nullptr)) {
+      close(ro_sockets[0]);
+      close(ro_sockets[1]);
+      return 20;
+    }
+    int ro_memfd = make_memfd();
+    if (ro_memfd < 0) {
+      close(ro_sockets[0]);
+      close(ro_sockets[1]);
+      return 20;
+    }
+    mf_vfio_user_dma_map_v0 ro_map{};
+    ro_map.struct_size = sizeof(ro_map);
+    ro_map.flags = MF_VFIO_USER_DMA_READ_V0;
+    ro_map.iova = 0x9000U;
+    ro_map.size = 4096U;
+    ro_map.fd_index = 0;
+    ro_map.mapping_epoch = 1U;
+    ro_map.device_generation = 1U;
+    std::array<std::uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> ro_dma_pkt{};
+    std::uint32_t ro_dma_pkt_size = 0U;
+    if (mf_vfio_user_guest_encode_dma_map_v0(91U, &ro_map, ro_dma_pkt.data(), ro_dma_pkt.size(),
+                                              &ro_dma_pkt_size) != MF_SHARED_SUCCESS ||
+        !send_packet(ro_sockets[0], ro_dma_pkt.data(), ro_dma_pkt_size, ro_memfd) ||
+        ro_server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+        !receive_completion(ro_sockets[0], 91U, MF_VFIO_USER_MESSAGE_DMA_MAP_V0, MF_SHARED_SUCCESS)) {
+      close(ro_memfd);
+      close(ro_sockets[0]);
+      close(ro_sockets[1]);
+      return 20;
+    }
+    metaflux::transport::vfio_user::DmaLease ro_lease{};
+    if (ro_server.dma_acquire(0x9000U, 4096U, MF_VFIO_USER_DMA_READ_V0, ro_lease)) {
+      (void)ro_server.dma_release(ro_lease);
+    } else {
+      close(ro_memfd);
+      close(ro_sockets[0]);
+      close(ro_sockets[1]);
+      return 20;
+    }
+    if (ro_server.dma_acquire(0x9000U, 4096U, MF_VFIO_USER_DMA_WRITE_V0, ro_lease)) {
+      (void)ro_server.dma_release(ro_lease);
+      close(ro_memfd);
+      close(ro_sockets[0]);
+      close(ro_sockets[1]);
+      return 20;
+    }
+    close(ro_memfd);
+    close(ro_sockets[0]);
+    close(ro_sockets[1]);
+  }
+
+  // Test: cross-version negotiation matrix.
+  {
+    const std::uint16_t minors[] = {0U, 1U, 99U};
+    for (const auto minor : minors) {
+      int v_sockets[2] = {-1, -1};
+      if (socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, v_sockets) != 0) {
+        return 21;
+      }
+      metaflux::transport::vfio_user::VfioUserServer v_server(v_sockets[1]);
+      mf_transport_negotiate_v0 v_neg{};
+      v_neg.magic = MF_TRANSPORT_MAGIC_V0;
+      v_neg.major = MF_TRANSPORT_MAJOR_V0;
+      v_neg.minor = minor;
+      v_neg.struct_size = sizeof(v_neg);
+      v_neg.required_features = MF_TRANSPORT_FEATURE_VFIO_USER_V0 |
+                                MF_TRANSPORT_FEATURE_SHARED_MEMORY_V0;
+      std::array<std::uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> v_pkt{};
+      std::uint32_t v_pkt_size = 0U;
+      if (mf_vfio_user_guest_encode_negotiate_v0(92U, &v_neg, v_pkt.data(), v_pkt.size(),
+                                                  &v_pkt_size) != MF_SHARED_SUCCESS ||
+          !send_packet(v_sockets[0], v_pkt.data(), v_pkt_size)) {
+        close(v_sockets[0]);
+        close(v_sockets[1]);
+        return 21;
+      }
+      const auto v_result = v_server.process_once();
+      if (minor == 0U || minor > 1U) {
+        if (v_result != metaflux::transport::vfio_user::ServerResult::Replied ||
+            !receive_completion(v_sockets[0], 92U, MF_VFIO_USER_MESSAGE_NEGOTIATE_V0,
+                                MF_SHARED_NOT_SUPPORTED)) {
+          close(v_sockets[0]);
+          close(v_sockets[1]);
+          return 21;
+        }
+      } else {
+        if (v_result != metaflux::transport::vfio_user::ServerResult::Replied ||
+            !receive_negotiate(v_sockets[0], 92U, nullptr)) {
+          close(v_sockets[0]);
+          close(v_sockets[1]);
+          return 21;
+        }
+      }
+      close(v_sockets[0]);
+      close(v_sockets[1]);
+    }
+  }
+
   return 0;
 }

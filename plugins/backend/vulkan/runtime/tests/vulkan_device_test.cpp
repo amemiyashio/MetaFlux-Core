@@ -294,5 +294,21 @@ int main() {
               context.queue_family_index(),
               static_cast<unsigned long long>(context.last_completed_value()));
   context.reset();
-  return !context.ready() && context.submit_signal(42U, 3U) == DeviceStatus::not_ready ? 0 : 8;
+  if (context.ready() || context.submit_signal(42U, 3U) != DeviceStatus::not_ready) {
+    return 8;
+  }
+  // Verify that re-initialization after device loss succeeds or gracefully declines.
+  const auto after_loss = context.initialize(profile);
+  if (after_loss == DeviceStatus::success) {
+    // Re-initialized; verify the queue is usable again.
+    if (context.submit_signal(100U, 1U) != DeviceStatus::success ||
+        context.wait(100U, 1U, UINT64_C(2000000000)) != DeviceStatus::success) {
+      return 9;
+    }
+    context.reset();
+  } else if (after_loss != DeviceStatus::no_device &&
+             after_loss != DeviceStatus::unsupported_features) {
+    return 9;
+  }
+  return 0;
 }

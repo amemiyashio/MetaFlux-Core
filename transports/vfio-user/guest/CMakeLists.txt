@@ -62,4 +62,13 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     metaflux.transport.vfio-user-guest-protocol-fuzz
     PROPERTIES LABELS "transport;qualification;fuzz"
   )
+
+  add_executable(metaflux_transport_vfio_user_ring_backend_test tests/ring_backend_test.c)
+  target_link_libraries(
+    metaflux_transport_vfio_user_ring_backend_test
+    PRIVATE MetaFlux::TransportVfioUserGuest
+  )
+  metaflux_configure_target(metaflux_transport_vfio_user_ring_backend_test C)
+  add_test(NAME metaflux.transport.vfio-user-ring-backend COMMAND metaflux_transport_vfio_user_ring_backend_test)
+  set_tests_properties(metaflux.transport.vfio-user-ring-backend PROPERTIES LABELS "transport;unit")
 endif()
