@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-09-01
+updated: 2026-09-03
 ---
 
 # Decision Index
@@ -43,8 +43,8 @@ an index row does not promote `Proposed` material to `Verified`.
 | decision-0031 | Agent startup enters a mandatory Git-aware Nix tool environment before project-tool use | [Start work](../skills/start-work/SKILL.md) | Nix-first boundary retained; fixed identity superseded by decision-0034 |
 | decision-0032 | Confirmed Nix gaps and MetaFlux driver debugging use bounded, non-secret host-privilege helpers | [Host privilege escalation](../../docs/architecture/host-privilege-escalation.md) | Retained by decision-0033 and machine-checked |
 | decision-0033 | Goal-first multi-Agent execution uses destructive Epoch governance, parallel Batch Iterations, independent integration, ephemeral roast promotion, and no execution-history ledger | [Goal-first execution](../../docs/architecture/agent-execution.md) | Verified topology; fixed identity boundary superseded by decision-0034 |
-| decision-0034 | Agent identity comes from bounded harness/CLI executable detection and never from model metadata | [Agent tool detection](../../docs/architecture/agent-tool-detection.md) | Verified; activates epoch-0002 |
-| decision-0035 | Epoch-0003 governance: remove stale out-of-repository worktrees, advance Epoch, and continue non-1.0 plan completion with deferred lane carried forward | [agent/goal.json](../goal.json) | Active governance; activates epoch-0003 |
+| decision-0034 | Agent identity comes from bounded harness/CLI executable detection and never from model metadata | [Agent tool detection](../../docs/architecture/agent-tool-detection.md) | Verified; adopted during epoch-0002 governance; current epoch is epoch-0004 |
+| decision-0035 | Epoch-0003 governance: remove stale out-of-repository worktrees, advance Epoch, and continue non-1.0 plan completion with deferred lane carried forward | [agent/goal.json](../goal.json) | Completed governance; superseded by epoch-0004 |
 | decision-0036 | Tool provisioning is a resolvable task, not a blocker: when a required tool is absent, always attempt Nix then manage-host-privilege/pacman before declaring inability to proceed | [AGENTS.md](../../AGENTS.md) rule 7, [manage-host-privilege](../skills/manage-host-privilege/SKILL.md) | Active; prevents agents from treating missing tools as absolute blockers |
 
 New decisions receive the next `decision-NNNN` identifier and point to a plan or
