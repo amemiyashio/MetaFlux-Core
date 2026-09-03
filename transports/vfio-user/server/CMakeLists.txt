@@ -130,4 +130,20 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   metaflux_configure_target(metaflux_transport_vfio_user_interleave_test CXX)
   add_test(NAME metaflux.transport.vfio-user-interleave COMMAND metaflux_transport_vfio_user_interleave_test)
   set_tests_properties(metaflux.transport.vfio-user-interleave PROPERTIES LABELS "transport;unit")
+
+  add_executable(metaflux_transport_vfio_user_lifecycle_failure_test tests/lifecycle_failure_test.cpp)
+  target_link_libraries(
+    metaflux_transport_vfio_user_lifecycle_failure_test
+    PRIVATE MetaFlux::TransportVfioUserServer MetaFlux::TransportVfioUserGuest
+  )
+  target_include_directories(
+    metaflux_transport_vfio_user_lifecycle_failure_test
+    PRIVATE "${PROJECT_SOURCE_DIR}/transports/vfio-user/guest/include"
+  )
+  metaflux_configure_target(metaflux_transport_vfio_user_lifecycle_failure_test CXX)
+  add_test(NAME metaflux.transport.vfio-user-lifecycle-failure COMMAND metaflux_transport_vfio_user_lifecycle_failure_test)
+  set_tests_properties(
+    metaflux.transport.vfio-user-lifecycle-failure
+    PROPERTIES LABELS "transport;lifecycle;unit"
+  )
 endif()

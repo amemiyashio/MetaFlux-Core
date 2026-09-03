@@ -37,4 +37,15 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   metaflux_configure_target(metaflux_transport_memfd_worker_test CXX)
   add_test(NAME metaflux.transport.memfd-worker COMMAND metaflux_transport_memfd_worker_test)
   set_tests_properties(metaflux.transport.memfd-worker PROPERTIES LABELS "transport;lifecycle;unit")
+
+  add_executable(metaflux_transport_memfd_worker_lifecycle_failure_test tests/lifecycle_failure_test.cpp)
+  target_link_libraries(
+    metaflux_transport_memfd_worker_lifecycle_failure_test
+    PRIVATE MetaFlux::TransportMemfdWorker
+  )
+  metaflux_configure_target(metaflux_transport_memfd_worker_lifecycle_failure_test CXX)
+  add_test(NAME metaflux.transport.memfd-worker-lifecycle-failure
+           COMMAND metaflux_transport_memfd_worker_lifecycle_failure_test)
+  set_tests_properties(metaflux.transport.memfd-worker-lifecycle-failure
+    PROPERTIES LABELS "transport;lifecycle;unit")
 endif()

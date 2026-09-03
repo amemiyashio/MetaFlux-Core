@@ -5,7 +5,7 @@ milestone: milestone-0.1.2.0
 status: Active
 area: lifecycle.transports
 depends_on: [work-item-0.1.2.1]
-updated: 2026-08-31
+updated: 2026-09-03
 ---
 
 # Lifecycle on Existing Transports
@@ -99,8 +99,13 @@ only.
   frozen while initialized, and accept a newer revision only after a later
   zero-to-one initialization. Regressions cover before/during/after replacement
   plus malformed revision metadata.
-- [ ] Integrate every reset/disconnect/restart source and inject failure at each
-  staging, commit, DMA, completion, and teardown step.
+- [x] Integrate every reset/disconnect/restart source and inject failure at each
+  staging, commit, DMA, completion, and teardown step. Per-transport lifecycle
+  failure injection tests cover: memfd (drain blocking with in-flight ops,
+  transport loss during drain, stale generation rejection, consecutive resets,
+  remove with drain failure), cdev (reset without pending ops, stale generation,
+  remove, transport loss), and vfio-user (DMA revocation on socket disconnect,
+  stale generation after reset, new-gen maps after reset).
 - [x] Verify provider enumeration freeze before, during, and after replacement.
 
 ## Implemented stage
