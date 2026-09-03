@@ -17,7 +17,14 @@
   "external_prerequisites": {
     "libvfio_user": {
       "status": "host-qualification-prerequisite",
-      "reason": "The pinned nixpkgs input exposes no libvfio-user package attribute."
+      "reason": "The pinned nixpkgs input exposes no libvfio-user package attribute.",
+      "provisioned": {
+        "source": "https://github.com/nutanix/libvfio-user (upstream default branch, shallow clone)",
+        "version": "0.0.1",
+        "build": "meson release build with the Nix clang 22.1.8 toolchain; tests excluded (cmocka header path)",
+        "install": "~/.local/libvfio-user/{lib,include,bin} with host libjson-c.so.5 bundled; samples server/client/null verified end to end",
+        "verified": "2026-09-03 sample server/client DMA-map round trip on this host"
+      }
     }
   }
 }
