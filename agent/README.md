@@ -20,7 +20,7 @@ queued plans describe intent, not implemented behavior.
 
 ## Execution Scale
 
-- **Epoch** (`epoch-0002`): one repository-wide semantic governance regime.
+- **Epoch** (`epoch-0004`): one repository-wide semantic governance regime.
   Only explicit `govern-epoch` may advance it, after a full current-authority
   rewrite and passing regression.
 - **Batch** (`batch-0001`): one bounded collection of parallel product lanes
@@ -30,7 +30,8 @@ queued plans describe intent, not implemented behavior.
   restarts in a new Batch.
 
 The full identity is always written as
-`epoch-0002 / batch-0001 / iteration-0001`. A worker delivers exact base and tip
+`epoch-NNNN / batch-NNNN / iteration-NNNN` (currently
+`epoch-0004 / batch-0001 / iteration-0001`). A worker delivers exact base and tip
 revisions. Only an explicitly created integration agent changes `goal.json`.
 Failed candidates and superseded Batch state are not archived in the current
 tree; Git and the originating conversation retain their evidence.

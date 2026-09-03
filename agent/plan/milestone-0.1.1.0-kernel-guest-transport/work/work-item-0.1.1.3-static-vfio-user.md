@@ -5,7 +5,7 @@ milestone: milestone-0.1.1.0
 status: Active
 area: transport.vfio-user
 depends_on: [work-item-0.1.1.1]
-updated: 2026-08-30
+updated: 2026-09-03
 ---
 
 # Static vfio-user Guest Vertical Slice
@@ -94,18 +94,25 @@ Implemented stage:
 - [x] Add the compile-checked `metaflux_pci.ko` static guest resource binder:
   validate CI VID/DID/class and exact BAR0/BAR2/BAR4 sizes, map BAR0/BAR2,
   reserve two MSI-X vectors, and unwind remove or probe failure in reverse order.
+- [x] Implement the guest SPSC ring half with per-lane state and no cross-lane
+  globals: attach with generation/view validation (mismatched-completion and
+  null-payload rejection), doorbell publication, single and batch submission,
+  completion timeline polling with malformed-completion rejection, and armed
+  waits (`mf_vfio_user_guest_ring_*`).
+- [x] Test sender-owned message-ID reuse through the server control fixture,
+  including `No_reply` followed by a replied command that reuses the same
+  message ID and a second reuse after the reply.
 
-- [ ] Implement static guest `metaflux_pci.ko`, BAR0/BAR2/BAR4, and MSI-X with
-  pinned libvfio-user.
+- [ ] Bring the static guest `metaflux_pci.ko` live under the pinned
+  libvfio-user/QEMU pair: runtime BAR0/BAR2 mapping, BAR4 MSI-X delivery, and
+  guest provider bring-up beyond the compile-checked resource binder.
 - [ ] Require shared file-backed guest RAM and implement mapping epochs,
   registration, drain, validation, long-term accounting, direction, dirty-unpin,
   and no-success-before-drain unmap.
-- [ ] Implement guest SPSC rings, BAR2 publication, timeline polling, armed waits,
-  and multi-stream submission.
 - [ ] Generate guest/server config, BAR, capability, and UAPI fixtures from the
   root manifest; reject any handwritten competing layout.
-- [ ] Test concurrent message-ID reuse, `No_reply` followed by a replied command,
-  and opposite-direction interleaving without deduplication or global ordering.
+- [ ] Test concurrent opposite-direction interleaving without deduplication or
+  global ordering.
 - [ ] Freeze the unsupported-reset result for each pinned pair, execute CPU
   Add/Copy before another backend, and treat observed reset as terminal loss.
 

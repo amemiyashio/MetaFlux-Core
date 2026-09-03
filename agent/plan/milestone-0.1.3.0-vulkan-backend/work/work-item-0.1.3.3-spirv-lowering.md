@@ -5,7 +5,7 @@ milestone: milestone-0.1.3.0
 status: Active
 area: compiler.spirv
 depends_on: [work-item-0.1.3.1]
-updated: 2026-09-02
+updated: 2026-09-03
 ---
 
 # Target-Constrained SPIR-V Lowering
@@ -49,7 +49,10 @@ fallback inside a Vulkan context.
   tool is present.
 - [x] Cover the currently advertised forms' limits, required features, address
   spaces, barriers, malformed modules, and stable negative diagnostics.
-- [x] Build differential fixtures for every currently advertised semantic form.
+- [x] Build golden SPIR-V semantic fixtures for every currently advertised form
+  with structural validation and a device-present physical pipeline round-trip;
+  independent differential execution against the CPU reference stays with the
+  open matrix extension below.
 - [x] Add SetPredicateGeU32 and SetPredicateEqU32 predicate lowering forms with
   `arith.cmpi uge`/`eq` + `scf.if` emission and SPIR-V binary validation.
 - [ ] Extend the lowering and differential matrix to the remaining Kernel IR

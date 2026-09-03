@@ -5,7 +5,7 @@ milestone: milestone-0.1.1.0
 status: Active
 area: transport.qualification
 depends_on: [work-item-0.1.1.2, work-item-0.1.1.3]
-updated: 2026-08-31
+updated: 2026-09-03
 ---
 
 # Fault Qualification and Data-Plane v1 Freeze
@@ -17,10 +17,14 @@ updated: 2026-08-31
   backpressure/FIFO retry, malformed packets, stale exact unmap, and DMA
   address overflow. Keep malformed input recoverable and prevent retired
   mapping reuse.
+- [x] Verify the MSI-X notification ledger contract: mask/unmask delivery,
+  armed-timeline gating with disarmed suppression, masked coalescing, injection
+  failure with bounded retry, lost/stale-generation fencing, and timeline
+  overflow handling.
 - [ ] Fuzz ioctl, BAR, descriptor, DMA map/unmap, arithmetic, BAR probe/sizing,
   and config-space writable masks.
-- [ ] Verify MSI-X mask/unmask, arm state, coalescing, fd/injection failure, and
-  interrupt-storm prevention.
+- [ ] Verify MSI-X delivery end to end under the pinned QEMU/libvfio-user pair:
+  real eventfd fd-level injection failure and interrupt-storm soak.
 - [ ] Verify DMA overlap/holes/read-only/overflow/stale epoch/in-flight unmap,
   `FOLL_LONGTERM` rejection, quotas, partial-pin unwind, dirty unpin, direction,
   timeout disconnect, and tombstones.
