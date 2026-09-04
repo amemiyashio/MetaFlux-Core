@@ -758,3 +758,44 @@ endif()
   )
   set_tests_properties(metaflux.integration.daemon-version PROPERTIES LABELS "integration")
 endif()
+
+# Kernel debug-config probe: records CONFIG status and skips qualification when
+# the host does not have a debug kernel. Live KUnit/sanitizer soak remains
+# batch-0002 host gate; this probe only records CONFIG presence and skips
+# qualification when unset.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(
+  NAME metaflux.kernel.debug-config-probe
+  COMMAND
+    "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/../tools/probe-debug-kernel.py"
+    --output
+    "${CMAKE_BINARY_DIR}/metaflux-kernel-debug-config.json"
+)
+set_tests_properties(
+  metaflux.kernel.debug-config-probe
+  PROPERTIES LABELS "kernel;qualification"
+)
+add_test(
+  NAME metaflux.kernel.debug-qualification
+  COMMAND
+    "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/../tools/probe-debug-kernel.py"
+    --require-qualification
+)
+set_tests_properties(
+  metaflux.kernel.debug-qualification
+  PROPERTIES
+    LABELS "kernel;qualification"
+    SKIP_RETURN_CODE 77
+)
+add_test(
+  NAME metaflux.kernel.debug-config-probe-selftest
+  COMMAND
+    "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-probe-debug-kernel.py"
+)
+set_tests_properties(
+  metaflux.kernel.debug-config-probe-selftest
+  PROPERTIES LABELS "kernel;qualification;unit"
+)

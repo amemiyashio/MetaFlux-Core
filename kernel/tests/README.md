@@ -25,6 +25,24 @@ busy; it is recorded as a skipped live qualification, never as a passing test.
 The binary does not load or unload the kernel module and does not fabricate
 device nodes.
 
+## Kernel Debug CONFIG Probe
+
+The CTest gate `metaflux.kernel.debug-qualification` runs
+`tools/probe-debug-kernel.py --require-qualification` to verify that the host
+kernel has the debug symbols needed for KUnit, KASAN, KCSAN, lockdep, and
+kmemleak qualification. On the current 6.18 LTS host those CONFIGs are unset;
+the test exits with return code 77 and is recorded as **Skipped**, never as
+passing.
+
+The companion test `metaflux.kernel.debug-config-probe` records the current
+CONFIG values to `${CMAKE_BINARY_DIR}/metaflux-kernel-debug-config.json` and
+always passes. The self-test `metaflux.kernel.debug-config-probe-selftest`
+verifies the probe logic against synthetic fixtures without requiring a real
+debug kernel.
+
+Live KUnit/sanitizer soak remains a batch-0002 host gate; this probe only
+records CONFIG presence and skips qualification when unset.
+
 When host privilege is required, `manage-host-privilege` applies decision-0032 while
 build and test semantics remain here:
 
