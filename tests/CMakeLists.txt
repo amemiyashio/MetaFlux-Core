@@ -213,6 +213,38 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "lifecycle;model;architecture"
   )
   add_test(
+    NAME metaflux.packaging.vroot-dkms
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-vroot-dkms-packaging.py"
+  )
+  set_tests_properties(
+    metaflux.packaging.vroot-dkms
+    PROPERTIES LABELS "packaging;vroot;unit"
+  )
+  add_test(
+    NAME metaflux.release.baremetal-vpci
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/release/run_baremetal_vpci_gate.py"
+      --output
+      "${CMAKE_BINARY_DIR}/metaflux-baremetal-vpci-gate.json"
+  )
+  set_tests_properties(
+    metaflux.release.baremetal-vpci
+    PROPERTIES LABELS "packaging;vroot;release;qualification"
+  )
+  add_test(
+    NAME metaflux.release.baremetal-vpci-selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/release/test_baremetal_vpci_gate.py"
+  )
+  set_tests_properties(
+    metaflux.release.baremetal-vpci-selftest
+    PROPERTIES LABELS "packaging;vroot;release;unit"
+  )
+  add_test(
     NAME metaflux.architecture.agent-state-selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B

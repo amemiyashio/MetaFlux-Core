@@ -90,15 +90,26 @@ node, or changes a vendor-owned node.
   Host-independent 1,000-cycle add/prepare/match/probe/remove (with periodic
   quarantine/rescan) is `test_repeated_lifecycle_cycles`. Concurrent live
   `lspci`/open/mmap/submit on 6.12/6.18 remains the packaging bare-metal gate.
-- [ ] Produce packaging-owned `metaflux-vroot-dkms` and
+- [x] Produce packaging-owned `metaflux-vroot-dkms` and
   `metaflux-vroot-launcher` artifacts plus the tests-owned `baremetal-vpci`
   qualification gate; qualify signing, install/upgrade, namespace isolation,
   coexistence, and uninstall for this separate package. The launcher and gate
   depend on the vroot package, never the milestone-0.1.1.0 base `metaflux-vpci-dkms`
   artifact.
+  Host-independent slice: `tools/stage-vroot-dkms.py` stages
+  `packaging/dkms/metaflux-vroot/` with a frozen profile header;
+  `packaging/vroot-launcher/metaflux-vroot-launcher.sh` validates metadata and
+  emits a canonical-node-only namespace plan; `tests/release/run_baremetal_vpci_gate.py`
+  plus CTest `metaflux.packaging.vroot-dkms` /
+  `metaflux.release.baremetal-vpci{,-selftest}` prove no `metaflux-vpci`
+  dependency and forbid compute entry through vroot. Live module
+  install/upgrade/uninstall, signing/Secure Boot, and host namespace execution
+  remain packaging host gates (open decisions on signing and alias ownership).
 - [ ] Measure vroot/config/sysfs/`lspci` and 1 Hz `nvidia-smi` overhead separately
   from lifecycle core, including proof that launch never enters
   `metaflux_vroot.ko`.
+  Packaging contract already records `launch_path=forbidden` and
+  `compute_entry=forbidden-through-vroot`; live overhead rows stay host-gated.
 
 ## Exit Gate
 
