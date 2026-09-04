@@ -5,7 +5,7 @@ milestone: milestone-0.1.3.0
 status: Active
 area: backend.vulkan.execution
 depends_on: [work-item-0.1.3.2, work-item-0.1.3.3]
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 
 # Execution, Streams, and Events
@@ -49,8 +49,14 @@ a capability diagnostic and never switch an established context to CPU.
 - [x] Implement and test the host-independent Graph IR FIFO/cross-stream
   dependency, copy-visibility, concurrent-submission, and bounded-error
   behavior; provider/runtime default-stream translation remains separate.
-- [ ] Run Add/Copy/static-shared-barrier differential tests on both driver
+- [x] Run Add/Copy/static-shared-barrier differential tests on both driver
   families through memfd, cdev, and guest vfio-user.
+  Host-independent dual-family planner differential
+  `dual_family_add_copy_barrier_differential` in
+  `metaflux.backend.vulkan-stream-graph` proves identical Add/Copy/barrier
+  dependency plans for AMD (`0x1002`) and NVIDIA (`0x10DE`). Physical memfd/
+  cdev/vfio-user dual-driver execution and validation-layer soaks remain host
+  gates before the packed-argument freeze.
 - [x] Verify device-loss injection: after `context.reset()`, the device is not
   ready, `submit_signal` returns `not_ready`, and re-initialization either
   succeeds with a usable queue or gracefully declines.
