@@ -223,6 +223,16 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "packaging;vroot;unit"
   )
   add_test(
+    NAME metaflux.packaging.vpci-dkms
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-vpci-dkms-packaging.py"
+  )
+  set_tests_properties(
+    metaflux.packaging.vpci-dkms
+    PROPERTIES LABELS "packaging;pci;unit"
+  )
+  add_test(
     NAME metaflux.release.baremetal-vpci
     COMMAND
       "${Python3_EXECUTABLE}" -B

@@ -1,0 +1,8 @@
+# Files staged into the metaflux-vpci DKMS source tree by
+# tools/stage-vpci-dkms.py. Paths are relative to the package root.
+dkms.conf
+Makefile
+metaflux_pci_main.c
+generated/include/metaflux/pci/generated_guest_profile.h
+package-metadata.json
+README.md

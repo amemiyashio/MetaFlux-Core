@@ -2,10 +2,10 @@
 id: work-item-0.1.1.5
 delivery: 0.1.1.5
 milestone: milestone-0.1.1.0
-status: Queued
+status: Active
 area: transport.release
 depends_on: [work-item-0.1.1.4]
-updated: 2026-08-30
+updated: 2026-09-04
 ---
 
 # Transport Performance and Release
@@ -37,6 +37,13 @@ empty-to-nonempty distributions independently.
 
 ## Work
 
+- [x] Produce packaging-owned `metaflux-vpci-dkms` staging and keep
+  `metaflux-vfio-userd` as the sibling service artifact.
+  `tools/stage-vpci-dkms.py` freezes the guest profile header and stages
+  `packaging/dkms/metaflux-vpci/`; CTest `metaflux.packaging.vpci-dkms` proves
+  separation from experimental `metaflux-vroot-dkms`. Service packaging notes
+  live under `packaging/services/metaflux-vfio-userd/`. Live module/service
+  install/upgrade/remove and QEMU fixture rows remain host qualification gates.
 - [ ] Profile poll/block, interrupt moderation, batching, huge pages, and NUMA.
 - [ ] Audit allocations, locks, syscalls, cache lines, BAR access, and fd lifetime.
 - [ ] Run protocol fuzz, sanitizers, crash soak, guest reboot, and package
