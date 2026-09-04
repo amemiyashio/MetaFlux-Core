@@ -81,6 +81,25 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     metaflux.transport.vfio-user-profile-selftest
     PROPERTIES LABELS "transport;schema;unit"
   )
+  add_test(
+    NAME metaflux.transport.pci-guest-profile
+    COMMAND
+      "${Python3_EXECUTABLE}" -B "${PROJECT_SOURCE_DIR}/tools/generate-pci-guest-profile.py"
+      --root "${PROJECT_SOURCE_DIR}"
+      --generate-header "${CMAKE_CURRENT_BINARY_DIR}/test-generated-pci-guest-profile.h"
+  )
+  set_tests_properties(
+    metaflux.transport.pci-guest-profile
+    PROPERTIES LABELS "transport;schema;pci"
+  )
+  add_test(
+    NAME metaflux.transport.pci-guest-profile-selftest
+    COMMAND "${Python3_EXECUTABLE}" -B "${PROJECT_SOURCE_DIR}/tools/test-pci-guest-profile.py"
+  )
+  set_tests_properties(
+    metaflux.transport.pci-guest-profile-selftest
+    PROPERTIES LABELS "transport;schema;unit;pci"
+  )
 
   add_executable(metaflux_transport_vfio_user_msix_test tests/msix_test.cpp)
   target_link_libraries(

@@ -51,6 +51,34 @@ add_custom_target(
   DEPENDS "${METAFLUX_VFIO_USER_PROFILE_HEADER}"
 )
 add_dependencies(metaflux_transport_schema_projection metaflux_vfio_user_profile)
+
+set(
+  METAFLUX_PCI_GUEST_PROFILE_HEADER
+  "${CMAKE_CURRENT_BINARY_DIR}/generated/include/metaflux/pci/generated_guest_profile.h"
+)
+add_custom_command(
+  OUTPUT "${METAFLUX_PCI_GUEST_PROFILE_HEADER}"
+  COMMAND
+    Python3::Interpreter "${PROJECT_SOURCE_DIR}/tools/generate-pci-guest-profile.py"
+    --root "${PROJECT_SOURCE_DIR}"
+    --generate-header "${METAFLUX_PCI_GUEST_PROFILE_HEADER}"
+  DEPENDS
+    "${PROJECT_SOURCE_DIR}/tools/generate-pci-guest-profile.py"
+    "${PROJECT_SOURCE_DIR}/tools/validate-vfio-user-profile.py"
+    "${PROJECT_SOURCE_DIR}/tools/validate-vroot-profile.py"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/manifest.json"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/vfio_user.json"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/extensions/vroot/v1/manifest.json"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/extensions/vroot/v1/profile.json"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/manifest.json"
+    "${PROJECT_SOURCE_DIR}/contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/model.json"
+  VERBATIM
+)
+add_custom_target(
+  metaflux_pci_guest_profile
+  DEPENDS "${METAFLUX_PCI_GUEST_PROFILE_HEADER}"
+)
+add_dependencies(metaflux_transport_schema_projection metaflux_pci_guest_profile)
 list(APPEND metaflux_runtime_contract_targets metaflux_transport_schema_projection)
 
 if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
@@ -89,6 +117,11 @@ install(
     "${METAFLUX_TRANSPORT_SCHEMA_HEADER}"
     "${METAFLUX_VFIO_USER_PROFILE_HEADER}"
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/metaflux/transport"
+  COMPONENT Runtime
+)
+install(
+  FILES "${METAFLUX_PCI_GUEST_PROFILE_HEADER}"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/metaflux/pci"
   COMPONENT Runtime
 )
 install(

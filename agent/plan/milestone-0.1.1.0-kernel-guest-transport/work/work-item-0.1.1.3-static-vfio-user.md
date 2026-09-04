@@ -132,8 +132,14 @@ Implemented stage:
   root manifest; reject any handwritten competing layout.
   Server construction now requires `dma_alignment` equal to the generated
   `MF_VFIO_USER_PROFILE_PAGE_SIZE`; GET_INFO already projects BAR0/2/4 from the
-  same header. Remaining: combined guest/server/UAPI fixture generation and
-  live-server handwritten PCI identity.
+  same header. `tools/generate-pci-guest-profile.py` now composes the root
+  transport vfio-user BAR profile with the vroot CI Type-0 identity into
+  `metaflux/pci/generated_guest_profile.h`. `metaflux_pci.ko` and the live
+  vfio-user fixture server consume that header; handwritten VID/DID/class and
+  BAR-size owners are rejected by `metaflux.transport.pci-guest-profile-selftest`.
+  Remaining: production-daemon guest Add/Copy still needs the composed fixture
+  end-to-end, and live bring-up init script expected values can still be driven
+  from the same generator rather than embedded hex.
 - [x] Test concurrent opposite-direction interleaving: guest sends N DMA map
   requests without reading replies, server processes all N, guest reads all
   completions and verifies ordering. Also test No_reply followed by replied

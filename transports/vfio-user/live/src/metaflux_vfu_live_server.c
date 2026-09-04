@@ -11,9 +11,10 @@
  * reset bit is advertised; a received reset is logged as terminal and is
  * never acknowledged as a supported reply.
  *
- * PCI identity values mirror the locked milestone boundary and the guest
- * metaflux_pci.ko binder; the BAR/MSI-X profile comes from the generated
- * projection of the root transport manifest.
+ * PCI identity and BAR/MSI-X sizes come only from
+ * tools/generate-pci-guest-profile.py, which composes the root transport
+ * vfio-user profile with the vroot CI Type-0 identity. No handwritten competing
+ * layout is accepted in this fixture.
  */
 
 #ifndef _GNU_SOURCE
@@ -45,12 +46,13 @@
 #error "METAFLUX_PROJECT_VERSION must be supplied by the build"
 #endif
 
-/* Locked milestone boundary: PCI class 0x120000, CI VID/DID 0x4D46:0x0001. */
-#define MF_LIVE_VENDOR_ID UINT64_C(0x4d46)
-#define MF_LIVE_DEVICE_ID UINT64_C(0x0001)
-#define MF_LIVE_CLASS_BASE 0x12u
-#define MF_LIVE_CLASS_SUB 0x00u
-#define MF_LIVE_CLASS_PROG_IF 0x00u
+/* CI Type-0 identity and BAR profile come only from the composed guest fixture. */
+#include <metaflux/pci/generated_guest_profile.h>
+#define MF_LIVE_VENDOR_ID ((uint64_t)MF_PCI_GUEST_VENDOR_ID)
+#define MF_LIVE_DEVICE_ID ((uint64_t)MF_PCI_GUEST_DEVICE_ID)
+#define MF_LIVE_CLASS_BASE ((uint8_t)((MF_PCI_GUEST_CLASS_CODE >> 16) & 0xffu))
+#define MF_LIVE_CLASS_SUB ((uint8_t)((MF_PCI_GUEST_CLASS_CODE >> 8) & 0xffu))
+#define MF_LIVE_CLASS_PROG_IF ((uint8_t)(MF_PCI_GUEST_CLASS_CODE & 0xffu))
 
 /* BAR4 MSI-X layout: two-entry table at 0, PBA at 0x200 (QEMU owns both). */
 #define MF_LIVE_MSIX_TABLE_OFFSET UINT64_C(0x0)

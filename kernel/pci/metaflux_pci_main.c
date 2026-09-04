@@ -3,17 +3,19 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#define MF_PCI_VENDOR_ID 0x4d46
-#define MF_PCI_DEVICE_ID 0x0001
-#define MF_PCI_CLASS 0x120000
+#include <metaflux/pci/generated_guest_profile.h>
+
+#define MF_PCI_VENDOR_ID MF_PCI_GUEST_VENDOR_ID
+#define MF_PCI_DEVICE_ID MF_PCI_GUEST_DEVICE_ID
+#define MF_PCI_CLASS MF_PCI_GUEST_CLASS_CODE
 
 #define MF_PCI_BAR0 0
 #define MF_PCI_BAR2 2
 #define MF_PCI_BAR4 4
-#define MF_PCI_BAR0_SIZE (64U * 1024U)
-#define MF_PCI_BAR2_SIZE 4096U
-#define MF_PCI_BAR4_SIZE 4096U
-#define MF_PCI_MSIX_VECTORS 2
+#define MF_PCI_BAR0_SIZE ((resource_size_t)MF_PCI_GUEST_BAR0_SIZE)
+#define MF_PCI_BAR2_SIZE ((resource_size_t)MF_PCI_GUEST_BAR2_SIZE)
+#define MF_PCI_BAR4_SIZE ((resource_size_t)MF_PCI_GUEST_BAR4_SIZE)
+#define MF_PCI_MSIX_VECTORS MF_PCI_GUEST_MSIX_VECTORS
 
 struct mf_pci_irq_slot {
 	atomic64_t notifications;
