@@ -95,7 +95,7 @@ VfioUserServer::VfioUserServer(int fd, ServerConfig config) noexcept : fd_(fd), 
       config_.transport_features == 0U || config_.daemon_incarnation == 0U ||
       config_.view_serial == 0U || config_.descriptor_version == 0U ||
       config_.ring_version == 0U || config_.max_queues == 0U || config_.ring_order == 0U ||
-      config_.dma_alignment == 0U || config_.max_regions == 0U ||
+      config_.dma_alignment != MF_VFIO_USER_PROFILE_PAGE_SIZE || config_.max_regions == 0U ||
       config_.max_inflight == 0U || config_.max_bytes == 0U) {
     state_ = ServerState::Lost;
     lifecycle_online_ = false;
@@ -512,7 +512,7 @@ ServerResult VfioUserServer::handle_dma_map(const mf_transport_message_header_v0
   if (range_overflows(request.iova, request.size) || !aligned(request.iova) ||
       !aligned(request.size) || !aligned(request.file_offset) ||
       request.iova + request.size > (UINT64_C(1) << config_.address_width) ||
-      ::fstat(received_fd, &file_stat) != 0 ||
+      ::fstat(received_fd, &file_stat) != 0 || !S_ISREG(file_stat.st_mode) ||
       file_stat.st_size < 0 ||
       request.file_offset > static_cast<std::uint64_t>(file_stat.st_size) ||
       request.size > static_cast<std::uint64_t>(file_stat.st_size) - request.file_offset ||

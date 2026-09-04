@@ -121,6 +121,185 @@ static bool test_no_reply_then_replied() {
   return ok;
 }
 
+static bool encode_map(std::uint64_t message_id, std::uint64_t iova, std::uint32_t flags,
+                       std::uint8_t* packet, std::uint32_t capacity, std::uint32_t* size) {
+  mf_vfio_user_dma_map_v0 map{};
+  map.struct_size = sizeof(map);
+  map.flags = flags;
+  map.iova = iova;
+  map.size = 0x1000U;
+  map.mapping_epoch = 1U;
+  map.device_generation = 1U;
+  map.fd_index = 0;
+  return mf_vfio_user_guest_encode_dma_map_v0(message_id, &map, packet, capacity, size) ==
+         MF_SHARED_SUCCESS;
+}
+
+static bool encode_unmap(std::uint64_t message_id, std::uint64_t iova, std::uint8_t* packet,
+                         std::uint32_t capacity, std::uint32_t* size) {
+  mf_vfio_user_dma_unmap_v0 unmap{};
+  unmap.struct_size = sizeof(unmap);
+  unmap.iova = iova;
+  unmap.size = 0x1000U;
+  unmap.mapping_epoch = 1U;
+  unmap.device_generation = 1U;
+  return mf_vfio_user_guest_encode_dma_unmap_v0(message_id, &unmap, UINT16_C(0), packet, capacity,
+                                                size) == MF_SHARED_SUCCESS;
+}
+
+static bool test_message_id_reuse_is_not_dedup() {
+  int sp[2];
+  if (::socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sp) != 0) {
+    return false;
+  }
+  metaflux::transport::vfio_user::VfioUserServer server(sp[1]);
+  if (!negotiate(sp[0], server)) {
+    close(sp[0]);
+    close(sp[1]);
+    return false;
+  }
+  int memfd = make_memfd();
+  if (memfd < 0) {
+    close(sp[0]);
+    close(sp[1]);
+    return false;
+  }
+  std::array<uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> pkt{};
+  uint32_t sz = 0U;
+  constexpr std::uint64_t kReusedId = 7U;
+  if (!encode_map(kReusedId, 0x10000U, MF_VFIO_USER_DMA_READ_V0, pkt.data(), pkt.size(), &sz) ||
+      !send_packet(sp[0], pkt.data(), sz, memfd) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+      !recv_completion(sp[0], kReusedId, MF_VFIO_USER_MESSAGE_DMA_MAP_V0, MF_SHARED_SUCCESS) ||
+      !encode_map(kReusedId, 0x11000U, MF_VFIO_USER_DMA_WRITE_V0, pkt.data(), pkt.size(), &sz) ||
+      !send_packet(sp[0], pkt.data(), sz, memfd) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+      !recv_completion(sp[0], kReusedId, MF_VFIO_USER_MESSAGE_DMA_MAP_V0, MF_SHARED_SUCCESS) ||
+      server.mapping_count() != 2U) {
+    close(memfd);
+    close(sp[0]);
+    close(sp[1]);
+    return false;
+  }
+  close(memfd);
+  close(sp[0]);
+  close(sp[1]);
+  return true;
+}
+
+static bool test_opposite_direction_without_global_order() {
+  int sp[2];
+  if (::socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sp) != 0) {
+    return false;
+  }
+  metaflux::transport::vfio_user::VfioUserServer server(sp[1]);
+  if (!negotiate(sp[0], server)) {
+    close(sp[0]);
+    close(sp[1]);
+    return false;
+  }
+  int memfd = make_memfd();
+  if (memfd < 0) {
+    close(sp[0]);
+    close(sp[1]);
+    return false;
+  }
+  std::array<uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> pkt{};
+  uint32_t sz = 0U;
+  if (!encode_map(40U, 0x20000U, MF_VFIO_USER_DMA_READ_V0 | MF_VFIO_USER_DMA_WRITE_V0, pkt.data(),
+                  pkt.size(), &sz) ||
+      !send_packet(sp[0], pkt.data(), sz, memfd) ||
+      server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+      !recv_completion(sp[0], 40U, MF_VFIO_USER_MESSAGE_DMA_MAP_V0, MF_SHARED_SUCCESS)) {
+    close(memfd);
+    close(sp[0]);
+    close(sp[1]);
+    return false;
+  }
+
+  if (!encode_unmap(41U, 0x20000U, pkt.data(), pkt.size(), &sz) ||
+      !send_packet(sp[0], pkt.data(), sz) ||
+      !encode_map(41U, 0x21000U, MF_VFIO_USER_DMA_READ_V0, pkt.data(), pkt.size(), &sz) ||
+      !send_packet(sp[0], pkt.data(), sz, memfd) ||
+      mf_vfio_user_guest_encode_get_info_v0(41U, pkt.data(), pkt.size(), &sz) != MF_SHARED_SUCCESS ||
+      !send_packet(sp[0], pkt.data(), sz)) {
+    close(memfd);
+    close(sp[0]);
+    close(sp[1]);
+    return false;
+  }
+
+  const bool ok =
+      server.process_once() == metaflux::transport::vfio_user::ServerResult::Replied &&
+      recv_completion(sp[0], 41U, MF_VFIO_USER_MESSAGE_DMA_UNMAP_V0, MF_SHARED_SUCCESS) &&
+      server.process_once() == metaflux::transport::vfio_user::ServerResult::Replied &&
+      recv_completion(sp[0], 41U, MF_VFIO_USER_MESSAGE_DMA_MAP_V0, MF_SHARED_SUCCESS) &&
+      server.process_once() == metaflux::transport::vfio_user::ServerResult::Replied &&
+      recv_info(sp[0], 41U) && server.mapping_count() == 1U;
+  close(memfd);
+  close(sp[0]);
+  close(sp[1]);
+  return ok;
+}
+
+static bool test_non_file_dma_fd_rejected() {
+  int sp[2];
+  if (::socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sp) != 0) {
+    return false;
+  }
+  metaflux::transport::vfio_user::VfioUserServer server(sp[1]);
+  if (!negotiate(sp[0], server)) {
+    close(sp[0]);
+    close(sp[1]);
+    return false;
+  }
+  int pipefd[2];
+  if (::pipe(pipefd) != 0) {
+    close(sp[0]);
+    close(sp[1]);
+    return false;
+  }
+  std::array<uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> pkt{};
+  uint32_t sz = 0U;
+  const bool ok =
+      encode_map(60U, 0x30000U, MF_VFIO_USER_DMA_READ_V0, pkt.data(), pkt.size(), &sz) &&
+      send_packet(sp[0], pkt.data(), sz, pipefd[0]) &&
+      server.process_once() == metaflux::transport::vfio_user::ServerResult::Replied &&
+      recv_completion(sp[0], 60U, MF_VFIO_USER_MESSAGE_DMA_MAP_V0, MF_SHARED_INVALID_ARGUMENT) &&
+      server.mapping_count() == 0U;
+  close(pipefd[0]);
+  close(pipefd[1]);
+  close(sp[0]);
+  close(sp[1]);
+  return ok;
+}
+
+static bool test_unmap_unknown_is_stale_not_success() {
+  int sp[2];
+  if (::socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, sp) != 0) {
+    return false;
+  }
+  metaflux::transport::vfio_user::VfioUserServer server(sp[1]);
+  if (!negotiate(sp[0], server)) {
+    close(sp[0]);
+    close(sp[1]);
+    return false;
+  }
+  std::array<uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> pkt{};
+  uint32_t sz = 0U;
+  const bool ok =
+      encode_unmap(70U, 0x40000U, pkt.data(), pkt.size(), &sz) && send_packet(sp[0], pkt.data(), sz) &&
+      server.process_once() == metaflux::transport::vfio_user::ServerResult::Replied &&
+      recv_completion(sp[0], 70U, MF_VFIO_USER_MESSAGE_DMA_UNMAP_V0, MF_SHARED_STALE_HANDLE);
+  close(sp[0]);
+  close(sp[1]);
+  return ok;
+}
+
 int main() {
-  return (!test_interleaved_dma_ordering() || !test_no_reply_then_replied()) ? 1 : 0;
+  return (!test_interleaved_dma_ordering() || !test_no_reply_then_replied() ||
+          !test_message_id_reuse_is_not_dedup() || !test_opposite_direction_without_global_order() ||
+          !test_non_file_dma_fd_rejected() || !test_unmap_unknown_is_stale_not_success())
+             ? 1
+             : 0;
 }

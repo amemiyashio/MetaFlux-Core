@@ -117,8 +117,17 @@ Implemented stage:
 - [ ] Require shared file-backed guest RAM and implement mapping epochs,
   registration, drain, validation, long-term accounting, direction, dirty-unpin,
   and no-success-before-drain unmap.
+  Server DMA_MAP now rejects non-regular fds (`S_ISREG`) so socket/pipe-mediated
+  region fallback cannot register; mapping-epoch/generation matching, overlap
+  rejection, and no-success-before-lease-drain unmap already exist. Remaining:
+  dirty-unpin, long-term accounting, and production-daemon Add/Copy through the
+  mapped guest RAM.
 - [ ] Generate guest/server config, BAR, capability, and UAPI fixtures from the
   root manifest; reject any handwritten competing layout.
+  Server construction now requires `dma_alignment` equal to the generated
+  `MF_VFIO_USER_PROFILE_PAGE_SIZE`; GET_INFO already projects BAR0/2/4 from the
+  same header. Remaining: combined guest/server/UAPI fixture generation and
+  live-server handwritten PCI identity.
 - [x] Test concurrent opposite-direction interleaving: guest sends N DMA map
   requests without reading replies, server processes all N, guest reads all
   completions and verifies ordering. Also test No_reply followed by replied
@@ -126,8 +135,13 @@ Implemented stage:
 - [x] Test CPU Add/Copy execution through the guest ring fastpath: submit COPY
   descriptors from the guest side, consume from the server side of the
   submission ring, produce completions, and verify timeline advancement.
-- [ ] Test concurrent opposite-direction interleaving without deduplication or
+- [x] Test concurrent opposite-direction interleaving without deduplication or
   global ordering.
+  `metaflux.transport.vfio-user-interleave` now reuses the same sender-owned
+  message ID for map then map, and for unmap then map then GET_INFO, proving
+  receive-order processing without treating the ID as a duplicate key. It also
+  rejects a pipe fd as DMA backing and treats unmap of an unknown IOVA as
+  `STALE_HANDLE` rather than success.
 - [ ] Freeze the unsupported-reset result for each pinned pair, execute CPU
   Add/Copy before another backend, and treat observed reset as terminal loss.
   Partially frozen by the live qualification: the pinned QEMU issues
