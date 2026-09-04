@@ -108,6 +108,13 @@ identity and provisioning boundaries live in
   binaries plus the loader and libraries in the guest image) instead of
   switching libc. Instrumentation or bootstrap defects inside a glibc static
   link are fixed within the glibc toolchain, never by changing libc.
+- Physical-hardware gates are isolated in milestone-2.0.0.0 (decision-0040):
+  Intel x86_64 host rows, physical NVIDIA binding/performance evidence, and
+  physical dual-driver Vulkan rows (including the external-memory freeze and
+  validation soak) are `v2.0.0` scope. `v0.1.x` milestones, milestone-1.0.0.0,
+  and the active-session goal never gate on hardware the executing fleet
+  cannot provide; agent plans must defer such rows by referencing
+  milestone-2.0.0.0 instead of leaving them as open blockers.
 - Podman is the approved container runtime for repository qualification and is
   exposed by the release development shell; agents use podman through
   `nix develop .#release` and never install or invoke a second ambient runtime.

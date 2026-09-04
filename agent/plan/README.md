@@ -11,7 +11,8 @@ arbitrary serials.
 | [milestone-0.1.1.0](milestone-0.1.1.0-kernel-guest-transport/plan.md) | 0.1.1.0 | v0.1.1 | Active | Local cdev and static guest transport |
 | [milestone-0.1.2.0](milestone-0.1.2.0-vpci-lifecycle/plan.md) | 0.1.2.0 | v0.1.2 | Active | Lifecycle and experimental vPCI presentation |
 | [milestone-0.1.3.0](milestone-0.1.3.0-vulkan-backend/plan.md) | 0.1.3.0 | v0.1.3 | Active | Vulkan execution backend |
-| [milestone-1.0.0.0](milestone-1.0.0.0-stable-qualification/plan.md) | 1.0.0.0 | v1.0.0 | Queued | Intel host support, physical NVIDIA binding, and stable release qualification |
+| [milestone-1.0.0.0](milestone-1.0.0.0-stable-qualification/plan.md) | 1.0.0.0 | v1.0.0 | Queued | Stable compatibility contract and reproducible v1.0.0 release |
+| [milestone-2.0.0.0](milestone-2.0.0.0-physical-hardware-qualification/plan.md) | 2.0.0.0 | v2.0.0 | Queued | Intel host, physical NVIDIA binding, and dual-driver Vulkan qualification (decision-0040) |
 
 Cross-release research: [PyTorch compatibility](pytorch-compatibility-roadmap.md)
 tracks optional baseline and frontier client probes without changing a milestone.

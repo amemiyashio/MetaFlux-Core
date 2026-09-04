@@ -1,11 +1,11 @@
 ---
-id: work-item-1.0.0.2
-delivery: 1.0.0.2
-milestone: milestone-1.0.0.0
+id: work-item-2.0.0.2
+delivery: 2.0.0.2
+milestone: milestone-2.0.0.0
 status: Queued
 area: performance.binding
-depends_on: [milestone-0.1.0.0, work-item-1.0.0.1]
-updated: 2026-08-30
+depends_on: [milestone-0.1.0.0, work-item-2.0.0.1]
+updated: 2026-09-05
 ---
 
 # Physical NVIDIA Binding Performance

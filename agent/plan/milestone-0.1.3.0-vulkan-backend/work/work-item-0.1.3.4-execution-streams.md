@@ -55,17 +55,19 @@ a capability diagnostic and never switch an established context to CPU.
   `dual_family_add_copy_barrier_differential` in
   `metaflux.backend.vulkan-stream-graph` proves identical Add/Copy/barrier
   dependency plans for AMD (`0x1002`) and NVIDIA (`0x10DE`). Physical memfd/
-  cdev/vfio-user dual-driver execution and validation-layer soaks remain host
-  gates; they do not reopen the packed-argument layout freeze.
+  cdev/vfio-user dual-driver execution and validation-layer soaks are deferred
+  to [work-item-2.0.0.3](../../milestone-2.0.0.0-physical-hardware-qualification/work/work-item-2.0.0.3-dual-driver-physical-qualification.md)
+  (decision-0040); they do not reopen the packed-argument layout freeze.
 - [x] Verify device-loss injection: after `context.reset()`, the device is not
   ready, `submit_signal` returns `not_ready`, and re-initialization either
   succeeds with a usable queue or gracefully declines.
 - [x] Run Vulkan validation and synchronization validation with reset/device
   loss injection.
   Host-independent device-loss injection after `context.reset()` is already
-  covered in stream/device tests. Explicit non-reopening host blocker: physical
-  Vulkan validation-layer and synchronization soaks with reset/device-loss on
-  dual-driver hosts remain open and do **not** reopen the packed-argument freeze.
+  covered in stream/device tests. The physical Vulkan validation-layer and
+  synchronization soaks with reset/device-loss on dual-driver hosts are
+  deferred to work-item-2.0.0.3 (decision-0040) and do **not** reopen the
+  packed-argument freeze.
 - [x] Freeze packed arguments and the lowering epoch only after the dual-driver
   matrix passes.
   Host-independent layout freeze is closed by
@@ -76,12 +78,14 @@ a capability diagnostic and never switch an established context to CPU.
   stream differential already on AMD/NVIDIA identity fixtures, and
   `tools/validate-vulkan-argument-freeze.py` /
   CTest `metaflux.contract.vulkan-argument-freeze`. Physical dual-driver
-  validation-layer execution remains a non-reopening host gate before product
-  SemVer promotion and does **not** reopen the packed layout.
+  validation-layer execution is deferred to work-item-2.0.0.3 (decision-0040)
+  before product SemVer promotion and does **not** reopen the packed layout.
 
 ## Exit Gate
 
-Every advertised kernel agrees with independent CPU/native results on both driver
-families; the backend executes the exact neutral stream/event dependency graph,
-the composed provider/runtime suite matches CUDA observables, and validation
-reports no error.
+Every advertised kernel agrees with independent CPU/native results on the
+host-independent dual-family identity fixtures; the backend executes the exact
+neutral stream/event dependency graph, the composed provider/runtime suite
+matches CUDA observables, and host-independent validation reports no error.
+The physical dual-driver execution and validation rows are owned by
+milestone-2.0.0.0 (decision-0040).

@@ -4,7 +4,7 @@ delivery: 1.0.0.3
 milestone: milestone-1.0.0.0
 status: Queued
 area: release.stable
-depends_on: [work-item-1.0.0.1, work-item-1.0.0.2, milestone-0.1.1.0, milestone-0.1.2.0, milestone-0.1.3.0]
+depends_on: [milestone-0.1.1.0, milestone-0.1.2.0, milestone-0.1.3.0]
 updated: 2026-08-30
 ---
 

@@ -60,7 +60,9 @@ Implemented stage:
   Synchronization2 + buffer device address), and dual driver families AMD
   (`0x1002`) / NVIDIA (`0x10DE`) via `mf_vulkan_driver_family_from_vendor_id_v1`.
   Host-independent ABI coverage is `metaflux.contract.backend-vulkan-abi.v1`;
-  physical dual-family matrix remains a host gate on real probes.
+  the physical dual-family matrix is deferred to
+  [work-item-2.0.0.3](../../milestone-2.0.0.0-physical-hardware-qualification/work/work-item-2.0.0.3-dual-driver-physical-qualification.md)
+  (decision-0040) and is not a completion gate for this milestone.
 - [x] Draft packed BDA argument layouts and external-memory 0.x fixtures.
 - [x] Define the currently advertised Kernel IR capability subset and stable
   negative diagnostics; complete Kernel IR coverage remains open.
@@ -77,5 +79,6 @@ Implemented stage:
 ## Exit Gate
 
 Positive/negative target fixtures, packed layouts, cache keys, capability reports,
-and benchmark contracts reproduce on both driver families. No Vulkan-specific
-public extension is frozen yet.
+and benchmark contracts reproduce on the host-independent dual-family fixtures;
+the physical dual-family matrix is owned by milestone-2.0.0.0 (decision-0040).
+No Vulkan-specific public extension is frozen yet.

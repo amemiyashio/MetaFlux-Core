@@ -77,14 +77,15 @@ memory or host heap object.
   dedicated-only rejection, and generation-loss reconfigure after ref drain
   (`external_memory_dma_buf_and_generation_loss` in
   `metaflux.backend.vulkan-memory`). Physical VkDevice import/export still
-  requires a qualified host device and remains open for live dual-driver proof.
+  requires a qualified host device; live dual-driver proof is deferred to [work-item-2.0.0.3](../../milestone-2.0.0.0-physical-hardware-qualification/work/work-item-2.0.0.3-dual-driver-physical-qualification.md) (decision-0040).
 - [x] Test fd ownership on success/failure, `memoryTypeBits`, overlapping imports,
   cross-process semaphore visibility, teardown, reset, and device loss.
   Covered host-side: FD dup/CLOEXEC ownership and EBADF after final release
   (`external_memory_fd_ownership`); `memoryTypeBits` accept/reject matrix;
   overlap across concurrent imports; generation-loss analogue of device reset
   that rejects stale tokens. Cross-process semaphore visibility and live
-  VkSemaphoreFd device-loss remain physical-host gates under work-item-0.1.3.4.
+  VkSemaphoreFd device-loss are physical rows owned by work-item-2.0.0.3
+  (decision-0040), not gates for this milestone.
 - [x] Keep external-memory ABI 0.x until baseline staging and every advertised
   direct-tier ownership/coherence matrix pass.
   All ledger/admission paths remain on `MF_VULKAN_EXTERNAL_MEMORY_ABI_VERSION_0`

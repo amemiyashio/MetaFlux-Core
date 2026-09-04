@@ -1,11 +1,11 @@
 ---
-id: work-item-1.0.0.1
-delivery: 1.0.0.1
-milestone: milestone-1.0.0.0
+id: work-item-2.0.0.1
+delivery: 2.0.0.1
+milestone: milestone-2.0.0.0
 status: Queued
 area: backend.cpu
 depends_on: [milestone-0.1.0.0, milestone-0.1.3.0]
-updated: 2026-08-30
+updated: 2026-09-05
 ---
 
 # Intel x86_64 Host Support

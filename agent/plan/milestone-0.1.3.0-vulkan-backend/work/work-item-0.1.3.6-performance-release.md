@@ -43,7 +43,7 @@ physical cancellation.
   `metaflux.packaging.backend-vulkan` bind package id, no-`/nix/store` runtime
   policy, idle-without-ICD coexistence, and the frozen backend header set.
   Live packaging/upgrade/coexistence/uninstall and external-memory freeze remain
-  dual-driver host gates.
+  dual-driver rows are deferred to [work-item-2.0.0.3](../../milestone-2.0.0.0-physical-hardware-qualification/work/work-item-2.0.0.3-dual-driver-physical-qualification.md) (decision-0040).
 - [x] Profile provider enqueue, worker dequeue, Vulkan submit, kernel start, and
   completion separately; report Vulkan ICD syscalls outside the client
   zero-syscall claim.
@@ -62,14 +62,15 @@ physical cancellation.
   records poll-mode stream/ledger timings plus NUMA/affinity fingerprints.
   Explicit remaining host rows: physical block mode, multi-queue batching,
   memory-tier/transport variants, and matching direct `vkQueueSubmit2`
-  baselines on dual-driver reference hosts.
+  baselines; the dual-driver reference-host rows are deferred to
+  work-item-2.0.0.3 (decision-0040).
 - [x] Inject device loss/reset, corrupt cache, allocation/import/compiler-worker
   failure, driver change, and non-completing submission.
   Host-independent device-loss/reset and non-ready submit paths are covered by
   Vulkan device/stream tests; cache invalidation and allocation negative paths
   exist in pipeline/memory unit suites. Explicit non-reopening host blocker:
   physical driver-change and non-completing submission soaks on dual-driver
-  hosts remain release qualification.
+  hosts are deferred to work-item-2.0.0.3 (decision-0040).
 - [x] Run sanitizers, validation layers, soak, packaging, upgrade, coexistence,
   and uninstall suites, then freeze the external-memory extension.
   Packaging ownership and idle-without-ICD coexistence are bound by
@@ -84,7 +85,8 @@ physical cancellation.
   install/upgrade/uninstall rows in digest-pinned Ubuntu 20.04 / Rocky 9
   containers; image acquisition remains the recorded operator step.
   Explicit non-reopening host blockers: sanitizer/validation-layer soak,
-  dual-driver execution evidence, and dual-driver external-memory
+  dual-driver execution evidence, and dual-driver external-memory (all
+  deferred to work-item-2.0.0.3, decision-0040)
   promotion freeze.
 
 ## Exit Gate
