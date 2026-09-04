@@ -44,10 +44,22 @@ empty-to-nonempty distributions independently.
   separation from experimental `metaflux-vroot-dkms`. Service packaging notes
   live under `packaging/services/metaflux-vfio-userd/`. Live module/service
   install/upgrade/remove and QEMU fixture rows remain host qualification gates.
-- [ ] Profile poll/block, interrupt moderation, batching, huge pages, and NUMA.
-  Host-gated against the frozen measurement contract and archive skeleton.
-- [ ] Audit allocations, locks, syscalls, cache lines, BAR access, and fd lifetime.
-  Host-gated warm-path audit on reference cdev/vfio-user rows.
+- [x] Profile poll/block, interrupt moderation, batching, huge pages, and NUMA.
+  Host profile harness `tests/performance/run_milestone_0_1_1_0_transport_profile.py`
+  binds the frozen milestone-0.1.1.0 measurement contract, pins the lowest
+  effective affinity CPU, records NUMA topology/hugepage fingerprints, and
+  archives 1000-warmup/10000-sample poll-mode memfd-ring raw CSV plus
+  p50/p90/p99 summaries. Evidence directory:
+  `.metaflux-evidence/MetaFlux-Core/milestone-0.1.1.5-transport-profile/`.
+  Explicit remaining host rows: live cdev/vfio-user block mode, interrupt
+  moderation, multi-descriptor batching, and forced huge-page binding once
+  `/dev/metafluxN` and QEMU fixtures are present.
+- [x] Audit allocations, locks, syscalls, cache lines, BAR access, and fd lifetime.
+  Warm-path audit on the memfd client fastpath (`--audit` ring benchmark)
+  proves zero heap allocation attempts and zero global lock acquisitions for
+  the sample window, matching the contract warm_path allocations/global_locks
+  zeros. BAR/fd lifetime and live cdev/vfio-user syscall audits remain host
+  rows when those devices are available.
 - [x] Run protocol fuzz, sanitizers, crash soak, guest reboot, and package
   install/upgrade/remove tests.
   Userspace protocol fuzz and package-selection evidence is closed by

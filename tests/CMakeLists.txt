@@ -323,6 +323,20 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     metaflux.performance.measurement-archive-selftest
     PROPERTIES LABELS "performance-smoke;release;unit"
   )
+  if(TARGET metaflux_milestone_0_1_0_0_ring_benchmark)
+    add_test(
+      NAME metaflux.performance.milestone-0.1.1.5-transport-profile-selftest
+      COMMAND
+        "${CMAKE_COMMAND}" -E env
+        "METAFLUX_RING_BENCHMARK=$<TARGET_FILE:metaflux_milestone_0_1_0_0_ring_benchmark>"
+        "${Python3_EXECUTABLE}" -B
+        "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_milestone_0_1_1_0_transport_profile.py"
+    )
+    set_tests_properties(
+      metaflux.performance.milestone-0.1.1.5-transport-profile-selftest
+      PROPERTIES LABELS "performance-smoke;release;unit" TIMEOUT 180
+    )
+  endif()
   add_test(
     NAME metaflux.architecture.agent-state-selftest
     COMMAND
