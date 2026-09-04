@@ -93,6 +93,47 @@ if(TARGET metaflux_cpu_backend_runtime AND TARGET metaflux_cuda_ptx_frontend AND
 endif()
 
 if(TARGET metaflux_cpu_backend_runtime)
+  # Steady-state executor audit: the per-launch heap cost of the daemon-side
+  # CTA launch path must be a constant (two equal windows allocate equally);
+  # the remaining per-launch allocations are the kernel-boundary topology
+  # revalidation required by the placement contract and stay visible in the
+  # output for the next zero-overhead iteration.
+  add_executable(
+    metaflux_cpu_executor_audit
+    performance/cpu_executor_audit.cpp
+    performance/cpu_executor_audit_wrappers.c
+  )
+  target_include_directories(
+    metaflux_cpu_executor_audit
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/performance"
+  )
+  target_link_libraries(metaflux_cpu_executor_audit PRIVATE MetaFlux::CpuBackendRuntime)
+  target_link_options(
+    metaflux_cpu_executor_audit
+    PRIVATE
+      "LINKER:--wrap=malloc"
+      "LINKER:--wrap=calloc"
+      "LINKER:--wrap=realloc"
+      "LINKER:--wrap=aligned_alloc"
+      "LINKER:--wrap=posix_memalign"
+      "LINKER:--wrap=_Znwm"
+      "LINKER:--wrap=_Znam"
+      "LINKER:--wrap=_ZdlPv"
+      "LINKER:--wrap=_ZdaPv"
+      "LINKER:--wrap=_ZdlPvm"
+      "LINKER:--wrap=_ZdaPvm"
+      "LINKER:--wrap=_ZnwmSt11align_val_t"
+      "LINKER:--wrap=_ZnamSt11align_val_t"
+  )
+  metaflux_configure_target(metaflux_cpu_executor_audit CXX)
+  add_test(NAME metaflux.performance.executor-audit COMMAND metaflux_cpu_executor_audit)
+  set_tests_properties(
+    metaflux.performance.executor-audit
+    PROPERTIES LABELS "performance-smoke;runtime;cpu" TIMEOUT 120
+  )
+endif()
+
+if(TARGET metaflux_cpu_backend_runtime)
   add_executable(metaflux_backend_abi_smoke unit/backend_abi_smoke.cpp)
   target_link_libraries(metaflux_backend_abi_smoke PRIVATE MetaFlux::CpuBackendRuntime)
   metaflux_configure_target(metaflux_backend_abi_smoke CXX)

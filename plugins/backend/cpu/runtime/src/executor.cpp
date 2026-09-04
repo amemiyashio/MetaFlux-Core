@@ -120,7 +120,7 @@ struct Batch final {
 
 struct Job final {
   std::uint64_t index = 0;
-  std::shared_ptr<Batch> batch;
+  Batch* batch = nullptr;
 };
 
 class NodePool final {
@@ -162,7 +162,7 @@ public:
     jobs_.reserve(count);
   }
 
-  void discard_pending(const std::shared_ptr<Batch>& batch) {
+  void discard_pending(Batch* batch) {
     std::uint64_t first_index = 0;
     std::uint64_t count = 0;
     {
@@ -258,7 +258,6 @@ struct CpuExecutor::Impl final {
     configuration_error = configured.error;
     configuration_diagnostic = std::move(configured.diagnostic);
   }
-
   [[nodiscard]] bool acquire_boundary(std::stop_token cancellation) {
     std::unique_lock lock(boundary_mutex);
     if (cancellation.stop_requested()) {
@@ -351,13 +350,22 @@ struct CpuExecutor::Impl final {
       return execution_failure(ExecutionError::Cancelled);
     }
 
-    std::shared_ptr<Batch> batch;
+    // Steady-state launch is allocation-free: the boundary serializes
+    // launches, so one reusable Batch and one jobs-per-pool vector serve
+    // every launch after the first. Batch outlives the worker threads
+    // because the pools (which join their workers on destruction) are
+    // declared after batch_storage and are rebuilt only between launches.
+    if (!batch_storage) {
+      batch_storage = std::make_unique<Batch>();
+    }
+    Batch* batch = batch_storage.get();
     try {
-      batch = std::make_shared<Batch>();
       batch->task = std::move(task);
       batch->cancellation = cancellation;
       batch->remaining = count;
-      std::vector<std::size_t> jobs_per_pool(pools.size(), 0U);
+      batch->first_failure.reset();
+      batch->cancellation_observed = false;
+      jobs_per_pool.assign(pools.size(), 0U);
       const auto pool_count = static_cast<std::uint64_t>(pools.size());
       const auto jobs_per_pool_floor = count / pool_count;
       const auto pools_with_extra_job = count % pool_count;
@@ -407,6 +415,10 @@ struct CpuExecutor::Impl final {
   CpuExecutorOptions options;
   PlacementError configuration_error = PlacementError::None;
   std::string configuration_diagnostic;
+  // Declared before the pools so the reusable Batch is destroyed after the
+  // worker threads have been joined by pool destruction.
+  std::unique_ptr<Batch> batch_storage;
+  std::vector<std::size_t> jobs_per_pool;
   std::mutex boundary_mutex;
   std::condition_variable_any boundary_condition;
   bool boundary_active = false;
