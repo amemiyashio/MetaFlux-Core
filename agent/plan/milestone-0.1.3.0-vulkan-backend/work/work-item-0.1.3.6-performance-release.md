@@ -2,10 +2,10 @@
 id: work-item-0.1.3.6
 delivery: 0.1.3.6
 milestone: milestone-0.1.3.0
-status: Queued
+status: Active
 area: release.vulkan
 depends_on: [work-item-0.1.2.3, work-item-0.1.3.2, work-item-0.1.3.4, work-item-0.1.3.5]
-updated: 2026-08-30
+updated: 2026-09-04
 ---
 
 # Vulkan Performance, Fault, and Release
@@ -36,6 +36,14 @@ physical cancellation.
 
 ## Work
 
+- [x] Record packaging-owned `metaflux-backend-vulkan` ownership and backend ABI
+  contract headers before release rows run.
+  `packaging/backend/metaflux-backend-vulkan/README.md` plus
+  `tools/validate-backend-vulkan-packaging.py` / CTest
+  `metaflux.packaging.backend-vulkan` bind package id, no-`/nix/store` runtime
+  policy, idle-without-ICD coexistence, and the frozen backend header set.
+  Live packaging/upgrade/coexistence/uninstall and external-memory freeze remain
+  dual-driver host gates.
 - [ ] Profile provider enqueue, worker dequeue, Vulkan submit, kernel start, and
   completion separately; report Vulkan ICD syscalls outside the client
   zero-syscall claim.

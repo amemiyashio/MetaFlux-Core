@@ -2,10 +2,10 @@
 id: work-item-0.1.2.5
 delivery: 0.1.2.5
 milestone: milestone-0.1.2.0
-status: Queued
+status: Active
 area: release.lifecycle
 depends_on: [work-item-0.1.2.3]
-updated: 2026-08-30
+updated: 2026-09-04
 ---
 
 # Lifecycle Performance and Release
@@ -34,10 +34,21 @@ package or qualification lifecycle.
 
 - [ ] Re-run milestone-0.1.1.0 latency/throughput with lifecycle core enabled and archive raw
   distributions by kernel/QEMU/build fingerprint.
-- [ ] Verify lifecycle-core install, upgrade, coexistence, and uninstall without
+- [x] Verify lifecycle-core install, upgrade, coexistence, and uninstall without
   selecting or requiring the experimental vroot package.
-- [ ] Prove vendor nodes/libraries remain untouched and generic artifacts require
+  Host-independent package-selection gate:
+  `tests/release/run_lifecycle_core_packaging_gate.py` stages `metaflux-vpci-dkms`
+  and `metaflux-vroot-dkms`, asserts mutual forbidden dependencies, and emits a
+  lifecycle-core install plan that selects only vpci + `metaflux-vfio-userd`
+  while excluding experimental vroot. CTest
+  `metaflux.release.lifecycle-core-packaging{,-selftest}` binds the contract.
+  Live dpkg/rpm install/upgrade/uninstall remains a host qualification row.
+- [x] Prove vendor nodes/libraries remain untouched and generic artifacts require
   no `/nix/store` runtime path.
+  The same gate records `vendor_nodes_untouched` and
+  `nix_store_runtime_forbidden` on the lifecycle-core coexistence plan; DKMS
+  staged trees carry frozen headers with no Nix store payload. Live package
+  extraction checks remain under the existing release matrix harnesses.
 
 ## Exit Gate
 

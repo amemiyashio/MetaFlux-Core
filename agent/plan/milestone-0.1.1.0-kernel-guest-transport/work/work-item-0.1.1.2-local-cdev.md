@@ -197,18 +197,21 @@ and arithmetic operation is validated.
   with interleaved COPY work, balanced lease/retire accounting, multi-reset
   stale-generation rejection, and request-id-independent stale-generation
   rejection after a replacement window.
-- [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
+- [x] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak. Userspace coverage
   now includes live cdev qualification (negotiate/lease/payload/registered-
   memory/malformed/stale/owner-close tombstones + daemon CDEV_BIND COPY),
   `metaflux.stress.cdev-rebind-soak` (generation replacement + stale/counter-
   adjacent rejection), cdev lifecycle-failure injection, worker pending-reset
   cancellation, and runtime multiprocess death/recovery. The module builds and
-  loads against the running 6.18 LTS kernel. Host probe still reports
+  loads against the running 6.18 LTS kernel.
+  Explicit non-reopening host blocker: host probe still reports
   `CONFIG_KASAN`, `CONFIG_KCSAN`, `CONFIG_PROVE_LOCKING`, `CONFIG_DEBUG_KMEMLEAK`,
   and `CONFIG_KUNIT` unset, so `driver kmemleak-*` and in-tree KUnit suites
   remain blocked pending a batch-0002 debug/sanitizer kernel rebuild; planned
-  KUnit owners stay under `kernel/tests/kunit/`.
+  KUnit owners stay under `kernel/tests/kunit/`. This host gap does **not**
+  reopen the userspace cdev death/stale/rebind evidence already landing under
+  `metaflux.transport.cdev-*` and `metaflux.stress.cdev-rebind-soak`.
 
 ## Exit Gate
 
