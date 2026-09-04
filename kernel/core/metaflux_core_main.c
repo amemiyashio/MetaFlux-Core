@@ -101,6 +101,8 @@ struct mf_cdev_registered_memory {
 	bool online;
 };
 
+#include "mf_cdev_generation.h"
+
 static DEFINE_MUTEX(mf_cdev_lock);
 static struct mf_cdev_queue mf_cdev_queue;
 static struct mf_cdev_memory mf_cdev_payload;
@@ -400,7 +402,7 @@ static int mf_cdev_memory_alloc(struct mf_cdev_file *file, void __user *argument
 		vfree(mapping);
 		return -ENODEV;
 	}
-	if (request.generation != 0U && request.generation != mf_cdev_queue.generation) {
+	if (request.generation != 0U && mf_cdev_generation_is_stale(request.generation, mf_cdev_queue.generation)) {
 		mutex_unlock(&mf_cdev_lock);
 		vfree(mapping);
 		return -EINVAL;
@@ -484,7 +486,7 @@ static int mf_cdev_memory_query(struct mf_cdev_file *file, void __user *argument
 	}
 	if (!mf_cdev_payload.online || mf_cdev_payload.mapping == NULL ||
 	    mf_cdev_payload.owner == NULL ||
-	    mf_cdev_payload.generation != mf_cdev_queue.generation) {
+	    mf_cdev_generation_is_stale(mf_cdev_payload.generation, mf_cdev_queue.generation)) {
 		mutex_unlock(&mf_cdev_lock);
 		return -EAGAIN;
 	}
@@ -536,7 +538,7 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 		    request.alignment != 0U || request.offset != 0U || request.fd != -1)
 			return -EINVAL;
 		mutex_lock(&mf_cdev_lock);
-		if (request.generation != mf_cdev_queue.generation) {
+		if (mf_cdev_generation_is_stale(request.generation, mf_cdev_queue.generation)) {
 			mutex_unlock(&mf_cdev_lock);
 			return -EINVAL;
 		}
@@ -639,10 +641,10 @@ static int mf_cdev_memory_register(struct mf_cdev_file *file, void __user *argum
 							     dma_direction, dma_nents, mm, request.flags);
 		return -EOPNOTSUPP;
 	}
-	if (request.generation != 0U && request.generation != mf_cdev_queue.generation) {
+	if (request.generation != 0U && mf_cdev_generation_is_stale(request.generation, mf_cdev_queue.generation)) {
 		mutex_unlock(&mf_cdev_lock);
 		mf_cdev_registered_resources_release(pages, page_count, &sg_table, dma_device,
-							     dma_direction, dma_nents, mm, request.flags);
+						     dma_direction, dma_nents, mm, request.flags);
 		return -EINVAL;
 	}
 	if (!mf_cdev_queue.online) {
@@ -913,7 +915,7 @@ static int mf_cdev_worker_lease(struct mf_cdev_file *file, void __user *argument
 	     request.daemon_incarnation != mf_cdev_queue.view_id.daemon_incarnation) ||
 	    (request.registry_view_serial != 0U &&
 	     request.registry_view_serial != mf_cdev_queue.view_id.view_serial) ||
-	    (request.device_generation != 0U && request.device_generation != mf_cdev_queue.generation)) {
+	    (request.device_generation != 0U && mf_cdev_generation_is_stale(request.device_generation, mf_cdev_queue.generation))) {
 		mutex_unlock(&mf_cdev_lock);
 		mf_cdev_eventfd_put(&kick_eventfd);
 		mf_cdev_eventfd_put(&completion_eventfd);

@@ -124,6 +124,13 @@ def main() -> int:
         help="Exit 77 (CTest SKIP_RETURN_CODE) if any required config is not 'y'.",
     )
     parser.add_argument(
+        "--require-config",
+        type=str,
+        default=None,
+        metavar="NAME",
+        help="Exit 77 (CTest SKIP_RETURN_CODE) if the named config is not 'y'.",
+    )
+    parser.add_argument(
         "--output",
         type=str,
         default=None,
@@ -152,6 +159,15 @@ def main() -> int:
             file=sys.stderr,
         )
         return 77
+
+    if args.require_config:
+        config_name = args.require_config
+        if config_name not in values or values[config_name] != "y":
+            print(
+                f"kernel missing required config: {config_name}={values.get(config_name, 'absent')}",
+                file=sys.stderr,
+            )
+            return 77
 
     return 0
 

@@ -121,6 +121,30 @@ def test_json_shape() -> None:
     print("PASS: json_shape")
 
 
+def test_require_config_missing_exits_77() -> None:
+    cfg = make_config({"CONFIG_KUNIT": "n"})
+    rc, out = run_probe(cfg, extra_args=["--require-config", "CONFIG_KUNIT"])
+    assert rc == 77, f"expected 77, got {rc}"
+    assert out["kernel_config"]["CONFIG_KUNIT"] == "n"
+    print("PASS: require_config_missing_exits_77")
+
+
+def test_require_config_present_exits_0() -> None:
+    cfg = make_config({"CONFIG_KUNIT": "y"})
+    rc, out = run_probe(cfg, extra_args=["--require-config", "CONFIG_KUNIT"])
+    assert rc == 0, f"expected 0, got {rc}"
+    assert out["kernel_config"]["CONFIG_KUNIT"] == "y"
+    print("PASS: require_config_present_exits_0")
+
+
+def test_require_config_absent_exits_77() -> None:
+    cfg = make_config({})
+    rc, out = run_probe(cfg, extra_args=["--require-config", "CONFIG_KUNIT"])
+    assert rc == 77, f"expected 77, got {rc}"
+    assert out["kernel_config"]["CONFIG_KUNIT"] == "absent"
+    print("PASS: require_config_absent_exits_77")
+
+
 def main() -> int:
     tests = [
         test_all_qualified,
@@ -129,6 +153,9 @@ def main() -> int:
         test_require_qualification_exits_77,
         test_partial_qualification_exits_77,
         test_json_shape,
+        test_require_config_missing_exits_77,
+        test_require_config_present_exits_0,
+        test_require_config_absent_exits_77,
     ]
     failed = 0
     for test in tests:

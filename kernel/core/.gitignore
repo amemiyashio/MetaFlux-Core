@@ -1,0 +1,10 @@
+# Build artifacts from kernel module compilation
+*.o
+*.ko
+*.mod
+*.mod.c
+.*.cmd
+Module.symvers
+modules.order
+.tmp_versions
+generated/

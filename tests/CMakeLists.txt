@@ -789,6 +789,40 @@ set_tests_properties(
     LABELS "kernel;qualification"
     SKIP_RETURN_CODE 77
 )
+# KUnit generation probe: skips when CONFIG_KUNIT is not 'y'.  This only
+# records config presence; live KUnit execution remains a batch-0002 gate.
+add_test(
+  NAME metaflux.kernel.kunit-generation
+  COMMAND
+    "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/../tests/kernel/probe-kunit-generation.py"
+)
+set_tests_properties(
+  metaflux.kernel.kunit-generation
+  PROPERTIES
+    LABELS "kernel;qualification;kunit"
+    SKIP_RETURN_CODE 77
+)
+# Userspace self-test of the generation/stale-handle helper logic.  This
+# does NOT require a debug kernel and CAN pass on any host.
+add_executable(
+  metaflux_cdev_generation_helper_test
+  "${CMAKE_CURRENT_SOURCE_DIR}/../kernel/tests/kunit/mf_cdev_generation_userspace_test.c"
+)
+target_include_directories(
+  metaflux_cdev_generation_helper_test
+  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../kernel/core"
+)
+metaflux_configure_target(metaflux_cdev_generation_helper_test C)
+add_test(
+  NAME metaflux.kernel.cdev-generation-helper
+  COMMAND metaflux_cdev_generation_helper_test
+)
+set_tests_properties(
+  metaflux.kernel.cdev-generation-helper
+  PROPERTIES
+    LABELS "kernel;cdev;unit"
+)
 add_test(
   NAME metaflux.kernel.debug-config-probe-selftest
   COMMAND
