@@ -26,7 +26,9 @@ the repository gates.
    Prefer bounded coding subagents for product source and test lookup, add,
    delete, and modify: the parent writes a self-contained briefing from loaded
    authority, then reviews returned diffs in conversation against that briefing
-   and product boundaries before tests or commit. Coding subagents must not
+   and product boundaries before tests or commit. Do not start the next
+   coding-subagent dispatch or Iteration cycle until that review accepts the
+   dispatched briefing goal without drift. Coding subagents must not
    edit `goal.json`, integrate, govern, push, or create execution contexts.
    Review is conversation output only; there is no review archive. Report the
    full Epoch/Batch/Iteration identity, base and tip revisions, tests,

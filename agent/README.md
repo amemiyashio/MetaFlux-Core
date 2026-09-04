@@ -20,7 +20,7 @@ queued plans describe intent, not implemented behavior.
 
 ## Execution Scale
 
-- **Epoch** (`epoch-0006`): one repository-wide semantic governance regime.
+- **Epoch** (`epoch-0007`): one repository-wide semantic governance regime.
   Only explicit `govern-epoch` may advance it, after a full current-authority
   rewrite and passing regression.
 - **Batch** (`batch-0001`): one bounded collection of parallel product lanes
@@ -31,7 +31,7 @@ queued plans describe intent, not implemented behavior.
 
 The full identity is always written as
 `epoch-NNNN / batch-NNNN / iteration-NNNN` (currently
-`epoch-0006 / batch-0001 / iteration-0001`). A worker delivers exact base and tip
+`epoch-0007 / batch-0001 / iteration-0001`). A worker delivers exact base and tip
 revisions. Product source and test mutation prefers a parent briefing, a bounded
 coding subagent, and parent review against drift. Only an explicitly created
 integration agent changes `goal.json`.
@@ -71,8 +71,9 @@ technical namespaces.
 1. Establish a Batch objective and preallocate one Iteration per parallel lane.
 2. Run each Iteration in a separate worktree from an exact base revision.
 3. Brief coding subagents from loaded authority, review their product-source
-   diffs in conversation, then deliver committed base/tip revisions, tests,
-   blockers, and roast candidates.
+   diffs in conversation against the briefing goal, and only then start the
+   next dispatch or deliver committed base/tip revisions, tests, blockers, and
+   roast candidates.
 4. In a separate user-requested integration run, invoke `integrate-batch` to
    review, merge, repair bounded integration gaps, and run combined regression.
 5. Update lane and Batch status only after acceptance passes. Open the next

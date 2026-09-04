@@ -197,12 +197,17 @@ request and one full committed object ID.
 ## Deliver The Iteration
 
 After coding subagents return, the parent reviews diffs and conclusions in
-conversation against the briefing and product boundaries. Reject or re-brief on
-drift. Do not write a session, roast, checkpoint, progress, or review archive.
-Parent remains sole owner of verification commands and the start-work commit
-helper. Parent remains sole owner of `goal.json`; workers never edit it. Only
-after review may the parent run tests and commit via the commit helper. Do not
-push an ordinary Iteration commit.
+conversation against the briefing and product boundaries. The review must
+confirm that the dispatched briefing goal is met and that the result has not
+drifted outside allowed paths, forbidden paths, or named drift surfaces.
+Reject or re-brief on drift or an unmet briefing goal. Do not start the next
+coding-subagent dispatch, the next lane slice, or another Iteration cycle until
+that review accepts the current dispatch. Do not write a session, roast,
+checkpoint, progress, or review archive. Parent remains sole owner of
+verification commands and the start-work commit helper. Parent remains sole
+owner of `goal.json`; workers never edit it. Only after review may the parent
+run tests and commit via the commit helper. Do not push an ordinary Iteration
+commit.
 
 Implement one coherent lane candidate and run focused tests proportional to its
 risk. Commit all delivered changes; staged, unstaged, untracked, or generated
