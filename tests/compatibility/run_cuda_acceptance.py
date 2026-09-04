@@ -89,7 +89,10 @@ def run_application(
             f"metafluxd {label} exited with {daemon.returncode}\n"
             f"stdout:\n{daemon_stdout}\nstderr:\n{daemon_stderr}"
         )
-    passed = application.returncode == 0 and "cuda-add-copy: PASS" in application.stdout
+    passed_marker = "cuda-add-copy: PASS" in application.stdout or (
+        "cuda-reduction: PASS" in application.stdout
+    )
+    passed = application.returncode == 0 and passed_marker
     if passed != expect_success:
         expectation = "success" if expect_success else "an explicit failure"
         raise RuntimeError(

@@ -3605,7 +3605,8 @@ CUresult cuModuleGetFunction(CUfunction* function, CUmodule module, const char* 
     result = mf_cuda_lookup_token_locked((void*)module, MF_CUDA_TAG_MODULE, MF_CUDA_OBJECT_MODULE,
                                          mf_cuda_global.modules, &module_index, &module_record);
   }
-  if (result == CUDA_SUCCESS && strcmp(name, "add_u32") != 0) {
+  if (result == CUDA_SUCCESS && strcmp(name, "add_u32") != 0 &&
+      strcmp(name, "block_reduce_u32") != 0) {
     result = CUDA_ERROR_NOT_FOUND;
   }
   function_index = mf_cuda_free_slot(mf_cuda_global.functions);

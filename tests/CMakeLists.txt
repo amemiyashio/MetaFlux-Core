@@ -663,6 +663,47 @@ if(
       PROPERTIES LABELS "compatibility;integration;cuda;compiler;cpu" TIMEOUT 240
     )
   endforeach()
+
+  add_executable(metaflux_cuda_reduction_acceptance compatibility/cuda_reduction.c)
+  target_include_directories(
+    metaflux_cuda_reduction_acceptance
+    SYSTEM PRIVATE "${METAFLUX_NVIDIA_HEADER_DIR}"
+  )
+  target_link_libraries(metaflux_cuda_reduction_acceptance PRIVATE metaflux_cuda_provider)
+  metaflux_configure_target(metaflux_cuda_reduction_acceptance C)
+  add_test(
+    NAME metaflux.integration.cuda-reduction-managed
+    COMMAND
+      "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_cuda_acceptance.py"
+      --daemon $<TARGET_FILE:metafluxd>
+      --application $<TARGET_FILE:metaflux_cuda_reduction_acceptance>
+      --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
+      --execution-mode interpreter
+      --ptx
+      "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/shared-reduction.ptx"
+  )
+  set_tests_properties(
+    metaflux.integration.cuda-reduction-managed
+    PROPERTIES LABELS "compatibility;integration;cuda" TIMEOUT 60
+  )
+
+  foreach(metaflux_execution_mode IN ITEMS cold-jit warm-jit aot)
+    add_test(
+      NAME "metaflux.integration.cuda-reduction-managed.${metaflux_execution_mode}"
+      COMMAND
+        "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_cuda_acceptance.py"
+        --daemon $<TARGET_FILE:metafluxd>
+        --application $<TARGET_FILE:metaflux_cuda_reduction_acceptance>
+        --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
+        --execution-mode "${metaflux_execution_mode}"
+        --ptx
+        "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/shared-reduction.ptx"
+    )
+    set_tests_properties(
+      "metaflux.integration.cuda-reduction-managed.${metaflux_execution_mode}"
+      PROPERTIES LABELS "compatibility;integration;cuda;compiler;cpu" TIMEOUT 240
+    )
+  endforeach()
 endif()
 
 if(
