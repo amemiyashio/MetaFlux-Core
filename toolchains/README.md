@@ -50,9 +50,12 @@ The default repository Python closure includes PyYAML for the static skill and
 repository YAML validators. The pinned nixpkgs revision fixes both identities;
 the validators, not Nix, continue to own schema meaning and acceptance.
 
-Under decision-0031, command resolution is Nix-first. Development enters the Git-aware
+Under decision-0031, command resolution is Nix-first and the Nix shell is the
+first-choice execution environment. Development enters the Git-aware
 flake with `nix develop . --command ...` before any repository executable or
-tool/version/capability probe. This includes shell inspection utilities,
+tool/version/capability probe; when a workflow needs a single named tool,
+the preferred form is `nix shell .#<tool-output> --command TOOL ...`. This
+includes shell inspection utilities,
 Python/repository scripts, compilers, CMake, Ninja, CTest, packaging, and
 qualification tools. Host Git and Nix are the only executable bootstrap
 exceptions; repository file APIs may read tracked text directly. Agents do not

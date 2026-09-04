@@ -53,9 +53,16 @@ identity and provisioning boundaries live in
   Fixed means clear and reproducibly stable for the current revision, not
   permanently immutable; governed manifest/lock updates may advance versions.
 - Agent startup is Nix-first (decision-0031) and agent identity follows
-  decision-0034. `detect-agent-tool` runs inside the Git-aware Nix environment
-  and derives its ephemeral subject only from a resolved harness/CLI executable
-  basename; its numeric version comes only from a bounded `--version` probe.
+  decision-0034. The Nix shell is the first-choice execution environment for
+  every tool invocation: `nix develop . --command ...` is the full Git-aware
+  repository entry, and `nix shell .#<tool-output> --command ...` is the
+  preferred form when a workflow needs one named tool output without the
+  whole development shell. Ambient host execution is never preferred; it is
+  only a recorded prerequisite after a proved Nix gap (decision-0036).
+  `detect-agent-tool` runs inside the Git-aware Nix
+  environment and derives its ephemeral subject only from a resolved harness/CLI
+  executable basename; its numeric version comes only from a bounded `--version`
+  probe.
   Model/provider/template/backend/build/prompt/conversation/session/thread,
   repository prose, Git configuration, and user labels are invalid inputs and
   are never output fields. Ambiguous executable discovery requires an exact

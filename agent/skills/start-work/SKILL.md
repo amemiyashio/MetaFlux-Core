@@ -45,8 +45,11 @@ Complete this stage before any shell executable except host `git` and `nix`.
    The subject comes only from the resolved executable basename; the version
    comes only from its bounded `--version` probe.
 5. Run every project executable and every project version/capability probe
-   through the Git-aware `nix develop . --command ...` environment. Never probe
-   the ambient host first and never use `path:.`. The observed caller harness
+   through a Nix shell, the first-choice execution environment:
+   `nix develop . --command ...` for repository workflows, or the preferred
+   single-tool form `nix shell .#<tool-output> --command TOOL ...` when only
+   one named tool output is required. Never probe the ambient host first and
+   never use `path:.`. The observed caller harness
    is not a project tool and is not pinned by repository Nix.
 6. If a required project tool is missing, load `manage-toolchain` and add it to
    the repository Nix declaration first. Only after a confirmed Nix provision

@@ -22,8 +22,10 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 ## Routing
 
 - Startup resolution is Nix-first. Before any repository executable or
-  tool/version/capability probe, enter the Git-aware environment with
-  `nix develop . --command ...`. Do not inspect ambient `PATH`, use
+  tool/version/capability probe, enter the Nix shell: `nix develop . --command ...`
+  for repository workflows, or the preferred single-tool form
+  `nix shell .#<tool-output> --command TOOL ...` when only one named tool
+  output is needed. Do not inspect ambient `PATH`, use
   `which`/`command -v`, or run a host executable to decide whether the Nix
    declaration is needed. Host `git` and `nix` are the only bootstrap
    executables; repository file APIs may read tracked text directly.
