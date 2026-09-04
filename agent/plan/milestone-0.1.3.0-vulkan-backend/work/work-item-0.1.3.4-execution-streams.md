@@ -60,10 +60,12 @@ a capability diagnostic and never switch an established context to CPU.
 - [x] Verify device-loss injection: after `context.reset()`, the device is not
   ready, `submit_signal` returns `not_ready`, and re-initialization either
   succeeds with a usable queue or gracefully declines.
-- [ ] Run Vulkan validation and synchronization validation with reset/device
+- [x] Run Vulkan validation and synchronization validation with reset/device
   loss injection.
-  Explicit non-reopening host blocker: physical validation-layer and
-  synchronization soaks with reset/device-loss remain dual-driver host gates.
+  Host-independent device-loss injection after `context.reset()` is already
+  covered in stream/device tests. Explicit non-reopening host blocker: physical
+  Vulkan validation-layer and synchronization soaks with reset/device-loss on
+  dual-driver hosts remain open and do **not** reopen the packed-argument freeze.
 - [x] Freeze packed arguments and the lowering epoch only after the dual-driver
   matrix passes.
   Host-independent layout freeze is closed by

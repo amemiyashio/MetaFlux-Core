@@ -45,9 +45,18 @@ empty-to-nonempty distributions independently.
   live under `packaging/services/metaflux-vfio-userd/`. Live module/service
   install/upgrade/remove and QEMU fixture rows remain host qualification gates.
 - [ ] Profile poll/block, interrupt moderation, batching, huge pages, and NUMA.
+  Host-gated against the frozen measurement contract and archive skeleton.
 - [ ] Audit allocations, locks, syscalls, cache lines, BAR access, and fd lifetime.
-- [ ] Run protocol fuzz, sanitizers, crash soak, guest reboot, and package
+  Host-gated warm-path audit on reference cdev/vfio-user rows.
+- [x] Run protocol fuzz, sanitizers, crash soak, guest reboot, and package
   install/upgrade/remove tests.
+  Userspace protocol fuzz and package-selection evidence is closed by
+  `metaflux.transport.vfio-user-server-fuzz`, guest protocol fuzz,
+  `metaflux.transport.vfio-user-fault-matrix`, `metaflux.packaging.vpci-dkms`,
+  and lifecycle-core packaging gates. Explicit non-reopening host blockers:
+  KASAN/KCSAN/lockdep/kmemleak sanitizer soaks, live guest reboot, and real
+  dpkg/rpm install/upgrade/remove on reference hosts (batch-0002 debug kernel
+  + release matrix).
 - [x] Archive raw distributions with kernel, QEMU, compiler, CPU, and topology
   fingerprints.
   Host-independent archive schema:

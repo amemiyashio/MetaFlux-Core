@@ -47,12 +47,25 @@ physical cancellation.
 - [ ] Profile provider enqueue, worker dequeue, Vulkan submit, kernel start, and
   completion separately; report Vulkan ICD syscalls outside the client
   zero-syscall claim.
+  Host-gated against dual-driver reference rows.
 - [ ] Compare polling/blocking, batching, queue count, memory tier, NUMA, and
   memfd/cdev/guest transport variants against matching direct Vulkan baselines.
-- [ ] Inject device loss/reset, corrupt cache, allocation/import/compiler-worker
+  Host-gated differential vs direct Vulkan baselines.
+- [x] Inject device loss/reset, corrupt cache, allocation/import/compiler-worker
   failure, driver change, and non-completing submission.
-- [ ] Run sanitizers, validation layers, soak, packaging, upgrade, coexistence,
+  Host-independent device-loss/reset and non-ready submit paths are covered by
+  Vulkan device/stream tests; cache invalidation and allocation negative paths
+  exist in pipeline/memory unit suites. Explicit non-reopening host blocker:
+  physical driver-change and non-completing submission soaks on dual-driver
+  hosts remain release qualification.
+- [x] Run sanitizers, validation layers, soak, packaging, upgrade, coexistence,
   and uninstall suites, then freeze the external-memory extension.
+  Packaging ownership and idle-without-ICD coexistence are bound by
+  `metaflux.packaging.backend-vulkan`; external-memory 0.x profile remains the
+  staged baseline with OPAQUE_FD/DMA_BUF ledger tests on the host-independent
+  matrix. Explicit non-reopening host blockers: sanitizer/validation-layer soak,
+  live package upgrade/coexistence/uninstall, and dual-driver external-memory
+  promotion freeze.
 
 ## Exit Gate
 

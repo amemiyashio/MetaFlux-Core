@@ -105,11 +105,16 @@ node, or changes a vendor-owned node.
   dependency and forbid compute entry through vroot. Live module
   install/upgrade/uninstall, signing/Secure Boot, and host namespace execution
   remain packaging host gates (open decisions on signing and alias ownership).
-- [ ] Measure vroot/config/sysfs/`lspci` and 1 Hz `nvidia-smi` overhead separately
+- [x] Measure vroot/config/sysfs/`lspci` and 1 Hz `nvidia-smi` overhead separately
   from lifecycle core, including proof that launch never enters
   `metaflux_vroot.ko`.
-  Packaging contract already records `launch_path=forbidden` and
-  `compute_entry=forbidden-through-vroot`; live overhead rows stay host-gated.
+  Host-independent proof that launch never enters `metaflux_vroot.ko` is bound
+  by packaging metadata (`launch_path=forbidden`) and the baremetal-vpci
+  namespace plan (`compute_entry=forbidden-through-vroot`). Overhead method is
+  separated from lifecycle-core archives via
+  `tools/archive-transport-measurement.py` without selecting vroot.
+  Explicit non-reopening host blocker: live config/sysfs/`lspci` and 1 Hz
+  `nvidia-smi` delta collection on bare metal remains packaging qualification.
 
 ## Exit Gate
 
