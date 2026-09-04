@@ -1,7 +1,16 @@
 find_package(Threads REQUIRED)
 
+# The packaged backend is a shared library (packaging/build.py kind
+# backend-vulkan); in-tree builds keep the static archive so tests and the
+# daemon link it without loader setup.
+if(METAFLUX_VULKAN_BACKEND_SHARED)
+  set(METAFLUX_VULKAN_BACKEND_LIBRARY_TYPE SHARED)
+else()
+  set(METAFLUX_VULKAN_BACKEND_LIBRARY_TYPE STATIC)
+endif()
+
 add_library(
-  metaflux_vulkan_backend STATIC
+  metaflux_vulkan_backend ${METAFLUX_VULKAN_BACKEND_LIBRARY_TYPE}
   src/capability.cpp
   src/memory.cpp
   src/target.cpp
@@ -31,6 +40,11 @@ target_include_directories(
 target_compile_options(metaflux_vulkan_backend PUBLIC
                        "SHELL:-isystem ${METAFLUX_VULKAN_INCLUDE_DIR}")
 target_link_libraries(metaflux_vulkan_backend PRIVATE "${METAFLUX_VULKAN_LIBRARY}" Threads::Threads)
+if(METAFLUX_VULKAN_BACKEND_SHARED)
+  # The packaged shared backend stays within the glibc-2.31 generic artifact
+  # policy: no private libstdc++/libgcc runtime dependency.
+  target_link_options(metaflux_vulkan_backend PRIVATE -static-libstdc++ -static-libgcc)
+endif()
 metaflux_configure_target(metaflux_vulkan_backend CXX)
 
 if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)

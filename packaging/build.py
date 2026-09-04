@@ -40,6 +40,16 @@ MANIFEST_NAMES = {
     "target-sdk": ".metaflux-target-sdk-manifest",
     "generic-toolchain": ".metaflux-generic-llvm-toolchain",
 }
+BACKEND_VULKAN_DYNAMIC_LIBRARIES = ALLOWED_DYNAMIC_LIBRARIES | {
+    "libvulkan.so.1",
+}
+BACKEND_VULKAN_HEADERS = (
+    "vulkan.h",
+    "vulkan_arguments.h",
+    "vulkan_memory.h",
+    "api.h",
+)
+BACKEND_VULKAN_SHARED_LIBRARY = "usr/lib/metaflux/backends/libmetaflux_vulkan_backend.so"
 
 
 DEB_PREINST = r"""#!/bin/sh
@@ -363,7 +373,9 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-dir", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
-    parser.add_argument("--kind", choices=("provider", "complete"), required=True)
+    parser.add_argument(
+        "--kind", choices=("provider", "complete", "backend-vulkan"), required=True
+    )
     parser.add_argument(
         "--format",
         dest="formats",
@@ -494,7 +506,13 @@ def readelf_output(readelf: str, arguments: list[str], path: Path) -> str:
     return result.stdout
 
 
-def validate_elf(path: Path, relative_path: str, readelf: str) -> None:
+def validate_elf(
+    path: Path,
+    relative_path: str,
+    readelf: str,
+    *,
+    allowed_libraries: frozenset[str] = ALLOWED_DYNAMIC_LIBRARIES,
+) -> None:
     program_headers = readelf_output(readelf, ["-l", "-W"], path)
     interpreters = re.findall(r"Requesting program interpreter: ([^]]+)", program_headers)
     if interpreters and any(interpreter != TARGET_INTERPRETER for interpreter in interpreters):
@@ -506,7 +524,7 @@ def validate_elf(path: Path, relative_path: str, readelf: str) -> None:
     if "(RPATH)" in dynamic or "(RUNPATH)" in dynamic:
         raise ValueError(f"ELF has RPATH/RUNPATH: {path}")
     dependencies = re.findall(r"\(NEEDED\).*?\[([^]]+)\]", dynamic)
-    unexpected = sorted(set(dependencies) - ALLOWED_DYNAMIC_LIBRARIES)
+    unexpected = sorted(set(dependencies) - allowed_libraries)
     if unexpected:
         raise ValueError(f"ELF has non-system dynamic dependencies {unexpected}: {path}")
 
@@ -522,35 +540,51 @@ def validate_elf(path: Path, relative_path: str, readelf: str) -> None:
 
 
 def validate_payload(stage: Path, kind: str, readelf: str) -> None:
-    lib_candidates = ["usr/lib/metaflux", "usr/lib64/metaflux"]
-    lib_dir = None
-    for candidate in lib_candidates:
-        if (stage / candidate / "providers").is_dir():
-            lib_dir = candidate
-            break
-    if lib_dir is None:
-        raise ValueError("package payload is missing metaflux providers directory")
-    required = [
-        f"{lib_dir}/providers/libcuda.so.1.0.0",
-        f"{lib_dir}/providers/libnvidia-ml.so.1.0.0",
-        f"{lib_dir}/providers/libcuda.so.1",
-        f"{lib_dir}/providers/libnvidia-ml.so.1",
-        "usr/include/metaflux",
-        "usr/share/metaflux",
-    ]
-    if kind == "complete":
-        required.extend(
-            (
-                "usr/bin/metafluxd",
-                "usr/libexec/metaflux/ld.lld",
-                "usr/lib/udev/rules.d/70-metaflux.rules",
-                "usr/share/metaflux/toolchains/ubuntu-20.04-target-sdk.manifest",
-                "usr/share/metaflux/toolchains/generic-llvm-toolchain.manifest",
+    allowed_libraries = ALLOWED_DYNAMIC_LIBRARIES
+    if kind == "backend-vulkan":
+        required = [
+            BACKEND_VULKAN_SHARED_LIBRARY,
+            *(f"usr/include/metaflux/backend/{name}" for name in BACKEND_VULKAN_HEADERS),
+            "usr/share/doc/metaflux-backend-vulkan/README.md",
+        ]
+    else:
+        lib_candidates = ["usr/lib/metaflux", "usr/lib64/metaflux"]
+        lib_dir = None
+        for candidate in lib_candidates:
+            if (stage / candidate / "providers").is_dir():
+                lib_dir = candidate
+                break
+        if lib_dir is None:
+            raise ValueError("package payload is missing metaflux providers directory")
+        required = [
+            f"{lib_dir}/providers/libcuda.so.1.0.0",
+            f"{lib_dir}/providers/libnvidia-ml.so.1.0.0",
+            f"{lib_dir}/providers/libcuda.so.1",
+            f"{lib_dir}/providers/libnvidia-ml.so.1",
+            "usr/include/metaflux",
+            "usr/share/metaflux",
+        ]
+        if kind == "complete":
+            required.extend(
+                (
+                    "usr/bin/metafluxd",
+                    "usr/libexec/metaflux/ld.lld",
+                    "usr/lib/udev/rules.d/70-metaflux.rules",
+                    "usr/share/metaflux/toolchains/ubuntu-20.04-target-sdk.manifest",
+                    "usr/share/metaflux/toolchains/generic-llvm-toolchain.manifest",
+                )
             )
-        )
     for relative in required:
         if not (stage / relative).exists():
             raise ValueError(f"package payload is missing {relative}")
+    shared_library = stage / BACKEND_VULKAN_SHARED_LIBRARY
+    if kind == "backend-vulkan":
+        elf_header = readelf_output(readelf, ["-h", "-W"], shared_library)
+        if "DYN" not in elf_header:
+            raise ValueError(
+                f"packaged Vulkan backend is not a shared library: {shared_library}"
+            )
+        allowed_libraries = BACKEND_VULKAN_DYNAMIC_LIBRARIES
     for path in stage.rglob("*"):
         if path.is_symlink():
             if os.readlink(path).startswith("/"):
@@ -570,7 +604,38 @@ def validate_payload(stage: Path, kind: str, readelf: str) -> None:
                     path,
                     path.relative_to(stage).as_posix(),
                     readelf,
+                    allowed_libraries=allowed_libraries,
                 )
+
+
+def stage_backend_vulkan(build_dir: Path, stage: Path) -> None:
+    """Stage the packaged shared Vulkan backend from a generic build tree."""
+    candidates = sorted(build_dir.rglob("libmetaflux_vulkan_backend.so"))
+    if not candidates:
+        raise ValueError(
+            "generic build tree has no libmetaflux_vulkan_backend.so; "
+            "configure it with METAFLUX_BUILD_VULKAN_BACKEND=ON and "
+            "METAFLUX_VULKAN_BACKEND_SHARED=ON"
+        )
+    (stage / "usr/lib/metaflux/backends").mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(candidates[0], stage / BACKEND_VULKAN_SHARED_LIBRARY)
+    shutil.copymode(candidates[0], stage / BACKEND_VULKAN_SHARED_LIBRARY)
+
+    header_source = PROJECT_ROOT / "contracts/plugin/backend/v1/include/metaflux/backend"
+    header_stage = stage / "usr/include/metaflux/backend"
+    header_stage.mkdir(parents=True, exist_ok=True)
+    for name in BACKEND_VULKAN_HEADERS:
+        source = header_source / name
+        if not source.is_file():
+            raise ValueError(f"backend contract header is missing: {source}")
+        shutil.copyfile(source, header_stage / name)
+
+    notes = PROJECT_ROOT / "packaging/backend/metaflux-backend-vulkan/README.md"
+    if not notes.is_file():
+        raise ValueError(f"backend packaging notes are missing: {notes}")
+    notes_stage = stage / "usr/share/doc/metaflux-backend-vulkan/README.md"
+    notes_stage.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(notes, notes_stage)
 
 
 def install_stage(
@@ -586,10 +651,13 @@ def install_stage(
     build_dir = build_dir.resolve(strict=True)
     stage = workspace / "stage"
     stage.mkdir()
-    command = [cmake, "--install", str(build_dir), "--prefix", str(stage / "usr")]
-    if kind == "provider":
-        command.extend(("--component", "Provider"))
-    run(command)
+    if kind == "backend-vulkan":
+        stage_backend_vulkan(build_dir, stage)
+    else:
+        command = [cmake, "--install", str(build_dir), "--prefix", str(stage / "usr")]
+        if kind == "provider":
+            command.extend(("--component", "Provider"))
+        run(command)
     if kind == "complete":
         if target_sdk is None or generic_toolchain is None:
             raise ValueError("complete packages require --target-sdk and --generic-toolchain")
@@ -618,7 +686,19 @@ def install_stage(
 
 
 def package_stem(kind: str) -> str:
-    return "metaflux-provider" if kind == "provider" else "metaflux"
+    if kind == "provider":
+        return "metaflux-provider"
+    if kind == "backend-vulkan":
+        return "metaflux-backend-vulkan"
+    return "metaflux"
+
+
+def package_description(kind: str) -> str:
+    if kind == "complete":
+        return "Complete CPU-backed MetaFlux runtime"
+    if kind == "backend-vulkan":
+        return "MetaFlux Vulkan execution backend"
+    return "MetaFlux CUDA and NVML providers"
 
 
 def output_path(output_dir: Path, kind: str, version: str, release: str, fmt: str) -> Path:
@@ -632,6 +712,9 @@ def output_path(output_dir: Path, kind: str, version: str, release: str, fmt: st
 
 def deb_control(kind: str, version: str) -> str:
     stem = package_stem(kind)
+    depends = "libc6 (>= 2.31)"
+    if kind == "backend-vulkan":
+        depends = "libc6 (>= 2.31), libvulkan1"
     fields = [
         f"Package: {stem}",
         f"Version: {version}",
@@ -639,7 +722,7 @@ def deb_control(kind: str, version: str) -> str:
         "Maintainer: MetaFlux Project <noreply@metaflux.invalid>",
         "Section: libs",
         "Priority: optional",
-        "Depends: libc6 (>= 2.31)",
+        f"Depends: {depends}",
     ]
     if kind == "complete":
         fields.extend(
@@ -649,14 +732,9 @@ def deb_control(kind: str, version: str) -> str:
                 f"Replaces: metaflux-provider (<< {version})",
             )
         )
-    description = (
-        "Complete CPU-backed MetaFlux runtime"
-        if kind == "complete"
-        else "MetaFlux CUDA and NVML providers"
-    )
     fields.extend(
         (
-            f"Description: {description}",
+            f"Description: {package_description(kind)}",
             " Compatibility providers and runtime files owned below the MetaFlux prefix.",
             "",
         )
@@ -706,6 +784,7 @@ def rpm_files(stage: Path) -> list[str]:
         "usr/lib/metaflux",
         "usr/libexec/metaflux",
         "usr/share/doc/metaflux",
+        "usr/share/doc/metaflux-backend-vulkan",
         "usr/share/metaflux",
     )
     paths: list[str] = []
@@ -725,16 +804,19 @@ def rpm_files(stage: Path) -> list[str]:
 
 def rpm_spec(stage: Path, kind: str, version: str, release: str) -> str:
     stem = package_stem(kind)
-    description = (
-        "Complete CPU-backed MetaFlux runtime"
-        if kind == "complete"
-        else "MetaFlux CUDA and NVML providers"
-    )
-    relationships = (
-        "Provides: metaflux-provider\nObsoletes: metaflux-provider < %{version}-%{release}"
-        if kind == "complete"
-        else ""
-    )
+    description = package_description(kind)
+    if kind == "backend-vulkan":
+        requires = "Requires: glibc >= 2.31\nRequires: vulkan-loader\n"
+        relationships = ""
+    else:
+        requires = "Requires: glibc >= 2.31\n"
+        relationships = (
+            "Provides: metaflux-provider\nObsoletes: metaflux-provider < %{version}-%{release}"
+            if kind == "complete"
+            else ""
+        )
+        if relationships:
+            relationships += "\n"
     scriptlets = ""
     if kind == "complete":
         scriptlets = (
@@ -756,8 +838,8 @@ def rpm_spec(stage: Path, kind: str, version: str, release: str) -> str:
         f"Summary: {description}\n"
         "License: NOASSERTION\n"
         "BuildArch: x86_64\n"
-        "Requires: glibc >= 2.31\n"
-        f"{relationships}\n"
+        f"{requires}"
+        f"{relationships}"
         "%description\n"
         f"{description}.\n"
         "\n"

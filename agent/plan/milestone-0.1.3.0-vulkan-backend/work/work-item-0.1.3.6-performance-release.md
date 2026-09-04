@@ -75,8 +75,16 @@ physical cancellation.
   Packaging ownership and idle-without-ICD coexistence are bound by
   `metaflux.packaging.backend-vulkan`; external-memory 0.x profile remains the
   staged baseline with OPAQUE_FD/DMA_BUF ledger tests on the host-independent
-  matrix. Explicit non-reopening host blockers: sanitizer/validation-layer soak,
-  live package upgrade/coexistence/uninstall, and dual-driver external-memory
+  matrix. The real package is now constructible via
+  `packaging/build.py --kind backend-vulkan` from a generic release tree built
+  with `METAFLUX_VULKAN_BACKEND_SHARED=ON`
+  (`tools/build-generic-release.sh`), gated by
+  `metaflux.release.backend-vulkan-package`, and
+  `tests/release/run_backend_vulkan_package_rows.py` executes real dpkg/rpm
+  install/upgrade/uninstall rows in digest-pinned Ubuntu 20.04 / Rocky 9
+  containers; image acquisition remains the recorded operator step.
+  Explicit non-reopening host blockers: sanitizer/validation-layer soak,
+  dual-driver execution evidence, and dual-driver external-memory
   promotion freeze.
 
 ## Exit Gate

@@ -12,6 +12,11 @@ option(METAFLUX_BUILD_COMPILER "Build the compiler core fixture" ON)
 option(METAFLUX_BUILD_CPU_BACKEND_COMPILER "Build the CPU backend compiler" ON)
 option(METAFLUX_BUILD_CPU_BACKEND_RUNTIME "Build the CPU backend runtime fixture" ON)
 option(METAFLUX_BUILD_VULKAN_BACKEND "Build the Vulkan capability/backend fixture" OFF)
+option(
+  METAFLUX_VULKAN_BACKEND_SHARED
+  "Build metaflux_vulkan_backend as the packaged shared backend library"
+  OFF
+)
 option(METAFLUX_BUILD_TESTS "Build MetaFlux tests when BUILD_TESTING is enabled" ON)
 
 set(

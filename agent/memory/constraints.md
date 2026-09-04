@@ -101,6 +101,14 @@ identity and provisioning boundaries live in
 - A tool newly required by a repeatable workflow is versioned in the Nix-provided
   tool environment before use; this does not transfer workflow semantics or
   outputs to Nix. decision-0022 supersedes the broader decision-0021 wording.
+- Podman is the approved container runtime for repository qualification and is
+  exposed by the release development shell; agents use podman through
+  `nix develop .#release` and never install or invoke a second ambient runtime.
+  The repository `docker/` directory is the approved home for container build
+  contexts and Dockerfiles owned by repository qualification. Release rows keep
+  the established transport policy: digest-pinned image references, `--pull=never`,
+  and `--network=none` (see [`tests/release/README.md`](../../tests/release/README.md));
+  base-image acquisition remains a separately recorded operator step.
 - Artifact downloads follow the configured-timezone, adjacent-timezone, then
   canonical route while frozen upstream identity remains authoritative; route
   details are per-run evidence (decision-0020).

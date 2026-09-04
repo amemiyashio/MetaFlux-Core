@@ -1,12 +1,16 @@
+# NO_CMAKE_FIND_ROOT_PATH: the pinned SDK lives outside the generic target
+# sysroot, and the cross toolchain restricts root-path-only searches to it.
 find_path(
   METAFLUX_VULKAN_INCLUDE_DIR
   vulkan/vulkan.h
   HINTS "${METAFLUX_VULKAN_SDK_DIR}/include"
+  NO_CMAKE_FIND_ROOT_PATH
 )
 find_library(
   METAFLUX_VULKAN_LIBRARY
   NAMES vulkan
   HINTS "${METAFLUX_VULKAN_SDK_DIR}/lib"
+  NO_CMAKE_FIND_ROOT_PATH
 )
 if(NOT METAFLUX_VULKAN_INCLUDE_DIR OR NOT METAFLUX_VULKAN_LIBRARY)
   message(

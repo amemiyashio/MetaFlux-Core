@@ -33,12 +33,14 @@ echo "Resolving Nix materializations..."
 SDK_PATH="$(nix build --no-link --print-out-paths "${REPO_DIR}#packages.x86_64-linux.\"ubuntu-20.04-target-sdk\"" 2>/dev/null)"
 GENERIC_PATH="$(nix build --no-link --print-out-paths "${REPO_DIR}#packages.x86_64-linux.generic-llvm-toolchain" 2>/dev/null)"
 TOOLCHAIN_PATH="$(nix build --no-link --print-out-paths "${REPO_DIR}#packages.x86_64-linux.toolchain" 2>/dev/null)"
+VULKAN_PATH="$(nix build --no-link --print-out-paths "${REPO_DIR}#packages.x86_64-linux.vulkan-tools" 2>/dev/null)"
 RAW_CLANG="$(nix build --no-link --print-out-paths "${REPO_DIR}#packages.x86_64-linux.generic-llvm-toolchain.rawCompiler" 2>/dev/null)"
 RESOURCE_DIR="$(nix eval --raw "${REPO_DIR}#packages.x86_64-linux.generic-llvm-toolchain.resourceDir" 2>/dev/null)"
 
 echo "  Target SDK:     ${SDK_PATH}"
 echo "  Generic LLVM:   ${GENERIC_PATH}"
 echo "  Toolchain:      ${TOOLCHAIN_PATH}"
+echo "  Vulkan SDK:     ${VULKAN_PATH}"
 echo "  Raw Clang:      ${RAW_CLANG}"
 echo "  Resource Dir:   ${RESOURCE_DIR}"
 
@@ -47,6 +49,7 @@ test -f "${SDK_PATH}/.metaflux-target-sdk-manifest" || { echo "ERROR: SDK manife
 test -f "${GENERIC_PATH}/.metaflux-generic-llvm-toolchain" || { echo "ERROR: generic LLVM manifest missing" >&2; exit 1; }
 test -x "${GENERIC_PATH}/bin/ld.lld" || { echo "ERROR: ld.lld missing" >&2; exit 1; }
 test -x "${RAW_CLANG}/bin/clang" || { echo "ERROR: raw clang missing" >&2; exit 1; }
+test -f "${VULKAN_PATH}/include/vulkan/vulkan.h" || { echo "ERROR: vulkan headers missing" >&2; exit 1; }
 
 # --- Clear host-wrapper flags that could leak host paths ---
 unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS 2>/dev/null || true
@@ -70,7 +73,10 @@ cmake -S "${REPO_DIR}" -B "${BUILD_DIR}" -G Ninja \
   -DMETAFLUX_COMPILER_LINK_SHARED_LLVM=OFF \
   -DMETAFLUX_RUNTIME_LLD_PATH=/usr/libexec/metaflux/ld.lld \
   -DMETAFLUX_BUILD_TESTS=OFF \
-  -DBUILD_TESTING=OFF
+  -DBUILD_TESTING=OFF \
+  -DMETAFLUX_BUILD_VULKAN_BACKEND=ON \
+  -DMETAFLUX_VULKAN_BACKEND_SHARED=ON \
+  -DMETAFLUX_VULKAN_SDK_DIR="${VULKAN_PATH}"
 
 # --- Build ---
 BUILD_JOBS="${JOBS:-$(nproc)}"

@@ -108,3 +108,34 @@ nix develop .#release --command python3 tests/release/run_release_package_matrix
 
 `metaflux-activation-launcher` and `metaflux-add-u32.ptx` must be in the same
 directory as the `metaflux-cuda-add-copy` path passed above.
+
+## Backend-Vulkan package rows
+
+`run_backend_vulkan_package_rows.py` qualifies the `metaflux-backend-vulkan`
+`.deb`, `.rpm`, and `.tar.gz` payloads inside digest-pinned, locally present
+Ubuntu 20.04 and Rocky Linux 9 images. One recorded network-enabled seed step
+per distribution downloads the distro loader dependency (libvulkan1 /
+vulkan-loader) into the artifact directory; every qualification row itself
+runs with `--pull=never --network=none`: fresh install, a real
+`0.0.0 -> current` package-manager upgrade, and removal with payload-file
+assertions. The tar row extracts the prior archive, overlays the current
+archive, and removes the payload. Image acquisition remains a separately
+recorded operator step; without the local digest-pinned images the harness
+exits 77 and nothing is installed.
+
+Build the packages first from a generic release tree
+(`tools/build-generic-release.sh`, which enables
+`METAFLUX_VULKAN_BACKEND_SHARED=ON`), then:
+
+```sh
+nix develop .#release --command python3 tests/release/run_backend_vulkan_package_rows.py \
+  --deb /path/to/metaflux-backend-vulkan_<ver>_amd64.deb \
+  --rpm /path/to/metaflux-backend-vulkan-<ver>-1.x86_64.rpm \
+  --tar /path/to/metaflux-backend-vulkan-<ver>-x86_64.tar.gz \
+  --upgrade-deb /path/to/metaflux-backend-vulkan_0.0.0_amd64.deb \
+  --upgrade-rpm /path/to/metaflux-backend-vulkan-0.0.0-1.x86_64.rpm \
+  --upgrade-tar /path/to/metaflux-backend-vulkan-0.0.0-x86_64.tar.gz \
+  --ubuntu-20-image REGISTRY/ubuntu@sha256:DIGEST \
+  --rocky-9-image REGISTRY/rockylinux@sha256:DIGEST \
+  --output-dir ../.metaflux-evidence/MetaFlux-Core/milestone-0.1.3.6-backend-vulkan-rows
+```

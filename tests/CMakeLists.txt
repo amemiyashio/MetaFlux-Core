@@ -862,3 +862,19 @@ set_tests_properties(
     SKIP_RETURN_CODE 77
     ENVIRONMENT "METAFLUX_KUNIT_CACHE_DIR=${CMAKE_BINARY_DIR}/kunit-uml-cache"
 )
+# Backend-Vulkan package gate: constructs the real metaflux-backend-vulkan
+# package from a generic release build tree (skip 77 when the tree or the
+# packaged shared backend is absent) and re-verifies deb/rpm/tar contents
+# plus the glibc-2.31/NEEDED payload policy.
+add_test(
+  NAME metaflux.release.backend-vulkan-package
+  COMMAND
+    "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-backend-vulkan-package.py"
+)
+set_tests_properties(
+  metaflux.release.backend-vulkan-package
+  PROPERTIES
+    LABELS "release;packaging"
+    SKIP_RETURN_CODE 77
+)
