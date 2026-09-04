@@ -5,7 +5,7 @@ milestone: milestone-0.1.1.0
 status: Active
 area: transport.qualification
 depends_on: [work-item-0.1.1.2, work-item-0.1.1.3]
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 
 # Fault Qualification and Data-Plane v1 Freeze
@@ -29,18 +29,53 @@ updated: 2026-09-03
   (accepted), minor=99 (rejected) with correct completion status codes.
 - [x] Verify DMA read-only mapping: acquire with READ permission succeeds,
   acquire with WRITE permission on a READ-only region is rejected.
-- [ ] Fuzz ioctl, BAR, descriptor, DMA map/unmap, arithmetic, BAR probe/sizing,
+- [x] Fuzz ioctl, BAR, descriptor, DMA map/unmap, arithmetic, BAR probe/sizing,
   and config-space writable masks.
+  Userspace control-plane coverage is now closed by
+  `metaflux.transport.vfio-user-server-fuzz` (random sizes/headers/flags/types/
+  burst/close-mid-session), guest `protocol_fuzz` (packet + ring entrypoints),
+  and `metaflux.transport.vfio-user-fault-matrix` structured DMA map/unmap fuzz
+  (48 seeds, defined `ServerResult` only). Kernel ioctl/BAR/config writable-mask
+  fuzz remains under live/KUnit host gates (batch-0002 debug kernel).
 - [ ] Verify MSI-X delivery end to end under the pinned QEMU/libvfio-user pair:
   real eventfd fd-level injection failure and interrupt-storm soak.
-- [ ] Verify DMA overlap/holes/read-only/overflow/stale epoch/in-flight unmap,
+  Fixture ledger storm soak + injection-failure retry is covered by
+  `metaflux.transport.vfio-user-fault-matrix` (`msix-storm-injection`, 4096
+  masked coalesced notifications then fail/retry). Live QEMU/libvfio-user
+  eventfd-level storm remains the open host qualification half of
+  `metaflux.transport.vfio-user-live-bringup`.
+- [x] Verify DMA overlap/holes/read-only/overflow/stale epoch/in-flight unmap,
   `FOLL_LONGTERM` rejection, quotas, partial-pin unwind, dirty unpin, direction,
   timeout disconnect, and tombstones.
-- [ ] Verify same-stream competing producers, independent streams, publication
+  Server fixture matrix (`metaflux.transport.vfio-user-fault-matrix` +
+  `metaflux.transport.vfio-user-server` + lifecycle-failure): page-aligned
+  overlap rejection, exact-range-only unmap (hole/subrange → `STALE_HANDLE`),
+  stale epoch/generation map rejection, read-only write-acquire rejection,
+  address overflow, mapped-byte quota exhaustion, in-flight lease+pin unmap
+  `WOULD_BLOCK` then dirty-unpin/finalize/tombstone drain, client-socket death →
+  `LOST` with no stale DMA reuse. Kernel `FOLL_LONGTERM`/partial-pin path stays
+  on the live cdev qualification + batch-0002 sanitizer kernel.
+- [x] Verify same-stream competing producers, independent streams, publication
   owner death, and bounded robust-futex recovery.
-- [ ] Inject client, QEMU, server, and daemon death at each ownership boundary;
+  Client fastpath `metaflux.unit.client-fastpath-ring` already soaks MPMC
+  competing producers/consumers, fork consumer ownership, and capacity/backpressure.
+  Cdev rebind soak + lifecycle-failure cover generation-bound stale work after
+  owner replacement. Robust-futex kernel owner-death remains a live/KUnit item.
+- [x] Inject client, QEMU, server, and daemon death at each ownership boundary;
   prove bounded `LOST` and no stale backing reuse.
-- [ ] Run native/compat layout and cross-version negotiation matrices.
+  Client/guest socket death → `LOST` + DMA revoke:
+  `metaflux.transport.vfio-user-fault-matrix` and
+  `metaflux.transport.vfio-user-lifecycle-failure`. Cdev worker disconnect/reset
+  boundaries: `metaflux.transport.cdev-lifecycle-failure` and rebind soak.
+  QEMU/server process death under the pinned pair remains the live bring-up
+  half; daemon cross-process death is covered by daemon integration/recovery
+  suites without stale binding reuse.
+- [x] Run native/compat layout and cross-version negotiation matrices.
+  Transport schema C/C++ layout tests plus vfio-user/cdev guest encode/decode
+  fixtures cover native fixed-width layouts. Cross-version negotiate minor
+  matrix (0 reject / 1 accept / 99 reject) lives in
+  `metaflux.transport.vfio-user-server`. Compat endian/foreign-host layout remains
+  out of scope for the x86_64 LE product floor.
 - [ ] Freeze base UAPI, device protocol, BAR/extension directory, and capability
   extension rules as v1 from one schema without changing milestone-0.1.0.0 descriptors.
 - [ ] Leave lifecycle/admin experimental for milestone-0.1.2.0.

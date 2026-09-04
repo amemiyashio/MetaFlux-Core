@@ -165,4 +165,23 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     metaflux.transport.vfio-user-lifecycle-failure
     PROPERTIES LABELS "transport;lifecycle;unit"
   )
+
+  add_executable(metaflux_transport_vfio_user_fault_matrix_test tests/fault_matrix_test.cpp)
+  target_link_libraries(
+    metaflux_transport_vfio_user_fault_matrix_test
+    PRIVATE MetaFlux::TransportVfioUserServer MetaFlux::TransportVfioUserGuest
+  )
+  target_include_directories(
+    metaflux_transport_vfio_user_fault_matrix_test
+    PRIVATE "${PROJECT_SOURCE_DIR}/transports/vfio-user/guest/include"
+  )
+  metaflux_configure_target(metaflux_transport_vfio_user_fault_matrix_test CXX)
+  add_test(
+    NAME metaflux.transport.vfio-user-fault-matrix
+    COMMAND metaflux_transport_vfio_user_fault_matrix_test
+  )
+  set_tests_properties(
+    metaflux.transport.vfio-user-fault-matrix
+    PROPERTIES LABELS "transport;fault;unit"
+  )
 endif()
