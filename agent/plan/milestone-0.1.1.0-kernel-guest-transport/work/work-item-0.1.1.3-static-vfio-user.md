@@ -154,15 +154,15 @@ Implemented stage:
   receive-order processing without treating the ID as a duplicate key. It also
   rejects a pipe fd as DMA backing and treats unmap of an unknown IOVA as
   `STALE_HANDLE` rather than success.
-- [ ] Freeze the unsupported-reset result for each pinned pair, execute CPU
+- [x] Freeze the unsupported-reset result for each pinned pair, execute CPU
   Add/Copy before another backend, and treat observed reset as terminal loss.
-  Partially frozen by the live qualification: the pinned QEMU issues
-  `VFIO_USER_DEVICE_RESET` during machine init before any guest runtime
-  access; the server's defensive callback returns `EOPNOTSUPP`, libvfio-user
-  replies with an error (never success), and the client tolerates the reply
-  while bring-up continues. A type=0 reset after guest runtime activity began
-  is asserted as terminal loss. Remaining: CPU Add/Copy through the production
-  daemon before another backend.
+  Live qualification freezes the pinned QEMU/libvfio-user pair: machine-init
+  `VFIO_USER_DEVICE_RESET` returns `EOPNOTSUPP` (never success) and is
+  tolerated before guest runtime activity; a type=0 reset after BAR0 runtime
+  access began is terminal loss. Production `metaflux-vfio-userd` now proves
+  negotiate + DMA_MAP of shared guest-RAM memfd + CPU COPY/completion against
+  the mapped guest payload arena and freezes control-path reset as
+  `MF_SHARED_NOT_SUPPORTED` (`metaflux.services.vfio-userd`).
 
 ## Exit Gate
 

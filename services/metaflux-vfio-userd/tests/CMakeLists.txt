@@ -4,9 +4,10 @@ add_executable(
 )
 target_link_libraries(
   metaflux-vfio-userd-test
-  PRIVATE MetaFlux::TransportVfioUserGuest
+  PRIVATE MetaFlux::TransportVfioUserGuest MetaFlux::ClientFastpath
 )
 metaflux_configure_target(metaflux-vfio-userd-test CXX)
+add_dependencies(metaflux-vfio-userd-test metaflux_vfio_user_profile)
 add_test(
   NAME metaflux.services.vfio-userd
   COMMAND metaflux-vfio-userd-test "$<TARGET_FILE:metaflux-vfio-userd>"
