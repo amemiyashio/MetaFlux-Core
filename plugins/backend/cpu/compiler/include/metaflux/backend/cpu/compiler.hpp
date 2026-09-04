@@ -77,6 +77,12 @@ struct CompileOptions {
   std::optional<std::chrono::steady_clock::time_point> deadline;
 };
 
+// Compile options targeting the executing host: LLVM's own host CPU name and
+// its usable (OS-enabled) feature set. The cache identity already covers
+// cpu_name and canonical_features, so artifacts only ever load on hosts whose
+// reported target environment matches the compiling host exactly.
+[[nodiscard]] CompileOptions host_compile_options();
+
 struct CompiledArtifact {
   std::vector<std::byte> elf;
   std::string elf_sha256;

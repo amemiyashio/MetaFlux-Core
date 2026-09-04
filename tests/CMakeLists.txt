@@ -59,6 +59,39 @@ if(METAFLUX_BUILD_CLIENT_FASTPATH)
   )
 endif()
 
+if(TARGET metaflux_cpu_backend_runtime AND TARGET metaflux_cuda_ptx_frontend AND
+   TARGET metaflux_compiler_core AND TARGET metafluxd)
+  add_executable(
+    metaflux_cpu_fma_throughput
+    performance/cpu_fma_throughput.cpp
+    ../services/metafluxd/compiler_worker_client.cpp
+    ../services/metafluxd/compiler_worker_protocol.cpp
+    ../services/metafluxd/execution.cpp
+  )
+  target_include_directories(
+    metaflux_cpu_fma_throughput
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../services/metafluxd"
+  )
+  target_compile_definitions(
+    metaflux_cpu_fma_throughput
+    PRIVATE METAFLUX_DAEMON_EXECUTABLE="$<TARGET_FILE:metafluxd>"
+  )
+  target_link_libraries(
+    metaflux_cpu_fma_throughput
+    PRIVATE
+      MetaFlux::CompilerCore
+      MetaFlux::CudaPtxFrontend
+      MetaFlux::CpuBackendCompiler
+      MetaFlux::CpuBackendRuntime
+  )
+  metaflux_configure_target(metaflux_cpu_fma_throughput CXX)
+  add_test(NAME metaflux.performance.cpu-fma-throughput COMMAND metaflux_cpu_fma_throughput)
+  set_tests_properties(
+    metaflux.performance.cpu-fma-throughput
+    PROPERTIES LABELS "performance-smoke;runtime;daemon;compiler;cpu" TIMEOUT 600
+  )
+endif()
+
 if(TARGET metaflux_cpu_backend_runtime)
   add_executable(metaflux_backend_abi_smoke unit/backend_abi_smoke.cpp)
   target_link_libraries(metaflux_backend_abi_smoke PRIVATE MetaFlux::CpuBackendRuntime)

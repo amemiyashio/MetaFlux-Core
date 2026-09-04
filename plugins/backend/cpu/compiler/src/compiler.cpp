@@ -10,6 +10,7 @@
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -1561,6 +1562,24 @@ CompileResult compile_kernel(const Kernel& kernel, const CompileOptions& options
           },
       .diagnostic = std::nullopt,
   };
+}
+
+CompileOptions host_compile_options() {
+  CompileOptions options;
+  options.cpu_name = std::string(llvm::sys::getHostCPUName());
+  const auto host_features = llvm::sys::getHostCPUFeatures();
+  options.canonical_features.reserve(host_features.size());
+  for (const auto& feature : host_features) {
+    // "64bit" is the execution-mode bit implied by the x86_64 target triple;
+    // it never belongs in the ISA feature string.
+    if (feature.first() == "64bit") {
+      continue;
+    }
+    // Subtarget parsing only honors sign-prefixed entries; unprefixed names
+    // silently discard the CPU's implied ISA (down to x87-only codegen).
+    options.canonical_features.emplace_back(feature.second ? "+" : "-") += feature.first();
+  }
+  return options;
 }
 
 metaflux::compiler::CacheIdentity make_cpu_cache_identity(const CompileOptions& options) {

@@ -151,7 +151,8 @@ int run_compiler_worker_process(std::int64_t expected_parent_process_id) noexcep
       return emit_result(failure(CompileError::InvalidKernel,
                                  "compiler worker request is truncated or malformed"));
     }
-    backend::cpu::compiler::CompileOptions options;
+    backend::cpu::compiler::CompileOptions options =
+        backend::cpu::compiler::host_compile_options();
     options.deadline = std::chrono::steady_clock::now() + std::chrono::seconds(110);
     return emit_result(backend::cpu::compiler::compile_kernel(*kernel, options));
   } catch (const std::bad_alloc&) {

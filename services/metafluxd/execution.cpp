@@ -357,7 +357,8 @@ PrepareModuleResult CpuExecutionEngine::prepare(std::uint32_t peer_uid,
     }
 
     backend::cpu::compiler::ArtifactResult artifact;
-    backend::cpu::compiler::CompileOptions compile_options;
+    backend::cpu::compiler::CompileOptions compile_options =
+        backend::cpu::compiler::host_compile_options();
     compile_options.cancellation = cancellation;
     if (configuration_.mode == CpuExecutionMode::ColdJit) {
       artifact = backend::cpu::compiler::acquire_artifact(
@@ -476,10 +477,12 @@ AotPrewarmResult prewarm_aot_file(const CpuExecutionConfiguration& configuration
 
     compiler::PersistentArtifactCache cache(configuration.cache);
     bool compiled = false;
-    auto artifact = backend::cpu::compiler::prewarm_aot(cache, *parsed.kernel, {}, [&] {
-      compiled = true;
-      return compile_kernel_in_worker(configuration.compiler_worker, *parsed.kernel).compilation;
-    });
+    auto artifact = backend::cpu::compiler::prewarm_aot(
+        cache, *parsed.kernel, backend::cpu::compiler::host_compile_options(), [&] {
+          compiled = true;
+          return compile_kernel_in_worker(configuration.compiler_worker, *parsed.kernel)
+              .compilation;
+        });
     if (!artifact.ok()) {
       if (artifact.compile_diagnostic.has_value()) {
         return prewarm_failure(std::string(backend::cpu::compiler::compile_error_name(
