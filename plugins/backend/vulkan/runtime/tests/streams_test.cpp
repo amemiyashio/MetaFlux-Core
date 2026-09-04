@@ -1,8 +1,10 @@
+#include "metaflux/backend/vulkan.h"
 #include "metaflux/backend/vulkan_streams.hpp"
 
 #include <array>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <string_view>
 
 namespace {
@@ -17,6 +19,100 @@ using metaflux::backend::vulkan::StreamGraph;
 using metaflux::backend::vulkan::StreamStatus;
 using metaflux::backend::vulkan::SubmissionPlan;
 using metaflux::backend::vulkan::Visibility;
+
+struct FamilyPlan final {
+  std::array<SubmissionPlan, 4> plans{};
+  std::uint32_t count = 0U;
+};
+
+bool same_plan(const SubmissionPlan& left, const SubmissionPlan& right) noexcept {
+  if (left.sequence != right.sequence || left.generation != right.generation ||
+      left.stream_id != right.stream_id || left.kind != right.kind ||
+      left.visibility.stage_mask != right.visibility.stage_mask ||
+      left.visibility.access_mask != right.visibility.access_mask ||
+      left.dependency_count != right.dependency_count) {
+    return false;
+  }
+  for (std::uint32_t index = 0U; index < left.dependency_count; ++index) {
+    if (left.dependencies[index].stream_id != right.dependencies[index].stream_id ||
+        left.dependencies[index].timeline_value != right.dependencies[index].timeline_value) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Add/Copy/static-shared-barrier graph used as the dual-family differential corpus.
+// Vendor identity is recorded only as a host-independent label; the stream planner
+// must emit identical dependency edges for both AMD and NVIDIA families.
+bool plan_add_copy_barrier(std::uint32_t vendor_id, FamilyPlan* out) {
+  if (out == nullptr ||
+      (vendor_id != MF_VULKAN_VENDOR_ID_AMD && vendor_id != MF_VULKAN_VENDOR_ID_NVIDIA)) {
+    return false;
+  }
+  (void)vendor_id;
+  StreamGraph graph(21U);
+  if (graph.create_stream(1U) != StreamStatus::success ||
+      graph.create_stream(2U) != StreamStatus::success) {
+    return false;
+  }
+  // Stream 1: host->device Copy (upload), then Add launch depending on that copy.
+  if (graph.submit(21U, 1U, OperationKind::copy,
+                   Visibility{.stage_mask = metaflux::backend::vulkan::kStageTransfer,
+                              .access_mask = metaflux::backend::vulkan::kAccessTransferWrite},
+                   {}, &out->plans[0]) != StreamStatus::success) {
+    return false;
+  }
+  const std::array<Dependency, 1> after_copy{
+      {Dependency{.stream_id = 1U, .timeline_value = out->plans[0].sequence}}};
+  if (graph.submit(21U, 1U, OperationKind::launch,
+                   Visibility{.stage_mask = metaflux::backend::vulkan::kStageCompute,
+                              .access_mask = metaflux::backend::vulkan::kAccessShaderRead |
+                                             metaflux::backend::vulkan::kAccessShaderWrite},
+                   after_copy, &out->plans[1]) != StreamStatus::success) {
+    return false;
+  }
+  // Stream 2: independent Copy, then a barrier-style wait on stream-1 Add before
+  // a second launch (static shared-memory style cross-stream fence).
+  if (graph.submit(21U, 2U, OperationKind::copy,
+                   Visibility{.stage_mask = metaflux::backend::vulkan::kStageTransfer,
+                              .access_mask = metaflux::backend::vulkan::kAccessTransferRead |
+                                             metaflux::backend::vulkan::kAccessTransferWrite},
+                   {}, &out->plans[2]) != StreamStatus::success) {
+    return false;
+  }
+  const std::array<Dependency, 1> barrier{
+      {Dependency{.stream_id = 1U, .timeline_value = out->plans[1].sequence}}};
+  if (graph.submit(21U, 2U, OperationKind::launch,
+                   Visibility{.stage_mask = metaflux::backend::vulkan::kStageCompute,
+                              .access_mask = metaflux::backend::vulkan::kAccessShaderRead},
+                   barrier, &out->plans[3]) != StreamStatus::success) {
+    return false;
+  }
+  out->count = 4U;
+  return out->plans[1].dependency_count >= 1U && out->plans[3].dependency_count >= 2U &&
+         out->plans[3].dependencies[0].stream_id == 2U &&
+         out->plans[3].dependencies[1].stream_id == 1U;
+}
+
+bool dual_family_add_copy_barrier_differential() {
+  FamilyPlan amd{};
+  FamilyPlan nvidia{};
+  if (!plan_add_copy_barrier(MF_VULKAN_VENDOR_ID_AMD, &amd) ||
+      !plan_add_copy_barrier(MF_VULKAN_VENDOR_ID_NVIDIA, &nvidia) || amd.count != nvidia.count) {
+    return false;
+  }
+  for (std::uint32_t index = 0U; index < amd.count; ++index) {
+    if (!same_plan(amd.plans[index], nvidia.plans[index])) {
+      return false;
+    }
+  }
+  // Driver-family classification stays dual and independent of the planner.
+  return mf_vulkan_driver_family_from_vendor_id_v1(MF_VULKAN_VENDOR_ID_AMD) ==
+             MF_VULKAN_DRIVER_FAMILY_AMD &&
+         mf_vulkan_driver_family_from_vendor_id_v1(MF_VULKAN_VENDOR_ID_NVIDIA) ==
+             MF_VULKAN_DRIVER_FAMILY_NVIDIA;
+}
 
 bool fifo_and_cross_stream_dependencies() {
   StreamGraph graph(9U);
@@ -268,7 +364,8 @@ int main() {
                   command_resources_recycle_only_after_completion() &&
                   command_resource_cancel_is_bounded() &&
                   command_resource_discard_releases_acquired_reservation() &&
-                  queue_submission_ledger_is_transactional();
+                  queue_submission_ledger_is_transactional() &&
+                  dual_family_add_copy_barrier_differential();
   std::printf("vulkan stream graph: %s\n", ok ? "pass" : "fail");
   return ok ? 0 : 1;
 }
