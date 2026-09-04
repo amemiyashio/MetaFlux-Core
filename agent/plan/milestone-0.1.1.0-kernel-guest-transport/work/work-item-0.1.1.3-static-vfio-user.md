@@ -5,7 +5,7 @@ milestone: milestone-0.1.1.0
 status: Active
 area: transport.vfio-user
 depends_on: [work-item-0.1.1.1]
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 
 # Static vfio-user Guest Vertical Slice
@@ -103,9 +103,17 @@ Implemented stage:
   including `No_reply` followed by a replied command that reuses the same
   message ID and a second reuse after the reply.
 
-- [ ] Bring the static guest `metaflux_pci.ko` live under the pinned
+- [x] Bring the static guest `metaflux_pci.ko` live under the pinned
   libvfio-user/QEMU pair: runtime BAR0/BAR2 mapping, BAR4 MSI-X delivery, and
   guest provider bring-up beyond the compile-checked resource binder.
+  Verified by `metaflux.transport.vfio-user-live-bringup`
+  (`transports/vfio-user/live/`): the pinned QEMU 10.2.4 boots the running host
+  kernel plus a static busybox initramfs carrying `metaflux_pci.ko` over
+  shared file-backed guest RAM; the guest proves PCI identity, exact
+  BAR0/BAR2/BAR4 sizes, runtime BAR0 read/write, and module-counted MSI-X
+  vectors 0 and 1, while the host proves mappable guest-RAM DMA registration
+  and BAR2 doorbell writes. The test skips (77) where QEMU/busybox
+  prerequisites are absent, matching the cdev live-qualification pattern.
 - [ ] Require shared file-backed guest RAM and implement mapping epochs,
   registration, drain, validation, long-term accounting, direction, dirty-unpin,
   and no-success-before-drain unmap.
@@ -122,6 +130,13 @@ Implemented stage:
   global ordering.
 - [ ] Freeze the unsupported-reset result for each pinned pair, execute CPU
   Add/Copy before another backend, and treat observed reset as terminal loss.
+  Partially frozen by the live qualification: the pinned QEMU issues
+  `VFIO_USER_DEVICE_RESET` during machine init before any guest runtime
+  access; the server's defensive callback returns `EOPNOTSUPP`, libvfio-user
+  replies with an error (never success), and the client tolerates the reply
+  while bring-up continues. A type=0 reset after guest runtime activity began
+  is asserted as terminal loss. Remaining: CPU Add/Copy through the production
+  daemon before another backend.
 
 ## Exit Gate
 

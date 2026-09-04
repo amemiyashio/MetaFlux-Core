@@ -124,5 +124,11 @@ in
   vfio-user = mkClangShell {
     name = "metaflux-vfio-user-tools";
     prependPackages = [ toolPackages.vfio-user-tools ];
+    packages = [
+      # Static guest initramfs userspace for the work-item-0.1.1.3 live
+      # bring-up qualification runner; enableStatic keeps it self-contained
+      # in the guest (no host ELF interpreter).
+      (pkgs.busybox.override { enableStatic = true; })
+    ];
   };
 }
