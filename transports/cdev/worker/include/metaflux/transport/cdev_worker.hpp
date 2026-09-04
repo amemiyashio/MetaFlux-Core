@@ -62,6 +62,8 @@ public:
   void close() noexcept;
   [[nodiscard]] mf_shared_status_v1 map_payload(std::uint64_t mapping_size) noexcept;
   [[nodiscard]] mf_shared_status_v1 map_current_payload() noexcept;
+  // Allocate the generation-bound payload arena when absent, then map it.
+  [[nodiscard]] mf_shared_status_v1 ensure_payload(std::uint64_t byte_count) noexcept;
   [[nodiscard]] bool is_open() const noexcept { return control_fd_ >= 0; }
   [[nodiscard]] int control_fd() const noexcept { return control_fd_; }
   [[nodiscard]] int data_fd() const noexcept { return data_fd_; }

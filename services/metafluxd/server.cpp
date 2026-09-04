@@ -1988,15 +1988,17 @@ bool Session::cdev_worker_rebind(void* context, std::uint64_t generation,
   if (session == nullptr || out_view == nullptr || out_backend == nullptr || generation == 0U) {
     return false;
   }
-  // Open a new cdev session for the candidate generation.
+  // Re-open the live kernel cdev lease. The static module still owns a single
+  // generation; discover its current view rather than requiring the daemon
+  // registry incarnation to match.
   metaflux::transport::cdev::CdevWorkerSession new_session{};
   const mf_shared_status_v1 open_status =
-      metaflux::transport::cdev::CdevWorkerSession::open(nullptr, session->view_id_, generation, new_session);
+      metaflux::transport::cdev::CdevWorkerSession::open_current(nullptr, new_session);
   if (open_status != MF_SHARED_SUCCESS) {
     return false;
   }
-  // Map the payload arena.
-  const mf_shared_status_v1 map_status = new_session.map_current_payload();
+  (void)generation;
+  const mf_shared_status_v1 map_status = new_session.ensure_payload(64U * 1024U);
   if (map_status != MF_SHARED_SUCCESS) {
     new_session.close();
     return false;
@@ -2031,7 +2033,6 @@ bool Session::cdev_worker_rebind(void* context, std::uint64_t generation,
   session->cdev_payload_backend_memory_ = payload_memory;
   // Populate the complete backend binding (matching bind_cdev_worker).
   *out_view = session->cdev_worker_session_.queue_view();
-  out_view->generation = generation;
   *out_backend = {};
   out_backend->api = session->cdev_backend_api_;
   out_backend->instance = session->cdev_backend_instance_;
@@ -2054,7 +2055,7 @@ bool Session::cdev_worker_rebind(void* context, std::uint64_t generation,
   out_backend->rebind_context = session;
   out_backend->retire = &Session::cdev_worker_retire;
   out_backend->retire_context = session;
-  out_backend->generation = generation;
+  out_backend->generation = session->cdev_worker_session_.lease().generation;
   // Clear stale generation-bound object memory handles; the resolver will
   // re-import them through the new session on next use.
   for (const auto& object : session->objects_) {
@@ -2155,12 +2156,15 @@ mf_shared_status_v1 Session::bind_cdev_worker() noexcept {
   if (status != MF_SHARED_SUCCESS) {
     return status;
   }
-  status = metaflux::transport::cdev::CdevWorkerSession::open(
-      nullptr, view_id_, generation, cdev_worker_session_);
+  // The static kernel cdev publishes a fixed view/generation independent of the
+  // daemon's random incarnation. Discover the live lease instead of requiring
+  // the daemon registry view to match the kernel fixture.
+  status = metaflux::transport::cdev::CdevWorkerSession::open_current(nullptr,
+                                                                      cdev_worker_session_);
   if (status != MF_SHARED_SUCCESS) {
     return status;
   }
-  status = cdev_worker_session_.map_current_payload();
+  status = cdev_worker_session_.ensure_payload(64U * 1024U);
   if (status != MF_SHARED_SUCCESS) {
     cdev_worker_session_.close();
     return status;
@@ -2219,7 +2223,7 @@ mf_shared_status_v1 Session::bind_cdev_worker() noexcept {
   binding.rebind_context = this;
   binding.retire = &Session::cdev_worker_retire;
   binding.retire_context = this;
-  binding.generation = generation;
+  binding.generation = cdev_worker_session_.lease().generation;
   try {
     cdev_worker_ = std::make_unique<metaflux::transport::cdev::CdevWorker>(
         cdev_worker_session_.queue_view(), binding);

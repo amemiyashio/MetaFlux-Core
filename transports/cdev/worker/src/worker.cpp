@@ -540,6 +540,47 @@ mf_shared_status_v1 CdevWorkerSession::map_current_payload() noexcept {
   return query_status == MF_SHARED_SUCCESS ? map_payload(mapping_size) : query_status;
 }
 
+mf_shared_status_v1 CdevWorkerSession::ensure_payload(std::uint64_t byte_count) noexcept {
+  if (!is_open() || data_fd_ < 0 || lease_.generation == 0U || byte_count == 0U ||
+      byte_count > kPayloadMaximumSize) {
+    return MF_SHARED_INVALID_ARGUMENT;
+  }
+  if (payload_mapping_ != nullptr) {
+    return MF_SHARED_SUCCESS;
+  }
+  std::uint64_t existing_size = 0U;
+  const mf_shared_status_v1 query_status = query_payload_size(existing_size);
+  if (query_status == MF_SHARED_SUCCESS) {
+    return map_payload(existing_size);
+  }
+  std::uint64_t allocation_size = byte_count;
+  if (allocation_size > UINT64_MAX - (kPageSize - 1U)) {
+    return MF_SHARED_OVERFLOW;
+  }
+  allocation_size = (allocation_size + (kPageSize - 1U)) & ~(kPageSize - 1U);
+  mf_uapi_memory_v0 request{};
+  request.struct_size = sizeof(request);
+  request.generation = lease_.generation;
+  request.byte_count = allocation_size;
+  request.alignment = kPageSize;
+  request.fd = -1;
+  if (::ioctl(data_fd_, MF_UAPI_IOCTL_MEMORY_ALLOC, &request) < 0) {
+    // Another owner may have allocated between query and alloc; try mapping it.
+    if (errno == EBUSY) {
+      const mf_shared_status_v1 retry_query = query_payload_size(existing_size);
+      return retry_query == MF_SHARED_SUCCESS ? map_payload(existing_size) : map_open_error(errno);
+    }
+    return map_open_error(errno);
+  }
+  if (request.struct_size != sizeof(request) || request.handle == 0U ||
+      request.generation != lease_.generation || request.byte_count == 0U ||
+      request.byte_count % kPageSize != 0U || request.offset != kPayloadMmapOffset ||
+      request.fd != -1) {
+    return MF_SHARED_MALFORMED;
+  }
+  return map_payload(request.byte_count);
+}
+
 mf_shared_status_v1 CdevWorkerSession::register_memory(void* address, std::uint64_t byte_count,
                                                        std::uint32_t flags,
                                                        CdevRegisteredMemory& out) noexcept {

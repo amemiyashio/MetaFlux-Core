@@ -1251,17 +1251,20 @@ static int mf_cdev_release(struct inode *inode, struct file *file_pointer)
 		return 0;
 	memset(retired, 0, sizeof(retired));
 	mutex_lock(&mf_cdev_lock);
+	/*
+	 * Closing a queue owner or worker lease must release ownership without
+	 * permanently retiring the static fixture. Only module unload marks the
+	 * queue offline; otherwise a later daemon bind cannot renegotiate.
+	 */
 	if (file->queue_created) {
 		if (mf_cdev_queue.queue_owner == file)
 			mf_cdev_queue.queue_owner = NULL;
-		mf_cdev_queue_mark_offline_locked();
 		file->queue_created = false;
 		kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
 	}
 	if (file->lease) {
 		if (mf_cdev_queue.lease_owner == file)
 			mf_cdev_queue.lease_owner = NULL;
-		mf_cdev_queue_mark_offline_locked();
 		file->lease = false;
 		kref_put(&mf_cdev_queue.refs, mf_cdev_queue_release);
 	}

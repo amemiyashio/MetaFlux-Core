@@ -1,11 +1,13 @@
 #define _GNU_SOURCE
 
+#include "metaflux/client/protocol.h"
 #include "metaflux/transport/cdev.h"
 
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/ioctl.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,7 +15,17 @@
 #include <sys/eventfd.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
+
+#ifndef METAFLUX_DAEMON_EXECUTABLE
+#define METAFLUX_DAEMON_EXECUTABLE ""
+#endif
+#ifndef METAFLUX_DAEMON_LIBRARY_PATH
+#define METAFLUX_DAEMON_LIBRARY_PATH ""
+#endif
 
 enum {
   MF_CDEV_TEST_SKIP = 77,
@@ -24,6 +36,277 @@ enum {
 static int failf(const char* step, const char* detail) {
   (void)fprintf(stderr, "cdev qualification: FAIL: %s (%s)\n", step, detail);
   return 1;
+}
+
+static void short_pause(void) {
+  const struct timespec duration = {.tv_sec = 0, .tv_nsec = 10000000};
+  (void)nanosleep(&duration, NULL);
+}
+
+static int wait_for_child(pid_t child) {
+  uint32_t attempt = 0U;
+  for (attempt = 0U; attempt < UINT32_C(500); ++attempt) {
+    int status = 0;
+    const pid_t result = waitpid(child, &status, WNOHANG);
+    if (result == child) {
+      return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+    }
+    if (result < 0) {
+      return 0;
+    }
+    short_pause();
+  }
+  (void)kill(child, SIGKILL);
+  (void)waitpid(child, NULL, 0);
+  return 0;
+}
+
+static int control_ok(mf_client_session_v1* session, uint16_t opcode, uint16_t flags,
+                      uint64_t object_id, uint64_t argument, int32_t payload_fd,
+                      uint64_t* out_id, uint64_t* out_generation, uint32_t* out_status) {
+  mf_client_control_response_v1 response;
+  int32_t received_fd = -1;
+  const mf_shared_status_v1 transport =
+      mf_client_session_control_v1(session, opcode, flags, object_id, argument, payload_fd,
+                                   &response, &received_fd);
+  if (received_fd >= 0) {
+    (void)close(received_fd);
+  }
+  if (transport != MF_SHARED_SUCCESS) {
+    if (out_status != NULL) {
+      *out_status = (uint32_t)transport;
+    }
+    return 0;
+  }
+  {
+    const uint32_t status = mf_client_load_le32_v1(response.bytes + 12);
+    if (out_status != NULL) {
+      *out_status = status;
+    }
+    if (status != MF_CLIENT_CONTROL_OK) {
+      return 0;
+    }
+  }
+  if (out_id != NULL) {
+    *out_id = mf_client_load_le64_v1(response.bytes + 48);
+  }
+  if (out_generation != NULL) {
+    *out_generation = mf_client_load_le64_v1(response.bytes + 56);
+  }
+  return 1;
+}
+
+static int wait_completion(mf_client_session_v1* session, uint64_t request_id,
+                           mf_shared_status_v1 expected) {
+  mf_client_completion_v1 completion;
+  uint32_t attempt = 0U;
+  for (attempt = 0U; attempt < UINT32_C(500); ++attempt) {
+    const mf_shared_status_v1 status =
+        mf_client_try_consume_completion_v1(&session->completion, &completion);
+    if (status == MF_SHARED_SUCCESS) {
+      return completion.request_id == request_id && completion.status == expected;
+    }
+    if (status != MF_SHARED_WOULD_BLOCK) {
+      return 0;
+    }
+    (void)mf_client_ring_wait_readable_v1(&session->completion, UINT64_C(10000000));
+  }
+  return 0;
+}
+
+/*
+ * Prove daemon object-table COPY after CDEV_BIND. Requires METAFLUX_DAEMON_EXECUTABLE
+ * and root-accessible /dev/metaflux{ctl,0}. Skips when the daemon binary is unset.
+ */
+static int prove_daemon_cdev_add_copy(void) {
+  const char* daemon_path = METAFLUX_DAEMON_EXECUTABLE;
+  char directory_template[] = "/tmp/metaflux-cdev-live-XXXXXX";
+  char socket_path[256];
+  char* directory = NULL;
+  pid_t child = -1;
+  mf_client_session_v1 session;
+  mf_virtual_device_identity_v1 identity;
+  mf_client_payload_v1 host_source = {.owned_fd = -1};
+  mf_client_payload_v1 host_destination = {.owned_fd = -1};
+  mf_client_payload_v1 argument_payload = {.owned_fd = -1};
+  uint8_t source_bytes[64];
+  uint8_t destination_bytes[64];
+  uint64_t source_id = 0U;
+  uint64_t source_generation = 0U;
+  uint64_t destination_id = 0U;
+  uint64_t destination_generation = 0U;
+  uint64_t argument_id = 0U;
+  uint64_t argument_generation = 0U;
+  uint64_t request_id = UINT64_C(900);
+  uint32_t index = 0U;
+  int connected = 0;
+  int result = 1;
+  struct {
+    mf_argument_block_header_v1 header;
+    mf_argument_entry_v1 entries[4];
+  } arguments;
+
+  if (daemon_path == NULL || daemon_path[0] == '\0') {
+    (void)fprintf(stdout, "cdev qualification: daemon Add/Copy skipped (no daemon binary)\n");
+    return 0;
+  }
+
+  for (index = 0U; index < (uint32_t)sizeof(source_bytes); ++index) {
+    source_bytes[index] = (uint8_t)(index * UINT32_C(5) + UINT32_C(7));
+  }
+  (void)memset(destination_bytes, 0, sizeof(destination_bytes));
+
+  directory = mkdtemp(directory_template);
+  if (directory == NULL ||
+      snprintf(socket_path, sizeof(socket_path), "%s/daemon.sock", directory) <= 0) {
+    return failf("daemon live setup", "temp directory");
+  }
+
+  child = fork();
+  if (child == 0) {
+    /*
+     * driver-live clears the environment. Prefer the compile-time Nix library
+     * path so the build-tree daemon resolves zlib/libstdcxx without host libc.
+     */
+    if (METAFLUX_DAEMON_LIBRARY_PATH[0] != '\0') {
+      (void)setenv("LD_LIBRARY_PATH", METAFLUX_DAEMON_LIBRARY_PATH, 1);
+    }
+    (void)setenv("PATH", "/usr/bin:/bin", 1);
+    execl(daemon_path, daemon_path, "--socket", socket_path, (char*)0);
+    _exit(127);
+  }
+  if (child < 0) {
+    result = failf("daemon live spawn", strerror(errno));
+    goto cleanup;
+  }
+
+  {
+    uint32_t attempt = 0U;
+    const uint64_t required =
+        MF_CLIENT_CAP_SHARED_DEVICE_V1 | MF_CLIENT_CAP_MEMFD_RING_V1 |
+        MF_CLIENT_CAP_FUTEX_DOORBELL_V1 | MF_CLIENT_CAP_LIVE_CONTEXT_ACCOUNTING_V1;
+    const uint64_t optional = MF_CLIENT_CAP_TIMELINE_V1 | MF_CLIENT_CAP_TELEMETRY_V1 |
+                              MF_CLIENT_CAP_COPY_REGION_V1 | MF_CLIENT_CAP_CDEV_BINDING_V1 |
+                              MF_CLIENT_CAP_DIRECT_HOST_COPY_V1;
+    for (attempt = 0U; attempt < UINT32_C(500); ++attempt) {
+      if (mf_client_session_connect_capabilities_v1(socket_path, required, optional, &session) ==
+          MF_SHARED_SUCCESS) {
+        connected = 1;
+        break;
+      }
+      short_pause();
+    }
+  }
+  if (!connected) {
+    result = failf("daemon live connect", "session connect timed out");
+    goto cleanup;
+  }
+  if ((session.negotiated_capabilities & MF_CLIENT_CAP_CDEV_BINDING_V1) == 0U ||
+      (session.negotiated_capabilities & MF_CLIENT_CAP_COPY_REGION_V1) == 0U) {
+    result = failf("daemon live negotiate", "cdev binding or copy-region capability missing");
+    goto cleanup;
+  }
+  if (mf_client_registry_identity_v1(&session.registry, 0U, &identity) != MF_SHARED_SUCCESS ||
+      identity.committed_generation == 0U) {
+    result = failf("daemon live identity", "missing committed generation");
+    goto cleanup;
+  }
+  {
+    uint32_t bind_status = UINT32_MAX;
+    char detail[96];
+    if (!control_ok(&session, MF_CLIENT_CONTROL_CDEV_BIND_V1, UINT16_C(0),
+                    MF_CLIENT_RUNTIME_CONTEXT_ID_V1, identity.committed_generation, -1, NULL, NULL,
+                    &bind_status)) {
+      (void)snprintf(detail, sizeof(detail), "CDEV_BIND control status %u generation %llu",
+                     bind_status, (unsigned long long)identity.committed_generation);
+      result = failf("daemon live cdev bind", detail);
+      goto cleanup;
+    }
+  }
+
+  if (mf_client_payload_create_v1(source_bytes, sizeof(source_bytes), 0U, &host_source) !=
+          MF_SHARED_SUCCESS ||
+      mf_client_payload_create_v1(destination_bytes, sizeof(destination_bytes),
+                                  MF_CLIENT_PAYLOAD_WRITABLE_V1, &host_destination) !=
+          MF_SHARED_SUCCESS) {
+    result = failf("daemon live payloads", "payload create failed");
+    goto cleanup;
+  }
+  if (!control_ok(&session, MF_CLIENT_CONTROL_HOST_MEMORY_REGISTER_V1,
+                  MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD | MF_CLIENT_CONTROL_FLAG_READ,
+                  MF_CLIENT_RUNTIME_CONTEXT_ID_V1, sizeof(source_bytes), host_source.owned_fd,
+                  &source_id, &source_generation, NULL) ||
+      !control_ok(&session, MF_CLIENT_CONTROL_HOST_MEMORY_REGISTER_V1,
+                  MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD | MF_CLIENT_CONTROL_FLAG_WRITE,
+                  MF_CLIENT_RUNTIME_CONTEXT_ID_V1, sizeof(destination_bytes),
+                  host_destination.owned_fd, &destination_id, &destination_generation, NULL)) {
+    result = failf("daemon live register", "host memory register failed");
+    goto cleanup;
+  }
+
+  (void)memset(&arguments, 0, sizeof(arguments));
+  arguments.header.magic = MF_SHARED_ARGUMENT_BLOCK_MAGIC;
+  arguments.header.abi_version = MF_SHARED_DEVICE_ABI_VERSION_1;
+  arguments.header.header_size = (uint32_t)sizeof(arguments.header);
+  arguments.header.entry_size = (uint32_t)sizeof(arguments.entries[0]);
+  arguments.header.entry_count = MF_COPY_REGION_ARGUMENT_ENTRY_COUNT_V1;
+  arguments.header.flags = MF_ARGUMENT_BLOCK_FLAG_COPY_REGION_V1;
+  arguments.header.total_size =
+      sizeof(mf_argument_block_header_v1) +
+      (size_t)MF_COPY_REGION_ARGUMENT_ENTRY_COUNT_V1 * sizeof(mf_argument_entry_v1);
+  arguments.entries[MF_COPY_REGION_DESTINATION_INDEX_V1].kind = MF_ARGUMENT_KIND_BUFFER;
+  arguments.entries[MF_COPY_REGION_DESTINATION_INDEX_V1].flags = MF_ARGUMENT_BUFFER_WRITE;
+  arguments.entries[MF_COPY_REGION_DESTINATION_INDEX_V1].object_id = destination_id;
+  arguments.entries[MF_COPY_REGION_DESTINATION_INDEX_V1].object_generation = destination_generation;
+  arguments.entries[MF_COPY_REGION_DESTINATION_INDEX_V1].value = UINT64_C(0);
+  arguments.entries[MF_COPY_REGION_SOURCE_INDEX_V1].kind = MF_ARGUMENT_KIND_BUFFER;
+  arguments.entries[MF_COPY_REGION_SOURCE_INDEX_V1].flags = MF_ARGUMENT_BUFFER_READ;
+  arguments.entries[MF_COPY_REGION_SOURCE_INDEX_V1].object_id = source_id;
+  arguments.entries[MF_COPY_REGION_SOURCE_INDEX_V1].object_generation = source_generation;
+  arguments.entries[MF_COPY_REGION_SOURCE_INDEX_V1].value = UINT64_C(0);
+  arguments.entries[MF_COPY_REGION_BYTE_COUNT_INDEX_V1].kind = MF_ARGUMENT_KIND_U64;
+  arguments.entries[MF_COPY_REGION_BYTE_COUNT_INDEX_V1].value = sizeof(source_bytes);
+
+  if (mf_client_payload_create_v1((const uint8_t*)&arguments, arguments.header.total_size, 0U,
+                                  &argument_payload) != MF_SHARED_SUCCESS ||
+      !control_ok(&session, MF_CLIENT_CONTROL_ARGUMENT_BLOCK_REGISTER_V1,
+                  MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD, MF_CLIENT_RUNTIME_CONTEXT_ID_V1,
+                  arguments.header.total_size, argument_payload.owned_fd, &argument_id,
+                  &argument_generation, NULL)) {
+    result = failf("daemon live argument block", "register failed");
+    goto cleanup;
+  }
+  if (mf_client_submit_copy_region_v1(&session.submission, request_id, argument_id,
+                                      argument_generation) != MF_SHARED_SUCCESS ||
+      !wait_completion(&session, request_id, MF_SHARED_SUCCESS)) {
+    result = failf("daemon live region copy", "copy completion failed");
+    goto cleanup;
+  }
+  if (memcmp(host_destination.mapping, source_bytes, sizeof(source_bytes)) != 0) {
+    result = failf("daemon live region copy", "destination bytes mismatch");
+    goto cleanup;
+  }
+
+  (void)fprintf(stdout,
+                "cdev qualification: daemon CDEV_BIND + registered-memory region COPY: PASS\n");
+  result = 0;
+
+cleanup:
+  mf_client_payload_close_v1(&argument_payload);
+  mf_client_payload_close_v1(&host_destination);
+  mf_client_payload_close_v1(&host_source);
+  if (connected) {
+    mf_client_session_close_v1(&session);
+  }
+  if (child > 0) {
+    (void)kill(child, SIGTERM);
+    (void)wait_for_child(child);
+  }
+  if (directory != NULL) {
+    (void)unlink(socket_path);
+    (void)rmdir(directory);
+  }
+  return result;
 }
 
 static int expect_errno(int fd, unsigned long request, void* argument, int expected,
@@ -97,6 +380,12 @@ int main(void) {
   status = mf_cdev_session_open_v0(device_path, &session);
   if (status == MF_SHARED_NOT_SUPPORTED) {
     (void)fprintf(stdout, "cdev qualification: SKIP: %s is not available\n", device_path);
+    return MF_CDEV_TEST_SKIP;
+  }
+  if (status == MF_SHARED_PERMISSION_DENIED) {
+    (void)fprintf(stdout,
+                  "cdev qualification: SKIP: %s requires elevated driver live privileges\n",
+                  device_path);
     return MF_CDEV_TEST_SKIP;
   }
   if (status != MF_SHARED_SUCCESS) {
@@ -297,7 +586,33 @@ int main(void) {
     goto cleanup;
   }
 
-  result_code = 0;
+  /*
+   * Release the kernel-side data owner before the daemon proof so the static
+   * cdev fixture can grant a fresh worker lease and payload arena.
+   */
+  if (control_payload != MAP_FAILED) {
+    (void)munmap(control_payload, (size_t)query.byte_count);
+    control_payload = MAP_FAILED;
+  }
+  if (control_queue != MAP_FAILED) {
+    (void)munmap(control_queue, (size_t)lease.queue_mapping_size);
+    control_queue = MAP_FAILED;
+  }
+  if (control_fd >= 0) {
+    (void)close(control_fd);
+    control_fd = -1;
+  }
+  mf_cdev_memory_close_v0(&payload);
+  if (kick_eventfd >= 0) {
+    (void)close(kick_eventfd);
+    kick_eventfd = -1;
+  }
+  if (completion_eventfd >= 0) {
+    (void)close(completion_eventfd);
+    completion_eventfd = -1;
+  }
+
+  result_code = prove_daemon_cdev_add_copy();
 
 cleanup:
   if (registered_memory.handle != 0U)

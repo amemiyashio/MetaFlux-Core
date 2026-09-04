@@ -46,6 +46,15 @@ if(TARGET MetaFlux::TransportCdevWorker)
   target_link_libraries(metafluxd PRIVATE MetaFlux::TransportCdevWorker)
   target_compile_definitions(metafluxd PRIVATE METAFLUX_DAEMON_CDEV_BACKEND=1)
 endif()
+# Keep zlib/libstdcxx discoverable under env-cleared live/root helpers that
+# invoke the build-tree daemon without the ambient Nix shell PATH/LD path.
+get_filename_component(_metafluxd_zlib_dir "${ZLIB_LIBRARY}" DIRECTORY)
+set_target_properties(
+  metafluxd
+  PROPERTIES
+    BUILD_RPATH "${_metafluxd_zlib_dir};$ORIGIN;$ORIGIN/../lib"
+    INSTALL_RPATH "$ORIGIN;$ORIGIN/../lib"
+)
 metaflux_configure_target(metafluxd CXX)
 metaflux_register_component_graph_entry(
   metafluxd

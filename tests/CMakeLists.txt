@@ -84,14 +84,22 @@ if(TARGET metaflux_cpu_backend_runtime AND TARGET metaflux_cuda_ptx_frontend AND
   set_tests_properties(metaflux.backend.cpu-launch PROPERTIES LABELS "backend;cpu;cuda;unit")
 endif()
 
-if(TARGET metaflux_transport_cdev_client)
+if(TARGET metaflux_transport_cdev_client AND TARGET metafluxd)
+  find_package(ZLIB REQUIRED)
   add_executable(
     metaflux_transport_cdev_live_qualification
     ../kernel/tests/kselftest/cdev_qualification.c
   )
   target_link_libraries(
     metaflux_transport_cdev_live_qualification
-    PRIVATE MetaFlux::TransportCdevClient
+    PRIVATE MetaFlux::TransportCdevClient MetaFlux::ClientFastpath
+  )
+  get_filename_component(_metaflux_live_zlib_dir "${ZLIB_LIBRARY}" DIRECTORY)
+  target_compile_definitions(
+    metaflux_transport_cdev_live_qualification
+    PRIVATE
+      METAFLUX_DAEMON_EXECUTABLE="$<TARGET_FILE:metafluxd>"
+      METAFLUX_DAEMON_LIBRARY_PATH="${_metaflux_live_zlib_dir}"
   )
   metaflux_configure_target(metaflux_transport_cdev_live_qualification C)
   add_test(

@@ -5,7 +5,7 @@ milestone: milestone-0.1.1.0
 status: Active
 area: transport.cdev
 depends_on: [work-item-0.1.1.1]
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 
 # Local cdev Vertical Slice
@@ -183,12 +183,18 @@ and arithmetic operation is validated.
   completion event), transfers object-table references by clearing stale
   generation-bound handles and reconfiguring the resolver for the new session,
   and retires the old payload memory through the normal release path.
-- [ ] Connect the daemon object table and leased worker/backend binding to the
+- [x] Connect the daemon object table and leased worker/backend binding to the
   live cdev registered-memory handles and prove Add/Copy through the mapped
-  payload arena. The source-level daemon lease/object-table binding and CPU
-  backend COPY/LAUNCH adapter are now connected under `0404481`; live daemon
-  use of the lease/query path, kernel DMA-backed references, generation
-  replacement, and physical device qualification remain open.
+  payload arena. `CdevWorkerSession::open_current`/`ensure_payload` now discover
+  the static kernel lease and allocate the mapped payload arena; daemon
+  `CDEV_BIND` uses the live lease generation, imports registered host memory
+  through the object table, and executes region COPY on the CPU backend.
+  `metaflux.transport.cdev-live-qualification` (via decision-0032 `driver live`)
+  proves negotiate/lease/payload/registered-memory plus
+  `daemon CDEV_BIND + registered-memory region COPY: PASS`. Kernel queue owner
+  close no longer permanently offline the static fixture. Remaining:
+  generation-replacement soak under concurrent work and the batch-0002
+  sanitizer/fault matrix.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
   teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak. The userspace live
   ABI harness now PASSES on a live 6.18.42 host kernel through the
