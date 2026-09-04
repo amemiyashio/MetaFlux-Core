@@ -246,6 +246,7 @@ frozen hash.
 | `pytorch-cuda-clients-1.json`, `pytorch-cuda-clients/` | On-demand PyTorch CUDA client profiles and complete wheel locks |
 | `vulkan-runtime-1.json` | On-demand Mesa ICD and Vulkan validation-layer profile for host smoke tests |
 | `vfio-user-1.json` | On-demand QEMU and Unix socket tools plus the libvfio-user prerequisite declaration |
+| `linux-debug-1.json` | Pinned Linux 6.12.105 LTS source identity for out-of-tree KUnit builds via ARCH=um |
 | `ubuntu-20.04-target-sdk-provenance.json` | Generic Linux target SDK input provenance |
 | `tests/` | Verification helpers for the declared inputs |
 

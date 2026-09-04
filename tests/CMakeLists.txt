@@ -789,8 +789,9 @@ set_tests_properties(
     LABELS "kernel;qualification"
     SKIP_RETURN_CODE 77
 )
-# KUnit generation probe: skips when CONFIG_KUNIT is not 'y'.  This only
-# records config presence; live KUnit execution remains a batch-0002 gate.
+# KUnit generation probe: skips when METAFLUX_LINUX_SRC is unset or invalid
+# (no pinned linux-debug source). This gate is not gated on host CONFIG_KUNIT;
+# that belongs to metaflux.kernel.debug-qualification.
 add_test(
   NAME metaflux.kernel.kunit-generation
   COMMAND
@@ -831,5 +832,15 @@ add_test(
 )
 set_tests_properties(
   metaflux.kernel.debug-config-probe-selftest
+  PROPERTIES LABELS "kernel;qualification;unit"
+)
+add_test(
+  NAME metaflux.kernel.kunit-generation-selftest
+  COMMAND
+    "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-run-kunit-generation.py"
+)
+set_tests_properties(
+  metaflux.kernel.kunit-generation-selftest
   PROPERTIES LABELS "kernel;qualification;unit"
 )

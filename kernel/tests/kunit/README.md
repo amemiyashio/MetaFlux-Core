@@ -25,10 +25,25 @@ the same integer logic without `linux/kunit.h` and is built as the CTest gate
 
 ## Skip Harness
 
-The kernel debug CONFIG probe (`metaflux.kernel.debug-qualification`) verifies
+The host debug CONFIG probe (`metaflux.kernel.debug-qualification`) verifies
 that the host kernel has CONFIG_KUNIT=y (and related debug symbols) before any
 KUnit suite can run. On hosts where the config is absent or not-y, the probe
 exits 77 and CTest records the suite as skipped.
 
-Live KUnit execution remains a batch-0002 host gate; this probe only records
-CONFIG presence and skips qualification when unset.
+The KUnit generation probe (`metaflux.kernel.kunit-generation`) is NOT gated
+on host CONFIG_KUNIT. It skips only when `METAFLUX_LINUX_SRC` is unset or
+points to an invalid tree, which happens when the runner is not launched from
+the `linux-debug` Nix shell.
+
+Live KUnit execution uses the pinned `linux_6_12` source via the
+`linux-debug` Nix shell:
+
+```sh
+nix develop .#linux-debug --command python3 tools/run-kunit-generation.py
+```
+
+The environment variable `METAFLUX_LINUX_SRC` must point at the materialized
+`linux-debug-tools` package (set automatically by the shell). The runner
+exits 77 when `METAFLUX_LINUX_SRC` is unset, so CTest records the test as
+skipped when the shell is not active. Host KASAN/KCSAN/lockdep/kmemleak soak
+remains a separate debug-kernel gate.

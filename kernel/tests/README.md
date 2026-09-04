@@ -43,6 +43,23 @@ debug kernel.
 Live KUnit/sanitizer soak remains a batch-0002 host gate; this probe only
 records CONFIG presence and skips qualification when unset.
 
+## KUnit Execution
+
+The CTest gate `metaflux.kernel.kunit-generation` runs
+`tests/kernel/probe-kunit-generation.py`, which delegates to
+`tools/run-kunit-generation.py` to build and execute the
+`mf_cdev_generation` out-of-tree KUnit suite using the pinned
+`linux_6_12` source (6.12.105). The runner is launched from the
+`linux-debug` Nix shell (`nix develop .#linux-debug`), which sets
+`METAFLUX_LINUX_SRC` to the materialized source root. On hosts without
+`METAFLUX_LINUX_SRC` the gate exits 77 and CTest records the test as
+**Skipped**.
+
+The probe is NOT gated on host `CONFIG_KUNIT`; that belongs only to the
+`metaflux.kernel.debug-qualification` probe.
+
+## Host Privilege
+
 When host privilege is required, `manage-host-privilege` applies decision-0032 while
 build and test semantics remain here:
 

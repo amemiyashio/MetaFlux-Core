@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "epoch": 1,
+  "target": "linux-debug-kunit",
+  "packages": {
+    "linux_6_12": {
+      "nix_attribute": "linux_6_12",
+      "version": "6.12.105",
+      "purpose": "Linux 6.12.105 LTS source identity for out-of-tree KUnit builds via ARCH=um",
+      "kunit": {
+        "path": "tools/testing/kunit/kunit.py",
+        "description": "KUnit test runner bundled in the linux source tree"
+      }
+    }
+  },
+  "external_prerequisites": {
+    "host_toolchain": {
+      "status": "provided-by-nixpkgs",
+      "packages": [
+        "gcc",
+        "gnumake",
+        "bc",
+        "bison",
+        "flex",
+        "pkg-config"
+      ],
+      "description": "Nixpkgs provides gcc, gnumake, bc, bison, flex, and pkg-config; no host-gap provision is needed"
+    }
+  }
+}

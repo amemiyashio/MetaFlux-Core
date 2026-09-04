@@ -131,4 +131,23 @@ in
       (pkgs.busybox.override { enableStatic = true; })
     ];
   };
+
+  linux-debug = pkgs.mkShell {
+    name = "metaflux-linux-debug-tools";
+    packages = [
+      toolPackages.linux-debug-tools
+      pkgs.gcc
+      pkgs.gnumake
+      pkgs.bc
+      pkgs.bison
+      pkgs.flex
+      pkgs.pkg-config
+    ];
+    shellHook = ''
+      export METAFLUX_LINUX_SRC="${toolPackages.linux-debug-tools}"
+      # Add the kunit source tree to PATH so that kunit.py can be found
+      # directly (e.g. $METAFLUX_LINUX_SRC/tools/testing/kunit/kunit.py).
+      export PATH="$METAFLUX_LINUX_SRC/tools/testing/kunit''${PATH:+:$PATH}"
+    '';
+  };
 }
