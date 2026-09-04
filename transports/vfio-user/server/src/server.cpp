@@ -139,7 +139,7 @@ void VfioUserServer::mark_lost() noexcept {
     }
     mappings_.clear();
     for (DmaMapping& mapping : retired_mappings_) {
-      if (mapping.leases.empty()) {
+      if (mapping.leases.empty() && mapping.pin_references == 0U) {
         finalize_mapping(mapping);
       }
     }
@@ -292,7 +292,88 @@ void VfioUserServer::finalize_mapping(DmaMapping& mapping) noexcept {
   } else {
     mapped_bytes_ = 0U;
   }
+  if (dirty_bytes_ >= mapping.dirty_bytes) {
+    dirty_bytes_ -= mapping.dirty_bytes;
+  } else {
+    dirty_bytes_ = 0U;
+  }
+  if (pin_references_ >= mapping.pin_references) {
+    pin_references_ -= mapping.pin_references;
+  } else {
+    pin_references_ = 0U;
+  }
+  mapping.dirty_bytes = 0U;
+  mapping.pin_references = 0U;
   mapping.finalized = true;
+}
+
+bool VfioUserServer::mark_dirty(std::uint64_t iova, std::uint64_t size) noexcept {
+  if (!lifecycle_online_ || !lifecycle_accepting_ || range_overflows(iova, size)) {
+    return false;
+  }
+  for (DmaMapping& mapping : mappings_) {
+    if (mapping.revoking || mapping.finalized || iova < mapping.iova ||
+        iova + size > mapping.iova + mapping.size ||
+        (mapping.permissions & MF_VFIO_USER_DMA_WRITE_V0) == 0U ||
+        mapping.device_generation != config_.device_generation ||
+        mapping.mapping_epoch != config_.mapping_epoch) {
+      continue;
+    }
+    if (mapping.dirty_bytes > std::numeric_limits<std::uint64_t>::max() - size ||
+        dirty_bytes_ > std::numeric_limits<std::uint64_t>::max() - size) {
+      return false;
+    }
+    mapping.dirty_bytes += size;
+    dirty_bytes_ += size;
+    return true;
+  }
+  return false;
+}
+
+bool VfioUserServer::pin_longterm(std::uint64_t iova, std::uint64_t size) noexcept {
+  if (!lifecycle_online_ || !lifecycle_accepting_ || range_overflows(iova, size)) {
+    return false;
+  }
+  for (DmaMapping& mapping : mappings_) {
+    if (mapping.revoking || mapping.finalized || iova < mapping.iova ||
+        iova + size > mapping.iova + mapping.size ||
+        mapping.device_generation != config_.device_generation ||
+        mapping.mapping_epoch != config_.mapping_epoch) {
+      continue;
+    }
+    if (mapping.pin_references == std::numeric_limits<std::uint32_t>::max() ||
+        pin_references_ == std::numeric_limits<std::uint32_t>::max()) {
+      return false;
+    }
+    ++mapping.pin_references;
+    ++pin_references_;
+    return true;
+  }
+  return false;
+}
+
+bool VfioUserServer::unpin_longterm(std::uint64_t iova, std::uint64_t size) noexcept {
+  if (range_overflows(iova, size)) {
+    return false;
+  }
+  const auto unpin_from = [&](std::vector<DmaMapping>& mappings) noexcept {
+    for (DmaMapping& mapping : mappings) {
+      if (mapping.finalized || iova < mapping.iova || iova + size > mapping.iova + mapping.size ||
+          mapping.pin_references == 0U) {
+        continue;
+      }
+      --mapping.pin_references;
+      if (pin_references_ > 0U) {
+        --pin_references_;
+      }
+      if (mapping.revoking && mapping.leases.empty() && mapping.pin_references == 0U) {
+        finalize_mapping(mapping);
+      }
+      return true;
+    }
+    return false;
+  };
+  return unpin_from(mappings_) || unpin_from(retired_mappings_);
 }
 
 bool VfioUserServer::dma_release(const DmaLease& lease) noexcept {
@@ -313,7 +394,7 @@ bool VfioUserServer::dma_release(const DmaLease& lease) noexcept {
         continue;
       }
       mapping.leases.erase(iterator);
-      if (mapping.revoking && mapping.leases.empty()) {
+      if (mapping.revoking && mapping.leases.empty() && mapping.pin_references == 0U) {
         finalize_mapping(mapping);
       }
       return true;
@@ -327,7 +408,8 @@ void VfioUserServer::clear_finalized_tombstones() noexcept {
   retired_mappings_.erase(
       std::remove_if(retired_mappings_.begin(), retired_mappings_.end(),
                     [](const DmaMapping& mapping) {
-                      return mapping.finalized && mapping.leases.empty();
+                      return mapping.finalized && mapping.leases.empty() &&
+                             mapping.pin_references == 0U;
                     }),
       retired_mappings_.end());
 }
@@ -605,7 +687,7 @@ ServerResult VfioUserServer::handle_dma_unmap(const mf_transport_message_header_
       retired.revoking = true;
       retired_mappings_.push_back(std::move(retired));
       DmaMapping& pending = retired_mappings_.back();
-      if (!pending.leases.empty()) {
+      if (!pending.leases.empty() || pending.pin_references != 0U) {
         return reply(header.message_id, header.message_type, MF_SHARED_WOULD_BLOCK, nullptr, 0U,
                      no_reply);
       }
@@ -622,7 +704,7 @@ ServerResult VfioUserServer::handle_dma_unmap(const mf_transport_message_header_
     if (iterator->iova != request.iova || iterator->size != request.size) {
       continue;
     }
-    if (!iterator->leases.empty()) {
+    if (!iterator->leases.empty() || iterator->pin_references != 0U) {
       return reply(header.message_id, header.message_type, MF_SHARED_WOULD_BLOCK, nullptr, 0U,
                    no_reply);
     }
@@ -766,7 +848,8 @@ ServerResult VfioUserServer::process_once(
 bool VfioUserServer::drain_lifecycle() noexcept {
   return mappings_.empty() && std::all_of(retired_mappings_.begin(), retired_mappings_.end(),
                                           [](const DmaMapping& mapping) {
-                                            return mapping.finalized && mapping.leases.empty();
+                                            return mapping.finalized && mapping.leases.empty() &&
+                                                   mapping.pin_references == 0U;
                                           });
 }
 

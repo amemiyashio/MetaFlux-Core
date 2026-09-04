@@ -851,5 +851,114 @@ int main() {
     }
   }
 
+  // Dirty-unpin and long-term pin accounting against the userspace DMA ledger.
+  {
+    int dirty_sockets[2] = {-1, -1};
+    if (socketpair(AF_UNIX, SOCK_SEQPACKET | SOCK_CLOEXEC, 0, dirty_sockets) != 0) {
+      return 30;
+    }
+    metaflux::transport::vfio_user::VfioUserServer dirty_server(dirty_sockets[1]);
+    mf_transport_negotiate_v0 dirty_neg{};
+    dirty_neg.magic = MF_TRANSPORT_MAGIC_V0;
+    dirty_neg.major = MF_TRANSPORT_MAJOR_V0;
+    dirty_neg.minor = MF_TRANSPORT_MINOR_V0;
+    dirty_neg.struct_size = sizeof(dirty_neg);
+    dirty_neg.required_features =
+        MF_TRANSPORT_FEATURE_VFIO_USER_V0 | MF_TRANSPORT_FEATURE_SHARED_MEMORY_V0;
+    std::array<std::uint8_t, MF_VFIO_USER_MAX_PACKET_SIZE_V0> dirty_pkt{};
+    std::uint32_t dirty_pkt_size = 0U;
+    if (mf_vfio_user_guest_encode_negotiate_v0(130U, &dirty_neg, dirty_pkt.data(), dirty_pkt.size(),
+                                                &dirty_pkt_size) != MF_SHARED_SUCCESS ||
+        !send_packet(dirty_sockets[0], dirty_pkt.data(), dirty_pkt_size) ||
+        dirty_server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+        !receive_negotiate(dirty_sockets[0], 130U, nullptr)) {
+      close(dirty_sockets[0]);
+      close(dirty_sockets[1]);
+      return 30;
+    }
+    const int dirty_memfd = make_memfd();
+    if (dirty_memfd < 0) {
+      close(dirty_sockets[0]);
+      close(dirty_sockets[1]);
+      return 30;
+    }
+    mf_vfio_user_dma_map_v0 dirty_map{};
+    dirty_map.struct_size = sizeof(dirty_map);
+    dirty_map.flags = MF_VFIO_USER_DMA_READ_V0 | MF_VFIO_USER_DMA_WRITE_V0;
+    dirty_map.iova = 0x4000U;
+    dirty_map.size = 0x1000U;
+    dirty_map.mapping_epoch = 1U;
+    dirty_map.device_generation = 1U;
+    dirty_map.fd_index = 0;
+    if (mf_vfio_user_guest_encode_dma_map_v0(131U, &dirty_map, dirty_pkt.data(), dirty_pkt.size(),
+                                              &dirty_pkt_size) != MF_SHARED_SUCCESS ||
+        !send_packet(dirty_sockets[0], dirty_pkt.data(), dirty_pkt_size, dirty_memfd) ||
+        dirty_server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+        !receive_completion(dirty_sockets[0], 131U, MF_VFIO_USER_MESSAGE_DMA_MAP_V0,
+                            MF_SHARED_SUCCESS) ||
+        dirty_server.dirty_bytes() != 0U || dirty_server.pin_references() != 0U ||
+        !dirty_server.mark_dirty(0x4100U, 0x100U) || dirty_server.dirty_bytes() != 0x100U ||
+        dirty_server.mark_dirty(0x5000U, 0x100U) ||
+        !dirty_server.pin_longterm(0x4200U, 0x100U) || dirty_server.pin_references() != 1U) {
+      close(dirty_memfd);
+      close(dirty_sockets[0]);
+      close(dirty_sockets[1]);
+      return 31;
+    }
+
+    mf_vfio_user_dma_unmap_v0 dirty_unmap{};
+    dirty_unmap.struct_size = sizeof(dirty_unmap);
+    dirty_unmap.iova = dirty_map.iova;
+    dirty_unmap.size = dirty_map.size;
+    dirty_unmap.mapping_epoch = dirty_map.mapping_epoch;
+    dirty_unmap.device_generation = dirty_map.device_generation;
+    if (mf_vfio_user_guest_encode_dma_unmap_v0(132U, &dirty_unmap, UINT16_C(0), dirty_pkt.data(),
+                                                dirty_pkt.size(),
+                                                &dirty_pkt_size) != MF_SHARED_SUCCESS ||
+        !send_packet(dirty_sockets[0], dirty_pkt.data(), dirty_pkt_size) ||
+        dirty_server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+        !receive_completion(dirty_sockets[0], 132U, MF_VFIO_USER_MESSAGE_DMA_UNMAP_V0,
+                            MF_SHARED_WOULD_BLOCK) ||
+        dirty_server.mapping_count() != 0U || dirty_server.retired_mapping_count() != 1U ||
+        dirty_server.dirty_bytes() != 0x100U || dirty_server.pin_references() != 1U ||
+        dirty_server.mapped_bytes() != 0x1000U) {
+      close(dirty_memfd);
+      close(dirty_sockets[0]);
+      close(dirty_sockets[1]);
+      return 32;
+    }
+
+    // Long-term pin drain finalizes the revoking mapping the same way lease
+    // release does: dirty/pin/mapped counters clear, but the finalized tombstone
+    // remains until a subsequent zero-reference unmap ack removes it.
+    if (!dirty_server.unpin_longterm(0x4200U, 0x100U) || dirty_server.pin_references() != 0U ||
+        dirty_server.dirty_bytes() != 0U || dirty_server.mapped_bytes() != 0U ||
+        dirty_server.retired_mapping_count() != 1U) {
+      close(dirty_memfd);
+      close(dirty_sockets[0]);
+      close(dirty_sockets[1]);
+      return 32;
+    }
+
+    if (mf_vfio_user_guest_encode_dma_unmap_v0(133U, &dirty_unmap, UINT16_C(0), dirty_pkt.data(),
+                                                dirty_pkt.size(),
+                                                &dirty_pkt_size) != MF_SHARED_SUCCESS ||
+        !send_packet(dirty_sockets[0], dirty_pkt.data(), dirty_pkt_size) ||
+        dirty_server.process_once() != metaflux::transport::vfio_user::ServerResult::Replied ||
+        !receive_completion(dirty_sockets[0], 133U, MF_VFIO_USER_MESSAGE_DMA_UNMAP_V0,
+                            MF_SHARED_SUCCESS) ||
+        dirty_server.retired_mapping_count() != 0U || dirty_server.mapping_count() != 0U ||
+        dirty_server.mapped_bytes() != 0U || dirty_server.dirty_bytes() != 0U ||
+        dirty_server.pin_references() != 0U) {
+      close(dirty_memfd);
+      close(dirty_sockets[0]);
+      close(dirty_sockets[1]);
+      return 32;
+    }
+    close(dirty_memfd);
+    close(dirty_sockets[0]);
+    close(dirty_sockets[1]);
+  }
+
   return 0;
 }

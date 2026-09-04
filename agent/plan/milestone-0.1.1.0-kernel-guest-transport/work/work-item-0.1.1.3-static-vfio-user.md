@@ -119,9 +119,15 @@ Implemented stage:
   and no-success-before-drain unmap.
   Server DMA_MAP now rejects non-regular fds (`S_ISREG`) so socket/pipe-mediated
   region fallback cannot register; mapping-epoch/generation matching, overlap
-  rejection, and no-success-before-lease-drain unmap already exist. Remaining:
-  dirty-unpin, long-term accounting, and production-daemon Add/Copy through the
-  mapped guest RAM.
+  rejection, and no-success-before-lease-drain unmap already exist. The userspace
+  DMA ledger now tracks device-write `dirty_bytes` and long-term `pin_references`
+  per mapping: `mark_dirty` requires a writable live range, `pin_longterm` /
+  `unpin_longterm` balance holds exactly once, and DMA_UNMAP replies
+  `WOULD_BLOCK` while leases or pins remain. Unpin/lease release finalizes the
+  revoking mapping (clearing dirty/pin/mapped counters) and leaves a finalized
+  tombstone until a subsequent zero-reference unmap ack removes it, matching the
+  existing lease-drain contract. Covered by `metaflux.transport.vfio-user-server`.
+  Remaining: production-daemon Add/Copy through the mapped guest RAM.
 - [ ] Generate guest/server config, BAR, capability, and UAPI fixtures from the
   root manifest; reject any handwritten competing layout.
   Server construction now requires `dma_alignment` equal to the generated

@@ -71,6 +71,12 @@ struct DmaMapping final {
   int fd = -1;
   void* mapped_address = nullptr;
   std::uint64_t mapped_size = 0U;
+  // Userspace fixture analogue of device-written dirty tracking and long-term
+  // pin lifetime. dirty_bytes counts host-visible device-write ranges still
+  // outstanding before unmap finalization; pin_references counts long-term
+  // holds beyond ordinary dma_acquire leases.
+  std::uint64_t dirty_bytes = 0U;
+  std::uint32_t pin_references = 0U;
   bool revoking = false;
   bool finalized = false;
   std::vector<DmaLease> leases{};
@@ -102,12 +108,21 @@ public:
   std::size_t mapping_count() const noexcept { return mappings_.size(); }
   std::size_t retired_mapping_count() const noexcept { return retired_mappings_.size(); }
   std::uint64_t mapped_bytes() const noexcept { return mapped_bytes_; }
+  [[nodiscard]] std::uint64_t dirty_bytes() const noexcept { return dirty_bytes_; }
+  [[nodiscard]] std::uint32_t pin_references() const noexcept { return pin_references_; }
   bool dma_lookup(std::uint64_t iova, std::uint64_t size, std::uint32_t permission) const noexcept;
   [[nodiscard]] void* dma_host_address(std::uint64_t iova, std::uint64_t size,
                                        std::uint32_t permission) noexcept;
   [[nodiscard]] bool dma_acquire(std::uint64_t iova, std::uint64_t size,
                                  std::uint32_t permission, DmaLease& out) noexcept;
   [[nodiscard]] bool dma_release(const DmaLease& lease) noexcept;
+  // Record a device-write dirty range against a writable mapping. Returns false
+  // when the range is unknown, not write-capable, or overflows the mapping.
+  [[nodiscard]] bool mark_dirty(std::uint64_t iova, std::uint64_t size) noexcept;
+  // Long-term pin hold used by queue/backend references that outlive a single
+  // dma_acquire lease. Unpin must balance pin exactly once per hold.
+  [[nodiscard]] bool pin_longterm(std::uint64_t iova, std::uint64_t size) noexcept;
+  [[nodiscard]] bool unpin_longterm(std::uint64_t iova, std::uint64_t size) noexcept;
   [[nodiscard]] MsixStatus configure_msix(MsixInjectCallback inject,
                                            void* context) noexcept;
   [[nodiscard]] MsixStatus msix_set_mask(std::uint64_t generation, std::uint32_t vector,
@@ -175,6 +190,8 @@ private:
   std::vector<DmaMapping> mappings_{};
   std::vector<DmaMapping> retired_mappings_{};
   std::uint64_t mapped_bytes_ = 0U;
+  std::uint64_t dirty_bytes_ = 0U;
+  std::uint32_t pin_references_ = 0U;
   std::uint64_t next_lease_id_ = 1U;
   bool lifecycle_online_ = true;
   bool lifecycle_accepting_ = true;
