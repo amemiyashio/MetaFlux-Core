@@ -40,7 +40,6 @@ struct mf_cdev_queue {
 static void mf_cdev_generation_test_stale_rejected(struct kunit *test)
 {
 	struct mf_cdev_queue queue;
-	struct mf_cdev_file file_a;
 	u64 current_gen = 42ULL;
 
 	queue.generation = current_gen;

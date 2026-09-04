@@ -43,9 +43,11 @@ freeze `mf_admin_lifecycle_v1` from one schema.
   `nvidia-smi` concurrency and live guest-QMP sockets remain host gates.
 - [x] Run KUnit, kselftest, ABI fuzz, KASAN, KCSAN, lockdep, kmemleak, crash, and
   module-unload soak tests.
-  Explicit freeze non-blocker: host kernel CONFIGs (KUnit/KASAN/KCSAN/lockdep/
-  kmemleak) are unset on the current 6.18 LTS image and are deferred with
-  work-item-0.1.1.2 to batch-0002 debug/sanitizer kernel rebuild. Userspace ABI
+  Explicit freeze non-blocker: in-kernel KUnit now executes under UML on the
+  pinned `linux_6_12` 6.12.105 source (CTest row `metaflux.kernel.kunit-uml`);
+  KASAN/KCSAN/lockdep/kmemleak soaks of the real module remain unset on the
+  current 6.18 LTS image and are deferred with work-item-0.1.1.2 to a
+  batch-0002 debug host kernel rebuild. Userspace ABI
   fuzz and Coordinator fault suites already cover the admin freeze evidence set.
   This host gap does **not** reopen the frozen `mf_admin_lifecycle_v1` wire.
 - [x] Cover request replay/races, daemon/QEMU/server death, fd/VMA/DMA/queue/event

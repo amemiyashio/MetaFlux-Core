@@ -142,6 +142,17 @@ def _output_has_generation(text: str) -> bool:
     return "mf_cdev_generation" in text
 
 
+def _reset_overlay(overlay: Path) -> None:
+    """Drop a previous overlay tree; store copies arrive read-only."""
+    if not overlay.exists():
+        return
+    subprocess.run(
+        ["chmod", "-R", "u+w", str(overlay)],
+        check=False,
+    )
+    shutil.rmtree(overlay)
+
+
 def main() -> int:
     src_root = _source_root()
     if src_root is None:
@@ -156,73 +167,92 @@ def main() -> int:
     if not test_c.exists() or not test_h.exists():
         return _skip("generation KUnit sources are missing from the repository")
 
-    kunit_py = src_root / "tools" / "testing" / "kunit" / "kunit.py"
+    cache_value = os.environ.get("METAFLUX_KUNIT_CACHE_DIR", "").strip()
+    if cache_value:
+        cache_root = Path(cache_value)
+        overlay = cache_root / "src"
+        build_dir = cache_root / "build"
+        cache_root.mkdir(parents=True, exist_ok=True)
+        _reset_overlay(overlay)
+        overlay.mkdir()
+        build_dir.mkdir(exist_ok=True)
+        return _run_suite(src_root, overlay, build_dir, kunitconfig, repo_root)
     with tempfile.TemporaryDirectory(prefix="metaflux-kunit-") as workdir:
         overlay = Path(workdir) / "src"
         build_dir = Path(workdir) / "build"
         overlay.mkdir()
         build_dir.mkdir()
-        _prepare_overlay(src_root, overlay, repo_root)
-        env = os.environ.copy()
-        gcc = shutil.which("gcc")
-        if gcc:
-            probe = subprocess.run(
-                [gcc, "-print-file-name=libc.so.6"],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            libc = Path(probe.stdout.strip())
-            if probe.returncode == 0 and libc.is_file():
-                glibc_lib = libc.parent
-                # Consumed only by the patched UML start(): the kernel
-                # process needs the Nix glibc on LD_LIBRARY_PATH, while the
-                # kunit.py/make build environment must stay clean.
-                env["METAFLUX_UML_LIB"] = str(glibc_lib)
-        # PIE load bases overflow UML's exec-shield memory accounting
-        # ("Too few physical memory"), so build the UML kernel non-PIE.
-        env["NIX_HARDENING_ENABLE"] = "fortify stackprotector relro bindnow"
-        result = subprocess.run(
-            [
-                sys.executable,
-                "-B",
-                str(overlay / "tools" / "testing" / "kunit" / "kunit.py"),
-                "run",
-                "--build_dir",
-                str(build_dir),
-                "--kunitconfig",
-                str(kunitconfig),
-                "--arch",
-                "um",
-                "--timeout",
-                "300",
-            ],
-            cwd=str(overlay),
+        return _run_suite(src_root, overlay, build_dir, kunitconfig, repo_root)
+
+
+def _run_suite(
+    src_root: Path,
+    overlay: Path,
+    build_dir: Path,
+    kunitconfig: Path,
+    repo_root: Path,
+) -> int:
+    _prepare_overlay(src_root, overlay, repo_root)
+    env = os.environ.copy()
+    gcc = shutil.which("gcc")
+    if gcc:
+        probe = subprocess.run(
+            [gcc, "-print-file-name=libc.so.6"],
             capture_output=True,
             text=True,
-            env=env,
+            check=False,
         )
-        combined = (result.stdout or "") + (result.stderr or "")
-        if result.stdout:
-            sys.stdout.write(result.stdout)
-        if result.stderr:
-            sys.stderr.write(result.stderr)
-        if result.returncode != 0:
-            return 1 if result.returncode != 77 else 77
+        libc = Path(probe.stdout.strip())
+        if probe.returncode == 0 and libc.is_file():
+            glibc_lib = libc.parent
+            # Consumed only by the patched UML start(): the kernel
+            # process needs the Nix glibc on LD_LIBRARY_PATH, while the
+            # kunit.py/make build environment must stay clean.
+            env["METAFLUX_UML_LIB"] = str(glibc_lib)
+    # PIE load bases overflow UML's exec-shield memory accounting
+    # ("Too few physical memory"), so build the UML kernel non-PIE.
+    env["NIX_HARDENING_ENABLE"] = "fortify stackprotector relro bindnow"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            str(overlay / "tools" / "testing" / "kunit" / "kunit.py"),
+            "run",
+            "--build_dir",
+            str(build_dir),
+            "--kunitconfig",
+            str(kunitconfig),
+            "--arch",
+            "um",
+            "--timeout",
+            "300",
+        ],
+        cwd=str(overlay),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    combined = (result.stdout or "") + (result.stderr or "")
+    if result.stdout:
+        sys.stdout.write(result.stdout)
+    if result.stderr:
+        sys.stderr.write(result.stderr)
+    if result.returncode != 0:
+        return 1 if result.returncode != 77 else 77
+    if not _output_has_generation(combined):
+        log_path = build_dir / "test.log"
+        if log_path.exists():
+            log_text = log_path.read_text(encoding="utf-8", errors="replace")
+            sys.stdout.write(log_text)
+            combined += log_text
         if not _output_has_generation(combined):
-            log_path = build_dir / "test.log"
-            if log_path.exists():
-                log_text = log_path.read_text(encoding="utf-8", errors="replace")
-                sys.stdout.write(log_text)
-                combined += log_text
-            if not _output_has_generation(combined):
-                print(
-                    "ERROR: no mf_cdev_generation KUnit cases found in output. "
-                    "In-tree UML KUnit without this suite is not a pass.",
-                    file=sys.stderr,
-                )
-                return 1
-        return 0
+            print(
+                "ERROR: no mf_cdev_generation KUnit cases found in output. "
+                "In-tree UML KUnit without this suite is not a pass.",
+                file=sys.stderr,
+            )
+            return 1
+    return 0
 
 
 if __name__ == "__main__":

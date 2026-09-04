@@ -205,11 +205,14 @@ and arithmetic operation is validated.
   adjacent rejection), cdev lifecycle-failure injection, worker pending-reset
   cancellation, and runtime multiprocess death/recovery. The module builds and
   loads against the running 6.18 LTS kernel.
-  Explicit non-reopening host blocker: host probe still reports
-  `CONFIG_KASAN`, `CONFIG_KCSAN`, `CONFIG_PROVE_LOCKING`, `CONFIG_DEBUG_KMEMLEAK`,
-  and `CONFIG_KUNIT` unset, so `driver kmemleak-*` and in-tree KUnit suites
-  remain blocked pending a batch-0002 debug/sanitizer kernel rebuild; planned
-  KUnit owners stay under `kernel/tests/kunit/`. This host gap does **not**
+  In-kernel KUnit for the `mf_cdev_generation` suite now executes under UML on
+  the pinned `linux_6_12` 6.12.105 source (`nix develop .#linux-debug`; CTest
+  row `metaflux.kernel.kunit-uml`), so KUnit is no longer part of the host
+  blocker. Remaining non-reopening host blocker: the host probe still reports
+  `CONFIG_KASAN`, `CONFIG_KCSAN`, `CONFIG_PROVE_LOCKING`, and
+  `CONFIG_DEBUG_KMEMLEAK` unset, so `driver kmemleak-*` and sanitizer/lockdep
+  soaks of the real `metaflux_core.ko` remain pending a batch-0002 debug host
+  kernel rebuild. This host gap does **not**
   reopen the userspace cdev death/stale/rebind evidence already landing under
   `metaflux.transport.cdev-*` and `metaflux.stress.cdev-rebind-soak`.
 

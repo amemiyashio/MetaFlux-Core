@@ -844,3 +844,21 @@ set_tests_properties(
   metaflux.kernel.kunit-generation-selftest
   PROPERTIES LABELS "kernel;qualification;unit"
 )
+# UML KUnit gate: re-enters the named linux-debug flake shell so CTest
+# exercises the real in-kernel mf_cdev_generation qualification on the
+# pinned linux_6_12 source. Skips 77 only when nix is unavailable; keeps
+# its incremental UML build under kunit-uml-cache in this build tree.
+add_test(
+  NAME metaflux.kernel.kunit-uml
+  COMMAND
+    "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/../tools/run-kunit-uml-ctest.py"
+)
+set_tests_properties(
+  metaflux.kernel.kunit-uml
+  PROPERTIES
+    LABELS "kernel;qualification;kunit"
+    TIMEOUT 900
+    SKIP_RETURN_CODE 77
+    ENVIRONMENT "METAFLUX_KUNIT_CACHE_DIR=${CMAKE_BINARY_DIR}/kunit-uml-cache"
+)

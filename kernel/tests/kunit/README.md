@@ -50,4 +50,8 @@ builds UML non-PIE (PIE load bases overflow UML's exec-shield memory
 accounting), and launches the kernel with the Nix glibc on `LD_LIBRARY_PATH`.
 Verified locally: `Ran 5 tests: passed: 5` for `mf_cdev_generation`.
 
+CTest exercises the same gate as `metaflux.kernel.kunit-uml`, which re-enters
+the `linux-debug` shell and keeps an incremental UML build under
+`<build-dir>/kunit-uml-cache` (override with `METAFLUX_KUNIT_CACHE_DIR`).
+
 Host KASAN/KCSAN/lockdep/kmemleak soak remains a separate debug-kernel gate.
