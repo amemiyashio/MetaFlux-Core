@@ -1,22 +1,21 @@
 ---
 name: push-repository
-description: Configure, validate, or push an exact committed MetaFlux revision to its canonical GitHub repository through the governed SSH key. Use when the user or application asks about repository push transport or explicitly requests a push. Do not use for local commits, Batch integration, release packaging, or branch allocation.
+description: Configure, validate, or push an exact committed MetaFlux revision to its canonical GitHub repository through the governed SSH key. Use after a published Epoch activation or Batch-integration commit is on disk, or when the user or application asks about repository push transport or explicitly requests a push. Do not use for ordinary Iteration commits, release packaging, or branch allocation.
 ---
 
 # Push Repository
 
-Own the external Git transport boundary after `start-work`. A completed commit,
-Iteration, Batch integration, or Epoch governance does not imply permission to
-push. Configure or inspect transport when requested; mutate the remote only when
-the user or application explicitly requests the exact push.
+Own the external Git transport boundary after `start-work`. An ordinary
+Iteration commit does not imply permission to push. After a published Epoch
+activation commit, or a Batch integration commit that updated `goal.json` lane
+or Batch state, is on disk, the governing or integrating parent must invoke
+this skill with that commit's full object ID. Configure or inspect transport
+when requested. Other remote mutations still require an explicit user or
+application request and one full commit object ID.
 
-A larger checkpoint is one of: a published Epoch activation commit, a Batch
-integration commit that updated `goal.json` lane or Batch state, or a commit the
-user or application names as a larger checkpoint. Completing that checkpoint
-still does not infer a push. When the user or application then explicitly asks
-to push that checkpoint, invoke this skill with that commit's full object ID
-only. Do not treat an ordinary Iteration commit, an unreviewed subagent diff, a
-dirty worktree, or an inferred `HEAD` as a larger checkpoint.
+Do not treat an ordinary Iteration commit, an unreviewed subagent diff, a dirty
+worktree, or a conversation-inferred `HEAD` as authorization to push. Coding
+subagents never push.
 
 ## Canonical Transport
 
@@ -65,11 +64,13 @@ read-only authenticated `ls-remote`; ordinary `check` is local-only.
 
 ## Push One Revision
 
-Require the full commit object ID supplied by the user or application. For a
-named larger checkpoint, that ID is the published Epoch, Batch-integration, or
-user-named commit object, never a parent-inferred revision. The helper resolves
-and verifies that object, revalidates the configured transport, and pushes
-exactly `COMMIT:refs/heads/main` without force:
+Require the full commit object ID. After Epoch publication or Batch
+integration, that ID is the just-committed object resolved immediately with
+`git rev-parse HEAD` in the governance or integration context. For any other
+push, the user or application supplies the OID. Never invent a short hash or
+infer a revision from a dirty tree. The helper resolves and verifies that
+object, revalidates the configured transport, and pushes exactly
+`COMMIT:refs/heads/main` without force:
 
 ```sh
 nix develop . --command python3 -B \

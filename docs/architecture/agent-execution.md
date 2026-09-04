@@ -92,6 +92,8 @@ Each lane receives focused verification. The combined tree then receives the
 Batch regression. Only a passing combined tree may mark lanes or the Batch
 integrated, and that state change is included in the final product merge rather
 than a standalone record commit. Failure leaves main and `goal.json` unchanged.
+After the integration commit is on disk, the integrating parent pushes that
+full object ID through `push-repository`.
 
 ## Task-Stop Contract
 
@@ -117,9 +119,11 @@ authority, removes obsolete surfaces, and stages the next monotonic Epoch.
 
 The new Epoch is not published until the state checker, skill gates, architecture
 graph, relevant domain tests, and full regression pass. A failed candidate is
-fixed in the same governance work unit under the old published Epoch. After
-publication, older-base work must rerun `start-work`, rebase onto the new Epoch,
-and repeat verification before integration. Existing branches are not deleted.
+fixed in the same governance work unit under the old published Epoch. After the
+activation commit is on disk, the governing parent pushes that full object ID
+through `push-repository`. After publication, older-base work must rerun
+`start-work`, rebase onto the new Epoch, and repeat verification before
+integration. Existing branches are not deleted.
 
 ## Knowledge Promotion
 

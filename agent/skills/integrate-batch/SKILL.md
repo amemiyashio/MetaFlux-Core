@@ -65,6 +65,11 @@ nix develop . --command python3 tools/check-agent-state.py . \
 7. Commit through the `start-work` helper with the current Epoch. Promote the
    tested integration tip to main only by an exact fast-forward or explicit
    user-directed merge.
+8. After that integration commit is on disk and `goal.json` lane or Batch state
+   was updated in it, resolve its full object ID with `git rev-parse HEAD` and
+   invoke `push-repository` to push exactly that OID to `refs/heads/main`. A
+   push failure leaves the local integration commit intact and stops through
+   the `git-publish.*` contract; do not retry unchanged transport evidence.
 
 If any focused or combined gate fails, do not publish the merge or goal state.
 Fix a bounded integration defect in the same Batch, or return the exact defect

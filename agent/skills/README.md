@@ -47,8 +47,11 @@ this directory.
   skills retain product semantics.
 - Tool changes use `manage-toolchain`. A confirmed Nix gap or privileged driver
   action additionally uses `manage-host-privilege`.
-- Explicit repository pushes use `push-repository`; local completion never
-  triggers a push, branch allocation, or broad refspec implicitly.
+- Epoch publication and Batch integration use `push-repository` with the
+  just-committed full object ID after that commit is on disk. Ordinary
+  Iteration completion never triggers a push, branch allocation, or broad
+  refspec. Other pushes still require an explicit user or application request
+  and one full commit object ID.
 - Decision closure uses `close-decision`; a breaking repository-wide
   replacement instead belongs to explicit `govern-epoch`.
 

@@ -835,8 +835,8 @@
       "id": "PUSH-N1",
       "kind": "near-miss",
       "locale": "en",
-      "prompt": "Use $integrate-batch to integrate the supplied revisions, but keep the result local and do not configure or contact a Git remote.",
-      "expected_skills": ["integrate-batch"],
+      "prompt": "Use $roast at this verified Iteration boundary to promote one claim, and keep that ordinary Iteration commit local without configuring a Git remote or pushing.",
+      "expected_skills": ["roast"],
       "forbidden_skills": ["push-repository"]
     },
     {
@@ -851,7 +851,7 @@
       "id": "COMBO-INTEGRATE-PUSH",
       "kind": "composition",
       "locale": "en",
-      "prompt": "Use $integrate-batch for the supplied committed Iterations, then explicitly validate and push the resulting full commit ID to canonical GitHub main.",
+      "prompt": "Use $integrate-batch for the supplied committed Iterations; after the integration commit that updates goal.json is on disk, validate and push that full commit ID to canonical GitHub main.",
       "expected_skills": ["integrate-batch", "push-repository"],
       "forbidden_skills": []
     },

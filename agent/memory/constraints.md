@@ -92,7 +92,10 @@ identity and provisioning boundaries live in
   knowledge through `roast`, deletes obsolete surfaces, and publishes the next
   Epoch only after complete regression. There is no dual-write, alias, old-format
   parser, migration ledger, or compatibility route; Git history is the recovery
-  boundary.
+  boundary. After the Epoch activation commit or a Batch integration commit that
+  updated `goal.json` is on disk, the governing or integrating parent pushes that
+  full object ID through `push-repository` (decision-0038). Ordinary Iteration
+  commits do not push.
 - A tool newly required by a repeatable workflow is versioned in the Nix-provided
   tool environment before use; this does not transfer workflow semantics or
   outputs to Nix. decision-0022 supersedes the broader decision-0021 wording.

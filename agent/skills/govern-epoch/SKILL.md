@@ -54,7 +54,11 @@ the new Epoch is published without rebase and revalidation.
 Any failure means the candidate Epoch is not published. Repair it in the same
 governance work unit and repeat the full regression. Only a completely passing
 tree is committed atomically through the `start-work` helper using the candidate
-Epoch declaration.
+Epoch declaration. After that activation commit is on disk, resolve its full
+object ID with `git rev-parse HEAD` and invoke `push-repository` to push exactly
+that OID to `refs/heads/main`. A push failure leaves the local Epoch commit
+intact and stops through the `git-publish.*` contract; do not retry unchanged
+transport evidence.
 
 ## Task Stops
 
