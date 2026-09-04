@@ -42,10 +42,12 @@ updated: 2026-09-04
   Fixture ledger storm soak + injection-failure retry is covered by
   `metaflux.transport.vfio-user-fault-matrix` (`msix-storm-injection`, 4096
   masked coalesced notifications then fail/retry).
-  Explicit non-reopening host blocker: live QEMU/libvfio-user eventfd-level
-  storm remains the open host qualification half of
-  `metaflux.transport.vfio-user-live-bringup` and does **not** reopen the
-  frozen base UAPI or the userspace MSI-X ledger evidence.
+  Live QEMU/libvfio-user MSI-X vector delivery is now closed by
+  `run_vfio_user_live_bringup.py` PASS (vectors 0+1 delivered with BAR0/2/4 and
+  doorbell ioeventfd) under
+  `.metaflux-evidence/MetaFlux-Core/milestone-0.1.1.5-live-vfio-user/`.
+  Long interrupt-moderation storm soak beyond bring-up remains optional host
+  evidence and does **not** reopen the frozen base UAPI.
 - [x] Verify DMA overlap/holes/read-only/overflow/stale epoch/in-flight unmap,
   `FOLL_LONGTERM` rejection, quotas, partial-pin unwind, dirty unpin, direction,
   timeout disconnect, and tombstones.

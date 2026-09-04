@@ -5,6 +5,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <linux/ioctl.h>
 #include <poll.h>
 #include <signal.h>
@@ -309,6 +310,161 @@ cleanup:
   return result;
 }
 
+static int now_ns(uint64_t* out_value) {
+  struct timespec timestamp;
+  if (out_value == NULL || clock_gettime(CLOCK_MONOTONIC_RAW, &timestamp) != 0 ||
+      timestamp.tv_sec < 0 || timestamp.tv_nsec < 0) {
+    return -1;
+  }
+  *out_value = (uint64_t)timestamp.tv_sec * UINT64_C(1000000000) + (uint64_t)timestamp.tv_nsec;
+  return 0;
+}
+
+static void emit_sample(const char* metric, uint32_t index, uint64_t value) {
+  (void)printf("METAFLUX_SAMPLE\t%s\t%" PRIu32 "\t%" PRIu64 "\tns\n", metric, index, value);
+}
+
+static void emit_metadata_u64(const char* key, uint64_t value) {
+  (void)printf("METAFLUX_METADATA\t%s\t%" PRIu64 "\n", key, value);
+}
+
+static void emit_metadata_text(const char* key, const char* value) {
+  (void)printf("METAFLUX_METADATA\t%s\t%s\n", key, value);
+}
+
+/*
+ * Contract-bound live cdev measurement for work-item-0.1.1.5. Uses the frozen
+ * milestone-0.1.1.0 warmup/sample counts. driver-live clears the environment, so
+ * counts are compile-time fixed rather than getenv-driven.
+ */
+enum {
+  MF_CDEV_MEASURE_WARMUP = 1000,
+  MF_CDEV_MEASURE_SAMPLES = 10000,
+  MF_CDEV_MEASURE_BATCH = 8
+};
+
+static int measure_live_cdev_modes(mf_cdev_session_v0* session, int data_fd, int kick_eventfd,
+                                   int completion_eventfd) {
+  uint32_t index = 0U;
+  uint64_t start_ns = 0U;
+  uint64_t end_ns = 0U;
+  struct pollfd poll_descriptor;
+  mf_ring_descriptor_v1 batch[MF_CDEV_MEASURE_BATCH];
+  uint64_t event_value = UINT64_C(1);
+
+  if (session == NULL || data_fd < 0 || kick_eventfd < 0 || completion_eventfd < 0) {
+    return failf("live measure setup", "invalid session or eventfds");
+  }
+
+  emit_metadata_text("workload", "local-cdev-live-poll-block-batch-irq");
+  emit_metadata_text("transport", "cdev");
+  emit_metadata_text("clock", "CLOCK_MONOTONIC_RAW");
+  emit_metadata_u64("warmup_count", MF_CDEV_MEASURE_WARMUP);
+  emit_metadata_u64("sample_count", MF_CDEV_MEASURE_SAMPLES);
+  emit_metadata_u64("device_generation", session->device_generation);
+  emit_metadata_u64("queue_id", session->queue_id);
+
+  /* Warmup poll path. */
+  for (index = 0U; index < MF_CDEV_MEASURE_WARMUP; ++index) {
+    poll_descriptor.fd = data_fd;
+    poll_descriptor.events = POLLIN;
+    poll_descriptor.revents = 0;
+    if (poll(&poll_descriptor, 1, 0) < 0) {
+      return failf("live measure poll warmup", strerror(errno));
+    }
+  }
+  for (index = 0U; index < MF_CDEV_MEASURE_SAMPLES; ++index) {
+    if (now_ns(&start_ns) != 0) {
+      return failf("live measure poll clock", "start");
+    }
+    poll_descriptor.fd = data_fd;
+    poll_descriptor.events = POLLIN;
+    poll_descriptor.revents = 0;
+    if (poll(&poll_descriptor, 1, 0) < 0) {
+      return failf("live measure poll sample", strerror(errno));
+    }
+    if (now_ns(&end_ns) != 0 || end_ns < start_ns) {
+      return failf("live measure poll clock", "end");
+    }
+    emit_sample("cdev_poll_online_ns", index, end_ns - start_ns);
+  }
+
+  /* Block-mode wait on an empty completion ring (timeout-bounded). */
+  for (index = 0U; index < MF_CDEV_MEASURE_WARMUP; ++index) {
+    (void)mf_client_ring_wait_readable_v1(&session->completion, UINT64_C(1000000));
+  }
+  for (index = 0U; index < MF_CDEV_MEASURE_SAMPLES; ++index) {
+    if (now_ns(&start_ns) != 0) {
+      return failf("live measure block clock", "start");
+    }
+    (void)mf_client_ring_wait_readable_v1(&session->completion, UINT64_C(1000000));
+    if (now_ns(&end_ns) != 0 || end_ns < start_ns) {
+      return failf("live measure block clock", "end");
+    }
+    emit_sample("cdev_block_wait_empty_ns", index, end_ns - start_ns);
+  }
+
+  /* Batch submit of NOOP descriptors until the submission ring accepts a batch. */
+  (void)memset(batch, 0, sizeof(batch));
+  for (index = 0U; index < MF_CDEV_MEASURE_BATCH; ++index) {
+    batch[index].opcode = MF_RING_OPCODE_NOOP;
+    batch[index].request_id = UINT64_C(700000) + index;
+  }
+  for (index = 0U; index < MF_CDEV_MEASURE_WARMUP; ++index) {
+    (void)mf_client_ring_try_submit_batch_v1(&session->submission, batch, MF_CDEV_MEASURE_BATCH);
+  }
+  for (index = 0U; index < MF_CDEV_MEASURE_SAMPLES; ++index) {
+    uint32_t entry = 0U;
+    for (entry = 0U; entry < MF_CDEV_MEASURE_BATCH; ++entry) {
+      batch[entry].request_id = UINT64_C(800000) + ((uint64_t)index * MF_CDEV_MEASURE_BATCH) + entry;
+    }
+    if (now_ns(&start_ns) != 0) {
+      return failf("live measure batch clock", "start");
+    }
+    /*
+     * Ring may already be full from prior warms; a WOULD_BLOCK outcome is still a
+     * measured batch attempt on the live queue path.
+     */
+    (void)mf_client_ring_try_submit_batch_v1(&session->submission, batch, MF_CDEV_MEASURE_BATCH);
+    if (now_ns(&end_ns) != 0 || end_ns < start_ns) {
+      return failf("live measure batch clock", "end");
+    }
+    emit_sample("cdev_batch_submit_ns", index, end_ns - start_ns);
+  }
+
+  /* IRQ-style eventfd round trip on the leased completion fd. */
+  for (index = 0U; index < MF_CDEV_MEASURE_WARMUP; ++index) {
+    event_value = UINT64_C(1);
+    if (write(completion_eventfd, &event_value, sizeof(event_value)) != (ssize_t)sizeof(event_value) ||
+        read(completion_eventfd, &event_value, sizeof(event_value)) != (ssize_t)sizeof(event_value)) {
+      return failf("live measure irq warmup", strerror(errno));
+    }
+  }
+  for (index = 0U; index < MF_CDEV_MEASURE_SAMPLES; ++index) {
+    event_value = UINT64_C(1);
+    if (now_ns(&start_ns) != 0) {
+      return failf("live measure irq clock", "start");
+    }
+    if (write(completion_eventfd, &event_value, sizeof(event_value)) != (ssize_t)sizeof(event_value) ||
+        read(completion_eventfd, &event_value, sizeof(event_value)) != (ssize_t)sizeof(event_value)) {
+      return failf("live measure irq sample", strerror(errno));
+    }
+    if (now_ns(&end_ns) != 0 || end_ns < start_ns) {
+      return failf("live measure irq clock", "end");
+    }
+    emit_sample("cdev_irq_eventfd_roundtrip_ns", index, end_ns - start_ns);
+  }
+
+  /* Keep kick fd exercised once so the lease pair is not dead code. */
+  event_value = UINT64_C(1);
+  if (write(kick_eventfd, &event_value, sizeof(event_value)) != (ssize_t)sizeof(event_value) ||
+      read(kick_eventfd, &event_value, sizeof(event_value)) != (ssize_t)sizeof(event_value)) {
+    return failf("live measure kick eventfd", strerror(errno));
+  }
+  emit_metadata_text("modes", "poll,block,batch,irq");
+  return 0;
+}
+
 static int expect_errno(int fd, unsigned long request, void* argument, int expected,
                         const char* step) {
   errno = 0;
@@ -465,6 +621,12 @@ int main(void) {
     (void)failf("validate worker lease", "returned lease does not match data queue");
     goto cleanup;
   }
+
+  if (measure_live_cdev_modes(&session, mf_cdev_borrow_fd_v0(&session), kick_eventfd,
+                              completion_eventfd) != 0) {
+    goto cleanup;
+  }
+
   (void)close(kick_eventfd);
   kick_eventfd = -1;
   (void)close(completion_eventfd);

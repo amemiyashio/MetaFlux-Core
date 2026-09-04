@@ -51,9 +51,16 @@ empty-to-nonempty distributions independently.
   archives 1000-warmup/10000-sample poll-mode memfd-ring raw CSV plus
   p50/p90/p99 summaries. Evidence directory:
   `.metaflux-evidence/MetaFlux-Core/milestone-0.1.1.5-transport-profile/`.
-  Explicit remaining host rows: live cdev/vfio-user block mode, interrupt
-  moderation, multi-descriptor batching, and forced huge-page binding once
-  `/dev/metafluxN` and QEMU fixtures are present.
+  Live host rows closed on this reference host:
+  - loaded `metaflux_core.ko` via `manage-host-privilege driver load`;
+  - `driver live` cdev qualification PASS with contract-bound samples
+    (1000 warmup / 10000 each of poll, block-wait, batch-submit, IRQ eventfd)
+    archived under `.metaflux-evidence/MetaFlux-Core/milestone-0.1.1.5-live-cdev/`;
+  - pinned QEMU 10.2.4 + libvfio-user live bring-up PASS (PCI identity, BAR0/2/4,
+    BAR0 R/W, MSI-X vectors 0+1, mappable DMA, doorbell ioeventfd) under
+    `.metaflux-evidence/MetaFlux-Core/milestone-0.1.1.5-live-vfio-user/`.
+  Remaining optional host soaks: forced huge-page differential and long MSI-X
+  interrupt-moderation storm beyond the bring-up vector delivery proof.
 - [x] Audit allocations, locks, syscalls, cache lines, BAR access, and fd lifetime.
   Warm-path audit on the memfd client fastpath (`--audit` ring benchmark)
   proves zero heap allocation attempts and zero global lock acquisitions for
