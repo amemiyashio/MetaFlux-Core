@@ -43,7 +43,11 @@ nix develop .#linux-debug --command python3 tools/run-kunit-generation.py
 ```
 
 The environment variable `METAFLUX_LINUX_SRC` must point at the materialized
-`linux-debug-tools` package (set automatically by the shell). The runner
-exits 77 when `METAFLUX_LINUX_SRC` is unset, so CTest records the test as
-skipped when the shell is not active. Host KASAN/KCSAN/lockdep/kmemleak soak
-remains a separate debug-kernel gate.
+`linux-debug-tools` source root (set automatically by the shell). The runner
+builds a writable overlay of the pinned source, injects
+`mf_cdev_generation_test.c` as a built-in KUnit suite under `lib/kunit`,
+builds UML non-PIE (PIE load bases overflow UML's exec-shield memory
+accounting), and launches the kernel with the Nix glibc on `LD_LIBRARY_PATH`.
+Verified locally: `Ran 5 tests: passed: 5` for `mf_cdev_generation`.
+
+Host KASAN/KCSAN/lockdep/kmemleak soak remains a separate debug-kernel gate.

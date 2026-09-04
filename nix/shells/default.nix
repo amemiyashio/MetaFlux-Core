@@ -144,7 +144,7 @@ in
       pkgs.pkg-config
     ];
     shellHook = ''
-      export METAFLUX_LINUX_SRC="${toolPackages.linux-debug-tools}"
+      export METAFLUX_LINUX_SRC="${toolPackages.linux-debug-tools}/src"
       # Add the kunit source tree to PATH so that kunit.py can be found
       # directly (e.g. $METAFLUX_LINUX_SRC/tools/testing/kunit/kunit.py).
       export PATH="$METAFLUX_LINUX_SRC/tools/testing/kunit''${PATH:+:$PATH}"
