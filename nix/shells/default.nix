@@ -142,6 +142,12 @@ in
       pkgs.bison
       pkgs.flex
       pkgs.pkg-config
+      # Kernel objtool's HOSTCC needs elfutils libelf (gelf.h with the
+      # symshndx API); the standalone libelf package is too old.
+      pkgs.elfutils
+      # The x86_64 defconfig keeps the system keyring, so the kernel's
+      # certs/extract-cert host tool needs OpenSSL headers.
+      pkgs.openssl
     ];
     shellHook = ''
       export METAFLUX_LINUX_SRC="${toolPackages.linux-debug-tools}/src"

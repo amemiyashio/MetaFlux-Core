@@ -34,6 +34,12 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
   installation, and authorization. The installed host copy is a local
   prerequisite and does not become Nix-owned declared identity or
   repeatable/release evidence.
+- glibc is the only libc for every declared toolchain, build, release, and
+  qualification artifact. Do not add musl, uClibc, or any other libc
+  replacement to a Nix declaration, development shell, or guest image; when a
+  glibc static link or guest runtime hits a bootstrap defect, fix it within
+  the glibc toolchain (flags, crt selection, runtime collection) instead of
+  switching libc.
 - Git owns source identity and history.
 - CMake and Ninja own configure, build, install, and build-directory behavior.
 - CTest and repository scripts own tests and qualification.

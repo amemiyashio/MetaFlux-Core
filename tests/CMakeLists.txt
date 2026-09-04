@@ -84,7 +84,7 @@ if(TARGET metaflux_cpu_backend_runtime AND TARGET metaflux_cuda_ptx_frontend AND
   set_tests_properties(metaflux.backend.cpu-launch PROPERTIES LABELS "backend;cpu;cuda;unit")
 endif()
 
-if(TARGET metaflux_transport_cdev_client AND TARGET metafluxd)
+if(TARGET metaflux_transport_cdev_client)
   find_package(ZLIB REQUIRED)
   add_executable(
     metaflux_transport_cdev_live_qualification
@@ -95,10 +95,17 @@ if(TARGET metaflux_transport_cdev_client AND TARGET metafluxd)
     PRIVATE MetaFlux::TransportCdevClient MetaFlux::ClientFastpath
   )
   get_filename_component(_metaflux_live_zlib_dir "${ZLIB_LIBRARY}" DIRECTORY)
+  # Without the daemon target (guest/standalone qualification builds) the
+  # live qualification skips its daemon CDEV_BIND section.
+  if(TARGET metafluxd)
+    set(_metaflux_live_daemon_define "METAFLUX_DAEMON_EXECUTABLE=\"$<TARGET_FILE:metafluxd>\"")
+  else()
+    set(_metaflux_live_daemon_define "METAFLUX_DAEMON_EXECUTABLE=\"\"")
+  endif()
   target_compile_definitions(
     metaflux_transport_cdev_live_qualification
     PRIVATE
-      METAFLUX_DAEMON_EXECUTABLE="$<TARGET_FILE:metafluxd>"
+      "${_metaflux_live_daemon_define}"
       METAFLUX_DAEMON_LIBRARY_PATH="${_metaflux_live_zlib_dir}"
   )
   metaflux_configure_target(metaflux_transport_cdev_live_qualification C)
@@ -861,6 +868,24 @@ set_tests_properties(
     TIMEOUT 900
     SKIP_RETURN_CODE 77
     ENVIRONMENT "METAFLUX_KUNIT_CACHE_DIR=${CMAKE_BINARY_DIR}/kunit-uml-cache"
+)
+# Debug-kernel supply-path self-test: exercises the runner's .config reader,
+# guest-console parsers, initramfs packer, and vermagic helpers plus the
+# missing-bzImage skip path. It never boots a guest; the real guest run stays
+# a manual batch gate (see kernel/tests/README.md "Batch-0002 debug kernel
+# supply path").
+add_test(
+  NAME metaflux.kernel.debug-kernel-selftest
+  COMMAND
+    "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-run-debug-kernel-qualification.py"
+)
+set_tests_properties(
+  metaflux.kernel.debug-kernel-selftest
+  PROPERTIES
+    LABELS "kernel;qualification;unit"
+    TIMEOUT 900
+    SKIP_RETURN_CODE 77
 )
 # Backend-Vulkan package gate: constructs the real metaflux-backend-vulkan
 # package from a generic release build tree (skip 77 when the tree or the

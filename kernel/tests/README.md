@@ -43,6 +43,64 @@ debug kernel.
 Live KUnit/sanitizer soak remains a batch-0002 host gate; this probe only
 records CONFIG presence and skips qualification when unset.
 
+## Batch-0002 Debug Kernel Supply Path
+
+The pinned `linux_6_12` source (6.12.105) builds an x86_64 qualification
+kernel (KUnit, KASAN, KCSAN, kmemleak, lockdep, modules) via:
+
+```sh
+nix develop .#linux-debug --command tools/build-debug-kernel.sh
+```
+
+The cache lives at `../.metaflux-build/MetaFlux-Core/debug-kernel` (`src`
+symlink overlay, `build` O= tree, `build/arch/x86_64/boot/bzImage`). The final
+`build/.config` is authoritative: the build script reports any qualification
+CONFIG dropped by Kconfig dependencies (KASAN and KCSAN may be mutually
+exclusive on 6.12).
+
+`tools/run-debug-kernel-qualification.py` is the guest supply path: it builds
+`metaflux_core.ko` and `mf_cdev_generation_kunit.ko` against that kernel
+(`make -C <overlay> O=<build> M=<repo>/kernel/... ARCH=x86_64 modules`),
+cross-builds a statically linked `metaflux_transport_cdev_live_qualification`
+into a dedicated CMake tree, packs a busybox initramfs, boots it under
+`qemu-system-x86_64 -kernel/-initrd` with `console=ttyS0 oops=panic panic=-1
+kasan_multi_shot`, and parses the serial console for the guest markers, the
+`mf_cdev_generation` KUnit TAP block, the kmemleak scan, and post-module-load
+KASAN/KCSAN/lockdep/RCU warnings. It emits a JSON summary (`kernel_config`,
+`phases`, `kmemleak_empty`, `kunit`, `warnings`) and exits 0 pass / 1 fail /
+77 skip. The runner never claims a sanitizer gate closed; it only supplies the
+boot and run evidence.
+
+Phases (`--skip-kernel`, `--skip-module`, `--skip-qualification-binary`,
+`--skip-guest`) are independently skippable so each Nix shell can do the part
+its toolchain owns:
+
+```sh
+# Kernel + module + KUnit module (gcc, gnumake):
+nix develop .#linux-debug --command \
+  python3 -B tools/run-debug-kernel-qualification.py --skip-qualification-binary --skip-guest
+
+# Static qualification binary (cmake, ninja, clang):
+nix develop . --command \
+  python3 -B tools/run-debug-kernel-qualification.py --skip-kernel --skip-module --skip-guest
+
+# Guest boot and console parse (qemu + static busybox):
+nix develop .#vfio-user --command \
+  env STATIC_BUSYBOX="$(command -v busybox)" \
+  python3 -B tools/run-debug-kernel-qualification.py \
+  --skip-kernel --skip-module --skip-qualification-binary
+```
+
+`STATIC_BUSYBOX` (or `--static-busybox`) must point at a static busybox; the
+vfio-user shell packages one via `pkgs.busybox.override {enableStatic=true}`.
+An unset value exits 77, as do a missing bzImage (run
+`tools/build-debug-kernel.sh`), missing `qemu-system-x86_64`, and missing
+`cmake`/`ninja`. The runner checks each `.ko` vermagic against the kernel
+release before shipping it to the guest. The CTest row
+`metaflux.kernel.debug-kernel-selftest` runs only the parser/config self-test
+(`tools/test-run-debug-kernel-qualification.py`); booting the real guest stays
+a manual batch gate.
+
 ## KUnit Execution
 
 The CTest gate `metaflux.kernel.kunit-generation` runs

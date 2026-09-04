@@ -101,6 +101,13 @@ identity and provisioning boundaries live in
 - A tool newly required by a repeatable workflow is versioned in the Nix-provided
   tool environment before use; this does not transfer workflow semantics or
   outputs to Nix. decision-0022 supersedes the broader decision-0021 wording.
+- glibc is the only libc: every MetaFlux runtime, release, and qualification
+  artifact builds and runs against glibc, and no workflow may introduce musl or
+  any other libc replacement (user mandate, performance-first). Guest
+  qualification binaries ship with the glibc runtime they need (dynamic
+  binaries plus the loader and libraries in the guest image) instead of
+  switching libc. Instrumentation or bootstrap defects inside a glibc static
+  link are fixed within the glibc toolchain, never by changing libc.
 - Podman is the approved container runtime for repository qualification and is
   exposed by the release development shell; agents use podman through
   `nix develop .#release` and never install or invoke a second ambient runtime.

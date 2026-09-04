@@ -13,12 +13,19 @@ target's source is authoritative for API shape.
 - KUnit for state, range, extension, refcount, and ordering helpers.
 - Userspace native/compat tests for ioctl encoding, layouts, mmap, poll/wait,
   eventfd, errno, and interrupted calls.
-- KASAN for lifetime/bounds, KCSAN for races, lockdep for lock order, kmemleak for
-  ownership, and fault injection for every allocation/pin/map/publish stage.
+- KASAN for lifetime/bounds, KCSAN for races, lockdep for lock order, kmemleak
+  for ownership, and fault injection for every allocation/pin/map/publish stage.
 - Fuzz command, size, flags, reserved bytes, offsets, lengths, extensions, and
   legal concurrent sequences.
 - Stress open/dup/fork/mmap/unmap/close, daemon and worker death, module remove,
   stale completion, owner death, counter wrap, and generation replacement.
+
+Guest qualification binaries are **glibc-only**. Static or dynamic, they link
+against glibc; musl or any other libc replacement is prohibited. When a guest
+image needs a self-contained userspace, ship the glibc runtime (dynamic binary
+plus its loader and `NEEDED` libraries) inside the image rather than changing
+libc. A glibc static-link bootstrap defect is fixed within the glibc toolchain
+(flags, crt selection, runtime collection), never by swapping libc.
 
 ## Acceptance evidence
 
