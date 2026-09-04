@@ -23,9 +23,15 @@ the repository gates.
    ownership are not repository records.
 3. **Deliver one committed Iteration.** Use a separate worktree based on an
    exact revision supplied by the assignment. Do not edit `agent/goal.json`.
-   Report the full Epoch/Batch/Iteration identity, base and tip revisions,
-   tests, blockers, and roast candidates. Uncommitted or ambient worktree state
-   is never an integration input. Linked worktrees share common Git state;
+   Prefer bounded coding subagents for product source and test lookup, add,
+   delete, and modify: the parent writes a self-contained briefing from loaded
+   authority, then reviews returned diffs in conversation against that briefing
+   and product boundaries before tests or commit. Coding subagents must not
+   edit `goal.json`, integrate, govern, push, or create execution contexts.
+   Review is conversation output only; there is no review archive. Report the
+   full Epoch/Batch/Iteration identity, base and tip revisions, tests,
+   blockers, and roast candidates. Uncommitted or ambient worktree state is
+   never an integration input. Linked worktrees share common Git state;
    temporary-repository tests must clear Git local environment variables before
    nested Git commands. Attribute an unexpected HEAD/index/config change to the
    exact reflog and invoking hook/test before claiming another agent changed it,

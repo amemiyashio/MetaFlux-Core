@@ -39,7 +39,8 @@ this directory.
 ## Composition
 
 - Worker Iterations compose `start-work`, automatic `detect-agent-tool`, and
-  every affected domain skill.
+  every affected domain skill. Coding lookup and mutation prefer a parent
+  briefing, a bounded coding subagent, and parent review against drift.
 - Explicit Batch integration composes `integrate-batch`, affected domain
   skills, and `roast` before final acceptance.
 - Explicit destructive governance composes `govern-epoch` and `roast`; domain

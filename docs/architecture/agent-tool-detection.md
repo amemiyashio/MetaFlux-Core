@@ -16,7 +16,8 @@ digest. The result is ephemeral and is never stored in repository goal state.
 
 This decision replaces the fixed agent product identity retained by
 decision-0033. The execution topology remains unchanged; decision-0035 completed
-the epoch-0003 governance transition, and the current Epoch is epoch-0004.
+the epoch-0003 governance transition, epoch-0004 superseded it, and the current
+Epoch is epoch-0005.
 
 ## Rationale
 

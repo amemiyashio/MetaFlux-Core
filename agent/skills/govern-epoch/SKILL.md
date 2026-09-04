@@ -20,12 +20,13 @@ authority, ambiguous terminology, incompatible rules, stale process machinery,
 or process work displacing product progress.
 
 Use bounded read-only subagents for independent semantic inventory, residual
-search, or regression review when that improves coverage. The governing Agent
-remains the sole writer and commit owner. Subagents do not rewrite authority,
-advance the Epoch, edit `goal.json`, or create execution contexts. If the
-available subagent mechanism creates an independent task, thread, branch, or
-worktree, require explicit user or application authorization before invoking
-it.
+search, or regression review when that improves coverage. Coding subagents are
+not the default on a governance cutover: the governing Agent remains the sole
+writer of current authority and the sole commit owner. Subagents do not rewrite
+authority, advance the Epoch, edit `goal.json`, or create execution contexts.
+If the available subagent mechanism creates an independent task, thread,
+branch, or worktree, require explicit user or application authorization before
+invoking it.
 
 Choose the next monotonic `epoch-NNNN`. Do not publish it yet. Existing branches
 and worktrees remain untouched, but no older-base candidate may integrate after

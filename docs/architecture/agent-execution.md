@@ -1,7 +1,7 @@
 ---
 status: Verified
 decision: decision-0033
-updated: 2026-09-01
+updated: 2026-09-04
 ---
 
 # Goal-First Multi-Agent Execution
@@ -56,7 +56,13 @@ conversation own live scheduling.
 ## Worker Contract
 
 A worker starts from an exact revision in a separate worktree, reads the active
-goal and domain authority, and changes only its assigned lane. Its delivery is:
+goal and domain authority, and changes only its assigned lane. Product source
+and test lookup, add, delete, and modify prefer a parent-written briefing, a
+bounded coding subagent, and parent review of returned diffs against that
+briefing and the product boundary. The parent owns verification commands, the
+commit helper, and never lets a coding subagent edit `goal.json`, integrate,
+govern, push, or create an execution context. Review stays in conversation;
+there is no review archive. Its delivery is:
 
 ```text
 epoch: epoch-NNNN

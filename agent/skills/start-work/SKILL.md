@@ -1,6 +1,6 @@
 ---
 name: start-work
-description: Cold-start one externally assigned MetaFlux Iteration with detected tool identity, existing Git topology, Nix-first project tools, bounded in-task subagents, and one committed delivery without allocating sibling lanes or source copies.
+description: Cold-start one externally assigned MetaFlux Iteration with detected tool identity, existing Git topology, Nix-first project tools, parent briefing, bounded coding subagents for product source CRUD, parent review against drift, and one committed delivery without allocating sibling lanes or source copies.
 ---
 
 # Start Work
@@ -138,12 +138,12 @@ failure to `git clone`, file-tree copying, or a sibling source directory.
 
 ## Assignment And Subagent Boundary
 
-The user or application owns scheduling and supplies the task, execution
-context, base revision, and assigned lane. `planned` sibling lanes describe the
-Batch integration topology; they are not a queue for the current worker to
-claim or dispatch. Existing parallel agents and worktrees are accepted as
-external facts, not authorization to create more. After delivering the assigned
-Iteration, report it and stop instead of selecting the next lane.
+The user or application owns scheduling, worktree, and lane assignment.
+`planned` sibling lanes describe the Batch integration topology; they are not a
+queue for the current worker to claim or dispatch. Existing parallel agents and
+worktrees are accepted as external facts, not authorization to create more. After
+delivering the assigned Iteration, report it and stop instead of selecting the
+next lane.
 
 A standalone local clone is never an Iteration execution context, even when it
 is clean, based on the requested revision, or already contains a useful
@@ -151,13 +151,25 @@ candidate. Preserve unexpected content long enough to identify its exact Git
 relationship, then let the user or application decide cleanup; do not continue
 work there, remove its provenance, or create another copy.
 
-Within the assigned Iteration, prefer bounded subagents over additional Git
-branches when independent analysis materially improves speed or review quality.
-Use them for read-only investigation, interface tracing, code review, test
-selection, and failure triage. The parent Agent remains the sole durable writer,
-test owner, and commit owner; subagents return findings or patch suggestions and
-do not edit `goal.json`, claim sibling lanes, integrate, govern, or create
-branches, worktrees, clones, tasks, threads, or chats.
+Within the assigned Iteration, prefer bounded coding subagents over additional
+Git branches when independent analysis or source mutation materially improves
+speed or review quality. Coding subagents perform product source and test lookup,
+add, delete, and modify operations. Do not use extra Git branches for subagent
+work.
+
+Before dispatching any coding subagent, the parent MUST write a self-contained
+briefing drawn exclusively from already-loaded authority. The briefing must
+include: epoch/batch/iteration identity, lane, base revision, allowed paths,
+forbidden paths, Exit Gate or acceptance criterion, domain-skill constraints that
+apply, the exact operation requested, completion criteria, and drift surfaces
+that must not change. The parent must not ask the subagent to invent missing
+identity, lane, or goal.json edits.
+
+Coding subagents MAY edit product source and tests inside allowed paths. They
+MUST NOT edit `agent/goal.json`, claim sibling lanes, integrate, govern, push,
+or create branches, worktrees, clones, tasks, threads, or chats. Read-only
+subagents remain allowed for inventory, residual search, and failure triage;
+they are not the default for coding work.
 
 If the available subagent mechanism inherently creates an independent task,
 thread, branch, or worktree, treat it as external fan-out and require explicit
@@ -182,6 +194,13 @@ workflows is inferred from ordinary implementation, review, commit, integration,
 or governance completion.
 
 ## Deliver The Iteration
+
+After coding subagents return, the parent reviews diffs and conclusions in
+conversation against the briefing and product boundaries. Reject or re-brief on
+drift. Do not write a session, roast, checkpoint, progress, or review archive.
+Parent remains sole owner of verification commands and the start-work commit
+helper. Parent remains sole owner of `goal.json`; workers never edit it. Only
+after review may the parent run tests and commit via the commit helper.
 
 Implement one coherent lane candidate and run focused tests proportional to its
 risk. Commit all delivered changes; staged, unstaged, untracked, or generated

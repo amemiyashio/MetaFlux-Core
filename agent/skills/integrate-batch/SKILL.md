@@ -33,8 +33,9 @@ A planned lane without a supplied committed candidate is a missing input, not
 authorization to create a worker, subtask, branch, worktree, clone, thread, or
 chat. Report the exact missing delivery and leave its lane state unchanged.
 Bounded read-only subagents may review independent `base..tip` ranges, test
-evidence, or dependency ordering when useful; the integrator remains the sole
-writer and merge owner. A subagent mechanism that creates an independent
+evidence, or dependency ordering when useful. The integrator remains the sole
+writer, merge owner, and `goal.json` owner; subagents do not edit authority or
+create execution contexts. A subagent mechanism that creates an independent
 execution context still requires explicit user or application authorization.
 
 Run the ancestry gate for every delivery before merge preparation:

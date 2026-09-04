@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 
 # Durable Constraints
@@ -77,12 +77,16 @@ identity and provisioning boundaries live in
   root. That skill is the sole owner for sudo/su, root-helper, persistent-grant,
   and revocation policy. Neither path permits arbitrary root commands or
   credential persistence.
-- Agent execution follows decision-0033. `agent/goal.json` stores only the active
-  Epoch, Batch, product target, objective, and planned/integrated/deferred lanes.
-  Workers deliver committed Iteration base/tip revisions; only an explicitly
-  created integration agent may update goal state in the successful product
-  integration commit. Conversation, actor, branch, worktree, timeline, and
-  activity state are not repository authorities.
+- Agent execution follows decision-0033 as amended by decision-0037.
+  `agent/goal.json` stores only the active Epoch, Batch, product target,
+  objective, and planned/integrated/deferred lanes. Workers deliver committed
+  Iteration base/tip revisions; only an explicitly created integration agent
+  may update goal state in the successful product integration commit. Product
+  source and test mutation prefers a parent briefing, a bounded coding
+  subagent, and parent conversational review against drift. Coding subagents
+  never edit `goal.json`, integrate, govern, or push. Conversation, actor,
+  branch, worktree, timeline, activity, and review notes are not repository
+  authorities.
 - Breaking repository governance uses an explicitly requested `govern-epoch`
   cutover. It directly rewrites all affected current authority, promotes useful
   knowledge through `roast`, deletes obsolete surfaces, and publishes the next
