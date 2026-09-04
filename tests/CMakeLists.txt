@@ -419,6 +419,16 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "release;unit"
   )
   add_test(
+    NAME metaflux.performance.live-cdev-archive-selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_archive_live_cdev_profile.py"
+  )
+  set_tests_properties(
+    metaflux.performance.live-cdev-archive-selftest
+    PROPERTIES LABELS "performance-smoke;release;unit"
+  )
+  add_test(
     NAME metaflux.performance.optimization-runner-selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B
