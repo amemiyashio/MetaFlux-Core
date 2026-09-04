@@ -74,4 +74,20 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   metaflux_configure_target(metaflux_transport_cdev_lifecycle_failure_test CXX)
   add_test(NAME metaflux.transport.cdev-lifecycle-failure COMMAND metaflux_transport_cdev_lifecycle_failure_test)
   set_tests_properties(metaflux.transport.cdev-lifecycle-failure PROPERTIES LABELS "transport;unit")
+
+  add_executable(metaflux_transport_cdev_rebind_soak_test tests/rebind_soak_test.cpp)
+  target_link_libraries(
+    metaflux_transport_cdev_rebind_soak_test
+    PRIVATE MetaFlux::TransportCdevWorker MetaFlux::ClientFastpath
+  )
+  target_include_directories(
+    metaflux_transport_cdev_rebind_soak_test
+    PRIVATE "${PROJECT_SOURCE_DIR}/contracts/shared/device/v1/include"
+  )
+  metaflux_configure_target(metaflux_transport_cdev_rebind_soak_test CXX)
+  add_test(NAME metaflux.stress.cdev-rebind-soak COMMAND metaflux_transport_cdev_rebind_soak_test)
+  set_tests_properties(
+    metaflux.stress.cdev-rebind-soak
+    PROPERTIES LABELS "transport;stress;unit;lifecycle" TIMEOUT 60
+  )
 endif()

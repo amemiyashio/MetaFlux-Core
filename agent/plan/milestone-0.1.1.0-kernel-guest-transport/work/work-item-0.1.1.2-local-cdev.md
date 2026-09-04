@@ -192,19 +192,23 @@ and arithmetic operation is validated.
   `metaflux.transport.cdev-live-qualification` (via decision-0032 `driver live`)
   proves negotiate/lease/payload/registered-memory plus
   `daemon CDEV_BIND + registered-memory region COPY: PASS`. Kernel queue owner
-  close no longer permanently offline the static fixture. Remaining:
-  generation-replacement soak under concurrent work and the batch-0002
-  sanitizer/fault matrix.
+  close no longer permanently offline the static fixture.
+  `metaflux.stress.cdev-rebind-soak` soaks 256 generation-replacement cycles
+  with interleaved COPY work, balanced lease/retire accounting, multi-reset
+  stale-generation rejection, and request-id-independent stale-generation
+  rejection after a replacement window.
 - [ ] Test open/mmap/process/daemon death, stale generation, counter wrap, and
-  teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak. The userspace live
-  ABI harness now PASSES on a live 6.18.42 host kernel through the
-  decision-0032 `driver live` action (`cdev qualification: PASS`, covering
-  negotiate, queue mmap, eventfd lease, payload query, long-term
-  registered-memory pin/unregister, malformed/stale rejection, and owner-close
-  tombstones). The module builds and loads against the running 6.18 LTS kernel.
-  Kernel-configured sanitizer and fault-injection runs remain unexecuted
-  (current host has `CONFIG_DEBUG_KMEMLEAK` unset); they stay in the
-  `batch-0002` Linux 6.12/6.18 fault and sanitizer qualification matrix.
+  teardown with KUnit, KASAN, KCSAN, lockdep, and kmemleak. Userspace coverage
+  now includes live cdev qualification (negotiate/lease/payload/registered-
+  memory/malformed/stale/owner-close tombstones + daemon CDEV_BIND COPY),
+  `metaflux.stress.cdev-rebind-soak` (generation replacement + stale/counter-
+  adjacent rejection), cdev lifecycle-failure injection, worker pending-reset
+  cancellation, and runtime multiprocess death/recovery. The module builds and
+  loads against the running 6.18 LTS kernel. Host probe still reports
+  `CONFIG_KASAN`, `CONFIG_KCSAN`, `CONFIG_PROVE_LOCKING`, `CONFIG_DEBUG_KMEMLEAK`,
+  and `CONFIG_KUNIT` unset, so `driver kmemleak-*` and in-tree KUnit suites
+  remain blocked pending a batch-0002 debug/sanitizer kernel rebuild; planned
+  KUnit owners stay under `kernel/tests/kunit/`.
 
 ## Exit Gate
 
