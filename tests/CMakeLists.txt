@@ -594,7 +594,21 @@ if(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER AND METAFLUX_BUILD_NVML_PROVIDER)
   )
 endif()
 
-if(TARGET metaflux_cuda_provider AND TARGET metafluxd AND METAFLUX_NVIDIA_HEADER_DIR)
+if(NOT METAFLUX_NVIDIA_HEADER_DIR)
+  message(
+    WARNING
+    "METAFLUX_NVIDIA_HEADER_DIR is unset; CUDA/NVML compatibility acceptance "
+    "and managed benchmark rows are EXCLUDED from this build. The default "
+    "'nix develop .#dev' shell declares it from the frozen provider-headers "
+    "tool (families/R610); qualification rows must not silently disappear."
+  )
+endif()
+
+if(
+  TARGET metaflux_cuda_provider
+  AND TARGET metafluxd
+  AND METAFLUX_NVIDIA_HEADER_DIR
+)
   if(NOT EXISTS "${METAFLUX_NVIDIA_HEADER_DIR}/cuda.h")
     message(FATAL_ERROR "METAFLUX_NVIDIA_HEADER_DIR does not contain cuda.h")
   endif()

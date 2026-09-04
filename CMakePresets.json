@@ -30,7 +30,8 @@
       "inherits": "cxx-base",
       "displayName": "MetaFlux development",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_BUILD_TYPE": "Debug",
+        "METAFLUX_NVIDIA_HEADER_DIR": "$env{METAFLUX_NVIDIA_HEADER_DIR}"
       }
     },
     {

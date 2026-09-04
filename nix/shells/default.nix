@@ -39,7 +39,15 @@ in
       pkgs.ccache
       pkgs.gdb
       pkgs.strace
+      # Frozen official CUDA/NVML headers for the compatibility acceptance
+      # rows; the shell declares METAFLUX_NVIDIA_HEADER_DIR so the default
+      # dev build never silently drops those qualification tests.
+      toolPackages.provider-headers
     ];
+    extraShellHook = ''
+      : "''${METAFLUX_NVIDIA_HEADER_DIR:=${toolPackages.provider-headers}/families/R610/include}"
+      export METAFLUX_NVIDIA_HEADER_DIR
+    '';
   };
 
   provider = mkClangShell {
