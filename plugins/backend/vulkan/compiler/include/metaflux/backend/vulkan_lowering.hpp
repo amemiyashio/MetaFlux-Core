@@ -47,10 +47,11 @@ enum class SpirvSemanticOpcode : std::uint32_t {
   store_global_u32 = 23,
   load_global_f32 = 24,
   store_global_f32 = 25,
-  load_workgroup_u32 = 26,
-  store_workgroup_u32 = 27,
-  control_barrier = 28,
-  return_value = 29,
+  store_global_u64 = 26,
+  load_workgroup_u32 = 27,
+  store_workgroup_u32 = 28,
+  control_barrier = 29,
+  return_value = 30,
 };
 
 struct SpirvLoweredInstruction final {

@@ -153,6 +153,7 @@ compile_error(backend::cpu::compiler::CompileError error) noexcept {
     case compiler::Opcode::StoreGlobalU32:
     case compiler::Opcode::LoadGlobalF32:
     case compiler::Opcode::StoreGlobalF32:
+    case compiler::Opcode::StoreGlobalU64:
       return true;
     default:
       break;

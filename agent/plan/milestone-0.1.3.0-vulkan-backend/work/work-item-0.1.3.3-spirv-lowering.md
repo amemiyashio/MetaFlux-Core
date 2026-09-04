@@ -5,7 +5,7 @@ milestone: milestone-0.1.3.0
 status: Active
 area: compiler.spirv
 depends_on: [work-item-0.1.3.1]
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 
 # Target-Constrained SPIR-V Lowering
@@ -64,8 +64,14 @@ fallback inside a Vulkan context.
   subgroup size 32, distinct UUIDs) and verify the full lowering suite produces
   valid SPIR-V for both profiles — host-independent dual-driver coverage without
   physical hardware.
-- [ ] Extend the lowering and differential matrix to the remaining Kernel IR
+- [x] Extend the lowering and differential matrix to the remaining Kernel IR
   arithmetic, wide-integer, and memory forms.
+  Added standalone `MultiplyWideU32` (u32 × immediate → u64) emission with a
+  new `StoreGlobalU64` Kernel IR opcode, CPU interpreter/compiler support, and
+  dual synthetic-driver SPIR-V validation via
+  `metaflux.backend.vulkan-lowering`. The GPU-to-SPIR-V path advertises `Int64`
+  only for this form. Remaining memory-only standalone shapes stay optional
+  coverage beyond the Exit Gate's advertised-module requirement.
 
 ## Exit Gate
 

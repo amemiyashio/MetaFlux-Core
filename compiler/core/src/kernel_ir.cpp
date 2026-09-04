@@ -98,6 +98,8 @@ OperationContract operation_contract(Opcode opcode) {
     return {true, F32, {GlobalAddress, U32, U32}, 1};
   case StoreGlobalF32:
     return {false, U32, {GlobalAddress, F32, U32}, 2};
+  case StoreGlobalU64:
+    return {false, U32, {GlobalAddress, U64, U32}, 2};
   case LoadSharedU32:
     return {true, U32, {SharedAddress, U32, U32}, 1};
   case StoreSharedU32:
@@ -125,7 +127,8 @@ bool valid_opcode(Opcode opcode) {
 }
 
 bool may_be_predicated(Opcode opcode) {
-  return opcode == Opcode::StoreGlobalU32 || opcode == Opcode::StoreSharedU32;
+  return opcode == Opcode::StoreGlobalU32 || opcode == Opcode::StoreGlobalU64 ||
+         opcode == Opcode::StoreSharedU32;
 }
 
 } // namespace
@@ -262,6 +265,8 @@ std::string_view opcode_name(Opcode opcode) noexcept {
     return "load_global_f32";
   case StoreGlobalF32:
     return "store_global_f32";
+  case StoreGlobalU64:
+    return "store_global_u64";
   case LoadSharedU32:
     return "load_shared_u32";
   case StoreSharedU32:

@@ -1014,6 +1014,10 @@ private:
       emit_global_store(state, operation, lane64, input(1U));
       line("llvm.br " + std::string(continuation));
       return;
+    case Opcode::StoreGlobalU64:
+      emit_global_store_u64(state, operation, lane64, input(1U));
+      line("llvm.br " + std::string(continuation));
+      return;
     case Opcode::LoadSharedU32:
       result = emit_shared_load(state, operation, lane64);
       break;
@@ -1084,6 +1088,42 @@ private:
       stored_value = cast("bitcast", stored_value, "f32", "i32", &operation);
     }
     store(stored_value, pointer, "i32", &operation);
+  }
+
+  void emit_global_store_u64(const EntryState& state, const Operation& operation,
+                             std::string_view lane64, std::string stored_value) {
+    const auto address_register = operation.inputs[0];
+    const auto origin = origins_[address_register];
+    const auto byte_offset = load_register(state, address_register, lane64, &operation);
+    const auto low_bits = binary("and", byte_offset, constant_i64(7U), "i64", &operation);
+    const auto aligned = compare("eq", low_bits, state.zero_i64, "i64", &operation);
+    const auto alignment_ok = block();
+    line("llvm.cond_br " + aligned + ", " + alignment_ok + ", " + state.alignment_error);
+    declare_block(alignment_ok);
+    const auto word_index = binary("lshr", byte_offset, constant_i64(2U), "i64", &operation);
+    const auto next_index = binary("add", word_index, constant_i64(1U), "i64", &operation);
+    const auto writable_pointer = gep_constant("%writable", origin.index, "i32");
+    const auto writable_value = load(writable_pointer, "i32", &operation);
+    const auto writable = compare("ne", writable_value, state.zero_i32, "i32", &operation);
+    const auto writable_ok = block();
+    line("llvm.cond_br " + writable + ", " + writable_ok + ", " + state.readonly_error);
+    declare_block(writable_ok);
+    const auto size_pointer = gep_constant("%sizes", origin.index, "i64");
+    const auto size = load(size_pointer, "i64", &operation);
+    const auto in_bounds = compare("ult", next_index, size, "i64", &operation);
+    const auto bounds_ok = block();
+    line("llvm.cond_br " + in_bounds + ", " + bounds_ok + ", " + state.bounds_error);
+    declare_block(bounds_ok);
+    const auto address_pointer = gep_constant("%buffers", origin.index, "i64");
+    const auto address = load(address_pointer, "i64", &operation);
+    const auto base = cast("inttoptr", address, "i64", "!llvm.ptr", &operation);
+    const auto low_pointer = gep(base, word_index, "i32");
+    const auto high_pointer = gep(base, next_index, "i32");
+    const auto low = cast("trunc", stored_value, "i64", "i32", &operation);
+    const auto high_shift = binary("lshr", stored_value, constant_i64(32U), "i64", &operation);
+    const auto high = cast("trunc", high_shift, "i64", "i32", &operation);
+    store(low, low_pointer, "i32", &operation);
+    store(high, high_pointer, "i32", &operation);
   }
 
   [[nodiscard]] std::string emit_shared_pointer(const EntryState& state, const Operation& operation,

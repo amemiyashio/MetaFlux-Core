@@ -105,6 +105,7 @@ enum class Opcode : std::uint32_t {
   StoreGlobalU32,
   LoadGlobalF32,
   StoreGlobalF32,
+  StoreGlobalU64,
   LoadSharedU32,
   StoreSharedU32,
   BarrierSync,

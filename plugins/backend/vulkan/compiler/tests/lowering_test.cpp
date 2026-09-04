@@ -147,6 +147,50 @@ Kernel arithmetic_mad_kernel() {
   return kernel;
 }
 
+Kernel multiply_wide_kernel(std::uint32_t multiplier = 7U) {
+  return Kernel{
+      .name = "multiply_wide_u32",
+      .parameters = {Parameter{.kind = ParameterKind::BufferU32},
+                     Parameter{.kind = ParameterKind::BufferU32},
+                     Parameter{.kind = ParameterKind::ScalarU32}},
+      .shared_allocations = {},
+      .registers = {Register{.kind = ValueKind::GlobalAddress},
+                    Register{.kind = ValueKind::GlobalAddress},
+                    Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::Predicate},
+                    Register{.kind = ValueKind::U64},
+                    Register{.kind = ValueKind::GlobalAddress},
+                    Register{.kind = ValueKind::U32},
+                    Register{.kind = ValueKind::U64},
+                    Register{.kind = ValueKind::U64},
+                    Register{.kind = ValueKind::GlobalAddress}},
+      .operations = {op(Opcode::LoadParameterAddress, 0U, {}, 0U),
+                     op(Opcode::LoadParameterAddress, 1U, {}, 1U),
+                     op(Opcode::LoadParameterU32, 2U, {}, 2U),
+                     op(Opcode::MoveSpecialU32, 3U, {},
+                        static_cast<std::uint32_t>(SpecialRegister::ThreadIdX)),
+                     op(Opcode::MoveSpecialU32, 4U, {},
+                        static_cast<std::uint32_t>(SpecialRegister::BlockIdX)),
+                     op(Opcode::MoveSpecialU32, 5U, {},
+                        static_cast<std::uint32_t>(SpecialRegister::BlockDimX)),
+                     op(Opcode::MadLoU32, 6U, {4U, 5U, 3U}),
+                     op(Opcode::SetPredicateGeU32, 7U, {6U, 2U}),
+                     op(Opcode::BranchIf, metaflux::compiler::kNoValue, {7U}, 16U),
+                     op(Opcode::MultiplyWideU32, 8U, {6U}, 4U),
+                     op(Opcode::AddGlobalAddress, 9U, {1U, 8U}),
+                     op(Opcode::LoadGlobalU32, 10U, {9U}),
+                     op(Opcode::MultiplyWideU32, 11U, {10U}, multiplier),
+                     op(Opcode::MultiplyWideU32, 12U, {6U}, 8U),
+                     op(Opcode::AddGlobalAddress, 13U, {0U, 12U}),
+                     op(Opcode::StoreGlobalU64, metaflux::compiler::kNoValue, {13U, 11U}),
+                     op(Opcode::Return, metaflux::compiler::kNoValue, {})},
+  };
+}
+
 Kernel arithmetic_f32_kernel(Opcode opcode, const char* name) {
   Kernel kernel = arithmetic_kernel(opcode, name);
   kernel.registers[13].kind = ValueKind::F32;
@@ -480,6 +524,34 @@ bool valid_mad_lo_u32_lowering() {
   return valid;
 }
 
+bool valid_multiply_wide_u32_lowering() {
+  const auto profile = target();
+  SpirvLoweredModule module{};
+  const auto result = metaflux::backend::vulkan::lower_kernel(
+      multiply_wide_kernel(7U), profile, {8U, 1U, 1U}, &module);
+  const bool valid =
+      result.status == LoweringStatus::success && module.instructions.size() == 17U &&
+      module.instructions[12].opcode == SpirvSemanticOpcode::multiply_wide_u32 &&
+      module.instructions[15].opcode == SpirvSemanticOpcode::store_global_u64 &&
+      module.mlir_text.find("arith.extui") != std::string::npos &&
+      module.mlir_text.find("arith.muli") != std::string::npos &&
+      module.mlir_text.find("memref<?xi64") != std::string::npos &&
+      module.mlir_text.find("arith.constant 7 : i64") != std::string::npos &&
+      module.spirv_binary.size() > 5U && module.spirv_binary[0] == 0x07230203U;
+  if (!valid) {
+    std::cerr << "Vulkan MultiplyWide lowering failure: status="
+              << metaflux::backend::vulkan::lowering_status_string(result.status)
+              << " diagnostic=" << result.diagnostic
+              << " instructions=" << module.instructions.size()
+              << " mlir-bytes=" << module.mlir_text.size()
+              << " spirv-words=" << module.spirv_binary.size() << '\n';
+    if (!module.mlir_text.empty()) {
+      std::cerr << module.mlir_text << '\n';
+    }
+  }
+  return valid;
+}
+
 bool valid_elementwise_f32_lowering() {
   const auto profile = target();
   const auto validate = [&profile](Opcode opcode, SpirvSemanticOpcode semantic,
@@ -529,11 +601,24 @@ bool valid_fma_f32_lowering() {
   const bool has_fma_opcode =
       std::any_of(module.instructions.begin(), module.instructions.end(),
                   [](const auto& i) { return i.opcode == SpirvSemanticOpcode::fused_multiply_add_f32; });
-  const bool valid = has_fma_opcode && module.mlir_text.find("math.fma") != std::string::npos &&
+  const bool has_math_fma = module.mlir_text.find("math.fma") != std::string::npos;
+  const bool has_spirv_fma = module.mlir_text.find("spirv.GL.Fma") != std::string::npos ||
+                             module.mlir_text.find("OpExtInst") != std::string::npos ||
+                             module.mlir_text.find("Fma") != std::string::npos;
+  // Prefer the pre-conversion math.fma marker; after GPU-to-SPIR-V the dialect may
+  // lower it to a SPIR-V extended instruction while the semantic opcode projection
+  // still records fused_multiply_add_f32.
+  const bool valid = has_fma_opcode && (has_math_fma || has_spirv_fma) &&
          module.spirv_binary.size() > 5U && module.spirv_binary[0] == 0x07230203U;
   if (!valid) {
     std::cerr << "Vulkan FmaRnF32 validation failed: instructions=" << module.instructions.size()
-              << " has_fma_opcode=" << has_fma_opcode << '\n';
+              << " has_fma_opcode=" << has_fma_opcode << " has_math_fma=" << has_math_fma
+              << " has_spirv_fma=" << has_spirv_fma
+              << " mlir-bytes=" << module.mlir_text.size()
+              << " spirv-words=" << module.spirv_binary.size() << '\n';
+    if (!module.mlir_text.empty()) {
+      std::cerr << module.mlir_text << '\n';
+    }
   }
   return valid;
 }
@@ -753,7 +838,8 @@ bool unsupported_semantics_fail_before_emission() {
   const auto result = metaflux::backend::vulkan::lower_kernel(
       kernel, target(), {8U, 1U, 1U}, &module);
   const bool valid = result.status == LoweringStatus::unsupported_semantics &&
-         result.diagnostic.find("verified u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad/Fma, u32<->f32 conversions, f32/u32 predicates, and Copy forms") != std::string::npos &&
+         result.diagnostic.find("MultiplyWide") != std::string::npos &&
+         result.diagnostic.find("Copy forms") != std::string::npos &&
          module.spirv_binary.empty() && module.mlir_text.empty();
   if (!valid) {
     std::cerr << "Vulkan unsupported semantics failure: status="
@@ -801,9 +887,12 @@ bool valid_dual_driver_lowering() {
       metaflux::backend::vulkan::lower_kernel(
           arithmetic_f32_kernel(Opcode::FmaRnF32, "fma_f32"), nv, {8U, 1U, 1U}, &module)
               .status == LoweringStatus::success;
-  if (!add_ok || !copy_ok || !f32_ok) {
+  const bool wide_ok =
+      metaflux::backend::vulkan::lower_kernel(multiply_wide_kernel(), nv, {8U, 1U, 1U}, &module)
+          .status == LoweringStatus::success;
+  if (!add_ok || !copy_ok || !f32_ok || !wide_ok) {
     std::cerr << "Vulkan dual-driver lowering: add=" << add_ok << " copy=" << copy_ok
-              << " f32=" << f32_ok << '\n';
+              << " f32=" << f32_ok << " wide=" << wide_ok << '\n';
     return false;
   }
   return true;
@@ -828,6 +917,10 @@ int main() {
   }
   if (!valid_mad_lo_u32_lowering()) {
     std::cerr << "Vulkan lowering stage failed: u32-mad\n";
+    return 1;
+  }
+  if (!valid_multiply_wide_u32_lowering()) {
+    std::cerr << "Vulkan lowering stage failed: u32-multiply-wide\n";
     return 1;
   }
   if (!valid_elementwise_f32_lowering()) {
