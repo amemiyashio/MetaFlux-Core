@@ -11,14 +11,18 @@
 // A userspace companion (mf_cdev_generation_userspace_test.c) tests the same
 // integer logic without linux/kunit.h and CAN pass on any host.
 
-#include <linux/kunit/test.h>
+#include <kunit/test.h>
 #include <linux/types.h>
 
 /*
- * Inline the helpers here so the test can call them without depending on
- * the full kernel module.  In production the helpers live in
- * kernel/core/mf_cdev_generation.h and are included by metaflux_core_main.c.
+ * The kernel header only forward-declares these structs under __KERNEL__.
+ * Define them here so the test cases can instantiate them on the stack,
+ * then include the header so its inline helpers resolve against our
+ * definitions.
  */
+struct mf_cdev_file {
+	int dummy;
+};
 
 struct mf_cdev_queue {
 	u64 generation;
@@ -27,36 +31,7 @@ struct mf_cdev_queue {
 	struct mf_cdev_file *eventfd_owner;
 };
 
-struct mf_cdev_file {
-	int dummy;
-};
-
-static inline bool mf_cdev_generation_match(u64 requested, u64 gen)
-{
-	return requested == 0U || requested == gen;
-}
-
-static inline bool mf_cdev_generation_is_stale(u64 requested, u64 gen)
-{
-	return !mf_cdev_generation_match(requested, gen);
-}
-
-static inline bool mf_cdev_lease_can_take(const struct mf_cdev_queue *queue,
-					  const struct mf_cdev_file *file)
-{
-	return queue->lease_owner == NULL || queue->lease_owner == file;
-}
-
-static inline bool mf_cdev_eventfd_can_take(const struct mf_cdev_queue *queue,
-					    const struct mf_cdev_file *file)
-{
-	return queue->eventfd_owner == NULL || queue->eventfd_owner == file;
-}
-
-static inline bool mf_cdev_generation_tombstoned(const struct mf_cdev_queue *queue)
-{
-	return !queue->online;
-}
+#include "mf_cdev_generation.h"
 
 /* ------------------------------------------------------------------ */
 /*  Stale generation rejected                                          */

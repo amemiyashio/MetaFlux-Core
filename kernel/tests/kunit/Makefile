@@ -13,13 +13,11 @@
 # The userspace companion test (mf_cdev_generation_userspace_test.c)
 # is compiled separately via CMake as metaflux_cdev_generation_helper_test.
 
-obj-m += mf_cdev_generation_test.o
+obj-m += mf_cdev_generation_kunit.o
+mf_cdev_generation_kunit-y := mf_cdev_generation_test.o
 
-# Include path to kernel/core for the shared header
-ccflags-y += -I$(src)/../core
-
-# The KUnit test sources are in this directory
-mf_cdev_generation_test-objs := mf_cdev_generation_test.o
+# Include path to kernel/core so the test can include mf_cdev_generation.h
+ccflags-y += -I$(src)/../../core
 
 all:
 	$(MAKE) -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
