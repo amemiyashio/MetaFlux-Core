@@ -13,12 +13,14 @@ Ownership is split by where bytes and objects cross a boundary:
 | Shared-memory layout | `shared/device/v1/` | mmap-visible snapshots and records; offsets/handles instead of pointers, explicit cache-line and atomic-access rules |
 | Linux UAPI | `uapi/linux/v1/` | ioctl, mmap, cdev, and kernel/userspace layouts following Linux UAPI compatibility rules |
 
-milestone-0.1.1.0 work-item-0.1.1.1 owns the candidate transport envelope at
+milestone-0.1.1.0 owns the transport envelope at
 [`protocol/transport/v1/schema/manifest.json`](protocol/transport/v1/schema/manifest.json).
 The manifest's five hashed definitions are the only base records; C and C++
 projections are generated during CMake configuration and checked by the
-`metaflux.contract.transport-schema-*` tests. The envelope is ABI `0.x` until
-work-item-0.1.1.4 qualification freezes it as `v1`.
+`metaflux.contract.transport-schema-*` tests. work-item-0.1.1.4 freezes that
+hashed base as the `v1` data-plane closure; extensions under
+`protocol/transport/v1/schema/extensions/` import it by content hash and stay
+outside the base until their own milestone freezes them.
 
 The backend plugin ABI is intentionally different from encoded and shared-memory
 contracts: an in-process C function table may contain pointers when ownership is

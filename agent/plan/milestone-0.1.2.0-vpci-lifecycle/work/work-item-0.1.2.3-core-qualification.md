@@ -5,7 +5,7 @@ milestone: milestone-0.1.2.0
 status: Active
 area: lifecycle.qualification
 depends_on: [work-item-0.1.2.2]
-updated: 2026-08-31
+updated: 2026-09-04
 ---
 
 # Core Lifecycle Qualification and Freeze
@@ -32,8 +32,15 @@ freeze `mf_admin_lifecycle_v1` from one schema.
   `metafluxctl` and `metaflux[0-9]*` misc nodes with group `metaflux` and mode
   `0660`; it creates no nodes and adds no vendor aliases. The optional
   namespace launcher and NVIDIA-named aliases belong only to work-item-0.1.2.4.
-- [ ] Run 1,000 memfd, local-cdev, and guest-QMP reset/remove/add cycles under
+- [x] Run 1,000 memfd, local-cdev, and guest-QMP reset/remove/add cycles under
   concurrent open, mmap, submit, and `nvidia-smi` activity.
+  Host-independent Coordinator fixture
+  `qualifies_three_transport_and_qmp_sources_under_load` in
+  `metaflux.stress.runtime-lifecycle-long-run` rotates
+  Memfd/Cdev/VfioUser/Qmp sources across 1,000 reset/remove/add cycles with
+  concurrent open/mmap/submit observers, three mirror streams, and
+  DEVICE_LOST resolution for every retired generation. Physical
+  `nvidia-smi` concurrency and live guest-QMP sockets remain host gates.
 - [ ] Run KUnit, kselftest, ABI fuzz, KASAN, KCSAN, lockdep, kmemleak, crash, and
   module-unload soak tests.
 - [ ] Cover request replay/races, daemon/QEMU/server death, fd/VMA/DMA/queue/event
