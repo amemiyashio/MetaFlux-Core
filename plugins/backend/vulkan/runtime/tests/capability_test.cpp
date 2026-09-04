@@ -21,12 +21,10 @@ int main() {
                 mf_vulkan_probe_status_string_v1(status));
     return 0;
   }
-  if (status != MF_VULKAN_PROBE_SUCCESS || profile.api_version < MF_VULKAN_API_VERSION_1_3 ||
-      (profile.feature_flags & (MF_VULKAN_FEATURE_TIMELINE_SEMAPHORE |
-                                MF_VULKAN_FEATURE_SYNCHRONIZATION2 |
-                                MF_VULKAN_FEATURE_BUFFER_DEVICE_ADDRESS)) !=
-          (MF_VULKAN_FEATURE_TIMELINE_SEMAPHORE | MF_VULKAN_FEATURE_SYNCHRONIZATION2 |
-           MF_VULKAN_FEATURE_BUFFER_DEVICE_ADDRESS) ||
+  if (status != MF_VULKAN_PROBE_SUCCESS ||
+      mf_vulkan_baseline_features_satisfied_v1(profile.api_version, profile.feature_flags) != 1 ||
+      mf_vulkan_driver_family_from_vendor_id_v1(profile.vendor_id) ==
+          MF_VULKAN_DRIVER_FAMILY_UNKNOWN ||
       profile.queue_count == 0U || profile.subgroup_size_min == 0U ||
       profile.subgroup_size_min != profile.subgroup_size_max ||
       profile.target_environment[0] == '\0') {

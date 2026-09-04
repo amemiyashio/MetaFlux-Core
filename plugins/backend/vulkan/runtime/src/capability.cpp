@@ -255,9 +255,7 @@ bool compatible_device(VkPhysicalDevice device, mf_vulkan_capability_profile_v1*
   }
   profile->max_storage_buffer_range = properties.properties.limits.maxStorageBufferRange;
   profile->max_uniform_buffer_range = properties.properties.limits.maxUniformBufferRange;
-  profile->feature_flags = MF_VULKAN_FEATURE_TIMELINE_SEMAPHORE |
-                           MF_VULKAN_FEATURE_SYNCHRONIZATION2 |
-                           MF_VULKAN_FEATURE_BUFFER_DEVICE_ADDRESS;
+  profile->feature_flags = MF_VULKAN_BASELINE_REQUIRED_FEATURE_FLAGS;
   std::memcpy(profile->device_uuid, ids.deviceUUID, sizeof(profile->device_uuid));
   std::memcpy(profile->driver_uuid, ids.driverUUID, sizeof(profile->driver_uuid));
   std::memcpy(profile->pipeline_cache_uuid, properties.properties.pipelineCacheUUID,

@@ -52,16 +52,27 @@ Implemented stage:
   and external-memory 0.x profile, with generation, range, ownership, and
   staging/direct-import negative fixtures.
 
-- [ ] Select the exact feature/limit baseline, minimum versions, and two
+- [x] Select the exact feature/limit baseline, minimum versions, and two
   independent Vulkan driver families.
+  Locked in `contracts/plugin/backend/v1/include/metaflux/backend/vulkan.h`:
+  minimum API `MF_VULKAN_BASELINE_MIN_API_VERSION` (= Vulkan 1.3), required
+  feature set `MF_VULKAN_BASELINE_REQUIRED_FEATURE_FLAGS` (timeline semaphore +
+  Synchronization2 + buffer device address), and dual driver families AMD
+  (`0x1002`) / NVIDIA (`0x10DE`) via `mf_vulkan_driver_family_from_vendor_id_v1`.
+  Host-independent ABI coverage is `metaflux.contract.backend-vulkan-abi.v1`;
+  physical dual-family matrix remains a host gate on real probes.
 - [x] Draft packed BDA argument layouts and external-memory 0.x fixtures.
 - [x] Define the currently advertised Kernel IR capability subset and stable
   negative diagnostics; complete Kernel IR coverage remains open.
 - [x] Define target-environment serialization, cache keys, pipeline residency,
   compile-required handling, corruption behavior, and epoch fingerprints for
   the current host-independent/runtime paths.
-- [ ] Lock direct-Vulkan baselines plus enqueue, submit, start, and completion
+- [x] Lock direct-Vulkan baselines plus enqueue, submit, start, and completion
   timestamp points.
+  `mf_vulkan_execution_timestamps_v1` freezes the four ordered host-side anchors
+  (enqueue → submit → start → completion) with
+  `mf_vulkan_execution_timestamps_ordered_v1`. Live GPU sampling still runs under
+  work-item-0.1.3.4 dual-driver execution evidence.
 
 ## Exit Gate
 

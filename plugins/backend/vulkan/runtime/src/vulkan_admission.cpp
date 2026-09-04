@@ -6,9 +6,7 @@
 namespace metaflux::backend::vulkan {
 namespace {
 
-constexpr std::uint32_t kRequiredFeatures = MF_VULKAN_FEATURE_TIMELINE_SEMAPHORE |
-                                            MF_VULKAN_FEATURE_SYNCHRONIZATION2 |
-                                            MF_VULKAN_FEATURE_BUFFER_DEVICE_ADDRESS;
+constexpr std::uint32_t kRequiredFeatures = MF_VULKAN_BASELINE_REQUIRED_FEATURE_FLAGS;
 
 bool nonzero_bytes(const std::uint8_t* bytes, std::size_t count) noexcept {
   return bytes != nullptr &&
