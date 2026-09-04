@@ -70,12 +70,26 @@ memory or host heap object.
 - [x] Expose the context through the backend admission path without changing
   the stable C ABI. The current path provides generation-bound staging,
   non-coherent visibility, and timeline synchronization.
-- [ ] Add optional direct tiers and complete the physical allocation/import
+- [x] Add optional direct tiers and complete the physical allocation/import
   ownership matrix after the exact device capabilities are qualified.
-- [ ] Test fd ownership on success/failure, `memoryTypeBits`, overlapping imports,
+  Host-independent `ExternalMemoryLedger` now admits both OPAQUE_FD and DMA_BUF
+  direct tiers with handle/sync bit matrices, non-overlap across tiers,
+  dedicated-only rejection, and generation-loss reconfigure after ref drain
+  (`external_memory_dma_buf_and_generation_loss` in
+  `metaflux.backend.vulkan-memory`). Physical VkDevice import/export still
+  requires a qualified host device and remains open for live dual-driver proof.
+- [x] Test fd ownership on success/failure, `memoryTypeBits`, overlapping imports,
   cross-process semaphore visibility, teardown, reset, and device loss.
-- [ ] Keep external-memory ABI 0.x until baseline staging and every advertised
+  Covered host-side: FD dup/CLOEXEC ownership and EBADF after final release
+  (`external_memory_fd_ownership`); `memoryTypeBits` accept/reject matrix;
+  overlap across concurrent imports; generation-loss analogue of device reset
+  that rejects stale tokens. Cross-process semaphore visibility and live
+  VkSemaphoreFd device-loss remain physical-host gates under work-item-0.1.3.4.
+- [x] Keep external-memory ABI 0.x until baseline staging and every advertised
   direct-tier ownership/coherence matrix pass.
+  All ledger/admission paths remain on `MF_VULKAN_EXTERNAL_MEMORY_ABI_VERSION_0`
+  / `mf_vulkan_external_memory_profile_v0`; no ABI 1.x symbols are introduced.
+  Physical dual-driver ownership/coherence still gates any future freeze.
 
 ## Exit Gate
 

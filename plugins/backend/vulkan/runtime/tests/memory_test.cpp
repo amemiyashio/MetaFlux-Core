@@ -45,6 +45,14 @@ mf_vulkan_external_memory_profile_v0 direct_profile(std::uint64_t generation = 7
   return result;
 }
 
+mf_vulkan_external_memory_profile_v0 dma_buf_profile(std::uint64_t generation = 7U) {
+  auto result = direct_profile(generation);
+  result.tier = MF_VULKAN_MEMORY_TIER_DMA_BUF_V0;
+  result.handle_type = MF_VULKAN_MEMORY_HANDLE_DMA_BUF_V0;
+  result.sync_type = MF_VULKAN_MEMORY_SYNC_SEMAPHORE_FD_V0;
+  return result;
+}
+
 bool external_memory_admission_and_drain() {
   using metaflux::backend::vulkan::ExternalMemoryImport;
   using metaflux::backend::vulkan::ExternalMemoryLedger;
@@ -110,6 +118,73 @@ bool external_memory_admission_and_drain() {
   return ledger.import(dedicated, 256U, 0U, &first) == ExternalMemoryStatus::invalid_argument &&
          ledger.configure(8U, UINT32_C(0x3), UINT32_C(0x1), UINT32_C(0x1), 2U) ==
              ExternalMemoryStatus::success;
+}
+
+bool external_memory_dma_buf_and_generation_loss() {
+  using metaflux::backend::vulkan::ExternalMemoryImport;
+  using metaflux::backend::vulkan::ExternalMemoryLedger;
+  using metaflux::backend::vulkan::ExternalMemoryStatus;
+  // Device advertises memory types 0+2 (0x5). Profiles also claim 0x5 so the
+  // intersection is exact. Handle bits: OPAQUE_FD=1, DMA_BUF=2; sync same.
+  ExternalMemoryLedger ledger(7U, UINT32_C(0x5), UINT32_C(0x3), UINT32_C(0x3), 2U);
+  ExternalMemoryImport first{};
+  auto opaque = direct_profile();
+  opaque.memory_type_bits = UINT32_C(0x5);
+  auto dma = dma_buf_profile();
+  dma.memory_type_bits = UINT32_C(0x5);
+  if (!mf_vulkan_external_memory_profile_valid_v0(&dma) ||
+      ledger.import(dma, 0U, 0U, &first) != ExternalMemoryStatus::success ||
+      first.handle_type != MF_VULKAN_MEMORY_HANDLE_DMA_BUF_V0 ||
+      first.sync_type != MF_VULKAN_MEMORY_SYNC_SEMAPHORE_FD_V0) {
+    return false;
+  }
+  // memoryTypeBits matrix: index 1 and 3 are outside the device/profile mask.
+  ExternalMemoryImport type_probe{};
+  if (ledger.import(opaque, 8192U, 1U, &type_probe) !=
+          ExternalMemoryStatus::incompatible_memory_type ||
+      ledger.import(opaque, 8192U, 3U, &type_probe) !=
+          ExternalMemoryStatus::incompatible_memory_type ||
+      ledger.active_count() != 1U) {
+    return false;
+  }
+  // Opaque and DMA-BUF ranges may not overlap while both are live.
+  ExternalMemoryImport second{};
+  if (ledger.import(opaque, 0U, 2U, &second) != ExternalMemoryStatus::overlap ||
+      ledger.import(opaque, 4096U, 2U, &second) != ExternalMemoryStatus::success) {
+    return false;
+  }
+  // Cross-handle matrix: a DMA-BUF-only ledger rejects opaque-fd imports.
+  ExternalMemoryLedger dma_only(9U, UINT32_C(0x1), UINT32_C(0x2), UINT32_C(0x2), 1U);
+  ExternalMemoryImport rejected{};
+  auto dma_gen = dma_buf_profile(9U);
+  dma_gen.memory_type_bits = UINT32_C(0x1);
+  auto opaque_gen = direct_profile(9U);
+  opaque_gen.memory_type_bits = UINT32_C(0x1);
+  if (dma_only.import(opaque_gen, 0U, 0U, &rejected) != ExternalMemoryStatus::incompatible_handle ||
+      dma_only.import(dma_gen, 0U, 0U, &rejected) != ExternalMemoryStatus::success) {
+    return false;
+  }
+  // Generation loss / device-reset analogue: reconfigure is busy while refs are
+  // live; after drain, old-generation tokens are stale and new imports succeed.
+  auto next_gen = direct_profile(8U);
+  next_gen.memory_type_bits = UINT32_C(0x5);
+  auto stale = direct_profile(7U);
+  stale.memory_type_bits = UINT32_C(0x5);
+  if (ledger.configure(8U, UINT32_C(0x5), UINT32_C(0x3), UINT32_C(0x3), 2U) !=
+          ExternalMemoryStatus::busy ||
+      ledger.release(first) != ExternalMemoryStatus::success ||
+      ledger.release(second) != ExternalMemoryStatus::success ||
+      ledger.configure(8U, UINT32_C(0x5), UINT32_C(0x3), UINT32_C(0x3), 2U) !=
+          ExternalMemoryStatus::success ||
+      ledger.validate(first) != ExternalMemoryStatus::stale_generation ||
+      ledger.retain(second) != ExternalMemoryStatus::stale_generation ||
+      ledger.import(stale, 0U, 0U, &first) != ExternalMemoryStatus::stale_generation ||
+      ledger.import(next_gen, 0U, 0U, &first) != ExternalMemoryStatus::success ||
+      ledger.release(first) != ExternalMemoryStatus::success || ledger.active_count() != 0U ||
+      dma_only.release(rejected) != ExternalMemoryStatus::success) {
+    return false;
+  }
+  return true;
 }
 
 bool external_memory_fd_ownership() {
@@ -411,11 +486,11 @@ bool visibility_partial_and_lifetime_guards() {
 } // namespace
 
 int main() {
-  const bool ok = external_memory_admission_and_drain() && external_memory_fd_ownership() &&
-                  staging_lifetime_and_reuse() &&
-                  profile_and_generation_guards() &&
-                  timeline_guards() && non_coherent_visibility() &&
-                  visibility_range_and_coherent_guards() &&
+  const bool ok = external_memory_admission_and_drain() &&
+                  external_memory_dma_buf_and_generation_loss() &&
+                  external_memory_fd_ownership() && staging_lifetime_and_reuse() &&
+                  profile_and_generation_guards() && timeline_guards() &&
+                  non_coherent_visibility() && visibility_range_and_coherent_guards() &&
                   visibility_rejects_forged_allocation_tokens() &&
                   visibility_partial_and_lifetime_guards();
   std::printf("vulkan memory model: %s\n", ok ? "pass" : "fail");

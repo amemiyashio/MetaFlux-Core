@@ -76,9 +76,20 @@ updated: 2026-09-04
   matrix (0 reject / 1 accept / 99 reject) lives in
   `metaflux.transport.vfio-user-server`. Compat endian/foreign-host layout remains
   out of scope for the x86_64 LE product floor.
-- [ ] Freeze base UAPI, device protocol, BAR/extension directory, and capability
+- [x] Freeze base UAPI, device protocol, BAR/extension directory, and capability
   extension rules as v1 from one schema without changing milestone-0.1.0.0 descriptors.
-- [ ] Leave lifecycle/admin experimental for milestone-0.1.2.0.
+  The sole freeze owner is `contracts/protocol/transport/v1/schema/manifest.json`
+  and its five hashed definitions (descriptor, ring, negotiation, vfio-user,
+  linux UAPI). Generated projections and validators bind to those digests;
+  product SemVer and record-family tags are not the freeze signal.
+  `contracts/protocol/transport/v1/README.md` and
+  `contracts/uapi/linux/v1/README.md` record the freeze and extension rules.
+  Live QEMU MSI-X eventfd storm soak remains a host qualification half under
+  `metaflux.transport.vfio-user-live-bringup` and does not reopen the schema.
+- [x] Leave lifecycle/admin experimental for milestone-0.1.2.0.
+  Lifecycle and vroot stay under `schema/extensions/{lifecycle,vroot}/v1/` with
+  base-hash imports only; `mf_admin_lifecycle_v1` freezes after
+  work-item-0.1.2.3, not in the milestone-0.1.1.0 base.
 
 ## Exit Gate
 

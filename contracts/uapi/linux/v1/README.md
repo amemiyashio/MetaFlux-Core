@@ -1,12 +1,16 @@
 # Linux UAPI v1
 
-The candidate ABI `0.x` cdev and worker-broker records are defined in
-[`schema/uapi.json`](schema/uapi.json), imported by the milestone-0.1.1.0 base manifest, and
-generated with the transport projection. Structures use fixed-width types,
-explicit padding, sized inputs, and reserved-zero validation. The public
-include wrapper is [`include/metaflux/uapi/transport.h`](include/metaflux/uapi/transport.h);
-the generated header is installed alongside it. Compatibility and ioctl
-qualification remain work-item-0.1.1.2/work-item-0.1.1.4 work before a `v1` freeze.
+The cdev and worker-broker records are defined in
+[`schema/uapi.json`](schema/uapi.json), imported by the milestone-0.1.1.0 base
+manifest, and generated with the transport projection. Structures use
+fixed-width types, explicit padding, sized inputs, and reserved-zero
+validation. The public include wrapper is
+[`include/metaflux/uapi/transport.h`](include/metaflux/uapi/transport.h); the
+generated header is installed alongside it. work-item-0.1.1.4 freezes this UAPI
+as part of the single hashed transport base (`linux.uapi.v0` in
+`contracts/protocol/transport/v1/schema/manifest.json`). Live host
+ioctl/KUnit/sanitizer coverage for the kernel module remains a separate
+qualification gate and does not reopen the frozen wire layout.
 
 `MF_UAPI_IOCTL_MEMORY_REGISTER` uses the existing fixed-width memory record for
 one long-term user range. The input `offset` is the user virtual address and
