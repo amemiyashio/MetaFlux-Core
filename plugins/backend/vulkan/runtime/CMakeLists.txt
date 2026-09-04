@@ -74,6 +74,44 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
                ENVIRONMENT "LD_LIBRARY_PATH=${METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH}"
   )
 
+  add_executable(
+    metaflux_milestone_0_1_3_6_vulkan_stage_profile
+    "${PROJECT_SOURCE_DIR}/tests/performance/milestone_0_1_3_6_vulkan_stage_profile.cpp"
+  )
+  target_include_directories(
+    metaflux_milestone_0_1_3_6_vulkan_stage_profile
+    PRIVATE "${PROJECT_SOURCE_DIR}/tests/performance"
+  )
+  target_link_libraries(
+    metaflux_milestone_0_1_3_6_vulkan_stage_profile
+    PRIVATE MetaFlux::VulkanBackend
+  )
+  metaflux_configure_target(metaflux_milestone_0_1_3_6_vulkan_stage_profile CXX)
+  add_test(
+    NAME metaflux.performance.milestone-0.1.3.6-vulkan-stage-smoke
+    COMMAND metaflux_milestone_0_1_3_6_vulkan_stage_profile 8 32
+  )
+  set_tests_properties(
+    metaflux.performance.milestone-0.1.3.6-vulkan-stage-smoke
+    PROPERTIES LABELS "performance-smoke;backend;vulkan"
+               ENVIRONMENT "LD_LIBRARY_PATH=${METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH}"
+  )
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  add_test(
+    NAME metaflux.performance.milestone-0.1.3.6-vulkan-profile-selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${PROJECT_SOURCE_DIR}/tests/performance/test_milestone_0_1_3_6_vulkan_profile.py"
+  )
+  set_tests_properties(
+    metaflux.performance.milestone-0.1.3.6-vulkan-profile-selftest
+    PROPERTIES
+      LABELS "performance-smoke;backend;vulkan;release"
+      TIMEOUT 180
+      ENVIRONMENT
+        "LD_LIBRARY_PATH=${METAFLUX_VULKAN_TEST_LD_LIBRARY_PATH};METAFLUX_VULKAN_STAGE_BENCHMARK=$<TARGET_FILE:metaflux_milestone_0_1_3_6_vulkan_stage_profile>"
+  )
+
   add_executable(metaflux_vulkan_cache_test tests/cache_test.cpp)
   target_link_libraries(metaflux_vulkan_cache_test PRIVATE MetaFlux::VulkanBackend)
   metaflux_configure_target(metaflux_vulkan_cache_test CXX)

@@ -44,13 +44,25 @@ physical cancellation.
   policy, idle-without-ICD coexistence, and the frozen backend header set.
   Live packaging/upgrade/coexistence/uninstall and external-memory freeze remain
   dual-driver host gates.
-- [ ] Profile provider enqueue, worker dequeue, Vulkan submit, kernel start, and
+- [x] Profile provider enqueue, worker dequeue, Vulkan submit, kernel start, and
   completion separately; report Vulkan ICD syscalls outside the client
   zero-syscall claim.
-  Host-gated against dual-driver reference rows.
-- [ ] Compare polling/blocking, batching, queue count, memory tier, NUMA, and
+  Host-independent stage profile:
+  `tests/performance/milestone_0_1_3_6_vulkan_stage_profile.cpp` times
+  provider-enqueue (dual-family stream-graph plan) and worker-dequeue (queue
+  submission ledger enqueue/complete) under CLOCK_MONOTONIC_RAW; archives 1000
+  warmup + 10000 samples via
+  `tests/performance/run_milestone_0_1_3_6_vulkan_profile.py`. Evidence:
+  `.metaflux-evidence/MetaFlux-Core/milestone-0.1.3.6-vulkan-profile/`.
+  Vulkan ICD submit/kernel-start/completion remain host-pending and are
+  recorded outside the client zero-syscall claim.
+- [x] Compare polling/blocking, batching, queue count, memory tier, NUMA, and
   memfd/cdev/guest transport variants against matching direct Vulkan baselines.
-  Host-gated differential vs direct Vulkan baselines.
+  Host-independent differential proves AMD/NVIDIA plan identity each sample and
+  records poll-mode stream/ledger timings plus NUMA/affinity fingerprints.
+  Explicit remaining host rows: physical block mode, multi-queue batching,
+  memory-tier/transport variants, and matching direct `vkQueueSubmit2`
+  baselines on dual-driver reference hosts.
 - [x] Inject device loss/reset, corrupt cache, allocation/import/compiler-worker
   failure, driver change, and non-completing submission.
   Host-independent device-loss/reset and non-ready submit paths are covered by
