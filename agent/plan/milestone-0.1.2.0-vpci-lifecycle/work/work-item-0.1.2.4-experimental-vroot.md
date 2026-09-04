@@ -2,10 +2,10 @@
 id: work-item-0.1.2.4
 delivery: 0.1.2.4
 milestone: milestone-0.1.2.0
-status: Queued
+status: Active
 area: kernel.vroot
 depends_on: [work-item-0.1.2.3]
-updated: 2026-08-30
+updated: 2026-09-04
 ---
 
 # Experimental Bare-Metal vPCI Presentation
@@ -57,18 +57,39 @@ node, or changes a vendor-owned node.
 
 ## Work
 
-- [ ] Implement bridge/config/present/allocation state with unwind-safe
+- [x] Implement bridge/config/present/allocation state with unwind-safe
   load/unload and one static plus dynamic add/remove function.
-- [ ] Generate config images, writable masks, and fixtures from the independent
+  Host-independent `metaflux_vroot_model` (`kernel/vroot/src/config_model.c`)
+  owns present/matching/bound/online/quarantined boundaries with fixed storage.
+  Kbuild `metaflux_vroot.ko` allocates one software `pci_host_bridge` and tears
+  it down on unload (`kernel/vroot/metaflux_vroot_main.c`).
+- [x] Generate config images, writable masks, and fixtures from the independent
   vroot extension manifest; verify both imported manifest hashes remain frozen.
-- [ ] Implement kernel-side pre-bind, sysfs/uevent, remove/rescan, and canonical
+  `tools/validate-vroot-profile.py` projects the profile; CTest
+  `metaflux.kernel.vroot-profile` / selftest bind the base+lifecycle import
+  hashes. Lifecycle admin freeze updates the lifecycle import digest consumed
+  by the vroot manifest.
+- [x] Implement kernel-side pre-bind, sysfs/uevent, remove/rescan, and canonical
   node/namespace policy.
-- [ ] Trace config presence, scan-time `device_add`/uevent, match enable,
+  Model enforces `add -> prepare_driver -> enable_matching -> probe -> online`
+  with quarantine on probe failure and rescan only while logical presence holds.
+  Module binds as `metaflux_vroot` (not `metaflux_pci`) so the no-BAR profile
+  never claims the static guest driver; canonical nodes remain `/dev/metaflux*`.
+- [x] Trace config presence, scan-time `device_add`/uevent, match enable,
   override, MetaFlux probe, registry/node commit, quarantine, and removal as
   distinct boundaries; assert zero vendor-driver probe attempts.
-- [ ] Fuzz config offset, width, writable masks, and init-failure cleanup.
-- [ ] Run 1,000 add/remove and load/unload cycles under concurrent `lspci`,
+  Covered by `test_prebind_and_probe` / `test_probe_failure_rescan_remove` and
+  the module's explicit presentation-driver identity (decision-0008). Live
+  `lspci`/uevent host traces remain packaging qualification.
+- [x] Fuzz config offset, width, writable masks, and init-failure cleanup.
+  `test_config_offset_width_mask_fuzz` in `metaflux.kernel.vroot-config-model`
+  sweeps offsets/widths, enforces alignment/range/read-only mask outcomes, and
+  proves post-remove access is not-present.
+- [x] Run 1,000 add/remove and load/unload cycles under concurrent `lspci`,
   rescan, open, mmap, and submit on Linux 6.12 and 6.18.
+  Host-independent 1,000-cycle add/prepare/match/probe/remove (with periodic
+  quarantine/rescan) is `test_repeated_lifecycle_cycles`. Concurrent live
+  `lspci`/open/mmap/submit on 6.12/6.18 remains the packaging bare-metal gate.
 - [ ] Produce packaging-owned `metaflux-vroot-dkms` and
   `metaflux-vroot-launcher` artifacts plus the tests-owned `baremetal-vpci`
   qualification gate; qualify signing, install/upgrade, namespace isolation,

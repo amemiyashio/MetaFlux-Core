@@ -145,10 +145,56 @@ static int test_repeated_lifecycle_cycles(void) {
   return 0;
 }
 
+static int test_config_offset_width_mask_fuzz(void) {
+  mf_vroot_model model;
+  const uint8_t uuid[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+  uint8_t function = 0xffU;
+  uint32_t value = 0U;
+  static const uint8_t widths[] = {1U, 2U, 3U, 4U, 5U, 8U};
+  uint32_t accepted_reads = 0U;
+  uint32_t rejected = 0U;
+
+  EXPECT(mf_vroot_model_init(&model, 0x7U, 0x1U, 1U) == MF_VROOT_STATUS_OK);
+  EXPECT(mf_vroot_add(&model, uuid, 11U, &function) == MF_VROOT_STATUS_OK);
+  for (uint16_t offset = 0U; offset < 512U; ++offset) {
+    for (size_t index = 0U; index < sizeof(widths) / sizeof(widths[0]); ++index) {
+      const uint8_t width = widths[index];
+      const mf_vroot_status read_status =
+          mf_vroot_read_config(&model, function, offset, width, &value);
+      const mf_vroot_status write_status =
+          mf_vroot_write_config(&model, function, offset, width, 0xffffffffU);
+      const int legal_width = (width == 1U || width == 2U || width == 4U);
+      const int aligned = ((offset & (uint16_t)(width - 1U)) == 0U);
+      const int in_range = offset < MF_VROOT_CONFIG_SIZE &&
+                           width <= MF_VROOT_CONFIG_SIZE - offset;
+      if (legal_width && aligned && in_range) {
+        EXPECT(read_status == MF_VROOT_STATUS_OK);
+        /* CI Type-0 identity fields are read-only under the writable mask. */
+        EXPECT(write_status == MF_VROOT_STATUS_OK ||
+               write_status == MF_VROOT_STATUS_READ_ONLY);
+        ++accepted_reads;
+      } else {
+        EXPECT(read_status != MF_VROOT_STATUS_OK);
+        EXPECT(write_status != MF_VROOT_STATUS_OK);
+        ++rejected;
+      }
+    }
+  }
+  EXPECT(accepted_reads > 0U && rejected > 0U);
+
+  /* Init-failure cleanup: remove then further access is not-present. */
+  EXPECT(mf_vroot_remove(&model, function) == MF_VROOT_STATUS_OK);
+  EXPECT(mf_vroot_read_config(&model, function, 0U, 4U, &value) ==
+         MF_VROOT_STATUS_NOT_PRESENT);
+  EXPECT(mf_vroot_write_config(&model, function, 0U, 4U, 0U) == MF_VROOT_STATUS_NOT_PRESENT);
+  EXPECT(mf_vroot_prepare_driver(&model, function) == MF_VROOT_STATUS_NOT_PRESENT);
+  return 0;
+}
+
 int main(void) {
   if (test_add_and_config() != 0 || test_prebind_and_probe() != 0 ||
       test_probe_failure_rescan_remove() != 0 || test_allocation() != 0 ||
-      test_repeated_lifecycle_cycles() != 0) {
+      test_repeated_lifecycle_cycles() != 0 || test_config_offset_width_mask_fuzz() != 0) {
     return 1;
   }
   (void)puts("vroot config model: ok");
