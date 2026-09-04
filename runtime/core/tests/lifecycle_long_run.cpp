@@ -440,12 +440,76 @@ bool qualifies_three_transport_and_qmp_sources_under_load() {
   return true;
 }
 
+bool qualifies_transport_death_and_tombstone_matrix() {
+  // work-item-0.1.2.3: daemon/server/QEMU death analogues + tombstones +
+  // non-cancellable old work. Live process death remains host-gated.
+  constexpr std::uint32_t kDeathCycles = 8U;
+  MirrorAudit memfd{};
+  MirrorAudit cdev{};
+  MirrorAudit vfio{};
+  Config config{};
+  config.logical_device_id = 7U;
+  config.daemon_incarnation = 11U;
+  config.initial_identity_record_id = 1U;
+  config.initial_generation = 1U;
+  config.initial_epoch = 1U;
+  config.generation_terminal = 64U;
+  config.identity_record_terminal = 64U;
+  config.epoch_terminal = 64U;
+  Coordinator coordinator(config);
+  REQUIRE(coordinator.valid());
+  REQUIRE(coordinator.register_mirror(make_mirror(MirrorKind::Memfd, "memfd", memfd)));
+  REQUIRE(coordinator.register_mirror(make_mirror(MirrorKind::Cdev, "cdev", cdev)));
+  REQUIRE(coordinator.register_mirror(make_mirror(MirrorKind::VfioUser, "vfio-user", vfio)));
+
+  std::array<std::uint64_t, kDeathCycles> retired{};
+  std::uint64_t request_id = 1U;
+  for (std::uint32_t cycle = 0U; cycle < kDeathCycles; ++cycle) {
+    const Snapshot before = coordinator.snapshot();
+    REQUIRE(before.state == State::Online);
+    ResultDetails details{};
+    REQUIRE(coordinator.apply(
+                make_request(request_id++, Operation::TransportLoss, before, Source::Disconnect),
+                details) == Result::Accepted);
+    REQUIRE(coordinator.snapshot().state == State::Lost);
+    REQUIRE(coordinator.snapshot().generation == before.generation);
+    REQUIRE(coordinator.resolve(before.generation) == ResolveResult::DeviceLost);
+    retired[cycle] = before.generation;
+
+    // Non-cancellable old work: recovery advances generation; retired stays lost.
+    REQUIRE(coordinator.apply(
+                make_request(request_id++, Operation::Recover, before, Source::Restart),
+                details) == Result::Accepted);
+    const Snapshot recovered = coordinator.snapshot();
+    REQUIRE(recovered.state == State::Online);
+    REQUIRE(recovered.generation == before.generation + 1U);
+    REQUIRE(coordinator.resolve(before.generation) == ResolveResult::DeviceLost);
+    REQUIRE(coordinator.resolve(recovered.generation) == ResolveResult::Online);
+
+    // Stale death against the pre-loss identity is rejected (no side effect).
+    REQUIRE(coordinator.apply(
+                make_request(request_id++, Operation::TransportLoss, before, Source::Disconnect),
+                details) != Result::Accepted);
+    REQUIRE(coordinator.snapshot().generation == recovered.generation);
+  }
+
+  for (const std::uint64_t generation : retired) {
+    REQUIRE(coordinator.resolve(generation) == ResolveResult::DeviceLost);
+  }
+  for (const MirrorAudit* audit : {&memfd, &cdev, &vfio}) {
+    REQUIRE(audit->lost_calls >= kDeathCycles);
+  }
+  REQUIRE(coordinator.tombstone_count() >= kDeathCycles);
+  return true;
+}
+
 } // namespace
 
 int main() {
   return qualifies_one_thousand_reset_remove_add_cycles() &&
                  qualifies_concurrent_observers_and_replay() &&
-                 qualifies_three_transport_and_qmp_sources_under_load()
+                 qualifies_three_transport_and_qmp_sources_under_load() &&
+                 qualifies_transport_death_and_tombstone_matrix()
              ? 0
              : 1;
 }

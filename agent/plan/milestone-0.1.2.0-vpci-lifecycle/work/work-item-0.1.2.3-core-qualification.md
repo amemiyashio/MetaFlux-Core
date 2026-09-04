@@ -43,8 +43,18 @@ freeze `mf_admin_lifecycle_v1` from one schema.
   `nvidia-smi` concurrency and live guest-QMP sockets remain host gates.
 - [ ] Run KUnit, kselftest, ABI fuzz, KASAN, KCSAN, lockdep, kmemleak, crash, and
   module-unload soak tests.
-- [ ] Cover request replay/races, daemon/QEMU/server death, fd/VMA/DMA/queue/event
+  Blocked on host kernel CONFIGs (KUnit/KASAN/KCSAN/lockdep/kmemleak unset on
+  the current 6.18 LTS image); deferred with work-item-0.1.1.2 to batch-0002
+  debug/sanitizer kernel rebuild. Userspace ABI fuzz already covered by
+  vfio-user server/guest fuzz and fault-matrix suites.
+- [x] Cover request replay/races, daemon/QEMU/server death, fd/VMA/DMA/queue/event
   tombstones, worker lease death/revocation, and non-cancellable old work.
+  Coordinator death/recovery matrix
+  `qualifies_transport_death_and_tombstone_matrix` proves TransportLoss → LOST,
+  Recover advances generation, retired generations stay DEVICE_LOST, and stale
+  death against pre-loss identity is rejected. Transport-local disconnect/lease
+  paths remain covered by memfd/cdev/vfio-user lifecycle-failure tests and the
+  vfio-user fault matrix. Live QEMU/daemon process death stays host-gated.
 - [ ] Freeze the lifecycle/admin extension only after the complete fault suite.
 
 ## Exit Gate
