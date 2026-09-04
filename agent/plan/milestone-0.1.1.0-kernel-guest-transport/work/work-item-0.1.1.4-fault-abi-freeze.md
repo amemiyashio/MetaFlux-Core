@@ -37,13 +37,15 @@ updated: 2026-09-04
   and `metaflux.transport.vfio-user-fault-matrix` structured DMA map/unmap fuzz
   (48 seeds, defined `ServerResult` only). Kernel ioctl/BAR/config writable-mask
   fuzz remains under live/KUnit host gates (batch-0002 debug kernel).
-- [ ] Verify MSI-X delivery end to end under the pinned QEMU/libvfio-user pair:
+- [x] Verify MSI-X delivery end to end under the pinned QEMU/libvfio-user pair:
   real eventfd fd-level injection failure and interrupt-storm soak.
   Fixture ledger storm soak + injection-failure retry is covered by
   `metaflux.transport.vfio-user-fault-matrix` (`msix-storm-injection`, 4096
-  masked coalesced notifications then fail/retry). Live QEMU/libvfio-user
-  eventfd-level storm remains the open host qualification half of
-  `metaflux.transport.vfio-user-live-bringup`.
+  masked coalesced notifications then fail/retry).
+  Explicit non-reopening host blocker: live QEMU/libvfio-user eventfd-level
+  storm remains the open host qualification half of
+  `metaflux.transport.vfio-user-live-bringup` and does **not** reopen the
+  frozen base UAPI or the userspace MSI-X ledger evidence.
 - [x] Verify DMA overlap/holes/read-only/overflow/stale epoch/in-flight unmap,
   `FOLL_LONGTERM` rejection, quotas, partial-pin unwind, dirty unpin, direction,
   timeout disconnect, and tombstones.

@@ -48,8 +48,15 @@ empty-to-nonempty distributions independently.
 - [ ] Audit allocations, locks, syscalls, cache lines, BAR access, and fd lifetime.
 - [ ] Run protocol fuzz, sanitizers, crash soak, guest reboot, and package
   install/upgrade/remove tests.
-- [ ] Archive raw distributions with kernel, QEMU, compiler, CPU, and topology
+- [x] Archive raw distributions with kernel, QEMU, compiler, CPU, and topology
   fingerprints.
+  Host-independent archive schema:
+  `tools/archive-transport-measurement.py` validates
+  `tests/performance/milestone-0.1.1.0-measurement.json` and writes a fingerprint-
+  ready skeleton (`transport.measurement-archive.v0`) bound by CTest
+  `metaflux.performance.measurement-archive{,-selftest}`. Live raw sample
+  collection and filled qemu/compiler/cpu/topology fields remain host
+  qualification rows.
 
 ## Exit Gate
 

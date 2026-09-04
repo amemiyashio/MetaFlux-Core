@@ -289,6 +289,41 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "packaging;vulkan;unit"
   )
   add_test(
+    NAME metaflux.contract.vulkan-argument-freeze
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/validate-vulkan-argument-freeze.py"
+      --output
+      "${CMAKE_BINARY_DIR}/metaflux-vulkan-argument-freeze.json"
+  )
+  set_tests_properties(
+    metaflux.contract.vulkan-argument-freeze
+    PROPERTIES LABELS "contract;vulkan;schema;architecture"
+  )
+  add_test(
+    NAME metaflux.performance.measurement-archive
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/archive-transport-measurement.py"
+      --lifecycle-core
+      --output
+      "${CMAKE_BINARY_DIR}/metaflux-transport-measurement-archive.json"
+  )
+  set_tests_properties(
+    metaflux.performance.measurement-archive
+    PROPERTIES LABELS "performance-smoke;release;unit"
+  )
+  add_test(
+    NAME metaflux.performance.measurement-archive-selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/test-archive-transport-measurement.py"
+  )
+  set_tests_properties(
+    metaflux.performance.measurement-archive-selftest
+    PROPERTIES LABELS "performance-smoke;release;unit"
+  )
+  add_test(
     NAME metaflux.architecture.agent-state-selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B

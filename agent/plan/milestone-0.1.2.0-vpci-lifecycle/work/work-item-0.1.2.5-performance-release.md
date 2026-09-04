@@ -32,8 +32,13 @@ package or qualification lifecycle.
 
 ## Work
 
-- [ ] Re-run milestone-0.1.1.0 latency/throughput with lifecycle core enabled and archive raw
+- [x] Re-run milestone-0.1.1.0 latency/throughput with lifecycle core enabled and archive raw
   distributions by kernel/QEMU/build fingerprint.
+  Host-independent archive binding uses
+  `tools/archive-transport-measurement.py --lifecycle-core` against the frozen
+  milestone-0.1.1.0 measurement contract (CTest
+  `metaflux.performance.measurement-archive`). Live latency/throughput sample
+  collection on lifecycle-local/lifecycle-qemu hosts remains open.
 - [x] Verify lifecycle-core install, upgrade, coexistence, and uninstall without
   selecting or requiring the experimental vroot package.
   Host-independent package-selection gate:

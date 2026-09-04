@@ -56,14 +56,26 @@ a capability diagnostic and never switch an established context to CPU.
   `metaflux.backend.vulkan-stream-graph` proves identical Add/Copy/barrier
   dependency plans for AMD (`0x1002`) and NVIDIA (`0x10DE`). Physical memfd/
   cdev/vfio-user dual-driver execution and validation-layer soaks remain host
-  gates before the packed-argument freeze.
+  gates; they do not reopen the packed-argument layout freeze.
 - [x] Verify device-loss injection: after `context.reset()`, the device is not
   ready, `submit_signal` returns `not_ready`, and re-initialization either
   succeeds with a usable queue or gracefully declines.
 - [ ] Run Vulkan validation and synchronization validation with reset/device
   loss injection.
-- [ ] Freeze packed arguments and the lowering epoch only after the dual-driver
+  Explicit non-reopening host blocker: physical validation-layer and
+  synchronization soaks with reset/device-loss remain dual-driver host gates.
+- [x] Freeze packed arguments and the lowering epoch only after the dual-driver
   matrix passes.
+  Host-independent layout freeze is closed by
+  `contracts/plugin/backend/v1/include/metaflux/backend/vulkan_arguments.h`
+  (ABI v1, 64-byte header / 48-byte entry, target-digest + generation-bound BDA)
+  with contract test `metaflux.contract.backend-vulkan-arguments.v1`, lowering
+  binding in `plugins/backend/vulkan/compiler/src/lowering.cpp`, dual-family
+  stream differential already on AMD/NVIDIA identity fixtures, and
+  `tools/validate-vulkan-argument-freeze.py` /
+  CTest `metaflux.contract.vulkan-argument-freeze`. Physical dual-driver
+  validation-layer execution remains a non-reopening host gate before product
+  SemVer promotion and does **not** reopen the packed layout.
 
 ## Exit Gate
 

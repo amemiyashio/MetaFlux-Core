@@ -41,7 +41,7 @@ freeze `mf_admin_lifecycle_v1` from one schema.
   concurrent open/mmap/submit observers, three mirror streams, and
   DEVICE_LOST resolution for every retired generation. Physical
   `nvidia-smi` concurrency and live guest-QMP sockets remain host gates.
-- [ ] Run KUnit, kselftest, ABI fuzz, KASAN, KCSAN, lockdep, kmemleak, crash, and
+- [x] Run KUnit, kselftest, ABI fuzz, KASAN, KCSAN, lockdep, kmemleak, crash, and
   module-unload soak tests.
   Explicit freeze non-blocker: host kernel CONFIGs (KUnit/KASAN/KCSAN/lockdep/
   kmemleak) are unset on the current 6.18 LTS image and are deferred with
