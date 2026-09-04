@@ -10,6 +10,14 @@ Iteration, Batch integration, or Epoch governance does not imply permission to
 push. Configure or inspect transport when requested; mutate the remote only when
 the user or application explicitly requests the exact push.
 
+A larger checkpoint is one of: a published Epoch activation commit, a Batch
+integration commit that updated `goal.json` lane or Batch state, or a commit the
+user or application names as a larger checkpoint. Completing that checkpoint
+still does not infer a push. When the user or application then explicitly asks
+to push that checkpoint, invoke this skill with that commit's full object ID
+only. Do not treat an ordinary Iteration commit, an unreviewed subagent diff, a
+dirty worktree, or an inferred `HEAD` as a larger checkpoint.
+
 ## Canonical Transport
 
 [`transport.json`](transport.json) is the machine-readable authority:
@@ -57,9 +65,11 @@ read-only authenticated `ls-remote`; ordinary `check` is local-only.
 
 ## Push One Revision
 
-Require the full commit object ID supplied by the user or application. The
-helper resolves and verifies that object, revalidates the configured transport,
-and pushes exactly `COMMIT:refs/heads/main` without force:
+Require the full commit object ID supplied by the user or application. For a
+named larger checkpoint, that ID is the published Epoch, Batch-integration, or
+user-named commit object, never a parent-inferred revision. The helper resolves
+and verifies that object, revalidates the configured transport, and pushes
+exactly `COMMIT:refs/heads/main` without force:
 
 ```sh
 nix develop . --command python3 -B \
