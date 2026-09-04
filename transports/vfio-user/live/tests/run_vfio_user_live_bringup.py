@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import importlib.util
 import json
 import os
 import re
@@ -44,7 +45,29 @@ REQUIRED_APPLETS = (
     "sleep",
 )
 
-GUEST_INIT_TEMPLATE = """#!/bin/sh
+
+def load_pci_guest_fixture(repository: Path) -> dict[str, int]:
+    """Compose expected guest PCI identity/BAR sizes from the root manifests."""
+    script = repository / "tools" / "generate-pci-guest-profile.py"
+    spec = importlib.util.spec_from_file_location("metaflux_pci_guest_profile", script)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load {script}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.compose(repository.resolve())
+
+
+def guest_init_script(fixture: dict[str, int]) -> str:
+    vendor = f"0x{fixture['vendor_id']:04x}"
+    device = f"0x{fixture['device_id']:04x}"
+    class_code = f"0x{fixture['class_code']:06x}"
+    bar0_size = str(fixture["bar0_size"])
+    bar4_size = str(fixture["bar4_size"])
+    # BAR0 MSI-X trigger words intentionally embed the CI vendor mnemonic; they
+    # are test-side doorbell values, not competing layout owners.
+    trigger0 = f"0x{fixture['vendor_id']:04x}5558"
+    trigger1 = f"0x{fixture['vendor_id']:04x}5559"
+    return f"""#!/bin/sh
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 /bin/busybox mount -t proc proc /proc
 /bin/busybox mount -t sysfs sysfs /sys
@@ -59,14 +82,14 @@ else
 fi
 dev=
 for d in /sys/bus/pci/devices/*; do
-  if [ "$(/bin/busybox cat "$d/vendor" 2>/dev/null)" = "0x4d46" ]; then
+  if [ "$(/bin/busybox cat "$d/vendor" 2>/dev/null)" = "{vendor}" ]; then
     dev="$d"
     break
   fi
 done
 if [ -n "$dev" ]; then
-  if [ "$(/bin/busybox cat "$dev/device")" = "0x0001" ] &&
-     [ "$(/bin/busybox cat "$dev/class")" = "0x120000" ]; then
+  if [ "$(/bin/busybox cat "$dev/device")" = "{device}" ] &&
+     [ "$(/bin/busybox cat "$dev/class")" = "{class_code}" ]; then
     echo LIVE_GUEST:ID_OK
   else
     echo LIVE_GUEST:ID_FAIL
@@ -85,28 +108,28 @@ if [ -n "$dev" ]; then
   bar4_end=$(( $2 ))
   bar0_size=$(( bar0_end - bar0 + 1 ))
   bar4_size=$(( bar4_end - bar4 + 1 ))
-  if [ "$bar0_size" = "65536" ] && [ "$bar2" != "0" ] && [ "$bar4_size" = "4096" ]; then
+  if [ "$bar0_size" = "{bar0_size}" ] && [ "$bar2" != "0" ] && [ "$bar4_size" = "{bar4_size}" ]; then
     echo LIVE_GUEST:BAR_OK
   else
     echo LIVE_GUEST:BAR_FAIL
   fi
   word0=$(/bin/busybox devmem "$bar0" 32)
   word0=$(/bin/busybox echo "$word0" | /bin/busybox tr 'ABCDEF' 'abcdef')
-  word0=${word0#0x}
+  word0=${{word0#0x}}
   if [ "$word0" = "3054464d" ]; then
     echo LIVE_GUEST:BAR0_READ_OK
   else
     echo LIVE_GUEST:BAR0_READ_FAIL
   fi
   irq_before=$(/bin/busybox cat /proc/interrupts |
-    /bin/busybox awk '/metaflux_pci/ { for (i = 2; i < NF; i++) s += $i } END { printf "%d", s }')
-  /bin/busybox devmem "$bar0" 32 0x4d465558
-  /bin/busybox devmem "$bar0" 32 0x4d465559
+    /bin/busybox awk '/metaflux_pci/ {{ for (i = 2; i < NF; i++) s += $i }} END {{ printf "%d", s }}')
+  /bin/busybox devmem "$bar0" 32 {trigger0}
+  /bin/busybox devmem "$bar0" 32 {trigger1}
   /bin/busybox devmem "$bar2" 32 0x1
   /bin/busybox devmem "$bar2" 32 0x2
   /bin/busybox sleep 1
   irq_after=$(/bin/busybox cat /proc/interrupts |
-    /bin/busybox awk '/metaflux_pci/ { for (i = 2; i < NF; i++) s += $i } END { printf "%d", s }')
+    /bin/busybox awk '/metaflux_pci/ {{ for (i = 2; i < NF; i++) s += $i }} END {{ printf "%d", s }}')
   if [ "$irq_after" -gt "$irq_before" ]; then
     echo LIVE_GUEST:MSIX_OK
   else
@@ -241,7 +264,9 @@ def resolve_module(repository: Path, explicit: str | None) -> tuple[Path | None,
     return module, ""
 
 
-def build_initramfs(staging: Path, busybox: str, module: Path, release: str) -> bytes:
+def build_initramfs(
+    staging: Path, busybox: str, module: Path, release: str, fixture: dict[str, int]
+) -> bytes:
     (staging / "bin").mkdir(parents=True, exist_ok=True)
     shutil.copy2(busybox, staging / "bin" / "busybox")
     (staging / "bin" / "sh").symlink_to("busybox")
@@ -251,7 +276,9 @@ def build_initramfs(staging: Path, busybox: str, module: Path, release: str) -> 
     module_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(module, module_dir / "metaflux_pci.ko")
     init_path = staging / "init"
-    init_path.write_text(GUEST_INIT_TEMPLATE.replace("__KVER__", release), encoding="utf-8")
+    init_path.write_text(
+        guest_init_script(fixture).replace("__KVER__", release), encoding="utf-8"
+    )
     init_path.chmod(0o755)
 
     entries: list[tuple[str, int, int, int, bytes | None]] = []
@@ -443,6 +470,10 @@ def main() -> int:
     module, reason = resolve_module(arguments.repository, arguments.module)
     if module is None:
         return skip(reason)
+    try:
+        fixture = load_pci_guest_fixture(arguments.repository)
+    except Exception as error:  # noqa: BLE001 - surface compose diagnostics
+        return fail(f"pci-guest fixture compose failed: {error}")
 
     release = os.uname().release
     workdir = Path(tempfile.mkdtemp(prefix="metaflux-vfu-live-"))
@@ -455,7 +486,9 @@ def main() -> int:
     try:
         initramfs.write_bytes(
             gzip.compress(
-                build_initramfs(workdir / "initramfs-root", busybox, module, release),
+                build_initramfs(
+                    workdir / "initramfs-root", busybox, module, release, fixture
+                ),
                 compresslevel=6,
                 mtime=0,
             )

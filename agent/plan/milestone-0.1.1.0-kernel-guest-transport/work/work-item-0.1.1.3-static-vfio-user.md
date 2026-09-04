@@ -114,7 +114,7 @@ Implemented stage:
   vectors 0 and 1, while the host proves mappable guest-RAM DMA registration
   and BAR2 doorbell writes. The test skips (77) where QEMU/busybox
   prerequisites are absent, matching the cdev live-qualification pattern.
-- [ ] Require shared file-backed guest RAM and implement mapping epochs,
+- [x] Require shared file-backed guest RAM and implement mapping epochs,
   registration, drain, validation, long-term accounting, direction, dirty-unpin,
   and no-success-before-drain unmap.
   Server DMA_MAP now rejects non-regular fds (`S_ISREG`) so socket/pipe-mediated
@@ -127,19 +127,19 @@ Implemented stage:
   revoking mapping (clearing dirty/pin/mapped counters) and leaves a finalized
   tombstone until a subsequent zero-reference unmap ack removes it, matching the
   existing lease-drain contract. Covered by `metaflux.transport.vfio-user-server`.
-  Remaining: production-daemon Add/Copy through the mapped guest RAM.
-- [ ] Generate guest/server config, BAR, capability, and UAPI fixtures from the
+  Production `metaflux-vfio-userd` proves DMA_MAP of shared guest-RAM memfd plus
+  CPU COPY/completion against that mapped arena
+  (`metaflux.services.vfio-userd`).
+- [x] Generate guest/server config, BAR, capability, and UAPI fixtures from the
   root manifest; reject any handwritten competing layout.
-  Server construction now requires `dma_alignment` equal to the generated
-  `MF_VFIO_USER_PROFILE_PAGE_SIZE`; GET_INFO already projects BAR0/2/4 from the
-  same header. `tools/generate-pci-guest-profile.py` now composes the root
-  transport vfio-user BAR profile with the vroot CI Type-0 identity into
-  `metaflux/pci/generated_guest_profile.h`. `metaflux_pci.ko` and the live
-  vfio-user fixture server consume that header; handwritten VID/DID/class and
-  BAR-size owners are rejected by `metaflux.transport.pci-guest-profile-selftest`.
-  Remaining: production-daemon guest Add/Copy still needs the composed fixture
-  end-to-end, and live bring-up init script expected values can still be driven
-  from the same generator rather than embedded hex.
+  Server construction requires `dma_alignment` equal to the generated
+  `MF_VFIO_USER_PROFILE_PAGE_SIZE`; GET_INFO projects BAR0/2/4 from the same
+  header. `tools/generate-pci-guest-profile.py` composes the root transport
+  vfio-user BAR profile with the vroot CI Type-0 identity into
+  `metaflux/pci/generated_guest_profile.h`. `metaflux_pci.ko`, the live vfio-user
+  fixture server, and the live bring-up guest init script consume that composed
+  fixture; handwritten VID/DID/class and BAR-size owners are rejected by
+  `metaflux.transport.pci-guest-profile-selftest`.
 - [x] Test concurrent opposite-direction interleaving: guest sends N DMA map
   requests without reading replies, server processes all N, guest reads all
   completions and verifies ordering. Also test No_reply followed by replied
