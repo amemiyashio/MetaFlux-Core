@@ -13,7 +13,7 @@
       "id": "transport.lifecycle-extension.v1",
       "version": "1.0",
       "path": "contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/manifest.json",
-      "sha256": "f853811ce9133fe33a3bf6dc9d35f4668391967087fd45c50661187d04f8a7ff"
+      "sha256": "91206a1668002615759e6ae66d5e6b34ab8be06190acc21c0b2ba122e6668bff"
     }
   ],
   "profile": {

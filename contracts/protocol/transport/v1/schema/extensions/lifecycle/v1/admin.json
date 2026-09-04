@@ -1,0 +1,180 @@
+{
+  "id": "transport.lifecycle-admin.v1",
+  "version": "1.0",
+  "zone": "protocol/transport/v1/extensions/lifecycle",
+  "kind": "encoded-layout",
+  "records": [
+    {
+      "name": "mf_admin_lifecycle_request_v1",
+      "size": 80,
+      "alignment": 8,
+      "fields": [
+        {
+          "name": "struct_size",
+          "offset": 0,
+          "width": 4,
+          "type": "u32"
+        },
+        {
+          "name": "abi_version",
+          "offset": 4,
+          "width": 4,
+          "type": "u32"
+        },
+        {
+          "name": "request_id",
+          "offset": 8,
+          "width": 8,
+          "type": "u64"
+        },
+        {
+          "name": "logical_device_id",
+          "offset": 16,
+          "width": 8,
+          "type": "u64"
+        },
+        {
+          "name": "daemon_incarnation",
+          "offset": 24,
+          "width": 8,
+          "type": "u64"
+        },
+        {
+          "name": "expected_identity_record_id",
+          "offset": 32,
+          "width": 8,
+          "type": "u64"
+        },
+        {
+          "name": "expected_generation",
+          "offset": 40,
+          "width": 8,
+          "type": "u64"
+        },
+        {
+          "name": "expected_epoch",
+          "offset": 48,
+          "width": 8,
+          "type": "u64"
+        },
+        {
+          "name": "deadline_tick",
+          "offset": 56,
+          "width": 8,
+          "type": "u64"
+        },
+        {
+          "name": "source",
+          "offset": 64,
+          "width": 4,
+          "type": "u32"
+        },
+        {
+          "name": "operation",
+          "offset": 68,
+          "width": 4,
+          "type": "u32"
+        },
+        {
+          "name": "reserved",
+          "offset": 72,
+          "width": 8,
+          "type": "bytes[8]",
+          "reserved": true
+        }
+      ]
+    },
+    {
+      "name": "mf_admin_lifecycle_result_v1",
+      "size": 64,
+      "alignment": 8,
+      "fields": [
+        {
+          "name": "struct_size",
+          "offset": 0,
+          "width": 4,
+          "type": "u32"
+        },
+        {
+          "name": "abi_version",
+          "offset": 4,
+          "width": 4,
+          "type": "u32"
+        },
+        {
+          "name": "request_id",
+          "offset": 8,
+          "width": 8,
+          "type": "u64"
+        },
+        {
+          "name": "result",
+          "offset": 16,
+          "width": 4,
+          "type": "u32"
+        },
+        {
+          "name": "state",
+          "offset": 20,
+          "width": 4,
+          "type": "u32"
+        },
+        {
+          "name": "candidate_generation",
+          "offset": 24,
+          "width": 8,
+          "type": "u64"
+        },
+        {
+          "name": "committed_generation",
+          "offset": 32,
+          "width": 8,
+          "type": "u64"
+        },
+        {
+          "name": "committed_epoch",
+          "offset": 40,
+          "width": 8,
+          "type": "u64"
+        },
+        {
+          "name": "identity_record_id",
+          "offset": 48,
+          "width": 8,
+          "type": "u64"
+        },
+        {
+          "name": "reserved",
+          "offset": 56,
+          "width": 8,
+          "type": "bytes[8]",
+          "reserved": true
+        }
+      ]
+    }
+  ],
+  "constants": {
+    "MF_ADMIN_LIFECYCLE_ABI_VERSION_1": 1,
+    "MF_ADMIN_LIFECYCLE_SOURCE_ADMIN": 1,
+    "MF_ADMIN_LIFECYCLE_SOURCE_MEMFD": 2,
+    "MF_ADMIN_LIFECYCLE_SOURCE_CDEV": 3,
+    "MF_ADMIN_LIFECYCLE_SOURCE_VFIO_USER": 4,
+    "MF_ADMIN_LIFECYCLE_SOURCE_QMP": 5,
+    "MF_ADMIN_LIFECYCLE_SOURCE_DISCONNECT": 6,
+    "MF_ADMIN_LIFECYCLE_SOURCE_RESTART": 7,
+    "MF_ADMIN_LIFECYCLE_OP_ADD": 1,
+    "MF_ADMIN_LIFECYCLE_OP_REMOVE": 2,
+    "MF_ADMIN_LIFECYCLE_OP_RESET": 3,
+    "MF_ADMIN_LIFECYCLE_OP_TRANSPORT_LOSS": 4,
+    "MF_ADMIN_LIFECYCLE_OP_RECOVER": 5,
+    "MF_ADMIN_LIFECYCLE_RESULT_ACCEPTED": 0,
+    "MF_ADMIN_LIFECYCLE_RESULT_DUPLICATE": 1,
+    "MF_ADMIN_LIFECYCLE_RESULT_STALE": 2,
+    "MF_ADMIN_LIFECYCLE_RESULT_CONFLICT": 3,
+    "MF_ADMIN_LIFECYCLE_RESULT_INVALID": 4,
+    "MF_ADMIN_LIFECYCLE_RESULT_RESOURCE_EXHAUSTED": 5,
+    "MF_ADMIN_LIFECYCLE_RESULT_CALLBACK_REJECTED": 6,
+    "MF_ADMIN_LIFECYCLE_RESULT_DEVICE_LOST": 7,
+    "MF_ADMIN_LIFECYCLE_RESULT_TIMEOUT": 8
+  }
+}

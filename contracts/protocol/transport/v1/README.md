@@ -33,7 +33,12 @@ is accepted on this control message.
 milestone-0.1.2.0 lifecycle and experimental vroot assets live only under
 `schema/extensions/lifecycle/v1/` and `schema/extensions/vroot/v1/`. Their
 manifests import this base by content hash; they are not members of the v1
-base closure and remain experimental until work-item-0.1.2.3 freezes
-`mf_admin_lifecycle_v1`. The lifecycle model owns generation-candidate,
-epoch-retirement, tombstone, and provider-view rules without changing the
-milestone-0.1.1.0 root.
+base data-plane closure. work-item-0.1.2.3 freezes the lifecycle/admin control
+plane as `mf_admin_lifecycle_v1` from
+`schema/extensions/lifecycle/v1/{manifest,model,admin}.json`: the hashed admin
+request/result records, model state machine, and generated fixtures are the
+sole public admin wire layout. Experimental bare-metal vroot remains outside
+this freeze until work-item-0.1.2.4. The lifecycle model owns
+generation-candidate, epoch-retirement, tombstone, and provider-view rules
+without changing the milestone-0.1.1.0 root. Kernel sanitizer/KUnit soaks stay
+batch-0002 host gates and do not reopen the frozen admin wire.

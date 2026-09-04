@@ -15,5 +15,11 @@
     "version": "1.0",
     "path": "contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/model.json",
     "sha256": "0e005d2dc1292f5deb44afb11902828fda721ea93b7163a6273a57722158402c"
+  },
+  "admin": {
+    "id": "transport.lifecycle-admin.v1",
+    "version": "1.0",
+    "path": "contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/admin.json",
+    "sha256": "aaff68bd846bf67e9fa7ec2997dcbbe99ef973cbeda5274f82eae77c8c499001"
   }
 }

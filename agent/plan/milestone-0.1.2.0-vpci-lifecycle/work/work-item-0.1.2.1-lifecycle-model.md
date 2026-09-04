@@ -72,8 +72,9 @@ identity can be retired again.
 
 A public deadline means state reaches complete `ONLINE`, `LOST`, or `ABSENT`; it
 does not promise physical cancellation. Non-cancellable work remains isolated
-behind old-generation tombstones. Lifecycle/admin UAPI stays ABI 0.x until the
-qualification workstream freezes it.
+behind old-generation tombstones. Lifecycle/admin UAPI is frozen as
+`mf_admin_lifecycle_v1` by work-item-0.1.2.3 from the hashed extension admin
+schema; kernel sanitizer soaks remain host gates and do not reopen the wire.
 
 ## Canonical Model Gate
 
