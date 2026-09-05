@@ -2,10 +2,10 @@
 id: work-item-0.1.2.2
 delivery: 0.1.2.2
 milestone: milestone-0.1.2.0
-status: Active
+status: Complete
 area: lifecycle.transports
 depends_on: [work-item-0.1.2.1]
-updated: 2026-09-03
+updated: 2026-09-06
 ---
 
 # Lifecycle on Existing Transports

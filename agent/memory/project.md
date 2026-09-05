@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-08-30
+updated: 2026-09-06
 ---
 
 # MetaFlux Project
@@ -32,12 +32,16 @@ Product releases use standard three-part SemVer from the repository-root
 `MAJOR.MINOR.PATCH.WORK` coordinate and derived M/W/S identifiers described in
 the [release and delivery identity policy](../../docs/release-versioning.md).
 
-The current product line is milestone-0.1.0.0 / `v0.1.0`: the CPU-backed CUDA/NVML core
-foundation and its four-distribution generic release qualification. Native
-NixOS VM/package qualification remains the unallocated `v0.2.0` support
-expansion. Intel x86_64 support qualification and physical NVIDIA
-binding-performance promotion belong to milestone-1.0.0.0 / `v1.0.0`. None of these later
-qualification tasks is an milestone-0.1.0.0 exit gate. Canonical scope and acceptance
+The `v0.1.x` product line is complete through `v0.1.3`: the CPU-backed
+CUDA/NVML core foundation (milestone-0.1.0.0), local cdev and guest transport
+(milestone-0.1.1.0), lifecycle and experimental vPCI presentation
+(milestone-0.1.2.0), and the Vulkan execution backend (milestone-0.1.3.0) are
+all delivered with evidence recorded beside their work items. The current
+target is milestone-1.0.0.0 / `v1.0.0`, the stable compatibility release with
+provisional budgets; Intel x86_64 qualification and physical NVIDIA
+binding-performance promotion belong to milestone-2.0.0.0 / `v2.0.0`
+(decision-0040). Native NixOS VM/package qualification remains the unallocated
+`v0.2.0` support expansion. Canonical scope and acceptance
 remain in the [repository overview](../../README.md),
 [plugin ownership](../../plugins/README.md), and
 [milestone-0.1.0.0](../plan/milestone-0.1.0.0-core-foundation/plan.md); recorded evidence is valid only

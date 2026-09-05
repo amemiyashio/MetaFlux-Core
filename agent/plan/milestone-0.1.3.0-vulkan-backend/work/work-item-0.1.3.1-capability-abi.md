@@ -2,10 +2,10 @@
 id: work-item-0.1.3.1
 delivery: 0.1.3.1
 milestone: milestone-0.1.3.0
-status: Active
+status: Complete
 area: backend.vulkan.contract
 depends_on: [milestone-0.1.1.0]
-updated: 2026-09-03
+updated: 2026-09-06
 ---
 
 # Vulkan Capability and ABI 0.x

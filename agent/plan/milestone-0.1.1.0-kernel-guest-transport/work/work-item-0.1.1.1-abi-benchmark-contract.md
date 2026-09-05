@@ -2,10 +2,10 @@
 id: work-item-0.1.1.1
 delivery: 0.1.1.1
 milestone: milestone-0.1.1.0
-status: Active
+status: Complete
 area: transport.contracts
 depends_on: [milestone-0.1.0.0]
-updated: 2026-08-30
+updated: 2026-09-06
 ---
 
 # ABI Fixtures and Benchmark Contract

@@ -2,10 +2,10 @@
 id: work-item-0.1.1.4
 delivery: 0.1.1.4
 milestone: milestone-0.1.1.0
-status: Active
+status: Complete
 area: transport.qualification
 depends_on: [work-item-0.1.1.2, work-item-0.1.1.3]
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 # Fault Qualification and Data-Plane v1 Freeze

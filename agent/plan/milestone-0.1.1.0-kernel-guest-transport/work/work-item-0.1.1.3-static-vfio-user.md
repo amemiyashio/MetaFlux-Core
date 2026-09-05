@@ -2,10 +2,10 @@
 id: work-item-0.1.1.3
 delivery: 0.1.1.3
 milestone: milestone-0.1.1.0
-status: Active
+status: Complete
 area: transport.vfio-user
 depends_on: [work-item-0.1.1.1]
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 # Static vfio-user Guest Vertical Slice

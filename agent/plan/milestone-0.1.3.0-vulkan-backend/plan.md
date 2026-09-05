@@ -2,10 +2,10 @@
 id: milestone-0.1.3.0
 delivery: 0.1.3.0
 release: v0.1.3
-status: Active
+status: Complete
 depends_on: [milestone-0.1.1.0, milestone-0.1.2.0]
 areas: [backend.vulkan, compiler.spirv]
-updated: 2026-08-31
+updated: 2026-09-06
 ---
 
 # milestone-0.1.3.0: Vulkan Execution Backend
@@ -155,6 +155,12 @@ Fault and release:
 6. Queue topology, batching thresholds, and polling/blocking defaults.
 7. Device-loss worker isolation and resource deadline policy.
 
+Convergence (2026-09-06): all seven closed with the qualification evidence
+recorded in work-item-0.1.3.1 through work-item-0.1.3.6 (capability/target
+serialization, packed arguments, memory tiers, FP policy, cache/residency,
+queue topology, and device-loss isolation); physical dual-family versions of
+items 1 and 3 are owned by milestone-2.0.0.0 (decision-0040).
+
 ## Deferred Cubin Research
 
 Cubin remains an unnumbered, non-blocking future input:
@@ -186,6 +192,14 @@ install, upgrade, coexistence, and removal.
 work-item-0.1.3.1 through work-item-0.1.3.5 may proceed after milestone-0.1.1.0. Vulkan-specific release
 integration waits for the milestone-0.1.2.0 core DoD and all gates above. Deferred cubin
 research blocks neither path.
+
+Convergence (2026-09-06): closed on the host-independent dual-family matrix
+plus the live RADV/780M adapter. Capability, memory, lowering, execution,
+cache, and performance/release gates passed; the physical dual-driver rows
+(install/upgrade/coexistence, external-memory freeze, validation soak,
+compute-ceiling on a second family) are owned by milestone-2.0.0.0
+(decision-0040). The measured 780M fused-FMA compute plateau is 7.67-7.68
+TFLOP/s with the VOPD reseat lever closed as a negative result.
 
 ## References
 

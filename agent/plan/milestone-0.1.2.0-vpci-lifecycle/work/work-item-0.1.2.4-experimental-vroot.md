@@ -2,10 +2,10 @@
 id: work-item-0.1.2.4
 delivery: 0.1.2.4
 milestone: milestone-0.1.2.0
-status: Active
+status: Complete
 area: kernel.vroot
 depends_on: [work-item-0.1.2.3]
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 # Experimental Bare-Metal vPCI Presentation

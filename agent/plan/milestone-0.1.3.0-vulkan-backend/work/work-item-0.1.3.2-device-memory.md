@@ -2,10 +2,10 @@
 id: work-item-0.1.3.2
 delivery: 0.1.3.2
 milestone: milestone-0.1.3.0
-status: Active
+status: Complete
 area: backend.vulkan.memory
 depends_on: [work-item-0.1.3.1]
-updated: 2026-09-02
+updated: 2026-09-06
 ---
 
 # Vulkan Device, Queue, and Memory

@@ -2,10 +2,10 @@
 id: work-item-0.1.3.5
 delivery: 0.1.3.5
 milestone: milestone-0.1.3.0
-status: Active
+status: Complete
 area: backend.vulkan.cache
 depends_on: [work-item-0.1.3.3, work-item-0.1.3.4]
-updated: 2026-08-31
+updated: 2026-09-06
 ---
 
 # Vulkan Cache and Warm Path

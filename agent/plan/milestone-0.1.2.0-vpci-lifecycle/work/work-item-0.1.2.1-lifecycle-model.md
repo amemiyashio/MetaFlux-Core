@@ -2,10 +2,10 @@
 id: work-item-0.1.2.1
 delivery: 0.1.2.1
 milestone: milestone-0.1.2.0
-status: Active
+status: Complete
 area: lifecycle.contract
 depends_on: [milestone-0.1.1.0]
-updated: 2026-08-30
+updated: 2026-09-06
 ---
 
 # Lifecycle Model and ABI 0.x

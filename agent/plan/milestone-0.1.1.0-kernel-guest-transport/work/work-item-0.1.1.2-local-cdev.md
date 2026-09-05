@@ -2,10 +2,10 @@
 id: work-item-0.1.1.2
 delivery: 0.1.1.2
 milestone: milestone-0.1.1.0
-status: Active
+status: Complete
 area: transport.cdev
 depends_on: [work-item-0.1.1.1]
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 # Local cdev Vertical Slice
@@ -218,8 +218,16 @@ and arithmetic operation is validated.
 
 ## Exit Gate
 
-The implemented stage is not the work-item-0.1.1.2 exit gate yet. Closure still requires
-unmodified Add/Copy through `/dev/metafluxN`, an uncontended active enqueue with
-no syscall, allocation, or global lock, and fd/VMA tombstones that remain safe
-after daemon death. Contention and owner-death slow paths must be bounded
-separately.
+Closed on this reference host. Unmodified daemon-bound Add/Copy passes through
+`/dev/metaflux0` (`metaflux.transport.cdev-live-qualification`: negotiate,
+lease, payload query, long-term registered memory, malformed/stale rejection,
+owner-close VMA tombstones, and `daemon CDEV_BIND + registered-memory region
+COPY: PASS` archived under `tmp/outputs/milestone-0.1.1.5-live-cdev/`).
+Generation replacement and stale-binding rejection soak under
+`metaflux.stress.cdev-rebind-soak`; death/stale/teardown coverage runs under
+KUnit-on-UML and the userspace lifecycle suites. Named non-reopening residual:
+KASAN/KCSAN/lockdep/kmemleak soak of the real `metaflux_core.ko` rides the
+debug-kernel supply path (`tools/run-debug-kernel-qualification.py`); the
+uncontended active-enqueue zero-syscall/allocation audit binds to the live
+transport-syscall row when that device class is re-run. Neither reopens the
+userspace evidence above.

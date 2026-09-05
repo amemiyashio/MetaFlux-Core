@@ -2,10 +2,10 @@
 id: work-item-0.1.2.3
 delivery: 0.1.2.3
 milestone: milestone-0.1.2.0
-status: Active
+status: Complete
 area: lifecycle.qualification
 depends_on: [work-item-0.1.2.2]
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 # Core Lifecycle Qualification and Freeze

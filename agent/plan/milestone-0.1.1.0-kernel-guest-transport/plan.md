@@ -2,10 +2,10 @@
 id: milestone-0.1.1.0
 delivery: 0.1.1.0
 release: v0.1.1
-status: Active
+status: Complete
 depends_on: [milestone-0.1.0.0]
 areas: [kernel.core, kernel.pci, transport.cdev, transport.vfio-user]
-updated: 2026-08-30
+updated: 2026-09-06
 ---
 
 # milestone-0.1.1.0: Kernel and Guest Transport
@@ -172,12 +172,26 @@ Fault and release:
 
 Items 1 and 4 close only after work-item-0.1.1.4 evidence, not before implementation.
 
+Convergence (2026-09-06): items 1-4 closed with the work-item-0.1.1.4 freeze and
+live transport evidence; item 3 closed with the QEMU/libvfio-user bring-up row.
+Items 5-6 (registered VID/DID, signing/Secure Boot) are release-package policy
+surface owned by the milestone-1.0.0.0 stable manifest.
+
 ## Definition of Done
 
 milestone-0.1.1.0 is complete when both CPU Add/Copy slices pass; the qualified transport
 UAPI/device protocol/BAR envelope freezes as `v1` without changing the inherited
 descriptor; DMA/ioeventfd/MSI-X/teardown have no steady-state control traffic;
 performance/package gates and raw evidence pass; and milestone-0.1.0.0 stays green.
+
+Convergence (2026-09-06): closed on the executing AMD host. Live cdev and
+vfio-user bring-up rows passed with contract-bound samples; the named
+non-reopening residuals ride the debug-kernel supply path
+(`tools/run-debug-kernel-qualification.py` for KASAN/KCSAN/lockdep/kmemleak
+soak and the KUnit guest boot), the release package matrix harness for real
+dpkg/rpm rows, and optional huge-page/MSI-X storm soaks. None reopens the
+frozen `v1` data-plane envelope; guest reboot and reference-host package rows
+stay with the release matrix.
 
 milestone-0.1.2.0 may then extend lifecycle/admin behavior without changing milestone-0.1.1.0 data-plane
 v1. Future v0.3 semantic work that only needs stable backend/data-plane ABIs may

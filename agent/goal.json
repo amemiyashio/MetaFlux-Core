@@ -6,21 +6,33 @@
     "status": "open"
   },
   "target": {
-    "milestone": "milestone-0.1.1.0",
-    "work_item": "work-item-0.1.1.2"
+    "milestone": "milestone-1.0.0.0",
+    "work_item": "work-item-1.0.0.3"
   },
-  "objective": "Close the live local-cdev Add/Copy, DMA import, and replacement-generation boundaries before the Linux qualification batch.",
+  "objective": "Deliver the v1.0.0 stable compatibility release: explicit public surface, upgrade path, reproducible no-Nix packages, and cumulative v0.1.x regression closure on the AMD reference host.",
   "lanes": [
     {
       "id": "lane-generation-drain",
       "iteration": "iteration-0001",
       "outcome": "Complete daemon/provider replacement-generation rebind, object-reference transfer, and physical drain; prove no stale binding admission after lifecycle commit.",
-      "status": "planned",
+      "status": "integrated",
       "depends_on": [],
       "acceptance": [
         "New work cannot use a stale daemon/provider binding after lifecycle commit.",
         "Captured backend, lease, memory, queue, payload, and owner references drain before retirement.",
         "Replacement and same-owner rebind tests prove no duplicate retirement or old-generation admission."
+      ]
+    },
+    {
+      "id": "lane-stable-release",
+      "iteration": "iteration-0002",
+      "outcome": "Publish the explicit v1.0.0 compatibility surface with upgrade, reproducible-package, and cumulative v0.1.x regression closure on the AMD reference host.",
+      "status": "planned",
+      "depends_on": ["lane-generation-drain"],
+      "acceptance": [
+        "The stable public API/ABI/CLI/package/persisted-state surface and its deprecation policy are published and explicit.",
+        "DEB, RPM, and tar artifacts reproduce byte-for-byte from one clean revision with declared tool identities and no Nix runtime paths.",
+        "Cumulative milestone-0.1.0.0..0.1.3.0 regression and the generic install/upgrade/coexistence/removal matrices pass."
       ]
     }
   ]

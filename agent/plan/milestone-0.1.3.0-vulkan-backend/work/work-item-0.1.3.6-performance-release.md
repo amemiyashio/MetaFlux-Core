@@ -2,7 +2,7 @@
 id: work-item-0.1.3.6
 delivery: 0.1.3.6
 milestone: milestone-0.1.3.0
-status: Active
+status: Complete
 area: release.vulkan
 depends_on: [work-item-0.1.2.3, work-item-0.1.3.2, work-item-0.1.3.4, work-item-0.1.3.5]
 updated: 2026-09-06

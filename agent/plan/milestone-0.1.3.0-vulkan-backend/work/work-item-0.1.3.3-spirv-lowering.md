@@ -2,10 +2,10 @@
 id: work-item-0.1.3.3
 delivery: 0.1.3.3
 milestone: milestone-0.1.3.0
-status: Active
+status: Complete
 area: compiler.spirv
 depends_on: [work-item-0.1.3.1]
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 # Target-Constrained SPIR-V Lowering

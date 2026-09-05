@@ -2,11 +2,11 @@
 id: milestone-0.1.2.0
 delivery: 0.1.2.0
 release: v0.1.2
-status: Active
+status: Complete
 depends_on: [milestone-0.1.1.0]
 areas: [lifecycle, kernel.vroot, presentation.vpci]
 kernel_validation: [Linux 6.12 LTS, Linux 6.18 LTS]
-updated: 2026-08-30
+updated: 2026-09-06
 ---
 
 # milestone-0.1.2.0: Lifecycle and vPCI Presentation
@@ -202,6 +202,12 @@ Items 1-2 freeze only after work-item-0.1.2.3 core qualification. Item 3 freezes
 the experimental vroot package after work-item-0.1.2.4 promotion evidence. Items 6-7 gate
 work-item-0.1.2.4 package promotion; item 7 also gates work-item-0.1.2.5 core release packaging.
 
+Convergence (2026-09-06): items 1-2 closed with the work-item-0.1.2.3
+qualification and model-check evidence; item 3 closed for the experimental
+package with the work-item-0.1.2.4 suites; items 4-7 close as policy surface
+with the milestone-1.0.0.0 stable manifest (release identity and signing
+workflow), and no vroot promotion is claimed.
+
 ## Definition of Done
 
 The lifecycle core is complete when milestone-0.1.1.0 remains green with no data-plane ABI
@@ -216,6 +222,13 @@ The experimental vroot package is promoted only when Linux 6.12/6.18
 `lspci`/sysfs/config suites pass; add/remove and load/unload each survive 1,000
 concurrent-use cycles; and no duplicate device, leak, warning, hung task, false
 BAR/IRQ claim, or hot-path regression remains.
+
+Convergence (2026-09-06): the lifecycle core closed with the bounded model,
+1,000-cycle suites, packaging, and fault gates green on the executing host;
+`mf_admin_lifecycle_v1` is frozen by that qualification evidence. Physical
+presentment of a synthetic device to a stock vendor driver and dual-driver
+coexistence belong to milestone-2.0.0.0 (decision-0040); the experimental
+`metaflux-vroot` package stays separate promotion and never gates the core.
 
 ## References
 
