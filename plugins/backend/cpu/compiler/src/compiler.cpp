@@ -992,29 +992,29 @@ private:
     const auto error = binary("fadd", product_error, addend_error, v64, &operation);
 
     const auto bits = cast("bitcast", sum, v64, vi64, &operation);
-    const auto low_mask = constant_splat_i64(0x1fffffffU);
-    const auto low = binary("and", bits, low_mask, vi64, &operation);
-    const auto halfway_bit = constant_splat_i64(0x10000000U);
-    const auto halfway = compare("eq", low, halfway_bit, vi64, &operation);
-    const auto exponent_mask = constant_splat_i64(0x7ff0000000000000ULL);
-    const auto exponent = binary("and", bits, exponent_mask, vi64, &operation);
-    const auto finite = compare("ne", exponent, exponent_mask, vi64, &operation);
     const auto zero_f64 = constant_splat_f64_zero();
     const auto inexact = compare("one", error, zero_f64, v64, &operation, true);
-    const auto adjust_halfway = binary("and", halfway, finite, v1, &operation);
-    const auto adjust = binary("and", adjust_halfway, inexact, v1, &operation);
+    const auto exponent_mask = constant_splat_i64(0x7ff0000000000000ULL);
+    const auto exponent = binary("and", bits, exponent_mask, vi64, &operation);
+    const auto exponent_all_ones = compare("eq", exponent, exponent_mask, vi64, &operation);
+    const auto finite = binary("xor", exponent_all_ones, constant_true_mask(), v1, &operation);
+    const auto one_i64 = constant_splat_i64(1U);
+    const auto odd_bit = binary("and", bits, one_i64, vi64, &operation);
+    const auto zero_i64 = constant_splat_i64(0U);
+    const auto odd = compare("ne", odd_bit, zero_i64, vi64, &operation);
+    const auto not_odd = binary("xor", odd, constant_true_mask(), v1, &operation);
+    const auto patch_finite = binary("and", inexact, finite, v1, &operation);
+    const auto patch = binary("and", patch_finite, not_odd, v1, &operation);
 
     const auto error_positive = compare("ogt", error, zero_f64, v64, &operation, true);
-    const auto one_i64 = constant_splat_i64(1U);
     const auto sign_mask = constant_splat_i64(1ULL << 63U);
     const auto sign = binary("and", bits, sign_mask, vi64, &operation);
-    const auto zero_i64 = constant_splat_i64(0U);
     const auto negative = compare("ne", sign, zero_i64, vi64, &operation);
     const auto increment = binary("xor", error_positive, negative, v1, &operation);
     const auto incremented = binary("add", bits, one_i64, vi64, &operation);
     const auto decremented = binary("sub", bits, one_i64, vi64, &operation);
     const auto nudged_bits = select(increment, incremented, decremented, vi64, &operation, v1);
-    const auto adjusted_bits = select(adjust, nudged_bits, bits, vi64, &operation, v1);
+    const auto adjusted_bits = select(patch, nudged_bits, bits, vi64, &operation, v1);
     const auto adjusted = cast("bitcast", adjusted_bits, vi64, v64, &operation);
     return cast("fptrunc", adjusted, v64, v32, &operation);
   }
@@ -1030,6 +1030,39 @@ private:
     const auto tail_allowance = constant_i32(7U);
     const auto threaded_plus_tail = binary("add", state.block_threads, tail_allowance, "i32");
     const auto group_count = binary("udiv", threaded_plus_tail, group_capacity, "i32");
+    // Buffer sizes, writable flags, and base addresses are constant for the
+    // whole region, so their loads hoist above the group loop.
+    struct MemoryInvariants {
+      std::string size;
+      std::string writable;
+      std::string base_pointer;
+    };
+    std::unordered_map<std::uint32_t, MemoryInvariants> memory_invariants;
+    const auto memory_invariants_for = [&](std::uint32_t origin_index, bool write) {
+      auto [entry, inserted] = memory_invariants.try_emplace(origin_index);
+      if (inserted) {
+        const auto size_pointer = gep_constant("%sizes", origin_index, "i64");
+        entry->second.size = load(size_pointer, "i64");
+        const auto address_pointer = gep_constant("%buffers", origin_index, "i64");
+        const auto address = load(address_pointer, "i64");
+        entry->second.base_pointer = cast("inttoptr", address, "i64", "!llvm.ptr");
+      }
+      if (write && entry->second.writable.empty()) {
+        const auto writable_pointer = gep_constant("%writable", origin_index, "i32");
+        entry->second.writable = load(writable_pointer, "i32");
+      }
+      return entry->second;
+    };
+    for (const auto index : operations) {
+      const auto& operation = kernel_.operations[index];
+      const bool store = operation.opcode == Opcode::StoreGlobalU32 ||
+                         operation.opcode == Opcode::StoreGlobalF32;
+      if (operation.opcode != Opcode::LoadGlobalU32 &&
+          operation.opcode != Opcode::LoadGlobalF32 && !store) {
+        continue;
+      }
+      (void)memory_invariants_for(origins_[operation.inputs[0]].index, store);
+    }
     const auto group = value();
     line("llvm.br " + header + "(" + state.zero_i32 + " : i32)");
     output_ << "  " << header << "(" << group << ": i32):\n";
@@ -1178,9 +1211,8 @@ private:
         const auto word_index =
             binary("lshr", byte_offsets, shift, vtype("i64"), &operation);
         const auto origin = origins_[operation.inputs[0]];
-        const auto size_pointer = gep_constant("%sizes", origin.index, "i64");
-        const auto size = load(size_pointer, "i64", &operation);
-        const auto size_vector = splat_scalar(size, "i64");
+        const auto invariants = memory_invariants_for(origin.index, false);
+        const auto size_vector = splat_scalar(invariants.size, "i64");
         const auto out_of_bounds =
             compare("uge", word_index, size_vector, vtype("i64"), &operation);
         const auto dangerous =
@@ -1190,10 +1222,7 @@ private:
         line("llvm.cond_br " + any_violation + ", " + state.bounds_error + ", " + bounds_ok);
         declare_block(bounds_ok);
         const auto first_word = extract_lane_zero(word_index, "i64");
-        const auto address_pointer = gep_constant("%buffers", origin.index, "i64");
-        const auto address = load(address_pointer, "i64", &operation);
-        const auto base = cast("inttoptr", address, "i64", "!llvm.ptr", &operation);
-        const auto pointer = gep(base, first_word, "i32");
+        const auto pointer = gep(invariants.base_pointer, first_word, "i32");
         const auto bits = masked_load(pointer, "i32", effective_mask, 4U);
         result = operation.opcode == Opcode::LoadGlobalF32
                      ? cast("bitcast", bits, vtype("i32"), vtype("f32"), &operation)
@@ -1207,9 +1236,8 @@ private:
         const auto word_index =
             binary("lshr", byte_offsets, shift, vtype("i64"), &operation);
         const auto origin = origins_[operation.inputs[0]];
-        const auto size_pointer = gep_constant("%sizes", origin.index, "i64");
-        const auto size = load(size_pointer, "i64", &operation);
-        const auto size_vector = splat_scalar(size, "i64");
+        const auto invariants = memory_invariants_for(origin.index, true);
+        const auto size_vector = splat_scalar(invariants.size, "i64");
         const auto out_of_bounds =
             compare("uge", word_index, size_vector, vtype("i64"), &operation);
         const auto dangerous =
@@ -1218,9 +1246,8 @@ private:
         const auto bounds_ok = block();
         line("llvm.cond_br " + any_violation + ", " + state.bounds_error + ", " + bounds_ok);
         declare_block(bounds_ok);
-        const auto writable_pointer = gep_constant("%writable", origin.index, "i32");
-        const auto writable_value = load(writable_pointer, "i32", &operation);
-        const auto writable = compare("ne", writable_value, state.zero_i32, "i32", &operation);
+        const auto writable =
+            compare("ne", invariants.writable, state.zero_i32, "i32", &operation);
         const auto any_effective = vector_reduce_or(effective_mask);
         const auto not_writable = binary("xor", writable, state.true_i1, "i1", &operation);
         const auto readonly_violation =
@@ -1234,10 +1261,7 @@ private:
           stored = cast("bitcast", stored, vtype("f32"), vtype("i32"), &operation);
         }
         const auto first_word = extract_lane_zero(word_index, "i64");
-        const auto address_pointer = gep_constant("%buffers", origin.index, "i64");
-        const auto address = load(address_pointer, "i64", &operation);
-        const auto base = cast("inttoptr", address, "i64", "!llvm.ptr", &operation);
-        const auto pointer = gep(base, first_word, "i32");
+        const auto pointer = gep(invariants.base_pointer, first_word, "i32");
         masked_store(stored, pointer, "i32", effective_mask, 4U);
         break;
       }
@@ -1685,7 +1709,9 @@ private:
     case Opcode::MadRnF32:
     case Opcode::FmaRnF32: {
       // Binary64 represents the binary32 product exactly. TwoSum recovers the addition
-      // residual so the rare double-rounding midpoint can be nudged in the exact direction.
+      // residual; round-to-odd on the inexact even sum makes the final f32 narrowing
+      // equal the rounding of the exact value (Boldo-Melquiond), including every
+      // double-rounding midpoint. The finite guard keeps inf/NaN bits untouched.
       const auto left = cast("fpext", input(0U), "f32", "f64", &operation);
       const auto right = cast("fpext", input(1U), "f32", "f64", &operation);
       const auto addend = cast("fpext", input(2U), "f32", "f64", &operation);
@@ -1698,20 +1724,20 @@ private:
       const auto error = binary("fadd", product_error, addend_error, "f64", &operation);
 
       const auto bits = cast("bitcast", sum, "f64", "i64", &operation);
-      const auto low_mask = constant_i64(0x1fffffffU);
-      const auto low = binary("and", bits, low_mask, "i64", &operation);
-      const auto halfway_bit = constant_i64(0x10000000U);
-      const auto halfway = compare("eq", low, halfway_bit, "i64", &operation);
-      const auto exponent_mask = constant_i64(0x7ff0000000000000ULL);
-      const auto exponent = binary("and", bits, exponent_mask, "i64", &operation);
-      const auto finite = compare("ne", exponent, exponent_mask, "i64", &operation);
       const auto zero_f64 = constant_f64_zero();
       const auto inexact = compare("one", error, zero_f64, "f64", &operation, true);
-      const auto adjust_halfway = binary("and", halfway, finite, "i1", &operation);
-      const auto adjust = binary("and", adjust_halfway, inexact, "i1", &operation);
+      const auto exponent_mask = constant_i64(0x7ff0000000000000ULL);
+      const auto exponent = binary("and", bits, exponent_mask, "i64", &operation);
+      const auto exponent_all_ones = compare("eq", exponent, exponent_mask, "i64", &operation);
+      const auto finite = binary("xor", exponent_all_ones, state.true_i1, "i1", &operation);
+      const auto one_i64 = constant_i64(1U);
+      const auto odd_bit = binary("and", bits, one_i64, "i64", &operation);
+      const auto odd = compare("ne", odd_bit, state.zero_i64, "i64", &operation);
+      const auto not_odd = binary("xor", odd, state.true_i1, "i1", &operation);
+      const auto patch_finite = binary("and", inexact, finite, "i1", &operation);
+      const auto patch = binary("and", patch_finite, not_odd, "i1", &operation);
 
       const auto error_positive = compare("ogt", error, zero_f64, "f64", &operation, true);
-      const auto one_i64 = constant_i64(1U);
       const auto sign_shift = constant_i64(63U);
       const auto sign_mask = binary("shl", one_i64, sign_shift, "i64", &operation);
       const auto sign = binary("and", bits, sign_mask, "i64", &operation);
@@ -1721,7 +1747,7 @@ private:
       const auto incremented = binary("add", bits, one_i64, "i64", &operation);
       const auto decremented = binary("sub", bits, one_i64, "i64", &operation);
       const auto nudged_bits = select(increment, incremented, decremented, "i64", &operation);
-      const auto adjusted_bits = select(adjust, nudged_bits, bits, "i64", &operation);
+      const auto adjusted_bits = select(patch, nudged_bits, bits, "i64", &operation);
       const auto adjusted = cast("bitcast", adjusted_bits, "i64", "f64", &operation);
       result = cast("fptrunc", adjusted, "f64", "f32", &operation);
       break;

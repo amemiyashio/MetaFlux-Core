@@ -90,14 +90,18 @@ and required synchronization. Every advertised instruction has parser, verifier,
 interpreter, lowering, and differential tests. Unknown or malformed operations
 produce stable structured diagnostics.
 
-The `f32` `fma.rn` lowering must keep the TwoSum-plus-midpoint-nudge exact-rounding
-sequence over the f64 product. Measured negative result (2026-09-05): the tempting
-`fptrunc(f64-fma(fpext, fpext, fpext))` shortcut double-rounds when the exact result
-sits on an f32 rounding tie and the addend is small enough to vanish in the f64
-intermediate (for example the fused-stress vector `0x3f800001 * 0x3fc00000 +
-0x80000001`: hardware and the TwoSum sequence give `0x3fc00001`, the f64 shortcut
-gives `0x3fc00002`). The compiled-corpus bit-exact gate catches this class; do not
-replace the sequence with the direct f64 FMA.
+The `f32` `fma.rn` lowering must keep the TwoSum-plus-round-to-odd exact-rounding
+sequence over the f64 product: TwoSum recovers the addition residual, then an
+inexact even sum is patched by one ulp toward the residual sign (guarded finite),
+which makes the final f32 narrowing equal the rounding of the exact value
+(Boldo-Melquiond; the finite guard keeps inf/NaN bits untouched). Measured
+negative result (2026-09-05): the tempting `fptrunc(f64-fma(fpext, fpext, fpext))`
+shortcut double-rounds when the exact result sits on an f32 rounding tie and the
+addend is small enough to vanish in the f64 intermediate (for example the
+fused-stress vector `0x3f800001 * 0x3fc00000 + 0x80000001`: hardware and the
+TwoSum sequence give `0x3fc00001`, the f64 shortcut gives `0x3fc00002`). The
+compiled-corpus bit-exact gate catches this class; do not replace the sequence
+with the direct f64 FMA.
 
 Measured code-shape result (2026-09-05): per-phase SSA promotion of single-assignment
 registers whose definitions are pure, dominate all same-phase readers, and have no
@@ -130,6 +134,14 @@ construction), and each group uses one masked contiguous transfer
 chains also drop the alignment check). On the same aot baseline the median
 launch fell from 1.44 ms to 1.11 ms (120.9 GFLOP/s nominal) with the contiguous
 `vmovups` transfers and no gather. Both corpus gates stay green.
+
+Measured result (2026-09-06): the midpoint-nudge is replaced by the
+round-to-odd patch over the same TwoSum residual (identity gains
+`f32-fma-ro-v2`), and region-invariant buffer loads hoist above the group loop.
+On the same aot baseline the median launch fell from 1.11 ms to 1.06 ms
+(127.2 GFLOP/s nominal); the RO gain scales with fma density, which this
+CSE-collapsed benchmark understates. Both corpus gates stay green, including
+the tie and subnormal fixtures.
 
 ## PTX Oracle and Corpus (decision-0017)
 
