@@ -90,6 +90,15 @@ and required synchronization. Every advertised instruction has parser, verifier,
 interpreter, lowering, and differential tests. Unknown or malformed operations
 produce stable structured diagnostics.
 
+The `f32` `fma.rn` lowering must keep the TwoSum-plus-midpoint-nudge exact-rounding
+sequence over the f64 product. Measured negative result (2026-09-05): the tempting
+`fptrunc(f64-fma(fpext, fpext, fpext))` shortcut double-rounds when the exact result
+sits on an f32 rounding tie and the addend is small enough to vanish in the f64
+intermediate (for example the fused-stress vector `0x3f800001 * 0x3fc00000 +
+0x80000001`: hardware and the TwoSum sequence give `0x3fc00001`, the f64 shortcut
+gives `0x3fc00002`). The compiled-corpus bit-exact gate catches this class; do not
+replace the sequence with the direct f64 FMA.
+
 ## PTX Oracle and Corpus (decision-0017)
 
 Compiler epoch 1 freezes PTX 9.0 targeting `sm_70`, 64-bit addressing, Kernel

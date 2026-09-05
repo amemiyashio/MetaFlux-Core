@@ -44,6 +44,7 @@
 #include <sstream>
 #include <stop_token>
 #include <string>
+#include <unordered_map>
 #include <string_view>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -382,6 +383,9 @@ private:
   std::vector<AddressOrigin> origins_;
   std::vector<std::uint64_t> shared_offsets_;
   std::optional<ElementwisePlan> elementwise_;
+  // Per-phase map of registers promoted from per-lane array storage to LLVM SSA
+  // names. Only valid while the owning phase's lane loop is being emitted.
+  std::unordered_map<std::uint32_t, std::string> promoted_;
 
   [[nodiscard]] std::string value() { return "%v" + std::to_string(next_value_++); }
   [[nodiscard]] std::string block() { return "^b" + std::to_string(next_block_++); }
@@ -767,6 +771,7 @@ private:
                                        const std::vector<std::size_t>& operations,
                                        std::string_view block_coordinate_x,
                                        std::string_view block_coordinate_y) {
+    begin_phase_promotions(operations);
     const auto header = block();
     const auto body = block();
     const auto done = block();
@@ -796,6 +801,9 @@ private:
   [[nodiscard]] std::string load_register(const EntryState& state, std::uint32_t index,
                                           std::string_view lane64,
                                           const Operation* operation = nullptr) {
+    if (const auto promoted = promoted_.find(index); promoted != promoted_.end()) {
+      return promoted->second;
+    }
     const auto kind = kernel_.registers[index].kind;
     const auto loaded = load(register_pointer(state, index, lane64), mlir_type(kind), operation);
     return kind == ValueKind::Predicate ? cast("trunc", loaded, "i8", "i1", operation) : loaded;
@@ -803,6 +811,10 @@ private:
 
   void store_register(const EntryState& state, std::uint32_t index, std::string_view lane64,
                       std::string stored_value, const Operation* operation = nullptr) {
+    if (const auto promoted = promoted_.find(index); promoted != promoted_.end()) {
+      promoted->second = std::move(stored_value);
+      return;
+    }
     const auto kind = kernel_.registers[index].kind;
     if (kind == ValueKind::Predicate) {
       stored_value = cast("zext", stored_value, "i1", "i8", operation);
@@ -810,14 +822,130 @@ private:
     store(stored_value, register_pointer(state, index, lane64), mlir_type(kind), operation);
   }
 
+  // A promoted definition must be fault-free and side-effect-free so computing
+  // it on inactive or predicated-off lanes is unobservable, and it must not
+  // branch to an error block. Memory forms and AddGlobalAddress stay gated.
+  [[nodiscard]] static bool pure_value_definition(const Operation& operation) {
+    switch (operation.opcode) {
+    case Opcode::LoadParameterAddress:
+    case Opcode::LoadParameterU32:
+    case Opcode::LoadParameterF32:
+    case Opcode::LoadSharedAddress:
+    case Opcode::MoveSpecialU32:
+    case Opcode::AddU32:
+    case Opcode::SubU32:
+    case Opcode::MultiplyLoU32:
+    case Opcode::MadLoU32:
+    case Opcode::MultiplyWideU32:
+    case Opcode::AddSharedAddress:
+    case Opcode::AddRnF32:
+    case Opcode::SubRnF32:
+    case Opcode::MultiplyRnF32:
+    case Opcode::MadRnF32:
+    case Opcode::FmaRnF32:
+    case Opcode::ConvertRnF32U32:
+    case Opcode::ConvertRziU32F32:
+    case Opcode::SetPredicateGeU32:
+    case Opcode::SetPredicateEqU32:
+    case Opcode::SetPredicateLtF32:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+  [[nodiscard]] static bool writes_register(const Operation& operation) {
+    switch (operation.opcode) {
+    case Opcode::BranchIf:
+    case Opcode::BarrierSync:
+    case Opcode::Return:
+    case Opcode::StoreGlobalU32:
+    case Opcode::StoreGlobalF32:
+    case Opcode::StoreGlobalU64:
+    case Opcode::StoreSharedU32:
+      return false;
+    default:
+      return true;
+    }
+  }
+
+  [[nodiscard]] static bool reads_register(const Operation& operation,
+                                           std::uint32_t register_index) {
+    for (std::uint32_t input = 0; input < operation.input_count; ++input) {
+      if (operation.inputs[input] == register_index) {
+        return true;
+      }
+    }
+    return operation.predicate == register_index;
+  }
+
+  // Kernel IR v2 is single-assignment, so a register defined in this phase can
+  // drop its per-lane array slot when its definition is pure, it dominates every
+  // reader position, and no later phase reads it. Cross-phase readers keep the
+  // array because barrier semantics hand values across phases through storage.
+  void begin_phase_promotions(const std::vector<std::size_t>& operations) {
+    promoted_.clear();
+    for (std::uint32_t register_index = 0; register_index < kernel_.registers.size();
+         ++register_index) {
+      std::size_t definition_position = operations.size();
+      std::size_t definition_count = 0;
+      for (std::size_t position = 0; position < operations.size(); ++position) {
+        const auto& operation = kernel_.operations[operations[position]];
+        if (operation.result == register_index && writes_register(operation)) {
+          ++definition_count;
+          definition_position = position;
+        }
+      }
+      if (definition_count != 1) {
+        continue;
+      }
+      if (!pure_value_definition(kernel_.operations[operations[definition_position]])) {
+        continue;
+      }
+      bool promotable = true;
+      for (std::size_t position = 0; position < operations.size() && promotable; ++position) {
+        const auto& operation = kernel_.operations[operations[position]];
+        if (reads_register(operation, register_index) && position < definition_position) {
+          promotable = false;
+        }
+      }
+      for (const auto& operation : kernel_.operations) {
+        if (!reads_register(operation, register_index)) {
+          continue;
+        }
+        const bool same_phase = std::any_of(
+            operations.begin(), operations.end(), [&](std::size_t position) {
+              return &kernel_.operations[position] == &operation;
+            });
+        if (!same_phase) {
+          promotable = false;
+          break;
+        }
+      }
+      if (promotable) {
+        promoted_.emplace(register_index, std::string{});
+      }
+    }
+  }
+
   void emit_operation(const EntryState& state, const Operation& operation, std::string_view lane64,
                       std::string_view thread_x, std::string_view thread_y,
                       std::string_view block_x, std::string_view block_y) {
+    const auto continuation = block();
+    if (operation.result != metaflux::compiler::kNoValue &&
+        promoted_.contains(operation.result)) {
+      // The promoted definition set excludes every faulting, storing, or
+      // branching form, so skipping the active/predicate gates keeps semantics
+      // while letting the SSA name dominate same-phase readers directly.
+      emit_operation_body(state, operation, lane64, thread_x, thread_y, block_x, block_y,
+                          continuation, std::string_view{});
+      declare_block(continuation);
+      return;
+    }
     const auto active_pointer = gep(state.active_storage, lane64, "i8");
     const auto active_i8 = load(active_pointer, "i8", &operation);
     const auto active = cast("trunc", active_i8, "i8", "i1", &operation);
     const auto execute = block();
-    const auto continuation = block();
     line("llvm.cond_br " + active + ", " + execute + ", " + continuation);
     declare_block(execute);
 
