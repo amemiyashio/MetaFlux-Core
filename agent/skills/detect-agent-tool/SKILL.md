@@ -1,77 +1,62 @@
 ---
 name: detect-agent-tool
-description: Resolve the active agent harness or CLI executable and report bounded tool identity without reading model metadata.
+description: Report the harness name already emitted in this conversation without probing executables or model metadata.
 ---
 
 # Detect Agent Tool
 
 Use automatically from `start-work` Stage Zero, or when the user asks which
-agent harness or CLI tool is executing the work. This skill owns executable
-detection only. It does not select, identify, or report a model.
+agent harness is executing the work. This skill owns the conversation-emitted
+harness name only. It does not select, identify, or report a model, and it does
+not inspect PATH, processes, `/proc`, or an executable.
 
 ## Detection Boundary
 
-Run the detector through the Git-aware Nix environment before using any other
-project executable:
-
-```sh
-nix develop . --command python3 -B \
-  agent/skills/detect-agent-tool/scripts/detect_agent_tool.py --json
-```
-
-When the launcher or operator knows the exact executable, remove ambiguity by
-passing it directly:
+Pass the harness name already shown in this conversation (`zcode`, `codex`,
+`claude`, or another tool-shaped name) through the Git-aware Nix environment:
 
 ```sh
 nix develop . --command python3 -B \
   agent/skills/detect-agent-tool/scripts/detect_agent_tool.py \
-  --executable AGENT_TOOL_EXECUTABLE --json
+  --agent-tool HARNESS_NAME --json
 ```
 
-The detector resolves candidates in this order:
+The detector accepts exactly one declaration:
 
-1. the exact `--executable` argument;
-2. the exact `METAFLUX_AGENT_TOOL_EXECUTABLE` launcher declaration;
-3. a recognized executable in the current process ancestry;
-4. exactly one recognized CLI executable visible inside the Nix environment.
+1. the `--agent-tool` argument; otherwise
+2. the `METAFLUX_AGENT_TOOL` launcher declaration.
 
-Multiple visible candidates are ambiguous. Supply the exact executable; never
-choose by PATH order. The recognized-name roster is only a bounded discovery
-adapter. It is not an identity allowlist: an exact executable may use another
-tool-shaped name.
+There is no PATH scan, process-ancestry walk, executable probe, `--version`
+probe, or digest. If neither declaration is present, stop and ask for the
+harness name already emitted in the conversation.
 
 ## Allowed Output
 
-The JSON result contains only executable tool evidence:
+The JSON result contains only:
 
-- schema version, normalized executable subject, and CLI interface;
-- resolved executable path and discovery source;
-- the numeric tool version extracted from `--version`;
-- whether `--help` succeeds; and
-- the executable SHA-256 digest.
+- schema version, normalized harness subject, CLI interface, and discovery
+  source `declared`.
 
 Treat the result as ephemeral startup and commit evidence. Do not persist it in
 `agent/goal.json`, plans, or an execution ledger, and do not pin the local agent
-harness in repository Nix declarations. Nix provides the detector runtime and
-all project tools; the harness/CLI is an observed caller outside product
-toolchain ownership.
+harness in repository Nix declarations.
 
 ## Prohibited Inputs
 
 Do not inspect or parse model names, providers, templates, backends, build
-labels, prompts, conversations, sessions, threads, repository prose, Git
-configuration, or user-supplied identity labels. Never derive the subject from
-version output: derive it only from the resolved executable basename. Discard
-raw `--version` and `--help` output after extracting the bounded tool facts.
+labels, prompts, sessions, threads, repository prose, Git configuration, PATH,
+process tables, or user-supplied identity labels that were not the harness name
+already emitted in this conversation. Never derive the subject from an
+executable basename or version output.
 
 ## Task Stops
 
-Use the `start-work` task-stop contract. Missing, invalid, or ambiguous
-executable evidence emits `agent-tool.*` with
-`user-or-application / stop-and-report`: request the exact absolute harness or
-CLI executable and resume only when its bounded probes pass. Invalid CLI output
-selection is `current-agent / fix-and-retry`. Never replace these diagnostics
-with model, provider, template, PATH-order, or repository-prose guesses.
+Use the `start-work` task-stop contract. Missing, invalid, or contaminated
+harness names emit `agent-tool.*` with
+`user-or-application / stop-and-report`: request the conversation-emitted
+harness name and resume only when it normalizes to a tool-shaped subject.
+Invalid CLI output selection is `current-agent / fix-and-retry`. Never replace
+these diagnostics with model, PATH-order, process, or repository-prose guesses.
 
 ## Verification
 

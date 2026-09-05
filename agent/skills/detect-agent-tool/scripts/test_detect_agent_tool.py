@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic tests for bounded agent-tool detection."""
+"""Deterministic tests for conversation-emitted harness-name detection."""
 
 from __future__ import annotations
 
@@ -27,26 +27,6 @@ def load_module():
 DETECTOR = load_module()
 
 
-def make_tool(root: Path, name: str, version_line: str = "fixture-cli 1.2.3") -> Path:
-    root.mkdir(parents=True, exist_ok=True)
-    path = root / name
-    path.write_text(
-        "#!/bin/sh\n"
-        "if [ \"$1\" = \"--version\" ]; then\n"
-        f"  printf '%s\\n' '{version_line}'\n"
-        "  exit 0\n"
-        "fi\n"
-        "if [ \"$1\" = \"--help\" ]; then\n"
-        "  printf '%s\\n' 'fixture help'\n"
-        "  exit 0\n"
-        "fi\n"
-        "exit 2\n",
-        encoding="utf-8",
-    )
-    path.chmod(0o755)
-    return path
-
-
 def expect_error(action, code: str):
     try:
         action()
@@ -60,128 +40,71 @@ def expect_error(action, code: str):
     raise AssertionError(f"expected diagnostic {code}")
 
 
-def test_explicit(root: Path) -> None:
-    tool = make_tool(root, "fixture-agent")
-    info = DETECTOR.detect_agent_tool(
-        explicit=str(tool), environment={"PATH": ""}, inspect_ancestors=False
-    )
-    assert info.subject == "fixture-agent"
+def test_declared_name() -> None:
+    info = DETECTOR.detect_agent_tool(explicit="zcode", environment={})
+    assert info.subject == "zcode"
     assert info.interface == "cli"
-    assert info.version == "1.2.3"
-    assert info.source == "explicit"
-    assert info.help_available
-    assert len(info.executable_sha256) == 64
+    assert info.source == "declared"
     fields = set(info.__dataclass_fields__)
-    assert fields == {
-        "schema_version",
-        "subject",
-        "interface",
-        "executable",
-        "version",
-        "source",
-        "version_probe",
-        "help_available",
-        "executable_sha256",
-    }
+    assert fields == {"schema_version", "subject", "interface", "source"}
     assert not fields & {"model", "provider", "backend", "template", "session"}
+    assert "executable" not in fields
+    assert "version" not in fields
 
-    target = make_tool(root, "runtime-entry")
-    alias = root / "fixture-cli-alias"
-    alias.symlink_to(target.name)
-    aliased = DETECTOR.detect_agent_tool(
-        explicit=str(alias), environment={"PATH": ""}, inspect_ancestors=False
+    from_env = DETECTOR.detect_agent_tool(
+        environment={DETECTOR.TOOL_NAME_ENV: "Codex"}
     )
-    assert aliased.subject == "fixture-cli-alias"
-    assert aliased.executable == str(alias.absolute())
+    assert from_env.subject == "codex"
+    assert from_env.source == "declared"
 
-
-def test_launcher_and_path(root: Path) -> None:
-    tool = make_tool(root, "fixture-cli")
-    info = DETECTOR.detect_agent_tool(
-        environment={
-            "PATH": str(root),
-            DETECTOR.TOOL_EXECUTABLE_ENV: str(tool),
-        },
-        candidate_names=("fixture-cli",),
-        inspect_ancestors=False,
+    from_path = DETECTOR.detect_agent_tool(
+        explicit="/tmp/.mount_ZCode-abcd/zcode", environment={}
     )
-    assert info.source == "launcher-environment"
+    assert from_path.subject == "zcode"
 
-    info = DETECTOR.detect_agent_tool(
-        environment={"PATH": str(root)},
-        candidate_names=("fixture-cli",),
-        inspect_ancestors=False,
+
+def test_missing_and_contamination() -> None:
+    expect_error(
+        lambda: DETECTOR.detect_agent_tool(environment={}),
+        "agent-tool.missing-declaration",
     )
-    assert info.source == "path-singleton"
-
-    original = DETECTOR.process_ancestor_candidates
-    DETECTOR.process_ancestor_candidates = lambda: [tool]
-    try:
-        info = DETECTOR.detect_agent_tool(
-            environment={"PATH": ""},
-            candidate_names=(),
-            inspect_ancestors=True,
-        )
-    finally:
-        DETECTOR.process_ancestor_candidates = original
-    assert info.source == "process-ancestor"
-
-
-def test_ambiguity_and_contamination(root: Path) -> None:
-    make_tool(root, "tool-one")
-    make_tool(root, "tool-two")
+    expect_error(
+        lambda: DETECTOR.detect_agent_tool(explicit="   ", environment={}),
+        "agent-tool.empty-declaration",
+    )
     expect_error(
         lambda: DETECTOR.detect_agent_tool(
-            environment={"PATH": str(root)},
-            candidate_names=("tool-one", "tool-two"),
-            inspect_ancestors=False,
-        ),
-        "agent-tool.ambiguous-visible-tools",
-    )
-    model_name = make_tool(root, "fixture-model-derived-agent")
-    expect_error(
-        lambda: DETECTOR.detect_agent_tool(
-            explicit=str(model_name),
-            environment={"PATH": ""},
-            inspect_ancestors=False,
+            explicit="fixture-model-derived-agent", environment={}
         ),
         "agent-tool.prohibited-subject-input",
     )
-    contaminated = make_tool(
-        root, "clean-tool", "clean-tool 1.2.3 model=MODEL_VALUE"
-    )
     expect_error(
-        lambda: DETECTOR.detect_agent_tool(
-            explicit=str(contaminated),
-            environment={"PATH": ""},
-            inspect_ancestors=False,
-        ),
-        "agent-tool.version-output-contaminated",
+        lambda: DETECTOR.detect_agent_tool(explicit="***", environment={}),
+        "agent-tool.invalid-subject",
     )
 
 
-def test_cli(root: Path) -> None:
-    tool = make_tool(root, "command-agent", "command-agent v4.5.6")
+def test_cli() -> None:
     result = subprocess.run(
-        [sys.executable, str(SCRIPT), "--executable", str(tool), "--json"],
+        [sys.executable, str(SCRIPT), "--agent-tool", "claude", "--json"],
         check=False,
         capture_output=True,
         text=True,
     )
     assert result.returncode == 0, result.stderr
     document = json.loads(result.stdout)
-    assert document["subject"] == "command-agent"
-    assert document["version"] == "4.5.6"
+    assert document["subject"] == "claude"
+    assert document["source"] == "declared"
     serialized = json.dumps(document).lower()
     assert "model" not in serialized
     assert "backend" not in serialized
+    assert "executable" not in document
+    assert "version" not in document
 
     rejected = subprocess.run(
         [
             sys.executable,
             str(SCRIPT),
-            "--executable",
-            str(root / "missing-agent"),
             "--json",
             "--diagnostic-format",
             "json",
@@ -189,26 +112,24 @@ def test_cli(root: Path) -> None:
         check=False,
         capture_output=True,
         text=True,
+        env={"PATH": ""},
     )
     assert rejected.returncode == 2
     assert rejected.stdout == ""
     failure = json.loads(rejected.stderr)
     assert failure["status"] == "error"
     diagnostic = failure["errors"][0]
-    assert diagnostic["code"] == "agent-tool.not-executable"
+    assert diagnostic["code"] == "agent-tool.missing-declaration"
     assert diagnostic["responsibility"] == "user-or-application"
     assert diagnostic["required_action"]
-    assert diagnostic["resume_when"]
 
 
 def main() -> int:
-    with tempfile.TemporaryDirectory(prefix="metaflux-agent-tool-") as temp:
-        root = Path(temp)
-        test_explicit(root / "explicit")
-        test_launcher_and_path(root / "launcher")
-        test_ambiguity_and_contamination(root / "ambiguous")
-        test_cli(root / "cli")
-    print("agent-tool detector tests: 4 groups passed")
+    with tempfile.TemporaryDirectory(prefix="metaflux-agent-tool-"):
+        test_declared_name()
+        test_missing_and_contamination()
+        test_cli()
+    print("agent-tool detector tests: 3 groups passed")
     return 0
 
 

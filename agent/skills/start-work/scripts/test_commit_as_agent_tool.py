@@ -50,28 +50,9 @@ def isolated_git_environment(
     return environment
 
 
-def make_tool(root: Path, name: str = "fixture-agent") -> Path:
-    root.mkdir(parents=True, exist_ok=True)
-    path = root / name
-    path.write_text(
-        "#!/bin/sh\n"
-        "if [ \"$1\" = \"--version\" ]; then\n"
-        "  printf '%s\\n' 'fixture-agent-cli 1.2.3'\n"
-        "  exit 0\n"
-        "fi\n"
-        "if [ \"$1\" = \"--help\" ]; then\n"
-        "  exit 0\n"
-        "fi\n"
-        "exit 2\n",
-        encoding="utf-8",
-    )
-    path.chmod(0o755)
-    return path
-
-
-def environment(tool: Path) -> dict[str, str]:
+def environment(name: str = "fixture-agent") -> dict[str, str]:
     result = isolated_git_environment()
-    result[HELPER.TOOL_EXECUTABLE_DECLARATION] = str(tool)
+    result[HELPER.TOOL_NAME_DECLARATION] = name
     return result
 
 
@@ -114,22 +95,19 @@ def expect_error(action, code: str):
 
 
 def test_declarations(root: Path) -> None:
-    tool = make_tool(root)
-    identity = HELPER.declared_identity(environment(tool))
+    identity = HELPER.declared_identity(environment())
     assert identity.name == "fixture-agent"
     assert identity.email == "fixture-agent@localhost"
-    assert identity.executable == str(tool.resolve())
     expect_error(
         lambda: HELPER.declared_identity(
             {"PATH": ""},
-            explicit_executable=str(root / "missing-agent-tool"),
+            explicit_name="fixture-model-derived-agent",
         ),
-        "agent-tool.not-executable",
+        "agent-tool.prohibited-subject-input",
     )
 
 
 def test_identity_output(root: Path) -> None:
-    tool = make_tool(root / "identity")
     repository = root / "repository"
     initialize_repository(repository)
     result = run(
@@ -137,14 +115,13 @@ def test_identity_output(root: Path) -> None:
         sys.executable,
         str(SCRIPT),
         "--print-identity",
-        env=environment(tool),
+        env=environment(),
     )
     require(result, "identity preflight")
     assert result.stdout.strip() == "fixture-agent <fixture-agent@localhost>"
 
 
 def test_commit_identity(root: Path) -> None:
-    tool = make_tool(root / "tools")
     repository = root / "repository"
     initialize_repository(repository)
     (repository / "value.txt").write_text("value\n", encoding="utf-8")
@@ -154,7 +131,7 @@ def test_commit_identity(root: Path) -> None:
         sys.executable,
         str(SCRIPT),
         "--agent-tool",
-        str(tool),
+        "fixture-agent",
         "--",
         "-m",
         "candidate",
@@ -233,7 +210,6 @@ def test_conflicting_options() -> None:
 
 
 def test_actionable_cli_errors(root: Path) -> None:
-    tool = make_tool(root / "tool")
     repository = root / "repository"
     initialize_repository(repository)
 
@@ -243,7 +219,7 @@ def test_actionable_cli_errors(root: Path) -> None:
         str(SCRIPT),
         "--diagnostic-format",
         "json",
-        env=environment(tool),
+        env=environment(),
     )
     assert missing.returncode == 2
     document = json.loads(missing.stderr)
@@ -258,7 +234,7 @@ def test_actionable_cli_errors(root: Path) -> None:
         "--",
         "-m",
         "empty candidate",
-        env=environment(tool),
+        env=environment(),
     )
     assert rejected.returncode != 0
     structured = next(
@@ -296,7 +272,7 @@ def test_actionable_cli_errors(root: Path) -> None:
         "--",
         "-m",
         "child failure",
-        env=environment(tool),
+        env=environment(),
     )
     assert child.returncode != 0
     child_envelope = next(

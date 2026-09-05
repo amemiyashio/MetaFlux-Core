@@ -1,6 +1,6 @@
 ---
 name: start-work
-description: Cold-start one externally assigned MetaFlux Iteration with detected tool identity, existing Git topology, Nix-first project tools, parent briefing, bounded coding subagents for product source CRUD, parent review against drift, and one committed delivery without allocating sibling lanes or source copies.
+description: Cold-start one externally assigned MetaFlux Iteration with the conversation-emitted harness name, existing Git topology, Nix-first project tools, parent briefing, bounded coding subagents for product source CRUD, parent review against drift, and one committed delivery without allocating sibling lanes or source copies.
 ---
 
 # Start Work
@@ -13,16 +13,18 @@ state, schedule another lane, or create an execution context.
 
 Complete this stage before any shell executable except host `git` and `nix`.
 
-1. Invoke `$detect-agent-tool`. Run its detector inside the Git-aware Nix
-   environment and consume only its structured executable-tool facts:
+1. Invoke `$detect-agent-tool`. Pass the harness name already emitted in this
+   conversation through the Git-aware Nix environment and consume only its
+   normalized subject:
 
    ```sh
    nix develop . --command python3 -B \
-     agent/skills/detect-agent-tool/scripts/detect_agent_tool.py --json
+     agent/skills/detect-agent-tool/scripts/detect_agent_tool.py \
+     --agent-tool HARNESS_NAME --json
    ```
 
-   Emit the detected subject, resolved executable, and tool version. These are
-   ephemeral startup facts, not repository state.
+   Emit the declared subject. These are ephemeral startup facts, not
+   repository state.
 2. Validate the current checkout from Git's existing topology before reading or
    running project tools:
 
@@ -36,14 +38,14 @@ Complete this stage before any shell executable except host `git` and `nix`.
    shows a local Git source. Do not add, remove, or rewrite remotes or reflogs to
    alter this result. This check reads Git facts only and creates no repository,
    worktree, Agent, or execution identity.
-3. If discovery is ambiguous, pass the exact harness or CLI executable with
-   `--executable`. Do not choose by PATH order. Outside the detector, do not
-   search for an agent CLI or inspect PATH, processes, `/proc`, environment,
-   Git configuration, or repository prose to derive identity.
+3. If no harness name was declared, pass the name already shown in this
+   conversation with `--agent-tool`. Do not choose by PATH order and do not
+   inspect PATH, processes, `/proc`, executables, Git configuration, or
+   repository prose to derive identity.
 4. Never inspect or derive identity from a model, provider, template, backend,
-   build label, prompt, conversation, session, thread, or user-supplied label.
-   The subject comes only from the resolved executable basename; the version
-   comes only from its bounded `--version` probe.
+   build label, prompt, session, thread, or a user-supplied label that was not
+   the harness name already emitted in this conversation. The subject comes
+   only from that declared name.
 5. Run every project executable and every project version/capability probe
    through a Nix shell, the first-choice execution environment:
    `nix develop . --command ...` for repository workflows, or the preferred
@@ -242,8 +244,8 @@ nix develop . --command python3 -B \
 ```
 
 The output must be `SUBJECT <SUBJECT@localhost>`, where `SUBJECT` is the
-detector result. If detection is ambiguous, add
-`--agent-tool AGENT_TOOL_EXECUTABLE` before `--print-identity`.
+declared harness name. If no name is declared, add
+`--agent-tool HARNESS_NAME` before `--print-identity`.
 
 Epoch is repository goal state, not Git identity or command environment. Read
 its single active value from `agent/goal.json`; never duplicate it in Author,
@@ -256,9 +258,10 @@ nix develop . --command python3 -B \
   agent/skills/start-work/scripts/commit_as_agent_tool.py -- -m "Commit subject"
 ```
 
-The helper reuses the detector, sets Author and Committer to the detected
-`SUBJECT <SUBJECT@localhost>` for the child commit, and passes the exact resolved
-executable to the commit gate. It never changes Git config or stores tool facts.
+The helper reuses the detector, sets Author and Committer to the declared
+`SUBJECT <SUBJECT@localhost>` for the child commit, and passes that name to
+the commit gate. It never changes Git config, stores tool facts, or executes
+the harness.
 For merge, revert, or cherry-pick commits, prepare with `--no-commit`, then use
 the helper.
 

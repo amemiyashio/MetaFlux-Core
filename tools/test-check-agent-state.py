@@ -289,19 +289,10 @@ def test_broken_link(root: Path) -> None:
 
 def test_commit_environment(root: Path) -> None:
     create_fixture(root)
-    tool = root / "fixture-agent"
-    write(
-        tool,
-        "#!/bin/sh\n"
-        "if [ \"$1\" = \"--version\" ]; then printf '%s\\n' 'fixture-cli 1.2.3'; exit 0; fi\n"
-        "if [ \"$1\" = \"--help\" ]; then exit 0; fi\n"
-        "exit 2\n",
-    )
-    tool.chmod(0o755)
     valid = os.environ.copy()
     valid.update(
         {
-            "METAFLUX_AGENT_TOOL_EXECUTABLE": str(tool),
+            "METAFLUX_AGENT_TOOL": "fixture-agent",
             "GIT_AUTHOR_NAME": "fixture-agent",
             "GIT_AUTHOR_EMAIL": "fixture-agent@localhost",
             "GIT_COMMITTER_NAME": "fixture-agent",
@@ -318,18 +309,17 @@ def test_commit_environment(root: Path) -> None:
     assert has_fragment(checker.errors, "GIT_AUTHOR_NAME")
     assert all(error.code == "commit-gate.environment-invalid" for error in checker.errors)
 
-    relative = dict(valid)
-    relative["METAFLUX_AGENT_TOOL_EXECUTABLE"] = tool.name
-    relative["PATH"] = str(root)
+    mismatched = dict(valid)
+    mismatched["METAFLUX_AGENT_TOOL"] = "Fixture-Agent"
     checker = STATE.Checker(root)
-    checker.validate_commit_environment(relative)
-    assert has_fragment(checker.errors, "exact detected path")
+    checker.validate_commit_environment(mismatched)
+    assert has_fragment(checker.errors, "conversation-emitted harness name")
 
     rejected = dict(valid)
-    rejected["METAFLUX_AGENT_TOOL_EXECUTABLE"] = str(root / "missing-agent")
+    rejected.pop("METAFLUX_AGENT_TOOL")
     checker = STATE.Checker(root)
     checker.validate_commit_environment(rejected)
-    assert [error.code for error in checker.errors] == ["agent-tool.not-executable"]
+    assert [error.code for error in checker.errors] == ["agent-tool.missing-declaration"]
     assert checker.errors[0].responsibility == "user-or-application"
 
 

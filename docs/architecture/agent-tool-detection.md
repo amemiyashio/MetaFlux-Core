@@ -1,76 +1,72 @@
 ---
 status: Verified
 decision: decision-0034
-updated: 2026-09-01
+updated: 2026-09-05
 ---
 
 # Agent Tool Detection
 
 ## Decision
 
-MetaFlux derives agent commit identity from bounded evidence about the executing
-harness or CLI executable. `detect-agent-tool` runs inside the Git-aware Nix
-environment and reports only the normalized executable subject, resolved path,
-numeric tool version, discovery source, help-probe availability, and executable
-digest. The result is ephemeral and is never stored in repository goal state.
+MetaFlux derives agent commit identity from the harness name already emitted in
+the current conversation. `detect-agent-tool` reports only the normalized
+subject, CLI interface, and `declared` source. The result is ephemeral and is
+never stored in repository goal state.
 
 This decision replaces the fixed agent product identity retained by
-decision-0033. The execution topology remains unchanged; decision-0035 completed
-the epoch-0003 governance transition, later Epochs superseded it, and the
-current Epoch is epoch-0007.
+decision-0033 and the later executable-probe form of the same decision. The
+execution topology remains unchanged; the current Epoch is epoch-0007.
 
 ## Rationale
 
 A fixed product name correctly rejected model-derived labels but confused a
-repository policy default with the tool actually executing a commit. It also
-made another supported harness appear invalid even when its executable identity
-was unambiguous. Executable evidence preserves the needed boundary without
-coupling the repository to one agent product.
+repository policy default with the tool actually executing a commit. Executable
+PATH scans, process walks, and `--version` probes then added a second identity
+machine: they raced AppImage cold starts, treated multiple visible CLIs as
+ambiguity, and still did not answer "which harness is speaking in this
+conversation." The conversation already names the harness (`zcode`, `codex`,
+`claude`). That name is the identity.
 
 ## Detection Order
 
-1. Use an exact executable supplied by the current command.
-2. Otherwise use the exact launcher declaration
-   `METAFLUX_AGENT_TOOL_EXECUTABLE`.
-3. Otherwise accept exactly one recognized executable in process ancestry.
-4. Otherwise accept exactly one recognized CLI executable visible from inside
-   the Nix environment.
+1. Use the `--agent-tool` argument when the current command already has the
+   conversation-emitted harness name.
+2. Otherwise use the `METAFLUX_AGENT_TOOL` launcher declaration.
 
-Ambiguous discovery fails and requires an exact executable. PATH order never
-selects between candidates. The recognized-name roster is a bounded discovery
-adapter rather than an identity allowlist; exact tool-shaped executables remain
-valid even when they are absent from that roster.
+No other source is valid. PATH order never selects a candidate. Process
+ancestry, `/proc`, executable existence, `--version`, `--help`, and file
+digests are not identity inputs.
 
 ## Information Boundary
 
-The subject comes only from the resolved executable basename. The version comes
-only from a bounded `--version` probe, and raw probe output is discarded after
-extracting the numeric tool version. Model, provider, template, backend, build,
-prompt, conversation, session, thread, repository prose, Git configuration, and
-user labels are neither identity sources nor output fields. A model-shaped
-executable name or model-bearing version response is rejected instead of being
-normalized into a tool identity.
+The subject comes only from the declared harness name after tool-shaped
+normalization. Model, provider, template, backend, build, prompt, session,
+thread, repository prose, Git configuration, and user labels that are not that
+harness name are neither identity sources nor output fields. A model-shaped
+declared name is rejected instead of being normalized into a tool identity.
 
-The project does not pin or install the caller harness through Nix. Nix owns the
-Python detector runtime and project tools; the detected executable is observed
-caller evidence outside product toolchain ownership.
+The project does not pin or install the caller harness through Nix. Nix owns
+the Python detector runtime and project tools; the harness name is observed
+conversation evidence outside product toolchain ownership.
 
 ## Commit Boundary
 
-The commit helper detects the tool, derives
-`SUBJECT <SUBJECT@localhost>`, and passes only the exact resolved executable to
-the child commit. The pre-commit checker repeats the detector against the
-candidate tree and requires Author and Committer to match that subject. The
-single active Epoch remains in `agent/goal.json`; it is not duplicated into Git
-identity, an environment declaration, or Git config. Neither helper nor checker
-changes Git config or persists detector output.
+The commit helper accepts the declared name, derives
+`SUBJECT <SUBJECT@localhost>`, and passes that same name to the child commit.
+The pre-commit checker repeats the detector against the candidate tree and
+requires Author, Committer, and `METAFLUX_AGENT_TOOL` to match that subject. It
+does not execute the harness. The single active Epoch remains in
+`agent/goal.json`; it is not duplicated into Git identity, an environment
+declaration, or Git config. Neither helper nor checker changes Git config or
+persists detector output.
 
 ## Verification
 
-- deterministic exact, launcher, ancestor/path, ambiguity, contamination, and
-  command-output tests for the detector;
-- dynamic helper Author/Committer tests using a fixture executable;
-- candidate-tree commit-gate tests that re-probe the declared executable;
-- residual rejection of the superseded fixed-harness declaration and helper
-  names; and
+- deterministic declared-name, missing-declaration, and contamination tests for
+  the detector;
+- dynamic helper Author/Committer tests using a declared fixture name;
+- candidate-tree commit-gate tests that re-check the declared name without
+  probing an executable;
+- residual rejection of the superseded fixed-harness declaration, executable
+  declaration, and helper names; and
 - skill metadata, bilingual routing, state, architecture, and full CTest gates.

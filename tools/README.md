@@ -28,7 +28,7 @@ nix develop . --command python3 tools/test-check-agent-state.py
 
 The optional commit gate re-runs the candidate-tree agent-tool detector,
 validates the candidate goal, and requires Git Author/Committer to match the
-detected executable subject. Epoch is read once from the candidate
+conversation-emitted harness subject. Epoch is read once from the candidate
 `agent/goal.json`; no environment copy participates in commit identity.
 Integration agents additionally submit exact committed revisions; the checker
 proves that the current Epoch activation precedes the base, the base precedes

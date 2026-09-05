@@ -60,14 +60,14 @@ identity and provisioning boundaries live in
   whole development shell. Ambient host execution is never preferred; it is
   only a recorded prerequisite after a proved Nix gap (decision-0036).
   `detect-agent-tool` runs inside the Git-aware Nix
-  environment and derives its ephemeral subject only from a resolved harness/CLI
-  executable basename; its numeric version comes only from a bounded `--version`
-  probe.
-  Model/provider/template/backend/build/prompt/conversation/session/thread,
-  repository prose, Git configuration, and user labels are invalid inputs and
-  are never output fields. Ambiguous executable discovery requires an exact
-  executable instead of PATH-order selection. Except for host Git/Nix bootstrap
-  and observation of the caller executable through this detector, every
+  environment and derives its ephemeral subject only from the harness name
+  already emitted in the current conversation. It does not scan PATH, walk
+  processes, or probe an executable or `--version`.
+  Model/provider/template/backend/build/prompt/session/thread,
+  repository prose, Git configuration, and user labels that are not that
+  harness name are invalid inputs and are never output fields. A missing
+  declaration requires the conversation-emitted harness name instead of
+  PATH-order selection. Except for host Git/Nix bootstrap, every
   executable and tool/version/capability probe runs through the Git-aware
   `nix develop . --command ...` environment before ambient host inspection.
   The caller harness is not pinned or installed as a repository Nix tool.

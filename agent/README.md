@@ -7,7 +7,8 @@ identity, conversations, worktrees, or activity.
 ## Read Order
 
 1. Follow [`start-work`](skills/start-work/SKILL.md) Stage Zero and consume
-   [`detect-agent-tool`](skills/detect-agent-tool/SKILL.md) executable facts.
+   [`detect-agent-tool`](skills/detect-agent-tool/SKILL.md) conversation-emitted
+   harness-name facts.
 2. Read [`memory/README.md`](memory/README.md), especially constraints and open
    decisions.
 3. Read [`goal.json`](goal.json).

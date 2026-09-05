@@ -6,12 +6,11 @@ the repository gates.
 1. **Resolve the executing tool before repository work.** Follow `start-work`
    Stage Zero and invoke
    [`detect-agent-tool`](agent/skills/detect-agent-tool/SKILL.md) inside the
-   Git-aware Nix environment. Consume only its executable subject, resolved
-   path, tool version, discovery source, help availability, and digest. If more
-   than one candidate is visible, supply the exact harness or CLI executable;
-   never choose by PATH order. Outside that skill, do not search PATH,
-   processes, `/proc`, environment, Git configuration, or repository prose for
-   identity. Model/provider/template/backend/build/prompt/conversation/session/
+   Git-aware Nix environment. Consume only the harness name already emitted in
+   this conversation (`zcode`, `codex`, `claude`, or another tool-shaped name)
+   after it normalizes to a subject. Do not search PATH, processes, `/proc`,
+   executables, Git configuration, or repository prose for identity, and do not
+   probe `--version`. Model/provider/template/backend/build/prompt/session/
    thread data is never an identity input or output. Before any other
    executable except host `git` or `nix`, use
    `nix develop . --command ...`; never probe the ambient host first or use
@@ -67,8 +66,8 @@ the repository gates.
 8. **Verify and identify commits.** Run
    `nix develop . --command python3 tools/check-agent-state.py .` plus relevant
    CTest/domain gates. Agent commits use the `start-work` commit helper. The
-   helper detects the exact agent executable, derives
-   `SUBJECT <SUBJECT@localhost>`, and passes that executable to the
+   helper accepts the conversation-emitted harness name, derives
+   `SUBJECT <SUBJECT@localhost>`, and passes that name to the
    candidate-tree commit gate. Epoch exists only in `agent/goal.json`; it is not
    part of Git identity or a command environment declaration. The helper never
    stores tool facts or changes Git configuration. Candidate checks and their

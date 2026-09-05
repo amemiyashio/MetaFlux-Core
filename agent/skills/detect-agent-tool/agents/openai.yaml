@@ -1,4 +1,4 @@
 interface:
   display_name: "Detect Agent Tool"
-  short_description: "Probe harness or CLI identity without model metadata"
-  default_prompt: "Use $detect-agent-tool to report the current harness or CLI executable identity and version."
+  short_description: "Report the conversation-emitted harness name"
+  default_prompt: "Use $detect-agent-tool to report the harness name already emitted in this conversation."

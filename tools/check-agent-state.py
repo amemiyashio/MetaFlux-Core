@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager
+from dataclasses import asdict
+import importlib.util
 import json
 import os
 import re
@@ -16,6 +18,7 @@ from urllib.parse import unquote
 
 from agent_diagnostics import (
     DiagnosticArgumentParser,
+    DiagnosticError,
     TaskStopDiagnostic,
     add_diagnostic_format_argument,
     emit_diagnostics,
@@ -509,8 +512,8 @@ class Checker:
             responsibility="current-agent",
             disposition="fix-and-retry",
             required_action=(
-                "Use the start-work commit helper with the exact detected executable; "
-                "do not override Author, Committer, or the candidate gate."
+                "Use the start-work commit helper with the conversation-emitted "
+                "harness name; do not override Author, Committer, or the candidate gate."
             ),
             resume_when="The same candidate commit environment passes this gate.",
         ):
@@ -530,60 +533,31 @@ class Checker:
             / "detect_agent_tool.py"
         )
         try:
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    "-B",
-                    str(detector),
-                    "--json",
-                    "--diagnostic-format",
-                    "json",
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=10,
-                env=values,
+            spec = importlib.util.spec_from_file_location(
+                "metaflux_agent_tool_commit_gate", detector
             )
-        except (OSError, subprocess.TimeoutExpired) as error:
+            if spec is None or spec.loader is None:
+                raise ImportError("agent-tool detector cannot be loaded")
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = module
+            spec.loader.exec_module(module)
+            info = module.detect_agent_tool(environment=values)
+            tool = asdict(info)
+        except DiagnosticError as error:
+            self.errors.append(error.diagnostic)
+            return
+        except (OSError, ImportError, RuntimeError, SyntaxError, TypeError) as error:
             self.error(
                 path,
                 "agent-tool detector did not complete",
                 extra_evidence=(f"failure: {type(error).__name__}",),
             )
             return
-        if result.returncode != 0:
-            try:
-                self.errors.extend(parse_diagnostic_envelope(result.stderr))
-            except (ValueError, json.JSONDecodeError):
-                self.error(
-                    path,
-                    "agent-tool detector rejected the commit environment without a valid diagnostic",
-                    extra_evidence=(
-                        f"return code: {result.returncode}",
-                        f"detector stderr: {result.stderr.strip() or '<empty>'}",
-                    ),
-                )
-            return
-        try:
-            tool = json.loads(result.stdout)
-        except json.JSONDecodeError:
-            self.error(
-                path,
-                "agent-tool detector did not emit valid JSON",
-                extra_evidence=(f"detector stdout: {result.stdout.strip() or '<empty>'}",),
-            )
-            return
         expected_tool_fields = {
             "schema_version",
             "subject",
             "interface",
-            "executable",
-            "version",
             "source",
-            "version_probe",
-            "help_available",
-            "executable_sha256",
         }
         if not isinstance(tool, dict) or set(tool) != expected_tool_fields:
             self.error(path, "agent-tool detector emitted fields outside tool evidence")
@@ -592,25 +566,16 @@ class Checker:
         if not isinstance(subject, str) or SKILL_SLUG_RE.fullmatch(subject) is None:
             self.error(path, "agent-tool detector emitted an invalid subject")
             return
-        declared_executable = values.get("METAFLUX_AGENT_TOOL_EXECUTABLE")
-        executable = tool.get("executable")
-        if (
-            not isinstance(declared_executable, str)
-            or not Path(declared_executable).is_absolute()
-            or not isinstance(executable, str)
-            or executable != declared_executable
-        ):
+        declared_name = values.get("METAFLUX_AGENT_TOOL")
+        if not isinstance(declared_name, str) or declared_name != subject:
             self.error(
                 path,
-                "METAFLUX_AGENT_TOOL_EXECUTABLE must be the exact detected path",
+                "METAFLUX_AGENT_TOOL must be the conversation-emitted harness name",
             )
         if (
             tool.get("schema_version") != 1
             or tool.get("interface") != "cli"
-            or not isinstance(tool.get("version"), str)
-            or tool.get("version_probe") != "--version"
-            or not isinstance(tool.get("help_available"), bool)
-            or not isinstance(tool.get("executable_sha256"), str)
+            or tool.get("source") != "declared"
         ):
             self.error(path, "agent-tool detector emitted invalid tool evidence")
         expected_identity = {

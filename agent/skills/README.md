@@ -14,7 +14,7 @@ this directory.
 | Skill | Status | Use when |
 | --- | --- | --- |
 | [start-work](start-work/SKILL.md) | Active | Beginning any repository task or Iteration |
-| [detect-agent-tool](detect-agent-tool/SKILL.md) | Active | Resolving harness or CLI executable facts without model metadata |
+| [detect-agent-tool](detect-agent-tool/SKILL.md) | Active | Reporting the conversation-emitted harness name without probing executables or model metadata |
 | [integrate-batch](integrate-batch/SKILL.md) | Active | The user explicitly requests integration of committed Iterations |
 | [govern-epoch](govern-epoch/SKILL.md) | Active | The user explicitly requests destructive Epoch governance |
 | [roast](roast/SKILL.md) | Active | Explicitly promoting valuable knowledge at integration or governance boundaries |

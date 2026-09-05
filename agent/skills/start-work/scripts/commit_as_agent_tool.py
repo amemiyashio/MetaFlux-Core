@@ -24,7 +24,7 @@ from agent_diagnostics import (  # noqa: E402
 )
 
 
-TOOL_EXECUTABLE_DECLARATION = "METAFLUX_AGENT_TOOL_EXECUTABLE"
+TOOL_NAME_DECLARATION = "METAFLUX_AGENT_TOOL"
 SCRIPT = Path(__file__).resolve()
 DETECTOR_SCRIPT = (
     SCRIPT.parents[2]
@@ -138,7 +138,6 @@ except DiagnosticError as error:
 @dataclass(frozen=True)
 class AgentIdentity:
     subject: str
-    executable: str
 
     @property
     def name(self) -> str:
@@ -150,7 +149,7 @@ class AgentIdentity:
 
 
 def declared_identity(
-    environment: dict[str, str], explicit_executable: str | None = None
+    environment: dict[str, str], explicit_name: str | None = None
 ) -> AgentIdentity:
     if MODULE_LOAD_ERROR is not None or DETECTOR is None:
         raise MODULE_LOAD_ERROR or helper_error(
@@ -161,13 +160,10 @@ def declared_identity(
             resume_when="The detector loads from the same candidate tree.",
         )
     tool = DETECTOR.detect_agent_tool(
-        explicit=explicit_executable,
+        explicit=explicit_name,
         environment=environment,
     )
-    return AgentIdentity(
-        subject=tool.subject,
-        executable=tool.executable,
-    )
+    return AgentIdentity(subject=tool.subject)
 
 
 def commit_arguments(raw_arguments: list[str]) -> list[str]:
@@ -225,7 +221,7 @@ def parser() -> argparse.ArgumentParser:
         diagnostic_source="start-work / commit helper",
     )
     result.add_argument(
-        "--agent-tool", help="exact harness or CLI executable for identity detection"
+        "--agent-tool", help="harness name already emitted in this conversation"
     )
     result.add_argument("--print-identity", action="store_true")
     add_diagnostic_format_argument(result)
@@ -245,7 +241,7 @@ def main() -> int:
                 resume_when="The checker loads from the same candidate tree.",
             )
         identity = declared_identity(
-            dict(os.environ), explicit_executable=arguments.agent_tool
+            dict(os.environ), explicit_name=arguments.agent_tool
         )
         TOPOLOGY_CHECKER.resolve_git_topology(Path.cwd())
         if arguments.print_identity:
@@ -271,7 +267,7 @@ def main() -> int:
     environment = os.environ.copy()
     environment.update(
         {
-            TOOL_EXECUTABLE_DECLARATION: identity.executable,
+            TOOL_NAME_DECLARATION: identity.subject,
             "METAFLUX_DIAGNOSTIC_FORMAT": "json",
             "GIT_AUTHOR_NAME": identity.name,
             "GIT_AUTHOR_EMAIL": identity.email,
