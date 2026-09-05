@@ -194,6 +194,29 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
       )
     endif()
   endif()
+  if(METAFLUX_GLSLANG_VALIDATOR)
+    set(METAFLUX_VULKAN_FMA_FIXTURE "${CMAKE_CURRENT_BINARY_DIR}/metaflux-fma.spv")
+    add_custom_command(
+      OUTPUT "${METAFLUX_VULKAN_FMA_FIXTURE}"
+      COMMAND
+        "${METAFLUX_GLSLANG_VALIDATOR}" -V --target-env vulkan1.3
+        -S comp -e main -o "${METAFLUX_VULKAN_FMA_FIXTURE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fma.comp"
+      DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/fma.comp"
+      VERBATIM
+    )
+    add_custom_target(metaflux_vulkan_fma_fixture
+                      DEPENDS "${METAFLUX_VULKAN_FMA_FIXTURE}")
+    add_executable(metaflux_vulkan_fma_profile tests/fma_profile.cpp)
+    target_include_directories(
+      metaflux_vulkan_fma_profile
+      PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"
+              "${PROJECT_SOURCE_DIR}/tests/performance"
+    )
+    target_link_libraries(metaflux_vulkan_fma_profile PRIVATE MetaFlux::VulkanBackend)
+    metaflux_configure_target(metaflux_vulkan_fma_profile CXX)
+    add_dependencies(metaflux_vulkan_fma_profile metaflux_vulkan_fma_fixture)
+  endif()
   add_executable(metaflux_vulkan_pipeline_test tests/vulkan_pipeline_test.cpp)
   target_link_libraries(metaflux_vulkan_pipeline_test PRIVATE MetaFlux::VulkanBackend)
   metaflux_configure_target(metaflux_vulkan_pipeline_test CXX)

@@ -1,0 +1,34 @@
+#version 450
+
+// FP32 FMA chain kernel for the GPU throughput probe: every invocation runs
+// ITERS independent rounds of x <- fma(x, 0.5, x0). With x0 = 1.0 every
+// intermediate is an exactly representable dyadic rational, so results are
+// bit-comparable against the scalar reference.
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, set = 0, binding = 0) restrict writeonly buffer Dst {
+    float dst[];
+};
+
+layout(std430, set = 0, binding = 1) restrict readonly buffer Src {
+    float src[];
+};
+
+layout(push_constant) uniform Push {
+    uint count;
+    uint iters;
+} push_constants;
+
+void main() {
+    const uint index = gl_GlobalInvocationID.x;
+    if (index >= push_constants.count) {
+        return;
+    }
+    const float x0 = src[index];
+    float x = x0;
+    for (uint step = 0U; step < push_constants.iters; ++step) {
+        x = fma(x, 0.5, x0);
+    }
+    dst[index] = x;
+}

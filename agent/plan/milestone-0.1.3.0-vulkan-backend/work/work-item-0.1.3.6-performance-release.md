@@ -5,7 +5,7 @@ milestone: milestone-0.1.3.0
 status: Active
 area: release.vulkan
 depends_on: [work-item-0.1.2.3, work-item-0.1.3.2, work-item-0.1.3.4, work-item-0.1.3.5]
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 # Vulkan Performance, Fault, and Release
@@ -88,6 +88,19 @@ physical cancellation.
   dual-driver execution evidence, and dual-driver external-memory (all
   deferred to work-item-2.0.0.3, decision-0040)
   promotion freeze.
+
+Measured first physical-device compute result (2026-09-06, reference AMD 780M
+via the Nix RADV ICD): `metaflux_vulkan_fma_profile` runs the FP32 FMA-chain
+kernel through the physical execution path — staging buffers, compute pipeline
+from the glslang-compiled fixture, descriptor binding, vkCmdDispatch, timeline
+completion — and verifies results bit-exactly against the scalar `fmaf`
+reference. On a 1M-element x 64-FMA workload the device timestamp window is
+~178-190 us (about 0.72-0.75 TFLOP/s nominal) and the submit-to-completion wall
+about 0.31-0.39 TFLOP/s; the workload streams 8 MiB through the host-visible
+heap in that window (~44 GB/s), so this row is bandwidth-bound, not the
+adapter's 8.9 TFLOP/s compute ceiling. For comparison, the CPU backend aot
+path measures 147 GFLOP/s on the identical workload: about 5x on the device
+window, about 2.6x on the wall.
 
 ## Exit Gate
 
