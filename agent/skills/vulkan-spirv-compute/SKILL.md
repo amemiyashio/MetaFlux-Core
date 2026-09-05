@@ -56,11 +56,22 @@ target environment and cache identity.
 5. Execute explicit Graph IR FIFO, dependency, copy-visibility, and event edges
    using `vkQueueSubmit2` and timeline semaphores. Batching may preserve but never
    weaken dependencies; no CUDA stream mode crosses this target boundary.
+   A generation-bound context keeps its generation across reset: resubmission
+   stays on the context's own generation, and a foreign generation is
+   `stale_generation` by contract, not a re-armable value.
 6. Validate and reflect SPIR-V before creating a shader module/pipeline. Publish
    portable and device-bound cache entries atomically with complete identities.
 7. Integrate device loss with the milestone-0.1.2.0 authority: stop admission, isolate old
    resources, publish lost by deadline, and never reuse a failed context or its
    device addresses.
+8. On physical execution measurement, treat per-lane chain depth as the primary
+   throughput knob: RDNA3-class adapters are latency-limited on low-ILP FMA
+   kernels by an order of magnitude versus their chain-parallel form, and
+   elementwise streaming through the host-visible staging tier is
+   bandwidth-bound long before shader throughput. Anchor device timestamp
+   windows to the host completion observation and keep the anchors monotonic;
+   record the chain depth, memory tier, and clock assumptions beside the
+   numbers.
 
 ## Output
 

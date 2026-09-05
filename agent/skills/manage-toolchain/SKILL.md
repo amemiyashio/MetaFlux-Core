@@ -41,7 +41,12 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
   replacement to a Nix declaration, development shell, or guest image; when a
   glibc static link or guest runtime hits a bootstrap defect, fix it within
   the glibc toolchain (flags, crt selection, runtime collection) instead of
-  switching libc.
+  switching libc. The same mixing rule selects physical Vulkan adapters: the
+  process uses the pinned loader and reaches a physical AMD adapter only
+  through the RADV ICD shipped by the pinned `vulkan-runtime` output, selected
+  with `VK_DRIVER_FILES`; the system `/usr/lib` loader/ICD is never mixed into
+  a Nix-built process, and `no-device` under this selection is a provisioning
+  fact, never a fallback to the system ICD.
 - Git owns source identity and history.
 - CMake and Ninja own configure, build, install, and build-directory behavior.
 - CTest and repository scripts own tests and qualification.

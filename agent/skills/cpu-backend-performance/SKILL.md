@@ -63,6 +63,15 @@ and runtime dispatch prove the loaded object is compatible with that host.
 8. Benchmark against the same-path direct baseline with pinned topology and raw
    distributions. Attribute time to dispatch, scheduling, generated kernel,
    copies, and synchronization separately.
+9. On the compiled lowering path, apply the validated lever order before
+   inventing new ones: promote single-assignment registers to SSA values first
+   (pure definitions, no cross-segment readers), emit explicit SIMD regions for
+   runs of unpredicated pure operations with masked boundary transfers, then
+   bring stride-one memory into the region with group-level checks, and keep
+   round-to-odd over the TwoSum residual as the exact-rounding patch. Re-prove
+   every lever against the compiled-corpus bit-exact gate and the O2 pipeline
+   unless a measured epoch experiment says otherwise; instruction-shape
+   evidence (disassembly), not nominal ratios, is the acceptance metric.
 
 ## Output
 
