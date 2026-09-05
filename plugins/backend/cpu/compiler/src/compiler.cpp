@@ -30,7 +30,6 @@
 #include <array>
 #include <cerrno>
 #include <chrono>
-#include <cstdlib>
 #include <csignal>
 #include <cstddef>
 #include <cstdint>
@@ -1366,9 +1365,30 @@ private:
     for (std::size_t position = 0; position < segments.size(); ++position) {
       const auto& segment = segments[position];
       if (segment.vectorized) {
-        promoted_.clear();
-        done = emit_vector_region(state, segment.operations, block_coordinate_x,
-                                  block_coordinate_y);
+        // The contiguous fast path anchors every group at lane zero's word
+        // index and treats the lane index as the thread-x coordinate; that
+        // model only matches per-lane addresses for one-dimensional blocks,
+        // where lane and thread x coincide. Other shapes take the scalar lane
+        // loop.
+        const auto one_d_blocks = compare("eq", "%block_y", state.one_i32, "i32");
+        const auto region_entry = block();
+        const auto scalar_entry = block();
+        const auto join = block();
+        line("llvm.cond_br " + one_d_blocks + ", " + region_entry + ", " + scalar_entry);
+        declare_block(region_entry);
+        const auto region_done =
+            emit_vector_region(state, segment.operations, block_coordinate_x,
+                               block_coordinate_y);
+        declare_block(region_done);
+        line("llvm.br " + join);
+        declare_block(scalar_entry);
+        begin_segment_promotions(segment.operations);
+        const auto scalar_done = emit_scalar_segment(state, segment.operations,
+                                                     block_coordinate_x,
+                                                     block_coordinate_y);
+        declare_block(scalar_done);
+        line("llvm.br " + join);
+        done = join;
       } else {
         begin_segment_promotions(segment.operations);
         done = emit_scalar_segment(state, segment.operations, block_coordinate_x,

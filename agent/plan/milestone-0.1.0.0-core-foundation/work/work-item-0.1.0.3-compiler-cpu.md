@@ -152,6 +152,15 @@ median launch fell from 1.06 ms to 0.90 ms (148.9 GFLOP/s nominal) with the
 f32 math now in 512-bit zmm forms. Both corpus gates stay green. An O3-pipeline
 experiment measured slower than O2 (97.0 GFLOP/s) and was rejected.
 
+Correctness result (2026-09-05): the contiguous region store anchors every group
+at lane zero's word index and treats the lane index as thread x. That model is
+false for `block_y > 1` (`tid_x = lane % block_x` wraps), so a 4x2 Add launch
+with a four-word destination wrote eight contiguous words and aborted with
+glibc `corrupted size vs. prev_size`. Vectorized segments now branch on
+`block_y == 1` to the region path and otherwise keep the scalar lane loop
+(`kCpuPipelineIdentity` gains `region-1d-guard-v1`). The 2D pipeline case,
+compiled-corpus bit-exact gate, and PIC ELF qualification stay green.
+
 ## PTX Oracle and Corpus (decision-0017)
 
 Compiler epoch 1 freezes PTX 9.0 targeting `sm_70`, 64-bit addressing, Kernel
