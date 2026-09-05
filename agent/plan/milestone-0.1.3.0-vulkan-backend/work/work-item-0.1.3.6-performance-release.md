@@ -111,6 +111,21 @@ of the same kernel measures only 0.72-0.75 TFLOP/s: per-lane FMA latency, not
 adapter throughput, dominates low-ILP kernels, so scheduling must treat chain
 depth as the primary performance knob on this class of hardware.
 
+Ceiling re-sweep and VOPD instruction-shape experiment (2026-09-06, same
+device): with a longer warm sample the stable plateau is 7.67-7.68 TFLOP/s at
+8M x 4096 and 8M x 8192 rounds (wall within 0.2% of the device window), ~86%
+of the nominal peak. The remaining gap was probed at the instruction-shape
+level: the fused `fma()` kernel lowers to one `v_fma_f32` per chain per round
+and RADV/ACO emits zero `v_dual_*`; rewriting the chain as `mul+add` is
+contracted back to the identical `v_fma_f32` hot loop (bit-exact against the
+`fmaf` reference either way) and measures the same 7.67 TFLOP/s. Forcing the
+split form with `NoContraction` cannot win: it spends two instructions per
+round for the same two FLOPs, and pairing them in `VOPD` can at best recover
+one issue slot — a structural tie — because three-source `v_fma_f32` itself
+never enters the dual-issue packer. Negative result recorded to prevent
+re-testing shader-level reseat levers on this adapter: the plateau is a
+hardware/driver ceiling for fused FP32 FMA, not a scheduling or ILP deficit.
+
 ## Exit Gate
 
 milestone-0.1.1.0 warm enqueue remains in bounds. Kernels at least 100 microseconds add at
