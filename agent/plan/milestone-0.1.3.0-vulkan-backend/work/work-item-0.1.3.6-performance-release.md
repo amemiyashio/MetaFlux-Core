@@ -102,6 +102,15 @@ adapter's 8.9 TFLOP/s compute ceiling. For comparison, the CPU backend aot
 path measures 147 GFLOP/s on the identical workload: about 5x on the device
 window, about 2.6x on the wall.
 
+Measured compute-ceiling sweep (2026-09-06, same device, 16 independent FMA
+chains per invocation with bit-exact dyadic verification, scaling rounds):
+2.23 TFLOP/s at 1M elements x 64 rounds, 2.78 at 8M x 256, 5.29 at 8M x 1024,
+6.82 TFLOP/s at 8M x 4096 rounds (wall matches the device window within 1%) —
+77% of the 8.9 TFLOP/s RDNA3 dual-issue theoretical peak. The single-chain form
+of the same kernel measures only 0.72-0.75 TFLOP/s: per-lane FMA latency, not
+adapter throughput, dominates low-ILP kernels, so scheduling must treat chain
+depth as the primary performance knob on this class of hardware.
+
 ## Exit Gate
 
 milestone-0.1.1.0 warm enqueue remains in bounds. Kernels at least 100 microseconds add at
