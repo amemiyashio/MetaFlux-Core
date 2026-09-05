@@ -15,5 +15,5 @@ Memory summarizes stable context but does not replace source, tests,
 [`contracts/`](../../contracts/README.md), verified
 [`docs/architecture/`](../../docs/architecture/README.md), or approved
 [`agent/plan/`](../plan/README.md) records. Update memory when those canonical
-sources change; put task state in `progress/` and reusable procedures in
-`experience/`.
+sources change; live task state is carried by the conversation and
+`agent/goal.json`, and reusable procedures go in `experience/`.

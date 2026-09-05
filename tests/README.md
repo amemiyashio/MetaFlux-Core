@@ -50,3 +50,10 @@ topology discovery. `--elf-loader` permits an immutable stock binary to run in
 an isolated sandbox whose filesystem lacks its recorded interpreter path; the
 runner still validates the original binary digest and records the selected
 loader path and digest in the evidence.
+
+Performance and device probe executables (for example
+`vulkan_fma_profile.cpp`, which runs an FMA-chain kernel on a live physical
+adapter) also live in this directory, one source per probe; their SPIR-V and
+device fixtures stay component-owned under the owning backend's
+`tests/fixtures/`. Physical device selection for the Nix toolchain follows the
+pinned-RADV-ICD recipe in [`toolchains/README.md`](../toolchains/README.md).

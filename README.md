@@ -1,9 +1,11 @@
 # MetaFlux Core
 
 MetaFlux Core is a low-overhead compatibility and execution substrate for
-unmodified accelerator applications. The repository is currently in its
-engineering-bootstrap phase; the buildable targets are boundary fixtures, not
-functional CUDA or NVML providers.
+unmodified accelerator applications. The compatibility layer already presents a
+functional CUDA Driver and NVML ecosystem on top of its own execution backends:
+the CPU backend runs unmodified PTX kernels through interpreter, cold-JIT,
+warm-JIT, and AOT paths, and the Vulkan backend executes SPIR-V compute on
+physical adapters. Measured evidence lives beside each owning work item.
 
 Agents start at [`AGENTS.md`](AGENTS.md) before making any change.
 
@@ -29,9 +31,15 @@ nix develop . --command ctest --preset dev
 The Linux kernel modules introduced by milestone-0.1.1.0 / `v0.1.1` are built separately by
 the target kernel's Kbuild environment.
 
-MetaFlux project Agent context starts at [`agent/README.md`](agent/README.md),
-including project memory, progress, plans, validated experience, and work
-records. Architecture records remain authoritative under `docs/architecture/`,
-and ABI/UAPI definitions remain authoritative under `contracts/`. The directory
-taxonomy and dependency map are in
+MetaFlux project Agent context starts at [`agent/README.md`](agent/README.md):
+project memory, milestone plans, and validated experience. Architecture records
+remain authoritative under `docs/architecture/`, and ABI/UAPI definitions
+remain authoritative under `contracts/`. The directory taxonomy and dependency
+map are in
 [`docs/architecture/repo-layout.md`](docs/architecture/repo-layout.md).
+
+Containers for release qualification run under podman through
+`nix develop .#release`; `docker/` is the approved home for their build
+contexts. Measurement dumps and unpacked host trees (for example `outputs/`,
+`result`, `.zcode/`) are host state: `.gitignore`d, never committed — the
+numbers and the recipe land in the owning plan record instead.
