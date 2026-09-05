@@ -22,5 +22,6 @@ __pycache__/
 /outputs/
 /result
 /.zcode/
+/.metaflux-build/
+/.metaflux-evidence/
 /linux-*/
-/kernel/core/

@@ -17,5 +17,10 @@ does not. Installed daemon/AOT roots remain `/var/cache/metaflux/compiler` and
 container `/tmp` inside a qualification image is that image's filesystem, not
 this directory.
 
-Do not revive `build/`, `.cache/`, `outputs/`, `../.metaflux-build`, or
-`../.metaflux-evidence` as scratch homes.
+Do not revive `build/`, `.cache/`, `outputs/`, `.metaflux-build`,
+`.metaflux-evidence`, `../.metaflux-build`, or `../.metaflux-evidence` as
+scratch homes. The root [`.gitignore`](../.gitignore) ignores `tmp/**`
+except this README, and keeps those obsolete names ignored so leftover
+host trees cannot re-enter Git. Kernel Kbuild outputs stay ignored by
+[`kernel/.gitignore`](../kernel/.gitignore); `kernel/core/` is source,
+not scratch.

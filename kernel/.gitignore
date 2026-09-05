@@ -7,5 +7,6 @@ Module.symvers
 modules.order
 .tmp_versions/
 /core/generated/
+/core/source
 /pci/generated/
 /vroot/generated/
