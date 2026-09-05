@@ -112,6 +112,15 @@ scalar f64 sequence operations 448 -> 28, active-mask i8 loads 66 -> 5, register
 `vmovss` traffic 182 -> 5. Both PTX and compiled-corpus bit-exact gates stay green;
 the TwoSum lowering above is unchanged.
 
+Measured SIMD result (2026-09-06): maximal runs of at least three unpredicated pure
+operations inside a phase now emit an eight-lane vector region — the same
+TwoSum-plus-nudge sequence over `vector<8xf64>`/`vector<8xi64>` with masked array
+transfers at the region boundary (`kCpuPipelineIdentity` gains `simd-region-v1`).
+On the same aot baseline the median launch fell further from 2.0 ms to 1.44 ms
+(93.3 GFLOP/s nominal) and the generated loop holds only packed f64 arithmetic
+(28 `vmulpd`/`vaddpd`/`vsubsd`-class packed forms, zero scalar f64 remains). The
+scalar sequence semantics are unchanged per lane; both corpus gates stay green.
+
 ## PTX Oracle and Corpus (decision-0017)
 
 Compiler epoch 1 freezes PTX 9.0 targeting `sm_70`, 64-bit addressing, Kernel

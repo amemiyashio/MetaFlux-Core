@@ -30,6 +30,7 @@
 #include <array>
 #include <cerrno>
 #include <chrono>
+#include <cstdlib>
 #include <csignal>
 #include <cstddef>
 #include <cstdint>
@@ -45,6 +46,7 @@
 #include <stop_token>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <string_view>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -454,10 +456,12 @@ private:
 
   [[nodiscard]] std::string select(std::string_view condition, std::string_view true_value,
                                    std::string_view false_value, std::string_view type,
-                                   const Operation* operation = nullptr) {
+                                   const Operation* operation = nullptr,
+                                   std::string_view condition_type = "i1") {
     const auto result = value();
     line(result + " = llvm.select " + std::string(condition) + ", " + std::string(true_value) +
-         ", " + std::string(false_value) + " : " + "i1, " + std::string(type) +
+         ", " + std::string(false_value) + " : " + std::string(condition_type) + ", " +
+         std::string(type) +
          (operation == nullptr ? std::string{} : source_location(*operation)));
     return result;
   }
@@ -484,6 +488,87 @@ private:
     line(result + " = llvm.load " + std::string(pointer) + " : !llvm.ptr -> " + std::string(type) +
          (operation == nullptr ? std::string{} : source_location(*operation)));
     return result;
+  }
+
+  // The pure-operation SIMD region shape: every emitted value covers eight
+  // consecutive lanes and lives only in SSA form; array transfers happen once
+  // at the region boundary through masked loads and stores.
+  static constexpr std::string_view kVectorRegionLanesText = "8";
+
+  [[nodiscard]] static std::string vtype(std::string_view scalar_type) {
+    return "vector<" + std::string(kVectorRegionLanesText) + "x" + std::string(scalar_type) +
+           ">";
+  }
+
+  [[nodiscard]] std::string constant_splat_i32(std::uint32_t number) {
+    const auto result = value();
+    line(result + " = llvm.mlir.constant(dense<" + std::to_string(number) + "> : " +
+         vtype("i32") + ") : " + vtype("i32"));
+    return result;
+  }
+
+  [[nodiscard]] std::string constant_splat_i64(std::uint64_t number) {
+    const auto result = value();
+    line(result + " = llvm.mlir.constant(dense<" + std::to_string(number) + "> : " +
+         vtype("i64") + ") : " + vtype("i64"));
+    return result;
+  }
+
+  [[nodiscard]] std::string constant_splat_f64_zero() {
+    const auto result = value();
+    line(result + " = llvm.mlir.constant(dense<0.0> : " + vtype("f64") + ") : " + vtype("f64"));
+    return result;
+  }
+
+  [[nodiscard]] std::string constant_true_mask() {
+    const auto result = value();
+    line(result + " = llvm.mlir.constant(dense<true> : " + vtype("i1") + ") : " + vtype("i1"));
+    return result;
+  }
+
+  [[nodiscard]] std::string constant_lane_offsets() {
+    const auto result = value();
+    line(result + " = llvm.mlir.constant(dense<[0, 1, 2, 3, 4, 5, 6, 7]> : " + vtype("i32") +
+         ") : " + vtype("i32"));
+    return result;
+  }
+
+  [[nodiscard]] std::string undef_vector(std::string_view scalar_type) {
+    const auto result = value();
+    line(result + " = llvm.mlir.undef : " + vtype(scalar_type));
+    return result;
+  }
+
+  [[nodiscard]] std::string splat_scalar(std::string_view scalar, std::string_view scalar_type) {
+    const auto vector_type_text = vtype(scalar_type);
+    auto accumulated = undef_vector(scalar_type);
+    for (std::uint32_t lane = 0; lane < 8U; ++lane) {
+      const auto index = constant_i32(lane);
+      const auto index64 = cast("zext", index, "i32", "i64");
+      const auto inserted = value();
+      line(inserted + " = llvm.insertelement " + std::string(scalar) + ", " + accumulated +
+           "[" + index64 + " : i64] : " + vector_type_text);
+      accumulated = inserted;
+    }
+    return accumulated;
+  }
+
+  [[nodiscard]] std::string masked_load(std::string_view pointer, std::string_view scalar_type,
+                                        std::string_view mask, std::uint32_t alignment) {
+    const auto result = value();
+    line(result + " = llvm.intr.masked.load " + std::string(pointer) + ", " + std::string(mask) +
+         ", " + undef_vector(scalar_type) + " {alignment = " + std::to_string(alignment) +
+         " : i32} : (!llvm.ptr, " + vtype("i1") + ", " + vtype(scalar_type) + ") -> " +
+         vtype(scalar_type));
+    return result;
+  }
+
+  void masked_store(std::string_view stored_value, std::string_view pointer,
+                    std::string_view scalar_type, std::string_view mask,
+                    std::uint32_t alignment) {
+    line("llvm.intr.masked.store " + std::string(stored_value) + ", " + std::string(pointer) +
+         ", " + std::string(mask) + " {alignment = " + std::to_string(alignment) +
+         " : i32} : " + vtype(scalar_type) + ", " + vtype("i1") + " into !llvm.ptr");
   }
 
   void store(std::string_view stored_value, std::string_view pointer, std::string_view type,
@@ -767,11 +852,81 @@ private:
     return phases;
   }
 
-  [[nodiscard]] std::string emit_phase(const EntryState& state,
-                                       const std::vector<std::size_t>& operations,
-                                       std::string_view block_coordinate_x,
-                                       std::string_view block_coordinate_y) {
-    begin_phase_promotions(operations);
+  // A SIMD region may only contain unpredicated pure operations: the region
+  // executes all eight lanes unconditionally, which is unobservable exactly
+  // when every form is fault-free and side-effect-free.
+  [[nodiscard]] static bool vectorizable_region_opcode(const Operation& operation) {
+    if (operation.predicate != metaflux::compiler::kNoValue) {
+      return false;
+    }
+    switch (operation.opcode) {
+    case Opcode::LoadParameterAddress:
+    case Opcode::LoadParameterU32:
+    case Opcode::LoadParameterF32:
+    case Opcode::LoadSharedAddress:
+    case Opcode::MoveSpecialU32:
+    case Opcode::AddU32:
+    case Opcode::SubU32:
+    case Opcode::MultiplyLoU32:
+    case Opcode::MadLoU32:
+    case Opcode::MultiplyWideU32:
+    case Opcode::AddSharedAddress:
+    case Opcode::AddRnF32:
+    case Opcode::SubRnF32:
+    case Opcode::MultiplyRnF32:
+    case Opcode::MadRnF32:
+    case Opcode::FmaRnF32:
+    case Opcode::SetPredicateGeU32:
+    case Opcode::SetPredicateEqU32:
+    case Opcode::SetPredicateLtF32:
+      return true;
+    default:
+      return false;
+    }
+  }
+
+  struct PhaseSegment {
+    bool vectorized;
+    std::vector<std::size_t> operations;
+  };
+
+  [[nodiscard]] std::vector<PhaseSegment> segment_phase(
+      const std::vector<std::size_t>& operations) const {
+    constexpr std::size_t kMinimumRegionOperations = 3;
+    std::vector<PhaseSegment> segments;
+    std::vector<std::size_t> scalar;
+    std::size_t index = 0;
+    while (index < operations.size()) {
+      std::vector<std::size_t> region;
+      while (index < operations.size() &&
+             vectorizable_region_opcode(kernel_.operations[operations[index]])) {
+        region.push_back(operations[index]);
+        ++index;
+      }
+      if (region.size() >= kMinimumRegionOperations) {
+        if (!scalar.empty()) {
+          segments.push_back({false, scalar});
+          scalar.clear();
+        }
+        segments.push_back({true, std::move(region)});
+      } else {
+        scalar.insert(scalar.end(), region.begin(), region.end());
+      }
+      if (index < operations.size()) {
+        scalar.push_back(operations[index]);
+        ++index;
+      }
+    }
+    if (!scalar.empty()) {
+      segments.push_back({false, std::move(scalar)});
+    }
+    return segments;
+  }
+
+  [[nodiscard]] std::string emit_scalar_segment(const EntryState& state,
+                                                const std::vector<std::size_t>& operations,
+                                                std::string_view block_coordinate_x,
+                                                std::string_view block_coordinate_y) {
     const auto header = block();
     const auto body = block();
     const auto done = block();
@@ -790,6 +945,277 @@ private:
     }
     const auto next = binary("add", lane, state.one_i32, "i32");
     line("llvm.br " + header + "(" + next + " : i32)");
+    return done;
+  }
+
+  [[nodiscard]] std::string fma_rn_vector(const std::vector<std::string>& inputs,
+                                          const Operation& operation) {
+    const auto v64 = vtype("f64");
+    const auto v32 = vtype("f32");
+    const auto vi64 = vtype("i64");
+    const auto v1 = vtype("i1");
+    const auto left = cast("fpext", inputs[0], v32, v64, &operation);
+    const auto right = cast("fpext", inputs[1], v32, v64, &operation);
+    const auto addend = cast("fpext", inputs[2], v32, v64, &operation);
+    const auto product = binary("fmul", left, right, v64, &operation);
+    const auto sum = binary("fadd", product, addend, v64, &operation);
+    const auto rounded_addend = binary("fsub", sum, product, v64, &operation);
+    const auto recovered_product = binary("fsub", sum, rounded_addend, v64, &operation);
+    const auto product_error = binary("fsub", product, recovered_product, v64, &operation);
+    const auto addend_error = binary("fsub", addend, rounded_addend, v64, &operation);
+    const auto error = binary("fadd", product_error, addend_error, v64, &operation);
+
+    const auto bits = cast("bitcast", sum, v64, vi64, &operation);
+    const auto low_mask = constant_splat_i64(0x1fffffffU);
+    const auto low = binary("and", bits, low_mask, vi64, &operation);
+    const auto halfway_bit = constant_splat_i64(0x10000000U);
+    const auto halfway = compare("eq", low, halfway_bit, vi64, &operation);
+    const auto exponent_mask = constant_splat_i64(0x7ff0000000000000ULL);
+    const auto exponent = binary("and", bits, exponent_mask, vi64, &operation);
+    const auto finite = compare("ne", exponent, exponent_mask, vi64, &operation);
+    const auto zero_f64 = constant_splat_f64_zero();
+    const auto inexact = compare("one", error, zero_f64, v64, &operation, true);
+    const auto adjust_halfway = binary("and", halfway, finite, v1, &operation);
+    const auto adjust = binary("and", adjust_halfway, inexact, v1, &operation);
+
+    const auto error_positive = compare("ogt", error, zero_f64, v64, &operation, true);
+    const auto one_i64 = constant_splat_i64(1U);
+    const auto sign_mask = constant_splat_i64(1ULL << 63U);
+    const auto sign = binary("and", bits, sign_mask, vi64, &operation);
+    const auto zero_i64 = constant_splat_i64(0U);
+    const auto negative = compare("ne", sign, zero_i64, vi64, &operation);
+    const auto increment = binary("xor", error_positive, negative, v1, &operation);
+    const auto incremented = binary("add", bits, one_i64, vi64, &operation);
+    const auto decremented = binary("sub", bits, one_i64, vi64, &operation);
+    const auto nudged_bits = select(increment, incremented, decremented, vi64, &operation, v1);
+    const auto adjusted_bits = select(adjust, nudged_bits, bits, vi64, &operation, v1);
+    const auto adjusted = cast("bitcast", adjusted_bits, vi64, v64, &operation);
+    return cast("fptrunc", adjusted, v64, v32, &operation);
+  }
+
+  [[nodiscard]] std::string emit_vector_region(const EntryState& state,
+                                               const std::vector<std::size_t>& operations,
+                                               std::string_view block_coordinate_x,
+                                               std::string_view block_coordinate_y) {
+    const auto done = block();
+    const auto header = block();
+    const auto body = block();
+    const auto group_capacity = constant_i32(8U);
+    const auto tail_allowance = constant_i32(7U);
+    const auto threaded_plus_tail = binary("add", state.block_threads, tail_allowance, "i32");
+    const auto group_count = binary("udiv", threaded_plus_tail, group_capacity, "i32");
+    const auto group = value();
+    line("llvm.br " + header + "(" + state.zero_i32 + " : i32)");
+    output_ << "  " << header << "(" << group << ": i32):\n";
+    const auto more_groups = compare("ult", group, group_count, "i32");
+    line("llvm.cond_br " + more_groups + ", " + body + ", " + done);
+    declare_block(body);
+
+    const auto base32 = binary("mul", group, group_capacity, "i32");
+    const auto base64 = cast("zext", base32, "i32", "i64");
+    const auto lane_offsets = constant_lane_offsets();
+    const auto base_lanes = splat_scalar(base32, "i32");
+    const auto lanes = binary("add", lane_offsets, base_lanes, vtype("i32"));
+    const auto thread_count = splat_scalar(state.block_threads, "i32");
+    const auto lane_mask = compare("ult", lanes, thread_count, vtype("i32"));
+
+    std::unordered_map<std::uint32_t, std::string> region_values;
+    const auto scalar_align = [](ValueKind kind) {
+      switch (kind) {
+      case ValueKind::Predicate:
+        return 1U;
+      case ValueKind::U64:
+      case ValueKind::GlobalAddress:
+      case ValueKind::SharedAddress:
+        return 8U;
+      default:
+        return 4U;
+      }
+    };
+    const auto vreg_of = [&](std::uint32_t register_index) {
+      if (const auto known = region_values.find(register_index); known != region_values.end()) {
+        return known->second;
+      }
+      const auto kind = kernel_.registers[register_index].kind;
+      const auto pointer = gep(state.register_storage[register_index], base64,
+                               kind == ValueKind::Predicate ? "i8" : mlir_type(kind));
+      const auto loaded =
+          masked_load(pointer, kind == ValueKind::Predicate ? "i8" : mlir_type(kind),
+                      lane_mask, scalar_align(kind));
+      auto vector_value = loaded;
+      if (kind == ValueKind::Predicate) {
+        vector_value = cast("trunc", loaded, vtype("i8"), vtype("i1"));
+      }
+      region_values.emplace(register_index, vector_value);
+      return vector_value;
+    };
+
+    for (const auto index : operations) {
+      const auto& operation = kernel_.operations[index];
+      const auto vinput = [&](std::uint32_t position) {
+        return vreg_of(operation.inputs[position]);
+      };
+      std::string result;
+      switch (operation.opcode) {
+      case Opcode::LoadParameterAddress:
+      case Opcode::LoadSharedAddress:
+        result = splat_scalar(state.zero_i64, "i64");
+        break;
+      case Opcode::LoadParameterU32: {
+        const auto pointer = gep_constant("%scalars", operation.attribute, "i32");
+        result = splat_scalar(load(pointer, "i32", &operation), "i32");
+        break;
+      }
+      case Opcode::LoadParameterF32: {
+        const auto pointer = gep_constant("%scalars", operation.attribute, "i32");
+        const auto bits = load(pointer, "i32", &operation);
+        result = splat_scalar(cast("bitcast", bits, "i32", "f32", &operation), "f32");
+        break;
+      }
+      case Opcode::MoveSpecialU32:
+        switch (static_cast<SpecialRegister>(operation.attribute)) {
+        case SpecialRegister::ThreadIdX:
+          result = binary("urem", lanes, splat_scalar("%block_x", "i32"), vtype("i32"));
+          break;
+        case SpecialRegister::ThreadIdY:
+          result = binary("udiv", lanes, splat_scalar("%block_x", "i32"), vtype("i32"));
+          break;
+        case SpecialRegister::BlockIdX:
+          result = splat_scalar(block_coordinate_x, "i32");
+          break;
+        case SpecialRegister::BlockIdY:
+          result = splat_scalar(block_coordinate_y, "i32");
+          break;
+        case SpecialRegister::BlockDimX:
+          result = splat_scalar("%block_x", "i32");
+          break;
+        case SpecialRegister::BlockDimY:
+          result = splat_scalar("%block_y", "i32");
+          break;
+        case SpecialRegister::GridDimX:
+          result = splat_scalar("%grid_x", "i32");
+          break;
+        case SpecialRegister::GridDimY:
+          result = splat_scalar("%grid_y", "i32");
+          break;
+        }
+        break;
+      case Opcode::AddU32:
+        result = binary("add", vinput(0U), vinput(1U), vtype("i32"), &operation);
+        break;
+      case Opcode::SubU32:
+        result = binary("sub", vinput(0U), vinput(1U), vtype("i32"), &operation);
+        break;
+      case Opcode::MultiplyLoU32:
+        result = binary("mul", vinput(0U), vinput(1U), vtype("i32"), &operation);
+        break;
+      case Opcode::MadLoU32: {
+        const auto product = binary("mul", vinput(0U), vinput(1U), vtype("i32"), &operation);
+        result = binary("add", product, vinput(2U), vtype("i32"), &operation);
+        break;
+      }
+      case Opcode::MultiplyWideU32: {
+        const auto extended = cast("zext", vinput(0U), vtype("i32"), vtype("i64"), &operation);
+        result = binary("mul", extended, constant_splat_i64(operation.attribute),
+                        vtype("i64"), &operation);
+        break;
+      }
+      case Opcode::AddSharedAddress: {
+        const auto offset = cast("zext", vinput(1U), vtype("i32"), vtype("i64"), &operation);
+        result = binary("add", vinput(0U), offset, vtype("i64"), &operation);
+        break;
+      }
+      case Opcode::AddRnF32:
+        result = binary("fadd", vinput(0U), vinput(1U), vtype("f32"), &operation);
+        break;
+      case Opcode::SubRnF32:
+        result = binary("fsub", vinput(0U), vinput(1U), vtype("f32"), &operation);
+        break;
+      case Opcode::MultiplyRnF32:
+        result = binary("fmul", vinput(0U), vinput(1U), vtype("f32"), &operation);
+        break;
+      case Opcode::MadRnF32:
+      case Opcode::FmaRnF32: {
+        const std::vector<std::string> inputs{vinput(0U), vinput(1U), vinput(2U)};
+        result = fma_rn_vector(inputs, operation);
+        break;
+      }
+      case Opcode::SetPredicateGeU32:
+        result = compare("uge", vinput(0U), vinput(1U), vtype("i32"), &operation);
+        break;
+      case Opcode::SetPredicateEqU32:
+        result = compare("eq", vinput(0U), vinput(1U), vtype("i32"), &operation);
+        break;
+      case Opcode::SetPredicateLtF32:
+        result = compare("olt", vinput(0U), vinput(1U), vtype("f32"), &operation, true);
+        break;
+      default:
+        break;
+      }
+      if (operation.result != metaflux::compiler::kNoValue) {
+        region_values.emplace(operation.result, std::move(result));
+      }
+    }
+
+    std::unordered_set<const Operation*> region_pointers;
+    for (const auto index : operations) {
+      region_pointers.insert(&kernel_.operations[index]);
+    }
+    for (const auto index : operations) {
+      const auto& operation = kernel_.operations[index];
+      if (operation.result == metaflux::compiler::kNoValue) {
+        continue;
+      }
+      const bool read_outside =
+          std::any_of(kernel_.operations.begin(), kernel_.operations.end(),
+                      [&](const Operation& reader) {
+                        return reads_register(reader, operation.result) &&
+                               !region_pointers.contains(&reader);
+                      });
+      if (!read_outside) {
+        continue;
+      }
+      const auto kind = kernel_.registers[operation.result].kind;
+      auto vector_value = region_values.at(operation.result);
+      const auto scalar_type = kind == ValueKind::Predicate ? "i8" : mlir_type(kind);
+      if (kind == ValueKind::Predicate) {
+        vector_value = cast("zext", vector_value, vtype("i1"), vtype("i8"));
+      }
+      const auto pointer = gep(state.register_storage[operation.result], base64, scalar_type);
+      masked_store(vector_value, pointer, scalar_type, lane_mask, scalar_align(kind));
+    }
+
+    const auto next_group = binary("add", group, state.one_i32, "i32");
+    line("llvm.br " + header + "(" + next_group + " : i32)");
+    return done;
+  }
+
+  [[nodiscard]] std::string emit_phase(const EntryState& state,
+                                       const std::vector<std::size_t>& operations,
+                                       std::string_view block_coordinate_x,
+                                       std::string_view block_coordinate_y) {
+    const auto segments = segment_phase(operations);
+    auto done = std::string{};
+    for (std::size_t position = 0; position < segments.size(); ++position) {
+      const auto& segment = segments[position];
+      if (segment.vectorized) {
+        promoted_.clear();
+        done = emit_vector_region(state, segment.operations, block_coordinate_x,
+                                  block_coordinate_y);
+      } else {
+        begin_segment_promotions(segment.operations);
+        done = emit_scalar_segment(state, segment.operations, block_coordinate_x,
+                                   block_coordinate_y);
+      }
+      if (position + 1 < segments.size()) {
+        // Intermediate segment joins fall through into the next segment's loop.
+        declare_block(done);
+      }
+    }
+    if (done.empty()) {
+      done = block();
+      line("llvm.br " + done);
+    }
     return done;
   }
 
@@ -879,18 +1305,25 @@ private:
     return operation.predicate == register_index;
   }
 
-  // Kernel IR v2 is single-assignment, so a register defined in this phase can
-  // drop its per-lane array slot when its definition is pure, it dominates every
-  // reader position, and no later phase reads it. Cross-phase readers keep the
-  // array because barrier semantics hand values across phases through storage.
-  void begin_phase_promotions(const std::vector<std::size_t>& operations) {
+  // Kernel IR v2 is single-assignment, so a register defined in this scalar
+  // segment can drop its per-lane array slot when its definition is pure and
+  // every reader of the register sits in this same segment after the
+  // definition. Values defined inside a lane loop do not dominate later loops,
+  // and SIMD regions exchange values through the arrays, so any reader outside
+  // the segment keeps the array form.
+  void begin_segment_promotions(const std::vector<std::size_t>& segment) {
     promoted_.clear();
+    std::unordered_set<std::size_t> segment_indices(segment.begin(), segment.end());
+    std::unordered_map<std::size_t, std::size_t> segment_positions;
+    for (std::size_t position = 0; position < segment.size(); ++position) {
+      segment_positions.emplace(segment[position], position);
+    }
     for (std::uint32_t register_index = 0; register_index < kernel_.registers.size();
          ++register_index) {
-      std::size_t definition_position = operations.size();
+      std::size_t definition_position = segment.size();
       std::size_t definition_count = 0;
-      for (std::size_t position = 0; position < operations.size(); ++position) {
-        const auto& operation = kernel_.operations[operations[position]];
+      for (std::size_t position = 0; position < segment.size(); ++position) {
+        const auto& operation = kernel_.operations[segment[position]];
         if (operation.result == register_index && writes_register(operation)) {
           ++definition_count;
           definition_position = position;
@@ -899,27 +1332,17 @@ private:
       if (definition_count != 1) {
         continue;
       }
-      if (!pure_value_definition(kernel_.operations[operations[definition_position]])) {
+      if (!pure_value_definition(kernel_.operations[segment[definition_position]])) {
         continue;
       }
       bool promotable = true;
-      for (std::size_t position = 0; position < operations.size() && promotable; ++position) {
-        const auto& operation = kernel_.operations[operations[position]];
-        if (reads_register(operation, register_index) && position < definition_position) {
-          promotable = false;
-        }
-      }
-      for (const auto& operation : kernel_.operations) {
-        if (!reads_register(operation, register_index)) {
+      for (std::size_t index = 0; index < kernel_.operations.size() && promotable; ++index) {
+        if (!reads_register(kernel_.operations[index], register_index)) {
           continue;
         }
-        const bool same_phase = std::any_of(
-            operations.begin(), operations.end(), [&](std::size_t position) {
-              return &kernel_.operations[position] == &operation;
-            });
-        if (!same_phase) {
+        const auto position = segment_positions.find(index);
+        if (position == segment_positions.end() || position->second < definition_position) {
           promotable = false;
-          break;
         }
       }
       if (promotable) {
