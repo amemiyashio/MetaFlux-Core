@@ -99,6 +99,19 @@ intermediate (for example the fused-stress vector `0x3f800001 * 0x3fc00000 +
 gives `0x3fc00002`). The compiled-corpus bit-exact gate catches this class; do not
 replace the sequence with the direct f64 FMA.
 
+Measured code-shape result (2026-09-05): per-phase SSA promotion of single-assignment
+registers whose definitions are pure, dominate all same-phase readers, and have no
+cross-phase readers removes the per-lane array traffic and most active-mask loads
+from the generic path (`kCpuPipelineIdentity` gains `ssa-reg-promote-v1`). On the
+`cpu_fma_throughput` aot baseline (1M elements x 64 fma.rn, one quiet host) the
+median launch fell from 150.3 ms to 2.0 ms and reported throughput rose from
+893 MFLOP/s to 67.2 GFLOP/s; part of that ratio is legitimate CSE of this kernel's
+16 identical FMA chains once SSA exposes them, so it is an upper bound, not a
+generic-kernel claim. The durable evidence is instruction-shape, not the ratio:
+scalar f64 sequence operations 448 -> 28, active-mask i8 loads 66 -> 5, register
+`vmovss` traffic 182 -> 5. Both PTX and compiled-corpus bit-exact gates stay green;
+the TwoSum lowering above is unchanged.
+
 ## PTX Oracle and Corpus (decision-0017)
 
 Compiler epoch 1 freezes PTX 9.0 targeting `sm_70`, 64-bit addressing, Kernel
