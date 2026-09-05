@@ -207,7 +207,10 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     )
     add_custom_target(metaflux_vulkan_fma_fixture
                       DEPENDS "${METAFLUX_VULKAN_FMA_FIXTURE}")
-    add_executable(metaflux_vulkan_fma_profile tests/fma_profile.cpp)
+    add_executable(
+    metaflux_vulkan_fma_profile
+    "${PROJECT_SOURCE_DIR}/tests/performance/vulkan_fma_profile.cpp"
+  )
     target_include_directories(
       metaflux_vulkan_fma_profile
       PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src"

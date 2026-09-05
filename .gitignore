@@ -12,3 +12,11 @@ __pycache__/
 *.gcno
 
 /build/
+
+# Host-side state that never enters the repository: measurement dumps, Nix
+# build results, harness-local directories, and unpacked host prerequisites.
+/outputs/
+/result
+/.zcode/
+/linux-*/
+/kernel/core/

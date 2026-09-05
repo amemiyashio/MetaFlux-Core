@@ -206,6 +206,25 @@ This profile proves provisioning and can enable local RADV or lavapipe smoke
 tests. Mesa is not a physical NVIDIA reference, and a single host smoke run
 does not satisfy milestone-0.1.3.0's two-driver-family, performance, or release gates.
 
+### Physical RADV device selection (decision-0041)
+
+The pinned runtime output carries the Mesa RADV ICD, and that ICD is the only
+sanctioned way to reach a physical AMD adapter from the Nix toolchain. The
+system loader/ICD under `/usr/lib` cannot be mixed into Nix-built processes
+(glibc private-symbol conflicts), so physical-device qualification selects the
+pinned ICD through the loader's driver-files variable:
+
+```sh
+nix build .#vulkan-runtime --no-link --print-out-paths
+VK_DRIVER_FILES="<printed-path>/share/vulkan/icd.d/radeon_icd.x86_64.json" \
+  nix develop .#vulkan --command <probe or test>
+```
+
+The ICD json inside the pinned output references its own store-path driver
+library, so no absolute-path ICD rewriting is required. A capability probe that
+prints `no-device` under this selection means the physical gate is open, never
+that the test suite may fall back to the system ICD.
+
 ## Static vfio-user Qualification Tools
 
 [`vfio-user-1.json`](vfio-user-1.json) pins the on-demand QEMU and Unix socket

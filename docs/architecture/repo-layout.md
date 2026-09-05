@@ -59,6 +59,9 @@ qualification remain under `tests/`; Nix only provides their fixed tools.
 | Kernel module | `kernel/<name>/` (Kbuild, not CMake) |
 | Component-owned unit tests | `<component>/tests/` |
 | Cross-component qualification | `tests/` |
+| Performance and device probe executables | `tests/performance/` (one source per probe; SPIR-V and device fixtures stay component-owned under the backend's `tests/fixtures/`) |
+| Physical device (ICD/driver) selection for the Nix toolchain | pinned Nix output ICDs, recipe in [`toolchains/README.md`](../../toolchains/README.md) |
+| Measurement dumps (`outputs/`, `result`, unpacked host trees) | host state only, `.gitignore`d; commit the numbers and the recipe, never the dumps |
 | Planned-but-unimplemented component | a section in [`docs/roadmap.md`](../roadmap.md), no directory |
 
 ## Prior art
