@@ -1,4 +1,3 @@
-/.cache/
 /.clangd/
 /compile_commands.json
 /CMakeUserPresets.json
@@ -11,10 +10,15 @@ __pycache__/
 *.gcda
 *.gcno
 
-/build/
+# Workspace scratch lives under tmp/ (decision-0042). The tracked README is
+# the only inhabitant; every generated subtree stays host state.
+/tmp/**
+!/tmp/README.md
 
-# Host-side state that never enters the repository: measurement dumps, Nix
-# build results, harness-local directories, and unpacked host prerequisites.
+# Obsolete workspace scratch homes. They remain ignored so leftover host
+# trees cannot re-enter Git, but no workflow may write them.
+/.cache/
+/build/
 /outputs/
 /result
 /.zcode/

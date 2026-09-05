@@ -57,3 +57,5 @@ adapter) also live in this directory, one source per probe; their SPIR-V and
 device fixtures stay component-owned under the owning backend's
 `tests/fixtures/`. Physical device selection for the Nix toolchain follows the
 pinned-RADV-ICD recipe in [`toolchains/README.md`](../toolchains/README.md).
+Probe binaries stay here; their measurement dumps and retained work trees go
+under [`tmp/`](../tmp/README.md) (decision-0042).

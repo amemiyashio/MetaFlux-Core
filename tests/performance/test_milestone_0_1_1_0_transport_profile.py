@@ -22,14 +22,10 @@ def find_ring_benchmark() -> Path:
         if path.is_file():
             return path
     candidates = [
-        ROOT.parent
-        / ".metaflux-build"
-        / "MetaFlux-Core"
-        / "dev"
-        / "tests"
-        / "metaflux_milestone_0_1_0_0_ring_benchmark",
         ROOT
+        / "tmp"
         / "build"
+        / "dev"
         / "tests"
         / "metaflux_milestone_0_1_0_0_ring_benchmark",
     ]

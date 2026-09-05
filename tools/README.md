@@ -69,7 +69,7 @@ whitelist, C-to-C++ language-wall violations, and client links into the daemon.
 
 ```sh
 nix develop . --command python3 tools/check-component-graph.py \
-  ../.metaflux-build/MetaFlux-Core/dev/metaflux-component-graph.json
+  tmp/build/dev/metaflux-component-graph.json
 ```
 
 The same check runs as `metaflux.architecture.component-graph` in test-enabled
@@ -79,7 +79,7 @@ CMake presets.
 
 `check-lifecycle-model.py` verifies manifest imports and hashes, then explores
 the bounded generation/epoch model, loss fence, and telemetry race model. Its
-compact result belongs to the external build evidence tree.
+compact result belongs under `tmp/outputs/` (decision-0042).
 
 ```sh
 nix develop . --command python3 tools/check-lifecycle-model.py \
@@ -87,7 +87,7 @@ nix develop . --command python3 tools/check-lifecycle-model.py \
   --manifest contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/manifest.json \
   --model contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/model.json \
   --bounds tests/lifecycle/model-bounds.json \
-  --output ../.metaflux-evidence/MetaFlux-Core/lifecycle/model-check.json
+  --output tmp/outputs/lifecycle/model-check.json
 ```
 
 Other scripts remain owned by the plan, component, release, or toolchain surface

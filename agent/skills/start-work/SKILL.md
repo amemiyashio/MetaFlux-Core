@@ -55,6 +55,12 @@ Complete this stage before any shell executable except host `git` and `nix`.
    the ambient host shell never executes repository tools. Never probe the
    ambient host first and never use `path:.`. The observed caller harness
    is not a project tool and is not pinned by repository Nix.
+   In-repository workspace scratch belongs only under `tmp/` at the repository
+   root (decision-0042): CMake trees in `tmp/build/<preset>`, dumps in
+   `tmp/outputs/`, retained work in `tmp/work/`. Do not write `build/`,
+   `.cache/`, `outputs/`, `../.metaflux-build`, or `../.metaflux-evidence`.
+   Installed compiler and AOT caches stay at `/var/cache/metaflux/compiler`
+   and `/var/lib/metaflux/aot`.
 6. If a required project tool is missing, load `manage-toolchain` and add it to
    the repository Nix declaration first. Only after a confirmed Nix provision
    or materialization gap may `manage-host-privilege` resolve and install an

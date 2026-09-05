@@ -10,7 +10,7 @@
       "name": "base",
       "hidden": true,
       "generator": "Ninja",
-      "binaryDir": "${sourceParentDir}/.metaflux-build/${sourceDirName}/${presetName}",
+      "binaryDir": "${sourceDir}/tmp/build/${presetName}",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang",
         "METAFLUX_ENABLE_WERROR": "ON",
@@ -47,7 +47,7 @@
       "name": "generic-release",
       "displayName": "MetaFlux generic release (Ubuntu 20.04/glibc 2.31)",
       "generator": "Ninja",
-      "binaryDir": "${sourceParentDir}/.metaflux-build/${sourceDirName}/${presetName}",
+      "binaryDir": "${sourceDir}/tmp/build/${presetName}",
       "toolchainFile": "${sourceDir}/cmake/toolchains/ubuntu-20.04-generic.cmake",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
@@ -111,6 +111,12 @@
         "METAFLUX_BUILD_VULKAN_BACKEND": "ON",
         "METAFLUX_VULKAN_SDK_DIR": "$env{VULKAN_SDK}"
       }
+    },
+    {
+      "name": "live",
+      "inherits": "dev",
+      "displayName": "Live cdev qualification",
+      "binaryDir": "${sourceDir}/tmp/build/live"
     }
   ],
   "buildPresets": [
@@ -120,7 +126,8 @@
     { "name": "asan", "configurePreset": "asan" },
     { "name": "coverage", "configurePreset": "coverage" },
     { "name": "provider", "configurePreset": "provider" },
-    { "name": "vulkan", "configurePreset": "vulkan" }
+    { "name": "vulkan", "configurePreset": "vulkan" },
+    { "name": "live", "configurePreset": "live" }
   ],
   "testPresets": [
     {
@@ -157,6 +164,11 @@
       "name": "vulkan",
       "configurePreset": "vulkan",
       "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "live",
+      "configurePreset": "live",
+      "inherits": "dev"
     }
   ]
 }

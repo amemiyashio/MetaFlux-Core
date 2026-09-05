@@ -52,7 +52,7 @@ kernel (KUnit, KASAN, KCSAN, kmemleak, lockdep, modules) via:
 nix develop .#linux-debug --command tools/build-debug-kernel.sh
 ```
 
-The cache lives at `../.metaflux-build/MetaFlux-Core/debug-kernel` (`src`
+The cache lives at `tmp/build/debug-kernel` (`src`
 symlink overlay, `build` O= tree, `build/arch/x86_64/boot/bzImage`). The final
 `build/.config` is authoritative: the build script reports any qualification
 CONFIG dropped by Kconfig dependencies (KASAN and KCSAN may be mutually
@@ -124,10 +124,10 @@ build and test semantics remain here:
 ```sh
 nix develop . --command python3 \
   agent/skills/manage-host-privilege/scripts/host_privilege.py driver load \
-  /absolute/repository/build/path/metaflux_core.ko
+  /absolute/repository/tmp/build/<preset>/metaflux_core.ko
 nix develop . --command python3 \
   agent/skills/manage-host-privilege/scripts/host_privilege.py driver live \
-  /absolute/repository/build/path/metaflux_transport_cdev_live_qualification
+  /absolute/repository/tmp/build/<preset>/metaflux_transport_cdev_live_qualification
 nix develop . --command python3 \
   agent/skills/manage-host-privilege/scripts/host_privilege.py driver logs
 ```

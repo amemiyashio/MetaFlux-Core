@@ -61,7 +61,8 @@ qualification remain under `tests/`; Nix only provides their fixed tools.
 | Cross-component qualification | `tests/` |
 | Performance and device probe executables | `tests/performance/` (one source per probe; SPIR-V and device fixtures stay component-owned under the backend's `tests/fixtures/`) |
 | Physical device (ICD/driver) selection for the Nix toolchain | pinned Nix output ICDs, recipe in [`toolchains/README.md`](../../toolchains/README.md) |
-| Measurement dumps (`outputs/`, `result`, unpacked host trees) | host state only, `.gitignore`d; commit the numbers and the recipe, never the dumps |
+| Workspace scratch (CMake trees, debug-kernel overlay, measurement dumps, retained work dirs) | `tmp/` under the repository root (decision-0042); gitignored except [`tmp/README.md`](../../tmp/README.md) |
+| Installed compiler/AOT cache | `/var/cache/metaflux/compiler` and `/var/lib/metaflux/aot` (decision-0014); not workspace scratch |
 | Planned-but-unimplemented component | a section in [`docs/roadmap.md`](../roadmap.md), no directory |
 
 ## Prior art

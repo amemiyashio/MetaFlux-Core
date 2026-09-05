@@ -47,7 +47,7 @@ FAIL = 1
 SKIP = 77
 
 REPOSITORY = Path(__file__).resolve().parent.parent
-DEFAULT_CACHE_DIR = REPOSITORY.parent / ".metaflux-build" / "MetaFlux-Core" / "debug-kernel"
+DEFAULT_CACHE_DIR = REPOSITORY / "tmp" / "build" / "debug-kernel"
 
 # The five qualification configs whose presence is reported from the final
 # kernel .config (the authoritative result of tools/build-debug-kernel.sh).

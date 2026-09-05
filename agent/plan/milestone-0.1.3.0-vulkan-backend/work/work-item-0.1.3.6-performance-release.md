@@ -53,7 +53,7 @@ physical cancellation.
   submission ledger enqueue/complete) under CLOCK_MONOTONIC_RAW; archives 1000
   warmup + 10000 samples via
   `tests/performance/run_milestone_0_1_3_6_vulkan_profile.py`. Evidence:
-  `.metaflux-evidence/MetaFlux-Core/milestone-0.1.3.6-vulkan-profile/`.
+  `tmp/outputs/milestone-0.1.3.6-vulkan-profile/`.
   Vulkan ICD submit/kernel-start/completion remain host-pending and are
   recorded outside the client zero-syscall claim.
 - [x] Compare polling/blocking, batching, queue count, memory tier, NUMA, and

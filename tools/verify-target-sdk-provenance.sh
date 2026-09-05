@@ -127,7 +127,7 @@ fi
 
 # --- Set default output path ---
 if [[ -z "$OUTPUT" ]]; then
-  OUTPUT="${REPO_DIR}/../.metaflux-evidence/MetaFlux-Core/target-sdk-provenance.json"
+  OUTPUT="${REPO_DIR}/tmp/outputs/target-sdk-provenance.json"
 fi
 mkdir -p "$(dirname "$OUTPUT")"
 

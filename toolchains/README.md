@@ -16,7 +16,7 @@ they do not redefine them.
 | Release artifact construction and installation policy | `packaging/` |
 | Qualification output | Owning test harnesses |
 | Accepted work evidence | Git commits and owning test harnesses |
-| Build-directory retention and cleanup execution | The invoking build or test tool |
+| Workspace scratch retention and cleanup | The invoking CMake, Ninja, CTest, or harness under `tmp/` (decision-0042) |
 | Nix store retention and garbage collection | The host Nix installation and its operator |
 
 ## Tool Provider Boundary (decision-0022)

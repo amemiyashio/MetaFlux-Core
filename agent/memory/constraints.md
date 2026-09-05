@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 # Durable Constraints
@@ -154,7 +154,18 @@ identity and provisioning boundaries live in
   loader search paths never participate (decision-0013).
 - Mutable compiler cache content is peer-credential-UID isolated, quota reserved
   before compilation, atomically published, and deterministically evicted; the
-  administrator AOT tier is separate and read-only (decision-0014).
+  administrator AOT tier is separate and read-only (decision-0014). Those
+  installed roots remain `/var/cache/metaflux/compiler` and
+  `/var/lib/metaflux/aot`.
+- In-repository workspace scratch lives only under `tmp/` at the repository
+  root (decision-0042): CMake/Ninja trees in `tmp/build/<preset>`,
+  debug-kernel overlays in `tmp/build/debug-kernel`, measurement dumps and
+  checker JSON in `tmp/outputs/<name>`, retained work directories in
+  `tmp/work/<name>`. The invoking tool owns cleanup. Do not write
+  `build/`, `.cache/`, `outputs/`, `../.metaflux-build`, or
+  `../.metaflux-evidence`. Guest or container `/tmp` inside a qualification
+  image is that image's filesystem. Nix store GC remains host-operator
+  ownership (decision-0022).
 - CPU execution uses effective physical cores and NUMA-local pools, does not
   oversubscribe, schedules indivisible CTAs, and keeps cross-node stealing off
   by default (decision-0015).

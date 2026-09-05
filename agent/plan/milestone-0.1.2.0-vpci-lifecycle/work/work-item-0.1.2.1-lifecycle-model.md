@@ -103,7 +103,7 @@ python3 tools/check-lifecycle-model.py \
   --manifest contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/manifest.json \
   --model contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/model.json \
   --bounds tests/lifecycle/model-bounds.json \
-  --output ../.metaflux-evidence/MetaFlux-Core/lifecycle/model-check.json
+  --output tmp/outputs/lifecycle/model-check.json
 ```
 
 The bounds file pins object/request counts, sequence depth, fault points, and a
@@ -211,7 +211,7 @@ Implemented stage:
 
 ## Exit Gate
 
-`../.metaflux-evidence/MetaFlux-Core/lifecycle/model-check.json` demonstrates
+`tmp/outputs/lifecycle/model-check.json` demonstrates
 within the pinned bounds that no explored legal event sequence publishes two
 live owners, reuses an accepted generation candidate, advances epoch before
 retirement, commits a retirement without

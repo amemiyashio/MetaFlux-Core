@@ -50,15 +50,15 @@ empty-to-nonempty distributions independently.
   effective affinity CPU, records NUMA topology/hugepage fingerprints, and
   archives 1000-warmup/10000-sample poll-mode memfd-ring raw CSV plus
   p50/p90/p99 summaries. Evidence directory:
-  `.metaflux-evidence/MetaFlux-Core/milestone-0.1.1.5-transport-profile/`.
+  `tmp/outputs/milestone-0.1.1.5-transport-profile/`.
   Live host rows closed on this reference host:
   - loaded `metaflux_core.ko` via `manage-host-privilege driver load`;
   - `driver live` cdev qualification PASS with contract-bound samples
     (1000 warmup / 10000 each of poll, block-wait, batch-submit, IRQ eventfd)
-    archived under `.metaflux-evidence/MetaFlux-Core/milestone-0.1.1.5-live-cdev/`;
+    archived under `tmp/outputs/milestone-0.1.1.5-live-cdev/`;
   - pinned QEMU 10.2.4 + libvfio-user live bring-up PASS (PCI identity, BAR0/2/4,
     BAR0 R/W, MSI-X vectors 0+1, mappable DMA, doorbell ioeventfd) under
-    `.metaflux-evidence/MetaFlux-Core/milestone-0.1.1.5-live-vfio-user/`.
+    `tmp/outputs/milestone-0.1.1.5-live-vfio-user/`.
   Remaining optional host soaks: forced huge-page differential and long MSI-X
   interrupt-moderation storm beyond the bring-up vector delivery proof.
 - [x] Audit allocations, locks, syscalls, cache lines, BAR access, and fd lifetime.

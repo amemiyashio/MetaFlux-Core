@@ -40,6 +40,9 @@ map are in
 
 Containers for release qualification run under podman through
 `nix develop .#release`; `docker/` is the approved home for their build
-contexts. Measurement dumps and unpacked host trees (for example `outputs/`,
-`result`, `.zcode/`) are host state: `.gitignore`d, never committed — the
-numbers and the recipe land in the owning plan record instead.
+contexts. Workspace scratch — CMake trees, debug-kernel overlays, measurement
+dumps, and retained work directories — lives under [`tmp/`](tmp/README.md)
+(decision-0042). Installed compiler and AOT caches stay at
+`/var/cache/metaflux/compiler` and `/var/lib/metaflux/aot`. The numbers and
+the recipe land in the owning plan record; generated files under `tmp/` are
+never committed.

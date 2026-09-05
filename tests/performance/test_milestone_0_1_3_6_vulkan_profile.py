@@ -20,7 +20,7 @@ def find_benchmark() -> Path:
     if env and Path(env).is_file():
         return Path(env)
     candidates = list(
-        (ROOT.parent / ".metaflux-build" / "MetaFlux-Core").glob(
+        (ROOT / "tmp" / "build").glob(
             "**/metaflux_milestone_0_1_3_6_vulkan_stage_profile"
         )
     )

@@ -101,7 +101,7 @@ materialized tool and header inputs:
 ```sh
 nix develop . --command python3 -B tests/performance/run_milestone_0_1_0_0_optimization.py \
   --repository . \
-  --output-dir ../.metaflux-evidence/MetaFlux-Core/milestone-0.1.0.0-optimization \
+  --output-dir tmp/outputs/milestone-0.1.0.0-optimization \
   --toolchain-prefix TOOLCHAIN_PREFIX \
   --nvidia-header-dir NVIDIA_HEADER_DIR \
   --jobs 16 \
@@ -117,7 +117,7 @@ measurement. The runner checks the clean Git revision and tree again after all
 selected stages; any concurrent source change fails the complete run even when
 individual commands passed. Build trees and raw profiles live in a system
 temporary work directory and are removed after success or failure. Pass
-`--work-dir ../.metaflux-build/MetaFlux-Core/milestone-0.1.0.0-optimization-work` together
+`--work-dir tmp/work/milestone-0.1.0.0-optimization-work` together
 with `--keep-work` only for explicit debugging retention. Repeated `--stage`
 arguments run `pgo`, `variants`, or `hardening` independently during harness development.
 PGO and hardening update an atomic `progress.json` after each completed test, so
@@ -132,7 +132,7 @@ CTest case uses this mode with a short workload:
 
 ```sh
 nix develop . --command ctest \
-  --test-dir ../.metaflux-build/MetaFlux-Core/milestone-0.1.0.0-integration \
+  --test-dir tmp/build/milestone-0.1.0.0-integration \
   -R 'metaflux.performance.milestone-0.1.0.0-(ring|managed)-smoke' \
   --output-on-failure
 ```
@@ -156,18 +156,18 @@ nix develop . --command python3 -B tests/performance/run_milestone_0_1_0_0_perfo
   --budget-status binding \
   --reference-host-role amd \
   --controlled-host \
-  --output-dir ../.metaflux-evidence/MetaFlux-Core/milestone-0.1.0.0-amd-reference \
+  --output-dir tmp/outputs/milestone-0.1.0.0-amd-reference \
   --repository . \
   --milestone-plan agent/plan/milestone-0.1.0.0-core-foundation/plan.md \
-  --ring-benchmark ../.metaflux-build/MetaFlux-Core/milestone-0.1.0.0-integration/tests/metaflux_milestone_0_1_0_0_ring_benchmark \
-  --cuda-benchmark ../.metaflux-build/MetaFlux-Core/milestone-0.1.0.0-integration/tests/metaflux_milestone_0_1_0_0_cuda_managed_benchmark \
-  --nvml-benchmark ../.metaflux-build/MetaFlux-Core/milestone-0.1.0.0-integration/tests/metaflux_milestone_0_1_0_0_nvml_benchmark \
-  --daemon ../.metaflux-build/MetaFlux-Core/milestone-0.1.0.0-integration/services/metafluxd/metafluxd \
-  --provider-dir ../.metaflux-build/MetaFlux-Core/milestone-0.1.0.0-integration/plugins/compat/cuda/abi/driver \
-  --cuda-provider ../.metaflux-build/MetaFlux-Core/milestone-0.1.0.0-integration/plugins/compat/cuda/abi/driver/libcuda.so.1 \
-  --nvml-provider ../.metaflux-build/MetaFlux-Core/milestone-0.1.0.0-integration/plugins/compat/cuda/management/nvml/libnvidia-ml.so.1 \
+  --ring-benchmark tmp/build/milestone-0.1.0.0-integration/tests/metaflux_milestone_0_1_0_0_ring_benchmark \
+  --cuda-benchmark tmp/build/milestone-0.1.0.0-integration/tests/metaflux_milestone_0_1_0_0_cuda_managed_benchmark \
+  --nvml-benchmark tmp/build/milestone-0.1.0.0-integration/tests/metaflux_milestone_0_1_0_0_nvml_benchmark \
+  --daemon tmp/build/milestone-0.1.0.0-integration/services/metafluxd/metafluxd \
+  --provider-dir tmp/build/milestone-0.1.0.0-integration/plugins/compat/cuda/abi/driver \
+  --cuda-provider tmp/build/milestone-0.1.0.0-integration/plugins/compat/cuda/abi/driver/libcuda.so.1 \
+  --nvml-provider tmp/build/milestone-0.1.0.0-integration/plugins/compat/cuda/management/nvml/libnvidia-ml.so.1 \
   --compiler-epoch toolchains/compiler-epoch-1.json \
-  --build-manifest ../.metaflux-build/MetaFlux-Core/milestone-0.1.0.0-integration/metaflux-build-manifest.json \
+  --build-manifest tmp/build/milestone-0.1.0.0-integration/metaflux-build-manifest.json \
   --execution-mode warm-jit \
   --warmup 1000 \
   --samples 10000 \

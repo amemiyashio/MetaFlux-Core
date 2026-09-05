@@ -17,7 +17,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-BUILD_DIR="${REPO_DIR}/../.metaflux-build/MetaFlux-Core/generic-release"
+BUILD_DIR="${REPO_DIR}/tmp/build/generic-release"
 JOBS=""
 
 while [[ $# -gt 0 ]]; do

@@ -44,7 +44,7 @@ nix develop .#release --command python3 tests/release/run_provider_package_matri
   --ubuntu-22-image REGISTRY/ubuntu@sha256:DIGEST \
   --ubuntu-24-image REGISTRY/ubuntu@sha256:DIGEST \
   --rocky-9-image REGISTRY/rockylinux@sha256:DIGEST \
-  --output-dir ../.metaflux-evidence/MetaFlux-Core/milestone-0.1.0.0-package-matrix
+  --output-dir tmp/outputs/milestone-0.1.0.0-package-matrix
 ```
 
 ## Complete release matrix
@@ -103,7 +103,7 @@ nix develop .#release --command python3 tests/release/run_release_package_matrix
   --ubuntu-22-image REGISTRY/ubuntu@sha256:DIGEST \
   --ubuntu-24-image REGISTRY/ubuntu@sha256:DIGEST \
   --rocky-9-image REGISTRY/rockylinux@sha256:DIGEST \
-  --output-dir ../.metaflux-evidence/MetaFlux-Core/milestone-0.1.0.0-release-package-matrix
+  --output-dir tmp/outputs/milestone-0.1.0.0-release-package-matrix
 ```
 
 `metaflux-activation-launcher` and `metaflux-add-u32.ptx` must be in the same
@@ -137,5 +137,5 @@ nix develop .#release --command python3 tests/release/run_backend_vulkan_package
   --upgrade-tar /path/to/metaflux-backend-vulkan-0.0.0-x86_64.tar.gz \
   --ubuntu-20-image REGISTRY/ubuntu@sha256:DIGEST \
   --rocky-9-image REGISTRY/rockylinux@sha256:DIGEST \
-  --output-dir ../.metaflux-evidence/MetaFlux-Core/milestone-0.1.3.6-backend-vulkan-rows
+  --output-dir tmp/outputs/milestone-0.1.3.6-backend-vulkan-rows
 ```

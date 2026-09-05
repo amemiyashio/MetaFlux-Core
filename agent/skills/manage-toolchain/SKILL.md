@@ -49,6 +49,8 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
   fact, never a fallback to the system ICD.
 - Git owns source identity and history.
 - CMake and Ninja own configure, build, install, and build-directory behavior.
+  Their in-repository trees live under `tmp/build/<preset>` (decision-0042);
+  do not configure into `build/`, `.cache/`, or a sibling `.metaflux-build`.
 - CTest and repository scripts own tests and qualification.
 - `packaging/` owns package construction; Git and owning test harnesses retain
   accepted outcomes, while the invoking work unit cleans temporary artifacts.

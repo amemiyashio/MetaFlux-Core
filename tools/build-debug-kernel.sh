@@ -14,7 +14,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-CACHE_DIR="${REPO_DIR}/../.metaflux-build/MetaFlux-Core/debug-kernel"
+CACHE_DIR="${REPO_DIR}/tmp/build/debug-kernel"
 JOBS="$(nproc)"
 
 while [[ $# -gt 0 ]]; do

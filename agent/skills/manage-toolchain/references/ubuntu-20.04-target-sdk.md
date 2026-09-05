@@ -182,7 +182,7 @@ resource_dir="$(nix eval --raw \
   '.#packages.x86_64-linux.generic-llvm-toolchain.resourceDir')"
 tool_path="$(nix build --no-link --print-out-paths \
   '.#packages.x86_64-linux.toolchain')"
-build_dir="../.metaflux-build/MetaFlux-Core/generic-release"
+build_dir="tmp/build/generic-release"
 target_triple=x86_64-unknown-linux-gnu
 
 target_compile_flags="--target=$target_triple --sysroot=$sdk_path"
@@ -274,7 +274,7 @@ settings. Do not infer these values from the development shell name.
 Package only a clean target build:
 
 ```sh
-output_dir="../.metaflux-evidence/MetaFlux-Core/milestone-0.1.0.0-generic-packages"
+output_dir="tmp/outputs/milestone-0.1.0.0-generic-packages"
 source_date_epoch="$(git show -s --format=%ct HEAD)"
 
 SOURCE_DATE_EPOCH="$source_date_epoch" \

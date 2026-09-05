@@ -19,12 +19,12 @@ output:
 vulkan_sdk="$(nix build --no-link --print-out-paths \
   '.#packages.x86_64-linux.vulkan-tools')"
 nix develop .#vulkan --command cmake -S . \
-  -B ../.metaflux-build/MetaFlux-Core/vulkan \
+  -B tmp/build/vulkan \
   -G Ninja -DMETAFLUX_BUILD_VULKAN_BACKEND=ON \
   -DMETAFLUX_VULKAN_SDK_DIR="$vulkan_sdk" \
   -DMETAFLUX_BUILD_TESTS=ON
 nix develop .#vulkan --command cmake --build \
-  ../.metaflux-build/MetaFlux-Core/vulkan
+  tmp/build/vulkan
 ```
 
 The `#vulkan` shell exports `VULKAN_SDK` from the pinned Nix Vulkan tools, so the

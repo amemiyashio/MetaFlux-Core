@@ -22,7 +22,7 @@ from pathlib import Path
 REPOSITORY = Path(__file__).resolve().parent.parent
 BUILD_SCRIPT = REPOSITORY / "packaging" / "build.py"
 DEFAULT_GENERIC_TREE = (
-    REPOSITORY.parent / ".metaflux-build" / "MetaFlux-Core" / "generic-release"
+    REPOSITORY / "tmp" / "build" / "generic-release"
 )
 SHARED_LIBRARY_NAME = "libmetaflux_vulkan_backend.so"
 ALLOWED_NEEDED = frozenset(
