@@ -22,7 +22,7 @@ namespace metaflux::backend::cpu::compiler {
 
 inline constexpr std::string_view kCpuPipelineIdentity =
     "kir-v2-to-llvm-dialect,cpu-single-cta-v2,cpu-loop-simd-v1,"
-    "f32-fma-twosum-v1,llvm-o2,pic-et-dyn-v1,ssa-reg-promote-v1,simd-region-v1";
+    "f32-fma-twosum-v1,llvm-o2,pic-et-dyn-v1,ssa-reg-promote-v1,simd-region-mem-v1";
 inline constexpr std::string_view kCpuToolchainFingerprint = METAFLUX_CPU_TOOLCHAIN_FINGERPRINT;
 inline constexpr std::string_view kCpuPgoIdentity = METAFLUX_CPU_PGO_ID;
 inline constexpr std::uint32_t kCpuBackendAbiVersion = 1;

@@ -121,6 +121,16 @@ On the same aot baseline the median launch fell further from 2.0 ms to 1.44 ms
 (28 `vmulpd`/`vaddpd`/`vsubsd`-class packed forms, zero scalar f64 remains). The
 scalar sequence semantics are unchanged per lane; both corpus gates stay green.
 
+Measured result (2026-09-06): stride-one global loads and stores now join the
+region — linear construction chains (thread id through the CTA mad, *4 scaling,
+address add) are recognized statically, per-group checks replace per-element
+gates (bounds via the effective mask, writable once, alignment elided by
+construction), and each group uses one masked contiguous transfer
+(`kCpuPipelineIdentity` gains `simd-region-mem-v1`; scalar offsets from *4
+chains also drop the alignment check). On the same aot baseline the median
+launch fell from 1.44 ms to 1.11 ms (120.9 GFLOP/s nominal) with the contiguous
+`vmovups` transfers and no gather. Both corpus gates stay green.
+
 ## PTX Oracle and Corpus (decision-0017)
 
 Compiler epoch 1 freezes PTX 9.0 targeting `sm_70`, 64-bit addressing, Kernel

@@ -386,8 +386,11 @@ private:
   std::vector<std::uint64_t> shared_offsets_;
   std::optional<ElementwisePlan> elementwise_;
   // Per-phase map of registers promoted from per-lane array storage to LLVM SSA
-  // names. Only valid while the owning phase's lane loop is being emitted.
+  // names. Only valid while the owning segment's lane loop is being emitted.
   std::unordered_map<std::uint32_t, std::string> promoted_;
+  // Per-phase set of registers whose value advances one word per lane, making
+  // global accesses over them stride-one contiguous.
+  std::unordered_set<std::uint32_t> linear_registers_;
 
   [[nodiscard]] std::string value() { return "%v" + std::to_string(next_value_++); }
   [[nodiscard]] std::string block() { return "^b" + std::to_string(next_block_++); }
@@ -569,6 +572,23 @@ private:
     line("llvm.intr.masked.store " + std::string(stored_value) + ", " + std::string(pointer) +
          ", " + std::string(mask) + " {alignment = " + std::to_string(alignment) +
          " : i32} : " + vtype(scalar_type) + ", " + vtype("i1") + " into !llvm.ptr");
+  }
+
+  [[nodiscard]] std::string vector_reduce_or(std::string_view mask) {
+    const auto result = value();
+    line(result + " = \"llvm.intr.vector.reduce.or\"(" + std::string(mask) + ") : (" +
+         vtype("i1") + ") -> i1");
+    return result;
+  }
+
+  [[nodiscard]] std::string extract_lane_zero(std::string_view vector_value,
+                                              std::string_view scalar_type) {
+    const auto index = constant_i32(0U);
+    const auto index64 = cast("zext", index, "i32", "i64");
+    const auto result = value();
+    line(result + " = llvm.extractelement " + std::string(vector_value) + "[" + index64 +
+         " : i64] : " + vtype(scalar_type));
+    return result;
   }
 
   void store(std::string_view stored_value, std::string_view pointer, std::string_view type,
@@ -852,10 +872,10 @@ private:
     return phases;
   }
 
-  // A SIMD region may only contain unpredicated pure operations: the region
-  // executes all eight lanes unconditionally, which is unobservable exactly
-  // when every form is fault-free and side-effect-free.
-  [[nodiscard]] static bool vectorizable_region_opcode(const Operation& operation) {
+  // A SIMD region may contain unpredicated pure operations, which are
+  // unobservable on inactive lanes, plus stride-one global loads and stores
+  // whose checks and transfers vectorize with the group's effective mask.
+  [[nodiscard]] bool vectorizable_region_opcode(const Operation& operation) const {
     if (operation.predicate != metaflux::compiler::kNoValue) {
       return false;
     }
@@ -871,6 +891,7 @@ private:
     case Opcode::MadLoU32:
     case Opcode::MultiplyWideU32:
     case Opcode::AddSharedAddress:
+    case Opcode::AddGlobalAddress:
     case Opcode::AddRnF32:
     case Opcode::SubRnF32:
     case Opcode::MultiplyRnF32:
@@ -880,6 +901,11 @@ private:
     case Opcode::SetPredicateEqU32:
     case Opcode::SetPredicateLtF32:
       return true;
+    case Opcode::LoadGlobalU32:
+    case Opcode::LoadGlobalF32:
+    case Opcode::StoreGlobalU32:
+    case Opcode::StoreGlobalF32:
+      return linear_registers_.count(operation.inputs[0]) != 0U;
     default:
       return false;
     }
@@ -1018,6 +1044,13 @@ private:
     const auto lanes = binary("add", lane_offsets, base_lanes, vtype("i32"));
     const auto thread_count = splat_scalar(state.block_threads, "i32");
     const auto lane_mask = compare("ult", lanes, thread_count, vtype("i32"));
+    // Memory semantics need the per-lane active state: inactive lanes must not
+    // access memory or raise checks, exactly like the scalar loop's gates.
+    const auto active_pointer = gep(state.active_storage, base64, "i8");
+    const auto active_raw = masked_load(active_pointer, "i8", lane_mask, 1U);
+    const auto active_bits = cast("trunc", active_raw, vtype("i8"), vtype("i1"));
+    const auto effective_mask = binary("and", lane_mask, active_bits, vtype("i1"));
+    const auto true_mask = constant_true_mask();
 
     std::unordered_map<std::uint32_t, std::string> region_values;
     const auto scalar_align = [](ValueKind kind) {
@@ -1125,6 +1158,89 @@ private:
         result = binary("add", vinput(0U), offset, vtype("i64"), &operation);
         break;
       }
+      case Opcode::AddGlobalAddress: {
+        const auto base = vinput(0U);
+        const auto sum = binary("add", base, vinput(1U), vtype("i64"), &operation);
+        const auto not_overflowed = compare("uge", sum, base, vtype("i64"), &operation);
+        const auto overflowed = binary("xor", not_overflowed, true_mask, vtype("i1"), &operation);
+        const auto dangerous = binary("and", overflowed, effective_mask, vtype("i1"), &operation);
+        const auto any_overflow = vector_reduce_or(dangerous);
+        const auto addressed = block();
+        line("llvm.cond_br " + any_overflow + ", " + state.overflow_error + ", " + addressed);
+        declare_block(addressed);
+        result = sum;
+        break;
+      }
+      case Opcode::LoadGlobalU32:
+      case Opcode::LoadGlobalF32: {
+        const auto byte_offsets = vreg_of(operation.inputs[0]);
+        const auto shift = constant_splat_i64(2U);
+        const auto word_index =
+            binary("lshr", byte_offsets, shift, vtype("i64"), &operation);
+        const auto origin = origins_[operation.inputs[0]];
+        const auto size_pointer = gep_constant("%sizes", origin.index, "i64");
+        const auto size = load(size_pointer, "i64", &operation);
+        const auto size_vector = splat_scalar(size, "i64");
+        const auto out_of_bounds =
+            compare("uge", word_index, size_vector, vtype("i64"), &operation);
+        const auto dangerous =
+            binary("and", out_of_bounds, effective_mask, vtype("i1"), &operation);
+        const auto any_violation = vector_reduce_or(dangerous);
+        const auto bounds_ok = block();
+        line("llvm.cond_br " + any_violation + ", " + state.bounds_error + ", " + bounds_ok);
+        declare_block(bounds_ok);
+        const auto first_word = extract_lane_zero(word_index, "i64");
+        const auto address_pointer = gep_constant("%buffers", origin.index, "i64");
+        const auto address = load(address_pointer, "i64", &operation);
+        const auto base = cast("inttoptr", address, "i64", "!llvm.ptr", &operation);
+        const auto pointer = gep(base, first_word, "i32");
+        const auto bits = masked_load(pointer, "i32", effective_mask, 4U);
+        result = operation.opcode == Opcode::LoadGlobalF32
+                     ? cast("bitcast", bits, vtype("i32"), vtype("f32"), &operation)
+                     : bits;
+        break;
+      }
+      case Opcode::StoreGlobalU32:
+      case Opcode::StoreGlobalF32: {
+        const auto byte_offsets = vreg_of(operation.inputs[0]);
+        const auto shift = constant_splat_i64(2U);
+        const auto word_index =
+            binary("lshr", byte_offsets, shift, vtype("i64"), &operation);
+        const auto origin = origins_[operation.inputs[0]];
+        const auto size_pointer = gep_constant("%sizes", origin.index, "i64");
+        const auto size = load(size_pointer, "i64", &operation);
+        const auto size_vector = splat_scalar(size, "i64");
+        const auto out_of_bounds =
+            compare("uge", word_index, size_vector, vtype("i64"), &operation);
+        const auto dangerous =
+            binary("and", out_of_bounds, effective_mask, vtype("i1"), &operation);
+        const auto any_violation = vector_reduce_or(dangerous);
+        const auto bounds_ok = block();
+        line("llvm.cond_br " + any_violation + ", " + state.bounds_error + ", " + bounds_ok);
+        declare_block(bounds_ok);
+        const auto writable_pointer = gep_constant("%writable", origin.index, "i32");
+        const auto writable_value = load(writable_pointer, "i32", &operation);
+        const auto writable = compare("ne", writable_value, state.zero_i32, "i32", &operation);
+        const auto any_effective = vector_reduce_or(effective_mask);
+        const auto not_writable = binary("xor", writable, state.true_i1, "i1", &operation);
+        const auto readonly_violation =
+            binary("and", not_writable, any_effective, "i1", &operation);
+        const auto store_ok = block();
+        line("llvm.cond_br " + readonly_violation + ", " + state.readonly_error + ", " +
+             store_ok);
+        declare_block(store_ok);
+        auto stored = vinput(1U);
+        if (operation.opcode == Opcode::StoreGlobalF32) {
+          stored = cast("bitcast", stored, vtype("f32"), vtype("i32"), &operation);
+        }
+        const auto first_word = extract_lane_zero(word_index, "i64");
+        const auto address_pointer = gep_constant("%buffers", origin.index, "i64");
+        const auto address = load(address_pointer, "i64", &operation);
+        const auto base = cast("inttoptr", address, "i64", "!llvm.ptr", &operation);
+        const auto pointer = gep(base, first_word, "i32");
+        masked_store(stored, pointer, "i32", effective_mask, 4U);
+        break;
+      }
       case Opcode::AddRnF32:
         result = binary("fadd", vinput(0U), vinput(1U), vtype("f32"), &operation);
         break;
@@ -1194,6 +1310,7 @@ private:
                                        const std::vector<std::size_t>& operations,
                                        std::string_view block_coordinate_x,
                                        std::string_view block_coordinate_y) {
+    mark_linear_registers(operations);
     const auto segments = segment_phase(operations);
     auto done = std::string{};
     for (std::size_t position = 0; position < segments.size(); ++position) {
@@ -1303,6 +1420,88 @@ private:
       }
     }
     return operation.predicate == register_index;
+  }
+
+  [[nodiscard]] const Operation* unique_definition(std::uint32_t register_index) const {
+    const Operation* definition = nullptr;
+    std::size_t count = 0;
+    for (const auto& operation : kernel_.operations) {
+      if (operation.result == register_index && writes_register(operation)) {
+        ++count;
+        definition = &operation;
+      }
+    }
+    return count == 1 ? definition : nullptr;
+  }
+
+  // A byte offset built as linear_id * 4 is provably four-byte aligned, so the
+  // runtime alignment check can be elided along that construction chain.
+  [[nodiscard]] bool aligned_by_construction(std::uint32_t address_register) const {
+    const auto address = unique_definition(address_register);
+    if (address == nullptr) {
+      return false;
+    }
+    if (address->opcode == Opcode::LoadParameterAddress ||
+        address->opcode == Opcode::LoadSharedAddress) {
+      return true;
+    }
+    if (address->opcode != Opcode::AddGlobalAddress) {
+      return false;
+    }
+    const auto offset = unique_definition(address->inputs[1]);
+    return offset != nullptr && offset->opcode == Opcode::MultiplyWideU32 &&
+           offset->attribute == 4U;
+  }
+
+  [[nodiscard]] std::string emit_aligned_word_offset(
+      const EntryState& state, const Operation& operation,
+      std::string_view byte_offset, std::uint32_t address_register) {
+    if (aligned_by_construction(address_register)) {
+      const auto shift = constant_i64(2U);
+      return binary("lshr", byte_offset, shift, "i64", &operation);
+    }
+    const auto low_bits = binary("and", byte_offset, state.three_i64, "i64", &operation);
+    const auto aligned = compare("eq", low_bits, state.zero_i64, "i64", &operation);
+    const auto alignment_ok = block();
+    line("llvm.cond_br " + aligned + ", " + alignment_ok + ", " + state.alignment_error);
+    declare_block(alignment_ok);
+    const auto shift = constant_i64(2U);
+    return binary("lshr", byte_offset, shift, "i64", &operation);
+  }
+
+  // Registers whose value advances one word per lane: thread ids, the CTA-wide
+  // mad over them, their *4 byte scaling, and address arithmetic over that.
+  // A global memory access over such a register is stride-one contiguous and
+  // can use one masked vector transfer per lane group.
+  void mark_linear_registers(const std::vector<std::size_t>& operations) {
+    linear_registers_.clear();
+    for (const auto index : operations) {
+      const auto& operation = kernel_.operations[index];
+      switch (operation.opcode) {
+      case Opcode::MoveSpecialU32:
+        if (static_cast<SpecialRegister>(operation.attribute) == SpecialRegister::ThreadIdX) {
+          linear_registers_.insert(operation.result);
+        }
+        break;
+      case Opcode::MadLoU32:
+        if (linear_registers_.count(operation.inputs[2]) != 0U) {
+          linear_registers_.insert(operation.result);
+        }
+        break;
+      case Opcode::MultiplyWideU32:
+        if (operation.attribute == 4U && linear_registers_.count(operation.inputs[0]) != 0U) {
+          linear_registers_.insert(operation.result);
+        }
+        break;
+      case Opcode::AddGlobalAddress:
+        if (linear_registers_.count(operation.inputs[1]) != 0U) {
+          linear_registers_.insert(operation.result);
+        }
+        break;
+      default:
+        break;
+      }
+    }
   }
 
   // Kernel IR v2 is single-assignment, so a register defined in this scalar
@@ -1586,24 +1785,13 @@ private:
     line("llvm.br " + std::string(continuation));
   }
 
-  [[nodiscard]] std::string emit_aligned_word_offset(const EntryState& state,
-                                                     const Operation& operation,
-                                                     std::string_view byte_offset) {
-    const auto low_bits = binary("and", byte_offset, state.three_i64, "i64", &operation);
-    const auto aligned = compare("eq", low_bits, state.zero_i64, "i64", &operation);
-    const auto alignment_ok = block();
-    line("llvm.cond_br " + aligned + ", " + alignment_ok + ", " + state.alignment_error);
-    declare_block(alignment_ok);
-    const auto shift = constant_i64(2U);
-    return binary("lshr", byte_offset, shift, "i64", &operation);
-  }
-
   [[nodiscard]] std::string emit_global_pointer(const EntryState& state, const Operation& operation,
                                                 std::string_view lane64, bool write) {
     const auto address_register = operation.inputs[0];
     const auto origin = origins_[address_register];
     const auto byte_offset = load_register(state, address_register, lane64, &operation);
-    const auto word_index = emit_aligned_word_offset(state, operation, byte_offset);
+    const auto word_index =
+        emit_aligned_word_offset(state, operation, byte_offset, address_register);
     if (write) {
       const auto writable_pointer = gep_constant("%writable", origin.index, "i32");
       const auto writable_value = load(writable_pointer, "i32", &operation);
@@ -1683,7 +1871,8 @@ private:
     const auto address_register = operation.inputs[0];
     const auto origin = origins_[address_register];
     const auto byte_offset = load_register(state, address_register, lane64, &operation);
-    const auto word_index = emit_aligned_word_offset(state, operation, byte_offset);
+    const auto word_index =
+        emit_aligned_word_offset(state, operation, byte_offset, address_register);
     const auto allocation_words = constant_i64(kernel_.shared_allocations[origin.index].words);
     const auto in_bounds = compare("ult", word_index, allocation_words, "i64", &operation);
     const auto bounds_ok = block();
