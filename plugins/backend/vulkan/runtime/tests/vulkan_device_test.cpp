@@ -300,14 +300,17 @@ int main() {
   // Verify that re-initialization after device loss succeeds or gracefully declines.
   const auto after_loss = context.initialize(profile);
   if (after_loss == DeviceStatus::success) {
-    // Re-initialized; verify the queue is usable again.
-    if (context.submit_signal(100U, 1U) != DeviceStatus::success ||
-        context.wait(100U, 1U, UINT64_C(2000000000)) != DeviceStatus::success) {
+    // Re-initialized; verify the queue is usable again. The context keeps its
+    // generation across reset, so resubmissions stay on generation 42.
+    if (context.submit_signal(42U, 1U) != DeviceStatus::success ||
+        context.wait(42U, 1U, UINT64_C(2000000000)) != DeviceStatus::success) {
       return 9;
     }
     context.reset();
   } else if (after_loss != DeviceStatus::no_device &&
              after_loss != DeviceStatus::unsupported_features) {
+    std::printf("after_loss status=%u ready=%d lost=%d\n", static_cast<unsigned>(after_loss),
+                context.ready() ? 1 : 0, 0);
     return 9;
   }
   return 0;

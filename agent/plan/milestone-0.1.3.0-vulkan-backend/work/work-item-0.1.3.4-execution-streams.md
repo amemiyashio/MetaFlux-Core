@@ -5,7 +5,7 @@ milestone: milestone-0.1.3.0
 status: Active
 area: backend.vulkan.execution
 depends_on: [work-item-0.1.3.2, work-item-0.1.3.3]
-updated: 2026-09-04
+updated: 2026-09-06
 ---
 
 # Execution, Streams, and Events
@@ -80,6 +80,17 @@ a capability diagnostic and never switch an established context to CPU.
   CTest `metaflux.contract.vulkan-argument-freeze`. Physical dual-driver
   validation-layer execution is deferred to work-item-2.0.0.3 (decision-0040)
   before product SemVer promotion and does **not** reopen the packed layout.
+- [x] Bring the physical execution path up on the reference AMD iGPU. The
+  Nix-provided RADV ICD (mesa 26.1.8, selected through `VK_DRIVER_FILES`)
+  enumerates the real device inside the Nix environment without glibc mixing
+  (AMD 0x1002, device 0x1900, Vulkan 1.4.354, subgroup 64, staging tier); the
+  system-loader ICD is unusable from the Nix toolchain for exactly the private
+  -symbol reason the test LD boundary already guards. Measured result
+  (2026-09-06): the real-device run exposed that the device test resubmitted
+  with a foreign generation after reset; generation-bound submission is the
+  contract, so the test now resubmits on the context's own generation and the
+  full Vulkan row set passes both with the physical device and in the model
+  path.
 
 ## Exit Gate
 
