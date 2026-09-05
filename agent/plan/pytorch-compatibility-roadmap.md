@@ -27,3 +27,19 @@ cache identity changes, and matching parser, verifier, Kernel IR, interpreter,
 lowering, provider, and differential evidence. Only that milestone may decide
 negotiation and publication semantics; a successful framework import or probe
 alone does not promote the frontier profile.
+
+## Probe Record
+
+2026-09-06, baseline profile (PyTorch 2.11.0+cu126, CPython 3.13.15, warm-jit
+daemon): the import stage passes — torch loads and resolves the MetaFlux
+provider. The driver-enumeration stage fails: torch reports 0 CUDA devices
+with driver error 36 (`CUDA_ERROR_NOT_SUPPORTED`) from its cudart
+initialization sequence, so runtime-copy, artifact-intake, and eager-add stay
+blocked. Direct driver-API enumeration through the same provider and daemon
+(`cuInit`/`cuDeviceGetCount`/`cuDeviceGetName` via ctypes) returns one
+`MetaFlux Virtual Compute Device`, so the gap is a specific call inside
+torch's cudart init that the provider answers NOT_SUPPORTED, not enumeration
+itself. PyTorch CUDA is therefore not usable yet; the next lever is tracing
+torch's exact init calls and implementing the missing provider entry points.
+Execution routing additionally remains CPU-only: the daemon has no Vulkan
+execution mode, so no client workload reaches the 780M through PyTorch.
