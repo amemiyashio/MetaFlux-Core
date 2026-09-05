@@ -110,8 +110,15 @@ def main() -> int:
         raise SystemExit(f"missing stage benchmark: {executable}")
 
     start = time.monotonic_ns()
+    benchmark_arguments = [str(executable), str(arguments.warmup), str(arguments.samples)]
+    # The stage benchmark measures the physical queue stages only when it can
+    # read a SPIR-V fixture; the sibling of the benchmark binary is the canonical
+    # location produced by the pipeline-fixture build rule.
+    pipeline_fixture = executable.parent / "metaflux-pipeline-fixture.spv"
+    if pipeline_fixture.is_file():
+        benchmark_arguments.append(str(pipeline_fixture))
     process = subprocess.run(
-        [str(executable), str(arguments.warmup), str(arguments.samples)],
+        benchmark_arguments,
         check=False,
         capture_output=True,
         text=True,
@@ -135,6 +142,25 @@ def main() -> int:
         for row in rows:
             writer.writerow(row)
 
+    physical_stage_metrics = {
+        "vulkan_submit": "vulkan_submit_ns",
+        "kernel_start": "vulkan_kernel_start_ns",
+        "completion": "vulkan_completion_ns",
+    }
+    physical_stage_meanings = {
+        "vulkan_submit": "host wall from command enqueue to vkQueueSubmit2 return",
+        "kernel_start": "device timestamp window of the dispatch (start to completion)",
+        "completion": "host wall from vkQueueSubmit2 to timeline wait completion",
+    }
+    physical_stages: dict[str, dict[str, Any]] = {}
+    for stage, metric in physical_stage_metrics.items():
+        if metric in metrics:
+            physical_stages[stage] = {
+                "status": "measured_physical_queue",
+                "metric": metric,
+                "meaning": physical_stage_meanings[stage],
+                "p50_ns": metrics[metric]["p50"],
+            }
     report = {
         "id": "vulkan.profile.milestone-0.1.3.6.v0",
         "status": "measured-host-independent",
@@ -146,9 +172,13 @@ def main() -> int:
             "executable_sha256": sha256_file(executable),
             "warmup": arguments.warmup,
             "samples": arguments.samples,
+            "pipeline_fixture": str(pipeline_fixture)
+            if pipeline_fixture.is_file()
+            else None,
         },
         "metadata": metadata,
         "metrics": metrics,
+        "physical_queue_stages": physical_stages,
         "stages": {
             "provider_enqueue": {
                 "metric": "vulkan_provider_enqueue_plan_ns",

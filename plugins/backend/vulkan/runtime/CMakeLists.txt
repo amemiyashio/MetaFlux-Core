@@ -12,6 +12,7 @@ endif()
 add_library(
   metaflux_vulkan_backend ${METAFLUX_VULKAN_BACKEND_LIBRARY_TYPE}
   src/capability.cpp
+  src/execution_timestamps.cpp
   src/memory.cpp
   src/target.cpp
   src/streams.cpp

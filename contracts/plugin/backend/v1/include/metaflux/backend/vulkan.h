@@ -140,6 +140,16 @@ mf_vulkan_probe_status_v1 mf_vulkan_probe_capabilities_v1(
 
 const char* mf_vulkan_probe_status_string_v1(mf_vulkan_probe_status_v1 status);
 
+/* Executes one trivial compute dispatch on the profile's physical device and
+ * observes the four execution stages: host walls around command recording and
+ * vkQueueSubmit2, and the device timestamp window of the dispatch anchored to
+ * the host completion observation. spirv_code holds one Vulkan 1.3 compute
+ * shader module (SPIR-V words, entry "main"). The probe owns no Vulkan
+ * handles after it returns. */
+mf_vulkan_probe_status_v1 mf_vulkan_probe_execution_timestamps_v1(
+    const mf_vulkan_capability_profile_v1* profile, const uint32_t* spirv_code,
+    size_t spirv_size, mf_vulkan_execution_timestamps_v1* out_points);
+
 #ifdef __cplusplus
 }
 #endif

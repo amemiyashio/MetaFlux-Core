@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <span>
+#include <vector>
 
 namespace {
 
@@ -143,11 +144,13 @@ bool time_stage(const char* metric, std::uint32_t sample_index, bool (*body)(voi
 int main(int argc, char** argv) {
   std::uint32_t warmup_count = 0U;
   std::uint32_t sample_count = 0U;
-  if (argc != 3 || mf_benchmark_parse_u32(argv[1], &warmup_count) != 0 ||
+  if ((argc != 3 && argc != 4) || mf_benchmark_parse_u32(argv[1], &warmup_count) != 0 ||
       mf_benchmark_parse_u32(argv[2], &sample_count) != 0) {
-    (void)std::fprintf(stderr, "usage: %s WARMUP_COUNT SAMPLE_COUNT\n", argv[0]);
+    (void)std::fprintf(stderr, "usage: %s WARMUP_COUNT SAMPLE_COUNT [PIPELINE_SPIRV_FIXTURE]\n",
+                       argv[0]);
     return 2;
   }
+  const char* const pipeline_fixture_path = argc == 4 ? argv[3] : nullptr;
 
   // capacity, generation
   QueueSubmissionLedger warmup_ledger(4U, 1U);
@@ -180,11 +183,72 @@ int main(int argc, char** argv) {
     return 7;
   }
 
+  // The physical phase requires both a SPIR-V fixture and a live device; when
+  // either is absent the host-independent stages above remain the whole result.
+  std::vector<std::uint32_t> spirv_words;
+  bool physical_measured = false;
+  if (pipeline_fixture_path != nullptr) {
+    if (std::FILE* fixture = std::fopen(pipeline_fixture_path, "rb")) {
+      std::array<std::uint8_t, 4> magic{};
+      physical_measured = std::fread(magic.data(), 1U, magic.size(), fixture) == magic.size();
+      (void)std::fseek(fixture, 0L, SEEK_END);
+      const long fixture_bytes = std::ftell(fixture);
+      (void)std::fseek(fixture, 0L, SEEK_SET);
+      std::rewind(fixture);
+      if (physical_measured && fixture_bytes > 0 && fixture_bytes % 4 == 0) {
+        spirv_words.resize(static_cast<std::size_t>(fixture_bytes) / sizeof(std::uint32_t));
+        physical_measured =
+            std::fread(spirv_words.data(), sizeof(std::uint32_t), spirv_words.size(), fixture) ==
+            spirv_words.size();
+      } else {
+        physical_measured = false;
+      }
+      (void)std::fclose(fixture);
+    }
+  }
+
+  mf_vulkan_capability_profile_v1 profile{};
+  if (physical_measured) {
+    profile.struct_size = static_cast<std::uint32_t>(sizeof(profile));
+    physical_measured = mf_vulkan_probe_capabilities_v1(&profile) == MF_VULKAN_PROBE_SUCCESS;
+  }
+  if (physical_measured) {
+    const auto physical_warmup = warmup_count < 8U ? warmup_count : 8U;
+    mf_vulkan_execution_timestamps_v1 points{};
+    for (std::uint32_t index = 0U; index < physical_warmup; ++index) {
+      if (mf_vulkan_probe_execution_timestamps_v1(&profile, spirv_words.data(),
+                                                  spirv_words.size() * sizeof(std::uint32_t),
+                                                  &points) != MF_VULKAN_PROBE_SUCCESS) {
+        physical_measured = false;
+        break;
+      }
+    }
+    if (physical_measured) {
+      for (std::uint32_t index = 0U; index < sample_count; ++index) {
+        if (mf_vulkan_probe_execution_timestamps_v1(&profile, spirv_words.data(),
+                                                    spirv_words.size() * sizeof(std::uint32_t),
+                                                    &points) != MF_VULKAN_PROBE_SUCCESS ||
+            mf_vulkan_execution_timestamps_ordered_v1(&points) == 0) {
+          physical_measured = false;
+          break;
+        }
+        mf_benchmark_emit_sample("vulkan_submit_ns", index,
+                                 points.submit_ns - points.enqueue_ns, "ns");
+        mf_benchmark_emit_sample("vulkan_kernel_start_ns", index,
+                                 points.completion_ns - points.start_ns, "ns");
+        mf_benchmark_emit_sample("vulkan_completion_ns", index,
+                                 points.completion_ns - points.submit_ns, "ns");
+      }
+    }
+  }
+
   mf_benchmark_emit_metadata_text("workload", "vulkan_stage_profile_host_independent");
   mf_benchmark_emit_metadata_u64("warmup_count", warmup_count);
   mf_benchmark_emit_metadata_u64("sample_count", sample_count);
   mf_benchmark_emit_metadata_text("mode_poll", "stream_graph_and_ledger");
-  mf_benchmark_emit_metadata_text("mode_block", "host_pending_physical_queue");
+  mf_benchmark_emit_metadata_text("mode_block",
+                                  physical_measured ? "measured_physical_queue"
+                                                    : "host_pending_physical_queue");
   mf_benchmark_emit_metadata_text("transport_memfd", "planner_identity_shared");
   mf_benchmark_emit_metadata_text("transport_cdev", "host_pending");
   mf_benchmark_emit_metadata_text("transport_vfio_user", "host_pending");

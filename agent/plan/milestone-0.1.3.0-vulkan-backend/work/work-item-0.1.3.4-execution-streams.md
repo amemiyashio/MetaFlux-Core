@@ -91,6 +91,16 @@ a capability diagnostic and never switch an established context to CPU.
   contract, so the test now resubmits on the context's own generation and the
   full Vulkan row set passes both with the physical device and in the model
   path.
+- [x] Measure the three previously host-pending physical stages.
+  `mf_vulkan_probe_execution_timestamps_v1` executes one SPIR-V compute dispatch
+  on the profile's physical device and observes enqueue, vkQueueSubmit2, the
+  device timestamp window, and timeline completion. The stage profile consumes
+  it when the pipeline fixture and a live device are present; the runner reports
+  the stages under `physical_queue_stages` instead of leaving them host-pending.
+  Measured result (2026-09-06, 780M, 200 samples): submit side ~0.29 ms p50
+  (command recording through vkQueueSubmit2), device dispatch window ~1.6 us
+  p50, submit-to-timeline-completion ~78 us p50. The host-independent stages and
+  both device/model row sets are unchanged.
 
 ## Exit Gate
 
