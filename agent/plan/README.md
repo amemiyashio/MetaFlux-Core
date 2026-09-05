@@ -11,11 +11,15 @@ arbitrary serials.
 | [milestone-0.1.1.0](milestone-0.1.1.0-kernel-guest-transport/plan.md) | 0.1.1.0 | v0.1.1 | Complete | Local cdev and static guest transport |
 | [milestone-0.1.2.0](milestone-0.1.2.0-vpci-lifecycle/plan.md) | 0.1.2.0 | v0.1.2 | Complete | Lifecycle and experimental vPCI presentation |
 | [milestone-0.1.3.0](milestone-0.1.3.0-vulkan-backend/plan.md) | 0.1.3.0 | v0.1.3 | Complete | Vulkan execution backend |
+| [milestone-0.3.0.0](milestone-0.3.0.0-pytorch-cuda-compatibility/plan.md) | 0.3.0.0 | v0.3.0 | Queued | PyTorch CUDA compatibility (after the reserved v0.2.0 NixOS expansion slot) |
 | [milestone-1.0.0.0](milestone-1.0.0.0-stable-qualification/plan.md) | 1.0.0.0 | v1.0.0 | Queued | Stable compatibility contract and reproducible v1.0.0 release |
 | [milestone-2.0.0.0](milestone-2.0.0.0-physical-hardware-qualification/plan.md) | 2.0.0.0 | v2.0.0 | Queued | Intel host, physical NVIDIA binding, and dual-driver Vulkan qualification (decision-0040) |
 
 Cross-release research: [PyTorch compatibility](pytorch-compatibility-roadmap.md)
-tracks optional baseline and frontier client probes without changing a milestone.
+tracks optional baseline and frontier client probes. Its promotion vehicle is
+[milestone-0.3.0.0](milestone-0.3.0.0-pytorch-cuda-compatibility/plan.md);
+probe-only evidence stays diagnostic until a milestone work item records it as
+qualification evidence.
 
 Each milestone owns one `plan.md` and a `work/` directory. The plan defines the
 release outcome, scope, dependencies, global acceptance criteria, unresolved
