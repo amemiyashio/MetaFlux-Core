@@ -70,6 +70,9 @@ identity and provisioning boundaries live in
   PATH-order selection. Except for host Git/Nix bootstrap, every
   executable and tool/version/capability probe runs through the Git-aware
   `nix develop . --command ...` environment before ambient host inspection.
+  Shell grammar for repository work runs under the Nix-provided bash
+  (`nix develop . --command bash -c '...'`); the ambient host shell never
+  executes repository tools.
   The caller harness is not pinned or installed as a repository Nix tool.
   Newly required tools are added to the repository Nix declaration first. Only
   a confirmed Nix materialization gap permits decision-0032 host escalation through

@@ -14,7 +14,9 @@ the repository gates.
    thread data is never an identity input or output. Before any other
    executable except host `git` or `nix`, use
    `nix develop . --command ...`; never probe the ambient host first or use
-   `path:.`.
+   `path:`. Shell grammar for repository work runs under the Nix-provided
+   bash via `nix develop . --command bash -c '...'`; the ambient host shell
+   never executes repository tools.
 2. **Read the current goal.** Read [`agent/README.md`](agent/README.md), durable
    memory, [`agent/goal.json`](agent/goal.json), the target milestone/work item
    and its Exit Gate, then the matching domain skill. Work only on the assigned

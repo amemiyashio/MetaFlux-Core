@@ -50,8 +50,10 @@ Complete this stage before any shell executable except host `git` and `nix`.
    through a Nix shell, the first-choice execution environment:
    `nix develop . --command ...` for repository workflows, or the preferred
    single-tool form `nix shell .#<tool-output> --command TOOL ...` when only
-   one named tool output is required. Never probe the ambient host first and
-   never use `path:.`. The observed caller harness
+   one named tool output is required. Shell grammar for repository work runs
+   under the Nix-provided bash (`nix develop . --command bash -c '...'`);
+   the ambient host shell never executes repository tools. Never probe the
+   ambient host first and never use `path:.`. The observed caller harness
    is not a project tool and is not pinned by repository Nix.
 6. If a required project tool is missing, load `manage-toolchain` and add it to
    the repository Nix declaration first. Only after a confirmed Nix provision

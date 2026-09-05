@@ -19,6 +19,7 @@ let
         prependPackages
         ++ [
           toolPackages.toolchain
+          pkgs.bash
           pkgs.git
         ]
         ++ packages;
