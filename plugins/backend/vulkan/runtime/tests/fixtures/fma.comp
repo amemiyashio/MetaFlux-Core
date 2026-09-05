@@ -1,9 +1,9 @@
 #version 450
 
-// FP32 FMA chain kernel for the GPU throughput probe: every invocation runs
-// ITERS independent rounds of x <- fma(x, 0.5, x0). With x0 = 1.0 every
-// intermediate is an exactly representable dyadic rational, so results are
-// bit-comparable against the scalar reference.
+// FP32 FMA throughput kernel for the GPU probe: every invocation drives CHAINS
+// independent accumulator chains so per-lane FMA latency is hidden by ILP, and
+// the stored value is the exact dyadic sum of all chain results, verifiable
+// bit-for-bit against the scalar reference.
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
@@ -17,8 +17,10 @@ layout(std430, set = 0, binding = 1) restrict readonly buffer Src {
 
 layout(push_constant) uniform Push {
     uint count;
-    uint iters;
+    uint rounds;
 } push_constants;
+
+const uint CHAINS = 16U;
 
 void main() {
     const uint index = gl_GlobalInvocationID.x;
@@ -26,9 +28,18 @@ void main() {
         return;
     }
     const float x0 = src[index];
-    float x = x0;
-    for (uint step = 0U; step < push_constants.iters; ++step) {
-        x = fma(x, 0.5, x0);
+    float chains[CHAINS];
+    for (uint c = 0U; c < CHAINS; ++c) {
+        chains[c] = x0 + float(c);
     }
-    dst[index] = x;
+    for (uint round = 0U; round < push_constants.rounds; ++round) {
+        for (uint c = 0U; c < CHAINS; ++c) {
+            chains[c] = fma(chains[c], 0.5, x0);
+        }
+    }
+    float sum = 0.0;
+    for (uint c = 0U; c < CHAINS; ++c) {
+        sum += chains[c];
+    }
+    dst[index] = sum;
 }

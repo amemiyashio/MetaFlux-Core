@@ -32,7 +32,8 @@ using metaflux::backend::vulkan::VulkanStagingBuffer;
 
 constexpr std::uint32_t kWorkgroupSize = 256U;
 constexpr std::uint32_t kDefaultElements = 1024U * 1024U;
-constexpr std::uint32_t kDefaultIterations = 64U;
+constexpr std::uint32_t kDefaultRounds = 64U;
+constexpr std::uint32_t kChains = 16U;
 constexpr float kSourceValue = 1.0F;
 
 std::uint64_t steady_ns() noexcept {
@@ -41,12 +42,16 @@ std::uint64_t steady_ns() noexcept {
       std::chrono::duration_cast<std::chrono::nanoseconds>(now).count());
 }
 
-[[nodiscard]] float scalar_reference(std::uint32_t iterations) noexcept {
-  float x = kSourceValue;
-  for (std::uint32_t step = 0U; step < iterations; ++step) {
-    x = std::fma(x, 0.5F, kSourceValue);
+[[nodiscard]] float scalar_reference(std::uint32_t rounds) noexcept {
+  float sum = 0.0F;
+  for (std::uint32_t chain = 0U; chain < kChains; ++chain) {
+    float x = kSourceValue + static_cast<float>(chain);
+    for (std::uint32_t step = 0U; step < rounds; ++step) {
+      x = std::fma(x, 0.5F, kSourceValue);
+    }
+    sum += x;
   }
-  return x;
+  return sum;
 }
 
 } // namespace
@@ -54,12 +59,12 @@ std::uint64_t steady_ns() noexcept {
 int main(int argc, char** argv) {
   if (argc != 5) {
     (void)std::fprintf(stderr,
-                       "usage: %s SPIRV_PATH ELEMENTS FMA_ITERATIONS SAMPLES\n", argv[0]);
+                       "usage: %s SPIRV_PATH ELEMENTS FMA_ROUNDS SAMPLES\n", argv[0]);
     return 2;
   }
   const char* const spirv_path = argv[1];
   std::uint32_t elements = kDefaultElements;
-  std::uint32_t iterations = kDefaultIterations;
+  std::uint32_t iterations = kDefaultRounds;
   std::uint32_t sample_count = 3U;
   if (mf_benchmark_parse_u32(argv[2], &elements) != 0 ||
       mf_benchmark_parse_u32(argv[3], &iterations) != 0 ||
@@ -336,9 +341,11 @@ int main(int argc, char** argv) {
   }
 
   mf_benchmark_emit_metadata_u64("elements", elements);
-  mf_benchmark_emit_metadata_u64("fma_iterations", iterations);
-  mf_benchmark_emit_metadata_u64("flops_per_launch",
-                                 static_cast<std::uint64_t>(elements) * iterations * 2U);
+  mf_benchmark_emit_metadata_u64("fma_rounds", iterations);
+  mf_benchmark_emit_metadata_u64("chains", kChains);
+  mf_benchmark_emit_metadata_u64(
+      "flops_per_launch",
+      static_cast<std::uint64_t>(elements) * kChains * iterations * 2U);
   mf_benchmark_emit_metadata_u64("workgroups", groups);
   mf_benchmark_emit_metadata_text("clock", "CLOCK_MONOTONIC_RAW");
   mf_benchmark_emit_metadata_text("device_name", profile.device_name);
@@ -352,8 +359,8 @@ int main(int argc, char** argv) {
       all_ok = false;
       break;
     }
-    const double flops =
-        static_cast<double>(elements) * static_cast<double>(iterations) * 2.0;
+    const double flops = static_cast<double>(elements) * static_cast<double>(kChains) *
+                         static_cast<double>(iterations) * 2.0;
     mf_benchmark_emit_sample("gpu_fma_dispatch_window_ns", index, window, "ns");
     mf_benchmark_emit_sample("gpu_fma_wall_ns", index, wall, "ns");
     mf_benchmark_emit_sample("gpu_fma_throughput", index,
