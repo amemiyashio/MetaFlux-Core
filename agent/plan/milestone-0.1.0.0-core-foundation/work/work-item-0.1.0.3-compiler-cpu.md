@@ -143,6 +143,15 @@ On the same aot baseline the median launch fell from 1.11 ms to 1.06 ms
 CSE-collapsed benchmark understates. Both corpus gates stay green, including
 the tie and subnormal fixtures.
 
+Measured result (2026-09-06): the region group loop unrolls two lane groups per
+iteration with a runtime guard for the odd tail, and the region lane width
+follows the host ISA — 16 lanes when canonical features advertise AVX-512,
+otherwise 8 (identity gains `simd-region-unroll-v3`; width derives only from
+cached features, so artifacts never cross widths). On the same aot baseline the
+median launch fell from 1.06 ms to 0.90 ms (148.9 GFLOP/s nominal) with the
+f32 math now in 512-bit zmm forms. Both corpus gates stay green. An O3-pipeline
+experiment measured slower than O2 (97.0 GFLOP/s) and was rejected.
+
 ## PTX Oracle and Corpus (decision-0017)
 
 Compiler epoch 1 freezes PTX 9.0 targeting `sm_70`, 64-bit addressing, Kernel

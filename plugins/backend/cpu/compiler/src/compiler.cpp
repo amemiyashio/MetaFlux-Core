@@ -321,8 +321,9 @@ std::optional<ElementwisePlan> elementwise_plan(const Kernel& kernel) {
 
 class MlirEmitter {
 public:
-  explicit MlirEmitter(const Kernel& kernel)
-      : kernel_(kernel), elementwise_(elementwise_plan(kernel)) {
+  explicit MlirEmitter(const Kernel& kernel, std::uint32_t region_lane_count)
+      : kernel_(kernel), elementwise_(elementwise_plan(kernel)),
+        lane_count_(region_lane_count) {
     origins_.resize(kernel.registers.size());
     compute_address_origins();
     compute_shared_offsets();
@@ -391,6 +392,10 @@ private:
   // Per-phase set of registers whose value advances one word per lane, making
   // global accesses over them stride-one contiguous.
   std::unordered_set<std::uint32_t> linear_registers_;
+  // Region lane count: 8 lanes, or 16 when the compiling host advertises
+  // AVX-512. Fixed per emission and derived only from canonical features, so
+  // the cache identity selects the matching artifacts.
+  std::uint32_t lane_count_ = 8U;
 
   [[nodiscard]] std::string value() { return "%v" + std::to_string(next_value_++); }
   [[nodiscard]] std::string block() { return "^b" + std::to_string(next_block_++); }
@@ -493,14 +498,12 @@ private:
     return result;
   }
 
-  // The pure-operation SIMD region shape: every emitted value covers eight
-  // consecutive lanes and lives only in SSA form; array transfers happen once
-  // at the region boundary through masked loads and stores.
-  static constexpr std::string_view kVectorRegionLanesText = "8";
-
-  [[nodiscard]] static std::string vtype(std::string_view scalar_type) {
-    return "vector<" + std::string(kVectorRegionLanesText) + "x" + std::string(scalar_type) +
-           ">";
+  // The SIMD region shape: every emitted value covers the region lane count
+  // (8, or 16 on AVX-512 hosts) of consecutive lanes and lives only in SSA
+  // form; array transfers happen once at the region boundary through masked
+  // loads and stores.
+  [[nodiscard]] std::string vtype(std::string_view scalar_type) const {
+    return "vector<" + std::to_string(lane_count_) + "x" + std::string(scalar_type) + ">";
   }
 
   [[nodiscard]] std::string constant_splat_i32(std::uint32_t number) {
@@ -530,9 +533,14 @@ private:
   }
 
   [[nodiscard]] std::string constant_lane_offsets() {
+    std::string offsets = "dense<[0";
+    for (std::uint32_t lane = 1; lane < lane_count_; ++lane) {
+      offsets += ", " + std::to_string(lane);
+    }
+    offsets += "]>";
     const auto result = value();
-    line(result + " = llvm.mlir.constant(dense<[0, 1, 2, 3, 4, 5, 6, 7]> : " + vtype("i32") +
-         ") : " + vtype("i32"));
+    line(result + " = llvm.mlir.constant(" + offsets + " : " + vtype("i32") + ") : " +
+         vtype("i32"));
     return result;
   }
 
@@ -545,7 +553,7 @@ private:
   [[nodiscard]] std::string splat_scalar(std::string_view scalar, std::string_view scalar_type) {
     const auto vector_type_text = vtype(scalar_type);
     auto accumulated = undef_vector(scalar_type);
-    for (std::uint32_t lane = 0; lane < 8U; ++lane) {
+    for (std::uint32_t lane = 0; lane < lane_count_; ++lane) {
       const auto index = constant_i32(lane);
       const auto index64 = cast("zext", index, "i32", "i64");
       const auto inserted = value();
@@ -1026,8 +1034,10 @@ private:
     const auto done = block();
     const auto header = block();
     const auto body = block();
-    const auto group_capacity = constant_i32(8U);
-    const auto tail_allowance = constant_i32(7U);
+    const auto second_group = block();
+    const auto latch = block();
+    const auto group_capacity = constant_i32(lane_count_);
+    const auto tail_allowance = constant_i32(lane_count_ - 1U);
     const auto threaded_plus_tail = binary("add", state.block_threads, tail_allowance, "i32");
     const auto group_count = binary("udiv", threaded_plus_tail, group_capacity, "i32");
     // Buffer sizes, writable flags, and base addresses are constant for the
@@ -1063,14 +1073,8 @@ private:
       }
       (void)memory_invariants_for(origins_[operation.inputs[0]].index, store);
     }
-    const auto group = value();
-    line("llvm.br " + header + "(" + state.zero_i32 + " : i32)");
-    output_ << "  " << header << "(" << group << ": i32):\n";
-    const auto more_groups = compare("ult", group, group_count, "i32");
-    line("llvm.cond_br " + more_groups + ", " + body + ", " + done);
-    declare_block(body);
-
-    const auto base32 = binary("mul", group, group_capacity, "i32");
+    const auto emit_region_group = [&](std::string_view group_index) {
+    const auto base32 = binary("mul", group_index, group_capacity, "i32");
     const auto base64 = cast("zext", base32, "i32", "i64");
     const auto lane_offsets = constant_lane_offsets();
     const auto base_lanes = splat_scalar(base32, "i32");
@@ -1324,9 +1328,31 @@ private:
       const auto pointer = gep(state.register_storage[operation.result], base64, scalar_type);
       masked_store(vector_value, pointer, scalar_type, lane_mask, scalar_align(kind));
     }
+    };
 
-    const auto next_group = binary("add", group, state.one_i32, "i32");
-    line("llvm.br " + header + "(" + next_group + " : i32)");
+    // Two lane groups per iteration halve the loop and active-array overhead;
+    // the second group is runtime-guarded because group_count may be odd.
+    const auto pair_stride = constant_i32(2U);
+    const auto pair_tail = constant_i32(1U);
+    const auto pair_count = binary("udiv", binary("add", group_count, pair_tail, "i32"),
+                                   pair_stride, "i32");
+    const auto group = value();
+    line("llvm.br " + header + "(" + state.zero_i32 + " : i32)");
+    output_ << "  " << header << "(" << group << ": i32):\n";
+    const auto first_group = binary("mul", group, pair_stride, "i32");
+    const auto more_pairs = compare("ult", first_group, group_count, "i32");
+    line("llvm.cond_br " + more_pairs + ", " + body + ", " + done);
+    declare_block(body);
+    emit_region_group(first_group);
+    const auto second_group_index = binary("add", first_group, pair_tail, "i32");
+    const auto has_second = compare("ult", second_group_index, group_count, "i32");
+    line("llvm.cond_br " + has_second + ", " + second_group + ", " + latch);
+    declare_block(second_group);
+    emit_region_group(second_group_index);
+    line("llvm.br " + latch);
+    declare_block(latch);
+    const auto next_pair = binary("add", group, state.one_i32, "i32");
+    line("llvm.br " + header + "(" + next_pair + " : i32)");
     return done;
   }
 
@@ -2165,6 +2191,18 @@ std::string_view compile_error_name(CompileError error) noexcept {
   return "MF_CPU_COMPILE_UNKNOWN";
 }
 
+// Region lane width follows the compiling host's advertised vector ISA: 16
+// lanes when AVX-512 is present, otherwise 8. Canonical features are already
+// part of the cache identity, so artifacts never cross widths.
+[[nodiscard]] std::uint32_t region_lane_count(const CompileOptions& options) {
+  for (const auto& feature : options.canonical_features) {
+    if (feature == "+avx512f") {
+      return 16U;
+    }
+  }
+  return 8U;
+}
+
 CompileResult compile_kernel(const Kernel& kernel, const CompileOptions& options) {
   if (cancelled(options)) {
     return failure(CompileError::Cancelled, "compilation was cancelled before verification");
@@ -2184,7 +2222,7 @@ CompileResult compile_kernel(const Kernel& kernel, const CompileOptions& options
                    "per-CTA register storage exceeds the configured compiler limit");
   }
 
-  MlirEmitter emitter(kernel);
+  MlirEmitter emitter(kernel, region_lane_count(options));
   auto mlir_text = emitter.emit();
   if (mlir_text.empty()) {
     return failure(CompileError::MlirGeneration, "Kernel IR lowering produced empty MLIR");
