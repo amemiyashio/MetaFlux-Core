@@ -291,6 +291,16 @@ struct CpuExecutor::Impl final {
           std::string(placement_error_name(configuration_error)) + ": " + configuration_diagnostic;
       return execution_failure(placement_execution_error(configuration_error));
     }
+    // Steady-state revalidation: cheap identity inputs (sched_getaffinity +
+    // stat metadata of the consumed topology files) prove the cached
+    // snapshot still holds without constructing snapshot containers or
+    // parsing file content. Any change falls through to the full discovery,
+    // preserving the automatic quiesce-and-rebuild contract.
+    if (placement.has_value() &&
+        placement_snapshot_current(options.paths, options.policy, *placement)) {
+      diagnostic.clear();
+      return {};
+    }
     auto discovered = discover_cpu_placement(options.paths, options.policy);
     if (!discovered.ok()) {
       pools.clear();

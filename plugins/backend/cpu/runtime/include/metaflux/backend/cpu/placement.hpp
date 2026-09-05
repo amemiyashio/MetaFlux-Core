@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -75,6 +76,11 @@ struct PlacementSnapshot final {
   std::vector<NumaWorkerPoolPlacement> pools;
   std::optional<std::uint32_t> explicit_cpu;
   bool cross_node_stealing = false;
+  // Revalidation inputs: last-write-time and size of every topology file the
+  // full discovery consumed, captured when the snapshot was produced. Filled
+  // by discover_cpu_placement; used by placement_snapshot_current.
+  std::map<std::filesystem::path, std::filesystem::file_time_type> file_identities;
+  std::map<std::filesystem::path, std::uintmax_t> file_sizes;
 
   [[nodiscard]] std::size_t worker_count() const noexcept;
 };
@@ -89,6 +95,16 @@ struct PlacementResult final {
 
 [[nodiscard]] PlacementResult discover_cpu_placement(const PlacementPaths& paths = {},
                                                      const PlacementPolicy& policy = {});
+
+// Revalidation form of discovery used on kernel boundaries: cheap identity
+// inputs only (sched_getaffinity plus stat metadata of the topology files the
+// full discovery reads) decide whether the previous snapshot still holds. No
+// snapshot is constructed and no topology file content is parsed unless the
+// identity changed; callers then re-run plain discovery.
+[[nodiscard]] bool placement_snapshot_current(const PlacementPaths& paths,
+                                              const PlacementPolicy& policy,
+                                              const PlacementSnapshot& previous);
+
 [[nodiscard]] PlacementPathsResult
 placement_paths_for_topology_root(std::optional<std::string_view> topology_root);
 [[nodiscard]] PlacementPathsResult placement_paths_from_environment();

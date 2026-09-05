@@ -550,7 +550,101 @@ PlacementResult discover_cpu_placement(const PlacementPaths& paths, const Placem
   if (snapshot.worker_count() == 0U) {
     return failure(PlacementError::NoEffectiveCpu, "control-core reservation left no worker CPU");
   }
+  // Capture the file identity of every input the full discovery consumed so
+  // placement_snapshot_current can revalidate without re-parsing them.
+  std::vector<std::filesystem::path> consumed;
+  consumed.push_back(paths.sys_cpu_root / "online");
+  consumed.push_back(paths.sys_node_root / "online");
+  if (paths.cgroup_directory.has_value()) {
+    consumed.push_back(*paths.cgroup_directory / "cpuset.cpus.effective");
+    consumed.push_back(*paths.cgroup_directory / "cpuset.mems.effective");
+    consumed.push_back(*paths.cgroup_directory / "cgroup.controllers");
+  } else {
+    consumed.push_back("/proc/self/cgroup");
+    consumed.push_back("/proc/self/mountinfo");
+  }
+  for (const auto& cpu : snapshot.effective_cpus) {
+    const auto topology = paths.sys_cpu_root / ("cpu" + std::to_string(cpu)) / "topology";
+    consumed.push_back(topology / "physical_package_id");
+    consumed.push_back(topology / "core_id");
+    consumed.push_back(topology / "thread_siblings_list");
+  }
+  for (const auto& file : consumed) {
+    std::error_code identity_error;
+    const auto identity = std::filesystem::last_write_time(file, identity_error);
+    std::error_code size_error;
+    const auto size = std::filesystem::file_size(file, size_error);
+    if (!identity_error && !size_error) {
+      snapshot.file_identities.emplace(file, identity);
+      snapshot.file_sizes.emplace(file, size);
+    }
+  }
   return {.snapshot = std::move(snapshot), .error = PlacementError::None, .diagnostic = {}};
+}
+
+bool placement_snapshot_current(const PlacementPaths& paths, const PlacementPolicy& policy,
+                                const PlacementSnapshot& previous) {
+  // Cheap identity probe: the same inputs that seed the full discovery, but
+  // read as stat metadata and a tiny sched_getaffinity call instead of
+  // parsing every topology file into fresh vectors and strings.
+  if (previous.sched_affinity.empty() || previous.pools.empty()) {
+    return false;
+  }
+  if (policy.explicit_cpu != previous.explicit_cpu) {
+    return false;
+  }
+
+  auto affinity = paths.affinity_override;
+  if (!affinity.has_value()) {
+    std::string probe_diagnostic;
+    affinity = process_affinity(probe_diagnostic);
+    if (!affinity.has_value()) {
+      return false;
+    }
+    std::sort(affinity->begin(), affinity->end());
+    affinity->erase(std::unique(affinity->begin(), affinity->end()), affinity->end());
+  }
+  if (*affinity != previous.sched_affinity) {
+    return false;
+  }
+
+  // File identity: size + mtime of every file the full discovery reads. If
+  // any file is missing or its identity changed, the snapshot is stale and
+  // the caller falls back to full discovery (which re-derives correctness
+  // and exact error semantics).
+  std::vector<std::filesystem::path> files;
+  files.push_back(paths.sys_cpu_root / "online");
+  if (paths.cgroup_directory.has_value()) {
+    files.push_back(*paths.cgroup_directory / "cpuset.cpus.effective");
+    files.push_back(*paths.cgroup_directory / "cpuset.mems.effective");
+    files.push_back(*paths.cgroup_directory / "cgroup.controllers");
+  } else {
+    files.push_back("/proc/self/cgroup");
+    files.push_back("/proc/self/mountinfo");
+  }
+  files.push_back(paths.sys_node_root / "online");
+  for (const auto& cpu : previous.effective_cpus) {
+    const auto topology = paths.sys_cpu_root / ("cpu" + std::to_string(cpu)) / "topology";
+    files.push_back(topology / "physical_package_id");
+    files.push_back(topology / "core_id");
+    files.push_back(topology / "thread_siblings_list");
+  }
+  for (const auto& file : files) {
+    std::error_code error;
+    const auto identity = std::filesystem::last_write_time(file, error);
+    if (error) {
+      return false;
+    }
+    const auto size = std::filesystem::file_size(file, error);
+    if (error) {
+      return false;
+    }
+    if (identity != previous.file_identities.at(file) ||
+        size != previous.file_sizes.at(file)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 } // namespace metaflux::backend::cpu
