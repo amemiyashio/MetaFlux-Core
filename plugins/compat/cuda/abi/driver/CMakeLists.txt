@@ -37,6 +37,8 @@ add_library(
   metaflux_cuda_provider
   SHARED
     src/provider.c
+    src/provider_stubs.c
+    src/provider_gap_stubs.c
     src/dispatch.c
     "${cuda_symbol_manifest}"
     "${cuda_managed_renames}"

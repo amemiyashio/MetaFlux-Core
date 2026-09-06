@@ -2,6 +2,8 @@ add_executable(
   metaflux_cuda_provider_semantics_test
   provider_test.c
   ../src/provider.c
+  ../src/provider_stubs.c
+  ../src/provider_gap_stubs.c
   ../src/dispatch.c
   "${cuda_managed_renames}"
 )
@@ -32,6 +34,8 @@ add_library(
   metaflux_cuda_provider_mode_fixture
   SHARED
     ../src/provider.c
+    ../src/provider_stubs.c
+    ../src/provider_gap_stubs.c
     ../src/dispatch.c
     "${cuda_managed_renames}"
 )

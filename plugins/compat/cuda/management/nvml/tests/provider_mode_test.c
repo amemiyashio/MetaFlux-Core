@@ -8,6 +8,16 @@
 
 #include "passthrough_internal.h"
 
+/* The vendor fixture's surface tracks symbols.def; count it at compile time
+   so the pinned expectation follows every declared surface expansion. */
+#define MF_CUDA_INTERNAL(name)
+#define MF_CUDA_SYMBOL(name, version, status, route, parameters, arguments) + 1
+static const unsigned int mf_cuda_declared_surface = 0
+#include "../../../abi/driver/symbols.def"
+;
+#undef MF_CUDA_SYMBOL
+#undef MF_CUDA_INTERNAL
+
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -641,7 +651,7 @@ static int mf_test_passthrough(const mf_mode_environment* environment, const mf_
   }
   MF_CHECK(cuda_init_result == CUDA_SUCCESS);
   MF_CHECK(nvml->init_v2() == NVML_SUCCESS);
-  MF_CHECK(cuda->validate_surface() == UINT32_C(77));
+  MF_CHECK(cuda->validate_surface() == mf_cuda_declared_surface);
   MF_CHECK(nvml->validate_surface() == UINT32_C(131));
   MF_CHECK(cuda->driver_get_version(&cuda_version) == CUDA_SUCCESS && cuda_version == 12070);
   MF_CHECK(cuda->device_get_count(&cuda_count) == CUDA_SUCCESS && cuda_count == 1);

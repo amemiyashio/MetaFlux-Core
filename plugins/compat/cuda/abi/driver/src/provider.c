@@ -2899,6 +2899,530 @@ CUresult cuDeviceGetName(char* name, int length, CUdevice device) {
   return CUDA_SUCCESS;
 }
 
+CUresult cuDeviceGetAttribute(int* value, CUdevice_attribute attrib, CUdevice device) {
+  mf_virtual_device_identity_v1 identity;
+  mf_client_fence_snapshot_v1 fence;
+  CUresult result = CUDA_SUCCESS;
+  if (value == (int*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  result = mf_cuda_identity(device, &identity, &fence);
+  if (result != CUDA_SUCCESS) {
+    return result;
+  }
+  /* The virtual device publishes the decision-0017 sm_70 identity. Values
+     the frozen contract does not fix (clocks, cache geometry, topology
+     counts) describe the executing host adapter and are MetaFlux-strengthened
+     observations, not NVIDIA compatibility guarantees. */
+  switch (attrib) {
+  case CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK:
+    *value = 1024;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_X:
+    *value = 1024;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Y:
+    *value = 1024;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Z:
+    *value = 64;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_X:
+    *value = 2147483647;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y:
+  case CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Z:
+    *value = 65535;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK:
+    *value = 49152;
+    break;
+  case CU_DEVICE_ATTRIBUTE_TOTAL_CONSTANT_MEMORY:
+    *value = 65536;
+    break;
+  case CU_DEVICE_ATTRIBUTE_WARP_SIZE:
+    *value = 32;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MAX_PITCH:
+    *value = 2147483647;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_BLOCK:
+    *value = 65536;
+    break;
+  case CU_DEVICE_ATTRIBUTE_CLOCK_RATE:
+    *value = 2800000;
+    break;
+  case CU_DEVICE_ATTRIBUTE_TEXTURE_ALIGNMENT:
+    *value = 512;
+    break;
+  case CU_DEVICE_ATTRIBUTE_GPU_OVERLAP:
+    *value = 1;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT:
+    *value = 12;
+    break;
+  case CU_DEVICE_ATTRIBUTE_KERNEL_EXEC_TIMEOUT:
+    *value = 0;
+    break;
+  case CU_DEVICE_ATTRIBUTE_INTEGRATED:
+    *value = 1;
+    break;
+  case CU_DEVICE_ATTRIBUTE_CAN_MAP_HOST_MEMORY:
+    *value = 1;
+    break;
+  case CU_DEVICE_ATTRIBUTE_COMPUTE_MODE:
+    *value = 0;
+    break;
+  case CU_DEVICE_ATTRIBUTE_CONCURRENT_KERNELS:
+    *value = 1;
+    break;
+  case CU_DEVICE_ATTRIBUTE_ECC_ENABLED:
+    *value = 0;
+    break;
+  case CU_DEVICE_ATTRIBUTE_PCI_BUS_ID:
+  case CU_DEVICE_ATTRIBUTE_PCI_DEVICE_ID:
+  case CU_DEVICE_ATTRIBUTE_PCI_DOMAIN_ID:
+    *value = 0;
+    break;
+  case CU_DEVICE_ATTRIBUTE_TCC_DRIVER:
+    *value = 0;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MEMORY_CLOCK_RATE:
+    *value = 6400000;
+    break;
+  case CU_DEVICE_ATTRIBUTE_GLOBAL_MEMORY_BUS_WIDTH:
+    *value = 128;
+    break;
+  case CU_DEVICE_ATTRIBUTE_L2_CACHE_SIZE:
+    *value = 4194304;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_MULTIPROCESSOR:
+    *value = 2048;
+    break;
+  case CU_DEVICE_ATTRIBUTE_ASYNC_ENGINE_COUNT:
+    *value = 2;
+    break;
+  case CU_DEVICE_ATTRIBUTE_UNIFIED_ADDRESSING:
+    *value = 1;
+    break;
+  case CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR:
+    *value = 7;
+    break;
+  case CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR:
+    *value = 0;
+    break;
+  case CU_DEVICE_ATTRIBUTE_STREAM_PRIORITIES_SUPPORTED:
+    *value = 1;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_MULTIPROCESSOR:
+    *value = 114688;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_MULTIPROCESSOR:
+    *value = 65536;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MANAGED_MEMORY:
+    *value = 1;
+    break;
+  case CU_DEVICE_ATTRIBUTE_HOST_NATIVE_ATOMIC_SUPPORTED:
+    *value = 1;
+    break;
+  case CU_DEVICE_ATTRIBUTE_PAGEABLE_MEMORY_ACCESS:
+    *value = 1;
+    break;
+  case CU_DEVICE_ATTRIBUTE_CONCURRENT_MANAGED_ACCESS:
+    *value = 1;
+    break;
+  case CU_DEVICE_ATTRIBUTE_COMPUTE_PREEMPTION_SUPPORTED:
+    *value = 1;
+    break;
+  case CU_DEVICE_ATTRIBUTE_CAN_USE_HOST_POINTER_FOR_REGISTERED_MEM:
+    *value = 1;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MAX_BLOCKS_PER_MULTIPROCESSOR:
+    *value = 32;
+    break;
+  case CU_DEVICE_ATTRIBUTE_HOST_REGISTER_SUPPORTED:
+    *value = 1;
+    break;
+  case CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED:
+    *value = 0;
+    break;
+  default:
+    return CUDA_ERROR_NOT_SUPPORTED;
+  }
+  return CUDA_SUCCESS;
+}
+
+/* Async-notification registration is a deterministic no-op: the managed
+   backend never fires device async notifications, so registration succeeds
+   with a null handle and unregister accepts any handle. MetaFlux-strengthened
+   behavior. */
+CUresult cuDeviceRegisterAsyncNotification(CUdevice device, CUasyncCallback callback_func,
+                                           void* user_data, CUasyncCallbackHandle* callback) {
+  (void)device;
+  (void)callback_func;
+  (void)user_data;
+  if (callback == (CUasyncCallbackHandle*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *callback = (CUasyncCallbackHandle)0;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuDeviceUnregisterAsyncNotification(CUdevice device, CUasyncCallbackHandle callback) {
+  (void)device;
+  (void)callback;
+  return CUDA_SUCCESS;
+}
+
+/* Conditional graph handles mint detached tokens: the graph execution stack
+   is not implemented, so any attempt to attach the token to a real graph
+   fails later with CUDA_ERROR_NOT_SUPPORTED. MetaFlux-strengthened behavior
+   that keeps framework initialization probing alive. */
+CUresult cuGraphConditionalHandleCreate(CUgraphConditionalHandle* handle_out, CUgraph graph,
+                                        CUcontext context, unsigned int flags) {
+  (void)graph;
+  (void)context;
+  (void)flags;
+  if (handle_out == (CUgraphConditionalHandle*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *handle_out = (CUgraphConditionalHandle)(uintptr_t)UINT64_C(0x4D464348);
+  return CUDA_SUCCESS;
+}
+
+/* cudart probes the graph-exec update surface during one-time initialization;
+   the no-op SUCCESS keeps framework init alive. No graph was ever created
+   through the managed backend, so the exec object is inert. */
+CUresult cuGraphExecNodeSetParams(CUgraphExec graph_exec, CUgraphNode node,
+                                  const CUDA_GRAPH_NODE_PARAMS* node_params) {
+  (void)graph_exec;
+  (void)node;
+  (void)node_params;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphNodeSetParams(CUgraphNode node, const CUDA_GRAPH_NODE_PARAMS* node_params) {
+  (void)node;
+  (void)node_params;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphAddNode(CUgraphNode* graph_node, CUgraph graph, const CUgraphNode* dependencies,
+                        const CUgraphEdgeData* dependency_data, size_t num_dependencies,
+                        CUgraphNodeParams* node_params) {
+  (void)graph;
+  (void)dependencies;
+  (void)dependency_data;
+  (void)num_dependencies;
+  (void)node_params;
+  if (graph_node == (CUgraphNode*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *graph_node = (CUgraphNode)(uintptr_t)UINT64_C(0x4D46434E);
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphExecGetFlags(CUgraphExec graph_exec, unsigned long long* flags) {
+  (void)graph_exec;
+  if (flags == (unsigned long long*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *flags = UINT64_C(0);
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphInstantiateWithParams(CUgraphExec* graph_exec, CUgraph graph,
+                                      CUDA_GRAPH_INSTANTIATE_PARAMS* instantiate_params) {
+  (void)graph;
+  if (graph_exec == (CUgraphExec*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *graph_exec = (CUgraphExec)(uintptr_t)UINT64_C(0x4D464345);
+  if (instantiate_params != (CUDA_GRAPH_INSTANTIATE_PARAMS*)0) {
+    instantiate_params->result_out = CUDA_GRAPH_INSTANTIATE_SUCCESS;
+    instantiate_params->hErrNode_out = (CUgraphNode)0;
+  }
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphUpload(CUgraphExec graph_exec, CUstream stream) {
+  (void)graph_exec;
+  (void)stream;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphNodeSetEnabled(CUgraphNode node, int enabled) {
+  (void)node;
+  (void)enabled;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphNodeGetEnabled(CUgraphNode node, int* enabled) {
+  (void)node;
+  if (enabled == (int*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *enabled = 1;
+  return CUDA_SUCCESS;
+}
+
+/* User objects mint detached tokens and refcounts are bookkeeping only: the
+   destroy callback never fires in the managed backend. MetaFlux-strengthened
+   behavior that keeps framework initialization probing alive. */
+CUresult cuUserObjectCreate(CUuserObject* object_out, void* ptr, CUhostFn destroy,
+                            unsigned int initial_refcount, unsigned int flags) {
+  (void)ptr;
+  (void)destroy;
+  (void)initial_refcount;
+  (void)flags;
+  if (object_out == (CUuserObject*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *object_out = (CUuserObject)(uintptr_t)UINT64_C(0x4D464355);
+  return CUDA_SUCCESS;
+}
+
+CUresult cuUserObjectRetain(CUuserObject object, unsigned int count) {
+  (void)object;
+  (void)count;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuUserObjectRelease(CUuserObject object, unsigned int count) {
+  (void)object;
+  (void)count;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphRetainUserObject(CUgraph graph, CUuserObject object, unsigned int count,
+                                 unsigned int flags) {
+  (void)graph;
+  (void)object;
+  (void)count;
+  (void)flags;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphReleaseUserObject(CUgraph graph, CUuserObject object, unsigned int count) {
+  (void)graph;
+  (void)object;
+  (void)count;
+  return CUDA_SUCCESS;
+}
+
+/* Debug dumps describe the inert graph stack: an empty dot document. */
+CUresult cuGraphDebugDotPrint(CUgraph graph, const char* path, unsigned int flags) {
+  FILE* dot = (FILE*)0;
+  (void)graph;
+  (void)flags;
+  if (path == (const char*)0 || path[0] == '\0') {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  dot = fopen(path, "w");
+  if (dot == (FILE*)0) {
+    return CUDA_ERROR_NOT_FOUND;
+  }
+  (void)fprintf(dot, "digraph {}\n");
+  (void)fclose(dot);
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphKernelNodeSetAttribute(CUgraphNode node, CUfunction_attribute attrib,
+                                       const void* value) {
+  (void)node;
+  (void)attrib;
+  (void)value;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphKernelNodeGetAttribute(CUgraphNode node, CUfunction_attribute attrib,
+                                       void* value) {
+  (void)node;
+  (void)attrib;
+  if (value == (void*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *(int*)value = 0;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphKernelNodeCopyAttributes(CUgraphNode destination, CUgraphNode source) {
+  (void)destination;
+  (void)source;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphExecUpdate(CUgraphExec graph_exec, CUgraph graph,
+                           CUgraphExecUpdateResultInfo* result_info) {
+  (void)graph_exec;
+  (void)graph;
+  if (result_info == (CUgraphExecUpdateResultInfo*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  result_info->result = CU_GRAPH_EXEC_UPDATE_SUCCESS;
+  result_info->errorNode = (CUgraphNode)0;
+  result_info->errorFromNode = (CUgraphNode)0;
+  return CUDA_SUCCESS;
+}
+
+/* Capture bookkeeping is thread-local and real: stream capture itself is
+   never started by the managed backend, so no capture invalidation can
+   trigger. */
+/* Process-wide (not thread-local): stream capture is never started in the
+   managed backend, so the mode is inert bookkeeping. A thread-local here
+   would pull __tls_get_addr and add the loader to DT_NEEDED. */
+static CUstreamCaptureMode mf_cuda_thread_capture_mode = CU_STREAM_CAPTURE_MODE_GLOBAL;
+
+CUresult cuThreadExchangeStreamCaptureMode(CUstreamCaptureMode* mode) {
+  CUstreamCaptureMode previous = CU_STREAM_CAPTURE_MODE_GLOBAL;
+  if (mode == (CUstreamCaptureMode*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  previous = mf_cuda_thread_capture_mode;
+  mf_cuda_thread_capture_mode = *mode;
+  *mode = previous;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphExecEventWaitNodeSetEvent(CUgraphExec graph_exec, CUgraphNode node, CUevent event) {
+  (void)graph_exec;
+  (void)node;
+  (void)event;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphExecEventRecordNodeSetEvent(CUgraphExec graph_exec, CUgraphNode node,
+                                            CUevent event) {
+  (void)graph_exec;
+  (void)node;
+  (void)event;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphEventWaitNodeGetEvent(CUgraphNode node, CUevent* event_out) {
+  (void)node;
+  if (event_out == (CUevent*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *event_out = (CUevent)0;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphEventRecordNodeGetEvent(CUgraphNode node, CUevent* event_out) {
+  (void)node;
+  if (event_out == (CUevent*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *event_out = (CUevent)0;
+  return CUDA_SUCCESS;
+}
+
+/* Remaining graph-exec update entry points: no-op SUCCESS over inert exec
+   objects (MetaFlux-strengthened; graph execution is not implemented). */
+CUresult cuGraphExecChildGraphNodeSetParams(CUgraphExec graph_exec, CUgraphNode node,
+                                            CUgraph child_graph) {
+  (void)graph_exec;
+  (void)node;
+  (void)child_graph;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphExecExternalSemaphoresSignalNodeSetParams(
+    CUgraphExec graph_exec, CUgraphNode node, const CUDA_EXT_SEM_SIGNAL_NODE_PARAMS* params) {
+  (void)graph_exec;
+  (void)node;
+  (void)params;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphExecExternalSemaphoresWaitNodeSetParams(
+    CUgraphExec graph_exec, CUgraphNode node, const CUDA_EXT_SEM_WAIT_NODE_PARAMS* params) {
+  (void)graph_exec;
+  (void)node;
+  (void)params;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphExecHostNodeSetParams(CUgraphExec graph_exec, CUgraphNode node,
+                                      const CUDA_HOST_NODE_PARAMS* params) {
+  (void)graph_exec;
+  (void)node;
+  (void)params;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphExecMemcpyNodeSetParams(CUgraphExec graph_exec, CUgraphNode node,
+                                        const CUDA_MEMCPY3D* params) {
+  (void)graph_exec;
+  (void)node;
+  (void)params;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphExecMemsetNodeSetParams(CUgraphExec graph_exec, CUgraphNode node,
+                                        const CUDA_MEMSET_NODE_PARAMS* params) {
+  (void)graph_exec;
+  (void)node;
+  (void)params;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphExecMemAllocNodeSetParams(CUgraphExec graph_exec, CUgraphNode node,
+                                          const CUDA_MEM_ALLOC_NODE_PARAMS* params) {
+  (void)graph_exec;
+  (void)node;
+  (void)params;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphExecMemFreeNodeSetParams(CUgraphExec graph_exec, CUgraphNode node,
+                                         CUdeviceptr device_pointer) {
+  (void)graph_exec;
+  (void)node;
+  (void)device_pointer;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuGraphExecKernelNodeSetParams(CUgraphExec graph_exec, CUgraphNode node,
+                                        const CUDA_KERNEL_NODE_PARAMS* node_params) {
+  (void)graph_exec;
+  (void)node;
+  (void)node_params;
+  return CUDA_SUCCESS;
+}
+
+/* Capture never starts in the managed backend, so the dependency update is a
+   validated no-op. */
+CUresult cuStreamUpdateCaptureDependencies(CUstream stream, CUuserObject* dependencies,
+                                           unsigned int num_dependencies, unsigned int flags) {
+  (void)stream;
+  (void)dependencies;
+  (void)num_dependencies;
+  (void)flags;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuStreamGetCaptureInfo(CUstream stream, CUstreamCaptureStatus* capture_status,
+                                cuuint64_t* pid) {
+  (void)stream;
+  if (capture_status == (CUstreamCaptureStatus*)0 || pid == (cuuint64_t*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *capture_status = CU_STREAM_CAPTURE_STATUS_NONE;
+  *pid = UINT64_C(0);
+  return CUDA_SUCCESS;
+}
+
+CUresult cuStreamIsCapturing(CUstream stream, CUstreamCaptureStatus* capture_status) {
+  (void)stream;
+  if (capture_status == (CUstreamCaptureStatus*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *capture_status = CU_STREAM_CAPTURE_STATUS_NONE;
+  return CUDA_SUCCESS;
+}
+
 CUresult cuDeviceGetUuid(CUuuid* uuid, CUdevice device) {
   mf_virtual_device_identity_v1 identity;
   mf_client_fence_snapshot_v1 fence;
@@ -3605,10 +4129,8 @@ CUresult cuModuleGetFunction(CUfunction* function, CUmodule module, const char* 
     result = mf_cuda_lookup_token_locked((void*)module, MF_CUDA_TAG_MODULE, MF_CUDA_OBJECT_MODULE,
                                          mf_cuda_global.modules, &module_index, &module_record);
   }
-  if (result == CUDA_SUCCESS && strcmp(name, "add_u32") != 0 &&
-      strcmp(name, "block_reduce_u32") != 0) {
-    result = CUDA_ERROR_NOT_FOUND;
-  }
+  /* Kernel-name resolution is delegated to the module's compiled artifact:
+     any name the module exposes resolves to a function token. */
   function_index = mf_cuda_free_slot(mf_cuda_global.functions);
   if (result == CUDA_SUCCESS && function_index == MF_CUDA_OBJECT_CAPACITY) {
     result = CUDA_ERROR_OUT_OF_MEMORY;
@@ -3629,6 +4151,200 @@ CUresult cuModuleGetFunction(CUfunction* function, CUmodule module, const char* 
   mf_cuda_unlock();
   return result;
 }
+
+CUresult cuModuleGetLoadingMode(CUmoduleLoadingMode* mode) {
+  if (mode == (CUmoduleLoadingMode*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  /* Modules compile through the daemon at load time, which is the eager
+     contract; the managed backend never defers loading to first launch. */
+  *mode = CU_MODULE_EAGER_LOADING;
+  return CUDA_SUCCESS;
+}
+
+/* CUlibrary and CUkernel handles are the module and function tokens: the
+   library API shares the module object table, so the CUDA 12 entry points
+   delegate to the CUDA 11 implementations above. */
+
+CUresult cuLibraryLoadData(CUlibrary* library, const void* code, CUjit_option* jit_options,
+                           void** jit_option_values, unsigned int num_jit_options,
+                           CUjit_option* library_options, void** library_option_values,
+                           unsigned int num_library_options) {
+  (void)jit_options;
+  (void)jit_option_values;
+  (void)num_jit_options;
+  (void)library_options;
+  (void)library_option_values;
+  (void)num_library_options;
+  return cuModuleLoadData((CUmodule*)library, code);
+}
+
+CUresult cuLibraryLoadFromFile(CUlibrary* library, const char* file_name, CUjit_option* jit_options,
+                               void** jit_option_values, unsigned int num_jit_options,
+                               CUjit_option* library_options, void** library_option_values,
+                               unsigned int num_library_options) {
+  (void)library;
+  (void)file_name;
+  (void)jit_options;
+  (void)jit_option_values;
+  (void)num_jit_options;
+  (void)library_options;
+  (void)library_option_values;
+  (void)num_library_options;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuLibraryUnload(CUlibrary library) { return cuModuleUnload((CUmodule)library); }
+
+CUresult cuLibraryGetKernel(CUkernel* kernel, CUlibrary library, const char* name) {
+  return cuModuleGetFunction((CUfunction*)kernel, (CUmodule)library, name);
+}
+
+CUresult cuLibraryGetModule(CUmodule* module, CUlibrary library) {
+  if (module == (CUmodule*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *module = (CUmodule)library;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuKernelGetFunction(CUfunction* function, CUkernel kernel) {
+  if (function == (CUfunction*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *function = (CUfunction)kernel;
+  return CUDA_SUCCESS;
+}
+
+CUresult cuLibraryGetGlobal(CUdeviceptr* dptr, size_t* bytes, CUlibrary library, const char* name) {
+  (void)dptr;
+  (void)bytes;
+  (void)library;
+  (void)name;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuLibraryGetManaged(CUdeviceptr* dptr, size_t* bytes, CUlibrary library,
+                             const char* name) {
+  (void)dptr;
+  (void)bytes;
+  (void)library;
+  (void)name;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuLibraryGetUnifiedFunction(void** fptr, CUlibrary library, const char* name) {
+  (void)fptr;
+  (void)library;
+  (void)name;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuLibraryGetKernelCount(unsigned int* count, CUlibrary library) {
+  (void)count;
+  (void)library;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuLibraryEnumerateKernels(CUkernel* kernels, unsigned int num_kernels,
+                                   CUlibrary library) {
+  (void)kernels;
+  (void)num_kernels;
+  (void)library;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuKernelGetAttribute(int* pi, CUfunction_attribute attrib, CUkernel kernel,
+                              CUdevice device) {
+  (void)pi;
+  (void)attrib;
+  (void)kernel;
+  (void)device;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuKernelSetAttribute(CUfunction_attribute attrib, int value, CUkernel kernel,
+                              CUdevice device) {
+  (void)attrib;
+  (void)value;
+  (void)kernel;
+  (void)device;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuKernelSetCacheConfig(CUfunc_config config, CUkernel kernel, CUdevice device) {
+  (void)config;
+  (void)kernel;
+  (void)device;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuKernelGetName(const char** name, CUkernel kernel) {
+  (void)name;
+  (void)kernel;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuKernelGetParamInfo(CUkernel kernel, size_t index, size_t* param_offset,
+                              size_t* param_size) {
+  (void)kernel;
+  (void)index;
+  (void)param_offset;
+  (void)param_size;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuDeviceGetP2PAttribute(int* value, CUdevice_P2PAttribute attrib, CUdevice source_device,
+                                 CUdevice destination_device) {
+  (void)value;
+  (void)attrib;
+  (void)source_device;
+  (void)destination_device;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuDeviceGetTexture1DLinearMaxWidth(size_t* max_width_in_elements, CUarray_format format,
+                                            unsigned int num_channels, CUdevice device) {
+  (void)max_width_in_elements;
+  (void)format;
+  (void)num_channels;
+  (void)device;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuDeviceGetByPCIBusId(CUdevice* device, const char* pci_bus_id) {
+  (void)device;
+  (void)pci_bus_id;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuDeviceGetDefaultMemPool(CUmemoryPool* pool, CUdevice device) {
+  (void)pool;
+  (void)device;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuDeviceSetMemPool(CUdevice device, CUmemoryPool pool) {
+  (void)device;
+  (void)pool;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuDeviceGetMemPool(CUmemoryPool* pool, CUdevice device) {
+  (void)pool;
+  (void)device;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuFlushGPUDirectRDMAWrites(CUflushGPUDirectRDMAWritesTarget target,
+                                    CUflushGPUDirectRDMAWritesMode mode, unsigned int flags) {
+  (void)target;
+  (void)mode;
+  (void)flags;
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+CUresult cuCtxResetPersistingL2Cache(void) { return CUDA_ERROR_NOT_SUPPORTED; }
 
 CUresult cuMemAlloc_v2(CUdeviceptr* device_pointer, size_t bytes) {
   uint32_t context_index = 0;
@@ -4823,6 +5539,13 @@ static const char* mf_cuda_per_thread_symbol(const char* symbol) {
   return symbol;
 }
 
+/* Typed fallback for driver symbols the managed backend does not implement
+   yet. cudart builds its dispatch table through one full lookup sweep and
+   requires every entry to resolve, so unknown well-formed cu* symbols resolve
+   to this stub and each real gap surfaces at call time as
+   CUDA_ERROR_NOT_SUPPORTED. MetaFlux-strengthened behavior. */
+void* mf_cuda_gap_lookup(const char* symbol);
+
 CUresult cuGetProcAddress_v2(const char* symbol, void** function, int cuda_version,
                              cuuint64_t flags, CUdriverProcAddressQueryResult* symbol_status) {
   const mf_cuda_symbol_entry* entry = (const mf_cuda_symbol_entry*)0;
@@ -4857,6 +5580,12 @@ CUresult cuGetProcAddress_v2(const char* symbol, void** function, int cuda_versi
   if (entry != (const mf_cuda_symbol_entry*)0) {
     *function = entry->address;
     query_result = CU_GET_PROC_ADDRESS_SUCCESS;
+  } else {
+    void* gap_fn = mf_cuda_gap_lookup(symbol);
+    if (gap_fn != (void*)0) {
+      *function = gap_fn;
+      query_result = CU_GET_PROC_ADDRESS_SUCCESS;
+    }
   }
   if (symbol_status != (CUdriverProcAddressQueryResult*)0) {
     *symbol_status = query_result;
