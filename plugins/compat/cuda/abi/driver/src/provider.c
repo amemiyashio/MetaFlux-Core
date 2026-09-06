@@ -2973,6 +2973,36 @@ CUresult cuDeviceGetAttribute(int* value, CUdevice_attribute attrib, CUdevice de
   case CU_DEVICE_ATTRIBUTE_COMPUTE_MODE:
     *value = 0;
     break;
+  case 21:
+    *value = 131072;
+    break;
+  case 22:
+    *value = 131072;
+    break;
+  case 23:
+    *value = 65536;
+    break;
+  case 24:
+    *value = 16384;
+    break;
+  case 25:
+    *value = 16384;
+    break;
+  case 26:
+    *value = 16384;
+    break;
+  case 27:
+    *value = 131072;
+    break;
+  case 28:
+    *value = 65536;
+    break;
+  case 29:
+    *value = 2048;
+    break;
+  case 30:
+    *value = 512;
+    break;
   case CU_DEVICE_ATTRIBUTE_CONCURRENT_KERNELS:
     *value = 1;
     break;
@@ -3004,6 +3034,57 @@ CUresult cuDeviceGetAttribute(int* value, CUdevice_attribute attrib, CUdevice de
     break;
   case CU_DEVICE_ATTRIBUTE_UNIFIED_ADDRESSING:
     *value = 1;
+    break;
+  case 42:
+    *value = 131072;
+    break;
+  case 43:
+    *value = 2048;
+    break;
+  case 44:
+    *value = 0;
+    break;
+  case 45:
+    *value = 32768;
+    break;
+  case 46:
+    *value = 32768;
+    break;
+  case 47:
+    *value = 16384;
+    break;
+  case 48:
+    *value = 16384;
+    break;
+  case 49:
+    *value = 16384;
+    break;
+  case 66:
+    *value = 32768;
+    break;
+  case 67:
+    *value = 32768;
+    break;
+  case 68:
+    *value = 2048;
+    break;
+  case 69:
+    *value = 131072;
+    break;
+  case 70:
+    *value = 131072;
+    break;
+  case 71:
+    *value = 65536;
+    break;
+  case 72:
+    *value = 2147483647;
+    break;
+  case 73:
+    *value = 131072;
+    break;
+  case 74:
+    *value = 65536;
     break;
   case CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR:
     *value = 7;

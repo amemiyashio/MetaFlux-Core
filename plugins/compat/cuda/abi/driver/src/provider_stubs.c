@@ -167,11 +167,26 @@ CUresult cuFuncSetSharedMemConfig(CUfunction hfunc, CUsharedconfig config) {
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
+/* The internal export table is a driver vtable. Offset 0x10 holds the one
+   callback cudart's one-time initialization invokes with (sub-structure at
+   table+8, mode); it must return CUDA_SUCCESS (eax==0) or init aborts. The
+   sub-structure stays zero: nothing is populated for probes yet. */
+static void* mf_export_vtable[64];
+
+static CUresult mf_export_fill_0x10(void* sub_table, unsigned int mode) {
+  (void)sub_table;
+  (void)mode;
+  return CUDA_SUCCESS;
+}
+
 CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTableId) {
   MF_STUB_TRACE;
-  (void)ppExportTable;
   (void)pExportTableId;
-  return CUDA_ERROR_NOT_SUPPORTED;
+  mf_export_vtable[2] = (void*)&mf_export_fill_0x10;
+  if (ppExportTable != (const void**)0) {
+    *ppExportTable = (const void*)mf_export_vtable;
+  }
+  return CUDA_SUCCESS;
 }
 
 CUresult cuMemAllocManaged(CUdeviceptr* dptr, size_t bytesize, unsigned int flags) {
