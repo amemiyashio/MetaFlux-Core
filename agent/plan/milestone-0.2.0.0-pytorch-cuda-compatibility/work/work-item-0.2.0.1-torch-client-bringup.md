@@ -92,6 +92,19 @@ initialization validation. Next diagnostic layer: trace all provider
 function returns during the post-sweep window to find which driver state
 cudart rejects.
 
+Third-pass boundary closure (2026-09-07, final for this cycle): with the
+a094 table served as 64 distinct logging thunks, `cudaGetDeviceCount` still
+fails with error 3 and ZERO a094 entry invocations — cudart's post-attribute
+validation rejects the collected driver state without calling any ops
+entry. The rejected state lives in libcudart's stripped internal
+initialization validation; diagnosing it requires a real NVIDIA driver
+reference (driver-side behavior under identical cudart probes), which is
+milestone-2.0.0.0 scope per decision-0040. This work item's provider-side
+surface (196 symbols, full attribute switch, both export tables, vtable
+callback) is complete and regression-green; the remaining gap is the
+cudart-internal validation layer that only a physical reference can
+disambiguate.
+
 Debugging aids kept in-tree: `METAFLUX_TRACE_STUBS=1` logs typed stub
 entries, attribute results (`MF_ATTR`), require_locked failures, and export
 table UUIDs (`MF_TABLE_UUID`). The zero-filled and NULL export-table
