@@ -14,7 +14,7 @@ extern "C" {
 #define MF_CUDA_ABI_API
 #endif
 
-#define MF_CUDA_DRIVER_API_VERSION 12000
+#define MF_CUDA_DRIVER_API_VERSION 12060
 
 typedef int CUdevice;
 typedef unsigned int CUdeviceptr_v1;

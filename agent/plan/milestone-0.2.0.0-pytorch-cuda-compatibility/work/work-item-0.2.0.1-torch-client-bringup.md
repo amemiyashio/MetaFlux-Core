@@ -87,6 +87,19 @@ entries, attribute results (`MF_ATTR`), require_locked failures, and export
 table UUIDs (`MF_TABLE_UUID`). The zero-filled and NULL export-table
 variants both crash libcudart's reader and must not be used.
 
+Second-pass refinement (2026-09-07, latest): with driver version 12060
+(exactly matching the baseline runtime) the failure signature changes from
+NOT_FOUND to the post-sweep initialization validation, confirming the
+version-compatibility boundary is now clean. The remaining work is scoped:
+libcudart expects the vtable callback to populate the 0x408-byte
+sub-structure at table+8 (cudart zeroes it before the call and reads it
+afterwards); the sub-structure layout (function pointers vs data fields)
+must be mapped by disassembling libcudart's reads of that region, then the
+provider callback fills the entries the probe path requires. This is the
+next iteration's full scope; the driver-version constant, attribute table,
+and vtable callback from this iteration are prerequisites that are already
+in place.
+
 ## Exit Gate
 
 `pytorch_cuda_probe.py --profile baseline --require-stage runtime-copy`

@@ -34,12 +34,14 @@ static int mf_stub_trace(void) {
 CUresult cuCtxDetach(CUcontext ctx) {
   MF_STUB_TRACE;
   (void)ctx;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
 CUresult cuCtxDisablePeerAccess(CUcontext peer_context) {
   MF_STUB_TRACE;
   (void)peer_context;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -47,6 +49,7 @@ CUresult cuCtxEnablePeerAccess(CUcontext peer_context, unsigned int flags) {
   MF_STUB_TRACE;
   (void)peer_context;
   (void)flags;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -58,6 +61,7 @@ CUresult cuCtxGetApiVersion(CUcontext ctx, unsigned int* version) {
   }
   *version = 12000;
   return CUDA_SUCCESS;
+
 }
 
 CUresult cuCtxGetCacheConfig(CUfunc_cache* pconfig) {
@@ -67,6 +71,7 @@ CUresult cuCtxGetCacheConfig(CUfunc_cache* pconfig) {
   }
   *pconfig = CU_FUNC_CACHE_PREFER_NONE;
   return CUDA_SUCCESS;
+
 }
 
 CUresult cuCtxGetFlags(unsigned int* flags) {
@@ -76,6 +81,7 @@ CUresult cuCtxGetFlags(unsigned int* flags) {
   }
   *flags = 0;
   return CUDA_SUCCESS;
+
 }
 
 CUresult cuCtxGetLimit(size_t* pvalue, CUlimit limit) {
@@ -86,6 +92,7 @@ CUresult cuCtxGetLimit(size_t* pvalue, CUlimit limit) {
   }
   *pvalue = 0;
   return CUDA_SUCCESS;
+
 }
 
 CUresult cuCtxGetSharedMemConfig(CUsharedconfig* pconfig) {
@@ -95,6 +102,7 @@ CUresult cuCtxGetSharedMemConfig(CUsharedconfig* pconfig) {
   }
   *pconfig = CU_SHARED_MEM_CONFIG_DEFAULT_BANK_SIZE;
   return CUDA_SUCCESS;
+
 }
 
 CUresult cuCtxGetStreamPriorityRange(int* least_priority, int* greatest_priority) {
@@ -105,11 +113,13 @@ CUresult cuCtxGetStreamPriorityRange(int* least_priority, int* greatest_priority
   *least_priority = 0;
   *greatest_priority = 0;
   return CUDA_SUCCESS;
+
 }
 
 CUresult cuCtxSetCacheConfig(CUfunc_cache config) {
   MF_STUB_TRACE;
   (void)config;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -117,12 +127,14 @@ CUresult cuCtxSetLimit(CUlimit limit, size_t value) {
   MF_STUB_TRACE;
   (void)limit;
   (void)value;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
 CUresult cuCtxSetSharedMemConfig(CUsharedconfig config) {
   MF_STUB_TRACE;
   (void)config;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -135,6 +147,7 @@ CUresult cuDeviceCanAccessPeer(int* canAccessPeer, CUdevice dev, CUdevice peerDe
   }
   *canAccessPeer = 0;
   return CUDA_SUCCESS;
+
 }
 
 CUresult cuFuncGetAttribute(int* pi, CUfunction_attribute attrib, CUfunction hfunc) {
@@ -142,6 +155,7 @@ CUresult cuFuncGetAttribute(int* pi, CUfunction_attribute attrib, CUfunction hfu
   (void)pi;
   (void)attrib;
   (void)hfunc;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -150,6 +164,7 @@ CUresult cuFuncSetAttribute(CUfunction hfunc, CUfunction_attribute attrib, int v
   (void)hfunc;
   (void)attrib;
   (void)value;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -157,6 +172,7 @@ CUresult cuFuncSetCacheConfig(CUfunction hfunc, CUfunc_cache config) {
   MF_STUB_TRACE;
   (void)hfunc;
   (void)config;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -164,14 +180,9 @@ CUresult cuFuncSetSharedMemConfig(CUfunction hfunc, CUsharedconfig config) {
   MF_STUB_TRACE;
   (void)hfunc;
   (void)config;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
-
-/* The internal export table is a driver vtable. Offset 0x10 holds the one
-   callback cudart's one-time initialization invokes with (sub-structure at
-   table+8, mode); it must return CUDA_SUCCESS (eax==0) or init aborts. The
-   sub-structure stays zero: nothing is populated for probes yet. */
-static void* mf_export_vtable[64];
 
 static CUresult mf_export_fill_0x10(void* sub_table, unsigned int mode) {
   (void)sub_table;
@@ -181,13 +192,8 @@ static CUresult mf_export_fill_0x10(void* sub_table, unsigned int mode) {
 
 CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTableId) {
   MF_STUB_TRACE;
-  if (mf_stub_trace() && pExportTableId != (const CUuuid*)0) {
-    const unsigned char* b = (const unsigned char*)pExportTableId->bytes;
-    fprintf(stderr, "MF_TABLE_UUID %02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x\n",
-            b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
-            b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]);
-  }
   (void)pExportTableId;
+  static void* mf_export_vtable[64];
   mf_export_vtable[2] = (void*)&mf_export_fill_0x10;
   if (ppExportTable != (const void**)0) {
     *ppExportTable = (const void*)mf_export_vtable;
@@ -200,6 +206,7 @@ CUresult cuMemAllocManaged(CUdeviceptr* dptr, size_t bytesize, unsigned int flag
   (void)dptr;
   (void)bytesize;
   (void)flags;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -210,12 +217,14 @@ CUresult cuMemAllocPitch(CUdeviceptr* dptr, size_t* pPitch, size_t WidthInBytes,
   (void)WidthInBytes;
   (void)Height;
   (void)ElementSizeBytes;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
 CUresult cuMemFreeHost(void* p) {
   MF_STUB_TRACE;
   (void)p;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -224,6 +233,7 @@ CUresult cuMemGetAddressRange(CUdeviceptr* pbase, size_t* psize, CUdeviceptr dpt
   (void)pbase;
   (void)psize;
   (void)dptr;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -231,6 +241,7 @@ CUresult cuMemGetInfo(size_t* free_bytes, size_t* total_bytes) {
   MF_STUB_TRACE;
   (void)free_bytes;
   (void)total_bytes;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -239,6 +250,7 @@ CUresult cuMemHostAlloc(void** pp, size_t bytesize, unsigned int Flags) {
   (void)pp;
   (void)bytesize;
   (void)Flags;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -247,6 +259,7 @@ CUresult cuMemHostGetDevicePointer(CUdeviceptr* pdptr, void* p, unsigned int Fla
   (void)pdptr;
   (void)p;
   (void)Flags;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -258,6 +271,7 @@ CUresult cuMemHostGetFlags(unsigned int* pFlags, void* p) {
   }
   *pFlags = 0;
   return CUDA_SUCCESS;
+
 }
 
 CUresult cuMemHostRegister(void* p, size_t bytesize, unsigned int Flags) {
@@ -265,18 +279,21 @@ CUresult cuMemHostRegister(void* p, size_t bytesize, unsigned int Flags) {
   (void)p;
   (void)bytesize;
   (void)Flags;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
 CUresult cuMemHostUnregister(void* p) {
   MF_STUB_TRACE;
   (void)p;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
 CUresult cuMemcpy2D(const CUDA_MEMCPY2D* pCopy) {
   MF_STUB_TRACE;
   (void)pCopy;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -284,12 +301,14 @@ CUresult cuMemcpy2DAsync(const CUDA_MEMCPY2D* pCopy, CUstream hStream) {
   MF_STUB_TRACE;
   (void)pCopy;
   (void)hStream;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
 CUresult cuMemcpy3D(const CUDA_MEMCPY3D* pCopy) {
   MF_STUB_TRACE;
   (void)pCopy;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -297,6 +316,7 @@ CUresult cuMemcpy3DAsync(const CUDA_MEMCPY3D* pCopy, CUstream hStream) {
   MF_STUB_TRACE;
   (void)pCopy;
   (void)hStream;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -307,6 +327,7 @@ CUresult cuMemcpyPeer(CUdeviceptr dstDevice, CUcontext dstContext, CUdeviceptr s
   (void)srcDevice;
   (void)srcContext;
   (void)ByteCount;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -318,6 +339,7 @@ CUresult cuMemcpyPeerAsync(CUdeviceptr dstDevice, CUcontext dstContext, CUdevice
   (void)srcContext;
   (void)ByteCount;
   (void)hStream;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -328,6 +350,7 @@ CUresult cuMemsetD2D8(CUdeviceptr dstDevice, size_t dstPitch, unsigned char uc, 
   (void)uc;
   (void)Width;
   (void)Height;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -339,6 +362,7 @@ CUresult cuMemsetD2D8Async(CUdeviceptr dstDevice, size_t dstPitch, unsigned char
   (void)Width;
   (void)Height;
   (void)hStream;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -347,6 +371,7 @@ CUresult cuMemsetD8(CUdeviceptr dstDevice, unsigned char uc, size_t N) {
   (void)dstDevice;
   (void)uc;
   (void)N;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -356,6 +381,7 @@ CUresult cuMemsetD8Async(CUdeviceptr dstDevice, unsigned char uc, size_t N, CUst
   (void)uc;
   (void)N;
   (void)hStream;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -370,6 +396,7 @@ CUresult cuOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(int* numBlocks, CU
   }
   *numBlocks = 1;
   return CUDA_SUCCESS;
+
 }
 
 CUresult cuPointerGetAttribute(void* data, CUpointer_attribute attribute, CUdeviceptr ptr) {
@@ -377,6 +404,7 @@ CUresult cuPointerGetAttribute(void* data, CUpointer_attribute attribute, CUdevi
   (void)data;
   (void)attribute;
   (void)ptr;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -386,6 +414,7 @@ CUresult cuPointerGetAttributes(unsigned int numAttributes, CUpointer_attribute*
   (void)attributes;
   (void)data;
   (void)ptr;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -394,16 +423,19 @@ CUresult cuProfilerInitialize(const char* configFile, const char* outputFile, un
   (void)configFile;
   (void)outputFile;
   (void)outputMode;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
 CUresult cuProfilerStart(void) {
   MF_STUB_TRACE;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
 CUresult cuProfilerStop(void) {
   MF_STUB_TRACE;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -413,6 +445,7 @@ CUresult cuStreamAddCallback(CUstream hStream, CUstreamCallback callback, void* 
   (void)callback;
   (void)userData;
   (void)flags;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -422,6 +455,7 @@ CUresult cuStreamAttachMemAsync(CUstream hStream, CUdeviceptr dptr, size_t lengt
   (void)dptr;
   (void)length;
   (void)flags;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -431,6 +465,7 @@ CUresult cuStreamBatchMemOp(CUstream stream, unsigned int count, CUstreamBatchMe
   (void)count;
   (void)param_array;
   (void)flags;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -438,6 +473,7 @@ CUresult cuStreamCopyAttributes(CUstream dst, CUstream src) {
   MF_STUB_TRACE;
   (void)dst;
   (void)src;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -446,6 +482,7 @@ CUresult cuStreamGetAttribute(CUstream hStream, CUstreamAttrID attr, CUstreamAtt
   (void)hStream;
   (void)attr;
   (void)value_out;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -453,6 +490,7 @@ CUresult cuStreamGetCtx(CUstream hStream, CUcontext* pctx) {
   MF_STUB_TRACE;
   (void)hStream;
   (void)pctx;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -464,12 +502,14 @@ CUresult cuStreamGetFlags(CUstream hStream, unsigned int* flags) {
   }
   *flags = 0;
   return CUDA_SUCCESS;
+
 }
 
 CUresult cuStreamGetId(CUstream hStream, unsigned long long* streamId) {
   MF_STUB_TRACE;
   (void)hStream;
   (void)streamId;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -478,6 +518,7 @@ CUresult cuStreamSetAttribute(CUstream hStream, CUstreamAttrID attr, const CUstr
   (void)hStream;
   (void)attr;
   (void)value;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -487,6 +528,7 @@ CUresult cuStreamWaitValue32(CUstream stream, CUdeviceptr addr, unsigned int val
   (void)addr;
   (void)value;
   (void)flags;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -496,6 +538,7 @@ CUresult cuStreamWaitValue64(CUstream stream, CUdeviceptr addr, unsigned long lo
   (void)addr;
   (void)value;
   (void)flags;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -505,6 +548,7 @@ CUresult cuStreamWriteValue32(CUstream stream, CUdeviceptr addr, unsigned int va
   (void)addr;
   (void)value;
   (void)flags;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
@@ -514,5 +558,6 @@ CUresult cuStreamWriteValue64(CUstream stream, CUdeviceptr addr, unsigned long l
   (void)addr;
   (void)value;
   (void)flags;
+
   return CUDA_ERROR_NOT_SUPPORTED;
 }
