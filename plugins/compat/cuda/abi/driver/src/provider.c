@@ -3424,6 +3424,9 @@ CUresult cuDeviceGetAttribute(int* value, CUdevice_attribute attrib, CUdevice de
   }
   if (getenv("METAFLUX_TRACE_STUBS") != (void*)0) {
     fprintf(stderr, "MF_ATTR %d -> 0\n", (int)attrib);
+    if (attrib == 121) {
+      fprintf(stderr, "MF_ATTR121_RET %p\n", __builtin_return_address(0));
+    }
   }
   return CUDA_SUCCESS;
 }
