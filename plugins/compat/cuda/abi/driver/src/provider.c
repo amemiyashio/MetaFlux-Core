@@ -3419,6 +3419,26 @@ CUresult cuDeviceGetAttribute(int* value, CUdevice_attribute attrib, CUdevice de
   case 124:
     *value = 0;
     break;
+  case 125:
+  case 126:
+  case 127:
+  case 128:
+  case 129:
+  case 130:
+  case 131:
+  case 132:
+  case 133:
+  case 134:
+  case 135:
+  case 136:
+  case 137:
+  case 138:
+  case 139:
+  case 140:
+    /* CUDA 12.7+/13 capability queries (NUMA, MPS, multicast, decompress):
+       answer 0 = capability absent on the virtual device. */
+    *value = 0;
+    break;
   default:
     return CUDA_ERROR_NOT_SUPPORTED;
   }

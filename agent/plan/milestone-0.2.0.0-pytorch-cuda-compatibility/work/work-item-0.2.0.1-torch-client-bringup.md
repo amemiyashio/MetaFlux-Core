@@ -82,6 +82,17 @@ identify which internal state cudart validates after the property sweep
 (candidate: the second export table's expected content, populated lazily),
 either by serving that table or by satisfying the checks it guards.
 
+Fourth-pass finding (2026-09-07, latest): with the a094 interface version
+header (64) served, cudart's initialization advances past the previous
+NOT_INITIALIZED into the ops-version negotiation — the failure is now
+`cudaErrorInsufficientDriver` (35) raised by cudart's internal
+ops-registration path (fn table 0x2ae930[0], invoked with the
+{interface-UUID, a094-UUID} descriptor at rodata 0x89c30). The remaining
+provider scope: the a094 ops entries must be the real driver callbacks
+cudart binds during this registration (get table size 480+, entry count
+14+ are answered; the individual ops entries — device binding, memory
+registration, kernel-launch support — are not).
+
 Third-pass refinement (2026-09-07): serving the a094 table with an
 interface-version header (64) plus size/count entries (512, 14) satisfies
 the loader's version gate; the failure stays at the post-attribute-sweep
