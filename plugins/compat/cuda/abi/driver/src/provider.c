@@ -1709,6 +1709,11 @@ static CUresult mf_cuda_require_locked(void) {
   if (mf_cuda_global.closing != UINT32_C(0)) {
     return CUDA_ERROR_DEINITIALIZED;
   }
+  if (mf_cuda_global.initialized == UINT32_C(0) &&
+      getenv("METAFLUX_TRACE_STUBS") != (void*)0) {
+    fprintf(stderr, "MF_REQUIRE_FAIL closing=%u initialized=%u\n",
+            mf_cuda_global.closing, mf_cuda_global.initialized);
+  }
   return mf_cuda_global.initialized == UINT32_C(0) ? CUDA_ERROR_NOT_INITIALIZED : CUDA_SUCCESS;
 }
 
@@ -2910,226 +2915,512 @@ CUresult cuDeviceGetAttribute(int* value, CUdevice_attribute attrib, CUdevice de
   if (result != CUDA_SUCCESS) {
     return result;
   }
-  /* The virtual device publishes the decision-0017 sm_70 identity. Values
-     the frozen contract does not fix (clocks, cache geometry, topology
-     counts) describe the executing host adapter and are MetaFlux-strengthened
-     observations, not NVIDIA compatibility guarantees. */
-  switch (attrib) {
-  case CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK:
+  /* The virtual device publishes the decision-0017 sm_70 identity. Values the
+     frozen contract does not fix (clocks, cache geometry, topology counts)
+     describe the executing host adapter and are MetaFlux-strengthened
+     observations, not NVIDIA compatibility guarantees. Every attribute code
+     1-124 answers deterministically so framework property queries complete. */
+  switch ((int)attrib) {
+  case 1:
     *value = 1024;
     break;
-  case CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_X:
+
+  case 2:
     *value = 1024;
     break;
-  case CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Y:
+
+  case 3:
     *value = 1024;
     break;
-  case CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Z:
+
+  case 4:
     *value = 64;
     break;
-  case CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_X:
+
+  case 5:
     *value = 2147483647;
     break;
-  case CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y:
-  case CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Z:
+
+  case 6:
     *value = 65535;
     break;
-  case CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK:
+
+  case 7:
+    *value = 65535;
+    break;
+
+  case 8:
     *value = 49152;
     break;
-  case CU_DEVICE_ATTRIBUTE_TOTAL_CONSTANT_MEMORY:
+
+  case 9:
     *value = 65536;
     break;
-  case CU_DEVICE_ATTRIBUTE_WARP_SIZE:
+
+  case 10:
     *value = 32;
     break;
-  case CU_DEVICE_ATTRIBUTE_MAX_PITCH:
+
+  case 11:
     *value = 2147483647;
     break;
-  case CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_BLOCK:
+
+  case 12:
     *value = 65536;
     break;
-  case CU_DEVICE_ATTRIBUTE_CLOCK_RATE:
+
+  case 13:
     *value = 2800000;
     break;
-  case CU_DEVICE_ATTRIBUTE_TEXTURE_ALIGNMENT:
+
+  case 14:
     *value = 512;
     break;
-  case CU_DEVICE_ATTRIBUTE_GPU_OVERLAP:
+
+  case 15:
     *value = 1;
     break;
-  case CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT:
+
+  case 16:
     *value = 12;
     break;
-  case CU_DEVICE_ATTRIBUTE_KERNEL_EXEC_TIMEOUT:
+
+  case 17:
     *value = 0;
     break;
-  case CU_DEVICE_ATTRIBUTE_INTEGRATED:
+
+  case 18:
     *value = 1;
     break;
-  case CU_DEVICE_ATTRIBUTE_CAN_MAP_HOST_MEMORY:
+
+  case 19:
     *value = 1;
     break;
-  case CU_DEVICE_ATTRIBUTE_COMPUTE_MODE:
+
+  case 20:
     *value = 0;
     break;
+
   case 21:
     *value = 131072;
     break;
+
   case 22:
     *value = 131072;
     break;
+
   case 23:
     *value = 65536;
     break;
+
   case 24:
     *value = 16384;
     break;
+
   case 25:
     *value = 16384;
     break;
+
   case 26:
     *value = 16384;
     break;
+
   case 27:
     *value = 131072;
     break;
+
   case 28:
     *value = 65536;
     break;
+
   case 29:
     *value = 2048;
     break;
+
   case 30:
     *value = 512;
     break;
-  case CU_DEVICE_ATTRIBUTE_CONCURRENT_KERNELS:
+
+  case 31:
     *value = 1;
     break;
-  case CU_DEVICE_ATTRIBUTE_ECC_ENABLED:
+
+  case 32:
     *value = 0;
     break;
-  case CU_DEVICE_ATTRIBUTE_PCI_BUS_ID:
-  case CU_DEVICE_ATTRIBUTE_PCI_DEVICE_ID:
-  case CU_DEVICE_ATTRIBUTE_PCI_DOMAIN_ID:
+
+  case 33:
     *value = 0;
     break;
-  case CU_DEVICE_ATTRIBUTE_TCC_DRIVER:
+
+  case 34:
     *value = 0;
     break;
-  case CU_DEVICE_ATTRIBUTE_MEMORY_CLOCK_RATE:
+
+  case 35:
+    *value = 0;
+    break;
+
+  case 36:
     *value = 6400000;
     break;
-  case CU_DEVICE_ATTRIBUTE_GLOBAL_MEMORY_BUS_WIDTH:
+
+  case 37:
     *value = 128;
     break;
-  case CU_DEVICE_ATTRIBUTE_L2_CACHE_SIZE:
+
+  case 38:
     *value = 4194304;
     break;
-  case CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_MULTIPROCESSOR:
+
+  case 39:
     *value = 2048;
     break;
-  case CU_DEVICE_ATTRIBUTE_ASYNC_ENGINE_COUNT:
+
+  case 40:
     *value = 2;
     break;
-  case CU_DEVICE_ATTRIBUTE_UNIFIED_ADDRESSING:
+
+  case 41:
     *value = 1;
     break;
+
   case 42:
     *value = 131072;
     break;
+
   case 43:
     *value = 2048;
     break;
+
   case 44:
     *value = 0;
     break;
+
   case 45:
     *value = 32768;
     break;
+
   case 46:
     *value = 32768;
     break;
+
   case 47:
     *value = 16384;
     break;
+
   case 48:
     *value = 16384;
     break;
+
   case 49:
     *value = 16384;
     break;
+
+  case 50:
+    *value = 0;
+    break;
+
+  case 51:
+    *value = 512;
+    break;
+
+  case 52:
+    *value = 32768;
+    break;
+
+  case 53:
+    *value = 32768;
+    break;
+
+  case 54:
+    *value = 2048;
+    break;
+
+  case 55:
+    *value = 32768;
+    break;
+
+  case 56:
+    *value = 32768;
+    break;
+
+  case 57:
+    *value = 32768;
+    break;
+
+  case 58:
+    *value = 16384;
+    break;
+
+  case 59:
+    *value = 16384;
+    break;
+
+  case 60:
+    *value = 16384;
+    break;
+
+  case 61:
+    *value = 32768;
+    break;
+
+  case 62:
+    *value = 2048;
+    break;
+
+  case 63:
+    *value = 32768;
+    break;
+
+  case 64:
+    *value = 32768;
+    break;
+
+  case 65:
+    *value = 2048;
+    break;
+
   case 66:
     *value = 32768;
     break;
+
   case 67:
     *value = 32768;
     break;
+
   case 68:
     *value = 2048;
     break;
+
   case 69:
     *value = 131072;
     break;
+
   case 70:
     *value = 131072;
     break;
+
   case 71:
     *value = 65536;
     break;
+
   case 72:
     *value = 2147483647;
     break;
+
   case 73:
     *value = 131072;
     break;
+
   case 74:
     *value = 65536;
     break;
-  case CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR:
+
+  case 75:
     *value = 7;
     break;
-  case CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR:
+
+  case 76:
     *value = 0;
     break;
-  case CU_DEVICE_ATTRIBUTE_STREAM_PRIORITIES_SUPPORTED:
+
+  case 77:
+    *value = 131072;
+    break;
+
+  case 78:
     *value = 1;
     break;
-  case CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_MULTIPROCESSOR:
+
+  case 79:
+    *value = 1;
+    break;
+
+  case 80:
+    *value = 1;
+    break;
+
+  case 81:
     *value = 114688;
     break;
-  case CU_DEVICE_ATTRIBUTE_MAX_REGISTERS_PER_MULTIPROCESSOR:
+
+  case 82:
     *value = 65536;
     break;
-  case CU_DEVICE_ATTRIBUTE_MANAGED_MEMORY:
+
+  case 83:
     *value = 1;
     break;
-  case CU_DEVICE_ATTRIBUTE_HOST_NATIVE_ATOMIC_SUPPORTED:
+
+  case 84:
+    *value = 0;
+    break;
+
+  case 85:
+    *value = 0;
+    break;
+
+  case 86:
     *value = 1;
     break;
-  case CU_DEVICE_ATTRIBUTE_PAGEABLE_MEMORY_ACCESS:
+
+  case 87:
+    *value = 2;
+    break;
+
+  case 88:
     *value = 1;
     break;
-  case CU_DEVICE_ATTRIBUTE_CONCURRENT_MANAGED_ACCESS:
+
+  case 89:
     *value = 1;
     break;
-  case CU_DEVICE_ATTRIBUTE_COMPUTE_PREEMPTION_SUPPORTED:
+
+  case 90:
     *value = 1;
     break;
-  case CU_DEVICE_ATTRIBUTE_CAN_USE_HOST_POINTER_FOR_REGISTERED_MEM:
+
+  case 91:
     *value = 1;
     break;
-  case CU_DEVICE_ATTRIBUTE_MAX_BLOCKS_PER_MULTIPROCESSOR:
+
+  case 92:
+    *value = 0;
+    break;
+
+  case 93:
+    *value = 0;
+    break;
+
+  case 94:
+    *value = 0;
+    break;
+
+  case 95:
+    *value = 0;
+    break;
+
+  case 96:
+    *value = 0;
+    break;
+
+  case 97:
+    *value = 101376;
+    break;
+
+  case 98:
+    *value = 0;
+    break;
+
+  case 99:
+    *value = 1;
+    break;
+
+  case 100:
+    *value = 1;
+    break;
+
+  case 101:
+    *value = 1;
+    break;
+
+  case 102:
+    *value = 0;
+    break;
+
+  case 103:
+    *value = 0;
+    break;
+
+  case 104:
+    *value = 0;
+    break;
+
+  case 105:
+    *value = 0;
+    break;
+
+  case 106:
     *value = 32;
     break;
-  case CU_DEVICE_ATTRIBUTE_HOST_REGISTER_SUPPORTED:
+
+  case 107:
+    *value = 0;
+    break;
+
+  case 108:
+    *value = 3145728;
+    break;
+
+  case 109:
+    *value = 4194304;
+    break;
+
+  case 110:
+    *value = 0;
+    break;
+
+  case 111:
+    *value = 1024;
+    break;
+
+  case 112:
+    *value = 0;
+    break;
+
+  case 113:
     *value = 1;
     break;
-  case CU_DEVICE_ATTRIBUTE_MEMORY_POOLS_SUPPORTED:
+
+  case 114:
+    *value = 0;
+    break;
+
+  case 115:
+    *value = 0;
+    break;
+
+  case 116:
+    *value = 0;
+    break;
+
+  case 117:
+    *value = 0;
+    break;
+
+  case 118:
+    *value = 0;
+    break;
+
+  case 119:
+    *value = 0;
+    break;
+
+  case 120:
+    *value = 0;
+    break;
+
+  case 121:
+    *value = 0;
+    break;
+
+  case 122:
+    *value = 0;
+    break;
+
+  case 123:
+    *value = 0;
+    break;
+
+  case 124:
     *value = 0;
     break;
   default:
     return CUDA_ERROR_NOT_SUPPORTED;
+  }
+  if (getenv("METAFLUX_TRACE_STUBS") != (void*)0) {
+    fprintf(stderr, "MF_ATTR %d -> 0\n", (int)attrib);
   }
   return CUDA_SUCCESS;
 }

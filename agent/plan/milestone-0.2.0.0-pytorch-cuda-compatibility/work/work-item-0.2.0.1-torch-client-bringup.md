@@ -69,13 +69,23 @@ timeout, integrated, host-mapping, texture limits). Device attribute codes
 21-49 and 66-74 were added to the provider attribute table with sm_70
 virtual-device values.
 
-Remaining blocker, named precisely: the attribute sequence aborts mid-chain
-with `CUDA_ERROR_NOT_INITIALIZED` (3) from the provider's session-gated
-device-identity path after roughly ten registry round-trips — a provider
-session/registry state issue under repeated identity queries, not a
-missing-symbol problem. Debugging aids: `METAFLUX_TRACE_STUBS=1` logs typed
-stub entries; the zero-filled and NULL export-table variants both crash
-libcudart's reader and must not be used.
+Second-table finding (2026-09-07): cudart requests a second internal export
+table `a094798c-2e74-2e74-93f2-0800200c0a66` immediately after the first; its
+NOT_FOUND is tolerated through the entire device-property sweep. With the
+full attribute switch (codes 1-124 answered), the property query phase
+completes — over 120 successful attribute round-trips — and cudart then
+fails inside its post-sweep initialization validation with
+`cudaErrorInitializationError` (3), unloads the driver DSO, and reports the
+error from `cudaGetDeviceCount`. The next RE layer is therefore not another
+missing driver symbol but cudart's post-attribute initialization checks:
+identify which internal state cudart validates after the property sweep
+(candidate: the second export table's expected content, populated lazily),
+either by serving that table or by satisfying the checks it guards.
+
+Debugging aids kept in-tree: `METAFLUX_TRACE_STUBS=1` logs typed stub
+entries, attribute results (`MF_ATTR`), require_locked failures, and export
+table UUIDs (`MF_TABLE_UUID`). The zero-filled and NULL export-table
+variants both crash libcudart's reader and must not be used.
 
 ## Exit Gate
 

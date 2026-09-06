@@ -181,6 +181,12 @@ static CUresult mf_export_fill_0x10(void* sub_table, unsigned int mode) {
 
 CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTableId) {
   MF_STUB_TRACE;
+  if (mf_stub_trace() && pExportTableId != (const CUuuid*)0) {
+    const unsigned char* b = (const unsigned char*)pExportTableId->bytes;
+    fprintf(stderr, "MF_TABLE_UUID %02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x\n",
+            b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
+            b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]);
+  }
   (void)pExportTableId;
   mf_export_vtable[2] = (void*)&mf_export_fill_0x10;
   if (ppExportTable != (const void**)0) {
