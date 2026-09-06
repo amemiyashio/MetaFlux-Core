@@ -7,6 +7,7 @@
 let
   gccRuntime = pkgs.stdenv.cc.cc.lib;
   repositoryPython = pkgs.python3.withPackages (pythonPackages: [
+    pythonPackages.pip
     pythonPackages.pyyaml
   ]);
 in

@@ -96,6 +96,9 @@ pkgs.stdenvNoCC.mkDerivation {
       --prefix PYTHONPATH : "$out/${python.sitePackages}"
     ln -s python "$out/bin/python3"
     ln -s python "$out/bin/python3.13"
+    # The pinned pip3 shadows any ambient user pip inside the shell; package
+    # additions go through the wheel lock, never pip install.
+    ln -s ${installerPython}/bin/pip3 "$out/bin/pip3"
 
     mkdir -p "$out/share/metaflux/pytorch-cuda-clients"
     cp ${../../toolchains/pytorch-cuda-clients-1.json} \

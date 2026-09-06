@@ -160,6 +160,12 @@ nix develop .#pytorch-frontier
 nix shell .#pytorch-baseline --command python -c 'import torch; print(torch.__version__)'
 ```
 
+Each profile also exposes the pinned interpreter's own `pip3`, so the shell
+never resolves an ambient user pip. It exists for inspection only: package
+additions go through the wheel lock under
+[`pytorch-cuda-clients/`](pytorch-cuda-clients/) and a client rebuild, never an
+in-shell `pip install`.
+
 These clients do not define product capability, framework qualification, test
 selection, or release acceptance. The baseline is a current gap/regression
 probe and the frontier is a future-target probe; success in either environment
