@@ -3440,7 +3440,11 @@ CUresult cuDeviceGetAttribute(int* value, CUdevice_attribute attrib, CUdevice de
     *value = 0;
     break;
   default:
-    return CUDA_ERROR_NOT_SUPPORTED;
+    /* Unknown-to-this-provider attribute codes answer 0 (capability absent)
+       so framework property sweeps complete. MetaFlux-strengthened: a real
+       driver returns NOT_SUPPORTED here and cudart aborts initialization. */
+    *value = 0;
+    break;
   }
   if (getenv("METAFLUX_TRACE_STUBS") != (void*)0) {
     fprintf(stderr, "MF_ATTR %d -> 0\n", (int)attrib);
