@@ -55,14 +55,27 @@ Landed in this iteration:
   module function resolution is permissive (unknown names resolve to tokens
   and fail at launch, not at lookup).
 
-Remaining blocker, named precisely: cudart requires the internal driver
-export table `6bd5fb6c-5bf4-e74a-8987-d93912fd9df9` through
-`cuGetExportTable`; the layout is undocumented and a null or zero-filled
-table segfaults libcudart's reader, while NOT_FOUND aborts initialization
-with error 500. Populating this table (RE of libcudart's reader, or
-delegation to a real driver) is the next iteration's entire scope. Until it
-closes, `cudaGetDeviceCount` returns 500 through the provider while direct
-driver-API enumeration (cuInit/cuDeviceGetCount/cuDeviceGetName) works.
+## Measured progress (2026-09-07, second pass)
+
+The internal export table was reverse-engineered enough to unblock cudart:
+it is a driver vtable whose entry at +0x10 cudart invokes during one-time
+initialization with (pointer to table+8 sub-structure, mode integer) and
+requires return 0. A persistent provider vtable with that callback returning
+SUCCESS moved cudart through the entire device-enumeration call chain:
+`cuDeviceGetCount` -> `cuDeviceGet` -> `cuDeviceGetName` -> a ten-query
+`cuDeviceGetAttribute` sequence (codes 75, 76, 15, 40, 16, 17, 18, 19, 21,
+77 — compute capability, overlap, async engines, multiprocessor count,
+timeout, integrated, host-mapping, texture limits). Device attribute codes
+21-49 and 66-74 were added to the provider attribute table with sm_70
+virtual-device values.
+
+Remaining blocker, named precisely: the attribute sequence aborts mid-chain
+with `CUDA_ERROR_NOT_INITIALIZED` (3) from the provider's session-gated
+device-identity path after roughly ten registry round-trips — a provider
+session/registry state issue under repeated identity queries, not a
+missing-symbol problem. Debugging aids: `METAFLUX_TRACE_STUBS=1` logs typed
+stub entries; the zero-filled and NULL export-table variants both crash
+libcudart's reader and must not be used.
 
 ## Exit Gate
 
