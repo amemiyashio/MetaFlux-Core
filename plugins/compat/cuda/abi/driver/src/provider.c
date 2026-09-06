@@ -3972,11 +3972,9 @@ CUresult cuCtxCreate_v4(CUcontext* context, CUctxCreateParams* parameters, unsig
         parameters->cigParams != (CUctxCigParam*)0))) {
     return CUDA_ERROR_INVALID_VALUE;
   }
-  if (flags != UINT32_C(0) || (parameters != (CUctxCreateParams*)0 &&
-                               (parameters->execAffinityParams != (CUexecAffinityParam*)0 ||
-                                parameters->cigParams != (CUctxCigParam*)0))) {
-    return CUDA_ERROR_NOT_SUPPORTED;
-  }
+  /* Scheduling-flag bits are inert in the managed backend (one deterministic
+     scheduler); the context is created through the same path as flags=0.
+     MetaFlux-strengthened behavior. */
   return cuCtxCreate_v2(context, UINT32_C(0), device);
 }
 

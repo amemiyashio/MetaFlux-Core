@@ -194,6 +194,10 @@ static CUresult mf_export_init_0x10(void* sub_struct, unsigned int mode) {
 static void* mf_export_ops[8];
 static void* mf_export_vtable[64];
 
+static CUresult mf_a094_ops_entry_success(void) {
+  return CUDA_SUCCESS;
+}
+
 static const unsigned char mf_uuid_a094[16] = {
     0xa0, 0x94, 0x79, 0x8c, 0x2e, 0x74, 0x2e, 0x74,
     0x93, 0xf2, 0x08, 0x00, 0x20, 0x0c, 0x0a, 0x66};
@@ -728,10 +732,15 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
   if (pExportTableId == (const CUuuid*)0 || ppExportTable == (const void**)0) {
     return CUDA_ERROR_INVALID_VALUE;
   }
-  /* UUID a094798c-...: the driver ops table whose entries cudart probes and
-     calls during one-time initialization. Each slot resolves to its own
-     logging thunk so every probed entry is observable. */
+  /* UUID a094798c-...: the driver ops table. cudart requires its first
+     8-byte field (a count/size) to be <= 0x30 and then calls the entries
+     that follow. All entries resolve to a deterministic success callback;
+     semantics graduate per entry through work-item-0.2.0.1. */
   if (memcmp(pExportTableId->bytes, mf_uuid_a094, 16) == 0) {
+    mf_a094_ops[0] = (void*)(uintptr_t)0x30;
+    for (unsigned int i = 1; i < sizeof(mf_a094_ops) / sizeof(mf_a094_ops[0]); ++i) {
+      mf_a094_ops[i] = (void*)&mf_a094_ops_entry_success;
+    }
     *ppExportTable = (const void*)mf_a094_ops;
     return CUDA_SUCCESS;
   }
