@@ -69,6 +69,7 @@ Excluded:
 | [work-item-2.0.0.1](work/work-item-2.0.0.1-intel-host-support.md) | Queued | Intel x86_64 host support and qualification |
 | [work-item-2.0.0.2](work/work-item-2.0.0.2-nvidia-binding-performance.md) | Queued | Physical NVIDIA binding evidence and budget promotion |
 | [work-item-2.0.0.3](work/work-item-2.0.0.3-dual-driver-physical-qualification.md) | Queued | Physical dual-driver Vulkan qualification and external-memory freeze |
+| [PyTorch CUDA ops table RE](../milestone-0.2.0.0-pytorch-cuda-compatibility/work/work-item-0.2.0.1-torch-client-bringup.md) | Blocked on physical NVIDIA | Reverse-engineer the a094798c ops table entries (work-item-0.2.0.1, `6bd5fb6c`/`a094798c` boundary) against the real NVIDIA driver behavior |
 
 ## Milestone Acceptance
 
