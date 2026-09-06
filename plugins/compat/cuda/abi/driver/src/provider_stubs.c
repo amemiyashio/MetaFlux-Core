@@ -749,7 +749,7 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
      the table size (must be > 0x1df = 479) and table[+0x30] for an entry
      count (must be > 13), before continuing initialization. */
   if (memcmp(pExportTableId->bytes, mf_uuid_a094, 16) == 0) {
-    mf_a094_ops[0] = (void*)(uintptr_t)64;
+    mf_a094_ops[0] = (void*)(uintptr_t)12060;
     mf_a094_ops[2] = (void*)&mf_a094_get_size;
     mf_a094_ops[6] = (void*)&mf_a094_get_count;
     for (unsigned int i = 1; i < sizeof(mf_a094_ops) / sizeof(mf_a094_ops[0]); ++i) {
