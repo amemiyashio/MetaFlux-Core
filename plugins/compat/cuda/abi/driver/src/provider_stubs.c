@@ -198,6 +198,18 @@ static CUresult mf_a094_ops_entry_success(void) {
   return CUDA_SUCCESS;
 }
 
+static CUresult mf_a094_get_size(void* in, void* out) {
+  (void)in;
+  *(unsigned long long*)out = 512;
+  return CUDA_SUCCESS;
+}
+
+static CUresult mf_a094_get_count(void* in, void* out) {
+  (void)in;
+  *(unsigned long long*)out = 14;
+  return CUDA_SUCCESS;
+}
+
 static const unsigned char mf_uuid_a094[16] = {
     0xa0, 0x94, 0x79, 0x8c, 0x2e, 0x74, 0x2e, 0x74,
     0x93, 0xf2, 0x08, 0x00, 0x20, 0x0c, 0x0a, 0x66};
@@ -732,12 +744,14 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
   if (pExportTableId == (const CUuuid*)0 || ppExportTable == (const void**)0) {
     return CUDA_ERROR_INVALID_VALUE;
   }
-  /* UUID a094798c-...: the driver ops table. cudart requires its first
-     8-byte field (a count/size) to be <= 0x30 and then calls the entries
-     that follow. All entries resolve to a deterministic success callback;
-     semantics graduate per entry through work-item-0.2.0.1. */
+  /* UUID a094798c-...: the driver ops table. cudart's loader requires
+     table[0] (interface version) > 0x30, then invokes table[+0x10] to fetch
+     the table size (must be > 0x1df = 479) and table[+0x30] for an entry
+     count (must be > 13), before continuing initialization. */
   if (memcmp(pExportTableId->bytes, mf_uuid_a094, 16) == 0) {
-    mf_a094_ops[0] = (void*)(uintptr_t)0x30;
+    mf_a094_ops[0] = (void*)(uintptr_t)64;
+    mf_a094_ops[2] = (void*)&mf_a094_get_size;
+    mf_a094_ops[6] = (void*)&mf_a094_get_count;
     for (unsigned int i = 1; i < sizeof(mf_a094_ops) / sizeof(mf_a094_ops[0]); ++i) {
       mf_a094_ops[i] = (void*)&mf_a094_ops_entry_success;
     }

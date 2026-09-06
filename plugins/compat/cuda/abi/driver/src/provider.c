@@ -619,6 +619,9 @@ static CUresult mf_cuda_status(mf_shared_status_v1 status) {
   case MF_SHARED_RESOURCE_EXHAUSTED:
     return CUDA_ERROR_OUT_OF_MEMORY;
   case MF_SHARED_NOT_SUPPORTED:
+    if (getenv("METAFLUX_TRACE_STUBS") != (void*)0) {
+      fprintf(stderr, "MF_NS_MAP ret=%p\n", __builtin_return_address(0));
+    }
     return CUDA_ERROR_NOT_SUPPORTED;
   case MF_SHARED_SYSTEM_ERROR:
   default:

@@ -82,6 +82,16 @@ identify which internal state cudart validates after the property sweep
 (candidate: the second export table's expected content, populated lazily),
 either by serving that table or by satisfying the checks it guards.
 
+Third-pass refinement (2026-09-07): serving the a094 table with an
+interface-version header (64) plus size/count entries (512, 14) satisfies
+the loader's version gate; the failure stays at the post-attribute-sweep
+internal validation. The NOT_INITIALIZED(3) does not originate from the
+provider's status mapper or require_locked paths (both instrumented, zero
+hits) — it is generated inside libcudart's post-attribute-sweep
+initialization validation. Next diagnostic layer: trace all provider
+function returns during the post-sweep window to find which driver state
+cudart rejects.
+
 Debugging aids kept in-tree: `METAFLUX_TRACE_STUBS=1` logs typed stub
 entries, attribute results (`MF_ATTR`), require_locked failures, and export
 table UUIDs (`MF_TABLE_UUID`). The zero-filled and NULL export-table
