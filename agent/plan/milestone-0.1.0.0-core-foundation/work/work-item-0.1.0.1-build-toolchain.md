@@ -48,7 +48,7 @@ The matrix is a product release task. Artifact construction belongs to
 `packaging/`, execution and evidence belong to `tests/release/`, and Nix's
 tool-provider role does not acquire either responsibility.
 
-Native NixOS VM/package qualification is a `v0.2.0` support-expansion task. It
+Native NixOS VM/package qualification is a `v0.3.0` support-expansion task. It
 does not add a fifth milestone-0.1.0.0 row and does not transfer package construction or VM
 qualification semantics to Nix.
 

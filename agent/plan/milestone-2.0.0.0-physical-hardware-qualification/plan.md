@@ -57,7 +57,7 @@ Included:
 
 Excluded:
 
-- Native NixOS VM/package qualification, which remains `v0.2.0` scope.
+- Native NixOS VM/package qualification, which remains `v0.3.0` scope.
 - Intel GPU execution, CUDA Runtime, SASS/cubin execution, private NVIDIA
   RM/UVM compatibility, or a new execution backend.
 - Treating a missing physical field or skipped row as a passing result.

@@ -22,7 +22,7 @@ identity and provisioning boundaries live in
   independent of this floor.
 - The `v0.1.0` generic release matrix is Ubuntu 20.04.6, Ubuntu 22.04.5,
   Ubuntu 24.04.4, and Rocky Linux 9.8 (decision-0012). Native NixOS VM/package
-  qualification belongs to the `v0.2.0` support expansion. Per-run image and
+  qualification belongs to the `v0.3.0` support expansion. Per-run image and
   update digests remain required evidence.
 - Application-side providers and client fast path use C17 and keep LLVM/MLIR,
   Python, systemd, and the C++ runtime out of the provider closure.

@@ -16,9 +16,9 @@ own probe behavior and qualification; Nix only materializes the clients.
 
 ## Promotion Boundary
 
-[milestone-0.3.0.0](milestone-0.3.0.0-pytorch-cuda-compatibility/plan.md) is
+[milestone-0.2.0.0](milestone-0.2.0.0-pytorch-cuda-compatibility/plan.md) is
 the formal promotion vehicle for this research: it occupies the delivery slot
-after the reserved `v0.2.0` NixOS expansion and turns probe evidence into
+in the `v0.2.0` delivery slot and turns probe evidence into
 product qualification through its work items. Until then,
 [milestone-0.1.0.0](milestone-0.1.0.0-core-foundation/plan.md) remains on its
 frozen PTX 9.0/`sm_70` semantic contract. The existing

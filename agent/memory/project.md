@@ -40,9 +40,9 @@ all delivered with evidence recorded beside their work items. The current
 target is milestone-1.0.0.0 / `v1.0.0`, the stable compatibility release with
 provisional budgets; Intel x86_64 qualification and physical NVIDIA
 binding-performance promotion belong to milestone-2.0.0.0 / `v2.0.0`
-(decision-0040). Native NixOS VM/package qualification remains the unallocated
-`v0.2.0` support expansion, and milestone-0.3.0.0 / `v0.3.0` (PyTorch CUDA
-compatibility) is queued behind that slot. Canonical scope and acceptance
+(decision-0040). The next product slot is milestone-0.2.0.0 / `v0.2.0` (PyTorch CUDA
+compatibility), and native NixOS VM/package qualification remains the
+unallocated `v0.3.0` support expansion. Canonical scope and acceptance
 remain in the [repository overview](../../README.md),
 [plugin ownership](../../plugins/README.md), and
 [milestone-0.1.0.0](../plan/milestone-0.1.0.0-core-foundation/plan.md); recorded evidence is valid only

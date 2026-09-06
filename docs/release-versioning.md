@@ -27,12 +27,15 @@ The approved delivery line is:
 | [milestone-0.1.1.0](../agent/plan/milestone-0.1.1.0-kernel-guest-transport/plan.md) | `v0.1.1` | `0.1.1.0` | Local cdev and static guest transport |
 | [milestone-0.1.2.0](../agent/plan/milestone-0.1.2.0-vpci-lifecycle/plan.md) | `v0.1.2` | `0.1.2.0` | Lifecycle and experimental vPCI presentation |
 | [milestone-0.1.3.0](../agent/plan/milestone-0.1.3.0-vulkan-backend/plan.md) | `v0.1.3` | `0.1.3.0` | Vulkan execution backend |
-| [milestone-0.3.0.0](../agent/plan/milestone-0.3.0.0-pytorch-cuda-compatibility/plan.md) | `v0.3.0` | `0.3.0.0` | PyTorch CUDA compatibility, after the reserved `v0.2.0` NixOS expansion slot |
+| [milestone-0.2.0.0](../agent/plan/milestone-0.2.0.0-pytorch-cuda-compatibility/plan.md) | `v0.2.0` | `0.2.0.0` | PyTorch CUDA compatibility |
+| (unallocated) | `v0.3.0` | `0.3.0.0` | Reserved native NixOS VM/package support-expansion slot |
 | [milestone-1.0.0.0](../agent/plan/milestone-1.0.0.0-stable-qualification/plan.md) | `v1.0.0` | `1.0.0.0` | Stable compatibility contract and reproducible v1.0.0 release |
 
-`v0.2.0` remains an unallocated support-expansion line for native NixOS
+`v0.3.0` remains an unallocated support-expansion line for native NixOS
 VM/package qualification. No milestone record is allocated until that plan is approved;
-its milestone scope would compact to `milestone-0.2.0.0`.
+its milestone scope would compact to `milestone-0.3.0.0`. The `v0.2.0` slot is
+allocated to milestone-0.2.0.0 (PyTorch CUDA compatibility), moving the
+original decision-0012 NixOS reservation by plan allocation.
 
 decision-0040 assigns Intel x86_64 support qualification and physical NVIDIA
 binding-performance qualification to milestone-2.0.0.0 / `v2.0.0`, superseding

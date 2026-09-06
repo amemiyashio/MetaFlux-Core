@@ -1,7 +1,7 @@
 ---
-id: work-item-0.3.0.1
-delivery: 0.3.0.1
-milestone: milestone-0.3.0.0
+id: work-item-0.2.0.1
+delivery: 0.2.0.1
+milestone: milestone-0.2.0.0
 status: Draft
 area: compat.cuda
 depends_on: [work-item-0.1.0.4]

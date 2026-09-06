@@ -1,7 +1,7 @@
 ---
-id: milestone-0.3.0.0
-delivery: 0.3.0.0
-release: v0.3.0
+id: milestone-0.2.0.0
+delivery: 0.2.0.0
+release: v0.2.0
 status: Queued
 budgets: provisional
 depends_on: [milestone-0.1.0.0]
@@ -9,7 +9,7 @@ areas: [compat.cuda, compiler.cpu, backend.cpu, backend.vulkan, compatibility]
 updated: 2026-09-06
 ---
 
-# milestone-0.3.0.0: PyTorch CUDA Compatibility
+# milestone-0.2.0.0: PyTorch CUDA Compatibility
 
 ## Outcome
 
@@ -19,8 +19,8 @@ operations end-to-end with bit-exact results through the managed daemon, on
 the CPU backend first and through daemon-routed Vulkan execution as the
 second target.
 
-The milestone occupies the delivery slot after the reserved `v0.2.0` NixOS
-support expansion and promotes the
+The milestone occupies the `v0.2.0` delivery slot; the native NixOS
+VM/package support expansion moves to the reserved `v0.3.0` slot. It promotes the
 [PyTorch compatibility roadmap](../pytorch-compatibility-roadmap.md) probes
 into a formal product line. Probe-only evidence stays diagnostic until a work
 item here records it as qualification evidence.
@@ -83,7 +83,7 @@ Excluded:
 
 ## Definition of Done
 
-milestone-0.3.0.0 is complete when the pinned baseline client passes the full
+milestone-0.2.0.0 is complete when the pinned baseline client passes the full
 probe through a stock daemon, the eager-operation corpus is bit-exact, the
 daemon routes framework clients to a qualified execution backend (CPU first;
 Vulkan when its rows close), frontier-profile gaps are recorded, and the

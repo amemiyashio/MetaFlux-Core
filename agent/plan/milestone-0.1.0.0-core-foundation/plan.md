@@ -204,7 +204,7 @@ compiler fingerprints, and admits no excluded later feature into the `v0.1.0`
 hot path. Intel x86_64 support qualification and physical NVIDIA
 binding-performance promotion are explicitly outside this DoD and begin with
 milestone-1.0.0.0 / `v1.0.0`. Native NixOS VM/package qualification is also outside this
-DoD and remains in the unallocated `v0.2.0` support expansion.
+DoD and remains in the unallocated `v0.3.0` support expansion.
 
 [milestone-0.1.1.0](../milestone-0.1.1.0-kernel-guest-transport/plan.md) begins kernel/cdev and static
 guest transport work only after this DoD or an explicit milestone-boundary

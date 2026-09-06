@@ -23,7 +23,7 @@ milestone no longer gates on physical hardware the executing fleet cannot
 guarantee. The declared performance budgets stay `provisional` through
 `v1.0.0` and become `binding` only through milestone-2.0.0.0.
 
-Native NixOS VM/package qualification remains an independent `v0.2.0` support
+Native NixOS VM/package qualification remains an independent `v0.3.0` support
 expansion. Intel x86_64 means the host CPU, topology, placement, compiler,
 runtime, and release path; it does not mean an Intel GPU backend. Physical
 NVIDIA hardware supplies reference evidence only; it does not turn SASS,
@@ -34,7 +34,7 @@ private RM/UVM, or direct NVIDIA execution into a MetaFlux backend.
 decision-0040 supersedes decision-0027: the Intel and physical NVIDIA gates
 that decision-0027 assigned to milestone-1.0.0.0 / `v1.0.0` now belong to
 milestone-2.0.0.0 / `v2.0.0`. decision-0012 still assigns native NixOS
-VM/package qualification to `v0.2.0`. milestone-0.1.0.0 still closes against
+VM/package qualification to the support-expansion line, reserved as `v0.3.0`. milestone-0.1.0.0 still closes against
 its AMD x86_64 reference evidence and provisional budgets.
 
 No existing benchmark observation becomes binding through this planning
@@ -54,7 +54,7 @@ Excluded:
 
 - Intel x86_64 support qualification and physical NVIDIA binding promotion,
   which are milestone-2.0.0.0 scope (decision-0040).
-- Native NixOS VM/package qualification, which remains `v0.2.0` scope.
+- Native NixOS VM/package qualification, which remains `v0.3.0` scope.
 - Intel GPU execution, CUDA Runtime, SASS/cubin execution, private NVIDIA
   RM/UVM compatibility, or a new execution backend.
 
@@ -88,4 +88,4 @@ its exit gate from a named Git revision, the stable compatibility surface is
 explicit, and the reproducible release is installable without Nix on the
 reference host. Intel and physical NVIDIA evidence is owned by
 milestone-2.0.0.0 and is not part of this DoD. Native NixOS qualification
-remains outside this DoD and does not silently move from `v0.2.0`.
+remains outside this DoD and does not silently move from `v0.3.0`.

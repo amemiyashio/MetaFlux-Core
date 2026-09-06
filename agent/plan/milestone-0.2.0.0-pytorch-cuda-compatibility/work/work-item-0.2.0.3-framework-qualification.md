@@ -1,10 +1,10 @@
 ---
-id: work-item-0.3.0.3
-delivery: 0.3.0.3
-milestone: milestone-0.3.0.0
+id: work-item-0.2.0.3
+delivery: 0.2.0.3
+milestone: milestone-0.2.0.0
 status: Draft
 area: compatibility
-depends_on: [work-item-0.3.0.2]
+depends_on: [work-item-0.2.0.2]
 updated: 2026-09-06
 ---
 

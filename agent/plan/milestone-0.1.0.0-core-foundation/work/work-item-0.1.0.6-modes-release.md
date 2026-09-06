@@ -105,7 +105,7 @@ workflows. A project PGO profile does not enter the compiler epoch or
   build, O2/O3 comparison, ASan/UBSan hardening, coexistence tests, and both
   eight-row generic package matrices.
 
-Native NixOS VM/package qualification remains unallocated `v0.2.0` work.
+Native NixOS VM/package qualification remains unallocated `v0.3.0` work.
 Physical NVIDIA binding-performance promotion belongs to milestone-1.0.0.0 / `v1.0.0`.
 Neither is an unchecked work-item-0.1.0.6 row.
 
@@ -117,4 +117,4 @@ declared Git revision, and all in-scope global acceptance criteria in
 [milestone-0.1.0.0](../plan.md) pass on the AMD reference host. Passthrough loss and the
 other provisional numeric budgets become binding only with milestone-1.0.0.0 / `v1.0.0`
 physical NVIDIA evidence. Intel x86_64 support qualification is also an milestone-1.0.0.0
-obligation; native NixOS qualification remains an unallocated `v0.2.0` gate.
+obligation; native NixOS qualification remains an unallocated `v0.3.0` gate.

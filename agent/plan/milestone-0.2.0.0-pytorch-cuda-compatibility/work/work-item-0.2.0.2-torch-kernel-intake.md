@@ -1,10 +1,10 @@
 ---
-id: work-item-0.3.0.2
-delivery: 0.3.0.2
-milestone: milestone-0.3.0.0
+id: work-item-0.2.0.2
+delivery: 0.2.0.2
+milestone: milestone-0.2.0.0
 status: Draft
 area: compiler.cpu
-depends_on: [work-item-0.3.0.1]
+depends_on: [work-item-0.2.0.1]
 updated: 2026-09-06
 ---
 
