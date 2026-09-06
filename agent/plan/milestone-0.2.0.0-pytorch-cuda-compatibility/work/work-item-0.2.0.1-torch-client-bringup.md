@@ -87,6 +87,16 @@ entries, attribute results (`MF_ATTR`), require_locked failures, and export
 table UUIDs (`MF_TABLE_UUID`). The zero-filled and NULL export-table
 variants both crash libcudart's reader and must not be used.
 
+Second-table boundary named (2026-09-07, second pass): the second internal
+table `a094798c-2e74-2e74-93f2-0800200c0a66` is the post-attribute-sweep
+blocker. Serving it with an all-success ops table still segfaults libcudart
+(its entries have real semantics: output pointers and callbacks), so the
+provider returns NOT_FOUND for it and `cudaGetDeviceCount` fails cleanly
+with error 500. Converging this table requires reverse-engineering each
+entry's semantics from libcudart's reads of the region (gdb watchpoint
+workflow established in this iteration) — the remaining scope of this work
+item alongside the kernel-intake strategy.
+
 Second-pass refinement (2026-09-07, latest): with driver version 12060
 (exactly matching the baseline runtime) the failure signature changes from
 NOT_FOUND to the post-sweep initialization validation, confirming the

@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static int mf_stub_trace_enabled = -1;
 
@@ -184,20 +185,36 @@ CUresult cuFuncSetSharedMemConfig(CUfunction hfunc, CUsharedconfig config) {
   return CUDA_ERROR_NOT_SUPPORTED;
 }
 
-static CUresult mf_export_fill_0x10(void* sub_table, unsigned int mode) {
-  (void)sub_table;
+static CUresult mf_export_init_0x10(void* sub_struct, unsigned int mode) {
+  (void)sub_struct;
   (void)mode;
   return CUDA_SUCCESS;
 }
 
+static void* mf_export_ops[8];
+static void* mf_export_vtable[64];
+
+static const unsigned char mf_uuid_a094[16] = {
+    0xa0, 0x94, 0x79, 0x8c, 0x2e, 0x74, 0x2e, 0x74,
+    0x93, 0xf2, 0x08, 0x00, 0x20, 0x0c, 0x0a, 0x66};
+
 CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTableId) {
   MF_STUB_TRACE;
-  (void)pExportTableId;
-  static void* mf_export_vtable[64];
-  mf_export_vtable[2] = (void*)&mf_export_fill_0x10;
-  if (ppExportTable != (const void**)0) {
-    *ppExportTable = (const void*)mf_export_vtable;
+  if (pExportTableId == (const CUuuid*)0 || ppExportTable == (const void**)0) {
+    return CUDA_ERROR_INVALID_VALUE;
   }
+  /* UUID a094798c-...: the driver ops table whose +0x10 entry cudart invokes
+     during one-time initialization. Its entries carry real semantics that are
+     not implemented yet, so it stays NOT_FOUND (clean failure) instead of a
+     partially populated table that segfaults libcudart. */
+  if (memcmp(pExportTableId->bytes, mf_uuid_a094, 16) == 0) {
+    return CUDA_ERROR_NOT_FOUND;
+  }
+  /* UUID 6bd5fb6c-...: the general driver vtable; slot[2] (offset 0x10) is
+     the initialization entry cudart exercises. */
+  mf_export_ops[2] = (void*)&mf_export_init_0x10;
+  mf_export_vtable[14] = (void*)mf_export_ops;
+  *ppExportTable = (const void*)mf_export_vtable;
   return CUDA_SUCCESS;
 }
 
