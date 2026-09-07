@@ -323,14 +323,30 @@ static uintptr_t mf_d408_cudart_base(void) {
   return base;
 }
 
-/* c693 container vtable slot +0x10: state lookup. Returning zero means
-   "state exists and *out is filled" — cudart then skips creation and
-   crashes on the null element. Nonzero means "not found" and drives
-   cudart's create path (41a10/41d10). */
+/* c693 container vtable slot +0x10: state lookup. Semantics: nonzero means
+   "not found" and drives cudart's create path (41a10/41d10); zero means
+   "found" and *out carries the per-device state object, which cudart later
+   walks in place (mutex at +0x88, lists at +0x58/+0x68). The provider
+   creates the state blob on the first miss and serves the same pointer on
+   every later lookup — the virtual device has one deterministic state. */
+static unsigned char* mf_c693_state_blob = (unsigned char*)0;
+
 static CUresult mf_c693_lookup_miss(void* out, void* tag) {
-  (void)out;
   (void)tag;
-  return (CUresult)1;
+  if (out == (void*)0) {
+    return (CUresult)1;
+  }
+  if (mf_c693_state_blob == (unsigned char*)0) {
+    mf_c693_state_blob = calloc(1, 0x1000);
+    if (mf_c693_state_blob == (unsigned char*)0) {
+      return CUDA_ERROR_OUT_OF_MEMORY;
+    }
+    /* First call reports the miss so cudart runs its create path; the blob
+       is already installed for the follow-up lookup. */
+    return (CUresult)1;
+  }
+  *(void**)out = (void*)mf_c693_state_blob;
+  return CUDA_SUCCESS;
 }
 
 static void mf_d408_hmac(uintptr_t cudart_base, const unsigned char* msg, size_t msg_len,

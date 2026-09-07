@@ -24,10 +24,11 @@ driver-enumeration, and runtime-copy pass with no client-side patches.
 - [ ] Implement the missing provider driver-API entries required for device
   enumeration and primary-context establishment, with negative fixtures for
   each and no regression in the existing ABI symbol gates.
-- [ ] Drive the baseline profile probe through `driver-enumeration` with
+- [x] Drive the baseline profile probe through `driver-enumeration` with
   `--require-stage driver-enumeration`, then extend to `runtime-copy`
   (device-resident tensor allocation, host transfer, copy-back) through the
-  daemon's memory path.
+  daemon's memory path. Both stages exit 0 against the pinned 2.11.0+cu126
+  client (2026-09-08).
 - [ ] Bind the required driver surface into the provider capability report,
   cache identity, and the compatibility probe manifest so artifacts miss when
   the surface changes.
@@ -200,6 +201,29 @@ returns 1 only when the import registrations precede it (standalone
 set_device succeeds). Next iteration: single-step 12f50 under a script that
 calls set_device to find which import-conditioned check fails; the probe's
 driver-enumeration stage then reduces to get_device_properties.
+
+Sixth-pass convergence (2026-09-08): the last container gap closed and both
+probe gates turned green. The container slot +0x10 needs STATEFUL lookup
+semantics: the first call must report a miss so cudart runs its create path,
+and the provider installs a persistent zero-initialized state blob on that
+first miss; every later lookup returns success with the same blob pointer
+(cudart walks it in place: mutex at +0x88, lists at +0x58/+0x68 — a zeroed
+0x1000-byte blob satisfies the walk). A permanent miss made cudart's device
+initializer return invalid-argument after the import registrations.
+
+Verified against the pinned torch 2.11.0+cu126 client:
+- `pytorch_cuda_probe.py --profile baseline --require-stage driver-enumeration`
+  exits 0.
+- `--require-stage runtime-copy` exits 0 (torch tensor H2D/D2H round trip
+  through the stock daemon).
+- `torch.cuda.set_device(0)` succeeds inside a torch-import process.
+- Full CTest suite 144/144.
+
+Remaining gap (moves to work-item-0.2.0.2): artifact-intake — the
+`torch.cuda._sleep(1)` bundled-kernel smoke fails with
+`cudaErrorInvalidDeviceFunction`; torch's own cubin needs the real kernel
+intake/launch strategy (daemon-side materialization of client cubins), which
+is this milestone's next work item. eager-add is blocked behind it.
 
 Debugging aids kept in-tree: `METAFLUX_TRACE_STUBS=1` logs typed stub
 entries, attribute results (`MF_ATTR`), require_locked failures, and export
