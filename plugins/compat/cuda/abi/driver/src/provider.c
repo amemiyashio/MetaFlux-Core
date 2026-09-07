@@ -4912,11 +4912,10 @@ CUresult cuModuleGetLoadingMode(CUmoduleLoadingMode* mode) {
   if (mode == (CUmoduleLoadingMode*)0) {
     return CUDA_ERROR_INVALID_VALUE;
   }
-  /* The managed backend compiles through the daemon at load time; report
-     eager so cudart initializes its device state up front. Deferred
-     library intake still defers the daemon MODULE_LOAD to first kernel
-     resolution inside the provider. */
-  *mode = CU_MODULE_EAGER_LOADING;
+  /* The managed backend materializes foreign client cubins through the
+     deferred semantic-launch profile, which is the lazy contract; cudart
+     must defer its kernel binding to launch time for that path to run. */
+  *mode = CU_MODULE_LAZY_LOADING;
   return CUDA_SUCCESS;
 }
 

@@ -42,3 +42,26 @@ The baseline profile reaches probe stage `complete`; the extended eager
 corpus is bit-exact through a stock daemon on the CPU backend; any manifest
 revision is bound by its own hashes, epoch bump, and green differential
 gates.
+
+
+## Measured progress (2026-09-08)
+
+Groundwork from the enumeration work item: real fatbin-size parsing, per-
+module blob retention, cubin ELF symbol-table kernel-name extraction, the
+CUDA 12 kernel-query surface (GetKernelCount, EnumerateKernels,
+KernelGetName, registry-backed GetKernel), and a launch-time semantic router
+(`sleep_kernel` no-op; elementwise AddFunctor int32 host add through the
+copy path). Wheel survey: 387 fatbins, 2714 entries, all kind=2 cubins, no
+PTX — daemon PTX compilation cannot serve client kernels; the semantic
+profile (or a future SASS worker) is the only viable strategy.
+
+Blocking frontier (negative finding): `torch.cuda._sleep(1)` fails with
+cudaErrorInvalidDeviceFunction while the provider observes ZERO driver
+calls — no launch, no kernel query, no load. cudart 12.6 resolves
+registered functions entirely from its own registration metadata and the
+negative decision is cached before any driver contact, in both loading
+modes. The container state (g+0x68) and its vtable were exonerated: the
+lookup/create path completes successfully. Next: attach to cudart's
+registered-function records at __cudaRegisterFunction time and step the
+launch-time resolution to find which internal field fails validation
+(the entry walker at 0x40380 and the 0x426xx accessor are the anchors).
