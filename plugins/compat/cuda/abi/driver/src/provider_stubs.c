@@ -323,6 +323,16 @@ static uintptr_t mf_d408_cudart_base(void) {
   return base;
 }
 
+/* c693 container vtable slot +0x10: state lookup. Returning zero means
+   "state exists and *out is filled" — cudart then skips creation and
+   crashes on the null element. Nonzero means "not found" and drives
+   cudart's create path (41a10/41d10). */
+static CUresult mf_c693_lookup_miss(void* out, void* tag) {
+  (void)out;
+  (void)tag;
+  return (CUresult)1;
+}
+
 static void mf_d408_hmac(uintptr_t cudart_base, const unsigned char* msg, size_t msg_len,
                          unsigned char out[16]) {
   unsigned char ctx[0x80];
@@ -454,10 +464,12 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
      crashes when the binder later calls through real slots. */
   if (memcmp(pExportTableId->bytes, mf_uuid_c693, 16) == 0) {
     unsigned int i = 0;
-    mf_c693_ops[0] = (void*)(uintptr_t)12060;
-    for (i = 1; i < sizeof(mf_c693_ops) / sizeof(mf_c693_ops[0]); ++i) {
+    /* This table is a C++ vtable: cudart calls every slot including [0], so
+       no slot may hold the version integer (calling 12060 segfaults). */
+    for (i = 0; i < sizeof(mf_c693_ops) / sizeof(mf_c693_ops[0]); ++i) {
       mf_c693_ops[i] = (void*)&mf_a094_ops_entry_success;
     }
+    mf_c693_ops[2] = (void*)&mf_c693_lookup_miss;
     *ppExportTable = (const void*)mf_c693_ops;
     return CUDA_SUCCESS;
   }

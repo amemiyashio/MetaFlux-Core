@@ -4056,6 +4056,7 @@ CUresult cuCtxCreate_v4(CUcontext* context, CUctxCreateParams* parameters, unsig
 
 CUresult cuDevicePrimaryCtxRetain(CUcontext* context, CUdevice device) {
   MF_ENTRY_TRACE();
+  mf_cuda_tls_state* state = mf_cuda_thread_state(UINT32_C(1));
   uint32_t index = 0;
   uint32_t registry_index = UINT32_C(0);
   CUresult result = CUDA_SUCCESS;
@@ -4090,7 +4091,17 @@ CUresult cuDevicePrimaryCtxRetain(CUcontext* context, CUdevice device) {
       result = mf_cuda_create_context_locked(context, device, UINT32_C(1));
     }
   }
+  /* cudart's device-state construction keys the per-device container on the
+     CURRENT context immediately after retain; a real retain+use sequence
+     always observes the primary context as current. MetaFlux-strengthened:
+     retaining the primary context makes it current on this thread. */
+  if (result == CUDA_SUCCESS && state != (mf_cuda_tls_state*)0) {
+    state->current = *context;
+  }
   mf_cuda_unlock();
+  if (mf_cuda_entry_trace_enabled() != 0) {
+    fprintf(stderr, "MF_PCR dev=%d ctx=%p rc=%d\n", (int)device, (void*)*context, (int)result);
+  }
   return result;
 }
 
@@ -4459,6 +4470,9 @@ CUresult cuCtxGetCurrent(CUcontext* context) {
     *context = state == (mf_cuda_tls_state*)0 ? (CUcontext)0 : state->current;
   }
   mf_cuda_unlock();
+  if (mf_cuda_entry_trace_enabled() != 0) {
+    fprintf(stderr, "MF_CGC ctx=%p rc=%d\n", (void*)(state ? state->current : 0), (int)result);
+  }
   return result;
 }
 
@@ -4503,6 +4517,9 @@ CUresult cuCtxPushCurrent_v2(CUcontext context) {
     state->current = context;
   }
   mf_cuda_unlock();
+  if (mf_cuda_entry_trace_enabled() != 0) {
+    fprintf(stderr, "MF_PUSH ctx=%p rc=%d\n", (void*)context, (int)result);
+  }
   return result;
 }
 

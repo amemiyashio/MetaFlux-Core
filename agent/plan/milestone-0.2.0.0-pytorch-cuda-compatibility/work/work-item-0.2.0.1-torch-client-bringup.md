@@ -174,6 +174,33 @@ walks a NULL state object; the state creation silently failed during
 import). Next iteration identifies which provider answer aborts that state
 build — the crash needs no hardware and falls to the same gdb workflow.
 
+Fifth-pass convergence (2026-09-07, latest): the set_device crash decomposed
+into three precise contract gaps in the container interface, each fixed:
+
+1. The container export table is a C++ vtable — cudart calls every slot
+   including [0], so the version integer in slot 0 was invoked as a function
+   pointer (call to 0x2f1c) and segfaulted. All slots are functions now.
+2. Container slot +0x10 is a state LOOKUP with inverted polarity: returning
+   zero claims "state exists" and cudart skips creation, then dereferences
+   the null element; returning nonzero drives cudart's create path
+   (41a10/41d10). The provider returns 1 (lookup miss).
+3. cudart keys the per-device container state on the CURRENT context during
+   construction: `cuCtxGetCurrent` is read and used as the state key, so a
+   null current after retain aborts construction. Retaining the primary
+   context now makes it current on the thread (MetaFlux-strengthened; the
+   primary is the only context the managed backend exposes).
+
+Verified standalone: `cudaSetDevice(0)` returns 0 and
+`cudaDeviceGetStreamPriorityRange` returns (0,0); the probe passes import
+and `torch.cuda.device_count() == 1`; full CTest stays 144/144.
+
+Current frontier: `torch.cuda.set_device(0)` inside a torch-import process
+returns `cudaErrorInvalidValue` — cudart's device initializer (12f50)
+returns 1 only when the import registrations precede it (standalone
+set_device succeeds). Next iteration: single-step 12f50 under a script that
+calls set_device to find which import-conditioned check fails; the probe's
+driver-enumeration stage then reduces to get_device_properties.
+
 Debugging aids kept in-tree: `METAFLUX_TRACE_STUBS=1` logs typed stub
 entries, attribute results (`MF_ATTR`), require_locked failures, and export
 table UUIDs (`MF_TABLE_UUID`). The zero-filled and NULL export-table
