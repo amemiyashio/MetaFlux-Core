@@ -127,3 +127,19 @@ requires a driver-compatible state-object lifecycle (allocator-integrated
 allocations, keyed map registration, walkable cleanup chains). That state
 object emulation is the precise remaining scope; regression stays 144/144
 with the contiguous blob.
+
+cudaLaunchKernel full decode (2026-09-08, sixth pass): the exported
+cudaLaunchKernel (0x75800) branches on nested+0x34c between the
+init-only fast path (75a48: 12f50 device init, return) and the launch
+request path. The request path builds a 0x78-byte request (marker 0x78,
+error field 211, callback 0x4aa60), locks via g80[+0x10], calls
+g78[+0x20]/g78[+0x18], checks 28890 (launch-state getter — null triggers
+the 211 error report through g78[+8] with callback 4aa60), and then calls
+15920(host_func, grid, block, args...) — the actual registered-function
+launch implementation — whose return value IS cudaLaunchKernel's return
+(the 701). Static anchors for the next decode: 28890 (launch state
+getter), 15920 (registered-function launch), and the request layout
+{0x78 size, 211 error, 4aa60 callback}. The provider-observable surface
+inside 15920 remains to be mapped; the semantic launch router hooks the
+driver-level cuLaunchKernel that 15920 will eventually call once the
+registered-function resolution succeeds.
