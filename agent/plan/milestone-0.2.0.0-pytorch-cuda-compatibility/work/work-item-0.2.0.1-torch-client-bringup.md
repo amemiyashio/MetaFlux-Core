@@ -388,6 +388,27 @@ Verification: 28/41 operators pass (all shape/metadata ops, creation,
 copies, and the elementwise set above); the 13 remaining fail with clean
 errors; probe 5/5; CTest 144/144.
 
+Comparison decode and hardening (2026-09-08, fifth pass): the compare
+functor DOES carry the op — CompareOp enum at functor offset zero
+(Eq=0, Ne=1, Lt=2, Le=3), verified per-launch (eq functor starts
+{0, 0x7fff, 6, ...}, ne starts {1, 0x7fff, 6, ...}); lt/le ride the same
+encoding through the anonymous CompareFunctor. gt/ge lower to empty
+functors whose stale slot bytes mimic Ne/Eq, so the CMP handler validates
+the op against the kernel family's decodable range and fails cleanly
+otherwise — wrong comparison results are worse than clean errors.
+COPY_CAST decode fixed: the source element type is not in the mangled
+name (the lambda id encodes the cast target), so casts read int32 sources
+and take the output width from the lambda id (UlfE=float, UldE=double) —
+int32-to-float32 conversion is now bit-exact. arange stays unsupported by
+the same wrong-data principle: torch defaults arange to int64 while the
+kernel template computes int32, and the output width is not recoverable.
+
+Final operator sweep state: 30/41 pass (elementwise binary/unary/scalar
+set, eq/ne/lt/le, creation/fill, shape metadata, copies, casts); 11 fail
+with clean errors (gt/ge, reductions, cat/stack, arange, strided-view
+contiguous copies); zero crashes and zero wrong-data paths. probe 5/5;
+CTest 144/144.
+
 ## Exit Gate
 
 `pytorch_cuda_probe.py --profile baseline --require-stage runtime-copy`

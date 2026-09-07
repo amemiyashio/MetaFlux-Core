@@ -6150,6 +6150,11 @@ static CUresult mf_semantic_elementwise(const char* kernel_name, uint32_t op,
   if (strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0) {
     array_slot = UINT32_C(2);
     functor_present = UINT32_C(1);
+  } else if (strstr(kernel_name, "unrolled_elementwise_kernel") != (char*)0) {
+    /* The unrolled family passes the functor argument (even when stateless)
+       before the pointer array: (numel, func, array). */
+    array_slot = UINT32_C(2);
+    functor_present = UINT32_C(0);
   }
   uint32_t in_kind = UINT32_C(0);
   uint32_t out_kind = UINT32_C(0);
@@ -6170,13 +6175,26 @@ static CUresult mf_semantic_elementwise(const char* kernel_name, uint32_t op,
     mf_cuda_queue_unlock();
     return CUDA_ERROR_INVALID_VALUE;
   }
-  if (op == MF_SEM_OP_ABS || op == MF_SEM_OP_COPY_CAST) {
-    if (strstr(kernel_name, "IfE") != (char*)0) {
+  if (op == MF_SEM_OP_ABS) {
+    if (strstr(kernel_name, "AbsFunctorIfE") != (char*)0) {
       in_kind = UINT32_C(1);
-    } else if (strstr(kernel_name, "IdE") != (char*)0) {
+    } else if (strstr(kernel_name, "AbsFunctorIdE") != (char*)0) {
       in_kind = UINT32_C(2);
     }
     out_kind = in_kind;
+  } else if (op == MF_SEM_OP_COPY_CAST) {
+    /* The source element type is not recoverable from the mangled name (the
+       lambda id encodes the cast target): framework casts observed read
+       int32 sources. Output type comes from the lambda id (UlfE=float,
+       UldE=double, else int32). */
+    in_kind = UINT32_C(0);
+    if (strstr(kernel_name, "UlfE") != (char*)0) {
+      out_kind = UINT32_C(1);
+    } else if (strstr(kernel_name, "UldE") != (char*)0) {
+      out_kind = UINT32_C(2);
+    } else {
+      out_kind = UINT32_C(0);
+    }
   } else if (op == MF_SEM_OP_EQ || op == MF_SEM_OP_CMP) {
     if (strstr(kernel_name, "CompareFunctorIfE") != (char*)0 ||
         strstr(kernel_name, "CompareEqFunctorIfE") != (char*)0) {
@@ -6202,6 +6220,10 @@ static CUresult mf_semantic_elementwise(const char* kernel_name, uint32_t op,
       op == MF_SEM_OP_ALPHA_SUB) {
     scalar_slot = UINT32_C(1);
   }
+  if (op == MF_SEM_OP_COPY_CAST) {
+    out_element_size =
+        out_kind == UINT32_C(2) ? (uint32_t)sizeof(double) : (uint32_t)sizeof(int);
+  }
   num_elements = *(unsigned int*)kernel_parameters[0];
   if (num_elements == UINT32_C(0)) {
     mf_cuda_queue_unlock();
@@ -6226,7 +6248,10 @@ static CUresult mf_semantic_elementwise(const char* kernel_name, uint32_t op,
     }
   }
   if (op == MF_SEM_OP_CMP && functor_present != UINT32_C(0)) {
-    scalar_value = (double)(*(int*)((char*)kernel_parameters[1] + 4));
+    /* CompareEqFunctor / CompareFunctor carry the CompareOp enum at offset
+       zero: Eq=0, Ne=1, Lt=2, Le=3, Gt=4, Ge=5 (verified: eq functor starts
+       {0, 0x7fff, 6, ...}, ne functor starts {1, 0x7fff, 6, ...}). */
+    scalar_value = (double)(*(int*)kernel_parameters[1]);
   }
   {
     size_t in_bytes = (size_t)num_elements *
@@ -6784,20 +6809,48 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       } else if (strstr(kernel_name, "BinaryFunctor") != (char*)0 &&
                  strstr(kernel_name, "DivFunctor") != (char*)0) {
         sem_op = MF_SEM_OP_DIV;
-      } else if (strstr(kernel_name, "CompareEqFunctor") != (char*)0) {
-        sem_op = MF_SEM_OP_EQ;
+      } else if (strstr(kernel_name, "CompareEqFunctor") != (char*)0 ||
+                 strstr(kernel_name, "CompareFunctor") != (char*)0) {
+        /* eq/ne (CompareEQKernel.cu) and lt/le (CompareKernels.cu) carry the
+           CompareOp enum at functor offset zero (Eq=0, Ne=1, Lt=2, Le=3).
+           gt/ge lower to empty functors whose stale slot bytes mimic Ne/Eq —
+           a read outside the family's valid range means the op is
+           unrecoverable and the launch fails cleanly instead of producing
+           wrong data. */
+        int cmp_op = kernel_parameters[1] != (void*)0
+                         ? *(int*)kernel_parameters[1]
+                         : -1;
+        int eq_family = strstr(kernel_name, "CompareEqFunctor") != (char*)0;
+        if (eq_family ? (cmp_op >= 0 && cmp_op <= 1) : (cmp_op >= 2 && cmp_op <= 3)) {
+          sem_op = MF_SEM_OP_CMP;
+        }
       }
-      /* The anonymous-namespace lt/le/gt/ge/ne functor carries no runtime op
-         field (the comparison is baked into its operator()), so the op cannot
-         be recovered and those stay clean not-supported errors. */
       if (sem_op != UINT32_C(0)) {
         return mf_semantic_elementwise(kernel_name, sem_op, kernel_parameters, stream,
                                        per_thread_default);
       }
     }
+    /* arange (elementwise_kernel_with_index) stays unsupported: the output
+       element type (torch defaults arange to int64) is not recoverable from
+       the mangled name, and a wrong-width write silently corrupts the
+       result. Fail cleanly instead. */
     mf_cuda_queue_unlock();
     if (mf_cuda_entry_trace_enabled() != 0) {
+      unsigned int n0 = kernel_parameters[0] != (void*)0
+                            ? *(unsigned int*)kernel_parameters[0]
+                            : UINT32_C(0);
       fprintf(stderr, "MF_SEMANTIC miss name=%s\n", kernel_name);
+      fprintf(stderr, "MF_MISS_P p1=%p p2=%p p3=%p numel=%u\n",
+              kernel_parameters[1], kernel_parameters[2],
+              kernel_parameters[3], n0);
+      if (kernel_parameters[1] != (void*)0) {
+        const unsigned long long* q = (const unsigned long long*)kernel_parameters[1];
+        fprintf(stderr, "MF_MISS_Q1 %016llx %016llx %016llx\n", q[0], q[1], q[2]);
+      }
+      if (kernel_parameters[2] != (void*)0) {
+        const unsigned long long* q = (const unsigned long long*)kernel_parameters[2];
+        fprintf(stderr, "MF_MISS_Q2 %016llx %016llx %016llx\n", q[0], q[1], q[2]);
+      }
     }
     return CUDA_ERROR_NOT_SUPPORTED;
   }
