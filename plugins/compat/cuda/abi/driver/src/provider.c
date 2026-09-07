@@ -4973,6 +4973,10 @@ CUresult cuLibraryLoadData(CUlibrary* library, const void* code, CUjit_option* j
       result = CUDA_ERROR_INVALID_IMAGE;
     }
     fatbin_data = fdata;
+    if (mf_cuda_entry_trace_enabled() != 0) {
+      fprintf(stderr, "MF_LLD size=%zu magic=%x\n", image_size,
+              *(unsigned int*)fatbin_data);
+    }
   }
   if (result == CUDA_SUCCESS) {
     result = mf_cuda_registry_index_locked((CUdevice)0, &device_registry_index);
