@@ -363,6 +363,31 @@ H2D+D2H roundtrip, int32/float/double adds, in-place and scalar adds (all
 bit-exact), with mul/matmul failing cleanly; probe 5/5 and CTest 144/144
 unchanged.
 
+Common-operator sweep (2026-09-08, fourth pass): a 41-case operator test
+(device, allocation, 1MB copies, elementwise binary/unary/scalar,
+comparisons, reductions, shape metadata, cat/stack, creation, dtype casts)
+drove a generic semantic elementwise engine: one handler consumes the
+framework elementwise families by functor name with the element type taken
+from the mangled template parameters. Newly supported: mul (int/float),
+div (float), neg, abs (int/float), relu (clamp-min), sqrt, exp, sigmoid,
+scalar mul (AUnaryFunctor alpha), and direct dtype copies. Two decoder
+rules recorded: vectorized kernels pass (numel, functor, array) while the
+plain/unrolled families elide the stateless functor and pass (numel,
+array) — reading the stale third slot segfaults; functor scalars sit at
+offset +4 after the empty stateless-op member (one byte + padding).
+Precision: exp/sigmoid use range reduction to |x| <= 0.5 with a 9-term
+Taylor series, exact to float32 at test values. The anonymous-namespace
+lt/le/gt/ge/ne functor bakes the comparison into operator() with no
+runtime op field, so those four stay clean not-supported errors rather
+than wrong answers (wrong data is worse than a clean error). Reductions
+(sum/mean/max/min), cat/stack, and arange also remain clean errors —
+their kernel ABIs (ReduceOp configs, CatArrayBatchedCopy metadata,
+index-scaling lambdas) are separate decode fronts for work-item-0.2.0.2.
+
+Verification: 28/41 operators pass (all shape/metadata ops, creation,
+copies, and the elementwise set above); the 13 remaining fail with clean
+errors; probe 5/5; CTest 144/144.
+
 ## Exit Gate
 
 `pytorch_cuda_probe.py --profile baseline --require-stage runtime-copy`

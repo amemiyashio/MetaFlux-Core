@@ -6092,6 +6092,317 @@ CUresult cuEventElapsedTime(float* milliseconds, CUevent start, CUevent end) {
   return result == CUDA_SUCCESS ? CUDA_ERROR_NOT_SUPPORTED : result;
 }
 
+/* Generic semantic elementwise engine for framework fatbin kernels: the
+   vectorized/unrolled elementwise families share the parameter shape
+   (int numel[, functor scalars], array_t<T> data{pointers}). The provider
+   pulls the operands over the copy path, computes on the host, and writes
+   the result back. Element types come from the mangled template parameters
+   (i/l = int32, f = float, d = double); comparison outputs are one bool
+   byte per element. */
+#define MF_SEM_OP_ABS 1
+#define MF_SEM_OP_NEG 2
+#define MF_SEM_OP_EXP 3
+#define MF_SEM_OP_SIGMOID 4
+#define MF_SEM_OP_SQRT 5
+#define MF_SEM_OP_CLAMP_MIN 6
+#define MF_SEM_OP_COPY_CAST 7
+#define MF_SEM_OP_MUL 8
+#define MF_SEM_OP_DIV 9
+#define MF_SEM_OP_EQ 10
+#define MF_SEM_OP_CMP 11
+#define MF_SEM_OP_ALPHA_MUL 12
+#define MF_SEM_OP_ALPHA_DIV 13
+#define MF_SEM_OP_ALPHA_ADD 14
+#define MF_SEM_OP_ALPHA_SUB 15
+
+static double mf_semantic_fetch(const void* cells, uint32_t kind, uint32_t index) {
+  if (kind == UINT32_C(1)) {
+    return (double)((const float*)cells)[index];
+  }
+  if (kind == UINT32_C(2)) {
+    return ((const double*)cells)[index];
+  }
+  return (double)((const int*)cells)[index];
+}
+
+static void mf_semantic_store(void* cells, uint32_t kind, uint32_t index, double value) {
+  if (kind == UINT32_C(1)) {
+    ((float*)cells)[index] = (float)value;
+  } else if (kind == UINT32_C(2)) {
+    ((double*)cells)[index] = value;
+  } else {
+    ((int*)cells)[index] = (int)value;
+  }
+}
+
+static CUresult mf_semantic_elementwise(const char* kernel_name, uint32_t op,
+                                        void** kernel_parameters, CUstream stream,
+                                        uint32_t per_thread_default) {
+  uint32_t pointer_count = op == MF_SEM_OP_MUL || op == MF_SEM_OP_DIV ||
+                                   op == MF_SEM_OP_EQ || op == MF_SEM_OP_CMP
+                               ? UINT32_C(3)
+                               : UINT32_C(2);
+  /* vectorized kernels pass (numel, functor, array); the plain/unrolled
+     families elide the stateless functor entirely and pass (numel, array) —
+     the stale third slot must never be dereferenced. */
+  uint32_t array_slot = UINT32_C(1);
+  uint32_t functor_present = UINT32_C(0);
+  if (strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0) {
+    array_slot = UINT32_C(2);
+    functor_present = UINT32_C(1);
+  }
+  uint32_t in_kind = UINT32_C(0);
+  uint32_t out_kind = UINT32_C(0);
+  uint32_t out_element_size = sizeof(int);
+  uint32_t scalar_slot = UINT32_C(1);
+  uint32_t num_elements = 0;
+  uint32_t element_index = 0;
+  double scalar_value = 0.0;
+  void* data_array = (void*)0;
+  CUdeviceptr out_pointer = 0;
+  CUdeviceptr left_pointer = 0;
+  CUdeviceptr right_pointer = 0;
+  void* out_values = (void*)0;
+  void* left_values = (void*)0;
+  void* right_values = (void*)0;
+  CUresult result = CUDA_SUCCESS;
+  if (kernel_parameters[0] == (void*)0 || kernel_parameters[array_slot] == (void*)0) {
+    mf_cuda_queue_unlock();
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  if (op == MF_SEM_OP_ABS || op == MF_SEM_OP_COPY_CAST) {
+    if (strstr(kernel_name, "IfE") != (char*)0) {
+      in_kind = UINT32_C(1);
+    } else if (strstr(kernel_name, "IdE") != (char*)0) {
+      in_kind = UINT32_C(2);
+    }
+    out_kind = in_kind;
+  } else if (op == MF_SEM_OP_EQ || op == MF_SEM_OP_CMP) {
+    if (strstr(kernel_name, "CompareFunctorIfE") != (char*)0 ||
+        strstr(kernel_name, "CompareEqFunctorIfE") != (char*)0) {
+      in_kind = UINT32_C(1);
+    } else if (strstr(kernel_name, "CompareFunctorIdE") != (char*)0) {
+      in_kind = UINT32_C(2);
+    }
+    out_element_size = sizeof(unsigned char);
+  } else {
+    /* BinaryFunctorIfff / AUnaryFunctorIiii repeat the type; unary lambdas
+       carry it as the closing UlfE / UliE / UldE template id. */
+    if (strstr(kernel_name, "Ifff") != (char*)0 ||
+        strstr(kernel_name, "UlfE") != (char*)0) {
+      in_kind = UINT32_C(1);
+    } else if (strstr(kernel_name, "Iddd") != (char*)0 ||
+               strstr(kernel_name, "UldE") != (char*)0) {
+      in_kind = UINT32_C(2);
+    }
+    out_kind = in_kind;
+  }
+  if (op == MF_SEM_OP_CLAMP_MIN || op == MF_SEM_OP_ALPHA_MUL ||
+      op == MF_SEM_OP_ALPHA_DIV || op == MF_SEM_OP_ALPHA_ADD ||
+      op == MF_SEM_OP_ALPHA_SUB) {
+    scalar_slot = UINT32_C(1);
+  }
+  num_elements = *(unsigned int*)kernel_parameters[0];
+  if (num_elements == UINT32_C(0)) {
+    mf_cuda_queue_unlock();
+    return CUDA_SUCCESS;
+  }
+  data_array = ((void**)kernel_parameters)[array_slot];
+  out_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[0];
+  if (pointer_count == UINT32_C(3)) {
+    left_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[1];
+    right_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[2];
+  } else {
+    left_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[1];
+  }
+  if (op == MF_SEM_OP_CLAMP_MIN || op == MF_SEM_OP_ALPHA_MUL ||
+      op == MF_SEM_OP_ALPHA_DIV || op == MF_SEM_OP_ALPHA_ADD ||
+      op == MF_SEM_OP_ALPHA_SUB) {
+    if (functor_present != UINT32_C(0)) {
+      /* The functor embeds an empty stateless-op member first, so the scalar
+         lands at offset 4 after its one byte plus alignment padding. */
+      scalar_value = mf_semantic_fetch((char*)kernel_parameters[scalar_slot] + 4, in_kind,
+                                       UINT32_C(0));
+    }
+  }
+  if (op == MF_SEM_OP_CMP && functor_present != UINT32_C(0)) {
+    scalar_value = (double)(*(int*)((char*)kernel_parameters[1] + 4));
+  }
+  {
+    size_t in_bytes = (size_t)num_elements *
+                      (in_kind == UINT32_C(2) ? sizeof(double) : sizeof(int));
+    size_t out_bytes = (size_t)num_elements * out_element_size;
+    left_values = malloc(in_bytes);
+    if (left_values == (void*)0) {
+      mf_cuda_queue_unlock();
+      return CUDA_ERROR_OUT_OF_MEMORY;
+    }
+    if (pointer_count == UINT32_C(3)) {
+      right_values = malloc(in_bytes);
+      if (right_values == (void*)0) {
+        free(left_values);
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_OUT_OF_MEMORY;
+      }
+    }
+    out_values = malloc(out_bytes);
+    if (out_values == (void*)0) {
+      free(left_values);
+      free(right_values);
+      mf_cuda_queue_unlock();
+      return CUDA_ERROR_OUT_OF_MEMORY;
+    }
+    /* mf_cuda_copy takes the queue lock itself; the launch path already
+       holds it, so release before copying and return without re-lock. */
+    mf_cuda_queue_unlock();
+    result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, left_values, left_pointer,
+                          (const void*)0, in_bytes, stream, UINT32_C(0), per_thread_default);
+    if (result == CUDA_SUCCESS && pointer_count == UINT32_C(3)) {
+      result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, right_values, right_pointer,
+                            (const void*)0, in_bytes, stream, UINT32_C(0), per_thread_default);
+    }
+    if (result == CUDA_SUCCESS) {
+      for (element_index = 0; element_index < num_elements; ++element_index) {
+        double a = mf_semantic_fetch(left_values, in_kind, element_index);
+        double b = pointer_count == UINT32_C(3)
+                       ? mf_semantic_fetch(right_values, in_kind, element_index)
+                       : 0.0;
+        double value = 0.0;
+        switch (op) {
+          case MF_SEM_OP_ABS:
+            value = a < 0.0 ? -a : a;
+            break;
+          case MF_SEM_OP_NEG:
+            value = -a;
+            break;
+          case MF_SEM_OP_EXP: {
+            /* exp with range reduction to |x| <= 0.5 and a 9-term series;
+               squaring multiplies the relative error by 2^n, which stays
+               within float32 precision for the values these kernels see. */
+            double x = a;
+            int n = 0;
+            if (x < -708.0) {
+              value = 0.0;
+              break;
+            }
+            while (x > 0.5) {
+              x = x / 2.0;
+              n = n + 1;
+            }
+            while (x < -0.5) {
+              x = x / 2.0;
+              n = n + 1;
+            }
+            {
+              double term = 1.0;
+              double series = 1.0;
+              int i = 0;
+              for (i = 1; i <= 9; ++i) {
+                term = term * x / (double)i;
+                series = series + term;
+              }
+              value = series;
+            }
+            while (n > 0) {
+              value = value * value;
+              n = n - 1;
+            }
+          } break;
+          case MF_SEM_OP_SIGMOID: {
+            double e;
+            double x = a < 0.0 ? -a : a;
+            int n = 0;
+            while (x > 0.5) {
+              x = x / 2.0;
+              n = n + 1;
+            }
+            {
+              double term = 1.0;
+              double series = 1.0;
+              int i = 0;
+              for (i = 1; i <= 9; ++i) {
+                term = term * x / (double)i;
+                series = series + term;
+              }
+              e = series;
+            }
+            while (n > 0) {
+              e = e * e;
+              n = n - 1;
+            }
+            value = 1.0 / (1.0 + (a < 0.0 ? e : 1.0 / e));
+          } break;
+          case MF_SEM_OP_SQRT: {
+            double x = a < 0.0 ? 0.0 : a;
+            double guess = x > 1.0 ? x / 2.0 : 1.0;
+            int iter = 0;
+            if (x == 0.0) {
+              value = 0.0;
+              break;
+            }
+            for (iter = 0; iter < 40; ++iter) {
+              guess = (guess + x / guess) / 2.0;
+            }
+            value = guess;
+          } break;
+          case MF_SEM_OP_CLAMP_MIN:
+            value = a < scalar_value ? scalar_value : a;
+            break;
+          case MF_SEM_OP_COPY_CAST:
+            value = a;
+            break;
+          case MF_SEM_OP_MUL:
+            value = a * b;
+            break;
+          case MF_SEM_OP_DIV:
+            value = b == 0.0 ? 0.0 : a / b;
+            break;
+          case MF_SEM_OP_EQ:
+            value = a == b ? 1.0 : 0.0;
+            break;
+          case MF_SEM_OP_CMP:
+            value = (int)scalar_value == 2  ? (a < b ? 1.0 : 0.0)
+                    : (int)scalar_value == 3 ? (a <= b ? 1.0 : 0.0)
+                    : (int)scalar_value == 4 ? (a > b ? 1.0 : 0.0)
+                    : (int)scalar_value == 5 ? (a >= b ? 1.0 : 0.0)
+                    : (int)scalar_value == 1 ? (a != b ? 1.0 : 0.0)
+                                             : (a == b ? 1.0 : 0.0);
+            break;
+          case MF_SEM_OP_ALPHA_MUL:
+            value = scalar_value * a;
+            break;
+          case MF_SEM_OP_ALPHA_DIV:
+            value = a / (scalar_value == 0.0 ? 1.0 : scalar_value);
+            break;
+          case MF_SEM_OP_ALPHA_ADD:
+            value = a + scalar_value;
+            break;
+          case MF_SEM_OP_ALPHA_SUB:
+            value = a - scalar_value;
+            break;
+          default:
+            value = a;
+            break;
+        }
+        if (op == MF_SEM_OP_EQ || op == MF_SEM_OP_CMP) {
+          ((unsigned char*)out_values)[element_index] = value != 0.0 ? (unsigned char)1 : 0;
+        } else {
+          mf_semantic_store(out_values, out_kind, element_index, value);
+        }
+      }
+      result = mf_cuda_copy(MF_CUDA_COPY_H2D, out_pointer, (void*)0, (CUdeviceptr)0, out_values,
+                            out_bytes, stream, UINT32_C(0), per_thread_default);
+    }
+  }
+  free(left_values);
+  free(right_values);
+  free(out_values);
+  if (mf_cuda_entry_trace_enabled() != 0) {
+    fprintf(stderr, "MF_SEMANTIC elem op=%u n=%u rc=%d\n", op, num_elements, (int)result);
+  }
+  return result;
+}
+
 static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, unsigned int grid_y,
                                       unsigned int grid_z, unsigned int block_x,
                                       unsigned int block_y, unsigned int block_z,
@@ -6438,6 +6749,51 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
                 (int)result);
       }
       return result;
+    }
+    {
+      uint32_t sem_op = UINT32_C(0);
+      if (strstr(kernel_name, "AbsFunctor") != (char*)0) {
+        sem_op = MF_SEM_OP_ABS;
+      } else if (strstr(kernel_name, "neg_kernel_cuda") != (char*)0) {
+        sem_op = MF_SEM_OP_NEG;
+      } else if (strstr(kernel_name, "exp_kernel_cuda") != (char*)0) {
+        sem_op = MF_SEM_OP_EXP;
+      } else if (strstr(kernel_name, "sigmoid_kernel_cuda") != (char*)0) {
+        sem_op = MF_SEM_OP_SIGMOID;
+      } else if (strstr(kernel_name, "sqrt_kernel_cuda") != (char*)0) {
+        sem_op = MF_SEM_OP_SQRT;
+      } else if (strstr(kernel_name, "launch_clamp_scalar") != (char*)0) {
+        sem_op = MF_SEM_OP_CLAMP_MIN;
+      } else if (strstr(kernel_name, "direct_copy_kernel_cuda") != (char*)0) {
+        sem_op = MF_SEM_OP_COPY_CAST;
+      } else if (strstr(kernel_name, "AUnaryFunctor") != (char*)0 &&
+                 strstr(kernel_name, "MulFunctor") != (char*)0) {
+        sem_op = MF_SEM_OP_ALPHA_MUL;
+      } else if (strstr(kernel_name, "AUnaryFunctor") != (char*)0 &&
+                 strstr(kernel_name, "DivFunctor") != (char*)0) {
+        sem_op = MF_SEM_OP_ALPHA_DIV;
+      } else if (strstr(kernel_name, "AUnaryFunctor") != (char*)0 &&
+                 strstr(kernel_name, "AddFunctor") != (char*)0) {
+        sem_op = MF_SEM_OP_ALPHA_ADD;
+      } else if (strstr(kernel_name, "AUnaryFunctor") != (char*)0 &&
+                 strstr(kernel_name, "SubFunctor") != (char*)0) {
+        sem_op = MF_SEM_OP_ALPHA_SUB;
+      } else if (strstr(kernel_name, "BinaryFunctor") != (char*)0 &&
+                 strstr(kernel_name, "MulFunctor") != (char*)0) {
+        sem_op = MF_SEM_OP_MUL;
+      } else if (strstr(kernel_name, "BinaryFunctor") != (char*)0 &&
+                 strstr(kernel_name, "DivFunctor") != (char*)0) {
+        sem_op = MF_SEM_OP_DIV;
+      } else if (strstr(kernel_name, "CompareEqFunctor") != (char*)0) {
+        sem_op = MF_SEM_OP_EQ;
+      }
+      /* The anonymous-namespace lt/le/gt/ge/ne functor carries no runtime op
+         field (the comparison is baked into its operator()), so the op cannot
+         be recovered and those stay clean not-supported errors. */
+      if (sem_op != UINT32_C(0)) {
+        return mf_semantic_elementwise(kernel_name, sem_op, kernel_parameters, stream,
+                                       per_thread_default);
+      }
     }
     mf_cuda_queue_unlock();
     if (mf_cuda_entry_trace_enabled() != 0) {
