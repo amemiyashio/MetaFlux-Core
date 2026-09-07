@@ -216,11 +216,14 @@ static CUresult mf_a094_ops_entry_success(void) {
    *(nested+4): zero selects the safe fallback path; non-zero enters a deeper
    dispatch that needs more of the object filled. state+0x90 receives the
    count output object pointer from get_count. */
-static struct {
-  uint32_t pad0;
-  uint32_t version_gate; /* +0x4 */
-  uint32_t pad1[14];
-} mf_a094_nested_object;
+/* The nested object must be a contiguous 0x400-byte zeroed block: cudart
+   reads typed fields at +0x4 (cudaDriverGetVersion gate), +0xc
+   (cudaGetDeviceCount fast path), +0x40 (cudaSetDevice), and +0x34c
+   (cudaLaunchKernel launch-request flag — zero routes to the
+   device-init-only path and no launch happens). */
+static unsigned char mf_a094_nested_object[0x400];
+
+
 
 static struct {
   uint32_t pad0;
@@ -232,8 +235,11 @@ static CUresult mf_a094_get_size(void* nested_out, void* size_out) {
     return CUDA_ERROR_INVALID_VALUE;
   }
   if (nested_out != (void*)0) {
-    mf_a094_nested_object.version_gate = 0;
-    *(void**)nested_out = (void*)&mf_a094_nested_object;
+    memset(mf_a094_nested_object, 0, sizeof(mf_a094_nested_object));
+    /* Launch-request flag at byte offset 0x34c: nonzero routes
+       cudaLaunchKernel to the real launch path. */
+    mf_a094_nested_object[0x34c] = 1;
+    *(void**)nested_out = (void*)mf_a094_nested_object;
   }
   *(unsigned long long*)size_out = 512ull;
   return CUDA_SUCCESS;

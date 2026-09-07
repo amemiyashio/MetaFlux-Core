@@ -114,3 +114,16 @@ on first use (keyed by the primary context), matching what the real driver
 does between retain and launch. This is the concrete final piece of the
 container contract; everything before it (vtable polarity, stateful
 lookup, retain-current, LAZY mode) is landed and green.
+
+Nested-object field discovery (2026-09-08, fifth pass): cudaLaunchKernel
+branches on nested+0x34c — zero routes to the device-init-only fast path
+(no launch executes), nonzero routes to the full launch-request path. The
+provider's nested object is now a contiguous 0x400-byte zeroed blob (the
+previous 0x48-byte struct let cudart read past its end) with the +0x34c
+launch flag set. Both flag values still end in 701 — the common section is
+the device initializer's container round-trip (40380 state walk + 43cf0
+container insert over the driver-built per-device state object), which
+requires a driver-compatible state-object lifecycle (allocator-integrated
+allocations, keyed map registration, walkable cleanup chains). That state
+object emulation is the precise remaining scope; regression stays 144/144
+with the contiguous blob.
