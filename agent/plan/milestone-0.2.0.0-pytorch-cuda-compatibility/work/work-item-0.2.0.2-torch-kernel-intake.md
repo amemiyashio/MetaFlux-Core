@@ -80,3 +80,24 @@ with a completion-aware stepping loop (the launcher body is large; the
 previous 2M-step loop timed out mid-body), then satisfy the hash-lookup
 input that misses — likely a provider-observable state the registration
 path records and the launch path re-validates.
+
+Registration-vs-launch comparison (2026-09-08, third pass): the launch host
+pointer 0x7fff01528300 IS present in the __cudaRegisterFunction stream as
+`_ZN2at4cuda40_GLOBAL__N__758183f4_8_Sleep_cu_088d913f11spin_kernelEl`
+(at::cuda spin_kernel<long> — the earlier "sleep" grep missed it by case).
+So registration succeeds and the launch reaches cudaLaunchKernel's
+registered-function lookup, which then fails internally: 701 has no
+immediate anywhere in the binary (no `mov/cmp $0x2bd`), the two rodata
+error-table copies (0x8d764, 0xac258) are never read during the failing
+launch (hardware read watchpoints silent), and the read watchpoint plus a
+6M-instruction native stepping loop over cudaLaunchKernel did not reach a
+return. The error is produced by internal logic (likely computed or
+enum-cached) with no trappable producer.
+
+Current green state holds under LAZY loading: set_device, device_count,
+both probe stages, 144/144 CTest. Next options: (a) gdb scripting at the
+__cudaRegisterFunction record level (break the record constructor, diff a
+bound-working vs bound-failing kernel's records); (b) accept the artifact
+boundary for milestone-0.2.0.0 and move the semantic-launch strategy to a
+dedicated design decision; (c) SASS worker feasibility spike. Each is a
+full iteration; the enumeration and copy surfaces stay green regardless.
