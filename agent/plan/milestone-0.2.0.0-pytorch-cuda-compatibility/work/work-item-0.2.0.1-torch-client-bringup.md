@@ -343,6 +343,26 @@ driver-enumeration, runtime-copy, artifact-intake, eager-add all passed),
 reproduced across two fresh daemon instances. `torch.cuda._sleep(1)` and
 `torch.add` int32 return [6, 5, 20, 420] exactly.
 
+Real-workload extension (2026-09-08, third pass): free-form PyTorch usage
+beyond the probe exposed three more surface gaps, all fixed. (1) The a094
+nested object was 0x400 bytes but `cudaGetDeviceProperties_v2` reads the
+gate at nested+0x6e0 — the read landed past the object and segfaulted or
+not depending on BSS layout; the object is now 0x1000 bytes and get_size
+reports the full extent. (2) The deferred add is dtype-aware: the mangled
+template parameter selects int32 (CUDAFunctor_addIiE), float (IfE), double
+(IdE), and the element size, alpha width, and host computation follow it —
+reading the alpha as int32 for float tensors produced bit-garbage adds.
+(3) Two more framework kernels joined the semantic set: FillFunctor
+(zeros/full; one-pointer array, constant write) and CUDAFunctorOnSelf_add
+(scalar x + n; two-pointer array, out[i] = in[i] + other). torch.sub needs
+no separate kernel — it is CUDAFunctor_add with alpha=-1. Beyond the
+semantic set (mul, matmul/cublas) failures stay clean errors.
+
+Verification: free-form test covers device queries, allocation, 1MB exact
+H2D+D2H roundtrip, int32/float/double adds, in-place and scalar adds (all
+bit-exact), with mul/matmul failing cleanly; probe 5/5 and CTest 144/144
+unchanged.
+
 ## Exit Gate
 
 `pytorch_cuda_probe.py --profile baseline --require-stage runtime-copy`

@@ -238,12 +238,12 @@ static CUresult mf_263e_object_query(void* object, int* flag_out, void** aux_out
    *(nested+4): zero selects the safe fallback path; non-zero enters a deeper
    dispatch that needs more of the object filled. state+0x90 receives the
    count output object pointer from get_count. */
-/* The nested object must be a contiguous 0x400-byte zeroed block: cudart
+/* The nested object must be a contiguous zeroed block: cudart
    reads typed fields at +0x4 (cudaDriverGetVersion gate), +0xc
    (cudaGetDeviceCount fast path), +0x40 (cudaSetDevice), and +0x34c
    (cudaLaunchKernel launch-request flag — zero routes to the
    device-init-only path and no launch happens). */
-static unsigned char mf_a094_nested_object[0x400];
+static unsigned char mf_a094_nested_object[0x1000];
 
 
 
@@ -264,7 +264,9 @@ static CUresult mf_a094_get_size(void* nested_out, void* size_out) {
     mf_a094_nested_object[0x34c] = 0;
     *(void**)nested_out = (void*)mf_a094_nested_object;
   }
-  *(unsigned long long*)size_out = 512ull;
+  /* cudaGetDeviceProperties_v2 reads the gate at +0x6e0, so the reported
+   size must cover the full consumed extent. */
+  *(unsigned long long*)size_out = sizeof(mf_a094_nested_object);
   return CUDA_SUCCESS;
 }
 

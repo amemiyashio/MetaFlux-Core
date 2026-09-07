@@ -6164,37 +6164,64 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
     if (kernel_name[0] != '\0' && strstr(kernel_name, "elementwise_kernel") != (char*)0 &&
         (strstr(kernel_name, "CUDAFunctor_add") != (char*)0 ||
          strstr(kernel_name, "AddFunctor") != (char*)0)) {
-      /* vectorized_elementwise_kernel<num, AddFunctor<T>, ...>: params are
-         (int numel, AddFunctor functor (T alpha), array_t<T> data) with
-         data = {out, in1, in2}. int32 tensors execute as a host-side add
-         over daemon-backed memory through the existing copy path. */
+      /* vectorized_elementwise_kernel<num, CUDAFunctor_add<T>, ...>: params
+         are (int numel, functor{T alpha}, array_t data) with data = {out,
+         in1, in2}. The element type comes from the mangled template
+         parameter (IiE=int, IfE=float, IdE=double) and the add executes as
+         a host-side computation over daemon-backed memory through the
+         existing copy path. */
       unsigned int num_elements = 0;
-      int alpha = 0;
-      void** data_array = (void**)0;
+      uint32_t element_size = sizeof(int);
+      uint32_t kind = UINT32_C(0); /* 0 = int32, 1 = float32, 2 = float64 */
+      const char* tag = strstr(kernel_name, "CUDAFunctor_addI");
+      size_t tag_length = 16;
+      int alpha_int = 0;
+      float alpha_float = 0.0f;
+      double alpha_double = 0.0;
+      void* data_array = (void*)0;
       CUdeviceptr out_pointer = 0;
       CUdeviceptr left_pointer = 0;
       CUdeviceptr right_pointer = 0;
-      int* left_values = (int*)0;
-      int* right_values = (int*)0;
+      void* left_values = (void*)0;
+      void* right_values = (void*)0;
       uint32_t element_index = 0;
+      if (tag == (char*)0) {
+        tag = strstr(kernel_name, "AddFunctorI");
+        tag_length = 11;
+      }
+      if (tag != (char*)0) {
+        char type_char = tag[tag_length];
+        if (type_char == 'f') {
+          kind = UINT32_C(1);
+        } else if (type_char == 'd') {
+          kind = UINT32_C(2);
+        }
+      }
+      element_size = kind == UINT32_C(2) ? (uint32_t)sizeof(double) : (uint32_t)sizeof(int);
       if (kernel_parameters[0] == (void*)0 || kernel_parameters[1] == (void*)0 ||
           kernel_parameters[2] == (void*)0) {
         mf_cuda_queue_unlock();
         return CUDA_ERROR_INVALID_VALUE;
       }
       num_elements = *(unsigned int*)kernel_parameters[0];
-      alpha = *(int*)kernel_parameters[1];
+      if (kind == UINT32_C(1)) {
+        alpha_float = *(float*)kernel_parameters[1];
+      } else if (kind == UINT32_C(2)) {
+        alpha_double = *(double*)kernel_parameters[1];
+      } else {
+        alpha_int = *(int*)kernel_parameters[1];
+      }
       data_array = (void**)kernel_parameters[2];
-      out_pointer = (CUdeviceptr)(uintptr_t)data_array[0];
-      left_pointer = (CUdeviceptr)(uintptr_t)data_array[1];
-      right_pointer = (CUdeviceptr)(uintptr_t)data_array[2];
+      out_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[0];
+      left_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[1];
+      right_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[2];
       if (num_elements == UINT32_C(0)) {
         mf_cuda_queue_unlock();
         return CUDA_SUCCESS;
       }
-      left_values = malloc((size_t)num_elements * sizeof(int));
-      right_values = malloc((size_t)num_elements * sizeof(int));
-      if (left_values == (int*)0 || right_values == (int*)0) {
+      left_values = malloc((size_t)num_elements * element_size);
+      right_values = malloc((size_t)num_elements * element_size);
+      if (left_values == (void*)0 || right_values == (void*)0) {
         free(left_values);
         free(right_values);
         mf_cuda_queue_unlock();
@@ -6202,31 +6229,212 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       }
       {
         CUstream stream_arg = stream;
+        size_t copy_bytes = (size_t)num_elements * element_size;
         /* mf_cuda_copy takes the queue lock itself; the launch path already
            holds it, so release before copying and return without re-lock. */
         mf_cuda_queue_unlock();
         result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, left_values, left_pointer,
-                              (const void*)0, (size_t)num_elements * sizeof(int), stream_arg,
+                              (const void*)0, copy_bytes, stream_arg,
                               UINT32_C(0), per_thread_default);
         if (result == CUDA_SUCCESS) {
           result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, right_values, right_pointer,
-                                (const void*)0, (size_t)num_elements * sizeof(int), stream_arg,
+                                (const void*)0, copy_bytes, stream_arg,
                                 UINT32_C(0), per_thread_default);
         }
         if (result == CUDA_SUCCESS) {
-          for (element_index = 0; element_index < num_elements; ++element_index) {
-            left_values[element_index] += alpha * right_values[element_index];
+          if (kind == UINT32_C(1)) {
+            float* left = (float*)left_values;
+            const float* right = (const float*)right_values;
+            for (element_index = 0; element_index < num_elements; ++element_index) {
+              left[element_index] = left[element_index] + alpha_float * right[element_index];
+            }
+          } else if (kind == UINT32_C(2)) {
+            double* left = (double*)left_values;
+            const double* right = (const double*)right_values;
+            for (element_index = 0; element_index < num_elements; ++element_index) {
+              left[element_index] = left[element_index] + alpha_double * right[element_index];
+            }
+          } else {
+            int* left = (int*)left_values;
+            const int* right = (const int*)right_values;
+            for (element_index = 0; element_index < num_elements; ++element_index) {
+              left[element_index] += alpha_int * right[element_index];
+            }
           }
           result = mf_cuda_copy(MF_CUDA_COPY_H2D, out_pointer, (void*)0,
                                 (CUdeviceptr)0, left_values,
-                                (size_t)num_elements * sizeof(int), stream_arg, UINT32_C(0),
+                                copy_bytes, stream_arg, UINT32_C(0),
                                 per_thread_default);
         }
       }
       free(left_values);
       free(right_values);
       if (mf_cuda_entry_trace_enabled() != 0) {
-        fprintf(stderr, "MF_SEMANTIC add numel=%u alpha=%d rc=%d\n", num_elements, alpha,
+        fprintf(stderr, "MF_SEMANTIC add kind=%u numel=%u rc=%d\n", kind, num_elements,
+                (int)result);
+      }
+      return result;
+    }
+    if (kernel_name[0] != '\0' && strstr(kernel_name, "elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "FillFunctor") != (char*)0) {
+      /* vectorized_elementwise_kernel<num, FillFunctor<T>, ...>: params are
+         (int numel, T value, array_t data) with data = {out}. The fill
+         executes as a host-side constant write over the copy path. */
+      unsigned int num_elements = 0;
+      uint32_t element_size = sizeof(int);
+      uint32_t kind = UINT32_C(0); /* 0 = int32, 1 = float32, 2 = float64 */
+      const char* tag = strstr(kernel_name, "FillFunctorI");
+      void* data_array = (void*)0;
+      CUdeviceptr out_pointer = 0;
+      void* fill_values = (void*)0;
+      uint32_t element_index = 0;
+      if (tag != (char*)0) {
+        char type_char = tag[11];
+        if (type_char == 'f') {
+          kind = UINT32_C(1);
+        } else if (type_char == 'd') {
+          kind = UINT32_C(2);
+        }
+      }
+      element_size = kind == UINT32_C(2) ? (uint32_t)sizeof(double) : (uint32_t)sizeof(int);
+      if (kernel_parameters[0] == (void*)0 || kernel_parameters[1] == (void*)0 ||
+          kernel_parameters[2] == (void*)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_INVALID_VALUE;
+      }
+      num_elements = *(unsigned int*)kernel_parameters[0];
+      data_array = (void**)kernel_parameters[2];
+      out_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[0];
+      if (num_elements == UINT32_C(0)) {
+        mf_cuda_queue_unlock();
+        return CUDA_SUCCESS;
+      }
+      fill_values = malloc((size_t)num_elements * element_size);
+      if (fill_values == (void*)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_OUT_OF_MEMORY;
+      }
+      if (kind == UINT32_C(1)) {
+        float value = *(float*)kernel_parameters[1];
+        float* cells = (float*)fill_values;
+        for (element_index = 0; element_index < num_elements; ++element_index) {
+          cells[element_index] = value;
+        }
+      } else if (kind == UINT32_C(2)) {
+        double value = *(double*)kernel_parameters[1];
+        double* cells = (double*)fill_values;
+        for (element_index = 0; element_index < num_elements; ++element_index) {
+          cells[element_index] = value;
+        }
+      } else {
+        int value = *(int*)kernel_parameters[1];
+        int* cells = (int*)fill_values;
+        for (element_index = 0; element_index < num_elements; ++element_index) {
+          cells[element_index] = value;
+        }
+      }
+      {
+        CUstream stream_arg = stream;
+        mf_cuda_queue_unlock();
+        result = mf_cuda_copy(MF_CUDA_COPY_H2D, out_pointer, (void*)0,
+                              (CUdeviceptr)0, fill_values,
+                              (size_t)num_elements * element_size, stream_arg, UINT32_C(0),
+                              per_thread_default);
+      }
+      free(fill_values);
+      if (mf_cuda_entry_trace_enabled() != 0) {
+        fprintf(stderr, "MF_SEMANTIC fill kind=%u numel=%u rc=%d\n", kind, num_elements,
+                (int)result);
+      }
+      return result;
+    }
+    if (kernel_name[0] != '\0' && strstr(kernel_name, "elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "CUDAFunctorOnSelf_add") != (char*)0) {
+      /* vectorized_elementwise_kernel<num, CUDAFunctorOnSelf_add<T>, ...>:
+         params are (int numel, functor{T other}, array_t data) with
+         data = {out, in}; out[i] = in[i] + other. */
+      unsigned int num_elements = 0;
+      uint32_t element_size = sizeof(int);
+      uint32_t kind = UINT32_C(0); /* 0 = int32, 1 = float32, 2 = float64 */
+      const char* tag = strstr(kernel_name, "CUDAFunctorOnSelf_addI");
+      void* data_array = (void*)0;
+      CUdeviceptr out_pointer = 0;
+      CUdeviceptr in_pointer = 0;
+      void* out_values = (void*)0;
+      void* in_values = (void*)0;
+      uint32_t element_index = 0;
+      if (tag != (char*)0) {
+        char type_char = tag[22];
+        if (type_char == 'f') {
+          kind = UINT32_C(1);
+        } else if (type_char == 'd') {
+          kind = UINT32_C(2);
+        }
+      }
+      element_size = kind == UINT32_C(2) ? (uint32_t)sizeof(double) : (uint32_t)sizeof(int);
+      if (kernel_parameters[0] == (void*)0 || kernel_parameters[1] == (void*)0 ||
+          kernel_parameters[2] == (void*)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_INVALID_VALUE;
+      }
+      num_elements = *(unsigned int*)kernel_parameters[0];
+      data_array = (void**)kernel_parameters[2];
+      out_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[0];
+      in_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[1];
+      if (num_elements == UINT32_C(0)) {
+        mf_cuda_queue_unlock();
+        return CUDA_SUCCESS;
+      }
+      out_values = malloc((size_t)num_elements * element_size);
+      in_values = malloc((size_t)num_elements * element_size);
+      if (out_values == (void*)0 || in_values == (void*)0) {
+        free(out_values);
+        free(in_values);
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_OUT_OF_MEMORY;
+      }
+      {
+        CUstream stream_arg = stream;
+        size_t copy_bytes = (size_t)num_elements * element_size;
+        mf_cuda_queue_unlock();
+        result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, in_values, in_pointer,
+                              (const void*)0, copy_bytes, stream_arg,
+                              UINT32_C(0), per_thread_default);
+        if (result == CUDA_SUCCESS) {
+          if (kind == UINT32_C(1)) {
+            float other = *(float*)kernel_parameters[1];
+            float* out_cells = (float*)out_values;
+            const float* in_cells = (const float*)in_values;
+            for (element_index = 0; element_index < num_elements; ++element_index) {
+              out_cells[element_index] = in_cells[element_index] + other;
+            }
+          } else if (kind == UINT32_C(2)) {
+            double other = *(double*)kernel_parameters[1];
+            double* out_cells = (double*)out_values;
+            const double* in_cells = (const double*)in_values;
+            for (element_index = 0; element_index < num_elements; ++element_index) {
+              out_cells[element_index] = in_cells[element_index] + other;
+            }
+          } else {
+            int other = *(int*)kernel_parameters[1];
+            int* out_cells = (int*)out_values;
+            const int* in_cells = (const int*)in_values;
+            for (element_index = 0; element_index < num_elements; ++element_index) {
+              out_cells[element_index] = in_cells[element_index] + other;
+            }
+          }
+        }
+        if (result == CUDA_SUCCESS) {
+          result = mf_cuda_copy(MF_CUDA_COPY_H2D, out_pointer, (void*)0,
+                                (CUdeviceptr)0, out_values,
+                                copy_bytes, stream_arg, UINT32_C(0),
+                                per_thread_default);
+        }
+      }
+      free(out_values);
+      free(in_values);
+      if (mf_cuda_entry_trace_enabled() != 0) {
+        fprintf(stderr, "MF_SEMANTIC self-add kind=%u numel=%u rc=%d\n", kind, num_elements,
                 (int)result);
       }
       return result;
