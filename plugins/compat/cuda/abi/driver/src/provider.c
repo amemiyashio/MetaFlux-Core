@@ -4912,10 +4912,12 @@ CUresult cuModuleGetLoadingMode(CUmoduleLoadingMode* mode) {
   if (mode == (CUmoduleLoadingMode*)0) {
     return CUDA_ERROR_INVALID_VALUE;
   }
-  /* With the kernel-query surface implemented, eager binding lets cudart
-     resolve all registered kernels at import; the deferred library intake
-     still defers the daemon MODULE_LOAD to first kernel resolution. */
-  *mode = CU_MODULE_EAGER_LOADING;
+  /* CUDA 12.x wheels are built against the lazy-loading default: on a hash
+     miss inside cudaLaunchKernel, cudart itself drives the module load and
+     kernel binding through cuLibraryLoadData/cuLibraryGetKernel. Reporting
+     EAGER makes cudart skip that load path and fail the launch with
+     invalid-device-function before any driver call. */
+  *mode = CU_MODULE_LAZY_LOADING;
   return CUDA_SUCCESS;
 }
 

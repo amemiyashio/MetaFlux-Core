@@ -227,8 +227,21 @@ static unsigned char mf_a094_nested_object[0x400];
 
 static struct {
   uint32_t pad0;
-  uint32_t pad1[15];
+  uint32_t init_flag;
+  uint32_t pad2[14];
 } mf_a094_count_object;
+
+/* Named-request entry (a094 ops slot 5). __cudaInitModule issues the
+   "__cudaInitModule" request through this slot in two phases (request+0x28
+   is the phase counter) with a 0x30-byte request record whose +0x08 field
+   names the request. The real driver performs module-init bookkeeping here;
+   the provider acknowledges both phases and lets cudart's own init path
+   observe the count-object init flag. */
+static CUresult mf_a094_named_request(unsigned long phase, void* request) {
+  (void)phase;
+  (void)request;
+  return CUDA_SUCCESS;
+}
 
 static CUresult mf_a094_get_size(void* nested_out, void* size_out) {
   if (size_out == (void*)0) {
@@ -238,7 +251,7 @@ static CUresult mf_a094_get_size(void* nested_out, void* size_out) {
     memset(mf_a094_nested_object, 0, sizeof(mf_a094_nested_object));
     /* Launch-request flag at byte offset 0x34c: nonzero routes
        cudaLaunchKernel to the real launch path. */
-    mf_a094_nested_object[0x34c] = 1;
+    mf_a094_nested_object[0x34c] = 0;
     *(void**)nested_out = (void*)mf_a094_nested_object;
   }
   *(unsigned long long*)size_out = 512ull;
@@ -249,6 +262,10 @@ static CUresult mf_a094_get_count(void* count_obj_out, void* count_out) {
   if (count_out == (void*)0) {
     return CUDA_ERROR_INVALID_VALUE;
   }
+  /* cudart reads count_object+0x4 (u32) from __cudaInitModule: zero means
+     "no driver-side module init to run". The provider performs no driver-side
+     module init, so the flag stays zero and the named-request path below is
+     contract documentation for the decoded __cudaInitModule protocol. */
   if (count_obj_out != (void*)0) {
     *(void**)count_obj_out = (void*)&mf_a094_count_object;
   }
@@ -476,6 +493,7 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
       mf_a094_ops[i] = (void*)&mf_a094_ops_entry_success;
     }
     mf_a094_ops[2] = (void*)&mf_a094_get_size;
+    mf_a094_ops[5] = (void*)&mf_a094_named_request;
     mf_a094_ops[6] = (void*)&mf_a094_get_count;
     *ppExportTable = (const void*)mf_a094_ops;
     return CUDA_SUCCESS;

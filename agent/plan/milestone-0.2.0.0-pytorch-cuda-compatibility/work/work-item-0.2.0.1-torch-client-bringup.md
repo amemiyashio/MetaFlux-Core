@@ -252,6 +252,62 @@ entries, attribute results (`MF_ATTR`), require_locked failures, and export
 table UUIDs (`MF_TABLE_UUID`). The zero-filled and NULL export-table
 variants both crash libcudart's reader and must not be used.
 
+Launch-resolution chain decoded (2026-09-08, gdb+objdump pass on
+libcudart.so.12 12.6.112): the 701 path is now mapped end-to-end at field
+level. `cudaLaunchKernel` (0x75800) takes the per-thread state from 29d60,
+reads the launch-request flag at `nested+0x34c` (a094 get_size blob), and
+routes both flag values into 15920, which resolves the kernel through
+3f0b0(state, &out_handle, &cfg, hostFun, 0):
+
+1. Hash A lookup (3b270): per-state table, bucket count u32 at state+0x28,
+   bucket array at state+0x38, chained entries `{+0x0 next, +0x8 key,
+   +0x10 value}`, FNV-1a-32 over the 8 key bytes, key = hostFun. Miss
+   returns the caller-supplied default 0x62. In our runs hash A has 64
+   buckets and zero entries.
+2. Fallback (288c0): walks the module vector (count u32 at state+0x0, data
+   at state+0x10), follows each module's registration linked list (list
+   head at module+0x8 object's +0x50, nodes `{+0x0 hostFun, +0x8 deviceFun,
+   +0x10 deviceName, +0x50 next}` — built by 29b80 during
+   `__cudaRegisterFunction`, which get-creates the state first), and returns
+   the matched registration node. This succeeds: torch's 21986
+   registrations (gdb count) are all present, so registration itself is
+   healthy.
+3. Hash B lookup (inline in 3f0b0): second per-state table, bucket count at
+   state+0x70, buckets at state+0x80 (initialized during state creation at
+   libcudart 0x38367 through the global fn-ptr table at 0x2ae930 with type
+   descriptor 0x89c30), keyed by the registration-node pointer, entry
+   layout `{+0x0 next, +0x8 key, +0x10 value}`. Miss maps
+   `11090(0x62)` → cudaErrorInvalidDeviceFunction (701). No code inserts
+   hash B entries in our environment, so every launch dies here.
+4. On success the launcher is an indirect call through the global pointer
+   at libcudart 0x2aec70 with the resolved handle as first argument.
+
+Driver consults confirmed zero: libcudart imports no cuModuleLoadData /
+cuLibraryLoadData symbols at all — module management happens exclusively
+through our 6bd5 vtable slots, which the failing path never reaches. Both
+`nested+0x34c` values and both CU_MODULE_* loading-mode reports produce the
+same hash-B miss.
+
+a094 protocol decoded further: `__cudaInitModule` (exported, 0x24280) reads
+`*(u32*)(count_object+0x4)` (our get_count object at state+0x90); zero
+takes the init-free branch, nonzero issues the named request
+`{u32 size=0x30, const char* name="__cudaInitModule", out1, out2, u32
+phase=0→1}` through a094 ops slot 5 twice. Provider now implements slot 5
+(mf_a094_named_request) and documents the record layout; init_flag stays
+zero because the provider performs no driver-side module init. Gate
+experiment (init_flag=1) ran the request path and changed nothing — the
+binding trigger is elsewhere, not in __cudaInitModule.
+
+Residual unknown (blocks work-item-0.2.0.2): the bound-kernel record layout
+for hash B values (consumed via value+0x18 on the hit path and by the
+launcher at 0x2aec70), and the init-time trigger that normally populates
+hash B during real CUDA context setup. Populating hash B ourselves needs
+both; fabricating records without the layout would hand cudart garbage
+pointers at the 0x2aec70 launcher.
+
+Verification (2026-09-08): full CTest 144/144; probe stable at
+runtime-copy with artifact-intake failing at the decoded hash-B miss.
+
 ## Exit Gate
 
 `pytorch_cuda_probe.py --profile baseline --require-stage runtime-copy`
