@@ -6126,14 +6126,6 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       kernel_parameters == (void**)0 || extra != (void**)0) {
     return CUDA_ERROR_INVALID_VALUE;
   }
-  if (grid_z != UINT32_C(1) || block_z != UINT32_C(1) || shared_memory_bytes != UINT32_C(0)) {
-    return CUDA_ERROR_NOT_SUPPORTED;
-  }
-  for (parameter_index = 0; parameter_index < UINT32_C(4); ++parameter_index) {
-    if (kernel_parameters[parameter_index] == (void*)0) {
-      return CUDA_ERROR_INVALID_VALUE;
-    }
-  }
   if (mf_cuda_entry_trace_enabled() != 0) {
     fprintf(stderr, "MF_LAUNCH f=%p grid=%ux%u\n", (void*)function, grid_x, block_x);
   }
@@ -6152,7 +6144,9 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
   }
   /* Semantic kernel profile: deferred client cubins (framework fatbins) do
      not materialize in the daemon; launches route by registered kernel name
-     to provider-side equivalents. */
+     to provider-side equivalents. Deferred kernels carry framework-shaped
+     parameter lists, so the strict four-slot validation only applies to
+     provider-compiled kernels below. */
   if (result == CUDA_SUCCESS && mf_module_deferred[function_record->aux] != 0) {
     const char* kernel_name = mf_function_names[function_index];
     if (kernel_name[0] != '\0' && strstr(kernel_name, "sleep_kernel") != (char*)0) {
@@ -6168,20 +6162,32 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       return CUDA_SUCCESS;
     }
     if (kernel_name[0] != '\0' && strstr(kernel_name, "elementwise_kernel") != (char*)0 &&
-        strstr(kernel_name, "AddFunctor") != (char*)0) {
+        (strstr(kernel_name, "CUDAFunctor_add") != (char*)0 ||
+         strstr(kernel_name, "AddFunctor") != (char*)0)) {
       /* vectorized_elementwise_kernel<num, AddFunctor<T>, ...>: params are
          (int numel, AddFunctor functor (T alpha), array_t<T> data) with
          data = {out, in1, in2}. int32 tensors execute as a host-side add
          over daemon-backed memory through the existing copy path. */
-      unsigned int num_elements = *(unsigned int*)kernel_parameters[0];
-      int alpha = *(int*)kernel_parameters[1];
-      void** data_array = (void**)kernel_parameters[2];
-      CUdeviceptr out_pointer = (CUdeviceptr)(uintptr_t)data_array[0];
-      CUdeviceptr left_pointer = (CUdeviceptr)(uintptr_t)data_array[1];
-      CUdeviceptr right_pointer = (CUdeviceptr)(uintptr_t)data_array[2];
+      unsigned int num_elements = 0;
+      int alpha = 0;
+      void** data_array = (void**)0;
+      CUdeviceptr out_pointer = 0;
+      CUdeviceptr left_pointer = 0;
+      CUdeviceptr right_pointer = 0;
       int* left_values = (int*)0;
       int* right_values = (int*)0;
       uint32_t element_index = 0;
+      if (kernel_parameters[0] == (void*)0 || kernel_parameters[1] == (void*)0 ||
+          kernel_parameters[2] == (void*)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_INVALID_VALUE;
+      }
+      num_elements = *(unsigned int*)kernel_parameters[0];
+      alpha = *(int*)kernel_parameters[1];
+      data_array = (void**)kernel_parameters[2];
+      out_pointer = (CUdeviceptr)(uintptr_t)data_array[0];
+      left_pointer = (CUdeviceptr)(uintptr_t)data_array[1];
+      right_pointer = (CUdeviceptr)(uintptr_t)data_array[2];
       if (num_elements == UINT32_C(0)) {
         mf_cuda_queue_unlock();
         return CUDA_SUCCESS;
@@ -6196,6 +6202,9 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       }
       {
         CUstream stream_arg = stream;
+        /* mf_cuda_copy takes the queue lock itself; the launch path already
+           holds it, so release before copying and return without re-lock. */
+        mf_cuda_queue_unlock();
         result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, left_values, left_pointer,
                               (const void*)0, (size_t)num_elements * sizeof(int), stream_arg,
                               UINT32_C(0), per_thread_default);
@@ -6208,15 +6217,14 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
           for (element_index = 0; element_index < num_elements; ++element_index) {
             left_values[element_index] += alpha * right_values[element_index];
           }
-          result = mf_cuda_copy(MF_CUDA_COPY_H2D, out_pointer, (void*)left_values,
-                                (CUdeviceptr)0, (const void*)0,
+          result = mf_cuda_copy(MF_CUDA_COPY_H2D, out_pointer, (void*)0,
+                                (CUdeviceptr)0, left_values,
                                 (size_t)num_elements * sizeof(int), stream_arg, UINT32_C(0),
                                 per_thread_default);
         }
       }
       free(left_values);
       free(right_values);
-      mf_cuda_queue_unlock();
       if (mf_cuda_entry_trace_enabled() != 0) {
         fprintf(stderr, "MF_SEMANTIC add numel=%u alpha=%d rc=%d\n", num_elements, alpha,
                 (int)result);
@@ -6228,6 +6236,17 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       fprintf(stderr, "MF_SEMANTIC miss name=%s\n", kernel_name);
     }
     return CUDA_ERROR_NOT_SUPPORTED;
+  }
+  if (result == CUDA_SUCCESS &&
+      (grid_z != UINT32_C(1) || block_z != UINT32_C(1) ||
+       shared_memory_bytes != UINT32_C(0))) {
+    result = CUDA_ERROR_NOT_SUPPORTED;
+  }
+  for (parameter_index = 0;
+       result == CUDA_SUCCESS && parameter_index < UINT32_C(4); ++parameter_index) {
+    if (kernel_parameters[parameter_index] == (void*)0) {
+      result = CUDA_ERROR_INVALID_VALUE;
+    }
   }
   if (result == CUDA_SUCCESS &&
       (function_record->size != UINT64_C(4) ||

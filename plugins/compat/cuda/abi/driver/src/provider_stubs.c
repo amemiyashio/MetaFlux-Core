@@ -11,6 +11,7 @@
 
 #define METAFLUX_CUDA_ABI_INTERNAL 1
 #include "metaflux/cuda/abi.h"
+#include "metaflux/cuda/provider.h"
 
 #include "managed-renames.h"
 
@@ -206,6 +207,27 @@ static CUresult mf_a094_ops_entry_success(void) {
   return CUDA_SUCCESS;
 }
 
+/* UUID 263e8860 slot +0x18 version-gated capability probe: libcudart calls it
+   once during launch-object construction (driver version > 12039) and sets
+   the object flag when the result is 1. */
+static int mf_263e_capability_probe(void) {
+  return 1;
+}
+
+/* UUID 263e8860 slot +0x10: launch-object query issued by the create path
+   (libcudart 0x41dd9) with the freshly allocated object. The integer output
+   selects a post-processing branch; 0 takes the plain path. */
+static CUresult mf_263e_object_query(void* object, int* flag_out, void** aux_out) {
+  (void)object;
+  if (flag_out != (int*)0) {
+    *flag_out = 0;
+  }
+  if (aux_out != (void**)0) {
+    *aux_out = (void*)0;
+  }
+  return CUDA_SUCCESS;
+}
+
 /* Loader at libcudart 0x38311 calls table[+0x10] as:
      rdi = &state+0x88 (optional nested pointer)
      rsi = &state+0xa0 (table byte size; must be > 0x1df)
@@ -230,18 +252,6 @@ static struct {
   uint32_t init_flag;
   uint32_t pad2[14];
 } mf_a094_count_object;
-
-/* Named-request entry (a094 ops slot 5). __cudaInitModule issues the
-   "__cudaInitModule" request through this slot in two phases (request+0x28
-   is the phase counter) with a 0x30-byte request record whose +0x08 field
-   names the request. The real driver performs module-init bookkeeping here;
-   the provider acknowledges both phases and lets cudart's own init path
-   observe the count-object init flag. */
-static CUresult mf_a094_named_request(unsigned long phase, void* request) {
-  (void)phase;
-  (void)request;
-  return CUDA_SUCCESS;
-}
 
 static CUresult mf_a094_get_size(void* nested_out, void* size_out) {
   if (size_out == (void*)0) {
@@ -288,6 +298,28 @@ static const unsigned char mf_uuid_6bd5[16] = {
     0x89, 0x87, 0xd9, 0x39, 0x12, 0xfd, 0x9d, 0xf9};
 
 static void* mf_a094_ops[64];
+
+/* UUID 263e8860 launch-geometry table: slots 50..53 carry the limits read by
+   the resolver's geometry check, slot +0x10 the launch-object query, and
+   slot +0x18 the version-gated capability probe. */
+static unsigned long long mf_263e_table[64];
+
+/* Named-request entry (a094 ops slot 5). __cudaInitModule issues the
+   "__cudaInitModule" request through this slot in two phases (request+0x28
+   is the phase counter) with a 0x30-byte request record whose +0x08 field
+   names the request. The provider acknowledges both phases without
+   performing driver-side module init. */
+static CUresult mf_a094_named_request(unsigned long phase, void* request) {
+  (void)phase;
+  (void)request;
+  return CUDA_SUCCESS;
+}
+
+/* c693 container vtable slot +0x10: instance lookup. Always report "not
+   found" so libcudart's create path (41a10/41d10) allocates the launch
+   instance and binds the state's registration lists itself; serving a
+   provider-owned object here bypasses that binding and every launch fails
+   with invalid-device-function. */
 static void* mf_42d8_ops[64];
 static void* mf_c693_ops[64];
 
@@ -352,35 +384,18 @@ static uintptr_t mf_d408_cudart_base(void) {
    walks in place (mutex at +0x88, lists at +0x58/+0x68). The provider
    creates the state blob on the first miss and serves the same pointer on
    every later lookup — the virtual device has one deterministic state. */
-static unsigned char* mf_c693_state_blob = (unsigned char*)0;
 
-static CUresult mf_c693_lookup_miss(void* out, void* tag) {
+static CUresult mf_c693_lookup_miss(void* out, void* tag, void* container) {
+  /* The container vtable slot must always report "not found": libcudart's
+     create path (41a10/41d10) allocates the launch instance, walks the
+     state's registration lists, and binds every registered kernel into the
+     instance tables itself. Serving a provider-owned object here would
+     bypass that binding and every launch would fall through to the
+     invalid-device-function error. */
+  (void)out;
   (void)tag;
-  if (out == (void*)0) {
-    return (CUresult)1;
-  }
-  if (mf_c693_state_blob == (unsigned char*)0) {
-    mf_c693_state_blob = calloc(1, 0x1000);
-    if (mf_c693_state_blob == (unsigned char*)0) {
-      return CUDA_ERROR_OUT_OF_MEMORY;
-    }
-    /* Set up hash table: 64 buckets, all NULL (empty chains). This makes
-       3b270's lookup walk a real table instead of immediately failing
-       on bucket_count=0. */
-    {
-      uint32_t bucket_count = 64;
-      void** bucket_array = (void**)calloc(64, sizeof(void*));
-      if (bucket_array != NULL) {
-        *(uint32_t*)(mf_c693_state_blob + 0x28) = bucket_count;
-        *(uint64_t*)(mf_c693_state_blob + 0x38) = (uint64_t)(uintptr_t)bucket_array;
-      }
-    }
-    /* First call reports the miss so cudart runs its create path; the blob
-       is already installed for the follow-up lookup. */
-    return (CUresult)1;
-  }
-  *(void**)out = (void*)mf_c693_state_blob;
-  return CUDA_SUCCESS;
+  (void)container;
+  return (CUresult)1;
 }
 
 static void mf_d408_hmac(uintptr_t cudart_base, const unsigned char* msg, size_t msg_len,
@@ -525,11 +540,23 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
     return CUDA_SUCCESS;
   }
 
-  /* UUID 263e8860-...: optional companion. The binder nulls it on failure and
-     skips the version-gated slot[+0x18] probe — prefer NOT_FOUND over a
-     half-empty vtable that crashes on that call. */
+  /* UUID 263e8860-...: launch geometry limits. The resolver reads the
+     max-threads and block/grid dim bounds at +0x190..+0x1a8 during the
+     launch geometry check (libcudart 0x3f308); the remaining slots are
+     never dereferenced on the launch path. */
   if (memcmp(pExportTableId->bytes, mf_uuid_263e, 16) == 0) {
-    return CUDA_ERROR_NOT_FOUND;
+    uint32_t* limits = (uint32_t*)mf_263e_table;
+    mf_263e_table[2] = (unsigned long long)(uintptr_t)&mf_263e_object_query;
+    mf_263e_table[3] = (unsigned long long)(uintptr_t)&mf_263e_capability_probe;
+    limits[100] = UINT32_C(1024);    /* +0x190: max threads per block */
+    limits[101] = UINT32_C(1024);    /* +0x194: max block dim x */
+    limits[102] = UINT32_C(1024);    /* +0x198: max block dim y */
+    limits[103] = UINT32_C(1024);    /* +0x19c: max block dim z */
+    limits[104] = UINT32_C(65535);   /* +0x1a0: max grid dim x */
+    limits[105] = UINT32_C(65535);   /* +0x1a4: max grid dim y */
+    limits[106] = UINT32_C(65535);   /* +0x1a8: max grid dim z */
+    *ppExportTable = (const void*)mf_263e_table;
+    return CUDA_SUCCESS;
   }
 
   /* UUID d4082055-...: tooling table with slot[+0x8] callback. */

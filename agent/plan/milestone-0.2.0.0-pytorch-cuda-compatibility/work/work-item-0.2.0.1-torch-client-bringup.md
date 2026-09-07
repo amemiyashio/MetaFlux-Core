@@ -305,8 +305,43 @@ hash B during real CUDA context setup. Populating hash B ourselves needs
 both; fabricating records without the layout would hand cudart garbage
 pointers at the 0x2aec70 launcher.
 
-Verification (2026-09-08): full CTest 144/144; probe stable at
-runtime-copy with artifact-intake failing at the decoded hash-B miss.
+Resolution — root cause found and fixed (2026-09-08, second pass): the
+residual unknown dissolved once the object identities were re-measured.
+Two corrections to the decoded chain above: (1) the resolver object
+returned by 3b040 is NOT the 29d60 state — 3b040 calls 425f0, which invokes
+the c693 container vtable slot +0x10 (the state's container lives at
+state+0x68, built by 41520 from the c693/263e export tables); (2) hash A
+(state+0x28/+0x38) and hash B live on that launch instance, a 0xb0 object
+allocated and zero-initialized (3b370) by libcudart's create path 41a10/
+41d10 — which also walks the state's module vector and binds every
+registration into the instance tables. The blocker was our own c693 slot-2
+callback: it reported a provider-owned blob as the instance, so libcudart
+never ran its create path, no binding ever happened, and every launch fell
+to the 0x62 error. Fix: the slot now always reports "not found" (pure
+miss), letting cudart create and bind the real instance. Supporting
+surfaces implemented: 263e table (previously NOT_FOUND) now serves the
+launch-geometry limits at +0x190..+0x1a8 (slots 50..53), the +0x10
+launch-object query (flag_out=0), and the +0x18 version-gated capability
+probe (returns 1); without these the create path crashes on a NULL
+indirect call. With the create path unblocked, cudart binds the kernels,
+resolves them through the instance tables, loads deferred modules through
+our existing intake, and launches through our cuLaunchKernel.
+
+Latent defects fixed while verifying: the strict four-slot parameter
+validation and the grid-z/block-z/shared-memory rejection moved behind the
+deferred-kernel branch (framework kernels carry framework-shaped parameter
+lists); the deferred add path now matches torch 2.11's
+`CUDAFunctor_add` symbol (renamed from AddFunctor); the deferred add's
+mf_cuda_copy calls no longer take the queue lock recursively (the launch
+path already holds it), and the H2D call passes the host buffer as
+`source_host` instead of `destination_host` (both were latent because the
+branch was unreachable before the unblock).
+
+Verification (2026-09-08): full CTest 144/144; `pytorch_cuda_probe.py
+--profile baseline` is 5/5 (`result: complete`; import,
+driver-enumeration, runtime-copy, artifact-intake, eager-add all passed),
+reproduced across two fresh daemon instances. `torch.cuda._sleep(1)` and
+`torch.add` int32 return [6, 5, 20, 420] exactly.
 
 ## Exit Gate
 
