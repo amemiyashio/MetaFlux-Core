@@ -225,6 +225,28 @@ Remaining gap (moves to work-item-0.2.0.2): artifact-intake — the
 intake/launch strategy (daemon-side materialization of client cubins), which
 is this milestone's next work item. eager-add is blocked behind it.
 
+Kernel-intake groundwork (2026-09-08, latest): the torch wheel contains 387
+fatbins with 2714 cubin entries and ZERO PTX, so client kernels cannot go
+through daemon PTX compilation. Landed groundwork for the semantic kernel
+profile strategy: real fatbin-header size parsing (replacing the 5-byte
+truncated registrations), per-module blob retention, cubin ELF symbol-table
+parsing into a kernel-name registry, implementations of
+`cuLibraryGetKernelCount` / `cuLibraryEnumerateKernels` / `cuKernelGetName`
+/ registry-backed `cuLibraryGetKernel`, and a launch-time semantic router
+(`sleep_kernel` → success no-op; elementwise AddFunctor → int32 host add
+over daemon-backed memory through the existing copy path).
+
+Critical negative finding: when `torch.cuda._sleep(1)` fails with
+cudaErrorInvalidDeviceFunction (701), the provider observes ZERO driver
+calls — no cuLaunchKernel, no kernel-query API, no module load. cudart's
+registered-function binding resolves entirely inside libcudart from its own
+registration metadata and fails without consulting the driver, so the
+usual interception surface does not exist at this layer. The next
+investigation must map cudart's registered-function resolution from its
+internal metadata (what makes a bound kernel "valid" internally — the
+binding ran while the kernel-query APIs were 801 stubs and is cached
+negatively).
+
 Debugging aids kept in-tree: `METAFLUX_TRACE_STUBS=1` logs typed stub
 entries, attribute results (`MF_ATTR`), require_locked failures, and export
 table UUIDs (`MF_TABLE_UUID`). The zero-filled and NULL export-table
