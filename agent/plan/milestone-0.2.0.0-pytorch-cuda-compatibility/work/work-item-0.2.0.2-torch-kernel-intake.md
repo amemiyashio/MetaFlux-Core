@@ -101,3 +101,16 @@ bound-working vs bound-failing kernel's records); (b) accept the artifact
 boundary for milestone-0.2.0.0 and move the semantic-launch strategy to a
 dedicated design decision; (c) SASS worker feasibility spike. Each is a
 full iteration; the enumeration and copy surfaces stay green regardless.
+
+Refined root-cause (2026-09-08, fourth pass): cudaLaunchKernel (0x75800)
+branches on nested+0x34c — zero takes the fast path into the device
+initializer (12f50), which reaches the container accessor 425f0; the
+lookup/create round-trip through c693[+0x10] ends with the container's
+per-device map insert (3a670, keyed on the current context) returning
+failure for our zero state blob, and that failure surfaces as 701. The
+complete fix requires implementing the driver-side container-map semantics:
+the state blob must be created, keyed, and registered through 3a670's map
+on first use (keyed by the primary context), matching what the real driver
+does between retain and launch. This is the concrete final piece of the
+container contract; everything before it (vtable polarity, stateful
+lookup, retain-current, LAZY mode) is landed and green.
