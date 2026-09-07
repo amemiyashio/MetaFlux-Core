@@ -347,6 +347,17 @@ static CUresult mf_c693_lookup_miss(void* out, void* tag) {
     if (mf_c693_state_blob == (unsigned char*)0) {
       return CUDA_ERROR_OUT_OF_MEMORY;
     }
+    /* Set up hash table: 64 buckets, all NULL (empty chains). This makes
+       3b270's lookup walk a real table instead of immediately failing
+       on bucket_count=0. */
+    {
+      uint32_t bucket_count = 64;
+      void** bucket_array = (void**)calloc(64, sizeof(void*));
+      if (bucket_array != NULL) {
+        *(uint32_t*)(mf_c693_state_blob + 0x28) = bucket_count;
+        *(uint64_t*)(mf_c693_state_blob + 0x38) = (uint64_t)(uintptr_t)bucket_array;
+      }
+    }
     /* First call reports the miss so cudart runs its create path; the blob
        is already installed for the follow-up lookup. */
     return (CUresult)1;
