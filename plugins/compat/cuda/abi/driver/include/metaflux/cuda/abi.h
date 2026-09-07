@@ -350,6 +350,9 @@ MF_CUDA_ABI_API CUresult cuDevicePrimaryCtxRelease(CUdevice device);
 MF_CUDA_ABI_API CUresult cuDevicePrimaryCtxRelease_v2(CUdevice device);
 MF_CUDA_ABI_API CUresult cuDevicePrimaryCtxReset(CUdevice device);
 MF_CUDA_ABI_API CUresult cuDevicePrimaryCtxReset_v2(CUdevice device);
+MF_CUDA_ABI_API CUresult cuDevicePrimaryCtxGetState(CUdevice device, unsigned int* flags, int* active);
+MF_CUDA_ABI_API CUresult cuDevicePrimaryCtxSetFlags(CUdevice device, unsigned int flags);
+MF_CUDA_ABI_API CUresult cuDevicePrimaryCtxSetFlags_v2(CUdevice device, unsigned int flags);
 
 MF_CUDA_ABI_API CUresult cuCtxCreate(CUcontext* context, unsigned int flags, CUdevice device);
 MF_CUDA_ABI_API CUresult cuCtxCreate_v2(CUcontext* context, unsigned int flags, CUdevice device);

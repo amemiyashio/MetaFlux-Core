@@ -128,6 +128,52 @@ post-sweep validation whose expected driver state only a physical NVIDIA
 driver reference can disambiguate; per decision-0040 it is formally
 cross-referenced as milestone-2.0.0.0 / work-item-2.0.0.2 scope.
 
+Fourth-pass convergence (2026-09-07, latest): the "needs physical hardware"
+boundary was wrong — every layer since the third pass fell to static and
+dynamic reverse engineering of the pinned libcudart. Landed, in causal order:
+
+1. a094 slot clobber: `cuGetExportTable` installed the size/count callbacks
+   before a fill loop overwrote them with no-op successes, so the loader read
+   size 0 (< 0x1df) and raised `cudaErrorInsufficientDriver` (35). Install
+   order fixed.
+2. the tooling-table export UUID (bytes d4 08 20 55 ...): cudart requires it and calls table[+0x8] three
+   times (codes 12060..12062, one shared 0x30-byte buffer), then verifies an
+   attestation digest at buffer[0x20] against an HMAC over (versions, pid,
+   pthread id, provider export-table pointers, timestamp, device packet
+   "MFXCPU..."), keyed by a static key. The provider reproduces the digest by
+   calling libcudart's own hash primitives (located via /proc/self/maps
+   because the third call's return address is inside cudart). Mismatch
+   produced error 103; missing table produced 500.
+3. a094 get_size must install a nested object at cudart state+0x88;
+   `cudaDriverGetVersion` and the `cudaGetDeviceCount` fast path read
+   nested+0x4/+0xc. All-zero fields select the safe fast path; sentinel
+   values crashed atexit.
+4. Unknown export-table UUIDs (c693336e required, 263e8860 optional, d408
+   now served) — returning the general vtable for unknown UUIDs segfaulted;
+   they now return `CUDA_ERROR_NOT_FOUND` except c693 which is served.
+5. `cuDevicePrimaryCtxGetState`/`SetFlags(_v2)` implemented (were gap stubs);
+   `cuMemFree(NULL)` — the framework context-init probe — returns SUCCESS.
+6. CUDA 12 library intake is context-free: `cuLibraryLoadData` no longer
+   requires a current context (cudart loads framework fatbins before any
+   context exists; requiring one produced error 201 through the
+   device-count walker). Intake registers the artifact and defers the
+   daemon MODULE_LOAD to first `cuModuleGetFunction` (lazy contract);
+   `modules` capacity is now 4096 (framework clients register ~500
+   fatbins; the 128-object table exhausted mid-walk and returned
+   OUT_OF_MEMORY through the walker).
+7. `cuModuleGetLoadingMode` must stay EAGER: reporting LAZY made cudart skip
+   per-device runtime-state creation and crash later in
+   `cudaDeviceGetStreamPriorityRange`.
+
+Verified: `cudaGetDeviceCount` returns 0/count=1 standalone AND after
+`import torch` (torch.cuda.device_count() == 1); full CTest suite 144/144.
+
+Current frontier: `torch.cuda.set_device(0)` crashes inside cudart's
+per-device runtime-state construction (`cudaDeviceGetStreamPriorityRange`
+walks a NULL state object; the state creation silently failed during
+import). Next iteration identifies which provider answer aborts that state
+build — the crash needs no hardware and falls to the same gdb workflow.
+
 Debugging aids kept in-tree: `METAFLUX_TRACE_STUBS=1` logs typed stub
 entries, attribute results (`MF_ATTR`), require_locked failures, and export
 table UUIDs (`MF_TABLE_UUID`). The zero-filled and NULL export-table

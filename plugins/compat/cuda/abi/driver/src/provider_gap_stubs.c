@@ -47,10 +47,6 @@ static CUresult mf_gap_cuDeviceGetNvSciSyncAttributes(void) { return mf_gap_hit(
 
 static CUresult mf_gap_cuDeviceGraphMemTrim(void) { return mf_gap_hit("cuDeviceGraphMemTrim"); }
 
-static CUresult mf_gap_cuDevicePrimaryCtxGetState(void) { return mf_gap_hit("cuDevicePrimaryCtxGetState"); }
-
-static CUresult mf_gap_cuDevicePrimaryCtxSetFlags(void) { return mf_gap_hit("cuDevicePrimaryCtxSetFlags"); }
-
 static CUresult mf_gap_cuDeviceSetGraphMemAttribute(void) { return mf_gap_hit("cuDeviceSetGraphMemAttribute"); }
 
 static CUresult mf_gap_cuEGLStreamConsumerAcquireFrame(void) { return mf_gap_hit("cuEGLStreamConsumerAcquireFrame"); }
@@ -391,9 +387,7 @@ static const struct {
 
   { "cuDeviceGraphMemTrim", mf_gap_cuDeviceGraphMemTrim },
 
-  { "cuDevicePrimaryCtxGetState", mf_gap_cuDevicePrimaryCtxGetState },
 
-  { "cuDevicePrimaryCtxSetFlags", mf_gap_cuDevicePrimaryCtxSetFlags },
 
   { "cuDeviceSetGraphMemAttribute", mf_gap_cuDeviceSetGraphMemAttribute },
 

@@ -3,6 +3,7 @@
 #include "managed-renames.h"
 
 #define METAFLUX_CUDA_ABI_INTERNAL 1
+
 #include "metaflux/cuda/provider.h"
 
 #include "metaflux/client/fastpath.h"
@@ -26,7 +27,36 @@
 #include <time.h>
 #include <unistd.h>
 
+static int mf_cuda_entry_trace_enabled(void) {
+  static int enabled = -1;
+  if (enabled < 0) {
+    enabled = getenv("METAFLUX_TRACE_STUBS") != (void*)0 ? 1 : 0;
+  }
+  return enabled;
+}
+
+#define MF_ENTRY_TRACE() \
+  do { \
+    if (mf_cuda_entry_trace_enabled() != 0) { \
+      fprintf(stderr, "MF_ENTRY %s\n", __func__); \
+    } \
+  } while (0)
+
+#define MF_ENTRY_RET(expr) \
+  do { \
+    CUresult _mf_entry_rc = (expr); \
+    if (mf_cuda_entry_trace_enabled() != 0) { \
+      fprintf(stderr, "MF_ENTRY_RET %s -> %d\n", __func__, (int)_mf_entry_rc); \
+    } \
+    return _mf_entry_rc; \
+  } while (0)
+
+
 #define MF_CUDA_OBJECT_CAPACITY UINT32_C(128)
+/* Framework clients (torch) register hundreds of fatbins through the CUDA 12
+   library intake; each deferred module needs a record. The token index field
+   is 16-bit, so 4096 stays well inside the encoding. */
+#define MF_CUDA_MODULE_CAPACITY UINT32_C(4096)
 #define MF_CUDA_CONTEXT_STACK_CAPACITY UINT32_C(16)
 #define MF_CUDA_PENDING_CAPACITY UINT32_C(128)
 #define MF_CUDA_ARGUMENT_CACHE_CAPACITY UINT32_C(64)
@@ -238,7 +268,7 @@ typedef struct mf_cuda_state {
   mf_cdev_memory_v0 cdev_payload;
 #endif
   mf_cuda_object contexts[MF_CUDA_OBJECT_CAPACITY];
-  mf_cuda_object modules[MF_CUDA_OBJECT_CAPACITY];
+  mf_cuda_object modules[MF_CUDA_MODULE_CAPACITY];
   mf_cuda_object functions[MF_CUDA_OBJECT_CAPACITY];
   mf_cuda_object memories[MF_CUDA_OBJECT_CAPACITY];
   mf_cuda_object streams[MF_CUDA_OBJECT_CAPACITY];
@@ -394,9 +424,11 @@ static CUresult mf_cuda_queue_lock(uint32_t create_thread_state) {
     return create_thread_state == UINT32_C(0) ? CUDA_ERROR_INVALID_CONTEXT
                                               : CUDA_ERROR_OUT_OF_MEMORY;
   }
-  if (state->current == (CUcontext)0 || !mf_cuda_decode((void*)state->current, MF_CUDA_TAG_CONTEXT,
-                                                        &context_index, &context_generation)) {
-    return CUDA_ERROR_INVALID_CONTEXT;
+  if (state->current == (CUcontext)0 ||
+      !mf_cuda_decode((void*)state->current, MF_CUDA_TAG_CONTEXT, &context_index,
+                      &context_generation) ||
+      context_index >= MF_CUDA_OBJECT_CAPACITY) {
+    do { if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_INVALID_CONTEXT %s:%d\n", __func__, __LINE__); } return CUDA_ERROR_INVALID_CONTEXT; } while (0);
   }
   if (state->queue_depth != UINT32_C(0)) {
     if (state->queue_depth == UINT32_MAX || state->queue_context_index != context_index) {
@@ -588,7 +620,7 @@ static int mf_cuda_decode(const void* token, uint64_t tag, uint32_t* index, uint
   const uint64_t value = (uint64_t)(uintptr_t)token;
   const uint64_t encoded_index = (value & MF_CUDA_INDEX_MASK) >> 32U;
   if ((value & MF_CUDA_TAG_MASK) != tag || encoded_index == UINT64_C(0) ||
-      encoded_index > (uint64_t)MF_CUDA_OBJECT_CAPACITY ||
+      encoded_index > (uint64_t)MF_CUDA_MODULE_CAPACITY ||
       (value & MF_CUDA_GENERATION_MASK) == UINT64_C(0)) {
     return 0;
   }
@@ -1955,7 +1987,7 @@ static CUresult mf_cuda_process_ready_locked(void) {
     return first_result;
   }
   if (thread == (mf_cuda_tls_state*)0 || thread->queue_context_index == MF_CUDA_INDEX_NONE) {
-    return CUDA_ERROR_INVALID_CONTEXT;
+    do { if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_INVALID_CONTEXT %s:%d\n", __func__, __LINE__); } return CUDA_ERROR_INVALID_CONTEXT; } while (0);
   }
   return mf_cuda_process_ready_context_locked(
       thread->queue_context_index, mf_cuda_global.contexts[thread->queue_context_index].generation);
@@ -2407,6 +2439,16 @@ static uint32_t mf_cuda_free_slot(mf_cuda_object* objects) {
   return MF_CUDA_OBJECT_CAPACITY;
 }
 
+static uint32_t mf_cuda_free_module_slot(void) {
+  uint32_t index = 0;
+  for (index = 0; index < MF_CUDA_MODULE_CAPACITY; ++index) {
+    if (mf_cuda_global.modules[index].active == UINT32_C(0)) {
+      return index;
+    }
+  }
+  return MF_CUDA_MODULE_CAPACITY;
+}
+
 static CUresult mf_cuda_activate_locked(mf_cuda_object* object, uint32_t type,
                                         uint32_t device_index, uint32_t owner_context) {
   mf_shared_status_v1 status = MF_SHARED_SUCCESS;
@@ -2449,6 +2491,10 @@ static CUresult mf_cuda_lookup_token_locked(void* token, uint64_t tag, uint32_t 
   uint32_t generation = 0;
   CUresult result = CUDA_SUCCESS;
   if (!mf_cuda_decode(token, tag, &index, &generation)) {
+    return CUDA_ERROR_INVALID_HANDLE;
+  }
+  if (index >= (type == MF_CUDA_OBJECT_MODULE ? MF_CUDA_MODULE_CAPACITY
+                                              : MF_CUDA_OBJECT_CAPACITY)) {
     return CUDA_ERROR_INVALID_HANDLE;
   }
   result = mf_cuda_validate_locked(&objects[index], generation, type);
@@ -2502,7 +2548,7 @@ static CUresult mf_cuda_stream_scope_locked(uint32_t context_index, const mf_cud
     mf_cuda_tls_state* state = mf_cuda_thread_state(UINT32_C(0));
     mf_cuda_tls_default_stream* default_stream = (mf_cuda_tls_default_stream*)0;
     if (state == (mf_cuda_tls_state*)0 || context_index >= MF_CUDA_OBJECT_CAPACITY) {
-      return CUDA_ERROR_INVALID_CONTEXT;
+      do { if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_INVALID_CONTEXT %s:%d\n", __func__, __LINE__); } return CUDA_ERROR_INVALID_CONTEXT; } while (0);
     }
     default_stream = &state->default_streams[context_index];
     if (default_stream->stream_generation == UINT32_C(0) ||
@@ -2532,7 +2578,7 @@ static CUresult mf_cuda_stream_locked(CUstream token, uint32_t owner_context,
   result = mf_cuda_lookup_token_locked((void*)token, MF_CUDA_TAG_STREAM, MF_CUDA_OBJECT_STREAM,
                                        mf_cuda_global.streams, &index, stream);
   if (result == CUDA_SUCCESS && (*stream)->owner_context != owner_context) {
-    return CUDA_ERROR_INVALID_CONTEXT;
+    do { if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_INVALID_CONTEXT %s:%d\n", __func__, __LINE__); } return CUDA_ERROR_INVALID_CONTEXT; } while (0);
   }
   return result;
 }
@@ -2788,6 +2834,7 @@ void mf_cuda_provider_test_reset_managed_v1(void) {
 #endif
 
 CUresult cuInit(unsigned int flags) {
+  MF_ENTRY_TRACE();
   CUresult result = CUDA_SUCCESS;
   if (flags != UINT32_C(0)) {
     return CUDA_ERROR_INVALID_VALUE;
@@ -3447,10 +3494,7 @@ CUresult cuDeviceGetAttribute(int* value, CUdevice_attribute attrib, CUdevice de
     break;
   }
   if (getenv("METAFLUX_TRACE_STUBS") != (void*)0) {
-    fprintf(stderr, "MF_ATTR %d -> 0\n", (int)attrib);
-    if (attrib == 121) {
-      fprintf(stderr, "MF_ATTR121_RET %p\n", __builtin_return_address(0));
-    }
+    fprintf(stderr, "MF_ATTR %d -> %d\n", (int)attrib, value != (int*)0 ? *value : -1);
   }
   return CUDA_SUCCESS;
 }
@@ -3957,6 +4001,7 @@ static CUresult mf_cuda_create_context_locked(CUcontext* out_context, CUdevice d
 }
 
 CUresult cuCtxCreate_v2(CUcontext* context, unsigned int flags, CUdevice device) {
+  MF_ENTRY_TRACE();
   mf_cuda_tls_state* state = mf_cuda_thread_state(UINT32_C(1));
   CUresult result = CUDA_SUCCESS;
   if (context == (CUcontext*)0 || flags != UINT32_C(0)) {
@@ -3988,6 +4033,7 @@ CUresult cuCtxCreate(CUcontext* context, unsigned int flags, CUdevice device) {
 
 CUresult cuCtxCreate_v4(CUcontext* context, CUctxCreateParams* parameters, unsigned int flags,
                         CUdevice device) {
+  MF_ENTRY_TRACE();
   const unsigned int known_flags = UINT32_C(0xff);
   const unsigned int scheduling_flags = flags & UINT32_C(0x07);
   if ((flags & ~known_flags) != UINT32_C(0) || scheduling_flags == UINT32_C(3) ||
@@ -4009,6 +4055,7 @@ CUresult cuCtxCreate_v4(CUcontext* context, CUctxCreateParams* parameters, unsig
 }
 
 CUresult cuDevicePrimaryCtxRetain(CUcontext* context, CUdevice device) {
+  MF_ENTRY_TRACE();
   uint32_t index = 0;
   uint32_t registry_index = UINT32_C(0);
   CUresult result = CUDA_SUCCESS;
@@ -4069,6 +4116,15 @@ static CUresult mf_cuda_release_module_locked(uint32_t module_index, mf_cuda_obj
                                                  record->generation);
   if (result != CUDA_SUCCESS) {
     return result;
+  }
+  if (record->remote_id == UINT64_C(0)) {
+    /* Deferred library intake never materialized; release the artifact only. */
+    const CUresult deferred_release = mf_cuda_control_locked(
+        MF_CLIENT_CONTROL_ARTIFACT_RELEASE_V1, UINT16_C(0), record->materialized_id,
+        record->materialized_generation, (const void*)0, UINT64_C(0), (uint64_t*)0, (uint64_t*)0);
+    record->active = UINT32_C(0);
+    mf_cuda_invalidate_module_functions_locked(module_index);
+    return deferred_release;
   }
   command.target = record->remote_id;
   command.arguments[0] = record->remote_generation;
@@ -4136,7 +4192,7 @@ static CUresult mf_cuda_reset_context_state_locked(uint32_t context_index, mf_cu
   if (result != CUDA_SUCCESS) {
     return result;
   }
-  for (child_index = UINT32_C(0); child_index < MF_CUDA_OBJECT_CAPACITY; ++child_index) {
+  for (child_index = UINT32_C(0); child_index < MF_CUDA_MODULE_CAPACITY; ++child_index) {
     if (mf_cuda_global.modules[child_index].active != UINT32_C(0) &&
         mf_cuda_global.modules[child_index].owner_context == context_index) {
       result = mf_cuda_release_module_locked(child_index, &mf_cuda_global.modules[child_index]);
@@ -4181,7 +4237,7 @@ static CUresult mf_cuda_destroy_context_locked(CUcontext context, uint32_t allow
     return result;
   }
   if (record->flags != UINT32_C(0) && allow_primary == UINT32_C(0)) {
-    return CUDA_ERROR_INVALID_CONTEXT;
+    do { if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_INVALID_CONTEXT %s:%d\n", __func__, __LINE__); } return CUDA_ERROR_INVALID_CONTEXT; } while (0);
   }
   result = mf_cuda_reset_context_state_locked(index, record, &cleanup_complete);
   if (cleanup_complete == UINT32_C(0)) {
@@ -4209,6 +4265,7 @@ static CUresult mf_cuda_destroy_context_locked(CUcontext context, uint32_t allow
 }
 
 CUresult cuCtxDestroy_v2(CUcontext context) {
+  MF_ENTRY_TRACE();
   CUresult result = CUDA_SUCCESS;
   mf_cuda_lock();
   result = mf_cuda_require_locked();
@@ -4222,6 +4279,7 @@ CUresult cuCtxDestroy_v2(CUcontext context) {
 CUresult cuCtxDestroy(CUcontext context) { return cuCtxDestroy_v2(context); }
 
 CUresult cuDevicePrimaryCtxRelease_v2(CUdevice device) {
+  MF_ENTRY_TRACE();
   uint32_t index = 0;
   uint32_t registry_index = UINT32_C(0);
   CUresult result = CUDA_ERROR_INVALID_CONTEXT;
@@ -4259,6 +4317,7 @@ CUresult cuDevicePrimaryCtxRelease_v2(CUdevice device) {
 CUresult cuDevicePrimaryCtxRelease(CUdevice device) { return cuDevicePrimaryCtxRelease_v2(device); }
 
 CUresult cuDevicePrimaryCtxReset_v2(CUdevice device) {
+  MF_ENTRY_TRACE();
   uint32_t index = 0;
   uint32_t registry_index = UINT32_C(0);
   CUresult result = CUDA_SUCCESS;
@@ -4287,7 +4346,78 @@ CUresult cuDevicePrimaryCtxReset_v2(CUdevice device) {
 
 CUresult cuDevicePrimaryCtxReset(CUdevice device) { return cuDevicePrimaryCtxReset_v2(device); }
 
+CUresult cuDevicePrimaryCtxGetState(CUdevice device, unsigned int* flags, int* active) {
+  MF_ENTRY_TRACE();
+  uint32_t registry_index = UINT32_C(0);
+  uint32_t index = 0;
+  CUresult result = CUDA_SUCCESS;
+  if (flags == (unsigned int*)0 || active == (int*)0 || device < 0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *flags = 0;
+  *active = 0;
+  mf_cuda_lock();
+  result = mf_cuda_require_locked();
+  if (result == CUDA_SUCCESS) {
+    result = mf_cuda_registry_index_locked(device, &registry_index);
+  }
+  if (result == CUDA_SUCCESS) {
+    for (index = 0; index < MF_CUDA_OBJECT_CAPACITY; ++index) {
+      mf_cuda_object* record = &mf_cuda_global.contexts[index];
+      if (record->active != UINT32_C(0) && record->flags != UINT32_C(0) &&
+          record->device_index == registry_index) {
+        *active = 1;
+        /* Primary context flags live in the low bits of record->flags after the
+           primary marker bit; expose zero until SetFlags stores a value. */
+        *flags = (unsigned int)(record->last_request & UINT64_C(0xffffffff));
+        break;
+      }
+    }
+  }
+  mf_cuda_unlock();
+  if (mf_cuda_entry_trace_enabled() != 0) {
+    fprintf(stderr, "MF_PCGS dev=%d flags=%u active=%d rc=%d\n", (int)device, *flags, *active,
+            (int)result);
+  }
+  return result;
+}
+
+CUresult cuDevicePrimaryCtxSetFlags_v2(CUdevice device, unsigned int flags) {
+  MF_ENTRY_TRACE();
+  uint32_t registry_index = UINT32_C(0);
+  uint32_t index = 0;
+  CUresult result = CUDA_SUCCESS;
+  if (device < 0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  mf_cuda_lock();
+  result = mf_cuda_require_locked();
+  if (result == CUDA_SUCCESS) {
+    result = mf_cuda_registry_index_locked(device, &registry_index);
+  }
+  if (result == CUDA_SUCCESS) {
+    for (index = 0; index < MF_CUDA_OBJECT_CAPACITY; ++index) {
+      mf_cuda_object* record = &mf_cuda_global.contexts[index];
+      if (record->active != UINT32_C(0) && record->flags != UINT32_C(0) &&
+          record->device_index == registry_index) {
+        record->last_request = (uint64_t)flags;
+        break;
+      }
+    }
+    /* Setting flags before retain is valid; store on a side table keyed by
+       device only when a primary context already exists. */
+  }
+  mf_cuda_unlock();
+  return result;
+}
+
+CUresult cuDevicePrimaryCtxSetFlags(CUdevice device, unsigned int flags) {
+  return cuDevicePrimaryCtxSetFlags_v2(device, flags);
+}
+
+
 CUresult cuCtxSetCurrent(CUcontext context) {
+  MF_ENTRY_TRACE();
   mf_cuda_tls_state* state =
       mf_cuda_thread_state(context == (CUcontext)0 ? UINT32_C(0) : UINT32_C(1));
   uint32_t index = 0;
@@ -4305,10 +4435,14 @@ CUresult cuCtxSetCurrent(CUcontext context) {
     state->current = context;
   }
   mf_cuda_unlock();
+  if (mf_cuda_entry_trace_enabled() != 0) {
+    fprintf(stderr, "MF_CSC ctx=%p rc=%d\n", (void*)context, (int)result);
+  }
   return result;
 }
 
 CUresult cuCtxGetCurrent(CUcontext* context) {
+  MF_ENTRY_TRACE();
   mf_cuda_tls_state* state = mf_cuda_thread_state(UINT32_C(0));
   uint32_t index = 0;
   mf_cuda_object* record = (mf_cuda_object*)0;
@@ -4387,7 +4521,7 @@ CUresult cuCtxPopCurrent_v2(CUcontext* context) {
   if (state == (mf_cuda_tls_state*)0 || state->current == (CUcontext)0 ||
       state->depth == UINT32_C(0)) {
     mf_cuda_unlock();
-    return CUDA_ERROR_INVALID_CONTEXT;
+    do { if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_INVALID_CONTEXT %s:%d\n", __func__, __LINE__); } return CUDA_ERROR_INVALID_CONTEXT; } while (0);
   }
   *context = state->current;
   state->depth -= UINT32_C(1);
@@ -4443,8 +4577,8 @@ CUresult cuModuleLoadData(CUmodule* module, const void* image) {
       result = CUDA_ERROR_INVALID_IMAGE;
     }
   }
-  module_index = mf_cuda_free_slot(mf_cuda_global.modules);
-  if (result == CUDA_SUCCESS && module_index == MF_CUDA_OBJECT_CAPACITY) {
+  module_index = mf_cuda_free_module_slot();
+  if (result == CUDA_SUCCESS && module_index == MF_CUDA_MODULE_CAPACITY) {
     result = CUDA_ERROR_OUT_OF_MEMORY;
   }
   if (result == CUDA_SUCCESS) {
@@ -4529,6 +4663,24 @@ CUresult cuModuleGetFunction(CUfunction* function, CUmodule module, const char* 
     result = mf_cuda_lookup_token_locked((void*)module, MF_CUDA_TAG_MODULE, MF_CUDA_OBJECT_MODULE,
                                          mf_cuda_global.modules, &module_index, &module_record);
   }
+  /* Deferred library intake: the first kernel resolution materializes the
+     module in the daemon (CUDA_MODULE_LAZY_LOADING contract). */
+  if (result == CUDA_SUCCESS && module_record->remote_id == UINT64_C(0)) {
+    mf_client_completion_v1 load_completion = {0};
+    const mf_cuda_command load_command = {MF_CUDA_COMMAND_MODULE_LOAD,
+                                          module_record->materialized_id,
+                                          {module_record->materialized_generation, 0, 0, 0}, 0};
+    result = mf_cuda_submit_locked(&load_command, &load_completion);
+    if (result == CUDA_SUCCESS &&
+        (load_completion.result_id == UINT64_C(0) ||
+         load_completion.result_generation == UINT64_C(0))) {
+      result = CUDA_ERROR_UNKNOWN;
+    }
+    if (result == CUDA_SUCCESS) {
+      module_record->remote_id = load_completion.result_id;
+      module_record->remote_generation = load_completion.result_generation;
+    }
+  }
   /* Kernel-name resolution is delegated to the module's compiled artifact:
      any name the module exposes resolves to a function token. */
   function_index = mf_cuda_free_slot(mf_cuda_global.functions);
@@ -4556,8 +4708,10 @@ CUresult cuModuleGetLoadingMode(CUmoduleLoadingMode* mode) {
   if (mode == (CUmoduleLoadingMode*)0) {
     return CUDA_ERROR_INVALID_VALUE;
   }
-  /* Modules compile through the daemon at load time, which is the eager
-     contract; the managed backend never defers loading to first launch. */
+  /* The managed backend compiles through the daemon at load time; report
+     eager so cudart initializes its device state up front. Deferred
+     library intake still defers the daemon MODULE_LOAD to first kernel
+     resolution inside the provider. */
   *mode = CU_MODULE_EAGER_LOADING;
   return CUDA_SUCCESS;
 }
@@ -4566,17 +4720,94 @@ CUresult cuModuleGetLoadingMode(CUmoduleLoadingMode* mode) {
    library API shares the module object table, so the CUDA 12 entry points
    delegate to the CUDA 11 implementations above. */
 
+/* CUDA 12 library intake is context-free by contract: cudart loads framework
+   fatbins (e.g. torch's __fatDeviceText) before any context exists, and the
+   CUDA_MODULE_LAZY_LOADING contract defers materialization to first kernel
+   use. Registration stores the artifact identity on a context-free module
+   record; MF_CUDA_COMMAND_MODULE_LOAD runs lazily from cuModuleGetFunction
+   when a kernel is first resolved. MetaFlux-strengthened behavior. */
 CUresult cuLibraryLoadData(CUlibrary* library, const void* code, CUjit_option* jit_options,
                            void** jit_option_values, unsigned int num_jit_options,
                            CUjit_option* library_options, void** library_option_values,
                            unsigned int num_library_options) {
+  uint32_t module_index = 0;
+  uint32_t device_registry_index = 0;
+  mf_cuda_object* record = (mf_cuda_object*)0;
+  size_t image_size = 0;
+  uint64_t artifact_id = 0;
+  uint64_t artifact_generation = 0;
+  CUresult result = CUDA_SUCCESS;
   (void)jit_options;
   (void)jit_option_values;
   (void)num_jit_options;
   (void)library_options;
   (void)library_option_values;
   (void)num_library_options;
-  return cuModuleLoadData((CUmodule*)library, code);
+  if (library == (CUlibrary*)0 || code == (const void*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  mf_cuda_lock();
+  result = mf_cuda_require_locked();
+  if (mf_cuda_entry_trace_enabled() != 0) {
+    fprintf(stderr, "MF_LLD require=%d\n", (int)result);
+  }
+  if (result == CUDA_SUCCESS) {
+    image_size = mf_cuda_string_length((const char*)code, (size_t)(1U << 22U));
+    if (image_size == (size_t)0 || image_size == (size_t)(1U << 22U)) {
+      result = CUDA_ERROR_INVALID_IMAGE;
+    }
+    if (mf_cuda_entry_trace_enabled() != 0) {
+      fprintf(stderr, "MF_LLD image_size=%zu rc=%d\n", image_size, (int)result);
+    }
+  }
+  if (result == CUDA_SUCCESS) {
+    result = mf_cuda_registry_index_locked((CUdevice)0, &device_registry_index);
+    if (mf_cuda_entry_trace_enabled() != 0) {
+      fprintf(stderr, "MF_LLD regidx rc=%d\n", (int)result);
+    }
+  }
+  module_index = mf_cuda_free_module_slot();
+  if (result == CUDA_SUCCESS && module_index == MF_CUDA_MODULE_CAPACITY) {
+    result = CUDA_ERROR_OUT_OF_MEMORY;
+  }
+  if (result == CUDA_SUCCESS) {
+    result = mf_cuda_activate_locked(&mf_cuda_global.modules[module_index],
+                                     MF_CUDA_OBJECT_MODULE, device_registry_index,
+                                     MF_CUDA_INDEX_NONE);
+    if (mf_cuda_entry_trace_enabled() != 0) {
+      fprintf(stderr, "MF_LLD activate rc=%d\n", (int)result);
+    }
+  }
+  if (result == CUDA_SUCCESS) {
+    result = mf_cuda_control_locked(MF_CLIENT_CONTROL_ARTIFACT_REGISTER_V1,
+                                    MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD | MF_CLIENT_CONTROL_FLAG_PTX,
+                                    mf_cuda_global.transport.runtime_context_id,
+                                    (uint64_t)image_size, code, (uint64_t)image_size,
+                                    &artifact_id, &artifact_generation);
+    if (mf_cuda_entry_trace_enabled() != 0) {
+      fprintf(stderr, "MF_LLD register rc=%d artifact=%llu\n", (int)result,
+              (unsigned long long)artifact_id);
+    }
+  }
+  if (result == CUDA_SUCCESS) {
+    record = &mf_cuda_global.modules[module_index];
+    /* remote_id 0 marks the deferred load; cuModuleGetFunction submits the
+       MODULE_LOAD against this artifact on first kernel resolution. */
+    record->remote_id = UINT64_C(0);
+    record->remote_generation = UINT64_C(0);
+    record->materialized_id = artifact_id;
+    record->materialized_generation = artifact_generation;
+    *library = (CUlibrary)(uintptr_t)mf_cuda_token(MF_CUDA_TAG_MODULE, module_index,
+                                                   record->generation);
+  } else {
+    if (artifact_id != UINT64_C(0)) {
+      (void)mf_cuda_control_locked(MF_CLIENT_CONTROL_ARTIFACT_RELEASE_V1, UINT16_C(0), artifact_id,
+                                   artifact_generation, (const void*)0, UINT64_C(0), (uint64_t*)0,
+                                   (uint64_t*)0);
+    }
+  }
+  mf_cuda_unlock();
+  return result;
 }
 
 CUresult cuLibraryLoadFromFile(CUlibrary* library, const char* file_name, CUjit_option* jit_options,
@@ -4826,11 +5057,17 @@ CUresult cuMemAlloc(CUdeviceptr_v1* device_pointer, unsigned int bytes) {
 }
 
 CUresult cuMemFree_v2(CUdeviceptr device_pointer) {
+  MF_ENTRY_TRACE();
   uint32_t context_index = UINT32_C(0);
   mf_cuda_object* context = (mf_cuda_object*)0;
   mf_cuda_object* memory = (mf_cuda_object*)0;
   uint64_t offset = 0;
   CUresult result = CUDA_SUCCESS;
+  /* cudart uses cuMemFree(NULL)/cudaFree(0) as a context-init probe; a real
+     driver returns SUCCESS without requiring a current context. */
+  if (device_pointer == (CUdeviceptr)0) {
+    return CUDA_SUCCESS;
+  }
   mf_cuda_lock();
   result = mf_cuda_require_locked();
   if (result == CUDA_SUCCESS) {
@@ -5638,9 +5875,13 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
                                     mf_cuda_global.functions, &function_index, &function_record);
   }
   if (result == CUDA_SUCCESS &&
-      (function_record->owner_context != context_index || function_record->size != UINT64_C(4))) {
-    result = function_record->owner_context != context_index ? CUDA_ERROR_INVALID_CONTEXT
-                                                             : CUDA_ERROR_NOT_SUPPORTED;
+      (function_record->size != UINT64_C(4) ||
+       (function_record->owner_context != MF_CUDA_INDEX_NONE &&
+        function_record->owner_context != context_index))) {
+    result = function_record->owner_context != MF_CUDA_INDEX_NONE &&
+                     function_record->owner_context != context_index
+                 ? CUDA_ERROR_INVALID_CONTEXT
+                 : CUDA_ERROR_NOT_SUPPORTED;
   }
   if (result == CUDA_SUCCESS) {
     result = mf_cuda_stream_locked(stream, context_index, &stream_record);
