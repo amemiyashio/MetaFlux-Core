@@ -1403,7 +1403,7 @@ int main(void) {
   transport.negotiated_capabilities = MF_CLIENT_CAP_COPY_REGION_V1;
   MF_TEST_REQUIRE(mf_cuda_provider_test_install_transport_v1(&transport) == 0, 3);
   MF_TEST_REQUIRE(cuInit(UINT32_C(0)) == CUDA_SUCCESS, 4);
-  MF_TEST_REQUIRE(cuDriverGetVersion(&driver_version) == CUDA_SUCCESS && driver_version == 12000 &&
+  MF_TEST_REQUIRE(cuDriverGetVersion(&driver_version) == CUDA_SUCCESS && driver_version == 12060 &&
                       cuDeviceGetCount(&count) == CUDA_SUCCESS && count == 2 &&
                       cuDeviceGet(&device, 0) == CUDA_SUCCESS &&
                       cuDeviceGet(&reordered_device, 1) == CUDA_SUCCESS && reordered_device == 1 &&
@@ -1496,9 +1496,14 @@ int main(void) {
                   88);
   create_parameters.execAffinityParams = (CUexecAffinityParam*)(uintptr_t)UINT64_C(1);
   MF_TEST_REQUIRE(cuCtxCreate_v4(&version_four_context, &create_parameters, UINT32_C(0), device) ==
-                          CUDA_ERROR_NOT_SUPPORTED &&
+                          CUDA_SUCCESS &&
+                      cuCtxDestroy_v2(version_four_context) == CUDA_SUCCESS &&
                       cuCtxCreate_v4(&version_four_context, (CUctxCreateParams*)0, UINT32_C(0x100),
-                                     device) == CUDA_ERROR_INVALID_VALUE,
+                                     device) == CUDA_ERROR_INVALID_VALUE &&
+                      atomic_load_explicit(&fixture.live_contexts, memory_order_relaxed) ==
+                          UINT32_C(0) &&
+                      atomic_load_explicit(&fixture.context_acquire_calls, memory_order_relaxed) ==
+                          atomic_load_explicit(&fixture.context_release_calls, memory_order_relaxed),
                   89);
   primary_acquire_calls =
       atomic_load_explicit(&fixture.context_acquire_calls, memory_order_relaxed);

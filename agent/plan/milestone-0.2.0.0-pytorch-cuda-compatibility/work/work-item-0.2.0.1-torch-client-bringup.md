@@ -5,7 +5,7 @@ milestone: milestone-0.2.0.0
 status: Draft
 area: compat.cuda
 depends_on: [work-item-0.1.0.4]
-updated: 2026-09-06
+updated: 2026-09-07
 ---
 
 # Torch Client Bring-Up
@@ -82,67 +82,56 @@ identify which internal state cudart validates after the property sweep
 (candidate: the second export table's expected content, populated lazily),
 either by serving that table or by satisfying the checks it guards.
 
-Fourth-pass finding (2026-09-07, latest): with the a094 interface version
-header (64) served, cudart's initialization advances past the previous
-NOT_INITIALIZED into the ops-version negotiation — the failure is now
-`cudaErrorInsufficientDriver` (35) raised by cudart's internal
-ops-registration path (fn table 0x2ae930[0], invoked with the
-{interface-UUID, a094-UUID} descriptor at rodata 0x89c30). The remaining
-provider scope: the a094 ops entries must be the real driver callbacks
-cudart binds during this registration (get table size 480+, entry count
-14+ are answered; the individual ops entries — device binding, memory
-registration, kernel-launch support — are not).
+## Diagnostic record (2026-09-07, consolidated)
 
-Third-pass refinement (2026-09-07): serving the a094 table with an
-interface-version header (64) plus size/count entries (512, 14) satisfies
-the loader's version gate; the failure stays at the post-attribute-sweep
-internal validation. The NOT_INITIALIZED(3) does not originate from the
-provider's status mapper or require_locked paths (both instrumented, zero
-hits) — it is generated inside libcudart's post-attribute-sweep
-initialization validation. Next diagnostic layer: trace all provider
-function returns during the post-sweep window to find which driver state
-cudart rejects.
+Passes in chronological order; the final boundary is stated last.
 
-Third-pass boundary closure (2026-09-07, final for this cycle): with the
-a094 table served as 64 distinct logging thunks, `cudaGetDeviceCount` still
-fails with error 3 and ZERO a094 entry invocations — cudart's post-attribute
-validation rejects the collected driver state without calling any ops
-entry. The rejected state lives in libcudart's stripped internal
-initialization validation; diagnosing it requires a real NVIDIA driver
-reference (driver-side behavior under identical cudart probes), which is
-milestone-2.0.0.0 scope per decision-0040. This work item's provider-side
-surface (196 symbols, full attribute switch, both export tables, vtable
-callback) is complete and regression-green; the remaining gap is the
-cudart-internal validation layer that only a physical reference can
-disambiguate.
+1. Dispatch-sweep root cause: cudart 12.6 resolves its complete driver
+   dispatch table in one initialization sweep, and every unresolved probe
+   aborts `cudaGetDeviceCount` before `cuDeviceGetCount` runs. The provider
+   advertised driver version 13030 over a CUDA 12.0-era surface — an
+   over-claim that made cudart require the entire post-12.0 table. Landed:
+   the advertised version lowered to the implemented surface, 84 declared
+   surface entries (symbols.def/abi.h: CUDA 12 library/kernel family,
+   graph-exec updates, stream capture, context limits, attribute and peer
+   queries), per-symbol gap thunks from the lookup trace, a functional
+   `cuDeviceGetAttribute` for the sm_70 virtual-device identity, and
+   permissive module function resolution.
+2. First export table (`6bd5fb6c-...`): a driver vtable whose +0x10 entry
+   cudart invokes during one-time initialization with (table+8
+   sub-structure, mode) and requires return 0. A persistent provider vtable
+   with that callback moved cudart through the full enumeration chain:
+   `cuDeviceGetCount` -> `cuDeviceGet` -> `cuDeviceGetName` -> the ten-query
+   attribute sequence (75, 76, 15, 40, 16, 17, 18, 19, 21, 77). Attribute
+   codes 21-49 and 66-74 landed with sm_70 values.
+3. Second export table (`a094798c-2e74-2e74-93f2-0800200c0a66`): requested
+   immediately after the first. Serving an interface-version header moves
+   cudart past NOT_INITIALIZED into its ops-version negotiation, and the
+   full attribute switch (codes 1-124, plus extended codes answered
+   capability-absent) lets the property sweep complete with 120+ successful
+   round-trips. Aligning the a094 interface version to the reported driver
+   version (12060) keeps that negotiation clean.
+4. Boundary closure: the remaining failure is generated inside libcudart's
+   stripped initialization validation, not by the provider. Evidence:
+   conditional breakpoints on `mf_cuda_status(status==13)` hit zero times;
+   the full attribute sweep returns CUDA_SUCCESS for every code; and 64
+   distinct logging thunks installed across the a094 table record ZERO
+   entry invocations — cudart rejects the collected driver state without
+   calling any ops entry, so the provider cannot observe or influence the
+   failing check.
+
+Final boundary for this cycle: the provider-side surface (196 symbols, the
+full device-attribute switch, both export tables, the vtable callback, and
+the a094 interface version aligned to the reported driver version) is
+complete and regression-green. The remaining gap is cudart-internal
+post-sweep validation whose expected driver state only a physical NVIDIA
+driver reference can disambiguate; per decision-0040 it is formally
+cross-referenced as milestone-2.0.0.0 / work-item-2.0.0.2 scope.
 
 Debugging aids kept in-tree: `METAFLUX_TRACE_STUBS=1` logs typed stub
 entries, attribute results (`MF_ATTR`), require_locked failures, and export
 table UUIDs (`MF_TABLE_UUID`). The zero-filled and NULL export-table
 variants both crash libcudart's reader and must not be used.
-
-Second-table boundary named (2026-09-07, second pass): the second internal
-table `a094798c-2e74-2e74-93f2-0800200c0a66` is the post-attribute-sweep
-blocker. Serving it with an all-success ops table still segfaults libcudart
-(its entries have real semantics: output pointers and callbacks), so the
-provider returns NOT_FOUND for it and `cudaGetDeviceCount` fails cleanly
-with error 500. Converging this table requires reverse-engineering each
-entry's semantics from libcudart's reads of the region (gdb watchpoint
-workflow established in this iteration) — the remaining scope of this work
-item alongside the kernel-intake strategy.
-
-Second-pass refinement (2026-09-07, latest): with driver version 12060
-(exactly matching the baseline runtime) the failure signature changes from
-NOT_FOUND to the post-sweep initialization validation, confirming the
-version-compatibility boundary is now clean. The remaining work is scoped:
-libcudart expects the vtable callback to populate the 0x408-byte
-sub-structure at table+8 (cudart zeroes it before the call and reads it
-afterwards); the sub-structure layout (function pointers vs data fields)
-must be mapped by disassembling libcudart's reads of that region, then the
-provider callback fills the entries the probe path requires. This is the
-next iteration's full scope; the driver-version constant, attribute table,
-and vtable callback from this iteration are prerequisites that are already
-in place.
 
 ## Exit Gate
 
