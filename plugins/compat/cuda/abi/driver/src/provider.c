@@ -4939,7 +4939,10 @@ CUresult cuLibraryLoadData(CUlibrary* library, const void* code, CUjit_option* j
   size_t image_size = 0;
   uint64_t artifact_id = 0;
   uint64_t artifact_generation = 0;
+  const unsigned char* fatbin_data = (const unsigned char*)0;
   CUresult result = CUDA_SUCCESS;
+  (void)artifact_id;
+  (void)artifact_generation;
   (void)jit_options;
   (void)jit_option_values;
   (void)num_jit_options;
@@ -4955,13 +4958,21 @@ CUresult cuLibraryLoadData(CUlibrary* library, const void* code, CUjit_option* j
     fprintf(stderr, "MF_LLD require=%d\n", (int)result);
   }
   if (result == CUDA_SUCCESS) {
-    image_size = mf_cuda_string_length((const char*)code, (size_t)(1U << 22U));
-    if (image_size == (size_t)0 || image_size == (size_t)(1U << 22U)) {
+    const unsigned char* fdata = (const unsigned char*)code;
+    /* Unwrap __fatDeviceText wrapper (magic 0x466243b1): +0x08 = fatbin ptr */
+    if (mf_fatbin_read_u32(fdata, 0) == 0x466243b1u) {
+      fdata = (const unsigned char*)mf_fatbin_read_u64(fdata, 8);
+    }
+    /* Fatbin header: total size at +0x08 */
+    if (mf_fatbin_read_u32(fdata, 0) == 0xba55ed50u) {
+      image_size = (size_t)mf_fatbin_read_u64(fdata, 8);
+    } else {
+      image_size = mf_cuda_string_length((const char*)fdata, (size_t)(1U << 22U));
+    }
+    if (image_size == (size_t)0 || image_size > (size_t)(1U << 26U)) {
       result = CUDA_ERROR_INVALID_IMAGE;
     }
-    if (mf_cuda_entry_trace_enabled() != 0) {
-      fprintf(stderr, "MF_LLD image_size=%zu rc=%d\n", image_size, (int)result);
-    }
+    fatbin_data = fdata;
   }
   if (result == CUDA_SUCCESS) {
     result = mf_cuda_registry_index_locked((CUdevice)0, &device_registry_index);
@@ -4982,47 +4993,18 @@ CUresult cuLibraryLoadData(CUlibrary* library, const void* code, CUjit_option* j
     }
   }
   if (result == CUDA_SUCCESS) {
-    result = mf_cuda_control_locked(MF_CLIENT_CONTROL_ARTIFACT_REGISTER_V1,
-                                    MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD | MF_CLIENT_CONTROL_FLAG_PTX,
-                                    mf_cuda_global.transport.runtime_context_id,
-                                    (uint64_t)image_size, code, (uint64_t)image_size,
-                                    &artifact_id, &artifact_generation);
-    if (mf_cuda_entry_trace_enabled() != 0) {
-      fprintf(stderr, "MF_LLD register rc=%d artifact=%llu\n", (int)result,
-              (unsigned long long)artifact_id);
-    }
-  }
-  if (result == CUDA_SUCCESS) {
     record = &mf_cuda_global.modules[module_index];
-    /* remote_id 0 marks the deferred load; cuModuleGetFunction submits the
-       MODULE_LOAD against this artifact on first kernel resolution. */
+    /* Deferred intake: no daemon ARTIFACT_REGISTER or MODULE_LOAD. The
+       blob tracks the fatbin pointer locally. */
+    mf_module_deferred[module_index] = 1;
+    mf_module_blob[module_index] = fatbin_data;
+    mf_module_blob_size[module_index] = image_size;
     record->remote_id = UINT64_C(0);
     record->remote_generation = UINT64_C(0);
-    record->materialized_id = artifact_id;
-    record->materialized_generation = artifact_generation;
-    mf_module_deferred[module_index] = 1;
-    mf_module_blob[module_index] = (const unsigned char*)code;
-    {
-      uint64_t fatbin_size = 0;
-      if (mf_fatbin_read_u32((const unsigned char*)code, 0) == 0xba55ed50u &&
-          image_size >= 16) {
-        fatbin_size = mf_fatbin_read_u64((const unsigned char*)code, 8);
-        if (fatbin_size > (uint64_t)image_size) {
-          fatbin_size = (uint64_t)image_size;
-        }
-        mf_module_blob_size[module_index] = (size_t)fatbin_size;
-      } else {
-        mf_module_blob_size[module_index] = (size_t)image_size;
-      }
-    }
+    record->materialized_id = UINT64_C(0);
+    record->materialized_generation = UINT64_C(0);
     *library = (CUlibrary)(uintptr_t)mf_cuda_token(MF_CUDA_TAG_MODULE, module_index,
                                                    record->generation);
-  } else {
-    if (artifact_id != UINT64_C(0)) {
-      (void)mf_cuda_control_locked(MF_CLIENT_CONTROL_ARTIFACT_RELEASE_V1, UINT16_C(0), artifact_id,
-                                   artifact_generation, (const void*)0, UINT64_C(0), (uint64_t*)0,
-                                   (uint64_t*)0);
-    }
   }
   mf_cuda_unlock();
   return result;
