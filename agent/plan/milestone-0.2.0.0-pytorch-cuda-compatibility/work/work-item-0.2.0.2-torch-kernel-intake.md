@@ -65,3 +65,18 @@ lookup/create path completes successfully. Next: attach to cudart's
 registered-function records at __cudaRegisterFunction time and step the
 launch-time resolution to find which internal field fails validation
 (the entry walker at 0x40380 and the 0x426xx accessor are the anchors).
+
+Refined frontier (2026-09-08, second pass): with entry traces on all four
+kernel-query APIs plus cuLaunchKernel, a torch `_sleep` launch under either
+loading mode shows ZERO driver calls between device init and the 701 — the
+registered-function hash lookup inside cudart's cudaLaunchKernel misses
+before any module load or kernel query. Hard evidence: the host pointer
+torch passes at launch (0x7fff01528300) IS present in the
+__cudaRegisterFunction stream (`_ZN2at4cuda40_GLOBAL__N__758183f4_8_Sleep_
+cu_088d913f11spin_kernelEl`, at::cuda spin_kernel<long> from Sleep.cu), and
+cudaLaunchKernel (0x75800) is entered but returns 701 from an internal
+branch. Next: single-step 0x75800 from entry to its 0x2bd-producing branch
+with a completion-aware stepping loop (the launcher body is large; the
+previous 2M-step loop timed out mid-body), then satisfy the hash-lookup
+input that misses — likely a provider-observable state the registration
+path records and the launch path re-validates.

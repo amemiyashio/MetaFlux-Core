@@ -6173,6 +6173,12 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       mf_cuda_queue_unlock();
       return CUDA_SUCCESS;
     }
+    if (kernel_name[0] != '\0' && strstr(kernel_name, "spin_kernel") != (char*)0) {
+      /* torch _sleep compiles as at::cuda::{anonymous}::spin_kernel<long>
+         (Sleep.cu): a clock64 spin with no observable memory effect. */
+      mf_cuda_queue_unlock();
+      return CUDA_SUCCESS;
+    }
     if (kernel_name[0] != '\0' && strstr(kernel_name, "elementwise_kernel") != (char*)0 &&
         strstr(kernel_name, "AddFunctor") != (char*)0) {
       /* vectorized_elementwise_kernel<num, AddFunctor<T>, ...>: params are
