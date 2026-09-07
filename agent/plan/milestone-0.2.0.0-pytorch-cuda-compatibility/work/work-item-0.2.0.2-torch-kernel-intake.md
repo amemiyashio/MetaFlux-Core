@@ -143,3 +143,21 @@ getter), 15920 (registered-function launch), and the request layout
 inside 15920 remains to be mapped; the semantic launch router hooks the
 driver-level cuLaunchKernel that 15920 will eventually call once the
 registered-function resolution succeeds.
+
+Bind-failure mechanism decoded (2026-09-08, seventh pass): the failing
+launch resolves through 3f0b0(state, &ctx, &req, hostfunc) whose first
+real step is 3b270(state, &out, hostfunc, default=98) — an FNV-1a 32-bit
+hash lookup (basis 0x811c9dc5, prime 0x1000193 over the 8 host-pointer
+bytes) against the per-state hash table at state+0x28 (bucket count) /
+state+0x38 (bucket array), chaining records whose +0x8 field equals the
+host pointer. The lookup MISSES for spin_kernel's host pointer despite
+__cudaRegisterFunction having recorded exactly that pointer: the
+registration inserted into a different state instance than the one the
+launch resolves against. The state instances diverge because the
+container's state is created lazily keyed on the current context
+(3a670/41a10), and the import-time registrations precede any context.
+Next: record-level diff of the state instance used at __cudaRegisterFunction
+insert time versus the instance used at 3b270 lookup time — the insert
+either landed in a predecessor state or in the container's pending area —
+then make the provider's container return one stable state across import
+registrations and launches.
