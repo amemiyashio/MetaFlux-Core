@@ -1330,7 +1330,12 @@ int main(void) {
   CUresult (*resolved_stream_query)(CUstream) = (CUresult (*)(CUstream))0;
   CUresult (*resolved_stream_synchronize)(CUstream) = (CUresult (*)(CUstream))0;
   CUresult (*resolved_event_record)(CUevent, CUstream) = (CUresult (*)(CUevent, CUstream))0;
+  CUresult (*a094_unknown_slot)(void) = (CUresult (*)(void))0;
   CUdriverProcAddressQueryResult query_status = CU_GET_PROC_ADDRESS_SYMBOL_NOT_FOUND;
+  static const CUuuid a094_uuid = {{
+      0xa0, 0x94, 0x79, 0x8c, 0x2e, 0x74, 0x2e, 0x74,
+      0x93, 0xf2, 0x08, 0x00, 0x20, 0x0c, 0x0a, 0x66}};
+  const void* a094_table = (const void*)0;
   CUuuid uuid;
   char name[64];
   char pci_bus_id[32];
@@ -1426,6 +1431,17 @@ int main(void) {
                                       &query_status) == CUDA_SUCCESS &&
                       resolved != (void*)0 && query_status == CU_GET_PROC_ADDRESS_SUCCESS,
                   6);
+  MF_TEST_REQUIRE(cuGetExportTable(&a094_table, &a094_uuid) == CUDA_SUCCESS &&
+                      a094_table != (const void*)0 &&
+                      ((const void* const*)a094_table)[2] != (const void*)0 &&
+                      ((const void* const*)a094_table)[5] != (const void*)0 &&
+                      ((const void* const*)a094_table)[6] != (const void*)0,
+                  161);
+  (void)memcpy(&a094_unknown_slot, &((const void* const*)a094_table)[1],
+               sizeof(a094_unknown_slot));
+  MF_TEST_REQUIRE(a094_unknown_slot != (CUresult (*)(void))0 &&
+                      a094_unknown_slot() == CUDA_ERROR_NOT_SUPPORTED,
+                  162);
   resolved = (void*)1;
   query_status = CU_GET_PROC_ADDRESS_SUCCESS;
   MF_TEST_REQUIRE(cuGetProcAddress_v2("cuMissing", &resolved, MF_CUDA_DRIVER_API_VERSION,

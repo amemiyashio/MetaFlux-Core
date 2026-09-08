@@ -207,6 +207,14 @@ static CUresult mf_a094_ops_entry_success(void) {
   return CUDA_SUCCESS;
 }
 
+/* The a094 table is a pinned libcudart observation, not a general Driver API.
+   Only slots 2, 5, and 6 have a verified contract for the stock PyTorch
+   baseline. The remaining slots must fail explicitly so an unclassified call
+   cannot report success while leaving caller-owned outputs unspecified. */
+static CUresult mf_a094_ops_entry_not_supported(void) {
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
 /* UUID 263e8860 slot +0x18 version-gated capability probe: libcudart calls it
    once during launch-object construction (driver version > 12039) and sets
    the object flag when the result is 1. */
@@ -240,9 +248,9 @@ static CUresult mf_263e_object_query(void* object, int* flag_out, void** aux_out
    count output object pointer from get_count. */
 /* The nested object must be a contiguous zeroed block: cudart
    reads typed fields at +0x4 (cudaDriverGetVersion gate), +0xc
-   (cudaGetDeviceCount fast path), +0x40 (cudaSetDevice), and +0x34c
-   (cudaLaunchKernel launch-request flag — zero routes to the
-   device-init-only path and no launch happens). */
+   (cudaGetDeviceCount fast path), +0x40 (cudaSetDevice), and +0x34c.
+   Zero keeps the unclassified internal launch-request branch disabled; the
+   supported baseline uses the ordinary Driver launch path. */
 static unsigned char mf_a094_nested_object[0x1000];
 
 
@@ -503,12 +511,13 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
   *ppExportTable = (const void*)0;
 
   /* UUID a094798c-...: ops table. Loader requires version > 0x30, then
-     table[+0x10] writes size > 0x1df and table[+0x30] writes count > 0xd. */
+     table[+0x10] writes size > 0x1df and table[+0x30] writes count > 0xd.
+     Slots outside the observed set fail explicitly. */
   if (memcmp(pExportTableId->bytes, mf_uuid_a094, 16) == 0) {
     unsigned int i = 0;
     mf_a094_ops[0] = (void*)(uintptr_t)12060;
     for (i = 1; i < sizeof(mf_a094_ops) / sizeof(mf_a094_ops[0]); ++i) {
-      mf_a094_ops[i] = (void*)&mf_a094_ops_entry_success;
+      mf_a094_ops[i] = (void*)&mf_a094_ops_entry_not_supported;
     }
     mf_a094_ops[2] = (void*)&mf_a094_get_size;
     mf_a094_ops[5] = (void*)&mf_a094_named_request;
