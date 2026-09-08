@@ -22,10 +22,14 @@ transaction first. Auto mode enters the vendor stack only after managed
 rollback and a pristine-state check both succeed. There is no constructor-time
 selection.
 
-All 77 entries in `symbols.def` use the frozen runtime decision. In passthrough
-mode each wrapper resolves the same exact, versioned symbol from the selected
-pair, including aliases, PTDS/PTSZ forms, and the vendor's own
-`cuGetProcAddress` implementation. A forked child or a changed vendor/config,
+All 200 entries in `symbols.def` use the frozen runtime decision. The versioned
+`profiles/pytorch-cuda-cpu-v1.json` profile combines that authority with the
+pinned R610 header manifest, six observed internal tables, and the required
+module/function handle cases. `tests/validate_surface_profile.py` emits or
+validates the resulting matrix and rejects classification, binding, digest, or
+test-coverage drift. In passthrough mode each wrapper resolves the same exact,
+versioned symbol from the selected pair, including aliases, PTDS/PTSZ forms,
+and the vendor's own `cuGetProcAddress` implementation. A forked child or a changed vendor/config,
 namespace, or driver-version fingerprint returns `CUDA_ERROR_DEINITIALIZED`;
 missing vendor symbols return the corresponding stable CUDA provider error.
 

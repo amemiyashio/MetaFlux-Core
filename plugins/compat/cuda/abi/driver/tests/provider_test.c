@@ -1317,8 +1317,16 @@ int main(void) {
   CUcontext version_four_context = (CUcontext)0;
   CUcontext popped_context = (CUcontext)0;
   CUmodule module = (CUmodule)0;
+  CUmodule collision_module = (CUmodule)0;
+  CUmodule reused_module = (CUmodule)0;
+  CUmodule stale_module = (CUmodule)0;
   CUfunction function = (CUfunction)0;
+  CUfunction collision_function = (CUfunction)0;
+  CUfunction invalid_function = (CUfunction)0;
   CUfunction missing_function = (CUfunction)0;
+  CUfunction repeated_function = (CUfunction)0;
+  CUfunction reused_function = (CUfunction)0;
+  CUfunction stale_function = (CUfunction)0;
   CUstream stream = (CUstream)0;
   CUstream transient_stream = (CUstream)0;
   CUevent event = (CUevent)0;
@@ -1687,10 +1695,54 @@ int main(void) {
                       cuStreamCreate(&stream, CU_STREAM_NON_BLOCKING) == CUDA_SUCCESS &&
                       cuEventCreate(&event, CU_EVENT_DISABLE_TIMING) == CUDA_SUCCESS,
                   12);
+  /* MF_HANDLE_CASE: repeated-live-lookup, invalid-module */
+  invalid_function = (CUfunction)(uintptr_t)UINT64_C(1);
+  MF_TEST_REQUIRE(
+      cuModuleGetFunction(&repeated_function, module, "add_u32") == CUDA_SUCCESS &&
+          repeated_function == function &&
+          cuModuleGetFunction(&invalid_function, (CUmodule)(uintptr_t)UINT64_C(1), "add_u32") ==
+              CUDA_ERROR_INVALID_HANDLE &&
+          invalid_function == (CUfunction)(uintptr_t)UINT64_C(1),
+      168);
+  /* MF_HANDLE_CASE: cross-module-name-collision */
+  MF_TEST_REQUIRE(cuModuleLoadData(&collision_module, ptx) == CUDA_SUCCESS &&
+                      collision_module != module &&
+                      cuModuleGetFunction(&collision_function, collision_module, "add_u32") ==
+                          CUDA_SUCCESS &&
+                      collision_function != function &&
+                      cuModuleGetFunction(&repeated_function, collision_module, "add_u32") ==
+                          CUDA_SUCCESS &&
+                      repeated_function == collision_function,
+                  169);
+  stale_module = collision_module;
+  stale_function = collision_function;
+  /* MF_HANDLE_CASE: destroyed-module, duplicate-teardown */
+  MF_TEST_REQUIRE(cuModuleUnload(collision_module) == CUDA_SUCCESS &&
+                      cuModuleUnload(stale_module) == CUDA_ERROR_INVALID_HANDLE &&
+                      cuModuleGetFunction(&invalid_function, stale_module, "add_u32") ==
+                          CUDA_ERROR_INVALID_HANDLE,
+                  170);
+  collision_module = (CUmodule)0;
+  collision_function = (CUfunction)0;
+  /* MF_HANDLE_CASE: stale-generation, capacity-reuse */
+  MF_TEST_REQUIRE(cuModuleLoadData(&reused_module, ptx) == CUDA_SUCCESS &&
+                      reused_module != stale_module &&
+                      cuModuleGetFunction(&reused_function, reused_module, "add_u32") ==
+                          CUDA_SUCCESS &&
+                      reused_function != stale_function,
+                  171);
   parameters[0] = &device_output;
   parameters[1] = &device_left;
   parameters[2] = &device_right;
   parameters[3] = &element_count;
+  MF_TEST_REQUIRE(
+      cuLaunchKernel(stale_function, UINT32_C(1), UINT32_C(1), UINT32_C(1), element_count,
+                     UINT32_C(1), UINT32_C(1), UINT32_C(0), stream, parameters, (void**)0) ==
+              CUDA_ERROR_INVALID_HANDLE &&
+          cuModuleUnload(reused_module) == CUDA_SUCCESS,
+      172);
+  reused_module = (CUmodule)0;
+  reused_function = (CUfunction)0;
   MF_TEST_REQUIRE(cuCtxCreate_v2(&foreign_context, UINT32_C(0), device) == CUDA_SUCCESS &&
                       cuMemAlloc_v2(&foreign_memory, sizeof(left_values)) == CUDA_SUCCESS &&
                       cuCtxSetCurrent(context) == CUDA_SUCCESS,

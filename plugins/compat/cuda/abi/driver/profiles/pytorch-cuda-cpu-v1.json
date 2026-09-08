@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "profile_id": "pytorch-cuda-cpu-v1",
+  "client": {
+    "distribution": "torch",
+    "version": "2.11.0+cu126",
+    "activation": "stock-wheel-process-scoped-provider"
+  },
+  "driver_surface": {
+    "authority": "plugins/compat/cuda/abi/driver/symbols.def",
+    "header_index": "toolchains/nvidia-headers-1.json",
+    "header_manifest": "toolchains/nvidia-headers/r610.json",
+    "header_manifest_sha256": "964c6f363927d21389c7de6467205a03d45d8d51179f4772197896f7c9a712fa",
+    "driver_family": "R610",
+    "cuda_api_version": 13030,
+    "expected_rows": 200,
+    "status_counts": {
+      "IMPLEMENTED": 151,
+      "TYPED_STUB": 49
+    },
+    "route_counts": {
+      "INIT": 1,
+      "REGULAR": 199
+    },
+    "typed_stub_result": "CUDA_ERROR_NOT_SUPPORTED"
+  },
+  "internal_tables": [
+    {
+      "id": "a094",
+      "uuid": "a094798c-2e74-2e74-93f2-0800200c0a66",
+      "shape": "callable-table",
+      "default_handler": "mf_a094_ops_entry_not_supported",
+      "entries": [
+        {"array": "mf_a094_ops", "slot": 0, "classification": "observed", "binding": "12060"},
+        {"array": "mf_a094_ops", "slot": 2, "classification": "observed", "binding": "mf_a094_get_size"},
+        {"array": "mf_a094_ops", "slot": 5, "classification": "observed", "binding": "mf_a094_named_request"},
+        {"array": "mf_a094_ops", "slot": 6, "classification": "observed", "binding": "mf_a094_get_count"}
+      ]
+    },
+    {
+      "id": "42d8",
+      "uuid": "42d85a81-23f6-cb47-8298-f6e78a3aecdc",
+      "shape": "callable-table",
+      "default_handler": "mf_42d8_unclassified_not_supported",
+      "entries": [
+        {"array": "mf_42d8_ops", "slot": 0, "classification": "observed", "binding": "12060"}
+      ]
+    },
+    {
+      "id": "c693",
+      "uuid": "c693336e-1121-df11-a8c3-68f355d89593",
+      "shape": "callable-vtable",
+      "default_handler": "mf_c693_unclassified_not_supported",
+      "entries": [
+        {"array": "mf_c693_ops", "slot": 0, "classification": "observed", "binding": "mf_c693_slot0_profile_observed"},
+        {"array": "mf_c693_ops", "slot": 1, "classification": "observed", "binding": "mf_c693_slot1_profile_observed"},
+        {"array": "mf_c693_ops", "slot": 2, "classification": "strengthened", "binding": "mf_c693_lookup_miss"}
+      ]
+    },
+    {
+      "id": "263e",
+      "uuid": "263e8860-7cd2-6143-92f6-bbd5006dfa7e",
+      "shape": "mixed-object-and-data-table",
+      "default_handler": null,
+      "entries": [
+        {"array": "mf_263e_table", "slot": 2, "classification": "observed", "binding": "mf_263e_object_query"},
+        {"array": "mf_263e_table", "slot": 3, "classification": "observed", "binding": "mf_263e_capability_probe"},
+        {"array": "limits", "u32_index": 100, "classification": "observed", "value": 1024},
+        {"array": "limits", "u32_index": 101, "classification": "observed", "value": 1024},
+        {"array": "limits", "u32_index": 102, "classification": "observed", "value": 1024},
+        {"array": "limits", "u32_index": 103, "classification": "observed", "value": 1024},
+        {"array": "limits", "u32_index": 104, "classification": "observed", "value": 65535},
+        {"array": "limits", "u32_index": 105, "classification": "observed", "value": 65535},
+        {"array": "limits", "u32_index": 106, "classification": "observed", "value": 65535}
+      ]
+    },
+    {
+      "id": "d408",
+      "uuid_bytes": ["d4", "08", "20", "55", "bd", "e6", "70", "4b", "8d", "34", "ba", "12", "3c", "66", "e1", "f2"],
+      "shape": "callable-table",
+      "default_handler": "mf_d408_unclassified_not_supported",
+      "client_library_sha256": "d00299b54a11422f79e52afc0d3852fe3d11be4ea10ce5550adf6ca06d381600",
+      "entries": [
+        {"array": "mf_d408_ops", "slot": 0, "classification": "observed", "binding": "12060"},
+        {"array": "mf_d408_ops", "slot": 1, "classification": "observed", "binding": "mf_d408_slot1"}
+      ]
+    },
+    {
+      "id": "6bd5",
+      "uuid": "6bd5fb6c-5bf4-e74a-8987-d93912fd9df9",
+      "shape": "general-vtable",
+      "default_handler": null,
+      "entries": [
+        {"array": "mf_export_vtable", "slot": 2, "classification": "observed", "binding": "mf_export_init_0x10"},
+        {"array": "mf_export_vtable", "slot": 14, "classification": "observed", "binding": "mf_export_ops"},
+        {"array": "mf_export_ops", "nested_slot": 2, "classification": "observed", "binding": "mf_export_init_0x10"}
+      ]
+    }
+  ],
+  "handle_cases": [
+    {"id": "repeated-live-lookup", "expected": "same-token"},
+    {"id": "invalid-module", "expected": "CUDA_ERROR_INVALID_HANDLE"},
+    {"id": "destroyed-module", "expected": "CUDA_ERROR_INVALID_HANDLE"},
+    {"id": "stale-generation", "expected": "CUDA_ERROR_INVALID_HANDLE"},
+    {"id": "cross-module-name-collision", "expected": "distinct-token"},
+    {"id": "duplicate-teardown", "expected": "CUDA_ERROR_INVALID_HANDLE"},
+    {"id": "capacity-reuse", "expected": "new-generation-token"}
+  ]
+}

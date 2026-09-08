@@ -112,6 +112,7 @@ static size_t mf_module_blob_size[MF_CUDA_MODULE_CAPACITY];
 #define MF_KERNEL_ENTRY_MAX UINT32_C(2714)
 static struct {
   uint32_t module_index;
+  uint32_t module_generation;
   uint32_t name_offset;
 } mf_kernel_entries[MF_KERNEL_ENTRY_MAX];
 static uint32_t mf_kernel_entry_count;
@@ -144,8 +145,8 @@ static int mf_kernel_arena_store(const char* name, size_t length, uint32_t* out_
   return 1;
 }
 
-static void mf_module_collect_elf_kernels(uint32_t module_index, const unsigned char* cubin,
-                                          size_t size) {
+static void mf_module_collect_elf_kernels(uint32_t module_index, uint32_t module_generation,
+                                          const unsigned char* cubin, size_t size) {
   uint64_t section_offset = 0;
   uint16_t section_entry_size = 0;
   uint16_t section_count = 0;
@@ -218,12 +219,13 @@ static void mf_module_collect_elf_kernels(uint32_t module_index, const unsigned 
         return;
       }
       mf_kernel_entries[mf_kernel_entry_count].module_index = module_index;
+      mf_kernel_entries[mf_kernel_entry_count].module_generation = module_generation;
       mf_kernel_entry_count += 1;
     }
   }
 }
 
-static void mf_module_parse_kernels(uint32_t module_index) {
+static void mf_module_parse_kernels(uint32_t module_index, uint32_t module_generation) {
   const unsigned char* blob = mf_module_blob[module_index];
   size_t size = mf_module_blob_size[module_index];
   size_t position = 0;
@@ -249,7 +251,8 @@ static void mf_module_parse_kernels(uint32_t module_index) {
         break;
       }
       if (kind == 2u && entry_header + padded <= total - position) {
-        mf_module_collect_elf_kernels(module_index, blob + position + entry_header,
+        mf_module_collect_elf_kernels(module_index, module_generation,
+                                      blob + position + entry_header,
                                       (size_t)padded);
       }
       position += entry_header + (size_t)padded;
@@ -258,12 +261,13 @@ static void mf_module_parse_kernels(uint32_t module_index) {
 }
 
 
-static uint32_t mf_module_kernel_count(uint32_t module_index) {
+static uint32_t mf_module_kernel_count(uint32_t module_index, uint32_t module_generation) {
   uint32_t index = 0;
   uint32_t count = 0;
-  mf_module_parse_kernels(module_index);
+  mf_module_parse_kernels(module_index, module_generation);
   for (index = 0; index < mf_kernel_entry_count; ++index) {
-    if (mf_kernel_entries[index].module_index == module_index) {
+    if (mf_kernel_entries[index].module_index == module_index &&
+        mf_kernel_entries[index].module_generation == module_generation) {
       count += 1;
     }
   }
@@ -3027,6 +3031,13 @@ void mf_cuda_provider_test_reset_managed_v1(void) {
   (void)memset(mf_cuda_global.contexts, 0, sizeof(mf_cuda_global.contexts));
   (void)memset(mf_cuda_global.modules, 0, sizeof(mf_cuda_global.modules));
   (void)memset(mf_cuda_global.functions, 0, sizeof(mf_cuda_global.functions));
+  (void)memset(mf_module_deferred, 0, sizeof(mf_module_deferred));
+  (void)memset(mf_module_blob, 0, sizeof(mf_module_blob));
+  (void)memset(mf_module_blob_size, 0, sizeof(mf_module_blob_size));
+  (void)memset(mf_kernel_entries, 0, sizeof(mf_kernel_entries));
+  (void)memset(mf_kernel_entry_parsed, 0, sizeof(mf_kernel_entry_parsed));
+  mf_kernel_entry_count = UINT32_C(0);
+  mf_kernel_arena_used = (size_t)0;
   (void)memset(mf_cuda_global.memories, 0, sizeof(mf_cuda_global.memories));
   (void)memset(mf_cuda_global.streams, 0, sizeof(mf_cuda_global.streams));
   (void)memset(mf_cuda_global.events, 0, sizeof(mf_cuda_global.events));
@@ -4335,6 +4346,13 @@ static void mf_cuda_invalidate_module_functions_locked(uint32_t module_index) {
   }
 }
 
+static void mf_cuda_clear_deferred_module_locked(uint32_t module_index) {
+  mf_module_deferred[module_index] = UINT8_C(0);
+  mf_module_blob[module_index] = (const unsigned char*)0;
+  mf_module_blob_size[module_index] = (size_t)0;
+  mf_kernel_entry_parsed[module_index] = UINT32_C(0);
+}
+
 static CUresult mf_cuda_release_module_locked(uint32_t module_index, mf_cuda_object* record) {
   mf_client_completion_v1 completion = {0};
   mf_cuda_command command = {MF_CUDA_COMMAND_MODULE_UNLOAD, 0, {0, 0, 0, 0}, 0};
@@ -4355,6 +4373,7 @@ static CUresult mf_cuda_release_module_locked(uint32_t module_index, mf_cuda_obj
         record->materialized_generation, (const void*)0, UINT64_C(0), (uint64_t*)0, (uint64_t*)0);
     record->active = UINT32_C(0);
     mf_cuda_invalidate_module_functions_locked(module_index);
+    mf_cuda_clear_deferred_module_locked(module_index);
     return deferred_release;
   }
   command.target = record->remote_id;
@@ -4366,6 +4385,7 @@ static CUresult mf_cuda_release_module_locked(uint32_t module_index, mf_cuda_obj
         record->materialized_generation, (const void*)0, UINT64_C(0), (uint64_t*)0, (uint64_t*)0);
     record->active = UINT32_C(0);
     mf_cuda_invalidate_module_functions_locked(module_index);
+    mf_cuda_clear_deferred_module_locked(module_index);
     result = release_result;
   }
   return result;
@@ -4920,7 +4940,7 @@ CUresult cuModuleGetFunction(CUfunction* function, CUmodule module, const char* 
       module_record->remote_generation = load_completion.result_generation;
     }
   }
-  {
+  if (result == CUDA_SUCCESS) {
     uint32_t scan_fi = 0;
     for (scan_fi = 0; scan_fi < MF_CUDA_OBJECT_CAPACITY; ++scan_fi) {
       mf_cuda_object* f_rec = &mf_cuda_global.functions[scan_fi];
@@ -5095,55 +5115,111 @@ CUresult cuLibraryUnload(CUlibrary library) { return cuModuleUnload((CUmodule)li
 
 /* Kernel tokens encode (kernel-entry index + 1) in the function tag; the
    entry carries the owning deferred module for adapter selection. */
-static int mf_kernel_token_decode(CUkernel kernel, uint32_t* entry_index) {
+static CUresult mf_kernel_token_decode_locked(CUkernel kernel, uint32_t* entry_index,
+                                              uint32_t* module_index,
+                                              mf_cuda_object** module_record) {
   uint32_t generation = 0;
   uint32_t index = 0;
   if (!mf_cuda_decode((void*)kernel, MF_CUDA_TAG_FUNCTION, &index, &generation) ||
       index == 0 || index > mf_kernel_entry_count) {
-    return 0;
+    return CUDA_ERROR_INVALID_HANDLE;
   }
   *entry_index = index - 1;
-  return 1;
+  *module_index = mf_kernel_entries[*entry_index].module_index;
+  if (*module_index >= MF_CUDA_MODULE_CAPACITY ||
+      mf_kernel_entries[*entry_index].module_generation != generation ||
+      mf_module_deferred[*module_index] == UINT8_C(0)) {
+    return CUDA_ERROR_INVALID_HANDLE;
+  }
+  if (mf_cuda_validate_locked(&mf_cuda_global.modules[*module_index], generation,
+                              MF_CUDA_OBJECT_MODULE) != CUDA_SUCCESS) {
+    return CUDA_ERROR_INVALID_HANDLE;
+  }
+  *module_record = &mf_cuda_global.modules[*module_index];
+  return CUDA_SUCCESS;
 }
 
 CUresult cuLibraryGetKernel(CUkernel* kernel, CUlibrary library, const char* name) {
   if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_KQ %s\n", "LGK"); }
   uint32_t module_index = 0;
-  uint32_t generation = 0;
   uint32_t entry_index = 0;
-  if (kernel == (CUkernel*)0 || name == (const char*)0) {
+  mf_cuda_object* module_record = (mf_cuda_object*)0;
+  CUresult result = CUDA_SUCCESS;
+  if (kernel == (CUkernel*)0 || name == (const char*)0 || name[0] == '\0') {
     return CUDA_ERROR_INVALID_VALUE;
   }
-  if (!mf_cuda_decode((void*)library, MF_CUDA_TAG_MODULE, &module_index, &generation) ||
-      module_index >= MF_CUDA_MODULE_CAPACITY || mf_module_deferred[module_index] == 0) {
+  mf_cuda_lock();
+  result = mf_cuda_require_locked();
+  if (result == CUDA_SUCCESS) {
+    result = mf_cuda_lookup_token_locked((void*)library, MF_CUDA_TAG_MODULE, MF_CUDA_OBJECT_MODULE,
+                                         mf_cuda_global.modules, &module_index, &module_record);
+  }
+  if (result != CUDA_SUCCESS) {
+    mf_cuda_unlock();
+    return result;
+  }
+  if (mf_module_deferred[module_index] == UINT8_C(0)) {
+    mf_cuda_unlock();
     return cuModuleGetFunction((CUfunction*)kernel, (CUmodule)library, name);
   }
-  mf_module_parse_kernels(module_index);
+  mf_module_parse_kernels(module_index, module_record->generation);
   for (entry_index = 0; entry_index < mf_kernel_entry_count; ++entry_index) {
     if (mf_kernel_entries[entry_index].module_index == module_index &&
+        mf_kernel_entries[entry_index].module_generation == module_record->generation &&
         strcmp(mf_kernel_arena + mf_kernel_entries[entry_index].name_offset, name) == 0) {
-      *kernel = (CUkernel)(uintptr_t)mf_cuda_token(MF_CUDA_TAG_FUNCTION, entry_index + 1, 1u);
+      *kernel = (CUkernel)(uintptr_t)mf_cuda_token(MF_CUDA_TAG_FUNCTION, entry_index + 1,
+                                                  module_record->generation);
+      mf_cuda_unlock();
       return CUDA_SUCCESS;
     }
   }
+  mf_cuda_unlock();
   return CUDA_ERROR_NOT_FOUND;
 }
 
 CUresult cuLibraryGetModule(CUmodule* module, CUlibrary library) {
+  uint32_t module_index = 0;
+  mf_cuda_object* module_record = (mf_cuda_object*)0;
+  CUresult result = CUDA_SUCCESS;
   if (module == (CUmodule*)0) {
     return CUDA_ERROR_INVALID_VALUE;
   }
-  *module = (CUmodule)library;
-  return CUDA_SUCCESS;
+  mf_cuda_lock();
+  result = mf_cuda_require_locked();
+  if (result == CUDA_SUCCESS) {
+    result = mf_cuda_lookup_token_locked((void*)library, MF_CUDA_TAG_MODULE, MF_CUDA_OBJECT_MODULE,
+                                         mf_cuda_global.modules, &module_index, &module_record);
+  }
+  if (result == CUDA_SUCCESS) {
+    *module = (CUmodule)library;
+  }
+  mf_cuda_unlock();
+  return result;
 }
 
 CUresult cuKernelGetFunction(CUfunction* function, CUkernel kernel) {
   if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_KQ %s\n", "KGF"); }
+  uint32_t entry_index = 0;
+  uint32_t module_index = 0;
+  mf_cuda_object* module_record = (mf_cuda_object*)0;
+  CUmodule module = (CUmodule)0;
+  const char* name = (const char*)0;
+  CUresult result = CUDA_SUCCESS;
   if (function == (CUfunction*)0) {
     return CUDA_ERROR_INVALID_VALUE;
   }
-  *function = (CUfunction)kernel;
-  return CUDA_SUCCESS;
+  mf_cuda_lock();
+  result = mf_cuda_require_locked();
+  if (result == CUDA_SUCCESS) {
+    result = mf_kernel_token_decode_locked(kernel, &entry_index, &module_index, &module_record);
+  }
+  if (result == CUDA_SUCCESS) {
+    module = (CUmodule)(uintptr_t)mf_cuda_token(MF_CUDA_TAG_MODULE, module_index,
+                                                module_record->generation);
+    name = mf_kernel_arena + mf_kernel_entries[entry_index].name_offset;
+  }
+  mf_cuda_unlock();
+  return result == CUDA_SUCCESS ? cuModuleGetFunction(function, module, name) : result;
 }
 
 CUresult cuLibraryGetGlobal(CUdeviceptr* dptr, size_t* bytes, CUlibrary library, const char* name) {
@@ -5173,41 +5249,63 @@ CUresult cuLibraryGetUnifiedFunction(void** fptr, CUlibrary library, const char*
 CUresult cuLibraryGetKernelCount(unsigned int* count, CUlibrary library) {
   if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_KQ %s\n", "GKC"); }
   uint32_t module_index = 0;
-  uint32_t generation = 0;
+  mf_cuda_object* module_record = (mf_cuda_object*)0;
+  CUresult result = CUDA_SUCCESS;
   if (count == (unsigned int*)0) {
     return CUDA_ERROR_INVALID_VALUE;
   }
-  if (!mf_cuda_decode((void*)library, MF_CUDA_TAG_MODULE, &module_index, &generation) ||
-      module_index >= MF_CUDA_MODULE_CAPACITY || mf_module_deferred[module_index] == 0) {
-    return CUDA_ERROR_NOT_SUPPORTED;
+  mf_cuda_lock();
+  result = mf_cuda_require_locked();
+  if (result == CUDA_SUCCESS) {
+    result = mf_cuda_lookup_token_locked((void*)library, MF_CUDA_TAG_MODULE, MF_CUDA_OBJECT_MODULE,
+                                         mf_cuda_global.modules, &module_index, &module_record);
   }
-  *count = mf_module_kernel_count(module_index);
-  return CUDA_SUCCESS;
+  if (result == CUDA_SUCCESS && mf_module_deferred[module_index] == UINT8_C(0)) {
+    result = CUDA_ERROR_NOT_SUPPORTED;
+  }
+  if (result == CUDA_SUCCESS) {
+    *count = mf_module_kernel_count(module_index, module_record->generation);
+  }
+  mf_cuda_unlock();
+  return result;
 }
 
 CUresult cuLibraryEnumerateKernels(CUkernel* kernels, unsigned int num_kernels,
                                    CUlibrary library) {
   if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_KQ %s\n", "LEK"); }
   uint32_t module_index = 0;
-  uint32_t generation = 0;
   uint32_t entry_index = 0;
   uint32_t filled = 0;
+  mf_cuda_object* module_record = (mf_cuda_object*)0;
+  CUresult result = CUDA_SUCCESS;
   if (kernels == (CUkernel*)0 && num_kernels != 0) {
     return CUDA_ERROR_INVALID_VALUE;
   }
-  if (!mf_cuda_decode((void*)library, MF_CUDA_TAG_MODULE, &module_index, &generation) ||
-      module_index >= MF_CUDA_MODULE_CAPACITY || mf_module_deferred[module_index] == 0) {
-    return CUDA_ERROR_NOT_SUPPORTED;
+  mf_cuda_lock();
+  result = mf_cuda_require_locked();
+  if (result == CUDA_SUCCESS) {
+    result = mf_cuda_lookup_token_locked((void*)library, MF_CUDA_TAG_MODULE, MF_CUDA_OBJECT_MODULE,
+                                         mf_cuda_global.modules, &module_index, &module_record);
   }
-  mf_module_parse_kernels(module_index);
+  if (result == CUDA_SUCCESS && mf_module_deferred[module_index] == UINT8_C(0)) {
+    result = CUDA_ERROR_NOT_SUPPORTED;
+  }
+  if (result != CUDA_SUCCESS) {
+    mf_cuda_unlock();
+    return result;
+  }
+  mf_module_parse_kernels(module_index, module_record->generation);
   for (entry_index = 0; entry_index < mf_kernel_entry_count && filled < num_kernels;
        ++entry_index) {
-    if (mf_kernel_entries[entry_index].module_index == module_index) {
+    if (mf_kernel_entries[entry_index].module_index == module_index &&
+        mf_kernel_entries[entry_index].module_generation == module_record->generation) {
       kernels[filled] =
-          (CUkernel)(uintptr_t)mf_cuda_token(MF_CUDA_TAG_FUNCTION, entry_index + 1, 1u);
+          (CUkernel)(uintptr_t)mf_cuda_token(MF_CUDA_TAG_FUNCTION, entry_index + 1,
+                                            module_record->generation);
       filled += 1;
     }
   }
+  mf_cuda_unlock();
   return CUDA_SUCCESS;
 }
 
@@ -5239,14 +5337,22 @@ CUresult cuKernelSetCacheConfig(CUfunc_config config, CUkernel kernel, CUdevice 
 CUresult cuKernelGetName(const char** name, CUkernel kernel) {
   if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_KQ %s\n", "KGN"); }
   uint32_t entry_index = 0;
+  uint32_t module_index = 0;
+  mf_cuda_object* module_record = (mf_cuda_object*)0;
+  CUresult result = CUDA_SUCCESS;
   if (name == (const char**)0) {
     return CUDA_ERROR_INVALID_VALUE;
   }
-  if (!mf_kernel_token_decode(kernel, &entry_index)) {
-    return CUDA_ERROR_INVALID_HANDLE;
+  mf_cuda_lock();
+  result = mf_cuda_require_locked();
+  if (result == CUDA_SUCCESS) {
+    result = mf_kernel_token_decode_locked(kernel, &entry_index, &module_index, &module_record);
   }
-  *name = mf_kernel_arena + mf_kernel_entries[entry_index].name_offset;
-  return CUDA_SUCCESS;
+  if (result == CUDA_SUCCESS) {
+    *name = mf_kernel_arena + mf_kernel_entries[entry_index].name_offset;
+  }
+  mf_cuda_unlock();
+  return result;
 }
 
 CUresult cuKernelGetParamInfo(CUkernel kernel, size_t index, size_t* param_offset,

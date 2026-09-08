@@ -81,6 +81,19 @@ set_tests_properties(
   PROPERTIES LABELS "abi;integration;provider" TIMEOUT 30
 )
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_test(
+  NAME metaflux.abi.provider.cuda-surface-profile
+  COMMAND
+    "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/validate_surface_profile.py"
+    --root "${PROJECT_SOURCE_DIR}"
+)
+set_tests_properties(
+  metaflux.abi.provider.cuda-surface-profile
+  PROPERTIES LABELS "abi;provider;profile"
+)
+
 add_test(
   NAME metaflux.unit.provider.cuda-install-layout
   COMMAND

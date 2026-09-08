@@ -37,11 +37,11 @@ multi-operation corpus remain open below.
 
 ## Work
 
-- [ ] Generate one versioned surface matrix from pinned headers, provider
+- [x] Generate one versioned surface matrix from pinned headers, provider
   exports, typed stubs, and profile-specific internal-table observations.
   Classify every entry as implemented, typed-stubbed, observed, or
   MetaFlux-strengthened and preserve stable failure for unsupported entries.
-- [ ] Add focused handle tests for repeated live lookup, invalid module,
+- [x] Add focused handle tests for repeated live lookup, invalid module,
   destroyed module, stale generation, cross-module name collision, duplicate
   teardown, and capacity reuse.
 - [ ] Generalize the lane-1 request without adding CUDA, PyTorch, MLIR, LLVM, or
