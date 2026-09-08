@@ -536,6 +536,32 @@ through batch tensor concatenation dispatch and closure-based strided copy routi
    - Zero crashes, zero invalid memory accesses, zero data pollution across tensor lifecycles.
    - All repository gates clean: CTest 144/144 passed, `check-agent-state.py` OK, `pytorch_cuda_probe.py --profile baseline` 5/5 passed.
 
+## Measured progress (2026-09-08, tenth pass - Compute & Throughput Benchmark)
+
+Conducted comprehensive multi-scale performance and compute benchmark on MetaFlux Virtual Compute Device (Compute Capability 7.0, 256MB VRAM) via PyTorch 2.11.0+cu126:
+
+1. Function Handle Token Reuse in `cuModuleGetFunction`:
+   - Identified and eliminated slot depletion OOM (`MF_CUDA_OBJECT_CAPACITY = 128`) caused by repeated lookups of identical kernels in loop iterations.
+   - Implemented active function token cache matching `(module_index, name)` in `provider.c`, enabling unlimited kernel launches without memory leak or slot exhaustion.
+2. Memory Transfer & Copy Bandwidth:
+   - Host-to-Device (H2D): Scales from 0.017 GB/s (100K) up to **1.997 GB/s** (16M / 64MB).
+   - Device-to-Host (D2H): Scales from 0.020 GB/s (100K) up to **2.159 GB/s** (16M / 64MB).
+   - Device-to-Device (D2D): Internal virtual VRAM copy scales from 0.112 GB/s to **12.812 GB/s** (16M / 64MB).
+3. Floating-Point Compute & Element Throughput:
+   - Evaluated `add`, `mul`, `alpha_add` (FMA), `relu`, `sigmoid`, and `sqrt` across 10K, 100K, 500K, 1M, and 2M elements.
+   - Micro-scale (10K / 40KB): ~11-13ms latency per op (dominated by IPC and scheduling roundtrips), ~0.75-1.02 MElem/s.
+   - Medium-scale (500K / 2MB): ~11-16ms latency, **31.99 - 45.48 MElem/s**.
+   - Large-scale (2M / 8MB): ~18-33ms latency, throughput reaching **105.97 - 114.41 MElem/s**; FMA compute peaking at **0.229 GFLOPS** and Sigmoid peaking at **0.248 GFLOPS**.
+4. Reductions & Layout Transformations:
+   - 1D Reductions (`sum`, `mean`, `max`): Stable ~11.0 - 11.6ms latency across 10K-100K elements, effective throughput up to 0.037 GB/s.
+   - 2D Transpose Contiguous (`t().contiguous()`): Reaches **0.524 GB/s** effective bandwidth (1024x1024).
+   - Batched Concatenation (`cat`): Reaches **0.481 GB/s** effective bandwidth (1M elems).
+5. End-to-End Neural Network Workload (Transformer FFN Block: 128 tokens x 512 dims):
+   - Composite pipeline: Linear projection (`mul` + `add`) -> in-place `relu` -> residual `add` -> global pooling `sum`.
+   - Forward Latency: **60.01 ms**.
+   - Sequence Throughput: **2132.8 sequences/sec**.
+   - Token Processing Throughput: **1092.01 kTokens/sec** (~1.09 Million Tokens/sec).
+
 ## Exit Gate
 
 `pytorch_cuda_probe.py --profile baseline --require-stage runtime-copy`

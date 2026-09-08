@@ -4873,6 +4873,19 @@ CUresult cuModuleGetFunction(CUfunction* function, CUmodule module, const char* 
       module_record->remote_generation = load_completion.result_generation;
     }
   }
+  {
+    uint32_t scan_fi = 0;
+    for (scan_fi = 0; scan_fi < MF_CUDA_OBJECT_CAPACITY; ++scan_fi) {
+      mf_cuda_object* f_rec = &mf_cuda_global.functions[scan_fi];
+      if (f_rec->active != 0 && f_rec->aux == (uint64_t)module_index &&
+          strcmp(mf_function_names[scan_fi], name) == 0) {
+        *function = (CUfunction)(uintptr_t)mf_cuda_token(
+            MF_CUDA_TAG_FUNCTION, scan_fi, f_rec->generation);
+        mf_cuda_unlock();
+        return CUDA_SUCCESS;
+      }
+    }
+  }
   /* Kernel-name resolution is delegated to the module's compiled artifact:
      any name the module exposes resolves to a function token. */
   function_index = mf_cuda_free_slot(mf_cuda_global.functions);
