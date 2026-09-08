@@ -463,6 +463,30 @@ pointer array {in1, in2, NULL} (verified in the gap dump), and the output
 pointer plus per-input length metadata sit in the adjacent metadata
 structure — decode front continues there.
 
+Handoff snapshot (2026-09-08, shallow convergence): the operator sweep
+stands at 31/41 with the remaining 10 failing as clean errors. The
+verified stable state is HEAD (post 43fe65e); experimental reduce-handler
+work beyond it was reverted and is NOT in the tree. Handoff notes for the
+next engineer: (1) reduce_kernel — the launch packs two arguments
+(ReduceOp, functor code pointer); ReduceOp offsets decoded: buffer
+element size 8 + num_inputs 6 at qword 2, contiguous stride pairs,
+num_inputs repeated at qword 10, mean division magic 0x55555556/3 at
+qword 11; the input device pointer sits MISALIGNED at byte 0x2b1 of the
+packed region (byte-level scan required — aligned qword scans miss it)
+and staging/output cluster near 0x3e0-0x3e8. A drafted host-reduce
+handler computed the correct value (-889 for the 6-element int32 sum)
+by identifying the input as the last-H2D-written candidate, but its H2D
+result writes returned CUDA_ERROR_NOT_SUPPORTED — the remaining front is
+why writes to the staging/output blocks are rejected (suspect the write
+path's stream/memory-scope validation), plus daemon cache warm/cold
+states changing which launches reach the driver at all. (2) gt/ge — the
+comparison is baked into empty-functor code with no runtime op field;
+needs upper-layer routing, not kernel-layer decoding. (3) strided-view
+contiguous copies need stride-aware reads. (4) float/int32 small arange
+variants: the shared kernel name cannot yield the element type — the
+read-through pattern works for int64 but float disambiguation needs a
+wider signal.
+
 ## Exit Gate
 
 `pytorch_cuda_probe.py --profile baseline --require-stage runtime-copy`
