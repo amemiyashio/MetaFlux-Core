@@ -83,6 +83,7 @@ extern "C" {
 #define MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1 UINT32_C(1)
 #define MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1 UINT32_C(1)
 #define MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_MUL_I32_V1 UINT32_C(2)
+#define MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SUB_I32_V1 UINT32_C(3)
 #define MF_CLIENT_KERNEL_REQUEST_OPERATION_ABI_VERSION_V1 UINT32_C(1)
 #define MF_CLIENT_KERNEL_REQUEST_KERNEL_IR_SCHEMA_VERSION_V1 UINT32_C(2)
 #define MF_CLIENT_KERNEL_REQUEST_LIFETIME_MODULE_LOAD_V1 UINT32_C(1)
@@ -213,9 +214,11 @@ static inline uint32_t mf_client_kernel_request_validate_v1(const uint8_t* paylo
       mf_client_load_le64_v1(request->bytes + 8) != byte_count ||
       mf_client_load_le32_v1(request->bytes + 16) != MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1 ||
       (mf_client_load_le32_v1(request->bytes + 20) !=
-           MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1 &&
+               MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-           MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_MUL_I32_V1) ||
+               MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_MUL_I32_V1 &&
+       mf_client_load_le32_v1(request->bytes + 20) !=
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SUB_I32_V1) ||
       mf_client_load_le32_v1(request->bytes + 24) !=
           MF_CLIENT_KERNEL_REQUEST_OPERATION_ABI_VERSION_V1 ||
       mf_client_load_le32_v1(request->bytes + 28) !=

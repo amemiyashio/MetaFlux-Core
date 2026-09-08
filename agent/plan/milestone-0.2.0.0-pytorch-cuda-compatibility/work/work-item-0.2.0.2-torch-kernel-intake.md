@@ -60,6 +60,24 @@ multi-operation corpus remain open below.
 - [ ] Prove every accepted corpus operation with correlated daemon submission
   and CPU-backend completion evidence.
 
+Third operation (2026-09-08, continued): int32 subtract is live through
+the same neutral request path. torch lowers `a - b` to the add kernel
+with alpha = -1, so the add adapter now routes alpha 1 to the add PTX and
+alpha -1 to a new sub_u32 PTX (OPERATION_ELEMENTWISE_SUB_I32_V1 = 3,
+accepted by the wire validation alongside add and mul). A critical
+launch-binding rule was decoded and fixed: the daemon binds every launch
+to the most recently materialized kernel-request artifact for the
+module, so an operation switch must re-register — the materializer now
+tracks the last operation per module and re-registers on a switch
+(replacing the module/artifact ids in place; superseded daemon objects
+leak until context teardown). Verified bit-exact: add, sub, mul, and
+re-switching add/sub/mul in one process all return exact results.
+
+Remaining: float/i64 variants of add/sub/mul (each needs its own PTX and
+dtype discrimination), gt/ge routing, and the torch.cuda._sleep bundled
+smoke kernel (the probe's artifact-intake stage currently fails cleanly
+on it — pre-existing on this architecture).
+
 ## Exit Gate
 
 The complete surface/status matrix and handle-negative suite pass; the neutral
