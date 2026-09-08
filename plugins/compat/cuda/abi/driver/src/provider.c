@@ -7718,45 +7718,45 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         mf_cuda_queue_unlock();
         return CUDA_ERROR_NOT_SUPPORTED;
       }
-      /* Calculator arrays retain stale stack values, so matches are ranked:
-         the destination is the match from the most recently allocated memory
-         object and the source is the oldest match that still holds
-         count*4 readable bytes. */
-      uint32_t destination_slot = UINT32_C(0);
-      uint64_t destination_index = 0;
-      int destination_found = 0;
-      uint32_t source_slot = UINT32_C(0);
-      uint64_t source_index = UINT64_C(0);
-      int source_found = 0;
-      uint32_t slot = UINT32_C(0);
-      for (slot = 0; slot < match_count; ++slot) {
-        mf_cuda_object* memory = (mf_cuda_object*)0;
-        uint64_t memory_offset = UINT64_C(0);
-        if (mf_cuda_memory_locked((CUdeviceptr)matches[slot], (size_t)1, &memory,
-                                  &memory_offset) != CUDA_SUCCESS ||
-            memory == (mf_cuda_object*)0) {
+      /* The ReduceOp record ends with adjacent source and destination
+         pointer fields; calculator slots before them and stack bytes after
+         them retain stale values. Scan the record at pointer granularity and
+         take the highest-offset adjacent registered qword pair: that is the
+         record's own (source, destination) operand pair. */
+      uint64_t source_value = UINT64_C(0);
+      uint64_t destination_value = UINT64_C(0);
+      uint32_t best_pair_offset = UINT32_C(0);
+      int pair_found = 0;
+      uint32_t offset = UINT32_C(0);
+      for (offset = UINT32_C(0); offset + UINT32_C(8) <= UINT32_C(1024);
+           offset += UINT32_C(4)) {
+        uint64_t first = UINT64_C(0);
+        uint64_t second = UINT64_C(0);
+        for (uint32_t byte = UINT32_C(0); byte < UINT32_C(8); ++byte) {
+          first |= (uint64_t)config_bytes[offset + byte] << (uint32_t)(byte * UINT32_C(8));
+          second |= (uint64_t)config_bytes[offset + UINT32_C(8) + byte]
+                    << (uint32_t)(byte * UINT32_C(8));
+        }
+        if (first == UINT64_C(0) || second == UINT64_C(0)) {
           continue;
         }
-        const uint32_t object_index = (uint32_t)(memory - mf_cuda_global.memories);
-        const uint64_t rank = ((uint64_t)object_index << 32U) | memory_offset;
-        const uint64_t capacity = memory->size > memory_offset
-                                      ? memory->size - memory_offset
-                                      : UINT64_C(0);
-        const int holds_input =
-            capacity >= (uint64_t)config_count * UINT64_C(4);
-        if (!destination_found || rank > destination_index) {
-          destination_index = rank;
-          destination_slot = slot;
-          destination_found = 1;
-        }
-        if (holds_input &&
-            (!source_found || rank < source_index)) {
-          source_index = rank;
-          source_slot = slot;
-          source_found = 1;
+        mf_cuda_object* first_memory = (mf_cuda_object*)0;
+        mf_cuda_object* second_memory = (mf_cuda_object*)0;
+        uint64_t first_storage = UINT64_C(0);
+        uint64_t second_storage = UINT64_C(0);
+        if (mf_cuda_memory_locked((CUdeviceptr)first, (size_t)1, &first_memory,
+                                  &first_storage) == CUDA_SUCCESS &&
+            mf_cuda_memory_locked((CUdeviceptr)second, (size_t)1, &second_memory,
+                                  &second_storage) == CUDA_SUCCESS &&
+            offset >= best_pair_offset) {
+          source_value = first;
+          destination_value = second;
+          best_pair_offset = offset;
+          pair_found = 1;
         }
       }
-      if (!destination_found || !source_found) {
+      if (!pair_found || source_value == UINT64_C(0) || destination_value == UINT64_C(0) ||
+          config_count == UINT32_C(0)) {
         mf_cuda_queue_unlock();
         return CUDA_ERROR_NOT_SUPPORTED;
       }
@@ -7764,8 +7764,8 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       if (reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I64_V1) {
         normalized_output_element_size = UINT32_C(8);
       }
-      normalized_pointers[0] = (CUdeviceptr)matches[destination_slot]; /* destination */
-      normalized_pointers[1] = (CUdeviceptr)matches[source_slot];      /* source */
+      normalized_pointers[0] = (CUdeviceptr)destination_value; /* destination */
+      normalized_pointers[1] = (CUdeviceptr)source_value;      /* source */
       normalized_pointers[2] = (CUdeviceptr)0;
       normalized_kinds[2] = UINT32_C(1);
       normalized_scalars[2] = UINT32_C(0);
@@ -7773,6 +7773,41 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       result = mf_cuda_materialize_pytorch_baseline_locked(
           module_record, reduce_operation, mf_pytorch_baseline_reduce_stub_ptx,
           sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U, "reduce-native");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
+    if (kernel_name[0] != '\0' && strstr(kernel_name, "unrolled_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "direct_copy_kernel_cuda") != (char*)0 &&
+        strstr(kernel_name, "EUllE_") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[2] != (void*)0) {
+      /* torch int64 accumulator materialization: the unrolled kernel takes
+         the element count, a captureless cast functor, and a data array of
+         {destination, source}; the daemon widens int32 words to int64 pairs
+         natively from the operation id. The name fragments sit inside the
+         registered name's truncated prefix. */
+      void** cast_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)cast_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)cast_data_array[1];
+      normalized_pointers[2] = (CUdeviceptr)0;
+      normalized_kinds[2] = UINT32_C(1);
+      normalized_scalars[2] = UINT32_C(0);
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_COPY_I64_V1,
+          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          "cast-copy-i64");
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();
         return result;
