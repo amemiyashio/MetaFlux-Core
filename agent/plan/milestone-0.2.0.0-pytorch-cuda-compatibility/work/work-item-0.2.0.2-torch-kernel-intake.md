@@ -122,6 +122,19 @@ Verification: fdiv bit-exact ([3.0, -1.125, -3.125, -0.125]); ptx-parser,
 both corpus differentials, stock-baseline four modes all pass; CTest
 154/154.
 
+neg-i32 adapter and remaining daemon_launch binding issue (2026-09-09):
+the neg adapter (neg_kernel_cuda, two-pointer unary shape) correctly
+matches, materializes OPERATION_ELEMENTWISE_NEG_I32_V1 = 7, and reaches
+the daemon launch. The remaining "invalid argument" is in the
+daemon_launch path after the goto — not in the adapter itself. Debug
+traces confirm the adapter fires, element_count reads correctly, and
+the materialize succeeds; the failure is in the argument block
+validation, argument cache acquire, or the daemon-side execution. The
+neg PTX was widened to four parameters (destination, input, unused,
+count) to match the argument block entry count. Next: trace each
+daemon_launch validation step for the neg launch to isolate the exact
+rejecting check.
+
 ## Exit Gate
 
 The complete surface/status matrix and handle-negative suite pass; the neutral

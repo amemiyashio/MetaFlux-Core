@@ -295,6 +295,42 @@ static const char mf_pytorch_baseline_divf32_ptx[] =
     "  ret;\n"
     "}\n";
 
+/* The stock-PyTorch int32 negate kernel maps to this neutral PTX artifact:
+ * zero minus the loaded element over the two-pointer shape. */
+static const char mf_pytorch_baseline_neg_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry neg_i32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 input,\n"
+    "  .param .u64 unused,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [input];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  mov.u32 %r1, %tid.x;\n"
+    "  mov.u32 %r2, %ctaid.x;\n"
+    "  mov.u32 %r3, %ntid.x;\n"
+    "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
+    "  setp.ge.u32 %p, %r4, %r0;\n"
+    "  @%p bra done;\n"
+    "  mul.wide.u32 %rd3, %r4, 4;\n"
+    "  add.u64 %rd4, %rd0, %rd3;\n"
+    "  add.u64 %rd5, %rd1, %rd3;\n"
+    "  ld.global.u32 %r5, [%rd5];\n"
+    "  mov.u32 %r6, 0;\n"
+    "  sub.u32 %r7, %r6, %r5;\n"
+    "  st.global.u32 [%rd4], %r7;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
 /* Client fatbin blobs and their parsed kernel names. The blob pointers stay
    valid for the process lifetime (client images). Kernel names come from the
    cubin ELF symbol tables so cudart's enumerate-and-match binding finds a
@@ -6822,6 +6858,39 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       goto daemon_launch;
     }
 
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "neg_kernel_cuda") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0) {
+      /* torch int32 negate: a two-pointer unary shape {out, input} with a
+         stateless functor; out[i] = 0 - in[i]. */
+      void** neg_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)neg_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)neg_data_array[1];
+      /* The daemon launch validates three registered pointers; the unary
+         shape aliases the input as the unused third pointer. */
+      normalized_pointers[2] = normalized_pointers[1];
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_NEG_I32_V1,
+          mf_pytorch_baseline_neg_ptx, sizeof(mf_pytorch_baseline_neg_ptx) - 1U,
+          "elementwise-neg-i32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
     /* The baseline must not accept provider-side tensor emulation. Every
      * deferred kernel other than the neutral int32 add adapter fails at the
      * CUDA boundary until its daemon-owned Kernel IR route is implemented. */
@@ -6829,14 +6898,19 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
     return CUDA_ERROR_NOT_SUPPORTED;
   }
 daemon_launch:
+  if (mf_cuda_entry_trace_enabled() != 0) {
+    fprintf(stderr, "MF_DL entered sm=%u pz=%u bz=%u\n", shared_memory_bytes, grid_z, block_z);
+  }
   if (result == CUDA_SUCCESS &&
       (grid_z != UINT32_C(1) || block_z != UINT32_C(1) ||
        shared_memory_bytes != UINT32_C(0))) {
+    if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_DL fail z/shared\n"); }
     result = CUDA_ERROR_NOT_SUPPORTED;
   }
   for (parameter_index = 0;
        result == CUDA_SUCCESS && parameter_index < UINT32_C(4); ++parameter_index) {
     if (kernel_parameters[parameter_index] == (void*)0) {
+      if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_DL null param %u\n", parameter_index); }
       result = CUDA_ERROR_INVALID_VALUE;
     }
   }
@@ -6857,6 +6931,9 @@ daemon_launch:
                                          &pending.stream_index, &pending.stream_generation,
                                          &stream_last_request);
   }
+  if (mf_cuda_entry_trace_enabled() != 0) {
+    fprintf(stderr, "MF_DL after stream rc=%d\n", (int)result);
+  }
   if (result == CUDA_SUCCESS) {
     for (parameter_index = 0; parameter_index < UINT32_C(3); ++parameter_index) {
       (void)memcpy(&pointers[parameter_index], kernel_parameters[parameter_index],
@@ -6864,13 +6941,23 @@ daemon_launch:
       result = mf_cuda_memory_locked(pointers[parameter_index], (size_t)1,
                                      &memories[parameter_index], &offsets[parameter_index]);
       if (result != CUDA_SUCCESS) {
+        if (mf_cuda_entry_trace_enabled() != 0) {
+          fprintf(stderr, "MF_DL mem[%u] ptr=%llx rc=%d\n", parameter_index,
+                  (unsigned long long)pointers[parameter_index], (int)result);
+        }
         break;
       }
       if (memories[parameter_index]->owner_context != context_index) {
+        if (mf_cuda_entry_trace_enabled() != 0) {
+          fprintf(stderr, "MF_DL ctx mismatch mem[%u]\n", parameter_index);
+        }
         result = CUDA_ERROR_INVALID_CONTEXT;
         break;
       }
     }
+  }
+  if (mf_cuda_entry_trace_enabled() != 0) {
+    fprintf(stderr, "MF_DL after mem rc=%d count=%u\n", (int)result, element_count);
   }
   if (result == CUDA_SUCCESS) {
     (void)memcpy(&element_count, kernel_parameters[3], sizeof(element_count));
