@@ -1331,11 +1331,28 @@ int main(void) {
   CUresult (*resolved_stream_synchronize)(CUstream) = (CUresult (*)(CUstream))0;
   CUresult (*resolved_event_record)(CUevent, CUstream) = (CUresult (*)(CUevent, CUstream))0;
   CUresult (*a094_unknown_slot)(void) = (CUresult (*)(void))0;
+  CUresult (*c693_slot0)(uintptr_t, void*, void*, void*) =
+      (CUresult (*)(uintptr_t, void*, void*, void*))0;
+  void (*c693_slot1)(void*, void*) = (void (*)(void*, void*))0;
+  CUresult (*c693_unknown_slot)(void) = (CUresult (*)(void))0;
+  CUresult (*table_unknown_slot)(void) = (CUresult (*)(void))0;
   CUdriverProcAddressQueryResult query_status = CU_GET_PROC_ADDRESS_SYMBOL_NOT_FOUND;
   static const CUuuid a094_uuid = {{
       0xa0, 0x94, 0x79, 0x8c, 0x2e, 0x74, 0x2e, 0x74,
       0x93, 0xf2, 0x08, 0x00, 0x20, 0x0c, 0x0a, 0x66}};
+  static const CUuuid table_42d8_uuid = {{
+      0x42, 0xd8, 0x5a, 0x81, 0x23, 0xf6, 0xcb, 0x47,
+      0x82, 0x98, 0xf6, 0xe7, 0x8a, 0x3a, 0xec, 0xdc}};
+  static const CUuuid c693_uuid = {{
+      0xc6, 0x93, 0x33, 0x6e, 0x11, 0x21, 0xdf, 0x11,
+      0xa8, 0xc3, 0x68, 0xf3, 0x55, 0xd8, 0x95, 0x93}};
+  static const CUuuid table_d408_uuid = {{
+      0xd4, 0x08, 0x20, 0x55, 0xbd, 0xe6, 0x70, 0x4b,
+      0x8d, 0x34, 0xba, 0x12, 0x3c, 0x66, 0xe1, 0xf2}};
   const void* a094_table = (const void*)0;
+  const void* table_42d8 = (const void*)0;
+  const void* c693_table = (const void*)0;
+  const void* table_d408 = (const void*)0;
   CUuuid uuid;
   char name[64];
   char pci_bus_id[32];
@@ -1442,6 +1459,35 @@ int main(void) {
   MF_TEST_REQUIRE(a094_unknown_slot != (CUresult (*)(void))0 &&
                       a094_unknown_slot() == CUDA_ERROR_NOT_SUPPORTED,
                   162);
+  MF_TEST_REQUIRE(cuGetExportTable(&c693_table, &c693_uuid) == CUDA_SUCCESS &&
+                      c693_table != (const void*)0,
+                  163);
+  (void)memcpy(&c693_slot0, &((const void* const*)c693_table)[0], sizeof(c693_slot0));
+  (void)memcpy(&c693_slot1, &((const void* const*)c693_table)[1], sizeof(c693_slot1));
+  (void)memcpy(&c693_unknown_slot, &((const void* const*)c693_table)[3],
+               sizeof(c693_unknown_slot));
+  MF_TEST_REQUIRE(c693_slot0 != (CUresult (*)(uintptr_t, void*, void*, void*))0 &&
+                      c693_slot1 != (void (*)(void*, void*))0 &&
+                      c693_unknown_slot != (CUresult (*)(void))0 &&
+                      c693_slot0((uintptr_t)0, (void*)0, (void*)0, (void*)0) == CUDA_SUCCESS &&
+                      (c693_slot1((void*)0, (void*)0), 1) &&
+                      c693_unknown_slot() == CUDA_ERROR_NOT_SUPPORTED,
+                  164);
+  MF_TEST_REQUIRE(cuGetExportTable(&table_42d8, &table_42d8_uuid) == CUDA_SUCCESS &&
+                      table_42d8 != (const void*)0 &&
+                      cuGetExportTable(&table_d408, &table_d408_uuid) == CUDA_SUCCESS &&
+                      table_d408 != (const void*)0,
+                  165);
+  (void)memcpy(&table_unknown_slot, &((const void* const*)table_42d8)[1],
+               sizeof(table_unknown_slot));
+  MF_TEST_REQUIRE(table_unknown_slot != (CUresult (*)(void))0 &&
+                      table_unknown_slot() == CUDA_ERROR_NOT_SUPPORTED,
+                  166);
+  (void)memcpy(&table_unknown_slot, &((const void* const*)table_d408)[2],
+               sizeof(table_unknown_slot));
+  MF_TEST_REQUIRE(table_unknown_slot != (CUresult (*)(void))0 &&
+                      table_unknown_slot() == CUDA_ERROR_NOT_SUPPORTED,
+                  167);
   resolved = (void*)1;
   query_status = CU_GET_PROC_ADDRESS_SUCCESS;
   MF_TEST_REQUIRE(cuGetProcAddress_v2("cuMissing", &resolved, MF_CUDA_DRIVER_API_VERSION,

@@ -26,6 +26,8 @@ class StockBaselineEvidenceTests(unittest.TestCase):
                 "MF_STUB_CALL mf_cuda_managed_cuCtxGetApiVersion",
                 "MF_PYTORCH_BASELINE_MODULE artifact=1/1 module=2/1",
                 "MF_EXPORT_TABLE a094798c-2e74-2e74-93f2-0800200c0a66",
+                "MF_TABLE_SLOT_CALL table=c693 slot=0 behavior=profile-observed-status-success",
+                "MF_TABLE_SLOT_CALL table=c693 slot=1 behavior=profile-observed-void-noop",
                 "MF_LAUNCH f=0x123 grid=1x64",
                 "resolver probe: cuMemAlloc_v2",
             )
@@ -44,6 +46,14 @@ class StockBaselineEvidenceTests(unittest.TestCase):
             ["a094798c-2e74-2e74-93f2-0800200c0a66"],
         )
         self.assertEqual(surface["unknown_internal_table_requests"], 0)
+        self.assertEqual(surface["unclassified_internal_table_calls"], [])
+        self.assertEqual(
+            surface["internal_table_slot_calls"],
+            [
+                "c693:0:profile-observed-status-success",
+                "c693:1:profile-observed-void-noop",
+            ],
+        )
         self.assertEqual(surface["canonical_artifact_module_loads"], 1)
         self.assertEqual(surface["launches"], 1)
         self.assertEqual(surface["local_semantic_execution_events"], 0)
@@ -53,6 +63,10 @@ class StockBaselineEvidenceTests(unittest.TestCase):
             "entrypoints": sorted(stock_baseline.BASELINE_DIRECT_PROVIDER_ENTRYPOINTS),
             "typed_stub_entrypoints": sorted(stock_baseline.BASELINE_TYPED_STUB_ENTRYPOINTS),
             "internal_tables": sorted(stock_baseline.BASELINE_INTERNAL_TABLES),
+            "internal_table_slot_calls": sorted(
+                stock_baseline.BASELINE_INTERNAL_TABLE_SLOT_CALLS
+            ),
+            "unclassified_internal_table_calls": [],
         }
 
         stock_baseline.require_baseline_execution_surface(surface)
@@ -64,6 +78,18 @@ class StockBaselineEvidenceTests(unittest.TestCase):
         surface["entrypoints"] = sorted(stock_baseline.BASELINE_DIRECT_PROVIDER_ENTRYPOINTS)
         surface["typed_stub_entrypoints"] = surface["typed_stub_entrypoints"][:-1]
         with self.assertRaisesRegex(RuntimeError, "typed-stub surface drifted"):
+            stock_baseline.require_baseline_execution_surface(surface)
+
+        surface["typed_stub_entrypoints"] = sorted(stock_baseline.BASELINE_TYPED_STUB_ENTRYPOINTS)
+        surface["internal_table_slot_calls"] = []
+        with self.assertRaisesRegex(RuntimeError, "slot calls drifted"):
+            stock_baseline.require_baseline_execution_surface(surface)
+
+        surface["internal_table_slot_calls"] = sorted(
+            stock_baseline.BASELINE_INTERNAL_TABLE_SLOT_CALLS
+        )
+        surface["unclassified_internal_table_calls"] = ["c693@libcudart.so.12+0x42166"]
+        with self.assertRaisesRegex(RuntimeError, "reached an unclassified"):
             stock_baseline.require_baseline_execution_surface(surface)
 
     def test_daemon_statistics_require_one_complete_record(self) -> None:

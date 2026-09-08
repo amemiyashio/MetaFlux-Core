@@ -32,6 +32,17 @@ TRACE_EXPORT_TABLE = re.compile(
     re.MULTILINE,
 )
 TRACE_UNKNOWN_EXPORT_TABLE = re.compile(r"^MF_TABLE_UUID unknown ", re.MULTILINE)
+TRACE_UNCLASSIFIED_TABLE_CALL = re.compile(
+    r"^MF_TABLE_UNCLASSIFIED_CALL table=(?P<table>[a-z0-9]+) "
+    r"image=(?P<image>[A-Za-z0-9._-]+) "
+    r"caller-offset=(?P<caller_offset>0x[0-9a-f]+|unknown)$",
+    re.MULTILINE,
+)
+TRACE_TABLE_SLOT_CALL = re.compile(
+    r"^MF_TABLE_SLOT_CALL table=(?P<table>[a-z0-9]+) "
+    r"slot=(?P<slot>\d+) behavior=(?P<behavior>[a-z0-9-]+)$",
+    re.MULTILINE,
+)
 DAEMON_EXECUTION_STATISTICS = re.compile(
     r"^metafluxd: cpu-execution mode=(?P<mode>[a-z-]+) "
     r"compiler-requests=(?P<compiler_requests>\d+) "
@@ -59,11 +70,17 @@ BASELINE_TYPED_STUB_ENTRYPOINTS = frozenset(
 BASELINE_INTERNAL_TABLES = frozenset(
     {
         "a094798c-2e74-2e74-93f2-0800200c0a66",
-        "42d85a81-3d10-4a4d-9b5f-6b4d0b1c2a77",
-        "c693336e-1121-df11-830b-7fafd1516e78",
-        "263e8860-7b07-11eb-9439-0242ac130002",
+        "42d85a81-23f6-cb47-8298-f6e78a3aecdc",
+        "c693336e-1121-df11-a8c3-68f355d89593",
+        "263e8860-7cd2-6143-92f6-bbd5006dfa7e",
         "d408" "2055-bde6-704b-8d34-ba123c66e1f2",
         "6bd5fb6c-5bf4-e74a-8987-d93912fd9df9",
+    }
+)
+BASELINE_INTERNAL_TABLE_SLOT_CALLS = frozenset(
+    {
+        "c693:0:profile-observed-status-success",
+        "c693:1:profile-observed-void-noop",
     }
 )
 
@@ -103,12 +120,26 @@ def result(stage_name: str, **details: Any) -> dict[str, Any]:
 
 def provider_execution_surface(trace: str) -> dict[str, Any]:
     """Return only direct provider calls, never cuGetProcAddress probe names."""
+    unclassified_table_calls = sorted(
+        {
+            f"{match.group('table')}@{match.group('image')}+{match.group('caller_offset')}"
+            for match in TRACE_UNCLASSIFIED_TABLE_CALL.finditer(trace)
+        }
+    )
+    table_slot_calls = sorted(
+        {
+            f"{match.group('table')}:{match.group('slot')}:{match.group('behavior')}"
+            for match in TRACE_TABLE_SLOT_CALL.finditer(trace)
+        }
+    )
     return {
         "kind": "direct-provider-entrypoints",
         "entrypoints": sorted(set(TRACE_ENTRY.findall(trace))),
         "typed_stub_entrypoints": sorted(set(TRACE_STUB_ENTRY.findall(trace))),
         "internal_tables": sorted(set(TRACE_EXPORT_TABLE.findall(trace))),
         "unknown_internal_table_requests": len(TRACE_UNKNOWN_EXPORT_TABLE.findall(trace)),
+        "unclassified_internal_table_calls": unclassified_table_calls,
+        "internal_table_slot_calls": table_slot_calls,
         "canonical_artifact_module_loads": len(TRACE_MODULE.findall(trace)),
         "launches": len(TRACE_LAUNCH.findall(trace)),
         "local_semantic_execution_events": len(TRACE_SEMANTIC.findall(trace)),
@@ -149,6 +180,19 @@ def require_baseline_execution_surface(surface: dict[str, Any]) -> None:
         raise RuntimeError(
             "pinned baseline CUDA internal-table surface drifted: "
             f"expected {sorted(BASELINE_INTERNAL_TABLES)!r}, observed {sorted(tables)!r}"
+        )
+    slot_calls = frozenset(surface["internal_table_slot_calls"])
+    if slot_calls != BASELINE_INTERNAL_TABLE_SLOT_CALLS:
+        raise RuntimeError(
+            "pinned baseline CUDA internal-table slot calls drifted: "
+            f"expected {sorted(BASELINE_INTERNAL_TABLE_SLOT_CALLS)!r}, "
+            f"observed {sorted(slot_calls)!r}"
+        )
+    unclassified_table_calls = surface["unclassified_internal_table_calls"]
+    if unclassified_table_calls:
+        raise RuntimeError(
+            "pinned baseline reached an unclassified CUDA internal-table slot: "
+            f"observed {unclassified_table_calls!r}"
         )
 
 

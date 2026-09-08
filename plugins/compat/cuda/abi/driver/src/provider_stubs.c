@@ -41,9 +41,27 @@ static int mf_stub_trace(void) {
     } \
   } while (0)
 
-static void mf_export_table_trace(const char* identifier) {
+static void mf_export_table_trace(const CUuuid* identifier) {
   if (mf_stub_trace()) {
-    fprintf(stderr, "MF_EXPORT_TABLE %s\n", identifier);
+    fprintf(stderr,
+            "MF_EXPORT_TABLE %02x%02x%02x%02x-%02x%02x-%02x%02x-"
+            "%02x%02x-%02x%02x%02x%02x%02x%02x\n",
+            (unsigned)(unsigned char)identifier->bytes[0],
+            (unsigned)(unsigned char)identifier->bytes[1],
+            (unsigned)(unsigned char)identifier->bytes[2],
+            (unsigned)(unsigned char)identifier->bytes[3],
+            (unsigned)(unsigned char)identifier->bytes[4],
+            (unsigned)(unsigned char)identifier->bytes[5],
+            (unsigned)(unsigned char)identifier->bytes[6],
+            (unsigned)(unsigned char)identifier->bytes[7],
+            (unsigned)(unsigned char)identifier->bytes[8],
+            (unsigned)(unsigned char)identifier->bytes[9],
+            (unsigned)(unsigned char)identifier->bytes[10],
+            (unsigned)(unsigned char)identifier->bytes[11],
+            (unsigned)(unsigned char)identifier->bytes[12],
+            (unsigned)(unsigned char)identifier->bytes[13],
+            (unsigned)(unsigned char)identifier->bytes[14],
+            (unsigned)(unsigned char)identifier->bytes[15]);
   }
 }
 
@@ -209,8 +227,69 @@ static CUresult mf_export_init_0x10(void* sub_struct, unsigned int mode) {
 static void* mf_export_ops[8];
 static void* mf_export_vtable[64];
 
-static CUresult mf_a094_ops_entry_success(void) {
+static void mf_table_slot_trace(const char* table, unsigned int slot, const char* behavior) {
+  if (mf_stub_trace()) {
+    fprintf(stderr, "MF_TABLE_SLOT_CALL table=%s slot=%u behavior=%s\n", table, slot, behavior);
+  }
+}
+
+static CUresult mf_table_unclassified_not_supported(const char* table, const void* caller) {
+  if (mf_stub_trace()) {
+    Dl_info caller_info;
+    if (caller != (const void*)0 && dladdr(caller, &caller_info) != 0 &&
+        caller_info.dli_fbase != (void*)0) {
+      const uintptr_t caller_offset =
+          (uintptr_t)caller - (uintptr_t)(const void*)caller_info.dli_fbase;
+      const char* image = caller_info.dli_fname == (const char*)0
+                              ? "unknown"
+                              : strrchr(caller_info.dli_fname, '/');
+      image = image == (const char*)0 ? caller_info.dli_fname : image + 1;
+      fprintf(stderr,
+              "MF_TABLE_UNCLASSIFIED_CALL table=%s image=%s caller-offset=0x%llx\n", table,
+              image, (unsigned long long)caller_offset);
+    } else {
+      fprintf(stderr, "MF_TABLE_UNCLASSIFIED_CALL table=%s image=unknown caller-offset=unknown\n",
+              table);
+    }
+  }
+  return CUDA_ERROR_NOT_SUPPORTED;
+}
+
+static CUresult mf_42d8_unclassified_not_supported(void) {
+  return mf_table_unclassified_not_supported("42d8", __builtin_return_address(0));
+}
+
+static CUresult mf_c693_unclassified_not_supported(void) {
+  return mf_table_unclassified_not_supported("c693", __builtin_return_address(0));
+}
+
+static CUresult mf_d408_unclassified_not_supported(void) {
+  return mf_table_unclassified_not_supported("d408", __builtin_return_address(0));
+}
+
+/* The c693 table is a profile-local cudart C++ vtable, not a CUDA Driver API.
+   Its two baseline calls were recovered from the pinned PyTorch 2.11.0+cu126
+   libcudart.so.12 (SHA-256 d00299b54a11422f79e52afc0d3852fe3d11be4ea10ce5550adf6ca06d381600):
+   slot 0 at ELF 0x42164 returns CUresult after receiving (0, table-object,
+   temporary-record, callback), while slot 1 at ELF 0x42a59 receives
+   (target, table-object) and ignores its return value. The five-stage profile
+   observes neither caller-owned output nor a callback invocation on these
+   paths. The narrow no-op handling below is MetaFlux-strengthened behavior for
+   that pinned profile, not a general CUDA compatibility claim. */
+static CUresult mf_c693_slot0_profile_observed(uintptr_t flags, void* table_object,
+                                                void* temporary_record, void* callback) {
+  (void)flags;
+  (void)table_object;
+  (void)temporary_record;
+  (void)callback;
+  mf_table_slot_trace("c693", UINT32_C(0), "profile-observed-status-success");
   return CUDA_SUCCESS;
+}
+
+static void mf_c693_slot1_profile_observed(void* target, void* table_object) {
+  (void)target;
+  (void)table_object;
+  mf_table_slot_trace("c693", UINT32_C(1), "profile-observed-void-noop");
 }
 
 /* The a094 table is a pinned libcudart observation, not a general Driver API.
@@ -521,7 +600,7 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
      Slots outside the observed set fail explicitly. */
   if (memcmp(pExportTableId->bytes, mf_uuid_a094, 16) == 0) {
     unsigned int i = 0;
-    mf_export_table_trace("a094798c-2e74-2e74-93f2-0800200c0a66");
+    mf_export_table_trace(pExportTableId);
     mf_a094_ops[0] = (void*)(uintptr_t)12060;
     for (i = 1; i < sizeof(mf_a094_ops) / sizeof(mf_a094_ops[0]); ++i) {
       mf_a094_ops[i] = (void*)&mf_a094_ops_entry_not_supported;
@@ -536,10 +615,10 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
   /* UUID 42d85a81-...: secondary interface table after a094 registration. */
   if (memcmp(pExportTableId->bytes, mf_uuid_42d8, 16) == 0) {
     unsigned int i = 0;
-    mf_export_table_trace("42d85a81-3d10-4a4d-9b5f-6b4d0b1c2a77");
+    mf_export_table_trace(pExportTableId);
     mf_42d8_ops[0] = (void*)(uintptr_t)12060;
     for (i = 1; i < sizeof(mf_42d8_ops) / sizeof(mf_42d8_ops[0]); ++i) {
-      mf_42d8_ops[i] = (void*)&mf_a094_ops_entry_success;
+      mf_42d8_ops[i] = (void*)&mf_42d8_unclassified_not_supported;
     }
     *ppExportTable = (const void*)mf_42d8_ops;
     return CUDA_SUCCESS;
@@ -550,12 +629,14 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
      crashes when the binder later calls through real slots. */
   if (memcmp(pExportTableId->bytes, mf_uuid_c693, 16) == 0) {
     unsigned int i = 0;
-    mf_export_table_trace("c693336e-1121-df11-830b-7fafd1516e78");
+    mf_export_table_trace(pExportTableId);
     /* This table is a C++ vtable: cudart calls every slot including [0], so
        no slot may hold the version integer (calling 12060 segfaults). */
     for (i = 0; i < sizeof(mf_c693_ops) / sizeof(mf_c693_ops[0]); ++i) {
-      mf_c693_ops[i] = (void*)&mf_a094_ops_entry_success;
+      mf_c693_ops[i] = (void*)&mf_c693_unclassified_not_supported;
     }
+    mf_c693_ops[0] = (void*)&mf_c693_slot0_profile_observed;
+    mf_c693_ops[1] = (void*)&mf_c693_slot1_profile_observed;
     mf_c693_ops[2] = (void*)&mf_c693_lookup_miss;
     *ppExportTable = (const void*)mf_c693_ops;
     return CUDA_SUCCESS;
@@ -567,7 +648,7 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
      never dereferenced on the launch path. */
   if (memcmp(pExportTableId->bytes, mf_uuid_263e, 16) == 0) {
     uint32_t* limits = (uint32_t*)mf_263e_table;
-    mf_export_table_trace("263e8860-7b07-11eb-9439-0242ac130002");
+    mf_export_table_trace(pExportTableId);
     mf_263e_table[2] = (unsigned long long)(uintptr_t)&mf_263e_object_query;
     mf_263e_table[3] = (unsigned long long)(uintptr_t)&mf_263e_capability_probe;
     limits[100] = UINT32_C(1024);    /* +0x190: max threads per block */
@@ -584,10 +665,10 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
   /* UUID d4082055-...: tooling table with slot[+0x8] callback. */
   if (memcmp(pExportTableId->bytes, mf_uuid_d408, 16) == 0) {
     unsigned int i = 0;
-    mf_export_table_trace("d4082055-bde6-704b-8d34-ba123c66e1f2");
+    mf_export_table_trace(pExportTableId);
     mf_d408_ops[0] = (void*)(uintptr_t)12060;
     for (i = 1; i < sizeof(mf_d408_ops) / sizeof(mf_d408_ops[0]); ++i) {
-      mf_d408_ops[i] = (void*)&mf_a094_ops_entry_success;
+      mf_d408_ops[i] = (void*)&mf_d408_unclassified_not_supported;
     }
     mf_d408_ops[1] = (void*)&mf_d408_slot1;
     *ppExportTable = (const void*)mf_d408_ops;
@@ -597,7 +678,7 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
   /* UUID 6bd5fb6c-...: general driver vtable; slot[2] is the per-device init
      callback invoked as (record+8, device). */
   if (memcmp(pExportTableId->bytes, mf_uuid_6bd5, 16) == 0) {
-    mf_export_table_trace("6bd5fb6c-5bf4-e74a-8987-d93912fd9df9");
+    mf_export_table_trace(pExportTableId);
     mf_export_vtable[2] = (void*)&mf_export_init_0x10;
     mf_export_ops[2] = (void*)&mf_export_init_0x10;
     mf_export_vtable[14] = (void*)mf_export_ops;
