@@ -425,6 +425,25 @@ Remaining clean errors: gt/ge (op baked into code, empty functor),
 reductions (ReduceOp config), cat/stack (batched-copy metadata), float
 arange variants, strided-view contiguous. probe 5/5; CTest 144/144.
 
+arange read-through (2026-09-08, sixth pass): arange is supported via a
+deferred read-through pattern. The launch registers the intent — output
+pointer, count, element kind, and the raw 16 functor bytes — and returns
+success without touching device memory; the consumer's D2H copy
+materializes the values at read time, where the copy's byte width reveals
+the tensor's element type. The ArangeFunctor stores {start, step} in the
+tensor's own element width (int64 arange carries two int64 scalars), and
+int32-vs-float32 aranges share one kernel name, so the read-side
+interpretation disambiguates float from the step bit pattern (float32
+magnitudes >= ~1e-9 have bits at or above 0x30000000, a range small int32
+steps never reach); H2D writes to the same pointer invalidate the entry.
+Verified: default int64, explicit widths, and start/step forms all
+bit-exact; 31/41 operator sweep; probe 5/5; CTest 144/144.
+
+Remaining clean errors: gt/ge (op baked into empty-functor code),
+reductions (ReduceOp config structs), cat/stack (batched-copy metadata),
+strided-view contiguous copies (require stride-aware reads), int32/float
+small arange variants (read-back width ambiguous with int32).
+
 ## Exit Gate
 
 `pytorch_cuda_probe.py --profile baseline --require-stage runtime-copy`

@@ -365,25 +365,37 @@ int mf_arange_pending_read(CUdeviceptr source, void* host, size_t bytes) {
       continue;
     }
     {
-      /* The ArangeFunctor stores {start, step} in the tensor's element type:
-         int64 tensors carry two int64 scalars, int32 tensors two int32, and
-         float tensors two float. */
       size_t width = bytes / (size_t)mf_arange_pending[i].count;
       uint32_t index = 0;
+      uint32_t write_float = UINT32_C(0);
       const unsigned char* raw = mf_arange_pending[i].functor;
-      uint32_t kind = mf_arange_pending[i].kind;
       double start = 0.0;
       double step = 1.0;
+      /* The ArangeFunctor stores {start, step} in the tensor's element type.
+         The element type is not in the kernel name (int32 and float32
+         aranges share it), so disambiguate from the step's bit pattern:
+         float32 magnitudes >= ~1e-9 have bits at or above 0x30000000, a
+         range small int32 steps never reach; negative steps are int32. */
       if (width == 8) {
-        start = (double)*(const long long*)raw;
-        step = (double)*(const long long*)(raw + 8);
+        long long s = *(const long long*)raw;
+        long long st = *(const long long*)(raw + 8);
+        if (st > 4294967296LL || st < -4294967296LL) {
+          start = *(const double*)raw;
+          step = *(const double*)(raw + 8);
+        } else {
+          start = (double)s;
+          step = (double)st;
+        }
       } else if (width == 4) {
-        if (kind == UINT32_C(1)) {
+        int s = *(const int*)raw;
+        int st = *(const int*)(raw + 4);
+        if (st >= 0 && (unsigned int)st >= 0x30000000u) {
           start = (double)*(const float*)raw;
           step = (double)*(const float*)(raw + 4);
+          write_float = UINT32_C(1);
         } else {
-          start = (double)*(const int*)raw;
-          step = (double)*(const int*)(raw + 4);
+          start = (double)s;
+          step = (double)st;
         }
       } else {
         continue;
@@ -393,7 +405,7 @@ int mf_arange_pending_read(CUdeviceptr source, void* host, size_t bytes) {
         for (index = 0; index < mf_arange_pending[i].count; ++index) {
           cells[index] = (long long)(start + (double)index * step);
         }
-      } else if (kind == UINT32_C(1)) {
+      } else if (write_float != UINT32_C(0)) {
         float* cells = (float*)host;
         for (index = 0; index < mf_arange_pending[i].count; ++index) {
           cells[index] = (float)(start + (double)index * step);
