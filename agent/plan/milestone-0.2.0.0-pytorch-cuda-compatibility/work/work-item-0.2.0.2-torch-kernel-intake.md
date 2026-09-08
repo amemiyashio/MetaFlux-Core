@@ -2,7 +2,7 @@
 id: work-item-0.2.0.2
 delivery: 0.2.0.2
 milestone: milestone-0.2.0.0
-status: Queued
+status: Active
 area: compiler-cpu
 depends_on: [work-item-0.2.0.1]
 updated: 2026-09-08

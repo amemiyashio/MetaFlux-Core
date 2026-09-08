@@ -5,7 +5,7 @@ description: Explicitly classify valuable MetaFlux knowledge and promote each ma
 
 # Roast
 
-Use only when explicitly invoked or when `integrate-batch` or `govern-epoch`
+Use only when explicitly invoked or when `accept-and-advance` or `govern-epoch`
 composes it. Roast is an in-memory disposition step, not a record type.
 
 ## Workflow

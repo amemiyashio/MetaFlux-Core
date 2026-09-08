@@ -21,7 +21,7 @@ queued plans describe intent, not implemented behavior.
 
 ## Execution Scale
 
-- **Epoch** (`epoch-0014`): one repository-wide semantic governance regime.
+- **Epoch** (`epoch-0015`): one repository-wide semantic governance regime.
   Only explicit `govern-epoch` may advance it, after a full current-authority
   rewrite and passing regression.
 - **Batch** (`batch-0001`): one bounded collection of parallel product lanes
@@ -32,11 +32,12 @@ queued plans describe intent, not implemented behavior.
 
 The full identity is always written as
 `epoch-NNNN / batch-NNNN / iteration-NNNN` (the next planned delivery is
-`epoch-0014 / batch-0001 / iteration-0002`). A worker delivers exact base and
+`epoch-0015 / batch-0001 / iteration-0002`). A worker delivers exact base and
 tip revisions. Product source and test mutation prefers a parent briefing, a
-bounded coding subagent, and parent review against drift. The execution
-controller automatically invokes integration for a dependency-ready qualified
-delivery; only that stage changes `goal.json`.
+bounded coding subagent, and parent review against drift. The controlling parent
+automatically invokes `accept-and-advance` for a dependency-ready qualified
+delivery; only that controller changes delivery-time `goal.json` and work-item
+state after `integrate-batch` verification.
 Failed candidates and superseded Batch state are not archived in the current
 tree; Git and the originating conversation retain their evidence.
 
@@ -77,14 +78,16 @@ technical namespaces.
    diffs in conversation against the briefing goal, and only then start the
    next dispatch or deliver committed base/tip revisions, tests, blockers, and
    roast candidates.
-4. After each dependency-ready committed delivery, the execution controller
-   automatically invokes `integrate-batch` to review, merge when necessary,
-   repair bounded integration gaps, and run combined regression.
-5. Update lane and Batch status only after acceptance passes. Open the next
-   Batch in the same integration commit when the next bounded cohort is known.
+4. After each dependency-ready committed delivery, the controlling parent
+   automatically invokes `accept-and-advance`; its executable preflight rejects
+   empty, stale, mismatched, blocked, or untested candidates and composes
+   explicit-only `integrate-batch` for merge and combined regression.
+5. After acceptance passes, the controller marks the lane/work item complete,
+   activates and targets the first dependency-ready planned lane, commits and
+   pushes the transition, and exposes the next lane without another user prompt.
 6. If governance drift is detected, leave the Batch state unchanged and invoke
    `govern-epoch` explicitly. Publish a new Epoch only after full regression.
 
-At integration and governance boundaries, `roast` promotes each valuable claim
+At acceptance and governance boundaries, `roast` promotes each valuable claim
 to one canonical owner. Routine commands, duplicate prose, failed routes, local
 host facts, and conversation detail are discarded.

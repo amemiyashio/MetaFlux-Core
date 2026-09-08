@@ -177,12 +177,12 @@ reference prerequisite performs no reference operation.
 
 ## Assignment And Subagent Boundary
 
-The execution controller owns scheduling, worktree, and lane assignment.
+The application owns scheduling, worktree, and lane assignment.
 `planned` sibling lanes describe the Batch integration topology; they are not a
 queue for the current worker to claim or dispatch. Existing parallel agents and
 worktrees are accepted as external facts, not authorization to create more. After
-delivering the assigned Iteration, report it and stop instead of selecting the
-next lane.
+delivering the assigned Iteration, emit its exact delivery manifest to the
+controlling parent instead of selecting the next lane manually.
 
 A standalone local clone is never an Iteration execution context, even when it
 is clean, based on the requested revision, or already contains a useful
@@ -225,11 +225,12 @@ attributing the change to another agent. Stop after the first unexplained
 mutation; do not create another worktree or clone as a retry until the source is
 identified and the existing candidate is preserved.
 
-After a dependency-ready committed Iteration delivery, the execution controller
-loads `integrate-batch` automatically. If the user explicitly requests
+After a dependency-ready committed Iteration delivery, the controlling parent
+loads `accept-and-advance` automatically; that workflow composes explicit-only
+`integrate-batch`. If the user explicitly requests
 destructive governance, load `govern-epoch`. Ordinary Iteration delivery does
-not load `push-repository`. After an Epoch activation or automatic
-Batch-integration commit is on disk, that parent loads `push-repository` with
+not load `push-repository`. After an Epoch activation or automatic acceptance
+commit is on disk, that parent loads `push-repository` with
 that commit's full object ID.
 Any other external Git push still requires an explicit user or application
 request and one full committed object ID.
@@ -246,29 +247,36 @@ that review accepts the current dispatch. Do not write a session, roast,
 checkpoint, progress, or review archive. Parent remains sole owner of
 verification commands and the start-work commit helper. Parent remains sole
 owner of `goal.json`; workers never edit it. Only after review may the parent
-run tests and commit via the commit helper. The execution controller then
-automatically runs `integrate-batch` before scheduling another lane. Do not
+run tests and commit via the commit helper. The controlling parent then
+automatically runs `accept-and-advance` before exposing another lane. Do not
 push an ordinary Iteration commit.
 
 Implement one coherent lane candidate and run focused tests proportional to its
 risk. Commit all delivered changes; staged, unstaged, untracked, or generated
 worktree state is not part of the delivery.
 
-Report:
+Emit this transient schema version 1 JSON under `tmp/work/` and return it to the
+controlling parent:
 
-```text
-epoch-NNNN / batch-NNNN / iteration-NNNN
-lane
-base_revision
-tip_revision
-tests
-blockers
-roast_candidates
+```json
+{
+  "schema_version": 1,
+  "epoch": "epoch-NNNN",
+  "batch": "batch-NNNN",
+  "iteration": "iteration-NNNN",
+  "lane": "lane-slug",
+  "base_revision": "FULL_GIT_OID",
+  "tip_revision": "FULL_GIT_OID",
+  "tests": [{"command": "exact command", "status": "passed"}],
+  "blockers": [],
+  "roast_candidates": []
+}
 ```
 
-Do not write a session, checkpoint, progress summary, guidance packet, or
-handoff file. Product outcomes live in source, tests, plans, decisions,
-constraints, experience, and Git.
+This ignored file is controller input, not a handoff record. Do not track a
+session, checkpoint, progress summary, guidance packet, or acceptance archive.
+Product outcomes live in source, tests, plans, decisions, constraints,
+experience, and Git.
 
 ## Agent Commit Identity
 

@@ -1,6 +1,6 @@
 interface:
   display_name: "Integrate MetaFlux Batch"
-  short_description: "Automatically accept and verify one qualified Batch"
-  default_prompt: "Use $integrate-batch to accept these qualified committed Iteration revisions."
+  short_description: "Review and verify one qualified Batch candidate"
+  default_prompt: "Use $integrate-batch to review, merge, and verify these qualified committed Iteration revisions."
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false

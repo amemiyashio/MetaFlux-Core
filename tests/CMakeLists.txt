@@ -521,6 +521,16 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "architecture"
   )
   add_test(
+    NAME metaflux.architecture.accept-and-advance-selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/accept-and-advance/scripts/test_accept_and_advance.py"
+  )
+  set_tests_properties(
+    metaflux.architecture.accept-and-advance-selftest
+    PROPERTIES LABELS "architecture"
+  )
+  add_test(
     NAME metaflux.release.matrix-assertions
     COMMAND
       "${Python3_EXECUTABLE}" -B

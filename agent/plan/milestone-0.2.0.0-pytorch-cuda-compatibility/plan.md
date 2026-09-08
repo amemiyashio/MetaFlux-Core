@@ -130,7 +130,7 @@ Node disposition from epoch-0011 is:
 | Compiler-first headline and narrative | Rewrite | MLIR is internal mechanism, not the product objective. |
 | Provider-local tensor results as qualifying evidence | Delete | They do not prove daemon submission or backend completion. |
 
-Verification state: this decision is retained by the epoch-0014 route.
+Verification state: this decision is retained by the epoch-0015 route.
 decision-0047 adds only a research-readiness prerequisite before the first
 lane; it does not change the product objective, work-item IDs, or lane order.
 Technical decisions listed below remain open until their own closure evidence
@@ -269,26 +269,27 @@ qualification rules. Any future stock-PyTorch compiled path must promote its
 compiler inputs, target/cache identity, and cache hit/miss evidence in
 work-item-0.2.0.2 before it joins the versioned CPU corpus.
 
-### Automatic Batch integration (decision-0051)
+### Automatic acceptance and advancement (decision-0052)
 
-The execution controller automatically invokes `integrate-batch` after a
-dependency-ready worker delivery provides exact committed base/tip revisions
-and passing focused-gate evidence. A second user message is not a prerequisite
-for the acceptance transition. The integration stage remains the only writer of
-Batch and lane state, runs `roast` and the combined regression, and pushes only
-the resulting acceptance commit.
+The controlling parent automatically invokes `accept-and-advance` after a
+dependency-ready worker emits a non-empty committed base/tip range, passing
+focused-test evidence, and no blockers. A second user message is not a
+prerequisite. The controller rejects mismatched or stale history, composes
+explicit-only `integrate-batch` for merge and combined verification, invokes
+`roast`, advances Goal/work-item state, and pushes only the resulting acceptance
+commit.
 
-When the candidate tip is already the integration context's `HEAD`, the
-integration stage preserves that linear history and makes an in-place acceptance
-commit. A divergent candidate is retained through a non-fast-forward merge;
-an older ancestor is stale and must be rebased and revalidated. This allows the
-current five-stage baseline to be accepted without manufacturing a merge while
-keeping future parallel delivery history auditable.
+Goal schema v3 binds every lane directly to its work item. On acceptance the
+controller completes the current lane/work item, activates and targets the
+first dependency-ready planned lane in Iteration order, or closes the Batch.
+Current-HEAD candidates retain linear history; divergent candidates use a
+prepared non-fast-forward merge; older ancestors remain stale. State validation
+is transactional for controller-owned writes, and committed replay is a no-op.
 
-Evidence is the governed automatic-integration skill, routing corpus, state
-checker policy, and the epoch-0014 full regression. This decision changes
-workflow ownership only; it does not broaden the PyTorch compatibility claim or
-close either remaining v0.2 technical decision.
+Evidence is the controller behavior test, bilingual routing corpus, schema-v3
+state checker, and the epoch-0015 full regression. Decision-0052 replaces the
+policy-only automatic trigger in decision-0051 without broadening the PyTorch
+compatibility claim or closing either remaining v0.2 technical decision.
 
 ## Definition of Done
 

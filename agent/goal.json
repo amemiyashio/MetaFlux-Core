@@ -1,6 +1,6 @@
 {
-  "schema_version": 2,
-  "epoch": "epoch-0014",
+  "schema_version": 3,
+  "epoch": "epoch-0015",
   "batch": {
     "id": "batch-0001",
     "status": "open"
@@ -14,6 +14,7 @@
   "lanes": [
     {
       "id": "lane-stock-pytorch-cuda-baseline",
+      "work_item": "work-item-0.2.0.1",
       "iteration": "iteration-0001",
       "outcome": "Run pinned stock PyTorch through import, driver enumeration, runtime copy, artifact intake, and eager add using the normal torch.cuda API, with eager add completed by a daemon submission on the CPU backend.",
       "status": "integrated",
@@ -26,6 +27,7 @@
     },
     {
       "id": "lane-pytorch-cuda-cpu-profile",
+      "work_item": "work-item-0.2.0.2",
       "iteration": "iteration-0002",
       "outcome": "Broaden the baseline into a versioned PyTorch CUDA CPU profile with a complete provider-surface matrix, handle-negative coverage, canonical neutral request and Kernel IR boundaries, and a backend-executed operator corpus.",
       "status": "planned",
@@ -38,6 +40,7 @@
     },
     {
       "id": "lane-pytorch-cuda-vulkan-qualification",
+      "work_item": "work-item-0.2.0.3",
       "iteration": "iteration-0003",
       "outcome": "Route the same versioned PyTorch CUDA Kernel IR corpus through Vulkan/SPIR-V and qualify lifecycle behavior with CPU/Vulkan differential evidence.",
       "status": "planned",

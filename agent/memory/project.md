@@ -52,9 +52,10 @@ has no provider-local semantic execution (decision-0048). This is one verified
 profile operation, not a qualified CPU operator corpus or a claim of general
 PyTorch usability. The baseline Driver/internal-table, neutral request, and
 CPU interpreter/cache-non-use decisions are closed by decisions 0048-0050;
-epoch-0014 accepts this baseline and advances active work to the dependent CPU
-profile. Qualified future deliveries are integrated automatically under
-decision-0051, not through a second user instruction. Its research-only
+epoch-0015 retains this baseline and advances active work to the dependent CPU
+profile. Qualified future deliveries are checked, accepted, and advanced by the
+decision-0052 controller without a second user instruction; empty or stale
+candidates do not move route state. Its research-only
 prerequisite remains the exact PyTorch v2.11.0 gitlink and catalog entry under
 `references/`; it is not product, build, qualification, or release evidence
 (decision-0047). MLIR remains internal to backend compilation; Vulkan

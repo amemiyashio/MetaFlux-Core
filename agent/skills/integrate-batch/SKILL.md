@@ -1,16 +1,17 @@
 ---
 name: integrate-batch
-description: Automatically accept one qualified MetaFlux Batch delivery from exact committed Iteration revisions in a supplied integration context, without dispatching workers or creating branches, worktrees, tasks, or threads.
+description: Review, merge, and verify one qualified MetaFlux Batch candidate from exact committed Iteration revisions when composed by accept-and-advance or explicitly requested for integration repair; do not own automatic routing or Goal advancement.
 ---
 
 # Integrate Batch
 
-The execution controller invokes this skill automatically after a worker
-delivers an exact committed candidate whose dependencies are accepted and whose
-focused gates pass. A user may invoke `$integrate-batch` to inspect or repair a
-qualified delivery, but a second user request is never a prerequisite for the
-normal acceptance path. The application supplies the integration context and
-candidate revisions; this skill does not create either.
+`accept-and-advance` invokes this lower-level skill after its controller accepts
+an exact committed candidate whose dependencies and reported focused gates are
+ready. A user may explicitly invoke `$integrate-batch` to inspect or repair
+integration mechanics. This skill never self-routes from completion language,
+updates `agent/goal.json`, selects the next lane, or creates an acceptance
+commit. The application supplies the integration context and candidate
+revisions; this skill does not create either.
 
 ## Inputs
 
@@ -36,9 +37,10 @@ authorization to create a worker, subtask, branch, worktree, clone, thread, or
 chat. Report the exact missing delivery and leave its lane state unchanged.
 Bounded read-only subagents may review independent `base..tip` ranges, test
 evidence, or dependency ordering when useful. The integrator remains the sole
-writer, merge owner, and `goal.json` owner; subagents do not edit authority or
-create execution contexts. A subagent mechanism that creates an independent
-execution context still requires explicit user or application authorization.
+merge owner; `accept-and-advance` remains the `goal.json` owner. Subagents do
+not edit authority or create execution contexts. A subagent mechanism that
+creates an independent execution context still requires explicit user or
+application authorization.
 
 Run the ancestry gate for every delivery before merge preparation:
 
@@ -64,18 +66,11 @@ nix develop . --command python3 tools/check-agent-state.py . \
 5. Run focused tests before committing each non-final merge. Keep all integration
    commits in the supplied integration context; do not create another branch or
    worktree, and leave main unchanged until promotion.
-6. For the final merge or in-place acceptance, update accepted lane states and
-   Batch state in `agent/goal.json`, invoke `roast`, and apply any canonical
-   promotions. Run the combined Batch regression before creating the final
-   acceptance commit.
-7. Commit through the `start-work` helper with the current Epoch. Promote the
-   tested integration tip to main only by an exact fast-forward or the prepared
-   governed non-fast-forward merge.
-8. After that integration commit is on disk and `goal.json` lane or Batch state
-   was updated in it, resolve its full object ID with `git rev-parse HEAD` and
-   invoke `push-repository` to push exactly that OID to `refs/heads/main`. A
-   push failure leaves the local integration commit intact and stops through
-   the `git-publish.*` contract; do not retry unchanged transport evidence.
+6. Run the combined Batch regression on the final in-place candidate or
+   prepared merge, then return the exact tested revisions and evidence to
+   `accept-and-advance`. That controller owns `roast`, Goal/work-item state
+   advancement, the final acceptance commit, exact push, and next-lane
+   selection.
 
 If any focused or combined gate fails, do not publish the merge or goal state.
 Fix a bounded integration defect in the same Batch, or return the exact defect
@@ -84,8 +79,8 @@ history file.
 
 ## Task Stops
 
-Use the `start-work` task-stop contract. A missing automatic integration context
-is `integration.context-invalid` with `user-or-application /
+Use the `start-work` task-stop contract. A missing integration context is
+`integration.context-invalid` with `user-or-application /
 preserve-and-report`.
 A planned lane without an exact committed delivery is
 `integration.candidate-missing` with the same external responsibility; it is
@@ -98,5 +93,4 @@ new committed Iteration.
 ## Output
 
 Report accepted/rejected Iterations, merge revisions, focused and combined test
-results, promoted roast claims, the resulting goal state, and the exact tested
-integration tip.
+results, and the exact tested integration tip to `accept-and-advance`.

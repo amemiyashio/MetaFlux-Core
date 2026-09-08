@@ -15,7 +15,8 @@ this directory.
 | --- | --- | --- |
 | [start-work](start-work/SKILL.md) | Active | Beginning any repository task or Iteration |
 | [detect-agent-tool](detect-agent-tool/SKILL.md) | Active | Reporting the conversation-emitted harness name without probing executables or model metadata |
-| [integrate-batch](integrate-batch/SKILL.md) | Active | Automatically accepting qualified committed Iterations |
+| [accept-and-advance](accept-and-advance/SKILL.md) | Active | Automatically accepting a qualified committed Iteration and advancing the route |
+| [integrate-batch](integrate-batch/SKILL.md) | Active | Explicit or controller-composed candidate merge and combined verification |
 | [govern-epoch](govern-epoch/SKILL.md) | Active | The user explicitly requests destructive Epoch governance |
 | [replan-roadmap](replan-roadmap/SKILL.md) | Active | The user explicitly requests a two-stage objective and route replan |
 | [roast](roast/SKILL.md) | Active | Explicitly promoting valuable knowledge at integration or governance boundaries |
@@ -44,8 +45,9 @@ this directory.
   briefing, a bounded coding subagent, and parent review against drift. The
   next dispatch or Iteration cycle waits until that review accepts the
   briefing goal.
-- Automatic Batch integration composes `integrate-batch`, affected domain
-  skills, and `roast` before final acceptance.
+- Automatic acceptance composes `accept-and-advance`, `integrate-batch`,
+  affected domain skills, and `roast`; only the controller advances Goal and
+  work-item state after combined verification.
 - Explicit destructive governance composes `govern-epoch` and `roast`; domain
   skills retain product semantics.
 - Explicit route replanning composes `replan-roadmap` with
@@ -53,7 +55,7 @@ this directory.
   `roast` and `govern-epoch` for the only destructive cutover.
 - Tool changes use `manage-toolchain`. A confirmed Nix gap or privileged driver
   action additionally uses `manage-host-privilege`.
-- Epoch publication and Batch integration use `push-repository` with the
+- Epoch publication and automatic acceptance use `push-repository` with the
   just-committed full object ID after that commit is on disk. Ordinary
   Iteration completion never triggers a push, branch allocation, or broad
   refspec. Other pushes still require an explicit user or application request

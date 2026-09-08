@@ -14,6 +14,7 @@
     "vulkan-spirv-compute"
   ],
   "workflow_skills": [
+    "accept-and-advance",
     "detect-agent-tool",
     "implementation-readiness",
     "integrate-batch",
@@ -601,44 +602,44 @@
       "forbidden_skills": []
     },
     {
-      "id": "INTEGRATE-P1",
+      "id": "ACCEPT-P1",
       "kind": "single",
       "locale": "en",
       "prompt": "A dependency-ready committed Iteration delivery has passed its focused gates. Automatically integrate its exact base and tip revisions in dependency order, preserve lane history, and run the combined regression.",
-      "expected_skills": ["integrate-batch"],
+      "expected_skills": ["accept-and-advance"],
       "forbidden_skills": []
     },
     {
-      "id": "INTEGRATE-P2",
+      "id": "ACCEPT-P2",
       "kind": "single",
       "locale": "en",
       "prompt": "After a qualified delivery supplies its epoch, batch, iteration, base revision, and tip revision, automatically run integration; reject dirty or unrelated input and update goal state only after all tests pass.",
-      "expected_skills": ["integrate-batch"],
+      "expected_skills": ["accept-and-advance"],
       "forbidden_skills": []
     },
     {
-      "id": "INTEGRATE-N1",
+      "id": "ACCEPT-N1",
       "kind": "near-miss",
       "locale": "en",
       "prompt": "Review this CUDA Driver provider patch only for libcuda symbol, handle, and error correctness; it supplies no committed lane delivery or gate evidence.",
       "expected_skills": ["cuda-driver-abi-compatibility"],
-      "forbidden_skills": ["integrate-batch"]
+      "forbidden_skills": ["accept-and-advance", "integrate-batch"]
     },
     {
-      "id": "INTEGRATE-ZH-P1",
+      "id": "ACCEPT-ZH-P1",
       "kind": "single",
       "locale": "zh-CN",
       "prompt": "已交付通过 focused gates 的 Iteration 精确 base/tip revisions 后，自动按依赖顺序集成，保留工作线历史，并在全部联调通过后更新 goal。",
-      "expected_skills": ["integrate-batch"],
+      "expected_skills": ["accept-and-advance"],
       "forbidden_skills": []
     },
     {
-      "id": "INTEGRATE-ZH-N1",
+      "id": "ACCEPT-ZH-N1",
       "kind": "near-miss",
       "locale": "zh-CN",
       "prompt": "评估 milestone-0.1.1.0 是否具备实现条件，只做架构、成熟度和发布证据判断，不集成任何 Iteration revision。",
       "expected_skills": [],
-      "forbidden_skills": ["integrate-batch"]
+      "forbidden_skills": ["accept-and-advance", "integrate-batch"]
     },
     {
       "id": "GOV-P1",
@@ -877,8 +878,8 @@
       "id": "COMBO-INTEGRATE-CPU",
       "kind": "composition",
       "locale": "en",
-      "prompt": "Use $integrate-batch on the committed x86 backend Iteration while applying CPU execution and performance review, then run focused and combined evidence gates.",
-      "expected_skills": ["integrate-batch", "cpu-backend-performance"],
+      "prompt": "A qualified committed x86 Iteration is ready for automatic acceptance and route advancement; compose $integrate-batch with CPU execution review and the combined gates.",
+      "expected_skills": ["accept-and-advance", "integrate-batch", "cpu-backend-performance"],
       "forbidden_skills": []
     },
     {
@@ -933,8 +934,16 @@
       "id": "COMBO-INTEGRATE-PUSH",
       "kind": "composition",
       "locale": "en",
-      "prompt": "Use $integrate-batch for the supplied committed Iterations; after the integration commit that updates goal.json is on disk, validate and push that full commit ID to canonical GitHub main.",
-      "expected_skills": ["integrate-batch", "push-repository"],
+      "prompt": "Use $integrate-batch to verify the supplied committed Iteration, then automatically accept and advance it; after the acceptance commit updates goal.json, push that full commit ID to canonical GitHub main.",
+      "expected_skills": ["accept-and-advance", "integrate-batch", "push-repository"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-ZH-ACCEPT-INTEGRATE",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "当前 Iteration 已提供非空 committed base/tip、通过的 focused tests 且没有 blocker；自动验收并推进路线，同时组合 $integrate-batch 完成合并与联调门禁。",
+      "expected_skills": ["accept-and-advance", "integrate-batch"],
       "forbidden_skills": []
     },
     {

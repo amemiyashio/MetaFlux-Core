@@ -81,7 +81,7 @@ def git(
 
 def goal() -> dict:
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "epoch": "epoch-0002",
         "batch": {"id": "batch-0001", "status": "open"},
         "target": {
@@ -93,6 +93,7 @@ def goal() -> dict:
         "lanes": [
             {
                 "id": "lane-one",
+                "work_item": "work-item-0.1.0.1",
                 "iteration": "iteration-0001",
                 "outcome": "Produce one tested change.",
                 "status": "planned",
@@ -265,6 +266,12 @@ def test_goal_variants(root: Path) -> None:
     assert any(error.responsibility == "batch-integrator" for error in found)
 
     document = goal()
+    document["lanes"][0]["status"] = "integrated"
+    write(path, json.dumps(document))
+    found = errors(root)
+    assert has_fragment(found, "must be Complete when its lane is integrated")
+
+    document = goal()
     second = dict(document["lanes"][0])
     second["id"] = "lane-two"
     second["depends_on"] = ["lane-missing"]
@@ -433,11 +440,19 @@ def test_integration_ancestry(root: Path) -> None:
     git(root, "commit", "-q", "-m", "activate epoch")
     activation = git(root, "rev-parse", "HEAD")
 
+    write(root / "candidate.txt", "candidate\n")
+    git(root, "add", "candidate.txt")
+    git(root, "commit", "-q", "-m", "candidate")
+    candidate = git(root, "rev-parse", "HEAD")
+
     checker = STATE.Checker(root)
-    checker.validate_integration_revisions(activation, activation)
+    checker.validate_integration_revisions(activation, candidate)
     assert not checker.errors
     checker = STATE.Checker(root)
-    checker.validate_integration_revisions(old_revision, activation)
+    checker.validate_integration_revisions(activation, activation)
+    assert has_fragment(checker.errors, "non-empty candidate")
+    checker = STATE.Checker(root)
+    checker.validate_integration_revisions(old_revision, candidate)
     assert has_fragment(checker.errors, "predates the current Epoch")
     assert checker.errors[0].code == "integration.revision-invalid"
     assert checker.errors[0].responsibility == "user-or-application"

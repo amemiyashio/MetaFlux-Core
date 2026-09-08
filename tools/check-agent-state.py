@@ -70,6 +70,7 @@ DOMAIN_SKILL_SLUGS = {
     "vulkan-spirv-compute",
 }
 WORKFLOW_SKILL_SLUGS = {
+    "accept-and-advance",
     "detect-agent-tool",
     "implementation-readiness",
     "integrate-batch",
@@ -80,6 +81,7 @@ WORKFLOW_SKILL_SLUGS = {
 }
 EXPLICIT_ONLY_SKILLS = {
     "govern-epoch",
+    "integrate-batch",
     "replan-roadmap",
     "roast",
 }
@@ -487,8 +489,8 @@ class Checker:
             responsibility="batch-integrator",
             disposition="stop-and-report",
             required_action=(
-                "The automatic Batch integration stage must correct Goal schema, target, "
-                "Batch, or lane authority in its product integration commit; a "
+                "The automatic acceptance controller must correct Goal schema, target, "
+                "Batch, or lane authority in its product acceptance commit; a "
                 "worker must leave goal.json unchanged."
             ),
             resume_when="The corrected Goal passes this checker in the authorized integration context.",
@@ -516,8 +518,8 @@ class Checker:
         }
         if set(goal) != expected:
             self.error(path, f"goal keys must be exactly {sorted(expected)}")
-        if goal.get("schema_version") != 2:
-            self.error(path, "schema_version must be 2")
+        if goal.get("schema_version") != 3:
+            self.error(path, "schema_version must be 3")
         epoch = goal.get("epoch")
         if not isinstance(epoch, str) or EPOCH_ID_RE.fullmatch(epoch) is None:
             self.error(
@@ -566,10 +568,13 @@ class Checker:
             self.error(path, "lanes must be a non-empty list")
             return
         lane_ids: set[str] = set()
+        lane_work_items: set[str] = set()
         iterations: set[str] = set()
         graph: dict[str, list[str]] = {}
+        valid_lanes: list[dict[str, Any]] = []
         expected_lane_keys = {
             "id",
+            "work_item",
             "iteration",
             "outcome",
             "status",
@@ -589,6 +594,19 @@ class Checker:
             if lane_id in lane_ids:
                 self.error(path, f"duplicate lane id: {lane_id}")
             lane_ids.add(lane_id)
+            work_item = lane.get("work_item")
+            if (
+                not isinstance(work_item, str)
+                or WORK_ITEM_ID_RE.fullmatch(work_item) is None
+                or work_item not in self.records
+            ):
+                self.error(path, f"{where}.work_item does not resolve")
+            else:
+                if work_item in lane_work_items:
+                    self.error(path, f"duplicate lane work item: {work_item}")
+                lane_work_items.add(work_item)
+                if self.frontmatter[work_item].get("milestone") != target_milestone:
+                    self.error(path, f"{where}.work_item does not belong to target milestone")
             if not isinstance(iteration, str) or ITERATION_ID_RE.fullmatch(iteration) is None:
                 self.error(path, f"{where}.iteration must match iteration-NNNN")
             elif iteration in iterations:
@@ -599,6 +617,12 @@ class Checker:
                 self.error(path, f"{where}.outcome must be non-empty")
             if lane.get("status") not in LANE_STATUSES:
                 self.error(path, f"{where}.status is invalid")
+            elif isinstance(work_item, str) and work_item in self.frontmatter:
+                work_status = self.frontmatter[work_item].get("status")
+                if lane.get("status") == "integrated" and work_status != "Complete":
+                    self.error(path, f"{where}.work_item must be Complete when its lane is integrated")
+                if lane.get("status") == "planned" and work_status == "Complete":
+                    self.error(path, f"{where}.work_item cannot be Complete while its lane is planned")
             dependencies = lane.get("depends_on")
             if not isinstance(dependencies, list) or any(not isinstance(item, str) for item in dependencies):
                 self.error(path, f"{where}.depends_on must be a string list")
@@ -610,6 +634,7 @@ class Checker:
                 not isinstance(item, str) or not item.strip() for item in acceptance
             ):
                 self.error(path, f"{where}.acceptance must be a non-empty string list")
+            valid_lanes.append(lane)
         for lane_id, dependencies in graph.items():
             for dependency in dependencies:
                 if dependency not in lane_ids:
@@ -687,6 +712,36 @@ class Checker:
         if isinstance(batch, dict) and batch.get("status") == "integrated":
             if any(isinstance(lane, dict) and lane.get("status") == "planned" for lane in lanes):
                 self.error(path, "integrated Batch cannot contain planned lanes")
+        if isinstance(batch, dict) and batch.get("status") == "open":
+            statuses = {
+                lane.get("id"): lane.get("status")
+                for lane in valid_lanes
+                if isinstance(lane.get("id"), str)
+            }
+            ready = [
+                lane
+                for lane in valid_lanes
+                if lane.get("status") == "planned"
+                and all(
+                    statuses.get(dependency) == "integrated"
+                    for dependency in graph.get(str(lane.get("id")), [])
+                )
+            ]
+            if ready:
+                selected = min(ready, key=lambda lane: str(lane.get("iteration", "")))
+                if selected.get("work_item") != target_work:
+                    self.error(
+                        path,
+                        "target work item must match the first dependency-ready planned lane",
+                    )
+                if (
+                    isinstance(target_work, str)
+                    and target_work in self.frontmatter
+                    and self.frontmatter[target_work].get("status") != "Active"
+                ):
+                    self.error(path, "target work item must be Active while its lane is planned")
+            elif any(lane.get("status") == "planned" for lane in valid_lanes):
+                self.error(path, "open Batch has planned lanes but none are dependency-ready")
 
     def current_epoch(self) -> str | None:
         path = self.root / "agent" / "goal.json"
@@ -820,6 +875,15 @@ class Checker:
                 self.error(path, f"integration {label} is not a committed Git revision")
                 return
             resolved[label] = result.stdout.strip()
+
+        if resolved["base"] == resolved["tip"]:
+            self.error(path, "integration base and tip must identify a non-empty candidate")
+        else:
+            changed = self.git("diff", "--quiet", resolved["base"], resolved["tip"], "--")
+            if changed.returncode == 0:
+                self.error(path, "integration base..tip produces no tree change")
+            elif changed.returncode not in {0, 1}:
+                self.error(path, "cannot inspect the integration base..tip tree change")
 
         history = self.git("rev-list", "--reverse", "HEAD", "--", "agent/goal.json")
         if history.returncode != 0:

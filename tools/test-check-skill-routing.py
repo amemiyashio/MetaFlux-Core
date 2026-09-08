@@ -78,6 +78,17 @@ def main() -> int:
     expect(changed, "must explicitly invoke $replan-roadmap")
 
     changed = copy.deepcopy(corpus)
+    explicit = next(
+        case
+        for case in changed["cases"]
+        if "integrate-batch" in case["expected_skills"]
+    )
+    explicit["prompt"] = explicit["prompt"].replace(
+        "$integrate-batch", "integrate batch"
+    )
+    expect(changed, "must explicitly invoke $integrate-batch")
+
+    changed = copy.deepcopy(corpus)
     changed["cases"][0]["forbidden_skills"] = list(
         changed["cases"][0]["expected_skills"]
     )
@@ -87,7 +98,7 @@ def main() -> int:
     changed["workflow_skills"] = ["roast"]
     expect(changed, "workflow_skills do not match")
 
-    print("skill routing self-tests: 7 groups passed")
+    print("skill routing self-tests: 8 groups passed")
     return 0
 
 

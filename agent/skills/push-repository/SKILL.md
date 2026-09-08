@@ -1,14 +1,14 @@
 ---
 name: push-repository
-description: Configure, validate, or push an exact committed MetaFlux revision to its canonical GitHub repository through the governed SSH key. Use after a published Epoch activation or Batch-integration commit is on disk, or when the user or application asks about repository push transport or explicitly requests a push. Do not use for ordinary Iteration commits, release packaging, or branch allocation.
+description: Configure, validate, or push an exact committed MetaFlux revision to its canonical GitHub repository through the governed SSH key. Use after a published Epoch activation or automatic acceptance commit is on disk, or when the user or application asks about repository push transport or explicitly requests a push. Do not use for ordinary Iteration commits, release packaging, or branch allocation.
 ---
 
 # Push Repository
 
 Own the external Git transport boundary after `start-work`. An ordinary
 Iteration commit does not imply permission to push. After a published Epoch
-activation commit, or a Batch integration commit that updated `goal.json` lane
-or Batch state, is on disk, the governing or integrating parent must invoke
+activation commit, or an automatic acceptance commit that updated `goal.json`
+lane or Batch state, is on disk, the governing or accepting parent must invoke
 this skill with that commit's full object ID. Configure or inspect transport
 when requested. Other remote mutations still require an explicit user or
 application request and one full commit object ID.

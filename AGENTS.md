@@ -39,14 +39,15 @@ the repository gates.
    nested Git commands. Attribute an unexpected HEAD/index/config change to the
    exact reflog and invoking hook/test before claiming another agent changed it,
    and do not multiply worktrees as an unattributed retry.
-4. **Integrate qualified deliveries automatically.** After a worker reports an
-   exact committed delivery whose dependencies and focused gates are ready, the
-   execution controller invokes
-   [`integrate-batch`](agent/skills/integrate-batch/SKILL.md) without a second
-   user instruction. Only that integration stage may update Batch/lane state,
-   and only in its acceptance commit after focused and combined tests pass. A
-   candidate already at the integration context's `HEAD` is accepted in place;
-   a divergent candidate remains subject to the governed merge path.
+4. **Accept and advance qualified deliveries automatically.** After a worker
+   emits an exact committed delivery with passing focused tests and no blockers,
+   the controlling parent invokes
+   [`accept-and-advance`](agent/skills/accept-and-advance/SKILL.md) in the same
+   turn without another user instruction. Its controller rejects empty or stale
+   candidates, composes explicit-only `integrate-batch` for merge and combined
+   verification, then alone advances Batch/lane/target and work-item state in
+   the acceptance commit. It pushes that exact commit and exposes the next
+   dependency-ready lane; execution-context creation remains application-owned.
 5. **Govern Epochs directly.** Invoke
    [`govern-epoch`](agent/skills/govern-epoch/SKILL.md) only when the user
    explicitly requests destructive governance. Rewrite every affected current
@@ -54,7 +55,7 @@ the repository gates.
    immediate full regression. There is no compatibility, historical record
    migration, or grandfather path. Work based before the active Epoch must be
    rebased and reverified before integration.
-6. **Promote knowledge, not process.** At Batch integration and Epoch
+6. **Promote knowledge, not process.** At automatic acceptance and Epoch
    governance, invoke [`roast`](agent/skills/roast/SKILL.md). Material claims
    update exactly one canonical source, test, plan, decision, constraint, or
    experience owner. There is no roast archive, session ledger, checkpoint, or
@@ -87,9 +88,9 @@ the repository gates.
    responsibility into implicit scheduling, source-copy creation, privilege,
    cleanup, or repository state.
 10. **Push only through the governed transport.** An ordinary Iteration commit
-    is not authorization to push. After an Epoch activation commit or a Batch
-    integration commit that updated `goal.json` lane or Batch state is on disk,
-    the governing or integrating parent must invoke
+    is not authorization to push. After an Epoch activation commit or an
+    automatic acceptance commit that updated `goal.json` lane or Batch state is
+    on disk, the governing or accepting parent must invoke
     [`push-repository`](agent/skills/push-repository/SKILL.md) with that
     commit's full object ID. Other pushes still require an explicit user or
     application request and one full commit object ID. The skill alone

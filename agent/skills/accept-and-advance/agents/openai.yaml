@@ -1,0 +1,6 @@
+interface:
+  display_name: "Accept And Advance"
+  short_description: "Accept a qualified Iteration and advance its route"
+  default_prompt: "Use $accept-and-advance to accept this qualified committed Iteration and advance to the next dependency-ready lane."
+policy:
+  allow_implicit_invocation: true

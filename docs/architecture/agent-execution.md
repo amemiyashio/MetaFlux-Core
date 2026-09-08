@@ -30,8 +30,9 @@ leaves live scheduling to the application that already owns agents and threads.
 
 - Workers cannot claim repository authority through activity metadata; a
   committed Iteration and its tests are the candidate unit.
-- Parallel work is accepted by an automatically invoked integration stage against
-  exact revisions, so a delivery cannot silently replace main state.
+- Parallel work is accepted by the automatically invoked
+  `accept-and-advance` controller against exact revisions, so a delivery cannot
+  silently replace main state or advance from an empty candidate.
 - Governance is intentionally destructive and atomic. A failed Epoch candidate
   remains unpublished and is repaired in place.
 - Old execution detail has no current-tree lookup path. Valuable knowledge must
@@ -43,9 +44,10 @@ leaves live scheduling to the application that already owns agents and threads.
 
 - An Epoch is a repository-wide semantic regime and advances only through an
   explicitly requested destructive `govern-epoch` run.
-- A Batch is a bounded set of lanes accepted together. The execution controller
-  automatically invokes integration after a dependency-ready qualified delivery;
-  only that stage may change Batch or lane state.
+- A Batch is a bounded set of lanes accepted together. The controlling parent
+  automatically invokes `accept-and-advance` after a dependency-ready qualified
+  delivery; only that controller may change delivery-time Batch, lane, target,
+  or work-item state.
 - An Iteration is one committed candidate for a lane or one committed repair
   candidate. It is identified by its full Epoch/Batch/Iteration triple and
   exact base/tip revisions.
@@ -85,28 +87,39 @@ roast_candidates: material claims only
 The delivery must resolve to committed Git objects. Dirty, staged, untracked,
 or inferred worktree state is not accepted.
 
-## Automatic Batch Integration (decision-0051)
+## Automatic Acceptance And Advancement (decision-0052)
 
-After a worker delivers exact committed revisions and its lane dependencies and
-focused gates are ready, the execution controller automatically invokes
-`integrate-batch`. No second user message is a state-transition prerequisite.
-The integrator verifies that each base is at or after the activation commit of
-the current Epoch, reviews `base..tip`, and orders candidates by `depends_on`.
+After `start-work` produces one exact committed delivery, the controlling
+parent automatically invokes `accept-and-advance` in the same turn. No second
+user message is a state-transition prerequisite. The transient schema-v1 JSON
+names the Epoch, Batch, Iteration, lane, full base/tip objects, exact focused
+tests, blockers, and roast candidates. It stays under ignored `tmp/work/` and
+never becomes route or progress authority.
 
-When a candidate tip is the integration context's current `HEAD`, its linear
-history is already present and the integrator creates an in-place acceptance
-commit. A divergent candidate is retained through a non-fast-forward merge. A
-candidate that is merely an older ancestor of `HEAD` is stale and is rejected
-until it is rebased and revalidated. Bounded conflict and composition repairs
-belong to the relevant merge; a change to the lane's intended product semantics
-returns as a new Iteration.
+The controller's `check` action rejects malformed identity, dirty context,
+unaccepted dependencies, failed or absent focused tests, blockers, equal
+base/tip, an empty tree diff, pre-Epoch history, unrelated bases, and stale
+non-HEAD ancestors. A candidate at current `HEAD` is accepted in place. A
+divergent candidate proceeds only as the exact `MERGE_HEAD` of a prepared
+non-fast-forward merge. These executable checks close the orchestration gap
+left by decision-0051's policy-only automatic-integration rule.
 
-Each lane receives focused verification. The combined tree then receives the
-Batch regression. Only a passing combined tree may mark lanes or the Batch
-integrated, and that state change is included in the final acceptance commit
-rather than a standalone record commit. Failure leaves main and `goal.json`
-unchanged. After the acceptance commit is on disk, the integrating parent
-pushes that full object ID through `push-repository`.
+`integrate-batch` is now an explicit-only lower-level merge and combined-test
+workflow. It does not route itself, edit Goal state, select a lane, commit, or
+push. After fresh focused and combined gates pass, `accept-and-advance` invokes
+`roast` and its `advance` action. Goal schema v3 binds every lane directly to
+one work item. The action marks the lane and work item complete, activates the
+first dependency-ready planned lane in Iteration order, changes `target`, or
+closes the Batch when no planned lane remains. It runs the Agent-state gate and
+restores its own writes on failure; replay after the committed transition is a
+no-op.
+
+The controlling parent includes state advancement in the final acceptance
+commit and pushes exactly that object through `push-repository`. It immediately
+exposes the next lane identity. If the application already supplied the next
+worker context, it invokes `start-work` in the same turn; the controller itself
+does not create a task, thread, branch, worktree, clone, or worker. Any failure
+keeps the current lane planned and returns a bounded repair to that lane.
 
 ## Task-Stop Contract
 
