@@ -26,6 +26,28 @@ size and seals, while host-address-space registration requires the documented
 procfs descriptor identity and access mode. Absence, extras, truncation, or a
 type-specific identity, access, size, or seal mismatch is rejected.
 
+Capability bit 11 and control opcode 17 define `KERNEL_REQUEST_REGISTER`. A
+client that depends on this path lists the capability as required, so an older
+runtime rejects negotiation before request traffic begins. The operation carries
+exactly one write-sealed payload FD, no other control flags, and the runtime
+context ID at byte 48. Its payload is a 64-byte little-endian request header
+followed immediately by the requested source bytes: magic at 0, version and
+header size at 4/6, total size at 8, profile and operation at 16/20, operation
+ABI version and Kernel IR schema version at 24/28, lifetime at 32, source offset
+and size at 40/48, and zeroed reserved bytes elsewhere. The v1 baseline accepts
+only the declared baseline profile, `ELEMENTWISE_ADD_I32` operation ABI v1,
+Kernel IR schema v2, and `MODULE_LOAD` lifetime. These values are
+ecosystem-neutral: the encoded request contains no CUDA, PyTorch, MLIR, LLVM,
+Vulkan, target, or native-layout type.
+
+The registered request becomes an immutable artifact. Its source bytes remain
+valid through successful `MODULE_LOAD`; that operation validates and retains the
+resulting canonical Kernel IR in the daemon-owned module. The client may release
+the request artifact after module-load completion, while the module remains
+valid until `MODULE_UNLOAD`. A request omitted from negotiation, malformed,
+unknown, stale, or released before module load fails through the existing stable
+capability, control, or ring status paths.
+
 `MF_CLIENT_CAP_PROCESS_SNAPSHOT_V1` is requested only by observer sessions. Its
 control response carries a fully sealed immutable payload FD. The payload has a
 64-byte little-endian header followed by at most 64 fixed 128-byte process rows.

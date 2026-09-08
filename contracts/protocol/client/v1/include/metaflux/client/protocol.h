@@ -16,6 +16,9 @@ extern "C" {
 #define MF_CLIENT_PROCESS_SNAPSHOT_ROW_SIZE_V1 UINT32_C(128)
 #define MF_CLIENT_PROCESS_SNAPSHOT_CAPACITY_V1 UINT32_C(64)
 #define MF_CLIENT_PROCESS_NAME_SIZE_V1 UINT32_C(64)
+#define MF_CLIENT_KERNEL_REQUEST_MAGIC_V1 UINT32_C(0x31524b4d)
+#define MF_CLIENT_KERNEL_REQUEST_VERSION_V1 UINT16_C(1)
+#define MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1 UINT16_C(64)
 
 #define MF_CLIENT_MESSAGE_NEGOTIATE_REQUEST_V1 UINT16_C(1)
 #define MF_CLIENT_MESSAGE_NEGOTIATE_RESPONSE_V1 UINT16_C(2)
@@ -38,6 +41,7 @@ extern "C" {
 #define MF_CLIENT_CONTROL_DEVICE_SET_COMPUTE_MODE_V1 UINT16_C(14)
 #define MF_CLIENT_CONTROL_HOST_ADDRESS_SPACE_REGISTER_V1 UINT16_C(15)
 #define MF_CLIENT_CONTROL_CDEV_BIND_V1 UINT16_C(16)
+#define MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1 UINT16_C(17)
 
 #define MF_CLIENT_CONTROL_OK UINT32_C(0)
 #define MF_CLIENT_CONTROL_MALFORMED UINT32_C(1)
@@ -74,6 +78,13 @@ extern "C" {
 #define MF_CLIENT_CAP_POLICY_SETTERS_V1 (UINT64_C(1) << 8U)
 #define MF_CLIENT_CAP_DIRECT_HOST_COPY_V1 (UINT64_C(1) << 9U)
 #define MF_CLIENT_CAP_CDEV_BINDING_V1 (UINT64_C(1) << 10U)
+#define MF_CLIENT_CAP_KERNEL_REQUEST_V1 (UINT64_C(1) << 11U)
+
+#define MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1 UINT32_C(1)
+#define MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1 UINT32_C(1)
+#define MF_CLIENT_KERNEL_REQUEST_OPERATION_ABI_VERSION_V1 UINT32_C(1)
+#define MF_CLIENT_KERNEL_REQUEST_KERNEL_IR_SCHEMA_VERSION_V1 UINT32_C(2)
+#define MF_CLIENT_KERNEL_REQUEST_LIFETIME_MODULE_LOAD_V1 UINT32_C(1)
 
 #define MF_CLIENT_PROCESS_KIND_COMPUTE_V1 (UINT32_C(1) << 0U)
 #define MF_CLIENT_PROCESS_KIND_GRAPHICS_V1 (UINT32_C(1) << 1U)
@@ -108,6 +119,10 @@ typedef struct mf_client_process_snapshot_header_v1 {
 typedef struct mf_client_process_snapshot_row_wire_v1 {
   uint8_t bytes[MF_CLIENT_PROCESS_SNAPSHOT_ROW_SIZE_V1];
 } mf_client_process_snapshot_row_wire_v1;
+
+typedef struct mf_client_kernel_request_v1 {
+  uint8_t bytes[MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1];
+} mf_client_kernel_request_v1;
 
 static inline uint16_t mf_client_load_le16_v1(const uint8_t* bytes) {
   return (uint16_t)((uint16_t)bytes[0] | ((uint16_t)bytes[1] << 8U));
@@ -152,6 +167,69 @@ static inline void mf_client_zero_bytes_v1(uint8_t* bytes, uint32_t byte_count) 
   for (index = 0; index < byte_count; ++index) {
     bytes[index] = UINT8_C(0);
   }
+}
+
+static inline int mf_client_reserved_is_zero_v1(const uint8_t* bytes, uint32_t begin, uint32_t end);
+
+static inline void mf_client_kernel_request_init_v1(mf_client_kernel_request_v1* request,
+                                                    uint32_t profile, uint32_t operation,
+                                                    uint32_t kernel_ir_schema_version,
+                                                    uint64_t total_size) {
+  mf_client_zero_bytes_v1(request->bytes, MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1);
+  mf_client_store_le32_v1(request->bytes + 0, MF_CLIENT_KERNEL_REQUEST_MAGIC_V1);
+  mf_client_store_le16_v1(request->bytes + 4, MF_CLIENT_KERNEL_REQUEST_VERSION_V1);
+  mf_client_store_le16_v1(request->bytes + 6, MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1);
+  mf_client_store_le64_v1(request->bytes + 8, total_size);
+  mf_client_store_le32_v1(request->bytes + 16, profile);
+  mf_client_store_le32_v1(request->bytes + 20, operation);
+  mf_client_store_le32_v1(request->bytes + 24, MF_CLIENT_KERNEL_REQUEST_OPERATION_ABI_VERSION_V1);
+  mf_client_store_le32_v1(request->bytes + 28, kernel_ir_schema_version);
+  mf_client_store_le32_v1(request->bytes + 32, MF_CLIENT_KERNEL_REQUEST_LIFETIME_MODULE_LOAD_V1);
+  mf_client_store_le64_v1(request->bytes + 40, MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1);
+  mf_client_store_le64_v1(request->bytes + 48,
+                          total_size >= MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1
+                              ? total_size - MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1
+                              : UINT64_C(0));
+}
+
+static inline uint64_t
+mf_client_kernel_request_payload_offset_v1(const mf_client_kernel_request_v1* request) {
+  return mf_client_load_le64_v1(request->bytes + 40);
+}
+
+static inline uint64_t
+mf_client_kernel_request_payload_size_v1(const mf_client_kernel_request_v1* request) {
+  return mf_client_load_le64_v1(request->bytes + 48);
+}
+
+static inline uint32_t mf_client_kernel_request_validate_v1(const uint8_t* payload,
+                                                            uint64_t byte_count) {
+  const mf_client_kernel_request_v1* request = (const mf_client_kernel_request_v1*)payload;
+  if (payload == (const uint8_t*)0 || byte_count < MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1 ||
+      mf_client_load_le32_v1(request->bytes + 0) != MF_CLIENT_KERNEL_REQUEST_MAGIC_V1 ||
+      mf_client_load_le16_v1(request->bytes + 4) != MF_CLIENT_KERNEL_REQUEST_VERSION_V1 ||
+      mf_client_load_le16_v1(request->bytes + 6) != MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1 ||
+      mf_client_load_le64_v1(request->bytes + 8) != byte_count ||
+      mf_client_load_le32_v1(request->bytes + 16) != MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1 ||
+      mf_client_load_le32_v1(request->bytes + 20) !=
+          MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1 ||
+      mf_client_load_le32_v1(request->bytes + 24) !=
+          MF_CLIENT_KERNEL_REQUEST_OPERATION_ABI_VERSION_V1 ||
+      mf_client_load_le32_v1(request->bytes + 28) !=
+          MF_CLIENT_KERNEL_REQUEST_KERNEL_IR_SCHEMA_VERSION_V1 ||
+      mf_client_load_le32_v1(request->bytes + 32) !=
+          MF_CLIENT_KERNEL_REQUEST_LIFETIME_MODULE_LOAD_V1 ||
+      mf_client_kernel_request_payload_offset_v1(request) !=
+          MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1 ||
+      mf_client_kernel_request_payload_size_v1(request) == UINT64_C(0) ||
+      mf_client_kernel_request_payload_size_v1(request) !=
+          byte_count - MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1 ||
+      !mf_client_reserved_is_zero_v1(request->bytes, UINT32_C(36), UINT32_C(40)) ||
+      !mf_client_reserved_is_zero_v1(request->bytes, UINT32_C(56),
+                                     MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1)) {
+    return MF_CLIENT_CONTROL_MALFORMED;
+  }
+  return MF_CLIENT_CONTROL_OK;
 }
 
 static inline int mf_client_reserved_is_zero_v1(const uint8_t* bytes, uint32_t begin,
@@ -333,7 +411,7 @@ mf_client_control_request_validate_v1(const mf_client_control_request_v1* reques
   opcode = mf_client_load_le16_v1(request->bytes + 12);
   flags = mf_client_load_le16_v1(request->bytes + 14);
   if (opcode < MF_CLIENT_CONTROL_DEVICE_MEMORY_ALLOC_V1 ||
-      opcode > MF_CLIENT_CONTROL_CDEV_BIND_V1 ||
+      opcode > MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1 ||
       (flags & (uint16_t)~MF_CLIENT_CONTROL_KNOWN_FLAGS) != UINT16_C(0) ||
       mf_client_load_le64_v1(request->bytes + 24) == UINT64_C(0) ||
       mf_client_load_le64_v1(request->bytes + 32) == UINT64_C(0) ||

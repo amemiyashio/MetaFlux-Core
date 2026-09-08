@@ -24,6 +24,12 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CLIENT_MANIFEST = REPOSITORY_ROOT / "toolchains" / "pytorch-cuda-clients-1.json"
 TRACE_LAUNCH = re.compile(r"^MF_LAUNCH ", re.MULTILINE)
 TRACE_MODULE = re.compile(r"^MF_PYTORCH_BASELINE_MODULE ", re.MULTILINE)
+TRACE_KERNEL_REQUEST = re.compile(
+    r"^MF_PYTORCH_BASELINE_REQUEST profile=(?P<profile>[a-z0-9-]+) "
+    r"operation=(?P<operation>[a-z0-9-]+) version=(?P<version>\d+) "
+    r"kernel-ir=(?P<kernel_ir>\d+) lifetime=(?P<lifetime>[a-z0-9-]+)$",
+    re.MULTILINE,
+)
 TRACE_SEMANTIC = re.compile(r"^MF_SEMANTIC ", re.MULTILINE)
 TRACE_ENTRY = re.compile(r"^MF_ENTRY (?P<entry>[A-Za-z0-9_]+)$", re.MULTILINE)
 TRACE_STUB_ENTRY = re.compile(r"^MF_STUB_CALL (?P<entry>[A-Za-z0-9_]+)$", re.MULTILINE)
@@ -83,6 +89,7 @@ BASELINE_INTERNAL_TABLE_SLOT_CALLS = frozenset(
         "c693:1:profile-observed-void-noop",
     }
 )
+BASELINE_KERNEL_REQUESTS = frozenset({"baseline:elementwise-add-i32:1:2:module-load"})
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -132,6 +139,20 @@ def provider_execution_surface(trace: str) -> dict[str, Any]:
             for match in TRACE_TABLE_SLOT_CALL.finditer(trace)
         }
     )
+    kernel_requests = sorted(
+        {
+            ":".join(
+                (
+                    match.group("profile"),
+                    match.group("operation"),
+                    match.group("version"),
+                    match.group("kernel_ir"),
+                    match.group("lifetime"),
+                )
+            )
+            for match in TRACE_KERNEL_REQUEST.finditer(trace)
+        }
+    )
     return {
         "kind": "direct-provider-entrypoints",
         "entrypoints": sorted(set(TRACE_ENTRY.findall(trace))),
@@ -141,6 +162,7 @@ def provider_execution_surface(trace: str) -> dict[str, Any]:
         "unclassified_internal_table_calls": unclassified_table_calls,
         "internal_table_slot_calls": table_slot_calls,
         "canonical_artifact_module_loads": len(TRACE_MODULE.findall(trace)),
+        "kernel_requests": kernel_requests,
         "launches": len(TRACE_LAUNCH.findall(trace)),
         "local_semantic_execution_events": len(TRACE_SEMANTIC.findall(trace)),
     }
@@ -193,6 +215,12 @@ def require_baseline_execution_surface(surface: dict[str, Any]) -> None:
         raise RuntimeError(
             "pinned baseline reached an unclassified CUDA internal-table slot: "
             f"observed {unclassified_table_calls!r}"
+        )
+    kernel_requests = frozenset(surface["kernel_requests"])
+    if kernel_requests != BASELINE_KERNEL_REQUESTS:
+        raise RuntimeError(
+            "pinned baseline kernel-request contract drifted: "
+            f"expected {sorted(BASELINE_KERNEL_REQUESTS)!r}, observed {sorted(kernel_requests)!r}"
         )
 
 
@@ -424,9 +452,13 @@ def run_pinned_baseline(
             },
             "protocol": {
                 "client_abi_version": 1,
-                "artifact_registration": "MF_CLIENT_CONTROL_ARTIFACT_REGISTER_V1",
+                "kernel_request_registration": "MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1",
+                "profile": "baseline",
+                "operation": "elementwise-add-i32",
+                "request_schema_version": 1,
                 "kernel_ir_schema_version": 2,
-                "module_lifetime": "daemon-owned",
+                "request_lifetime": "module-load",
+                "module_lifetime": "daemon-owned-canonical-kernel-ir",
             },
             "provider": {
                 "managed_mode": True,

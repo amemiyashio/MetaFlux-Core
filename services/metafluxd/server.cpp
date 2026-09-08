@@ -79,7 +79,8 @@ constexpr std::uint64_t kRuntimeCapabilities =
     MF_CLIENT_CAP_SHARED_DEVICE_V1 | MF_CLIENT_CAP_MEMFD_RING_V1 | MF_CLIENT_CAP_FUTEX_DOORBELL_V1 |
     MF_CLIENT_CAP_TIMELINE_V1 | MF_CLIENT_CAP_TELEMETRY_V1 | MF_CLIENT_CAP_PROCESS_SNAPSHOT_V1 |
     MF_CLIENT_CAP_LIVE_CONTEXT_ACCOUNTING_V1 | MF_CLIENT_CAP_COPY_REGION_V1 |
-    MF_CLIENT_CAP_POLICY_SETTERS_V1 | MF_CLIENT_CAP_DIRECT_HOST_COPY_V1
+    MF_CLIENT_CAP_POLICY_SETTERS_V1 | MF_CLIENT_CAP_DIRECT_HOST_COPY_V1 |
+    MF_CLIENT_CAP_KERNEL_REQUEST_V1
 #if METAFLUX_DAEMON_CDEV_BACKEND
     | MF_CLIENT_CAP_CDEV_BINDING_V1
 #endif
@@ -1361,12 +1362,18 @@ enum class ObjectKind : std::uint32_t {
   kModule = MF_OBJECT_TYPE_MODULE,
 };
 
+struct ArtifactSourceRange final {
+  std::uint64_t offset = 0U;
+  std::uint64_t size = 0U;
+};
+
 struct Object final {
   std::uint64_t id = 0;
   std::uint64_t generation = 0;
   ObjectKind kind = ObjectKind::kDeviceMemory;
   bool alive = false;
   std::uint32_t access_flags = 0;
+  ArtifactSourceRange artifact_source{};
   std::vector<std::uint8_t> owned_bytes;
   PayloadMapping mapped_bytes;
   std::unique_ptr<PreparedModule> prepared_module;
@@ -1472,7 +1479,9 @@ private:
                                                      std::uint64_t& out_id,
                                                      std::uint64_t& out_generation) noexcept;
   [[nodiscard]] mf_shared_status_v1 add_mapped_object(ObjectKind kind, std::uint32_t access_flags,
-                                                      PayloadMapping mapping, std::uint64_t& out_id,
+                                                      PayloadMapping mapping,
+                                                      ArtifactSourceRange artifact_source,
+                                                      std::uint64_t& out_id,
                                                       std::uint64_t& out_generation) noexcept;
   [[nodiscard]] mf_shared_status_v1 add_module(std::unique_ptr<PreparedModule> module,
                                                std::uint64_t& out_id,
@@ -2514,10 +2523,19 @@ mf_shared_status_v1 Session::add_owned_object(ObjectKind kind, std::uint64_t byt
 }
 
 mf_shared_status_v1 Session::add_mapped_object(ObjectKind kind, std::uint32_t access_flags,
-                                               PayloadMapping mapping, std::uint64_t& out_id,
+                                               PayloadMapping mapping,
+                                               ArtifactSourceRange artifact_source,
+                                               std::uint64_t& out_id,
                                                std::uint64_t& out_generation) noexcept {
   if (mapping.size() == 0U || next_object_id_ == std::numeric_limits<std::uint64_t>::max()) {
     return MF_SHARED_RESOURCE_EXHAUSTED;
+  }
+  if ((kind == ObjectKind::kArtifact &&
+       (artifact_source.size == 0U || artifact_source.offset > mapping.size() ||
+        artifact_source.size > mapping.size() - artifact_source.offset)) ||
+      (kind != ObjectKind::kArtifact &&
+       (artifact_source.offset != 0U || artifact_source.size != 0U))) {
+    return MF_SHARED_INVALID_ARGUMENT;
   }
   std::uint64_t mapped_bytes = 0;
   for (const auto& object : objects_) {
@@ -2544,6 +2562,7 @@ mf_shared_status_v1 Session::add_mapped_object(ObjectKind kind, std::uint32_t ac
     object->kind = kind;
     object->alive = true;
     object->access_flags = access_flags;
+    object->artifact_source = artifact_source;
     object->mapped_bytes = std::move(mapping);
     out_id = object->id;
     out_generation = object->generation;
@@ -2761,8 +2780,8 @@ ControlReply Session::control(const mf_client_control_request_v1& request, Uniqu
       PayloadMapping mapping;
       status = PayloadMapping::map(std::move(payload), argument, writable, !writable, mapping);
       if (status == MF_SHARED_SUCCESS) {
-        status = add_mapped_object(ObjectKind::kHostMemory, access, std::move(mapping), response_id,
-                                   response_generation);
+        status = add_mapped_object(ObjectKind::kHostMemory, access, std::move(mapping),
+                                   ArtifactSourceRange{}, response_id, response_generation);
       }
       break;
     }
@@ -2780,8 +2799,37 @@ ControlReply Session::control(const mf_client_control_request_v1& request, Uniqu
       PayloadMapping mapping;
       status = PayloadMapping::map(std::move(payload), argument, false, true, mapping);
       if (status == MF_SHARED_SUCCESS) {
-        status = add_mapped_object(ObjectKind::kArtifact, 0U, std::move(mapping), response_id,
-                                   response_generation);
+        const ArtifactSourceRange artifact_source{0U, mapping.size()};
+        status = add_mapped_object(ObjectKind::kArtifact, 0U, std::move(mapping), artifact_source,
+                                   response_id, response_generation);
+      }
+      break;
+    }
+    case MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1: {
+      if ((negotiated_capabilities_ & MF_CLIENT_CAP_KERNEL_REQUEST_V1) == 0U) {
+        status = MF_SHARED_NOT_SUPPORTED;
+        break;
+      }
+      if (flags != MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD ||
+          object_id != MF_CLIENT_RUNTIME_CONTEXT_ID_V1 || !payload.valid()) {
+        status = MF_SHARED_INVALID_ARGUMENT;
+        break;
+      }
+      PayloadMapping mapping;
+      status = PayloadMapping::map(std::move(payload), argument, false, true, mapping);
+      if (status == MF_SHARED_SUCCESS &&
+          mf_client_kernel_request_validate_v1(mapping.data(), mapping.size()) !=
+              MF_CLIENT_CONTROL_OK) {
+        status = MF_SHARED_INVALID_ARGUMENT;
+      }
+      if (status == MF_SHARED_SUCCESS) {
+        const auto* kernel_request =
+            reinterpret_cast<const mf_client_kernel_request_v1*>(mapping.data());
+        status = add_mapped_object(
+            ObjectKind::kArtifact, 0U, std::move(mapping),
+            ArtifactSourceRange{mf_client_kernel_request_payload_offset_v1(kernel_request),
+                                mf_client_kernel_request_payload_size_v1(kernel_request)},
+            response_id, response_generation);
       }
       break;
     }
@@ -2820,8 +2868,8 @@ ControlReply Session::control(const mf_client_control_request_v1& request, Uniqu
         status = mf_client_argument_block_validate_v1(mapping.data(), mapping.size());
       }
       if (status == MF_SHARED_SUCCESS) {
-        status = add_mapped_object(ObjectKind::kArgumentBlock, 0U, std::move(mapping), response_id,
-                                   response_generation);
+        status = add_mapped_object(ObjectKind::kArgumentBlock, 0U, std::move(mapping),
+                                   ArtifactSourceRange{}, response_id, response_generation);
       }
       break;
     }
@@ -3088,8 +3136,14 @@ mf_shared_status_v1 Session::process_command(const mf_ring_descriptor_v1& comman
         MF_SHARED_SUCCESS) {
       return MF_SHARED_STALE_HANDLE;
     }
-    const std::string_view ptx(reinterpret_cast<const char*>(artifact->data()),
-                               static_cast<std::size_t>(artifact->byte_size()));
+    if (artifact->artifact_source.size == 0U ||
+        artifact->artifact_source.offset > artifact->byte_size() ||
+        artifact->artifact_source.size > artifact->byte_size() - artifact->artifact_source.offset) {
+      return MF_SHARED_MALFORMED;
+    }
+    const std::string_view ptx(
+        reinterpret_cast<const char*>(artifact->data() + artifact->artifact_source.offset),
+        static_cast<std::size_t>(artifact->artifact_source.size));
     const compiler::ptx::ParseResult parsed = compiler::ptx::parse(ptx);
     if (!parsed.ok()) {
       return MF_SHARED_MALFORMED;

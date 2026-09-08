@@ -132,13 +132,21 @@ static int connect_with_retry(const char* path, mf_client_session_v1* session) {
 }
 
 static int connect_default_with_retry(const char* path, mf_client_session_v1* session) {
+  const uint64_t required_capabilities =
+      MF_CLIENT_CAP_SHARED_DEVICE_V1 | MF_CLIENT_CAP_MEMFD_RING_V1 |
+      MF_CLIENT_CAP_FUTEX_DOORBELL_V1 | MF_CLIENT_CAP_LIVE_CONTEXT_ACCOUNTING_V1 |
+      MF_CLIENT_CAP_KERNEL_REQUEST_V1;
+  const uint64_t optional_capabilities = MF_CLIENT_CAP_TIMELINE_V1 | MF_CLIENT_CAP_TELEMETRY_V1 |
+                                         MF_CLIENT_CAP_COPY_REGION_V1 |
+                                         MF_CLIENT_CAP_DIRECT_HOST_COPY_V1;
   uint32_t attempt = 0;
   int connected = 0;
   if (setenv("METAFLUX_SOCKET", path, 1) != 0) {
     return 0;
   }
   for (attempt = 0; attempt < UINT32_C(500); ++attempt) {
-    if (mf_client_session_connect_default_v1(session) == MF_SHARED_SUCCESS) {
+    if (mf_client_session_connect_default_capabilities_v1(
+            required_capabilities, optional_capabilities, session) == MF_SHARED_SUCCESS) {
       connected = 1;
       break;
     }
@@ -291,10 +299,13 @@ static int control_object(mf_client_session_v1* session, uint16_t opcode, uint16
 static int copy_region_register_requires_capability(const char* socket_path) {
   mf_client_session_v1 session;
   mf_client_payload_v1 payload = {.owned_fd = -1};
+  mf_client_payload_v1 kernel_payload = {.owned_fd = -1};
   object_ref returned = {UINT64_MAX, UINT64_MAX};
   const object_ref destination = {UINT64_C(1), UINT64_C(1)};
   const object_ref source = {UINT64_C(2), UINT64_C(1)};
   _Alignas(64) copy_argument_block arguments;
+  uint8_t kernel_request_bytes[MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1 + UINT32_C(1)];
+  mf_client_kernel_request_v1* kernel_request = (mf_client_kernel_request_v1*)kernel_request_bytes;
   int connected = 0;
   int result = 0;
   initialize_copy_argument_block(&arguments, destination, UINT64_C(1), source, UINT64_C(0),
@@ -315,8 +326,24 @@ static int copy_region_register_requires_capability(const char* socket_path) {
       returned.id != UINT64_C(0) || returned.generation != UINT64_C(0)) {
     result = 2;
   }
+  mf_client_kernel_request_init_v1(kernel_request, MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_KERNEL_IR_SCHEMA_VERSION_V1,
+                                   sizeof(kernel_request_bytes));
+  kernel_request_bytes[MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1] = UINT8_C(0x7f);
+  if (result == 0 &&
+      (mf_client_payload_create_v1(kernel_request_bytes, sizeof(kernel_request_bytes), 0U,
+                                   &kernel_payload) != MF_SHARED_SUCCESS ||
+       !control_object(&session, MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1,
+                       MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD, MF_CLIENT_RUNTIME_CONTEXT_ID_V1,
+                       sizeof(kernel_request_bytes), kernel_payload.owned_fd,
+                       MF_CLIENT_CONTROL_UNSUPPORTED, &returned, (int32_t*)0) ||
+       returned.id != UINT64_C(0) || returned.generation != UINT64_C(0))) {
+    result = 3;
+  }
 
 cleanup:
+  mf_client_payload_close_v1(&kernel_payload);
   mf_client_payload_close_v1(&payload);
   if (connected) {
     mf_client_session_close_v1(&session);
@@ -660,6 +687,7 @@ static int run_execution_session(mf_client_session_v1* session,
   mf_client_payload_v1 host_left = {.owned_fd = -1};
   mf_client_payload_v1 host_right = {.owned_fd = -1};
   mf_client_payload_v1 host_output = {.owned_fd = -1};
+  mf_client_payload_v1 invalid_kernel_request_payload = {.owned_fd = -1};
   mf_client_payload_v1 artifact_payload = {.owned_fd = -1};
   mf_client_payload_v1 argument_payload = {.owned_fd = -1};
   mf_client_payload_v1 invalid_argument_payload = {.owned_fd = -1};
@@ -683,6 +711,8 @@ static int run_execution_session(mf_client_session_v1* session,
   add_argument_block arguments;
   _Alignas(64) copy_argument_block copy_arguments;
   _Alignas(64) copy_argument_block invalid_copy_arguments;
+  uint8_t kernel_request_bytes[MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1 + sizeof(add_ptx) - 1U];
+  mf_client_kernel_request_v1* kernel_request = (mf_client_kernel_request_v1*)kernel_request_bytes;
   uint64_t request_id = UINT64_C(100);
   int32_t resolved_artifact = -1;
   int result = 0;
@@ -749,7 +779,8 @@ static int run_execution_session(mf_client_session_v1* session,
     result = 5;
     goto cleanup;
   }
-  if ((session->negotiated_capabilities & MF_CLIENT_CAP_COPY_REGION_V1) == UINT64_C(0)) {
+  if ((session->negotiated_capabilities & MF_CLIENT_CAP_COPY_REGION_V1) == UINT64_C(0) ||
+      (session->negotiated_capabilities & MF_CLIENT_CAP_KERNEL_REQUEST_V1) == UINT64_C(0)) {
     result = 14;
     goto cleanup;
   }
@@ -801,11 +832,37 @@ static int run_execution_session(mf_client_session_v1* session,
   }
 
   if (mf_client_payload_create_v1((const uint8_t*)add_ptx, sizeof(add_ptx) - (size_t)1, 0U,
+                                  &invalid_kernel_request_payload) != MF_SHARED_SUCCESS ||
+      !control_object(session, MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1,
+                      MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD, MF_CLIENT_RUNTIME_CONTEXT_ID_V1,
+                      sizeof(add_ptx) - (size_t)1, invalid_kernel_request_payload.owned_fd,
+                      MF_CLIENT_CONTROL_INVALID_ARGUMENT, &ignored, (int32_t*)0)) {
+    result = 6;
+    goto cleanup;
+  }
+  mf_client_kernel_request_init_v1(kernel_request, MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_KERNEL_IR_SCHEMA_VERSION_V1,
+                                   sizeof(kernel_request_bytes));
+  (void)memcpy(kernel_request_bytes + MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1, add_ptx,
+               sizeof(add_ptx) - (size_t)1);
+  if (mf_client_kernel_request_validate_v1(kernel_request_bytes, sizeof(kernel_request_bytes)) !=
+          MF_CLIENT_CONTROL_OK ||
+      mf_client_payload_create_v1(kernel_request_bytes, sizeof(kernel_request_bytes), 0U,
                                   &artifact_payload) != MF_SHARED_SUCCESS ||
-      !control_object(session, MF_CLIENT_CONTROL_ARTIFACT_REGISTER_V1,
-                      MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD | MF_CLIENT_CONTROL_FLAG_PTX,
-                      MF_CLIENT_RUNTIME_CONTEXT_ID_V1, sizeof(add_ptx) - (size_t)1,
-                      artifact_payload.owned_fd, MF_CLIENT_CONTROL_OK, &artifact, (int32_t*)0) ||
+      !control_object(session, MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1,
+                      MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD, MF_CLIENT_RUNTIME_CONTEXT_ID_V1,
+                      sizeof(kernel_request_bytes), artifact_payload.owned_fd, MF_CLIENT_CONTROL_OK,
+                      &artifact, (int32_t*)0) ||
+      !control_object(session, MF_CLIENT_CONTROL_ARTIFACT_RELEASE_V1, 0U, artifact.id,
+                      artifact.generation, -1, MF_CLIENT_CONTROL_OK, &ignored, (int32_t*)0) ||
+      mf_client_submit_module_load_v1(&session->submission, request_id, artifact.id,
+                                      artifact.generation, 0U) != MF_SHARED_SUCCESS ||
+      !wait_completion(session, request_id++, MF_SHARED_STALE_HANDLE, &completion) ||
+      !control_object(session, MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1,
+                      MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD, MF_CLIENT_RUNTIME_CONTEXT_ID_V1,
+                      sizeof(kernel_request_bytes), artifact_payload.owned_fd, MF_CLIENT_CONTROL_OK,
+                      &artifact, (int32_t*)0) ||
       !control_object(session, MF_CLIENT_CONTROL_ARTIFACT_RESOLVE_V1, 0U, artifact.id,
                       artifact.generation, -1, MF_CLIENT_CONTROL_OK, &ignored,
                       &resolved_artifact) ||
@@ -823,6 +880,13 @@ static int run_execution_session(mf_client_session_v1* session,
   }
   module.id = completion.result_id;
   module.generation = completion.result_generation;
+  if (!control_object(session, MF_CLIENT_CONTROL_ARTIFACT_RELEASE_V1, 0U, artifact.id,
+                      artifact.generation, -1, MF_CLIENT_CONTROL_OK, &ignored, (int32_t*)0)) {
+    result = 7;
+    goto cleanup;
+  }
+  artifact.id = 0U;
+  artifact.generation = 0U;
 
   (void)memset(&arguments, 0, sizeof(arguments));
   arguments.header.magic = MF_SHARED_ARGUMENT_BLOCK_MAGIC;
@@ -922,6 +986,14 @@ static int run_execution_session(mf_client_session_v1* session,
     result = 19;
     goto cleanup;
   }
+  if (mf_client_submit_module_unload_v1(&session->submission, request_id, module.id,
+                                        module.generation) != MF_SHARED_SUCCESS ||
+      !wait_completion(session, request_id++, MF_SHARED_SUCCESS, &completion)) {
+    result = 20;
+    goto cleanup;
+  }
+  module.id = 0U;
+  module.generation = 0U;
 
 cleanup:
   if (resolved_artifact >= 0) {
@@ -929,6 +1001,7 @@ cleanup:
   }
   mf_client_payload_close_v1(&invalid_argument_payload);
   mf_client_payload_close_v1(&argument_payload);
+  mf_client_payload_close_v1(&invalid_kernel_request_payload);
   mf_client_payload_close_v1(&invalid_copy_argument_payload);
   mf_client_payload_close_v1(&copy_argument_payload);
   mf_client_payload_close_v1(&artifact_payload);

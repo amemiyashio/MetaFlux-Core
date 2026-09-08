@@ -24,6 +24,8 @@ class StockBaselineEvidenceTests(unittest.TestCase):
                 "MF_ENTRY mf_cuda_managed_cuInit",
                 "MF_ENTRY mf_cuda_managed_cuGetExportTable",
                 "MF_STUB_CALL mf_cuda_managed_cuCtxGetApiVersion",
+                "MF_PYTORCH_BASELINE_REQUEST profile=baseline operation=elementwise-add-i32 "
+                "version=1 kernel-ir=2 lifetime=module-load",
                 "MF_PYTORCH_BASELINE_MODULE artifact=1/1 module=2/1",
                 "MF_EXPORT_TABLE a094798c-2e74-2e74-93f2-0800200c0a66",
                 "MF_TABLE_SLOT_CALL table=c693 slot=0 behavior=profile-observed-status-success",
@@ -55,6 +57,7 @@ class StockBaselineEvidenceTests(unittest.TestCase):
             ],
         )
         self.assertEqual(surface["canonical_artifact_module_loads"], 1)
+        self.assertEqual(surface["kernel_requests"], ["baseline:elementwise-add-i32:1:2:module-load"])
         self.assertEqual(surface["launches"], 1)
         self.assertEqual(surface["local_semantic_execution_events"], 0)
 
@@ -67,6 +70,7 @@ class StockBaselineEvidenceTests(unittest.TestCase):
                 stock_baseline.BASELINE_INTERNAL_TABLE_SLOT_CALLS
             ),
             "unclassified_internal_table_calls": [],
+            "kernel_requests": sorted(stock_baseline.BASELINE_KERNEL_REQUESTS),
         }
 
         stock_baseline.require_baseline_execution_surface(surface)
@@ -90,6 +94,11 @@ class StockBaselineEvidenceTests(unittest.TestCase):
         )
         surface["unclassified_internal_table_calls"] = ["c693@libcudart.so.12+0x42166"]
         with self.assertRaisesRegex(RuntimeError, "reached an unclassified"):
+            stock_baseline.require_baseline_execution_surface(surface)
+
+        surface["unclassified_internal_table_calls"] = []
+        surface["kernel_requests"] = []
+        with self.assertRaisesRegex(RuntimeError, "kernel-request contract drifted"):
             stock_baseline.require_baseline_execution_surface(surface)
 
     def test_daemon_statistics_require_one_complete_record(self) -> None:

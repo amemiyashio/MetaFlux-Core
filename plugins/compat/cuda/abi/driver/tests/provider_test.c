@@ -631,6 +631,16 @@ static mf_shared_status_v1 mf_test_control(void* context,
                                     UINT64_C(0), UINT64_C(0), &response_id, &response_generation);
       }
       break;
+    case MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1:
+      if (flags != MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD || object_id != MF_TEST_CONTEXT_ID ||
+          argument == UINT64_C(0) || payload == (const uint8_t*)0 || payload_size != argument ||
+          mf_client_kernel_request_validate_v1(payload, payload_size) != MF_CLIENT_CONTROL_OK) {
+        status = MF_SHARED_INVALID_ARGUMENT;
+      } else {
+        status = mf_test_add_object(fixture, MF_TEST_OBJECT_ARTIFACT, payload, payload_size,
+                                    UINT64_C(0), UINT64_C(0), &response_id, &response_generation);
+      }
+      break;
     case MF_CLIENT_CONTROL_ARTIFACT_RELEASE_V1:
       status = flags == UINT16_C(0) && payload_size == UINT64_C(0)
                    ? mf_test_release(fixture, object_id, argument, MF_TEST_OBJECT_ARTIFACT)
@@ -1422,7 +1432,8 @@ int main(void) {
   mf_cuda_provider_test_reset_v1();
   context = (CUcontext)0;
   device_left = (CUdeviceptr)0;
-  transport.negotiated_capabilities = MF_CLIENT_CAP_COPY_REGION_V1;
+  transport.negotiated_capabilities =
+      MF_CLIENT_CAP_COPY_REGION_V1 | MF_CLIENT_CAP_KERNEL_REQUEST_V1;
   MF_TEST_REQUIRE(mf_cuda_provider_test_install_transport_v1(&transport) == 0, 3);
   MF_TEST_REQUIRE(cuInit(UINT32_C(0)) == CUDA_SUCCESS, 4);
   MF_TEST_REQUIRE(cuDriverGetVersion(&driver_version) == CUDA_SUCCESS && driver_version == 12060 &&

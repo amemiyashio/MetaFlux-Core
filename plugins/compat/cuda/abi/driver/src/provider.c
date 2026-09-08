@@ -1758,7 +1758,7 @@ static mf_shared_status_v1 mf_cuda_try_initialize_cdev_locked(uint32_t* out_fall
   const uint64_t required_capabilities =
       MF_CLIENT_CAP_SHARED_DEVICE_V1 | MF_CLIENT_CAP_MEMFD_RING_V1 |
       MF_CLIENT_CAP_FUTEX_DOORBELL_V1 | MF_CLIENT_CAP_LIVE_CONTEXT_ACCOUNTING_V1 |
-      MF_CLIENT_CAP_CDEV_BINDING_V1;
+      MF_CLIENT_CAP_CDEV_BINDING_V1 | MF_CLIENT_CAP_KERNEL_REQUEST_V1;
   const uint64_t optional_capabilities = MF_CLIENT_CAP_TIMELINE_V1 | MF_CLIENT_CAP_TELEMETRY_V1 |
                                          MF_CLIENT_CAP_COPY_REGION_V1 |
                                          MF_CLIENT_CAP_DIRECT_HOST_COPY_V1;
@@ -1894,7 +1894,15 @@ static CUresult mf_cuda_initialize_locked(void) {
     uint32_t cdev_fallback = UINT32_C(0);
     status = mf_cuda_try_initialize_cdev_locked(&cdev_fallback);
     if (status == MF_SHARED_SUCCESS && cdev_fallback != UINT32_C(0)) {
-      status = mf_client_session_connect_default_v1(&mf_cuda_global.session);
+      const uint64_t required_capabilities =
+          MF_CLIENT_CAP_SHARED_DEVICE_V1 | MF_CLIENT_CAP_MEMFD_RING_V1 |
+          MF_CLIENT_CAP_FUTEX_DOORBELL_V1 | MF_CLIENT_CAP_LIVE_CONTEXT_ACCOUNTING_V1 |
+          MF_CLIENT_CAP_KERNEL_REQUEST_V1;
+      const uint64_t optional_capabilities =
+          MF_CLIENT_CAP_TIMELINE_V1 | MF_CLIENT_CAP_TELEMETRY_V1 | MF_CLIENT_CAP_COPY_REGION_V1 |
+          MF_CLIENT_CAP_DIRECT_HOST_COPY_V1;
+      status = mf_client_session_connect_default_capabilities_v1(
+          required_capabilities, optional_capabilities, &mf_cuda_global.session);
     }
     if (status == MF_SHARED_SUCCESS && mf_cuda_global.cdev_active == UINT32_C(0)) {
       mf_cuda_global.transport.view_id = mf_cuda_global.session.registry_view_id;
@@ -6147,9 +6155,11 @@ CUresult cuEventElapsedTime(float* milliseconds, CUevent start, CUevent end) {
 
 static CUresult mf_cuda_materialize_pytorch_baseline_add_locked(mf_cuda_object* module_record) {
   mf_client_completion_v1 completion = {0};
-  const mf_cuda_command command = {
-      MF_CUDA_COMMAND_MODULE_LOAD, 0, {0, 0, 0, 0}, UINT32_C(0)};
+  const mf_cuda_command command = {MF_CUDA_COMMAND_MODULE_LOAD, 0, {0, 0, 0, 0}, UINT32_C(0)};
   mf_cuda_command load_command = command;
+  uint8_t request_payload[MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1 +
+                          sizeof(mf_pytorch_baseline_add_ptx) - 1U];
+  mf_client_kernel_request_v1* request = (mf_client_kernel_request_v1*)request_payload;
   uint64_t artifact_id = UINT64_C(0);
   uint64_t artifact_generation = UINT64_C(0);
   CUresult result = CUDA_SUCCESS;
@@ -6157,25 +6167,36 @@ static CUresult mf_cuda_materialize_pytorch_baseline_add_locked(mf_cuda_object* 
   if (module_record == (mf_cuda_object*)0) {
     return CUDA_ERROR_INVALID_HANDLE;
   }
-  if (module_record->remote_id != UINT64_C(0) &&
-      module_record->remote_generation != UINT64_C(0)) {
+  if (module_record->remote_id != UINT64_C(0) && module_record->remote_generation != UINT64_C(0)) {
     return CUDA_SUCCESS;
   }
-  if (module_record->remote_id != UINT64_C(0) ||
-      module_record->remote_generation != UINT64_C(0) ||
+  if (module_record->remote_id != UINT64_C(0) || module_record->remote_generation != UINT64_C(0) ||
       module_record->materialized_id != UINT64_C(0) ||
       module_record->materialized_generation != UINT64_C(0)) {
     return CUDA_ERROR_INVALID_HANDLE;
   }
+  if ((mf_cuda_global.transport.negotiated_capabilities & MF_CLIENT_CAP_KERNEL_REQUEST_V1) ==
+      UINT64_C(0)) {
+    return CUDA_ERROR_NOT_SUPPORTED;
+  }
+
+  mf_client_kernel_request_init_v1(request, MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_KERNEL_IR_SCHEMA_VERSION_V1,
+                                   (uint64_t)sizeof(request_payload));
+  (void)memcpy(request_payload + MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1,
+               mf_pytorch_baseline_add_ptx, sizeof(mf_pytorch_baseline_add_ptx) - 1U);
 
   result = mf_cuda_control_locked(
-      MF_CLIENT_CONTROL_ARTIFACT_REGISTER_V1,
-      MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD | MF_CLIENT_CONTROL_FLAG_PTX,
-      mf_cuda_global.transport.runtime_context_id,
-      (uint64_t)(sizeof(mf_pytorch_baseline_add_ptx) - 1U), mf_pytorch_baseline_add_ptx,
-      (uint64_t)(sizeof(mf_pytorch_baseline_add_ptx) - 1U), &artifact_id, &artifact_generation);
+      MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1, MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD,
+      mf_cuda_global.transport.runtime_context_id, (uint64_t)sizeof(request_payload),
+      request_payload, (uint64_t)sizeof(request_payload), &artifact_id, &artifact_generation);
   if (result != CUDA_SUCCESS) {
     return result;
+  }
+  if (mf_cuda_entry_trace_enabled() != 0) {
+    fprintf(stderr, "MF_PYTORCH_BASELINE_REQUEST profile=baseline operation=elementwise-add-i32 "
+                    "version=1 kernel-ir=2 lifetime=module-load\n");
   }
 
   load_command.target = artifact_id;

@@ -8,10 +8,12 @@ _Static_assert(sizeof(mf_client_control_request_v1) == 64, "control request wire
 _Static_assert(sizeof(mf_client_control_response_v1) == 64, "control response wire size");
 _Static_assert(sizeof(mf_client_process_snapshot_header_v1) == 64, "snapshot header wire size");
 _Static_assert(sizeof(mf_client_process_snapshot_row_wire_v1) == 128, "snapshot row wire size");
+_Static_assert(sizeof(mf_client_kernel_request_v1) == 64, "kernel request header wire size");
 _Static_assert(MF_CLIENT_CAP_COPY_REGION_V1 == (UINT64_C(1) << 7U), "copy-region bit");
 _Static_assert(MF_CLIENT_CAP_POLICY_SETTERS_V1 == (UINT64_C(1) << 8U), "policy-setter bit");
 _Static_assert(MF_CLIENT_CAP_DIRECT_HOST_COPY_V1 == (UINT64_C(1) << 9U), "direct-copy bit");
 _Static_assert(MF_CLIENT_CAP_CDEV_BINDING_V1 == (UINT64_C(1) << 10U), "cdev-binding bit");
+_Static_assert(MF_CLIENT_CAP_KERNEL_REQUEST_V1 == (UINT64_C(1) << 11U), "kernel-request bit");
 _Static_assert(MF_CLIENT_CONTROL_DEVICE_SET_PERSISTENCE_MODE_V1 == UINT16_C(13),
                "persistence setter opcode");
 _Static_assert(MF_CLIENT_CONTROL_DEVICE_SET_COMPUTE_MODE_V1 == UINT16_C(14),
@@ -19,12 +21,17 @@ _Static_assert(MF_CLIENT_CONTROL_DEVICE_SET_COMPUTE_MODE_V1 == UINT16_C(14),
 _Static_assert(MF_CLIENT_CONTROL_HOST_ADDRESS_SPACE_REGISTER_V1 == UINT16_C(15),
                "host address-space opcode");
 _Static_assert(MF_CLIENT_CONTROL_CDEV_BIND_V1 == UINT16_C(16), "cdev-binding opcode");
+_Static_assert(MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1 == UINT16_C(17),
+               "kernel-request opcode");
 
 int main(void) {
   mf_client_negotiation_request_v1 request;
   mf_client_negotiation_response_v1 response;
   mf_client_control_request_v1 control_request;
   mf_client_control_response_v1 control_response;
+  uint8_t kernel_request_payload[MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1 + UINT32_C(1)];
+  mf_client_kernel_request_v1* kernel_request =
+      (mf_client_kernel_request_v1*)kernel_request_payload;
   uint8_t snapshot[MF_CLIENT_PROCESS_SNAPSHOT_HEADER_SIZE_V1 +
                    (UINT32_C(2) * MF_CLIENT_PROCESS_SNAPSHOT_ROW_SIZE_V1)];
   mf_client_process_snapshot_header_v1* snapshot_header =
@@ -38,6 +45,7 @@ int main(void) {
   const uint64_t live_context = MF_CLIENT_CAP_LIVE_CONTEXT_ACCOUNTING_V1;
   const uint64_t copy_region = MF_CLIENT_CAP_COPY_REGION_V1;
   const uint64_t cdev_binding = MF_CLIENT_CAP_CDEV_BINDING_V1;
+  const uint64_t kernel_request_capability = MF_CLIENT_CAP_KERNEL_REQUEST_V1;
 
   mf_client_negotiation_request_init_v1(&request, UINT16_C(1), UINT16_C(2), required, optional,
                                         MF_CLIENT_FLAG_JOIN_EXISTING_VIEW_V1);
@@ -135,6 +143,22 @@ int main(void) {
     return 21;
   }
 
+  /* A profile request is required: it may not silently downgrade to raw artifacts. */
+  mf_client_negotiation_request_init_v1(&request, UINT16_C(1), UINT16_C(1),
+                                        required | kernel_request_capability, UINT64_C(0),
+                                        UINT32_C(0));
+  if (mf_client_negotiate_v1(&request, UINT16_C(1), UINT16_C(1), runtime, UINT32_C(1), UINT32_C(1),
+                             UINT64_C(1), UINT64_C(1),
+                             &response) != MF_CLIENT_NEGOTIATION_UNSUPPORTED_CAPABILITY) {
+    return 23;
+  }
+  if (mf_client_negotiate_v1(&request, UINT16_C(1), UINT16_C(1),
+                             runtime | kernel_request_capability, UINT32_C(1), UINT32_C(1),
+                             UINT64_C(1), UINT64_C(1), &response) != MF_CLIENT_NEGOTIATION_OK ||
+      (mf_client_load_le64_v1(response.bytes + 24) & kernel_request_capability) == UINT64_C(0)) {
+    return 24;
+  }
+
   mf_client_control_request_init_v1(&control_request, MF_CLIENT_CONTROL_ARTIFACT_REGISTER_V1,
                                     MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD | MF_CLIENT_CONTROL_FLAG_PTX,
                                     UINT64_C(17), UINT64_C(0x1122334455667788),
@@ -182,6 +206,40 @@ int main(void) {
                                     UINT64_C(1), UINT64_C(1));
   if (mf_client_control_request_validate_v1(&control_request) != MF_CLIENT_CONTROL_OK) {
     return 22;
+  }
+  mf_client_kernel_request_init_v1(kernel_request, MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_KERNEL_IR_SCHEMA_VERSION_V1,
+                                   sizeof(kernel_request_payload));
+  kernel_request_payload[MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1] = UINT8_C(0x7f);
+  if (mf_client_kernel_request_validate_v1(
+          kernel_request_payload, sizeof(kernel_request_payload)) != MF_CLIENT_CONTROL_OK ||
+      mf_client_kernel_request_payload_offset_v1(kernel_request) !=
+          MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1 ||
+      mf_client_kernel_request_payload_size_v1(kernel_request) != UINT64_C(1)) {
+    return 25;
+  }
+  kernel_request->bytes[56] = UINT8_C(1);
+  if (mf_client_kernel_request_validate_v1(
+          kernel_request_payload, sizeof(kernel_request_payload)) != MF_CLIENT_CONTROL_MALFORMED) {
+    return 26;
+  }
+  kernel_request->bytes[56] = UINT8_C(0);
+  mf_client_store_le32_v1(kernel_request->bytes + 16, UINT32_C(2));
+  if (mf_client_kernel_request_validate_v1(
+          kernel_request_payload, sizeof(kernel_request_payload)) != MF_CLIENT_CONTROL_MALFORMED) {
+    return 27;
+  }
+  mf_client_kernel_request_init_v1(kernel_request, MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_KERNEL_IR_SCHEMA_VERSION_V1,
+                                   sizeof(kernel_request_payload));
+  kernel_request_payload[MF_CLIENT_KERNEL_REQUEST_HEADER_SIZE_V1] = UINT8_C(0x7f);
+  mf_client_control_request_init_v1(&control_request, MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1,
+                                    MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD, UINT64_C(22), UINT64_C(1),
+                                    UINT64_C(1), UINT64_C(1), sizeof(kernel_request_payload));
+  if (mf_client_control_request_validate_v1(&control_request) != MF_CLIENT_CONTROL_OK) {
+    return 28;
   }
   mf_client_process_snapshot_header_init_v1(snapshot_header, UINT64_C(9), UINT32_C(2));
   snapshot_row = mf_client_process_snapshot_mutable_row_v1_at(snapshot, UINT32_C(0));
