@@ -4,8 +4,8 @@
  "target": "sm_70",
  "digest_algorithm": "sha256",
  "aggregate_definition": "sha256 of UTF-8 id, NUL, fixture sha256, LF in lexical id order",
- "corpus_sha256": "fc61f23e9d4b9930413f6cb67ba16128322a1be226fcdd144467df110bd9ea25",
- "forms_sha256": "6bd894346276019e74cd0a16931bebc97e6123c6900832af842af255bb00bdc7",
+ "corpus_sha256": "d6095e095cd0279da92cd95b4e530c77bb5b719ac4a7a83349e668d69c7d4693",
+ "forms_sha256": "a84b255bc4a9cf37a8d7075a5ed5b808edf6e25a9e9f92477290424d9f661b36",
  "fixtures": [
   {
    "id": "edge-2d-specials",
@@ -171,7 +171,7 @@
   {
    "id": "positive-fp-forms",
    "path": "fixtures/positive-fp-forms.ptx",
-   "sha256": "6158f98bdce606cf074f7044ba04bdb5ca4c53385fa7ad112a5760ed2765aa5d",
+   "sha256": "599bb013c16355615b93fd73d245020e618f4068a3938f61ec12ef67bfe410a6",
    "classes": [
     "positive",
     "edge"
@@ -186,14 +186,16 @@
     "fma-rn-f32",
     "st-global-f32",
     "ret",
-    "div-rn-f32"
+    "div-rn-f32",
+    "abs-f32",
+    "sqrt-rn-f32"
    ],
    "oracle": "hard-coded IEEE-754 bit patterns for 1.5, 2.25, and 0.5"
   },
   {
    "id": "positive-integer-forms",
    "path": "fixtures/positive-integer-forms.ptx",
-   "sha256": "06b9592d3ac0d1d8724bfc549ca3407bae8ff1227d4207592974d846495e3269",
+   "sha256": "9c6d0cc732973a7fa19bd74020f5870589fae42e4b37cdbcb254f8ed0412548a",
    "classes": [
     "positive",
     "edge"
@@ -207,7 +209,8 @@
     "mul-lo-u32",
     "mad-lo-u32",
     "st-global-u32",
-    "ret"
+    "ret",
+    "abs-s32"
    ],
    "oracle": "independent modulo-2^32 add, subtract, low multiply, low multiply-add, and immediate move"
   },

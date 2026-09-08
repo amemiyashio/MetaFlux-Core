@@ -462,6 +462,15 @@ private:
     return result;
   }
 
+  [[nodiscard]] std::string intrinsic_sqrt(std::string_view operand, std::string_view type,
+                                           const Operation* operation = nullptr) {
+    const auto result = value();
+    line(result + " = llvm.intr.sqrt(" + std::string(operand) + ") : (" + std::string(type) +
+         ") -> " + std::string(type) +
+         (operation == nullptr ? std::string{} : source_location(*operation)));
+    return result;
+  }
+
   [[nodiscard]] std::string select(std::string_view condition, std::string_view true_value,
                                    std::string_view false_value, std::string_view type,
                                    const Operation* operation = nullptr,
@@ -901,6 +910,9 @@ private:
     case Opcode::MultiplyWideU32:
     case Opcode::AddSharedAddress:
     case Opcode::AddGlobalAddress:
+    case Opcode::AbsS32:
+    case Opcode::AbsF32:
+    case Opcode::SqrtRnF32:
     case Opcode::AddRnF32:
     case Opcode::SubRnF32:
     case Opcode::DivRnF32:
@@ -1175,6 +1187,25 @@ private:
       case Opcode::MoveImmediateU32:
         result = constant_splat_i32(operation.attribute);
         break;
+      case Opcode::AbsS32: {
+        const auto sign = binary("ashr", vinput(0U), constant_splat_i32(31U), vtype("i32"),
+                                 &operation);
+        const auto mask = binary("sub", constant_splat_i32(0U), sign, vtype("i32"), &operation);
+        const auto flipped = binary("xor", vinput(0U), mask, vtype("i32"), &operation);
+        result = binary("sub", flipped, mask, vtype("i32"), &operation);
+        break;
+      }
+      case Opcode::AbsF32: {
+        const auto bits = cast("bitcast", vinput(0U), vtype("f32"), vtype("i32"), &operation);
+        const auto magnitude =
+            binary("and", bits, constant_splat_i32(0x7fffffffU), vtype("i32"), &operation);
+        result = cast("bitcast", magnitude, vtype("i32"), vtype("f32"), &operation);
+        break;
+      }
+      case Opcode::SqrtRnF32: {
+        result = intrinsic_sqrt(vinput(0U), vtype("f32"), &operation);
+        break;
+      }
       case Opcode::AddU32:
         result = binary("add", vinput(0U), vinput(1U), vtype("i32"), &operation);
         break;
@@ -1461,6 +1492,9 @@ private:
     case Opcode::MadLoU32:
     case Opcode::MultiplyWideU32:
     case Opcode::AddSharedAddress:
+    case Opcode::AbsS32:
+    case Opcode::AbsF32:
+    case Opcode::SqrtRnF32:
     case Opcode::AddRnF32:
     case Opcode::SubRnF32:
     case Opcode::DivRnF32:
@@ -1743,6 +1777,23 @@ private:
     case Opcode::MoveImmediateU32:
       result = constant_i32(operation.attribute);
       break;
+    case Opcode::AbsS32: {
+      const auto sign = binary("ashr", input(0U), constant_i32(31U), "i32", &operation);
+      const auto mask = binary("sub", constant_i32(0U), sign, "i32", &operation);
+      const auto flipped = binary("xor", input(0U), mask, "i32", &operation);
+      result = binary("sub", flipped, mask, "i32", &operation);
+      break;
+    }
+    case Opcode::AbsF32: {
+      const auto bits = cast("bitcast", input(0U), "f32", "i32", &operation);
+      const auto magnitude = binary("and", bits, constant_i32(0x7fffffffU), "i32", &operation);
+      result = cast("bitcast", magnitude, "i32", "f32", &operation);
+      break;
+    }
+    case Opcode::SqrtRnF32: {
+      result = intrinsic_sqrt(input(0U), "f32", &operation);
+      break;
+    }
     case Opcode::AddGlobalAddress: {
       const auto base = input(0U);
       result = binary("add", base, input(1U), "i64", &operation);

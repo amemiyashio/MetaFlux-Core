@@ -66,6 +66,9 @@ enum class Opcode : std::uint32_t {
   LoadSharedAddress,
   MoveSpecialU32,
   MoveImmediateU32,
+  AbsS32,
+  AbsF32,
+  SqrtRnF32,
   AddU32,
   SubU32,
   MultiplyLoU32,
@@ -195,13 +198,16 @@ std::optional<ValueKind> parse_value_kind(std::string_view text) {
 
 std::optional<Opcode> parse_opcode(std::string_view text) {
   using Pair = std::pair<std::string_view, Opcode>;
-  constexpr std::array<Pair, 34> entries{{
+  constexpr std::array<Pair, 37> entries{{
       {"load_parameter_address", Opcode::LoadParameterAddress},
       {"load_parameter_u32", Opcode::LoadParameterU32},
       {"load_parameter_f32", Opcode::LoadParameterF32},
       {"load_shared_address", Opcode::LoadSharedAddress},
       {"move_special_u32", Opcode::MoveSpecialU32},
       {"move_immediate_u32", Opcode::MoveImmediateU32},
+      {"abs_s32", Opcode::AbsS32},
+      {"abs_f32", Opcode::AbsF32},
+      {"sqrt_rn_f32", Opcode::SqrtRnF32},
       {"add_u32", Opcode::AddU32},
       {"sub_u32", Opcode::SubU32},
       {"multiply_lo_u32", Opcode::MultiplyLoU32},
@@ -272,6 +278,11 @@ OperationContract operation_contract(Opcode opcode) {
     return {true, U32, {}, 0};
   case MoveImmediateU32:
     return {true, U32, {}, 0};
+  case AbsS32:
+    return {true, U32, {U32, U32, U32}, 1};
+  case AbsF32:
+  case SqrtRnF32:
+    return {true, F32, {F32, U32, U32}, 1};
   case AddU32:
   case SubU32:
   case MultiplyLoU32:
@@ -749,6 +760,26 @@ float div_rn(float left, float right) {
   return result;
 }
 
+std::uint32_t abs_s32(std::uint32_t bits) {
+  const std::uint32_t mask = std::uint32_t{0} - (bits >> 31U);
+  return (bits ^ mask) - mask;
+}
+
+float abs_f32(float value) {
+  std::uint32_t bits = 0;
+  static_assert(sizeof(bits) == sizeof(value));
+  (void)std::memcpy(&bits, &value, sizeof(bits));
+  bits &= 0x7fffffffU;
+  float result = 0.0F;
+  (void)std::memcpy(&result, &bits, sizeof(result));
+  return result;
+}
+
+float sqrt_rn(float value) {
+  const volatile float result = std::sqrt(value);
+  return result;
+}
+
 float multiply_rn(float left, float right) {
   volatile float result = left * right;
   return result;
@@ -898,6 +929,18 @@ std::optional<ExecutionResult> execute_one(const Kernel& kernel,
     break;
   case Opcode::MoveImmediateU32:
     values[operation.result] = operation.attribute;
+    ++thread.pc;
+    break;
+  case Opcode::AbsS32:
+    values[operation.result] = abs_s32(std::get<std::uint32_t>(values[operation.inputs[0]]));
+    ++thread.pc;
+    break;
+  case Opcode::AbsF32:
+    values[operation.result] = abs_f32(std::get<float>(values[operation.inputs[0]]));
+    ++thread.pc;
+    break;
+  case Opcode::SqrtRnF32:
+    values[operation.result] = sqrt_rn(std::get<float>(values[operation.inputs[0]]));
     ++thread.pc;
     break;
   case Opcode::AddU32:

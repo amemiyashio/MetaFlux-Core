@@ -62,6 +62,11 @@ OperationContract operation_contract(Opcode opcode) {
     return {true, U32, {}, 0};
   case MoveImmediateU32:
     return {true, U32, {}, 0};
+  case AbsS32:
+    return {true, U32, {U32, U32, U32}, 1};
+  case AbsF32:
+  case SqrtRnF32:
+    return {true, F32, {F32, U32, U32}, 1};
   case AddU32:
   case SubU32:
   case MultiplyLoU32:
@@ -226,6 +231,12 @@ std::string_view opcode_name(Opcode opcode) noexcept {
     return "move_special_u32";
   case MoveImmediateU32:
     return "move_immediate_u32";
+  case AbsS32:
+    return "abs_s32";
+  case AbsF32:
+    return "abs_f32";
+  case SqrtRnF32:
+    return "sqrt_rn_f32";
   case AddU32:
     return "add_u32";
   case SubU32:

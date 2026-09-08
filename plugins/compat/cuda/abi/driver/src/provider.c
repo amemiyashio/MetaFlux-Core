@@ -474,6 +474,111 @@ static const char mf_pytorch_baseline_alphaadd_i32_ptx[] =
     "  ret;\n"
     "}\n";
 
+/* The stock-PyTorch tensor absolute-value kernels map to these neutral PTX
+ * artifacts: exact sign handling over the two-pointer unary shape. */
+static const char mf_pytorch_baseline_absi32_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry abs_i32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 input,\n"
+    "  .param .u64 unused,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [input];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  mov.u32 %r1, %tid.x;\n"
+    "  mov.u32 %r2, %ctaid.x;\n"
+    "  mov.u32 %r3, %ntid.x;\n"
+    "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
+    "  setp.ge.u32 %p, %r4, %r0;\n"
+    "  @%p bra done;\n"
+    "  mul.wide.u32 %rd3, %r4, 4;\n"
+    "  add.u64 %rd4, %rd0, %rd3;\n"
+    "  add.u64 %rd5, %rd1, %rd3;\n"
+    "  ld.global.u32 %r5, [%rd5];\n"
+    "  abs.s32 %r6, %r5;\n"
+    "  st.global.u32 [%rd4], %r6;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
+static const char mf_pytorch_baseline_absf32_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry abs_f32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 input,\n"
+    "  .param .u64 unused,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .f32 %f<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [input];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  mov.u32 %r1, %tid.x;\n"
+    "  mov.u32 %r2, %ctaid.x;\n"
+    "  mov.u32 %r3, %ntid.x;\n"
+    "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
+    "  setp.ge.u32 %p, %r4, %r0;\n"
+    "  @%p bra done;\n"
+    "  mul.wide.u32 %rd3, %r4, 4;\n"
+    "  add.u64 %rd4, %rd0, %rd3;\n"
+    "  add.u64 %rd5, %rd1, %rd3;\n"
+    "  ld.global.f32 %f1, [%rd5];\n"
+    "  abs.f32 %f2, %f1;\n"
+    "  st.global.f32 [%rd4], %f2;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
+/* The stock-PyTorch float32 square-root kernel maps to this neutral PTX
+ * artifact: correctly-rounded sqrt.rn.f32 over the unary shape. */
+static const char mf_pytorch_baseline_sqrtf32_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry sqrt_f32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 input,\n"
+    "  .param .u64 unused,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .f32 %f<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [input];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  mov.u32 %r1, %tid.x;\n"
+    "  mov.u32 %r2, %ctaid.x;\n"
+    "  mov.u32 %r3, %ntid.x;\n"
+    "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
+    "  setp.ge.u32 %p, %r4, %r0;\n"
+    "  @%p bra done;\n"
+    "  mul.wide.u32 %rd3, %r4, 4;\n"
+    "  add.u64 %rd4, %rd0, %rd3;\n"
+    "  add.u64 %rd5, %rd1, %rd3;\n"
+    "  ld.global.f32 %f1, [%rd5];\n"
+    "  sqrt.rn.f32 %f2, %f1;\n"
+    "  st.global.f32 [%rd4], %f2;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
 /* float32 subtract: sub.rn.f32 over the linear-index copy shape. */
 static const char mf_pytorch_baseline_subf32_ptx[] =
     ".version 9.0\n"
@@ -7205,6 +7310,73 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
           module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_SCALAR_MUL_I32_V1,
           mf_pytorch_baseline_scmul_i32_ptx, sizeof(mf_pytorch_baseline_scmul_i32_ptx) - 1U,
           "scalar-mul-i32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "AbsFunctor") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0) {
+      /* torch tensor absolute value: a two-pointer unary shape {out, input}
+         with a stateless functor; int32 and float32 variants share it. */
+      void** abs_data_array = (void**)kernel_parameters[2];
+      const int abs_is_float = strstr(kernel_name, "AbsFunctorIfE") != (char*)0;
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)abs_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)abs_data_array[1];
+      normalized_pointers[2] = normalized_pointers[1];
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record,
+          abs_is_float ? MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ABS_F32_V1
+                       : MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ABS_I32_V1,
+          abs_is_float ? mf_pytorch_baseline_absf32_ptx : mf_pytorch_baseline_absi32_ptx,
+          abs_is_float ? sizeof(mf_pytorch_baseline_absf32_ptx) - 1U
+                       : sizeof(mf_pytorch_baseline_absi32_ptx) - 1U,
+          abs_is_float ? "elementwise-abs-f32" : "elementwise-abs-i32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "sqrt_kernel_cuda") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0) {
+      /* torch tensor square root: a two-pointer unary shape {out, input}
+         with a stateless functor; sqrt.rn.f32 is correctly rounded. */
+      void** sqrt_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)sqrt_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)sqrt_data_array[1];
+      normalized_pointers[2] = normalized_pointers[1];
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SQRT_F32_V1,
+          mf_pytorch_baseline_sqrtf32_ptx, sizeof(mf_pytorch_baseline_sqrtf32_ptx) - 1U,
+          "elementwise-sqrt-f32");
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();
         return result;

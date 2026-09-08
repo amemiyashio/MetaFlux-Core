@@ -17,7 +17,7 @@
 namespace metaflux::compiler::ptx {
 namespace {
 
-constexpr std::array<SupportedForm, 33> kSupportedForms{{
+constexpr std::array<SupportedForm, 36> kSupportedForms{{
     {"ld-param-u64", "ld.param.u64", "b64,param.u64", "param,register", "", 70,
      "load_parameter_address", "bounded global buffer handle"},
     {"ld-param-u32", "ld.param.u32", "b32,param.u32", "param,register", "", 70,
@@ -48,6 +48,12 @@ constexpr std::array<SupportedForm, 33> kSupportedForms{{
      "binary32 round-nearest-even"},
     {"div-rn-f32", "div.rn.f32", "f32,f32,f32", "register", "rn", 70, "div_rn_f32",
      "binary32 round-nearest-even"},
+    {"abs-s32", "abs.s32", "s32,s32", "register", "", 70, "abs_s32",
+     "exact two's-complement absolute value"},
+    {"abs-f32", "abs.f32", "f32,f32", "register", "", 70, "abs_f32",
+     "exact sign-bit clear"},
+    {"sqrt-rn-f32", "sqrt.rn.f32", "f32,f32", "register", "rn", 70, "sqrt_rn_f32",
+     "binary32 correctly-rounded square root"},
     {"mul-rn-f32", "mul.rn.f32", "f32,f32,f32", "register", "rn", 70, "multiply_rn_f32",
      "binary32 round-nearest-even"},
     {"mad-rn-f32", "mad.rn.f32", "f32,f32,f32,f32", "register", "rn,fused", 70, "mad_rn_f32",
@@ -809,6 +815,12 @@ private:
       parse_binary_f32(opcode, Opcode::SubRnF32);
     } else if (opcode.text == "div.rn.f32") {
       parse_binary_f32(opcode, Opcode::DivRnF32);
+    } else if (opcode.text == "abs.f32") {
+      parse_unary_f32(opcode, Opcode::AbsF32);
+    } else if (opcode.text == "sqrt.rn.f32") {
+      parse_unary_f32(opcode, Opcode::SqrtRnF32);
+    } else if (opcode.text == "abs.s32") {
+      parse_unary_u32(opcode, Opcode::AbsS32);
     } else if (opcode.text == "mul.rn.f32") {
       parse_binary_f32(opcode, Opcode::MultiplyRnF32);
     } else if (opcode.text == "mad.rn.f32") {
@@ -1052,6 +1064,26 @@ private:
     if (!failed_ && result.has_value() && base.has_value() && offset.has_value()) {
       add_operation(Opcode::AddGlobalAddress, result->index, {base->index, offset->index}, 0, false,
                     opcode.location);
+    }
+  }
+
+  void parse_unary_f32(const Token& opcode, Opcode kernel_opcode) {
+    const auto result = take_result(DeclaredRegisterKind::F32, ValueKind::F32);
+    comma();
+    const auto input = take_source(DeclaredRegisterKind::F32, ValueKind::F32);
+    semicolon();
+    if (!failed_ && result.has_value() && input.has_value()) {
+      add_operation(kernel_opcode, result->index, {input->index}, 0, false, opcode.location);
+    }
+  }
+
+  void parse_unary_u32(const Token& opcode, Opcode kernel_opcode) {
+    const auto result = take_result(DeclaredRegisterKind::B32, ValueKind::U32);
+    comma();
+    const auto input = take_source(DeclaredRegisterKind::B32, ValueKind::U32);
+    semicolon();
+    if (!failed_ && result.has_value() && input.has_value()) {
+      add_operation(kernel_opcode, result->index, {input->index}, 0, false, opcode.location);
     }
   }
 

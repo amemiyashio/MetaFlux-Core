@@ -63,6 +63,8 @@ bool kernel_uses_floating_point(const metaflux::compiler::Kernel& kernel) {
     using metaflux::compiler::Opcode;
     switch (operation.opcode) {
     case Opcode::LoadParameterF32:
+    case Opcode::AbsF32:
+    case Opcode::SqrtRnF32:
     case Opcode::AddRnF32:
     case Opcode::SubRnF32:
     case Opcode::DivRnF32:
