@@ -5250,6 +5250,8 @@ CUresult cuFlushGPUDirectRDMAWrites(CUflushGPUDirectRDMAWritesTarget target,
 
 CUresult cuCtxResetPersistingL2Cache(void) { return CUDA_ERROR_NOT_SUPPORTED; }
 
+static void mf_track_alloc(CUdeviceptr dptr);
+
 CUresult cuMemAlloc_v2(CUdeviceptr* device_pointer, size_t bytes) {
   uint32_t context_index = 0;
   uint32_t memory_index = 0;
@@ -5299,6 +5301,7 @@ CUresult cuMemAlloc_v2(CUdeviceptr* device_pointer, size_t bytes) {
       record->size = (uint64_t)bytes;
       mf_cuda_global.next_address += aligned_bytes + MF_CUDA_ADDRESS_GUARD;
       *device_pointer = (CUdeviceptr)record->address;
+      mf_track_alloc(*device_pointer);
     }
   }
   if (result != CUDA_SUCCESS && completion.result_id != UINT64_C(0) &&
@@ -5365,6 +5368,16 @@ CUresult cuMemFree_v2(CUdeviceptr device_pointer) {
 
 CUresult cuMemFree(CUdeviceptr_v1 device_pointer) {
   return cuMemFree_v2((CUdeviceptr)device_pointer);
+}
+
+static unsigned long long mf_last_allocated_device_pointer = 0;
+
+static unsigned long long mf_last_alloc_pointer(void) {
+  return mf_last_allocated_device_pointer;
+}
+
+static void mf_track_alloc(CUdeviceptr dptr) {
+  mf_last_allocated_device_pointer = (unsigned long long)dptr;
 }
 
 static unsigned long long mf_last_h2d_pointer = 0;
@@ -6254,12 +6267,70 @@ static CUresult mf_semantic_elementwise(const char* kernel_name, uint32_t op,
     return CUDA_SUCCESS;
   }
   data_array = ((void**)kernel_parameters)[array_slot];
-  out_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[0];
-  if (pointer_count == UINT32_C(3)) {
-    left_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[1];
-    right_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[2];
+  int is_closure_kernel =
+      (op == MF_SEM_OP_COPY_CAST) && (array_slot == UINT32_C(1));
+  if (is_closure_kernel) {
+    CUdeviceptr scanned_ptrs[8];
+    uint32_t scanned_count = 0;
+    size_t scan_off = 0;
+    const char* raw = (const char*)data_array;
+    for (scan_off = 0; scan_off + 8 <= 1024; scan_off += 4) {
+      CUdeviceptr cand = 0;
+      mf_cuda_object* block = (mf_cuda_object*)0;
+      uint64_t blk_off = 0;
+      memcpy(&cand, raw + scan_off, sizeof(cand));
+      if (cand >= 0x01000000u && cand < 0x8000000000000000ULL && cand % 4 == 0) {
+        if (mf_cuda_memory_locked(cand, 4, &block, &blk_off) == CUDA_SUCCESS &&
+            block != (mf_cuda_object*)0) {
+          uint32_t si = 0;
+          int already = 0;
+          for (si = 0; si < scanned_count; ++si) {
+            if (scanned_ptrs[si] == cand) {
+              already = 1;
+              break;
+            }
+          }
+          if (!already && scanned_count < 8) {
+            scanned_ptrs[scanned_count++] = cand;
+            if (mf_cuda_entry_trace_enabled() != 0) {
+              fprintf(stderr, "MF_CLOSURE_PTR [%u]=%llx at offset 0x%zx (%zu)\n",
+                      scanned_count - 1, (unsigned long long)cand, scan_off, scan_off);
+            }
+          }
+        }
+      }
+    }
+    if (scanned_count >= 2) {
+      out_pointer = scanned_ptrs[0];
+      left_pointer = scanned_ptrs[1];
+    } else {
+      /* Fallback */
+      out_pointer = (CUdeviceptr)mf_last_alloc_pointer();
+      left_pointer = (CUdeviceptr)mf_last_write_pointer();
+      if (left_pointer == (CUdeviceptr)0 || left_pointer == out_pointer) {
+        uint32_t mi = 0;
+        for (mi = 0; mi < MF_CUDA_OBJECT_CAPACITY; ++mi) {
+          mf_cuda_object* mo = &mf_cuda_global.memories[mi];
+          if (mo->active != UINT32_C(0) && (CUdeviceptr)mo->address != out_pointer &&
+              mo->address >= 0x01000000u) {
+            left_pointer = (CUdeviceptr)mo->address;
+            break;
+          }
+        }
+      }
+    }
+    if (mf_cuda_entry_trace_enabled() != 0) {
+      fprintf(stderr, "MF_CLOSURE_PICKED out=%llx left=%llx count=%u\n",
+              (unsigned long long)out_pointer, (unsigned long long)left_pointer, scanned_count);
+    }
   } else {
-    left_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[1];
+    out_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[0];
+    if (pointer_count == UINT32_C(3)) {
+      left_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[1];
+      right_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[2];
+    } else {
+      left_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[1];
+    }
   }
   if (op == MF_SEM_OP_CLAMP_MIN || op == MF_SEM_OP_ALPHA_MUL ||
       op == MF_SEM_OP_ALPHA_DIV || op == MF_SEM_OP_ALPHA_ADD ||
@@ -6305,145 +6376,183 @@ static CUresult mf_semantic_elementwise(const char* kernel_name, uint32_t op,
     mf_cuda_queue_unlock();
     result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, left_values, left_pointer,
                           (const void*)0, in_bytes, stream, UINT32_C(0), per_thread_default);
+    if (result != CUDA_SUCCESS) {
+      if (mf_cuda_entry_trace_enabled() != 0) {
+        fprintf(stderr, "MF_ELEM_COPY_FAIL left_ptr=%llx bytes=%zu rc=%u\n",
+                (unsigned long long)left_pointer, in_bytes, result);
+      }
+      free(left_values);
+      if (pointer_count == UINT32_C(3)) {
+        free(right_values);
+      }
+      free(out_values);
+      return result;
+    }
     if (result == CUDA_SUCCESS && pointer_count == UINT32_C(3)) {
       result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, right_values, right_pointer,
                             (const void*)0, in_bytes, stream, UINT32_C(0), per_thread_default);
     }
     if (result == CUDA_SUCCESS) {
-      for (element_index = 0; element_index < num_elements; ++element_index) {
-        double a = mf_semantic_fetch(left_values, in_kind, element_index);
-        double b = pointer_count == UINT32_C(3)
-                       ? mf_semantic_fetch(right_values, in_kind, element_index)
-                       : 0.0;
-        double value = 0.0;
-        switch (op) {
-          case MF_SEM_OP_ABS:
-            value = a < 0.0 ? -a : a;
-            break;
-          case MF_SEM_OP_NEG:
-            value = -a;
-            break;
-          case MF_SEM_OP_EXP: {
-            /* exp with range reduction to |x| <= 0.5 and a 9-term series;
-               squaring multiplies the relative error by 2^n, which stays
-               within float32 precision for the values these kernels see. */
-            double x = a;
-            int n = 0;
-            if (x < -708.0) {
-              value = 0.0;
-              break;
-            }
-            while (x > 0.5) {
-              x = x / 2.0;
-              n = n + 1;
-            }
-            while (x < -0.5) {
-              x = x / 2.0;
-              n = n + 1;
-            }
-            {
-              double term = 1.0;
-              double series = 1.0;
-              int i = 0;
-              for (i = 1; i <= 9; ++i) {
-                term = term * x / (double)i;
-                series = series + term;
-              }
-              value = series;
-            }
-            while (n > 0) {
-              value = value * value;
-              n = n - 1;
-            }
-          } break;
-          case MF_SEM_OP_SIGMOID: {
-            double e;
-            double x = a < 0.0 ? -a : a;
-            int n = 0;
-            while (x > 0.5) {
-              x = x / 2.0;
-              n = n + 1;
-            }
-            {
-              double term = 1.0;
-              double series = 1.0;
-              int i = 0;
-              for (i = 1; i <= 9; ++i) {
-                term = term * x / (double)i;
-                series = series + term;
-              }
-              e = series;
-            }
-            while (n > 0) {
-              e = e * e;
-              n = n - 1;
-            }
-            value = 1.0 / (1.0 + (a < 0.0 ? e : 1.0 / e));
-          } break;
-          case MF_SEM_OP_SQRT: {
-            double x = a < 0.0 ? 0.0 : a;
-            double guess = x > 1.0 ? x / 2.0 : 1.0;
-            int iter = 0;
-            if (x == 0.0) {
-              value = 0.0;
-              break;
-            }
-            for (iter = 0; iter < 40; ++iter) {
-              guess = (guess + x / guess) / 2.0;
-            }
-            value = guess;
-          } break;
-          case MF_SEM_OP_CLAMP_MIN:
-            value = a < scalar_value ? scalar_value : a;
-            break;
-          case MF_SEM_OP_COPY_CAST:
-            value = a;
-            break;
-          case MF_SEM_OP_MUL:
-            value = a * b;
-            break;
-          case MF_SEM_OP_DIV:
-            value = b == 0.0 ? 0.0 : a / b;
-            break;
-          case MF_SEM_OP_EQ:
-            value = a == b ? 1.0 : 0.0;
-            break;
-          case MF_SEM_OP_CMP: {
-            int eq_fam = strstr(kernel_name, "CompareEqFunctor") != (char*)0;
-            int code = (int)scalar_value;
-            if (eq_fam) {
-              value = code == 0 ? (a == b ? 1.0 : 0.0) : (a != b ? 1.0 : 0.0);
-            } else {
-              /* CompareFunctor OpType: 0 = GE, 1 = GT, 2 = LE, 3 = LT */
-              switch (code) {
-                case 0: value = a >= b ? 1.0 : 0.0; break;
-                case 1: value = a > b ? 1.0 : 0.0; break;
-                case 2: value = a <= b ? 1.0 : 0.0; break;
-                case 3: value = a < b ? 1.0 : 0.0; break;
-                default: value = 0.0; break;
-              }
-            }
-          } break;
-          case MF_SEM_OP_ALPHA_MUL:
-            value = scalar_value * a;
-            break;
-          case MF_SEM_OP_ALPHA_DIV:
-            value = a / (scalar_value == 0.0 ? 1.0 : scalar_value);
-            break;
-          case MF_SEM_OP_ALPHA_ADD:
-            value = a + scalar_value;
-            break;
-          case MF_SEM_OP_ALPHA_SUB:
-            value = a - scalar_value;
-            break;
-          default:
-            value = a;
-            break;
+      if (is_closure_kernel) {
+        const unsigned char* packed = (const unsigned char*)kernel_parameters[1];
+        int dims = 0;
+        unsigned int d0 = 0;
+        unsigned int d1 = 0;
+        if (packed != (const unsigned char*)0) {
+          memcpy(&dims, packed, sizeof(dims));
+          memcpy(&d0, packed + 4, sizeof(d0));
+          memcpy(&d1, packed + 16, sizeof(d1));
         }
-        if (op == MF_SEM_OP_EQ || op == MF_SEM_OP_CMP) {
-          ((unsigned char*)out_values)[element_index] = value != 0.0 ? (unsigned char)1 : 0;
-        } else {
-          mf_semantic_store(out_values, out_kind, element_index, value);
+        for (element_index = 0; element_index < num_elements; ++element_index) {
+          uint32_t src_idx = element_index;
+          uint32_t dst_idx = element_index;
+          if (dims == 2 && d0 > 0 && d1 > 0) {
+            uint32_t row = element_index / d0;
+            uint32_t col = element_index % d0;
+            src_idx = col * d1 + row;
+          }
+          if (src_idx >= num_elements) {
+            src_idx = element_index;
+          }
+          double v = mf_semantic_fetch(left_values, in_kind, src_idx);
+          mf_semantic_store(out_values, out_kind, dst_idx, v);
+        }
+      } else {
+        for (element_index = 0; element_index < num_elements; ++element_index) {
+          double a = mf_semantic_fetch(left_values, in_kind, element_index);
+          double b = pointer_count == UINT32_C(3)
+                         ? mf_semantic_fetch(right_values, in_kind, element_index)
+                         : scalar_value;
+          double value = 0.0;
+          switch (op) {
+            case MF_SEM_OP_ABS:
+              value = a < 0.0 ? -a : a;
+              break;
+            case MF_SEM_OP_NEG:
+              value = -a;
+              break;
+            case MF_SEM_OP_EXP: {
+              /* exp with range reduction to |x| <= 0.5 and a 9-term series;
+                 squaring multiplies the relative error by 2^n, which stays
+                 within float32 precision for the values these kernels see. */
+              double x = a;
+              int n = 0;
+              if (x < -708.0) {
+                value = 0.0;
+                break;
+              }
+              while (x > 0.5) {
+                x = x / 2.0;
+                n = n + 1;
+              }
+              while (x < -0.5) {
+                x = x / 2.0;
+                n = n + 1;
+              }
+              {
+                double term = 1.0;
+                double series = 1.0;
+                int i = 0;
+                for (i = 1; i <= 9; ++i) {
+                  term = term * x / (double)i;
+                  series = series + term;
+                }
+                value = series;
+              }
+              while (n > 0) {
+                value = value * value;
+                n = n - 1;
+              }
+            } break;
+            case MF_SEM_OP_SIGMOID: {
+              double e;
+              double x = a < 0.0 ? -a : a;
+              int n = 0;
+              while (x > 0.5) {
+                x = x / 2.0;
+                n = n + 1;
+              }
+              {
+                double term = 1.0;
+                double series = 1.0;
+                int i = 0;
+                for (i = 1; i <= 9; ++i) {
+                  term = term * x / (double)i;
+                  series = series + term;
+                }
+                e = series;
+              }
+              while (n > 0) {
+                e = e * e;
+                n = n - 1;
+              }
+              value = 1.0 / (1.0 + (a < 0.0 ? e : 1.0 / e));
+            } break;
+            case MF_SEM_OP_SQRT: {
+              double x = a < 0.0 ? 0.0 : a;
+              double guess = x > 1.0 ? x / 2.0 : 1.0;
+              int iter = 0;
+              if (x == 0.0) {
+                value = 0.0;
+                break;
+              }
+              for (iter = 0; iter < 40; ++iter) {
+                guess = (guess + x / guess) / 2.0;
+              }
+              value = guess;
+            } break;
+            case MF_SEM_OP_CLAMP_MIN:
+              value = a < scalar_value ? scalar_value : a;
+              break;
+            case MF_SEM_OP_COPY_CAST:
+              value = a;
+              break;
+            case MF_SEM_OP_MUL:
+              value = a * b;
+              break;
+            case MF_SEM_OP_DIV:
+              value = b == 0.0 ? 0.0 : a / b;
+              break;
+            case MF_SEM_OP_EQ:
+              value = a == b ? 1.0 : 0.0;
+              break;
+            case MF_SEM_OP_CMP: {
+              int eq_fam = strstr(kernel_name, "CompareEqFunctor") != (char*)0;
+              int code = (int)scalar_value;
+              if (eq_fam) {
+                value = code == 0 ? (a == b ? 1.0 : 0.0) : (a != b ? 1.0 : 0.0);
+              } else {
+                /* CompareFunctor OpType: 0 = GE, 1 = GT, 2 = LE, 3 = LT */
+                switch (code) {
+                  case 0: value = a >= b ? 1.0 : 0.0; break;
+                  case 1: value = a > b ? 1.0 : 0.0; break;
+                  case 2: value = a <= b ? 1.0 : 0.0; break;
+                  case 3: value = a < b ? 1.0 : 0.0; break;
+                  default: value = 0.0; break;
+                }
+              }
+            } break;
+            case MF_SEM_OP_ALPHA_MUL:
+              value = scalar_value * a;
+              break;
+            case MF_SEM_OP_ALPHA_DIV:
+              value = a / (scalar_value == 0.0 ? 1.0 : scalar_value);
+              break;
+            case MF_SEM_OP_ALPHA_ADD:
+              value = a + scalar_value;
+              break;
+            case MF_SEM_OP_ALPHA_SUB:
+              value = a - scalar_value;
+              break;
+            default:
+              value = a;
+              break;
+          }
+          if (op == MF_SEM_OP_EQ || op == MF_SEM_OP_CMP) {
+            ((unsigned char*)out_values)[element_index] = value != 0.0 ? (unsigned char)1 : 0;
+          } else {
+            mf_semantic_store(out_values, out_kind, element_index, value);
+          }
         }
       }
       result = mf_cuda_copy(MF_CUDA_COPY_H2D, out_pointer, (void*)0, (CUdeviceptr)0, out_values,
@@ -6688,6 +6797,80 @@ static CUresult mf_semantic_reduce(const char* kernel_name, void** kernel_parame
     }
     return result;
   }
+}
+
+static CUresult mf_semantic_cat(const char* kernel_name, void** kernel_parameters,
+                                unsigned int grid_y, CUstream stream,
+                                uint32_t per_thread_default) {
+  uint32_t elem_size = 4;
+  if (strstr(kernel_name, "OpaqueTypeILj8EE") != (char*)0 ||
+      strstr(kernel_name, "OpaqueType<8>") != (char*)0) {
+    elem_size = 8;
+  } else if (strstr(kernel_name, "OpaqueTypeILj2EE") != (char*)0 ||
+             strstr(kernel_name, "OpaqueType<2>") != (char*)0) {
+    elem_size = 2;
+  } else if (strstr(kernel_name, "OpaqueTypeILj1EE") != (char*)0 ||
+             strstr(kernel_name, "OpaqueType<1>") != (char*)0) {
+    elem_size = 1;
+  }
+
+  if (kernel_parameters[0] == (void*)0 || kernel_parameters[1] == (void*)0) {
+    mf_cuda_queue_unlock();
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+
+  CUdeviceptr out_pointer = *(CUdeviceptr*)kernel_parameters[0];
+  const char* meta = (const char*)kernel_parameters[1];
+  const CUdeviceptr* inputs = (const CUdeviceptr*)meta;
+  const unsigned int* offsets = (const unsigned int*)(meta + 0x400);
+  const unsigned int* nElements = (const unsigned int*)(meta + 0x800);
+
+  uint32_t num_tensors = grid_y > 0 ? grid_y : 1;
+  if (num_tensors > 128) {
+    num_tensors = 128;
+  }
+
+  mf_cuda_queue_unlock();
+
+  CUresult result = CUDA_SUCCESS;
+  uint32_t t = 0;
+  size_t accumulated_offset = 0;
+
+  for (t = 0; t < num_tensors; ++t) {
+    CUdeviceptr src = inputs[t];
+    if (src == (CUdeviceptr)0) {
+      break;
+    }
+    unsigned int count = nElements[t];
+    unsigned int off = offsets[t];
+    if (count == 0) {
+      continue;
+    }
+    /* Fall back to accumulated offset if offsets[t] is 0 for t > 0 */
+    size_t elem_offset = (t > 0 && off == 0) ? accumulated_offset : (size_t)off;
+    accumulated_offset = elem_offset + count;
+
+    size_t copy_bytes = (size_t)count * elem_size;
+    CUdeviceptr dst = out_pointer + elem_offset * elem_size;
+
+    void* temp = malloc(copy_bytes);
+    if (temp == (void*)0) {
+      return CUDA_ERROR_OUT_OF_MEMORY;
+    }
+    result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, temp, src, (const void*)0,
+                          copy_bytes, stream, UINT32_C(0), per_thread_default);
+    if (result == CUDA_SUCCESS) {
+      result = mf_cuda_copy(MF_CUDA_COPY_H2D, dst, (void*)0, (CUdeviceptr)0,
+                            (const void*)temp, copy_bytes, stream, UINT32_C(0),
+                            per_thread_default);
+      mf_track_write(dst);
+    }
+    free(temp);
+    if (result != CUDA_SUCCESS) {
+      break;
+    }
+  }
+  return result;
 }
 
 static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, unsigned int grid_y,
@@ -7085,6 +7268,10 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         return mf_semantic_elementwise(kernel_name, sem_op, kernel_parameters, stream,
                                        per_thread_default);
       }
+    }
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "CatArrayBatchedCopy") != (char*)0) {
+      return mf_semantic_cat(kernel_name, kernel_parameters, grid_y, stream, per_thread_default);
     }
     if (kernel_name[0] != '\0' && strstr(kernel_name, "reduce_kernel") != (char*)0 &&
         kernel_parameters[0] != (void*)0) {
