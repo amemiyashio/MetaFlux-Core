@@ -6,7 +6,7 @@ status: Complete
 depends_on: [milestone-0.1.1.0]
 areas: [lifecycle, kernel.vroot, presentation.vpci]
 kernel_validation: [Linux 6.12 LTS, Linux 6.18 LTS]
-updated: 2026-09-06
+updated: 2026-09-08
 ---
 
 # milestone-0.1.2.0: Lifecycle and vPCI Presentation
@@ -185,28 +185,14 @@ Performance and release:
 - Real vendor nodes/libraries remain untouched. Generic artifacts require no
   `/nix/store` runtime path.
 
-## Decisions to Close
+## Decision Closure
 
-1. Exact lifecycle deadline and old-work isolation policy.
-2. Persistence format for the generation-candidate high-water mark, committed
-   retirement epoch, and `daemon_incarnation_id`.
-3. Bare-metal domain/bus/devfn allocation and maximum logical functions.
-4. Release VID/DID and optional custom identity workflow, including the
-   registration and legal review that a synthetic NVIDIA presentation identity
-   requires before any release promotion.
-5. Exact supported kernel/distribution matrix.
-6. Namespace launcher ownership and alias allowlist.
-7. Module-signing and Secure Boot workflow.
-
-Items 1-2 freeze only after work-item-0.1.2.3 core qualification. Item 3 freezes only for
-the experimental vroot package after work-item-0.1.2.4 promotion evidence. Items 6-7 gate
-work-item-0.1.2.4 package promotion; item 7 also gates work-item-0.1.2.5 core release packaging.
-
-Convergence (2026-09-06): items 1-2 closed with the work-item-0.1.2.3
-qualification and model-check evidence; item 3 closed for the experimental
-package with the work-item-0.1.2.4 suites; items 4-7 close as policy surface
-with the milestone-1.0.0.0 stable manifest (release identity and signing
-workflow), and no vroot promotion is claimed.
+Lifecycle deadlines, old-work isolation, persistent generation identity, and
+the experimental vroot allocation boundary closed with work-item-0.1.2.3 and
+work-item-0.1.2.4 evidence. Released identity, supported kernel/distribution
+rows, namespace aliases, and module-signing/Secure Boot remain unresolved
+release policy and are owned once, by milestone-1.0.0.0. No vroot promotion is
+claimed.
 
 ## Definition of Done
 

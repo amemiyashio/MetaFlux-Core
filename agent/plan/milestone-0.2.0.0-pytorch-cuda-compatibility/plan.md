@@ -4,108 +4,153 @@ delivery: 0.2.0.0
 release: v0.2.0
 status: Active
 budgets: provisional
-depends_on: [milestone-0.1.0.0]
-areas: [compat.cuda, compiler.cpu, backend.cpu, backend.vulkan, compatibility]
+depends_on: [milestone-0.1.0.0, milestone-0.1.1.0, milestone-0.1.2.0, milestone-0.1.3.0]
+areas: [compat.cuda, compiler, compiler.cpu, compiler.spirv, backend.cpu, backend.vulkan, compatibility]
 updated: 2026-09-08
 ---
 
-# milestone-0.2.0.0: PyTorch CUDA Compatibility
+# milestone-0.2.0.0: MLIR CUDA and PyTorch CUDA Foundation
 
 ## Outcome
 
-Make unmodified PyTorch CUDA clients fully usable through MetaFlux: torch
-enumerates the virtual device, loads its kernels, and executes eager CUDA
-operations end-to-end with bit-exact results through the managed daemon, on
-the CPU backend first and through daemon-routed Vulkan execution as the
-second target.
+Make the pinned PyTorch CUDA baseline usable for an explicit, versioned
+operation corpus through a clear MLIR CUDA route. The CUDA compatibility
+provider presents the client surface and translates recognized profile input
+into an ecosystem-neutral request. The daemon/compiler worker validates that
+request into canonical Kernel IR; backend-owned MLIR pipelines lower the same
+semantics to CPU/LLVM first and Vulkan/SPIR-V second.
 
-The milestone occupies the `v0.2.0` delivery slot; the native NixOS
-VM/package support expansion moves to the reserved `v0.3.0` slot. It promotes the
-[PyTorch compatibility roadmap](../pytorch-compatibility-roadmap.md) probes
-into a formal product line. Probe-only evidence stays diagnostic until a work
-item here records it as qualification evidence.
+This is a bounded compatibility profile, not a claim that every PyTorch
+operation, CUDA library, cubin, or vendor kernel is supported. The milestone
+occupies the `v0.2.0` delivery slot; native NixOS VM/package support remains
+reserved for `v0.3.0`.
 
-## Starting Evidence (2026-09-06)
+## Current Evidence
 
-The baseline probe (PyTorch 2.11.0+cu126, CPython 3.13.15, warm-jit daemon)
-passed the import stage and failed driver enumeration: torch reports zero
-devices with driver error 36 from its cudart initialization sequence, while
-direct driver-API enumeration through the same provider and daemon returns
-one `MetaFlux Virtual Compute Device`. The daemon currently routes client
-execution to the CPU backend only; the Vulkan backend executes kernels in its
-own probes and tests but has no daemon execution mode.
+The repository contains the pinned baseline/frontier client manifest, a
+five-stage probe, provider ABI and semantics tests, and a provider prototype
+that parses client fatbins and recognizes selected PyTorch kernel names. The
+prototype executes selected tensor operations in the application-side provider
+by copying data to host buffers.
+
+CTest currently runs the probe logic against a fake torch object; it does not
+run the pinned real client or the claimed common-operator corpus. Deferred
+client cubins also bypass daemon artifact registration and module launch.
+Therefore earlier manual 5/5 and 41/41 observations establish a useful
+prototype, but not integrated CPU-backend execution or milestone qualification.
+
+## Evidence and Execution Boundary (decision-0044)
+
+decision-0044 makes source/test truth explicit after the prototype work crossed
+work-item and component boundaries:
+
+1. A baseline or corpus pass is acceptance evidence only when a checked-in gate
+   runs the pinned real client against a stock daemon and records exact profile,
+   source, tool, and backend identity. Fake probe self-tests validate probe
+   control flow only.
+2. The selected route is CUDA/PyTorch client profile -> versioned
+   ecosystem-neutral framework-kernel request -> verified canonical Kernel IR
+   -> backend-owned MLIR lowering. PTX-bearing inputs continue through the PTX
+   frontend; recognized cubin metadata may select a declared profile operation,
+   but unrestricted SASS/cubin decoding is outside this milestone.
+3. MLIR is an epoch-local compiler-worker implementation detail. It never
+   crosses the provider, neutral protocol, durable Kernel IR, or backend C ABI.
+   The CPU branch ends in LLVM IR/PIC ELF; the Vulkan branch lowers directly to
+   target-constrained SPIR-V and never passes through LLVM IR.
+4. The CUDA provider may present ABI and translate profile-specific client
+   semantics, but tensor arithmetic and result materialization belong behind
+   the neutral protocol in the daemon/backend execution path.
+5. Reverse-engineered cudart internal tables are profile-specific observations,
+   not CUDA Driver guarantees. Their entries require an explicit behavior
+   classification and negative coverage.
+6. Operator coverage is the exact checked-in corpus manifest, never an
+   unqualified percentage or a claim of general PyTorch usability.
+
+The provider-local semantic router remains implementation evidence to migrate,
+not a release contract or a qualified backend. Git retains the discarded
+debugging chronology and unbound benchmark notes.
 
 ## Foundation-First Sequencing (decision-0043)
 
-`v0.2.0` is the active product target before stable-release qualification.
-The current 41-case operator sweep and baseline probe are useful compatibility
-evidence, but they do not establish a stable public surface or general PyTorch
-CUDA coverage. Work therefore proceeds through three ordered boundaries:
+Work proceeds through three ordered boundaries:
 
-1. close the baseline client contract, including invalid and stale handle
-   behavior, the required Driver API surface, probe manifest, and cache identity;
-2. select and qualify a durable kernel-intake strategy with bit-exact eager
-   execution on the CPU backend;
-3. qualify framework lifecycle semantics and daemon-routed Vulkan execution.
+1. close the pinned CUDA/PyTorch client contract and its real-client evidence;
+2. establish the neutral framework request, canonical Kernel IR boundary, and
+   backend-owned MLIR-to-CPU execution path;
+3. qualify PyTorch CUDA lifecycle semantics and route the same Kernel IR corpus
+   through the independent Vulkan/SPIR-V branch.
 
-milestone-1.0.0.0 remains queued until this foundation passes its Definition of
-Done. The selected operator corpus is reported as a bounded corpus, never as a
-claim that every PyTorch, CUDA library, or vendor kernel is supported.
+milestone-1.0.0.0 remains queued until all three boundaries pass.
 
 ## Scope
 
 Included:
 
-- The provider driver-API surface torch's cudart/ATen initialization needs,
-  proven through the pinned baseline client.
-- Kernel-intake and module-loading strategy for torch CUDA kernels within the
-  decision-0017 epoch rules, including the manifest/corpus revision path when
-  torch's PTX forms leave the frozen envelope.
-- Eager-operation execution through the daemon: enumeration, copy, kernel
-  launch, synchronization, and bit-exact verification against the CPU/torch
-  CPU reference.
-- Daemon execution routing for framework clients beyond the CPU backend,
-  with Vulkan execution as the second target under its own qualification rows.
-- Release-facing qualification of the pinned baseline and frontier client
-  profiles.
+- The exact Driver API and profile-specific internal surface required by the
+  pinned cudart/ATen client, with normative, observed, and
+  MetaFlux-strengthened behavior kept distinct.
+- Staged checked-in real-client gates: import, driver enumeration, and runtime
+  copy close the client contract; artifact intake and eager add close with
+  neutral CPU execution.
+- A versioned, ecosystem-neutral framework-kernel request that the
+  daemon/compiler worker validates into canonical Kernel IR.
+- Backend-owned MLIR conversion with explicit legality: CPU lowers through the
+  LLVM dialect to PIC ELF, while Vulkan lowers directly to validated SPIR-V.
+- Daemon-routed CPU and Vulkan execution with bit-exact differential evidence.
+- Framework stream, event, allocator, synchronization, teardown, and daemon-loss
+  behavior required by the pinned profile.
+- Release-facing baseline and frontier gap manifests.
 
 Excluded:
 
-- Vendor-private RM/UVM, NCCL, cuBLAS/cuDNN vendored-binary execution, or any
-  promise that torch's closed prebuilt SASS runs without the kernel-intake
-  strategy above.
-- Physical dual-driver rows, which stay in milestone-2.0.0.0 (decision-0040).
+- Provider-local tensor arithmetic as an accepted execution backend.
+- Vendor-private RM/UVM, NCCL, vendored cuBLAS/cuDNN execution, or unrestricted
+  SASS/cubin execution.
+- Physical dual-driver rows, which remain milestone-2.0.0.0 scope
+  (decision-0040).
 - Any relaxation of the frozen PTX 9.0/`sm_70` oracle without a compiler-epoch
   review.
 
+## Workstreams
+
+| Workstream | Status | Deliverable |
+| --- | --- | --- |
+| [work-item-0.2.0.1](work/work-item-0.2.0.1-torch-client-bringup.md) | Active | Pinned client contract and real-client gate |
+| [work-item-0.2.0.2](work/work-item-0.2.0.2-torch-kernel-intake.md) | Active | Kernel IR and MLIR CPU pipeline |
+| [work-item-0.2.0.3](work/work-item-0.2.0.3-framework-qualification.md) | Draft | PyTorch CUDA multi-backend qualification |
+
 ## Global Acceptance
 
-- The baseline profile reaches probe stage `complete` (import,
-  driver-enumeration, runtime-copy, artifact-intake, eager-add all pass)
-  against a stock daemon with no client-side patches.
-- Eager operations produce results bit-exact against the torch CPU reference
-  on the qualified host.
-- Every kernel-intake expansion carries its manifest/corpus revision evidence
-  and cache-identity bump.
-- milestone-0.1.x suites remain green with the framework client installed but
-  idle.
+- A checked-in gate runs the pinned real client through all five baseline stages
+  against a stock daemon with no client patch.
+- The versioned eager corpus is bit-exact against the torch CPU reference
+  through actual daemon submissions on CPU and Vulkan.
+- Provider surface, profile manifest, neutral request schema, Kernel IR schema,
+  compiler pipeline, target environment, and cache identities advance together.
+- Unsupported profile operations fail with stable classified errors and no
+  wrong-data path.
+- The cumulative milestone-0.1.x suites remain green with the framework client
+  installed but idle.
 
 ## Decisions to Close
 
-1. Kernel-intake strategy for torch kernels: arch-pinned PTX-bearing client
-   profiles versus a cubin/SASS intake worker (the deferred 0.1.3.0 research).
-2. The exact provider driver-API surface set required by cudart/ATen init.
-3. Daemon execution-mode surface for framework clients and its cache identity.
-4. Vulkan daemon routing shape and its qualification matrix.
+1. Exact versioned ecosystem-neutral framework-kernel request schema and
+   lifetime used to translate the pinned client profile into canonical Kernel
+   IR without CUDA, PyTorch, MLIR, or target-specific types crossing the wire.
+2. Exact provider Driver API and profile-specific internal-table surface required
+   by pinned cudart/ATen, with behavior provenance.
+3. Library-backed operator boundary, including whether matmul is supported
+   without vendored cuBLAS execution.
+4. Daemon execution-mode surface for framework clients and its cache identity.
+5. Vulkan daemon routing shape and its qualification matrix.
 
 ## Definition of Done
 
-milestone-0.2.0.0 is complete when the pinned baseline client passes the full
-probe through a stock daemon, the eager-operation corpus is bit-exact, the
-daemon routes framework clients to a qualified execution backend (CPU first;
-Vulkan when its rows close), frontier-profile gaps are recorded, and the
-cumulative 0.1.x regression stays green. Released artifacts follow the
-decision-0012 generic package policy.
+milestone-0.2.0.0 is complete only when work-item-0.2.0.1 through
+work-item-0.2.0.3 pass their Exit Gates from named revisions, the checked-in
+real-client and corpus gates pass through both daemon backends, unsupported
+operations remain explicit, and the cumulative milestone-0.1.x regression is
+green. Released artifacts follow the decision-0012 generic package policy.
 
 ## References
 

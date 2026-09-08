@@ -148,7 +148,8 @@ Release compatibility:
   the provider glibc symbol ceiling.
 - Ubuntu 20.04.6, Ubuntu 22.04.5, Ubuntu 24.04.4, and Rocky Linux 9.8 comprise
   the `v0.1.0` generic matrix. Native NixOS VM/package qualification belongs to
-  `v0.2.0`.
+  the unallocated `v0.3.0` support expansion after `v0.2.0` was assigned to the
+  MLIR CUDA and PyTorch CUDA foundation.
 - Packages never replace vendor-owned libraries or devices.
 - Managed and passthrough files coexist through explicit loader paths or isolated
   namespaces.
@@ -183,7 +184,7 @@ separate release matrix; this decision does not substitute for those gates.
 
 | ID | Resolution | Canonical detail | Verification state |
 | --- | --- | --- | --- |
-| decision-0012 | Freeze the `v0.1.0` four-distribution generic package matrix without raising the glibc 2.31 floor; move native NixOS qualification to `v0.2.0`. | [work-item-0.1.0.1](work/work-item-0.1.0.1-build-toolchain.md#release-qualification-matrix-decision-0012) | Policy verified; provider matrix passed once and complete matrix passed twice. |
+| decision-0012 | Freeze the `v0.1.0` four-distribution generic package matrix without raising the glibc 2.31 floor; the original `v0.2.0` native NixOS reservation is now the unallocated `v0.3.0` support expansion. | [work-item-0.1.0.1](work/work-item-0.1.0.1-build-toolchain.md#release-qualification-matrix-decision-0012) | Generic policy verified; later plan allocation changed only the NixOS delivery slot. |
 | decision-0013 | Discover vendor CUDA/NVML only as one validated, same-build absolute-path pair under distribution whitelists or the root-owned override. | [work-item-0.1.0.6](work/work-item-0.1.0.6-modes-release.md#vendor-library-discovery-decision-0013) | Policy frozen; coexistence fixtures remain a release gate. |
 | decision-0014 | Isolate mutable compiler cache content per peer-credential UID with fixed quotas, atomic publication, deterministic eviction, and a separate read-only AOT tier. | [work-item-0.1.0.3](work/work-item-0.1.0.3-compiler-cpu.md#cache-isolation-and-eviction-decision-0014) | Policy frozen; fault and quota tests remain work-item-0.1.0.3 gates. |
 | decision-0015 | Derive workers from effective physical cores, keep NUMA-local pools and CTA-granularity work, and disable cross-node stealing by default. | [work-item-0.1.0.3](work/work-item-0.1.0.3-compiler-cpu.md#cpu-and-numa-placement-decision-0015) | Policy and AMD evidence verified; Intel x86_64 support qualification belongs to milestone-2.0.0.0 / `v2.0.0` under decision-0040. |

@@ -1,7 +1,7 @@
 ---
 status: Current
 decision: decision-0024
-updated: 2026-08-30
+updated: 2026-09-08
 ---
 
 # Release And Delivery Versioning
@@ -27,24 +27,24 @@ The approved delivery line is:
 | [milestone-0.1.1.0](../agent/plan/milestone-0.1.1.0-kernel-guest-transport/plan.md) | `v0.1.1` | `0.1.1.0` | Local cdev and static guest transport |
 | [milestone-0.1.2.0](../agent/plan/milestone-0.1.2.0-vpci-lifecycle/plan.md) | `v0.1.2` | `0.1.2.0` | Lifecycle and experimental vPCI presentation |
 | [milestone-0.1.3.0](../agent/plan/milestone-0.1.3.0-vulkan-backend/plan.md) | `v0.1.3` | `0.1.3.0` | Vulkan execution backend |
-| [milestone-0.2.0.0](../agent/plan/milestone-0.2.0.0-pytorch-cuda-compatibility/plan.md) | `v0.2.0` | `0.2.0.0` | PyTorch CUDA compatibility |
+| [milestone-0.2.0.0](../agent/plan/milestone-0.2.0.0-pytorch-cuda-compatibility/plan.md) | `v0.2.0` | `0.2.0.0` | MLIR CUDA and PyTorch CUDA foundation |
 | (unallocated) | `v0.3.0` | `0.3.0.0` | Reserved native NixOS VM/package support-expansion slot |
 | [milestone-1.0.0.0](../agent/plan/milestone-1.0.0.0-stable-qualification/plan.md) | `v1.0.0` | `1.0.0.0` | Stable compatibility contract and reproducible v1.0.0 release |
+| [milestone-2.0.0.0](../agent/plan/milestone-2.0.0.0-physical-hardware-qualification/plan.md) | `v2.0.0` | `2.0.0.0` | Intel and physical dual-driver qualification |
 
 `v0.3.0` remains an unallocated support-expansion line for native NixOS
 VM/package qualification. No milestone record is allocated until that plan is approved;
 its milestone scope would compact to `milestone-0.3.0.0`. The `v0.2.0` slot is
-allocated to milestone-0.2.0.0 (PyTorch CUDA compatibility), moving the
-original decision-0012 NixOS reservation by plan allocation.
+allocated to milestone-0.2.0.0 (MLIR CUDA and PyTorch CUDA foundation), moving
+the original decision-0012 NixOS reservation by plan allocation.
 
 decision-0040 assigns Intel x86_64 support qualification and physical NVIDIA
 binding-performance qualification to milestone-2.0.0.0 / `v2.0.0`, superseding
-decision-0027's `v1.0.0` destination; milestone-1.0.0.0 / `v1.0.0` owns the
-stable public compatibility commitment and reproducible release instead.
-They remain outside milestone-0.1.0.0 / `v0.1.0`. decision-0027 supersedes decision-0023 only for the future
-Intel destination and supersedes decision-0024 only for the former `v0.2.0` assignment
-of Intel and physical NVIDIA qualification. decision-0024's SemVer and delivery-identity
-rules remain authoritative; decision-0012's native NixOS assignment remains unchanged.
+decision-0027's `v1.0.0` destination. decision-0027 had previously superseded
+decision-0023's `v0.2.0` Intel destination. Neither allocation changes
+decision-0024's SemVer and delivery-identity rules. decision-0012's generic
+release matrix remains authoritative, while later plan allocation moved its
+native NixOS expansion from `v0.2.0` to the unallocated `v0.3.0` slot.
 
 The `v0.1.x` releases form the initial-development line. A later milestone may
 add default-off or experimental capability while preserving the established

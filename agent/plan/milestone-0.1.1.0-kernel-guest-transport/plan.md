@@ -5,7 +5,7 @@ release: v0.1.1
 status: Complete
 depends_on: [milestone-0.1.0.0]
 areas: [kernel.core, kernel.pci, transport.cdev, transport.vfio-user]
-updated: 2026-09-06
+updated: 2026-09-08
 ---
 
 # milestone-0.1.1.0: Kernel and Guest Transport
@@ -160,22 +160,13 @@ Fault and release:
   checks.
 - milestone-0.1.0.0 remains green with milestone-0.1.1.0 installed but idle.
 
-## Decisions to Close
+## Decision Closure
 
-1. Exact base data-plane UAPI v1 and extension namespace.
-2. Exact Linux, QEMU, and libvfio-user support matrix.
-3. QEMU shared-memory command line and deployment ownership.
-4. DMA width, pin quotas, ring-order range, drain deadlines, and interrupt
-   moderation defaults.
-5. Registered release VID/DID process.
-6. Module-signing and Secure Boot packaging workflow.
-
-Items 1 and 4 close only after work-item-0.1.1.4 evidence, not before implementation.
-
-Convergence (2026-09-06): items 1-4 closed with the work-item-0.1.1.4 freeze and
-live transport evidence; item 3 closed with the QEMU/libvfio-user bring-up row.
-Items 5-6 (registered VID/DID, signing/Secure Boot) are release-package policy
-surface owned by the milestone-1.0.0.0 stable manifest.
+The data-plane UAPI/extension namespace, support matrix, QEMU shared-memory
+ownership, and bounded transport defaults closed with work-item-0.1.1.4 and the
+live transport evidence. Release VID/DID and module-signing/Secure Boot policy
+remain unresolved release concerns and are owned once, by
+milestone-1.0.0.0.
 
 ## Definition of Done
 

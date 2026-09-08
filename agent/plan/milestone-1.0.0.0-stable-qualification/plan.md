@@ -15,11 +15,12 @@ updated: 2026-09-08
 
 Deliver the `v1.0.0` stable-compatibility release: an explicit public
 compatibility surface, a proven upgrade path, reproducible no-Nix packages,
-and regression closure for the cumulative `v0.1.x` product line.
+and regression closure for every accepted `v0.x` release, including the
+milestone-0.2.0.0 client and execution corpus.
 
-This milestone remains queued until the milestone-0.2.0.0 PyTorch CUDA
-compatibility foundation closes (decision-0043); passing a bounded operator
-corpus does not accelerate or imply the stable compatibility commitment.
+This milestone remains queued until the milestone-0.2.0.0 MLIR CUDA and PyTorch
+CUDA foundation closes (decisions 0043-0044); passing a bounded operator corpus
+does not accelerate or imply the stable compatibility commitment.
 
 decision-0040 moves the Intel x86_64 host qualification and the physical
 NVIDIA binding-performance promotion into milestone-2.0.0.0 / `v2.0.0`; this
@@ -38,8 +39,9 @@ private RM/UVM, or direct NVIDIA execution into a MetaFlux backend.
 decision-0040 supersedes decision-0027: the Intel and physical NVIDIA gates
 that decision-0027 assigned to milestone-1.0.0.0 / `v1.0.0` now belong to
 milestone-2.0.0.0 / `v2.0.0`. decision-0012 still assigns native NixOS
-VM/package qualification to the support-expansion line, reserved as `v0.3.0`. milestone-0.1.0.0 still closes against
-its AMD x86_64 reference evidence and provisional budgets.
+VM/package qualification to the support-expansion line, reserved as `v0.3.0`.
+milestone-0.1.0.0 still closes against its AMD x86_64 reference evidence and
+provisional budgets.
 
 No existing benchmark observation becomes binding through this planning
 change.
@@ -84,6 +86,11 @@ Excluded:
 
 1. Exact v1.0 stable public compatibility surface, upgrade window, and
    deprecation policy.
+2. Released device identity, VID/DID registration, and optional custom
+   presentation identity policy.
+3. Module-signing and Secure Boot packaging workflow.
+4. Exact supported kernel and distribution matrix for the stable release.
+5. Namespace launcher ownership and released alias allowlist.
 
 ## Definition of Done
 

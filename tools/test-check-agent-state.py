@@ -145,6 +145,11 @@ Pass.
         "| decision-0033 | Current execution | [goal](../goal.json) | Verified |\n"
         "| decision-0034 | Agent-tool detection | [tool](../skills/detect-agent-tool/SKILL.md) | Verified |\n",
     )
+    write(
+        root / "agent/memory/open-decisions.md",
+        "| Milestone | Decision | Blocks | Closure condition |\n"
+        "| --- | --- | --- | --- |\n",
+    )
     write(root / "agent/experience/README.md", "# Experience\n")
     write(
         root / "agent/skills/start-work/SKILL.md",
@@ -279,6 +284,52 @@ def test_plan_and_legacy(root: Path) -> None:
     duplicate_epoch = "METAFLUX_AGENT_" + "EPOCH"
     write(root / "legacy.md", legacy + "\n" + duplicate_epoch + "\n")
     assert has_fragment(errors(root), "legacy execution marker")
+
+
+def test_plan_semantic_drift(root: Path) -> None:
+    create_fixture(root)
+    work = root / "agent/plan/milestone-0.1.0.0-core/work/work-item-0.1.0.1-one.md"
+    write(work, work.read_text(encoding="utf-8") + "\n## Measured progress (today)\n")
+    assert has_fragment(errors(root), "execution-history heading")
+
+    complete_root = root / "complete"
+    create_fixture(complete_root)
+    plan = complete_root / "agent/plan/milestone-0.1.0.0-core/plan.md"
+    write(
+        plan,
+        plan.read_text(encoding="utf-8")
+        .replace("status: Active", "status: Complete")
+        .replace("None.", "1. Choose the stable format."),
+    )
+    assert has_fragment(errors(complete_root), "complete plan record cannot retain")
+
+
+def test_open_decision_coverage(root: Path) -> None:
+    create_fixture(root)
+    plan = root / "agent/plan/milestone-0.1.0.0-core/plan.md"
+    write(
+        plan,
+        plan.read_text(encoding="utf-8").replace(
+            "None.", "1. Choose the stable format."
+        ),
+    )
+    ledger = root / "agent/memory/open-decisions.md"
+    write(
+        ledger,
+        ledger.read_text(encoding="utf-8")
+        + "| milestone-0.1.0.0 | Choose the stable format | Contract | Before integration |\n",
+    )
+    assert not errors(root)
+
+    write(
+        ledger,
+        ledger.read_text(encoding="utf-8").replace(
+            "Choose the stable format", "Choose another format"
+        ),
+    )
+    found = errors(root)
+    assert has_fragment(found, "missing open-decision row")
+    assert has_fragment(found, "has no plan owner")
 
 
 def test_broken_link(root: Path) -> None:
@@ -430,12 +481,14 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="metaflux-agent-state-") as temp:
         test_goal_variants(Path(temp) / "goal")
         test_plan_and_legacy(Path(temp) / "plan")
+        test_plan_semantic_drift(Path(temp) / "semantic")
+        test_open_decision_coverage(Path(temp) / "open-decisions")
         test_broken_link(Path(temp) / "link")
         test_commit_environment(Path(temp) / "commit")
         test_integration_ancestry(Path(temp) / "integration")
         test_json_cli(Path(temp) / "json")
         test_foreign_git_environment_isolation(Path(temp) / "isolation")
-    print("agent state self-tests: 11 groups passed")
+    print("agent state self-tests: 13 groups passed")
     return 0
 
 

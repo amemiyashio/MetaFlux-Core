@@ -19,9 +19,13 @@ ship one reproducible release after the v0.2 compatibility foundation closes.
 
 - [ ] Close and publish the exact stable public API, ABI, CLI, configuration,
   package, and persisted-state surface plus its upgrade and deprecation policy.
+- [ ] Close the released device identity/VID/DID, supported
+  kernel/distribution, namespace alias, module-signing, and Secure Boot
+  policies inherited from completed experimental milestones.
 - [ ] Prove that unlisted provider internals, third-party version namespaces,
   experimental transports, and private vendor behavior are not implied stable.
-- [ ] Run cumulative milestone-0.1.0.0-milestone-0.1.3.0 regression and the approved generic release,
+- [ ] Run cumulative milestone-0.1.0.0 through milestone-0.2.0.0 regression and
+  the approved generic release,
   installation, upgrade, coexistence, removal, ABI, and provenance matrices.
 - [ ] Reproduce DEB, RPM, and tar artifacts byte-for-byte from one clean Git
   revision and declared tool identities.

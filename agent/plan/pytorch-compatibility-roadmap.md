@@ -1,49 +1,46 @@
 # PyTorch Compatibility Research Roadmap
 
-This roadmap tracks optional ecosystem probes across releases. It is not a
-milestone, product support promise, or acceptance gate for milestone-0.1.0.0.
+This roadmap owns exact client profiles and exploratory probes. Product scope,
+execution ownership, and acceptance belong to
+[milestone-0.2.0.0](milestone-0.2.0.0-pytorch-cuda-compatibility/plan.md).
 
 ## Client Profiles
 
 | Profile | Pinned client | Purpose | Product boundary |
 | --- | --- | --- | --- |
-| `pytorch-baseline` | PyTorch `2.11.0+cu126` | Observe the current `sm_70` path and retain a stable comparison point. | Reports gaps only; it does not expand decision-0017 or milestone-0.1.0.0. |
-| `pytorch-frontier` | PyTorch `2.13.0+cu132` | Track the intended future `sm_80` path and newer CUDA-facing gaps. | Research target until a later milestone supplies complete evidence. |
+| `pytorch-baseline` | PyTorch `2.11.0+cu126` | Stable client contract and milestone acceptance input | Support is limited to the versioned milestone corpus and gates |
+| `pytorch-frontier` | PyTorch `2.13.0+cu132` | Discover newer CUDA-facing gaps | Research-only until its own compiler, provider, and differential evidence closes |
 
 Both profiles are exact, isolated, on-demand Nix tool outputs. Neither enters a
-default, provider, runtime, or release shell. CTest and repository test scripts
-own probe behavior and qualification; Nix only materializes the clients.
+default provider, runtime, or release shell. Nix materializes the clients; tests
+own probe and qualification behavior.
 
 ## Promotion Boundary
 
-[milestone-0.2.0.0](milestone-0.2.0.0-pytorch-cuda-compatibility/plan.md) is
-the formal promotion vehicle for this research: it occupies the delivery slot
-in the `v0.2.0` delivery slot and turns probe evidence into
-product qualification through its work items. Until then,
-[milestone-0.1.0.0](milestone-0.1.0.0-core-foundation/plan.md) remains on its
-frozen PTX 9.0/`sm_70` semantic contract. The existing
-`capability_profile` field remains unused, and reserved ABI fields remain zero.
-Any product-code expansion motivated by these probes starts under that
-milestone rather than being folded into milestone-0.1.0.0.
+milestone-0.2.0.0 is Active and is the only promotion vehicle for PyTorch CUDA
+compatibility. Its selected route is pinned client input -> neutral
+framework-kernel request -> canonical Kernel IR -> backend-owned MLIR lowering.
+A successful import, fake-client probe self-test, manual operator run, or
+provider-local semantic result does not establish product qualification.
 
-An `sm_80` claim requires an immutable capability descriptor, compiler-epoch and
-cache identity changes, and matching parser, verifier, Kernel IR, interpreter,
-lowering, provider, and differential evidence. Only that milestone may decide
-negotiation and publication semantics; a successful framework import or probe
-alone does not promote the frontier profile.
+The baseline becomes accepted only through a checked-in gate that runs the
+pinned real client against a stock daemon with exact source, client, provider,
+and backend identity. The frontier remains a gap profile until equivalent
+evidence exists. An `sm_80` claim additionally requires an immutable capability
+descriptor, compiler-epoch and cache-identity changes, and matching parser,
+verifier, Kernel IR, interpreter, lowering, provider, and differential evidence.
 
-## Probe Record
+## Current Evidence
 
-2026-09-06, baseline profile (PyTorch 2.11.0+cu126, CPython 3.13.15, warm-jit
-daemon): the import stage passes — torch loads and resolves the MetaFlux
-provider. The driver-enumeration stage fails: torch reports 0 CUDA devices
-with driver error 36 (`CUDA_ERROR_NOT_SUPPORTED`) from its cudart
-initialization sequence, so runtime-copy, artifact-intake, and eager-add stay
-blocked. Direct driver-API enumeration through the same provider and daemon
-(`cuInit`/`cuDeviceGetCount`/`cuDeviceGetName` via ctypes) returns one
-`MetaFlux Virtual Compute Device`, so the gap is a specific call inside
-torch's cudart init that the provider answers NOT_SUPPORTED, not enumeration
-itself. PyTorch CUDA is therefore not usable yet; the next lever is tracing
-torch's exact init calls and implementing the missing provider entry points.
-Execution routing additionally remains CPU-only: the daemon has no Vulkan
-execution mode, so no client workload reaches the 780M through PyTorch.
+The five-stage probe and both client manifests are checked in. Repository CTest
+validates probe control flow with a fake torch object and validates manifest
+shape; it does not currently run either real client. The provider contains an
+application-side semantic prototype for selected baseline kernels, while
+deferred cubins bypass daemon artifact registration and backend launch.
+
+These facts make the next boundary concrete: first add the real baseline gate
+and surface matrix, then replace provider-local execution with the selected
+neutral Kernel IR and compiler-worker route. CPU lowers through MLIR/LLVM;
+Vulkan lowers independently through MLIR/SPIR-V. Exact acceptance and remaining
+schema, library, execution-mode, and target-routing choices live only in the
+active milestone and its work items.

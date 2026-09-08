@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "epoch": "epoch-0010",
+  "epoch": "epoch-0011",
   "batch": {
     "id": "batch-0001",
     "status": "open"
@@ -9,42 +9,42 @@
     "milestone": "milestone-0.2.0.0",
     "work_item": "work-item-0.2.0.1"
   },
-  "objective": "Complete the v0.2.0 PyTorch CUDA compatibility foundation before stable-release work: close the baseline client contract, establish durable kernel intake and CPU execution, then qualify framework semantics and Vulkan routing.",
+  "objective": "Turn the existing CUDA/PyTorch provider prototype into an evidence-bound v0.2.0 MLIR CUDA foundation: close the pinned client contract, materialize verified Kernel IR behind the neutral protocol, lower it through backend-owned MLIR pipelines, then qualify the PyTorch CUDA corpus on CPU and Vulkan.",
   "lanes": [
     {
-      "id": "lane-torch-client-contract-closure",
+      "id": "lane-cuda-client-contract",
       "iteration": "iteration-0001",
-      "outcome": "Close the baseline PyTorch client contract by hardening provider handle semantics, freezing the required CUDA Driver surface, and binding that surface into compatibility and cache identity.",
+      "outcome": "Freeze the pinned-client CUDA surface and prove it with a checked-in real-client gate plus complete handle and profile-identity negative coverage.",
       "status": "planned",
       "depends_on": [],
       "acceptance": [
-        "Repeated function lookup reuses live handles without accepting invalid, stale, or cross-module handles.",
-        "The pinned baseline client passes import, driver enumeration, runtime copy, artifact intake, and eager add through a stock daemon.",
-        "The required CUDA Driver surface, compatibility probe manifest, and cache identity advance together with focused negative tests."
+        "The Driver API and profile-specific internal-table matrix classifies every required entry as implemented, typed-stubbed, observed, or MetaFlux-strengthened.",
+        "A checked-in gate runs the pinned real client through import, driver enumeration, and runtime copy against a stock daemon; fake probe self-tests are not acceptance evidence.",
+        "Function lookup reuse and invalid, stale, destroyed, and cross-module handle cases pass while surface, probe, and cache identities advance together."
       ]
     },
     {
-      "id": "lane-torch-kernel-intake",
+      "id": "lane-kernel-ir-mlir-cpu",
       "iteration": "iteration-0002",
-      "outcome": "Establish the durable torch kernel-intake strategy and execute the eager-operation corpus bit-exact through the managed daemon on the CPU backend.",
+      "outcome": "Encode the pinned framework-kernel profile as an ecosystem-neutral request, materialize verified Kernel IR in the compiler worker, and execute the declared corpus through the backend-owned MLIR-to-CPU pipeline.",
       "status": "planned",
-      "depends_on": ["lane-torch-client-contract-closure"],
+      "depends_on": ["lane-cuda-client-contract"],
       "acceptance": [
-        "A recorded decision selects the supported torch kernel-intake strategy and rejects incompatible alternatives.",
-        "Many-kernel module loading, function resolution, cache identity, and warm-cache behavior have executable coverage.",
-        "The extended eager corpus, including add, mul, matmul, and reduction, is bit-exact against the torch CPU reference."
+        "The versioned framework-kernel request carries no CUDA, PyTorch, MLIR, or target-specific types; the daemon/compiler worker validates it into canonical Kernel IR.",
+        "The CUDA provider performs no tensor arithmetic or result materialization, and the CPU branch lowers verified Kernel IR through MLIR and LLVM to a validated backend artifact.",
+        "A checked-in gate reaches artifact intake and eager add, then proves the declared corpus, module intake, function resolution, cache behavior, and bit-exact CPU execution through daemon submissions."
       ]
     },
     {
-      "id": "lane-framework-routing-qualification",
+      "id": "lane-pytorch-cuda-multibackend",
       "iteration": "iteration-0003",
-      "outcome": "Qualify framework stream, event, allocator, teardown, and fault semantics, then route the eager corpus through CPU and Vulkan backends without regressing v0.1.x.",
+      "outcome": "Qualify PyTorch CUDA lifecycle semantics and execute the same canonical Kernel IR corpus through independent CPU/LLVM and Vulkan/SPIR-V MLIR branches without regressing v0.1.x.",
       "status": "planned",
-      "depends_on": ["lane-torch-kernel-intake"],
+      "depends_on": ["lane-kernel-ir-mlir-cpu"],
       "acceptance": [
         "Stream, event, allocator, multi-stream, synchronization, teardown, and daemon-loss rows pass for the pinned client.",
-        "Framework execution selects qualified CPU and Vulkan daemon routes with bit-exact differential evidence.",
-        "The frontier gap list and cumulative v0.1.x regression evidence are current and release-facing."
+        "Framework execution selects qualified CPU and Vulkan daemon routes with bit-exact differential evidence for the same corpus manifest.",
+        "The pinned baseline and frontier gap manifests plus cumulative v0.1.x regression evidence are current and release-facing."
       ]
     }
   ]

@@ -37,11 +37,21 @@ CUDA/NVML core foundation (milestone-0.1.0.0), local cdev and guest transport
 (milestone-0.1.1.0), lifecycle and experimental vPCI presentation
 (milestone-0.1.2.0), and the Vulkan execution backend (milestone-0.1.3.0) are
 all delivered with evidence recorded beside their work items. The current
-target is milestone-0.2.0.0 / `v0.2.0`, which builds the PyTorch CUDA
-compatibility foundation in three ordered boundaries: baseline client contract,
-durable kernel intake and CPU execution, then framework semantics and Vulkan
-routing (decision-0043). milestone-1.0.0.0 / `v1.0.0` remains queued until this
-foundation closes. Intel x86_64 qualification and physical NVIDIA
+target is milestone-0.2.0.0 / `v0.2.0`, which builds the MLIR CUDA and PyTorch
+CUDA foundation in three ordered boundaries: pinned CUDA/PyTorch client
+contract, neutral Kernel IR plus backend-owned MLIR CPU execution, then PyTorch
+CUDA semantics and Vulkan/SPIR-V qualification (decisions 0043-0044).
+milestone-1.0.0.0 / `v1.0.0` remains queued until this foundation closes.
+
+Current v0.2 maturity is a provider-side compatibility prototype, not qualified
+daemon/backend execution (decision-0044). The repository has a five-stage probe,
+pinned client manifests, and selected PyTorch kernel-name handlers, but CTest
+exercises the probe with a fake client and no checked-in real-client operator
+corpus exists. Provider-local tensor arithmetic must move through a versioned
+neutral request into canonical Kernel IR and the backend-owned MLIR/LLVM CPU
+path before its results count as integrated execution; Vulkan qualification
+follows from the same Kernel IR through its independent MLIR/SPIR-V branch.
+Intel x86_64 qualification and physical NVIDIA
 binding-performance promotion belong to milestone-2.0.0.0 / `v2.0.0`
 (decision-0040), and native NixOS VM/package qualification remains the
 unallocated `v0.3.0` support expansion. Canonical scope and acceptance

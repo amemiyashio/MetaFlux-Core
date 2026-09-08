@@ -5,7 +5,7 @@ release: v0.1.3
 status: Complete
 depends_on: [milestone-0.1.1.0, milestone-0.1.2.0]
 areas: [backend.vulkan, compiler.spirv]
-updated: 2026-09-06
+updated: 2026-09-08
 ---
 
 # milestone-0.1.3.0: Vulkan Execution Backend
@@ -145,21 +145,13 @@ Fault and release:
 - milestone-0.1.0.0, milestone-0.1.1.0, and milestone-0.1.2.0 core remain green with Vulkan installed but idle.
 - Generic packages require no `/nix/store` runtime path.
 
-## Decisions to Close
+## Decision Closure
 
-1. Exact Vulkan features, limits, driver families, and minimum driver versions.
-2. Packed argument ABI and target-environment serialization.
-3. External-memory/semaphore tiers per driver family.
-4. FP modes and unsupported-semantic policy.
-5. Pipeline residency, disk quota, and driver-cache qualification.
-6. Queue topology, batching thresholds, and polling/blocking defaults.
-7. Device-loss worker isolation and resource deadline policy.
-
-Convergence (2026-09-06): all seven closed with the qualification evidence
-recorded in work-item-0.1.3.1 through work-item-0.1.3.6 (capability/target
-serialization, packed arguments, memory tiers, FP policy, cache/residency,
-queue topology, and device-loss isolation); physical dual-family versions of
-items 1 and 3 are owned by milestone-2.0.0.0 (decision-0040).
+Capability and target serialization, packed arguments, memory tiers, FP and
+unsupported-semantic policy, cache residency, queue topology, and device-loss
+isolation closed with work-item-0.1.3.1 through work-item-0.1.3.6 evidence.
+Physical dual-family capability and external-memory qualification remain owned
+by milestone-2.0.0.0 (decision-0040).
 
 ## Deferred Cubin Research
 

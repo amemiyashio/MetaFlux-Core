@@ -36,6 +36,10 @@ BATCH_ID_RE = re.compile(r"batch-[0-9]{4}")
 ITERATION_ID_RE = re.compile(r"iteration-[0-9]{4}")
 LANE_ID_RE = re.compile(r"lane-[a-z0-9]+(?:-[a-z0-9]+)*")
 SKILL_SLUG_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
+PROGRESS_HEADING_RE = re.compile(
+    r"^#{2,6}\s+(?:measured progress|diagnostic record|handoff snapshot)\b",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 MILESTONE_STATUSES = {
     "Draft",
@@ -166,12 +170,50 @@ def find_cycle(graph: dict[str, list[str]]) -> list[str] | None:
     return None
 
 
+def numbered_section_items(text: str, heading: str) -> list[str]:
+    items: list[str] = []
+    current: list[str] | None = None
+    in_section = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped == heading:
+            in_section = True
+            continue
+        if not in_section:
+            continue
+        if line.startswith("## "):
+            break
+        match = re.match(r"^[0-9]+\.\s+(.+)$", line)
+        if match is not None:
+            if current is not None:
+                items.append(" ".join(current))
+            current = [match.group(1).strip()]
+            continue
+        if current is not None and (line.startswith("   ") or line.startswith("\t")):
+            current.append(stripped)
+            continue
+        if current is not None and not stripped:
+            items.append(" ".join(current))
+            current = None
+    if current is not None:
+        items.append(" ".join(current))
+    return items
+
+
+def normalize_decision(text: str) -> str:
+    value = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    value = value.replace("`", "")
+    value = re.sub(r"\s+", " ", value).strip().rstrip(".")
+    return value.casefold()
+
+
 class Checker:
     def __init__(self, root: Path):
         self.root = root.resolve()
         self.errors: list[TaskStopDiagnostic] = []
         self.records: dict[str, Path] = {}
         self.frontmatter: dict[str, dict[str, Any]] = {}
+        self.milestone_texts: dict[str, tuple[Path, str]] = {}
         self.decisions: set[str] = set()
         self._diagnostic_policy = {
             "code": "agent-state.invalid-authority",
@@ -315,6 +357,8 @@ class Checker:
                 self.error(plan_path, "depends_on must be an inline list")
             self.add_record(record_id, plan_path, fields)
             milestone_ids.add(record_id)
+            self.milestone_texts[record_id] = (plan_path, text)
+            self.validate_plan_document(plan_path, text, fields)
 
             work_root = directory / "work"
             if not work_root.is_dir():
@@ -345,6 +389,7 @@ class Checker:
                     self.error(work_path, "depends_on must be an inline list")
                 if "## Exit Gate" not in work_text:
                     self.error(work_path, "work item requires an Exit Gate")
+                self.validate_plan_document(work_path, work_text, work_fields)
                 self.add_record(work_id, work_path, work_fields)
                 work_items.append((work_id, record_id, work_path))
 
@@ -362,6 +407,63 @@ class Checker:
         cycle = find_cycle(graph)
         if cycle is not None:
             self.error(root, "plan dependency cycle: " + " -> ".join(cycle))
+
+    def validate_plan_document(
+        self, path: Path, text: str, fields: dict[str, Any]
+    ) -> None:
+        match = PROGRESS_HEADING_RE.search(text)
+        if match is not None:
+            self.error(
+                path,
+                f"plan contains execution-history heading: {match.group(0).strip()}",
+            )
+        if (
+            fields.get("status") == "Complete"
+            and "## Decisions to Close" in text
+        ):
+            self.error(path, "complete plan record cannot retain Decisions to Close")
+
+    def validate_open_decisions(self) -> None:
+        path = self.root / "agent" / "memory" / "open-decisions.md"
+        text = self.read_text(path)
+        if text is None:
+            return
+        expected: dict[tuple[str, str], str] = {}
+        for milestone, (plan_path, plan_text) in self.milestone_texts.items():
+            status = self.frontmatter.get(milestone, {}).get("status")
+            for item in numbered_section_items(plan_text, "## Decisions to Close"):
+                key = (milestone, normalize_decision(item))
+                if key in expected:
+                    self.error(plan_path, f"duplicate open decision in plan: {item}")
+                expected[key] = item
+                if status == "Complete":
+                    self.error(plan_path, "complete milestone has an open decision")
+
+        actual: dict[tuple[str, str], str] = {}
+        for line in text.splitlines():
+            if not re.match(r"^\|\s*milestone-[0-9]", line):
+                continue
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if len(cells) != 4:
+                self.error(path, f"open-decision row must contain four columns: {line}")
+                continue
+            milestone, decision = cells[0], cells[1]
+            if milestone not in self.milestone_texts:
+                self.error(path, f"open decision milestone does not resolve: {milestone}")
+                continue
+            if self.frontmatter.get(milestone, {}).get("status") == "Complete":
+                self.error(path, f"complete milestone retains open decision: {milestone}")
+            key = (milestone, normalize_decision(decision))
+            if key in actual:
+                self.error(path, f"duplicate open-decision row: {milestone} / {decision}")
+            actual[key] = decision
+
+        for key, decision in expected.items():
+            if key not in actual:
+                self.error(path, f"missing open-decision row: {key[0]} / {decision}")
+        for key, decision in actual.items():
+            if key not in expected:
+                self.error(path, f"open-decision row has no plan owner: {key[0]} / {decision}")
 
     def validate_goal(self) -> None:
         with self.diagnostic_policy(
@@ -901,6 +1003,7 @@ class Checker:
     ) -> bool:
         self.validate_forbidden_paths()
         self.validate_plans()
+        self.validate_open_decisions()
         self.validate_goal()
         if commit_gate:
             self.validate_commit_environment()

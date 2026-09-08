@@ -4,18 +4,17 @@ delivery: 0.2.0.3
 milestone: milestone-0.2.0.0
 status: Draft
 area: compatibility
-depends_on: [work-item-0.2.0.2]
-updated: 2026-09-06
+depends_on: [work-item-0.2.0.2, milestone-0.1.3.0]
+updated: 2026-09-08
 ---
 
-# Framework Qualification and Execution Routing
+# PyTorch CUDA Multi-Backend Qualification
 
 ## Outcome
 
-Framework clients are a qualified, released capability: stream/event and
-allocator semantics torch relies on pass, the daemon routes framework clients
-to a qualified execution backend beyond CPU (Vulkan rows included), and both
-client profiles carry release-facing evidence.
+The pinned PyTorch CUDA profile is qualification-ready: required stream, event,
+allocator, teardown, and fault semantics pass, and the same canonical Kernel IR
+corpus executes through independent CPU/LLVM and Vulkan/SPIR-V MLIR branches.
 
 ## Work
 
@@ -23,21 +22,24 @@ client profiles carry release-facing evidence.
   stream/event ordering, the caching allocator's allocation pattern,
   multi-stream concurrency, synchronization, and deterministic teardown, with
   fault rows for daemon death mid-kernel.
-- [ ] Close decision items 3-4: the daemon execution-mode surface for
-  framework clients and the Vulkan daemon-routing shape; implement the
+- [ ] Close the daemon execution-mode and Vulkan routing decisions; implement
   routing so a framework launch can select the Vulkan backend, gated by the
   backend's existing qualification suites.
+- [ ] Lower the accepted canonical Kernel IR through the Vulkan backend's MLIR
+  SPIR-V conversion with an explicit target environment, legality checks,
+  reflection, and `spirv-val`; do not route Vulkan through LLVM IR.
 - [ ] Run the Vulkan-backed eager corpus bit-exact against the CPU-backed run
-  on the RADV adapter and archive both sample sets with topology/device
-  fingerprints under `tmp/outputs/`.
-- [ ] Record the frontier profile gap list as release-facing documentation and
-  keep the roadmap's probe/promotion boundary current.
+  on the RADV adapter using the same checked-in corpus manifest and archive
+  both sample sets with topology/device fingerprints under `tmp/outputs/`.
+- [ ] Publish checked-in baseline and frontier gap manifests with exact client,
+  provider, daemon, backend, compiler, and cache identities.
 - [ ] Verify the cumulative 0.1.x regression and generic-package policy stay
   green with the framework client installed but idle.
 
 ## Exit Gate
 
-The baseline client runs the eager corpus bit-exact through the daemon on
-both qualified execution backends (CPU and Vulkan where its rows are closed),
-streams/events/allocator and fault rows pass, the frontier gap list is
-published, and the full 0.1.x regression stays green.
+The pinned real client runs the same canonical Kernel IR corpus bit-exact
+through CPU/LLVM and Vulkan/SPIR-V daemon routes; all MLIR conversion leaves
+only target-legal operations; streams, events, allocator, teardown, and fault
+rows pass; baseline/frontier gap manifests are published; and the full
+milestone-0.1.x regression stays green.
