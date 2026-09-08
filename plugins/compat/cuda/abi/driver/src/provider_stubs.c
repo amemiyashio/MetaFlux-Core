@@ -41,6 +41,12 @@ static int mf_stub_trace(void) {
     } \
   } while (0)
 
+static void mf_export_table_trace(const char* identifier) {
+  if (mf_stub_trace()) {
+    fprintf(stderr, "MF_EXPORT_TABLE %s\n", identifier);
+  }
+}
+
 CUresult cuCtxDetach(CUcontext ctx) {
   MF_STUB_TRACE;
   (void)ctx;
@@ -515,6 +521,7 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
      Slots outside the observed set fail explicitly. */
   if (memcmp(pExportTableId->bytes, mf_uuid_a094, 16) == 0) {
     unsigned int i = 0;
+    mf_export_table_trace("a094798c-2e74-2e74-93f2-0800200c0a66");
     mf_a094_ops[0] = (void*)(uintptr_t)12060;
     for (i = 1; i < sizeof(mf_a094_ops) / sizeof(mf_a094_ops[0]); ++i) {
       mf_a094_ops[i] = (void*)&mf_a094_ops_entry_not_supported;
@@ -529,6 +536,7 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
   /* UUID 42d85a81-...: secondary interface table after a094 registration. */
   if (memcmp(pExportTableId->bytes, mf_uuid_42d8, 16) == 0) {
     unsigned int i = 0;
+    mf_export_table_trace("42d85a81-3d10-4a4d-9b5f-6b4d0b1c2a77");
     mf_42d8_ops[0] = (void*)(uintptr_t)12060;
     for (i = 1; i < sizeof(mf_42d8_ops) / sizeof(mf_42d8_ops[0]); ++i) {
       mf_42d8_ops[i] = (void*)&mf_a094_ops_entry_success;
@@ -542,6 +550,7 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
      crashes when the binder later calls through real slots. */
   if (memcmp(pExportTableId->bytes, mf_uuid_c693, 16) == 0) {
     unsigned int i = 0;
+    mf_export_table_trace("c693336e-1121-df11-830b-7fafd1516e78");
     /* This table is a C++ vtable: cudart calls every slot including [0], so
        no slot may hold the version integer (calling 12060 segfaults). */
     for (i = 0; i < sizeof(mf_c693_ops) / sizeof(mf_c693_ops[0]); ++i) {
@@ -558,6 +567,7 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
      never dereferenced on the launch path. */
   if (memcmp(pExportTableId->bytes, mf_uuid_263e, 16) == 0) {
     uint32_t* limits = (uint32_t*)mf_263e_table;
+    mf_export_table_trace("263e8860-7b07-11eb-9439-0242ac130002");
     mf_263e_table[2] = (unsigned long long)(uintptr_t)&mf_263e_object_query;
     mf_263e_table[3] = (unsigned long long)(uintptr_t)&mf_263e_capability_probe;
     limits[100] = UINT32_C(1024);    /* +0x190: max threads per block */
@@ -574,6 +584,7 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
   /* UUID d4082055-...: tooling table with slot[+0x8] callback. */
   if (memcmp(pExportTableId->bytes, mf_uuid_d408, 16) == 0) {
     unsigned int i = 0;
+    mf_export_table_trace("d4082055-bde6-704b-8d34-ba123c66e1f2");
     mf_d408_ops[0] = (void*)(uintptr_t)12060;
     for (i = 1; i < sizeof(mf_d408_ops) / sizeof(mf_d408_ops[0]); ++i) {
       mf_d408_ops[i] = (void*)&mf_a094_ops_entry_success;
@@ -586,6 +597,7 @@ CUresult cuGetExportTable(const void** ppExportTable, const CUuuid* pExportTable
   /* UUID 6bd5fb6c-...: general driver vtable; slot[2] is the per-device init
      callback invoked as (record+8, device). */
   if (memcmp(pExportTableId->bytes, mf_uuid_6bd5, 16) == 0) {
+    mf_export_table_trace("6bd5fb6c-5bf4-e74a-8987-d93912fd9df9");
     mf_export_vtable[2] = (void*)&mf_export_init_0x10;
     mf_export_ops[2] = (void*)&mf_export_init_0x10;
     mf_export_vtable[14] = (void*)mf_export_ops;

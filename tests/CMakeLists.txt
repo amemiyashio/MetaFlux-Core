@@ -570,6 +570,16 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     metaflux.compatibility.pytorch-cuda-probe-selftest
     PROPERTIES LABELS "compatibility;cuda;unit"
   )
+  add_test(
+    NAME metaflux.compatibility.pytorch-cuda-stock-baseline-selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/test_pytorch_cuda_stock_baseline.py"
+  )
+  set_tests_properties(
+    metaflux.compatibility.pytorch-cuda-stock-baseline-selftest
+    PROPERTIES LABELS "compatibility;cuda;unit"
+  )
   find_program(METAFLUX_NIX_EXECUTABLE NAMES nix)
   if(METAFLUX_NIX_EXECUTABLE)
     add_test(

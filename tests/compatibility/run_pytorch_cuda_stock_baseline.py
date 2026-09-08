@@ -25,6 +25,47 @@ DEFAULT_CLIENT_MANIFEST = REPOSITORY_ROOT / "toolchains" / "pytorch-cuda-clients
 TRACE_LAUNCH = re.compile(r"^MF_LAUNCH ", re.MULTILINE)
 TRACE_MODULE = re.compile(r"^MF_PYTORCH_BASELINE_MODULE ", re.MULTILINE)
 TRACE_SEMANTIC = re.compile(r"^MF_SEMANTIC ", re.MULTILINE)
+TRACE_ENTRY = re.compile(r"^MF_ENTRY (?P<entry>[A-Za-z0-9_]+)$", re.MULTILINE)
+TRACE_STUB_ENTRY = re.compile(r"^MF_STUB_CALL (?P<entry>[A-Za-z0-9_]+)$", re.MULTILINE)
+TRACE_EXPORT_TABLE = re.compile(
+    r"^MF_EXPORT_TABLE (?P<table>[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})$",
+    re.MULTILINE,
+)
+TRACE_UNKNOWN_EXPORT_TABLE = re.compile(r"^MF_TABLE_UUID unknown ", re.MULTILINE)
+DAEMON_EXECUTION_STATISTICS = re.compile(
+    r"^metafluxd: cpu-execution mode=(?P<mode>[a-z-]+) "
+    r"compiler-requests=(?P<compiler_requests>\d+) "
+    r"cache-hits=(?P<cache_hits>\d+) cache-misses=(?P<cache_misses>\d+) "
+    r"loaded-modules=(?P<loaded_modules>\d+) ",
+    re.MULTILINE,
+)
+BASELINE_DIRECT_PROVIDER_ENTRYPOINTS = frozenset(
+    {
+        "mf_cuda_managed_cuInit",
+        "mf_cuda_managed_cuDevicePrimaryCtxRetain",
+        "mf_cuda_managed_cuDevicePrimaryCtxGetState",
+        "mf_cuda_managed_cuDevicePrimaryCtxRelease_v2",
+        "mf_cuda_managed_cuCtxSetCurrent",
+        "mf_cuda_managed_cuCtxGetCurrent",
+    }
+)
+BASELINE_TYPED_STUB_ENTRYPOINTS = frozenset(
+    {
+        "mf_cuda_managed_cuCtxGetApiVersion",
+        "mf_cuda_managed_cuCtxGetStreamPriorityRange",
+        "mf_cuda_managed_cuGetExportTable",
+    }
+)
+BASELINE_INTERNAL_TABLES = frozenset(
+    {
+        "a094798c-2e74-2e74-93f2-0800200c0a66",
+        "42d85a81-3d10-4a4d-9b5f-6b4d0b1c2a77",
+        "c693336e-1121-df11-830b-7fafd1516e78",
+        "263e8860-7b07-11eb-9439-0242ac130002",
+        "d408" "2055-bde6-704b-8d34-ba123c66e1f2",
+        "6bd5fb6c-5bf4-e74a-8987-d93912fd9df9",
+    }
+)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -58,6 +99,84 @@ def load_profile(path: Path, profile_name: str) -> dict[str, str]:
 
 def result(stage_name: str, **details: Any) -> dict[str, Any]:
     return {"name": stage_name, "status": "passed", "details": details}
+
+
+def provider_execution_surface(trace: str) -> dict[str, Any]:
+    """Return only direct provider calls, never cuGetProcAddress probe names."""
+    return {
+        "kind": "direct-provider-entrypoints",
+        "entrypoints": sorted(set(TRACE_ENTRY.findall(trace))),
+        "typed_stub_entrypoints": sorted(set(TRACE_STUB_ENTRY.findall(trace))),
+        "internal_tables": sorted(set(TRACE_EXPORT_TABLE.findall(trace))),
+        "unknown_internal_table_requests": len(TRACE_UNKNOWN_EXPORT_TABLE.findall(trace)),
+        "canonical_artifact_module_loads": len(TRACE_MODULE.findall(trace)),
+        "launches": len(TRACE_LAUNCH.findall(trace)),
+        "local_semantic_execution_events": len(TRACE_SEMANTIC.findall(trace)),
+    }
+
+
+def daemon_execution_statistics(output: str) -> dict[str, int | str]:
+    matches = list(DAEMON_EXECUTION_STATISTICS.finditer(output))
+    if len(matches) != 1:
+        raise RuntimeError("daemon did not emit exactly one CPU execution statistics record")
+    fields = matches[0].groupdict()
+    return {
+        "mode": fields["mode"],
+        "compiler_requests": int(fields["compiler_requests"]),
+        "cache_hits": int(fields["cache_hits"]),
+        "cache_misses": int(fields["cache_misses"]),
+        "loaded_modules": int(fields["loaded_modules"]),
+    }
+
+
+def require_baseline_execution_surface(surface: dict[str, Any]) -> None:
+    entrypoints = frozenset(surface["entrypoints"])
+    if entrypoints != BASELINE_DIRECT_PROVIDER_ENTRYPOINTS:
+        raise RuntimeError(
+            "pinned baseline direct provider surface drifted: "
+            f"expected {sorted(BASELINE_DIRECT_PROVIDER_ENTRYPOINTS)!r}, "
+            f"observed {sorted(entrypoints)!r}"
+        )
+    typed_stub_entrypoints = frozenset(surface["typed_stub_entrypoints"])
+    if typed_stub_entrypoints != BASELINE_TYPED_STUB_ENTRYPOINTS:
+        raise RuntimeError(
+            "pinned baseline typed-stub surface drifted: "
+            f"expected {sorted(BASELINE_TYPED_STUB_ENTRYPOINTS)!r}, "
+            f"observed {sorted(typed_stub_entrypoints)!r}"
+        )
+    tables = frozenset(surface["internal_tables"])
+    if tables != BASELINE_INTERNAL_TABLES:
+        raise RuntimeError(
+            "pinned baseline CUDA internal-table surface drifted: "
+            f"expected {sorted(BASELINE_INTERNAL_TABLES)!r}, observed {sorted(tables)!r}"
+        )
+
+
+def select_baseline_cpu(affinity: set[int]) -> int:
+    if not affinity:
+        raise RuntimeError("stock PyTorch baseline has no effective CPU affinity")
+    return min(affinity)
+
+
+def pin_baseline_cpu() -> tuple[set[int], dict[str, int]]:
+    original_affinity = os.sched_getaffinity(0)
+    selected_cpu = select_baseline_cpu(original_affinity)
+    os.sched_setaffinity(0, {selected_cpu})
+    return original_affinity, {
+        "original_cpu_count": len(original_affinity),
+        "selected_cpu": selected_cpu,
+    }
+
+
+def stop_daemon(daemon: subprocess.Popen[str]) -> str:
+    if daemon.poll() is None:
+        daemon.terminate()
+    try:
+        output, _ = daemon.communicate(timeout=10)
+    except subprocess.TimeoutExpired:
+        daemon.kill()
+        output, _ = daemon.communicate()
+    return output
 
 
 def device_tensor(torch: Any, values: list[int], device: str) -> Any:
@@ -154,6 +273,28 @@ def runner(arguments: argparse.Namespace) -> dict[str, Any]:
     if not (provider_dir / "libcuda.so.1").is_file():
         raise ValueError(f"provider directory has no libcuda.so.1: {provider_dir}")
 
+    original_affinity, affinity = pin_baseline_cpu()
+    try:
+        return run_pinned_baseline(
+            profile,
+            daemon_path,
+            provider_dir,
+            affinity,
+            arguments.profile,
+            arguments.client_manifest,
+        )
+    finally:
+        os.sched_setaffinity(0, original_affinity)
+
+
+def run_pinned_baseline(
+    profile: dict[str, str],
+    daemon_path: Path,
+    provider_dir: Path,
+    affinity: dict[str, int],
+    profile_name: str,
+    client_manifest: Path,
+) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="metaflux-pytorch-stock-") as temporary:
         root = Path(temporary)
         socket_path = root / "metafluxd.sock"
@@ -179,11 +320,14 @@ def runner(arguments: argparse.Namespace) -> dict[str, Any]:
             stderr=subprocess.STDOUT,
             text=True,
         )
+        daemon_output = ""
+        application_report: dict[str, Any] | None = None
+        provider_surface: dict[str, Any] | None = None
         try:
             wait_for_socket(daemon, socket_path)
             application_run = subprocess.run(
                 [sys.executable, "-B", str(Path(__file__).resolve()), "--application",
-                 "--profile", arguments.profile, "--client-manifest", str(arguments.client_manifest)],
+                 "--profile", profile_name, "--client-manifest", str(client_manifest)],
                 check=False,
                 env=environment,
                 capture_output=True,
@@ -196,33 +340,59 @@ def runner(arguments: argparse.Namespace) -> dict[str, Any]:
                 )
             application_report = json.loads(application_run.stdout)
             trace = application_run.stderr
-            if TRACE_LAUNCH.search(trace) is None:
+            provider_surface = provider_execution_surface(trace)
+            if provider_surface["launches"] == 0:
                 raise RuntimeError("provider trace did not record a CUDA launch")
-            if TRACE_MODULE.search(trace) is None:
+            if provider_surface["canonical_artifact_module_loads"] == 0:
                 raise RuntimeError("provider trace did not record daemon-owned canonical module intake")
-            if TRACE_SEMANTIC.search(trace) is not None:
+            if provider_surface["unknown_internal_table_requests"] != 0:
+                raise RuntimeError("provider trace requested an unclassified CUDA internal table")
+            if provider_surface["local_semantic_execution_events"] != 0:
                 raise RuntimeError("provider trace recorded forbidden local semantic execution")
-            return {
-                "schema_version": 1,
-                "gate": "metaflux-pytorch-cuda-stock-baseline",
-                "result": "complete",
-                "daemon": {"cpu_execution_mode": "interpreter", "socket": "private"},
-                "provider": {
-                    "managed_mode": True,
-                    "launch_seen": True,
-                    "canonical_artifact_module_loaded": True,
-                    "local_semantic_execution_seen": False,
-                },
-                **application_report,
-            }
+            require_baseline_execution_surface(provider_surface)
         finally:
-            if daemon.poll() is None:
-                daemon.terminate()
-                try:
-                    daemon.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    daemon.kill()
-                    daemon.wait(timeout=10)
+            daemon_output = stop_daemon(daemon)
+
+        if application_report is None or provider_surface is None:
+            raise RuntimeError("stock PyTorch application produced no report")
+        daemon_statistics = daemon_execution_statistics(daemon_output)
+        if daemon_statistics["mode"] != "interpreter":
+            raise RuntimeError("baseline daemon did not retain interpreter mode")
+        if daemon_statistics["compiler_requests"] != 0:
+            raise RuntimeError("interpreter baseline unexpectedly requested the compiler")
+        if daemon_statistics["cache_hits"] != 0 or daemon_statistics["cache_misses"] != 0:
+            raise RuntimeError("interpreter baseline unexpectedly used the compiled-artifact cache")
+        if daemon_statistics["loaded_modules"] < provider_surface["canonical_artifact_module_loads"]:
+            raise RuntimeError("daemon statistics did not retain every canonical baseline module")
+        return {
+            "schema_version": 2,
+            "gate": "metaflux-pytorch-cuda-stock-baseline",
+            "result": "complete",
+            "runner": {"cpu_affinity": affinity},
+            "daemon": {
+                "cpu_execution_mode": "interpreter",
+                "socket": "private",
+                "execution_statistics": daemon_statistics,
+                "compiled_artifact_cache": {
+                    "used": False,
+                    "identity": "not-applicable-in-interpreter-mode",
+                },
+            },
+            "protocol": {
+                "client_abi_version": 1,
+                "artifact_registration": "MF_CLIENT_CONTROL_ARTIFACT_REGISTER_V1",
+                "kernel_ir_schema_version": 2,
+                "module_lifetime": "daemon-owned",
+            },
+            "provider": {
+                "managed_mode": True,
+                "launch_seen": True,
+                "canonical_artifact_module_loaded": True,
+                "local_semantic_execution_seen": False,
+                "execution_surface": provider_surface,
+            },
+            **application_report,
+        }
 
 
 def main() -> int:
