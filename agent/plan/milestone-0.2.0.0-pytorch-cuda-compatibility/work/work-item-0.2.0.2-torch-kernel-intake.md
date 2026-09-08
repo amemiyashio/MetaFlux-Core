@@ -78,6 +78,29 @@ dtype discrimination), gt/ge routing, and the torch.cuda._sleep bundled
 smoke kernel (the probe's artifact-intake stage currently fails cleanly
 on it — pre-existing on this architecture).
 
+F32 variants and GPU backend slice plan (2026-09-09): float32 add and
+mul joined the kernel-request path — OPERATION_ELEMENTWISE_ADD_F32_V1 = 4
+and MUL_F32_V1 = 5, with add_f32/mul_f32 PTX artifacts (add.rn.f32 /
+mul.rn.f32 over the same linear-index copy shape) and provider adapters
+keyed on the mangled dtype suffix (CUDAFunctor_addIfE / MulFunctorIfE;
+alpha 1.0 only for f32 add). Verified bit-exact: [2.0, -0.25, 2.125,
+3.5] and [0.75, -4.5, -3.125, -2.0]. div stays a clean error (div.rn.f32
+is not yet in the PTX frontend or the CPU interpreter opcode table).
+
+GPU backend minimal vertical slice (plan, next front): register a
+passthrough backend under plugins/backend/ per mf_backend_api_v1 that
+forwards accepted Kernel Requests to the real GPU driver — the daemon
+hands the Kernel Request PTX payload to cuModuleLoadData/cuLaunchKernel
+on a real CUDA context (via a forwarding libcuda session) instead of the
+CPU pipeline. Gate: with no GPU visible the backend returns its declared
+NOT_SUPPORTED; with a GPU present the same stock-baseline suite must
+pass bit-exact on the device. Decode prerequisites: the Kernel Request
+artifact must carry the launch dimensions already present in the
+argument block, and the passthrough layer needs the real-driver session
+bootstrap (a pinned forwarding libcuda, mirroring toolchains' ICD
+recipe). This is tracked here as the next decode front after the
+multi-operation corpus freezes.
+
 ## Exit Gate
 
 The complete surface/status matrix and handle-negative suite pass; the neutral

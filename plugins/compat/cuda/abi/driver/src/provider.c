@@ -179,6 +179,83 @@ static const char mf_pytorch_baseline_sub_ptx[] =
     "  ret;\n"
     "}\n";
 
+/* The stock-PyTorch int32/float elementwise add and multiply map to these
+ * neutral PTX artifacts: the linear-index copy shape with the typed
+ * arithmetic the PTX frontend and CPU backend already support. */
+static const char mf_pytorch_baseline_addf32_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry add_f32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 left,\n"
+    "  .param .u64 right,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .f32 %f<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [left];\n"
+    "  ld.param.u64 %rd2, [right];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  mov.u32 %r1, %tid.x;\n"
+    "  mov.u32 %r2, %ctaid.x;\n"
+    "  mov.u32 %r3, %ntid.x;\n"
+    "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
+    "  setp.ge.u32 %p, %r4, %r0;\n"
+    "  @%p bra done;\n"
+    "  mul.wide.u32 %rd3, %r4, 4;\n"
+    "  add.u64 %rd4, %rd0, %rd3;\n"
+    "  add.u64 %rd5, %rd1, %rd3;\n"
+    "  add.u64 %rd6, %rd2, %rd3;\n"
+    "  ld.global.f32 %f1, [%rd5];\n"
+    "  ld.global.f32 %f2, [%rd6];\n"
+    "  add.rn.f32 %f3, %f1, %f2;\n"
+    "  st.global.f32 [%rd4], %f3;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
+static const char mf_pytorch_baseline_mulf32_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry mul_f32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 left,\n"
+    "  .param .u64 right,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .f32 %f<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [left];\n"
+    "  ld.param.u64 %rd2, [right];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  mov.u32 %r1, %tid.x;\n"
+    "  mov.u32 %r2, %ctaid.x;\n"
+    "  mov.u32 %r3, %ntid.x;\n"
+    "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
+    "  setp.ge.u32 %p, %r4, %r0;\n"
+    "  @%p bra done;\n"
+    "  mul.wide.u32 %rd3, %r4, 4;\n"
+    "  add.u64 %rd4, %rd0, %rd3;\n"
+    "  add.u64 %rd5, %rd1, %rd3;\n"
+    "  add.u64 %rd6, %rd2, %rd3;\n"
+    "  ld.global.f32 %f1, [%rd5];\n"
+    "  ld.global.f32 %f2, [%rd6];\n"
+    "  mul.rn.f32 %f3, %f1, %f2;\n"
+    "  st.global.f32 [%rd4], %f3;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
 /* Client fatbin blobs and their parsed kernel names. The blob pointers stay
    valid for the process lifetime (client images). Kernel names come from the
    cubin ELF symbol tables so cudart's enumerate-and-match binding finds a
@@ -6506,18 +6583,40 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         add_type = strstr(kernel_name, "AddFunctorI");
         add_type_offset = 11U;
       }
-      if (add_type == (const char*)0 || add_type[add_type_offset] != 'i' ||
+      int is_float_add = 0;
+      float alpha_float = 1.0f;
+      if (add_type == (const char*)0 ||
+          (add_type[add_type_offset] != 'i' && add_type[add_type_offset] != 'f') ||
           kernel_parameters[0] == (void*)0 || kernel_parameters[1] == (void*)0 ||
           kernel_parameters[2] == (void*)0) {
         mf_cuda_queue_unlock();
         return CUDA_ERROR_NOT_SUPPORTED;
       }
+      is_float_add = add_type[add_type_offset] == 'f';
       normalized_element_count = *(const uint32_t*)kernel_parameters[0];
-      alpha = *(const int32_t*)kernel_parameters[1];
+      alpha = is_float_add ? INT32_C(1) : *(const int32_t*)kernel_parameters[1];
+      alpha_float = is_float_add ? *(const float*)kernel_parameters[1] : 1.0f;
       add_data_array = (void**)kernel_parameters[2];
       normalized_pointers[0] = (CUdeviceptr)(uintptr_t)add_data_array[0];
       normalized_pointers[1] = (CUdeviceptr)(uintptr_t)add_data_array[1];
       normalized_pointers[2] = (CUdeviceptr)(uintptr_t)add_data_array[2];
+      if (is_float_add) {
+        /* float32 add: alpha 1.0 only (no float sub PTX yet). */
+        if (alpha_float != 1.0f || normalized_element_count == UINT32_C(0) ||
+            normalized_pointers[0] == (CUdeviceptr)0 ||
+            normalized_pointers[1] == (CUdeviceptr)0 ||
+            normalized_pointers[2] == (CUdeviceptr)0) {
+          mf_cuda_queue_unlock();
+          return CUDA_ERROR_NOT_SUPPORTED;
+        }
+        module_record = &mf_cuda_global.modules[function_record->aux];
+        result = mf_cuda_materialize_pytorch_baseline_locked(
+            module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_F32_V1,
+            mf_pytorch_baseline_addf32_ptx, sizeof(mf_pytorch_baseline_addf32_ptx) - 1U,
+            "elementwise-add-f32");
+        kernel_parameters = normalized_parameters;
+        goto daemon_launch;
+      }
       /* torch lowers sub to add with alpha = -1: alpha 1 selects the add
          PTX, alpha -1 the sub PTX (out = left - right); any other alpha
          stays a clean error until an alpha-parameterized PTX exists. */
@@ -6552,6 +6651,38 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       goto daemon_launch;
     }
 
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "BinaryFunctor") != (char*)0 &&
+        strstr(kernel_name, "MulFunctorIfE") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0) {
+      /* torch float32 tensor*tensor mul: the same binary shape as the int32
+         mul, routed to the float32 PTX artifact. */
+      void** mulf_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)mulf_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)mulf_data_array[1];
+      normalized_pointers[2] = (CUdeviceptr)(uintptr_t)mulf_data_array[2];
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0 ||
+          normalized_pointers[2] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_MUL_F32_V1,
+          mf_pytorch_baseline_mulf32_ptx, sizeof(mf_pytorch_baseline_mulf32_ptx) - 1U,
+          "elementwise-mul-f32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
     if (kernel_name[0] != '\0' &&
         strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
         strstr(kernel_name, "BinaryFunctor") != (char*)0 &&
