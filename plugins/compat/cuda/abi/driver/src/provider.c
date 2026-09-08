@@ -57,12 +57,51 @@ static int mf_cuda_entry_trace_enabled(void) {
    library intake; each deferred module needs a record. The token index field
    is 16-bit, so 4096 stays well inside the encoding. */
 #define MF_CUDA_MODULE_CAPACITY UINT32_C(4096)
-/* Library-intake modules carry client cubins the daemon cannot compile; they
-   resolve functions permissively and launches route through the semantic
-   kernel profile instead of daemon materialization. */
+/* Library-intake modules carry client cubins outside current daemon compiler
+   coverage. Their functions stay deferred until an exact daemon-owned
+   adapter is implemented. */
 static uint8_t mf_module_deferred[MF_CUDA_MODULE_CAPACITY];
-/* Per-function registered name for semantic launch routing. */
+/* Per-function registered name used to select an exact daemon-owned adapter. */
 static char mf_function_names[MF_CUDA_OBJECT_CAPACITY][160];
+
+/* The stock-PyTorch baseline maps its pinned int32 add kernel to this neutral
+ * PTX artifact. The provider only adapts CUDA call arguments; artifact intake,
+ * Kernel IR construction, and execution remain daemon-owned. */
+static const char mf_pytorch_baseline_add_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry add_u32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 left,\n"
+    "  .param .u64 right,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [left];\n"
+    "  ld.param.u64 %rd2, [right];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  mov.u32 %r1, %tid.x;\n"
+    "  mov.u32 %r2, %ctaid.x;\n"
+    "  mov.u32 %r3, %ntid.x;\n"
+    "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
+    "  setp.ge.u32 %p, %r4, %r0;\n"
+    "  @%p bra done;\n"
+    "  mul.wide.u32 %rd3, %r4, 4;\n"
+    "  add.u64 %rd4, %rd0, %rd3;\n"
+    "  add.u64 %rd5, %rd1, %rd3;\n"
+    "  add.u64 %rd6, %rd2, %rd3;\n"
+    "  ld.global.u32 %r5, [%rd5];\n"
+    "  ld.global.u32 %r6, [%rd6];\n"
+    "  add.u32 %r7, %r5, %r6;\n"
+    "  st.global.u32 [%rd4], %r7;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
 
 /* Client fatbin blobs and their parsed kernel names. The blob pointers stay
    valid for the process lifetime (client images). Kernel names come from the
@@ -4853,9 +4892,9 @@ CUresult cuModuleGetFunction(CUfunction* function, CUmodule module, const char* 
     result = mf_cuda_lookup_token_locked((void*)module, MF_CUDA_TAG_MODULE, MF_CUDA_OBJECT_MODULE,
                                          mf_cuda_global.modules, &module_index, &module_record);
   }
-  /* Deferred library intake carries client cubins the daemon cannot
-     compile: launches route through the semantic kernel profile, so no
-     materialization is attempted. */
+  /* Deferred library intake carries client cubins outside current daemon
+     compiler coverage. An approved adapter materializes its own neutral
+     daemon artifact at launch time. */
   if (result == CUDA_SUCCESS && mf_module_deferred[module_index] == 0 &&
       module_record->remote_id == UINT64_C(0)) {
     mf_client_completion_v1 load_completion = {0};
@@ -5047,7 +5086,7 @@ CUresult cuLibraryLoadFromFile(CUlibrary* library, const char* file_name, CUjit_
 CUresult cuLibraryUnload(CUlibrary library) { return cuModuleUnload((CUmodule)library); }
 
 /* Kernel tokens encode (kernel-entry index + 1) in the function tag; the
-   entry carries the owning module so launches route semantically. */
+   entry carries the owning deferred module for adapter selection. */
 static int mf_kernel_token_decode(CUkernel kernel, uint32_t* entry_index) {
   uint32_t generation = 0;
   uint32_t index = 0;
@@ -5263,8 +5302,6 @@ CUresult cuFlushGPUDirectRDMAWrites(CUflushGPUDirectRDMAWritesTarget target,
 
 CUresult cuCtxResetPersistingL2Cache(void) { return CUDA_ERROR_NOT_SUPPORTED; }
 
-static void mf_track_alloc(CUdeviceptr dptr);
-
 CUresult cuMemAlloc_v2(CUdeviceptr* device_pointer, size_t bytes) {
   uint32_t context_index = 0;
   uint32_t memory_index = 0;
@@ -5314,7 +5351,6 @@ CUresult cuMemAlloc_v2(CUdeviceptr* device_pointer, size_t bytes) {
       record->size = (uint64_t)bytes;
       mf_cuda_global.next_address += aligned_bytes + MF_CUDA_ADDRESS_GUARD;
       *device_pointer = (CUdeviceptr)record->address;
-      mf_track_alloc(*device_pointer);
     }
   }
   if (result != CUDA_SUCCESS && completion.result_id != UINT64_C(0) &&
@@ -5383,26 +5419,6 @@ CUresult cuMemFree(CUdeviceptr_v1 device_pointer) {
   return cuMemFree_v2((CUdeviceptr)device_pointer);
 }
 
-static unsigned long long mf_last_allocated_device_pointer = 0;
-
-static unsigned long long mf_last_alloc_pointer(void) {
-  return mf_last_allocated_device_pointer;
-}
-
-static void mf_track_alloc(CUdeviceptr dptr) {
-  mf_last_allocated_device_pointer = (unsigned long long)dptr;
-}
-
-static unsigned long long mf_last_h2d_pointer = 0;
-
-static unsigned long long mf_last_write_pointer(void) {
-  return mf_last_h2d_pointer;
-}
-
-static void mf_track_write(CUdeviceptr dptr) {
-  mf_last_h2d_pointer = (unsigned long long)dptr;
-}
-
 static CUresult mf_cuda_copy(uint32_t direction, CUdeviceptr destination_device,
                              void* destination_host, CUdeviceptr source_device,
                              const void* source_host, size_t bytes, CUstream stream,
@@ -5441,17 +5457,6 @@ static CUresult mf_cuda_copy(uint32_t direction, CUdeviceptr destination_device,
   if ((direction == MF_CUDA_COPY_H2D && source_host == (const void*)0) ||
       (direction == MF_CUDA_COPY_D2H && destination_host == (void*)0)) {
     return CUDA_ERROR_INVALID_VALUE;
-  }
-  if (direction == MF_CUDA_COPY_D2H &&
-      mf_arange_pending_read(source_device, destination_host, bytes)) {
-    if (mf_cuda_entry_trace_enabled() != 0) {
-      fprintf(stderr, "MF_ARANGE read-through %zu bytes\n", bytes);
-    }
-    return CUDA_SUCCESS;
-  }
-  if (direction == MF_CUDA_COPY_H2D) {
-    mf_track_write(destination_device);
-    mf_arange_pending_invalidate(destination_device);
   }
   result = mf_cuda_queue_lock(UINT32_C(0));
   if (result != CUDA_SUCCESS) {
@@ -6139,781 +6144,71 @@ CUresult cuEventElapsedTime(float* milliseconds, CUevent start, CUevent end) {
   return result == CUDA_SUCCESS ? CUDA_ERROR_NOT_SUPPORTED : result;
 }
 
-/* Generic semantic elementwise engine for framework fatbin kernels: the
-   vectorized/unrolled elementwise families share the parameter shape
-   (int numel[, functor scalars], array_t<T> data{pointers}). The provider
-   pulls the operands over the copy path, computes on the host, and writes
-   the result back. Element types come from the mangled template parameters
-   (i/l = int32, f = float, d = double); comparison outputs are one bool
-   byte per element. */
-#define MF_SEM_OP_ABS 1
-#define MF_SEM_OP_NEG 2
-#define MF_SEM_OP_EXP 3
-#define MF_SEM_OP_SIGMOID 4
-#define MF_SEM_OP_SQRT 5
-#define MF_SEM_OP_CLAMP_MIN 6
-#define MF_SEM_OP_COPY_CAST 7
-#define MF_SEM_OP_MUL 8
-#define MF_SEM_OP_DIV 9
-#define MF_SEM_OP_EQ 10
-#define MF_SEM_OP_CMP 11
-#define MF_SEM_OP_ALPHA_MUL 12
-#define MF_SEM_OP_ALPHA_DIV 13
-#define MF_SEM_OP_ALPHA_ADD 14
-#define MF_SEM_OP_ALPHA_SUB 15
 
-static double mf_semantic_fetch(const void* cells, uint32_t kind, uint32_t index) {
-  if (kind == UINT32_C(1)) {
-    return (double)((const float*)cells)[index];
-  }
-  if (kind == UINT32_C(2)) {
-    return ((const double*)cells)[index];
-  }
-  return (double)((const int*)cells)[index];
-}
-
-static void mf_semantic_store(void* cells, uint32_t kind, uint32_t index, double value) {
-  if (kind == UINT32_C(1)) {
-    ((float*)cells)[index] = (float)value;
-  } else if (kind == UINT32_C(2)) {
-    ((double*)cells)[index] = value;
-  } else if (kind == UINT32_C(3)) {
-    ((long long*)cells)[index] = (long long)value;
-  } else {
-    ((int*)cells)[index] = (int)value;
-  }
-}
-
-static CUresult mf_semantic_elementwise(const char* kernel_name, uint32_t op,
-                                        void** kernel_parameters, CUstream stream,
-                                        uint32_t per_thread_default) {
-  int is_scalar_cmp = strstr(kernel_name, "compare_scalar_kernel") != (char*)0;
-  uint32_t pointer_count = (op == MF_SEM_OP_MUL || op == MF_SEM_OP_DIV ||
-                            op == MF_SEM_OP_EQ || (op == MF_SEM_OP_CMP && !is_scalar_cmp))
-                               ? UINT32_C(3)
-                               : UINT32_C(2);
-  /* vectorized kernels pass (numel, functor, array); the plain/unrolled
-     families elide the stateless functor entirely and pass (numel, array) —
-     the stale third slot must never be dereferenced. */
-  uint32_t array_slot = UINT32_C(1);
-  uint32_t functor_present = UINT32_C(0);
-  if (strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0) {
-    array_slot = UINT32_C(2);
-    functor_present = UINT32_C(1);
-  } else if (strstr(kernel_name, "unrolled_elementwise_kernel") != (char*)0) {
-    /* The unrolled family passes the functor argument (even when stateless)
-       before the pointer array: (numel, func, array). */
-    array_slot = UINT32_C(2);
-    functor_present = UINT32_C(0);
-  }
-  uint32_t in_kind = UINT32_C(0);
-  uint32_t out_kind = UINT32_C(0);
-  uint32_t out_element_size = sizeof(int);
-  uint32_t scalar_slot = UINT32_C(1);
-  uint32_t num_elements = 0;
-  uint32_t element_index = 0;
-  double scalar_value = 0.0;
-  void* data_array = (void*)0;
-  CUdeviceptr out_pointer = 0;
-  CUdeviceptr left_pointer = 0;
-  CUdeviceptr right_pointer = 0;
-  void* out_values = (void*)0;
-  void* left_values = (void*)0;
-  void* right_values = (void*)0;
+static CUresult mf_cuda_materialize_pytorch_baseline_add_locked(mf_cuda_object* module_record) {
+  mf_client_completion_v1 completion = {0};
+  const mf_cuda_command command = {
+      MF_CUDA_COMMAND_MODULE_LOAD, 0, {0, 0, 0, 0}, UINT32_C(0)};
+  mf_cuda_command load_command = command;
+  uint64_t artifact_id = UINT64_C(0);
+  uint64_t artifact_generation = UINT64_C(0);
   CUresult result = CUDA_SUCCESS;
-  if (kernel_parameters[0] == (void*)0 || kernel_parameters[array_slot] == (void*)0) {
-    mf_cuda_queue_unlock();
-    return CUDA_ERROR_INVALID_VALUE;
+
+  if (module_record == (mf_cuda_object*)0) {
+    return CUDA_ERROR_INVALID_HANDLE;
   }
-  if (op == MF_SEM_OP_ABS) {
-    if (strstr(kernel_name, "AbsFunctorIfE") != (char*)0) {
-      in_kind = UINT32_C(1);
-    } else if (strstr(kernel_name, "AbsFunctorIdE") != (char*)0) {
-      in_kind = UINT32_C(2);
-    }
-    out_kind = in_kind;
-  } else if (op == MF_SEM_OP_COPY_CAST) {
-    in_kind = UINT32_C(0);
-    if (strstr(kernel_name, "UlfE") != (char*)0) {
-      out_kind = UINT32_C(1);
-    } else if (strstr(kernel_name, "UldE") != (char*)0) {
-      out_kind = UINT32_C(2);
-    } else if (strstr(kernel_name, "UllE") != (char*)0) {
-      out_kind = UINT32_C(3);
-    } else {
-      out_kind = UINT32_C(0);
-    }
-  } else if (op == MF_SEM_OP_EQ || op == MF_SEM_OP_CMP) {
-    if (strstr(kernel_name, "CompareFunctorIfE") != (char*)0 ||
-        strstr(kernel_name, "CompareEqFunctorIfE") != (char*)0 ||
-        strstr(kernel_name, "compare_scalar_kernelIfE") != (char*)0) {
-      in_kind = UINT32_C(1);
-    } else if (strstr(kernel_name, "CompareFunctorIdE") != (char*)0 ||
-               strstr(kernel_name, "compare_scalar_kernelIdE") != (char*)0) {
-      in_kind = UINT32_C(2);
-    }
-    out_element_size = sizeof(unsigned char);
-  } else {
-    /* BinaryFunctorIfff / AUnaryFunctorIiii repeat the type; unary lambdas
-       carry it as the closing UlfE / UliE / UldE template id. */
-    if (strstr(kernel_name, "Ifff") != (char*)0 ||
-        strstr(kernel_name, "UlfE") != (char*)0) {
-      in_kind = UINT32_C(1);
-    } else if (strstr(kernel_name, "Iddd") != (char*)0 ||
-               strstr(kernel_name, "UldE") != (char*)0) {
-      in_kind = UINT32_C(2);
-    }
-    out_kind = in_kind;
-  }
-  if (op == MF_SEM_OP_CLAMP_MIN || op == MF_SEM_OP_ALPHA_MUL ||
-      op == MF_SEM_OP_ALPHA_DIV || op == MF_SEM_OP_ALPHA_ADD ||
-      op == MF_SEM_OP_ALPHA_SUB) {
-    scalar_slot = UINT32_C(1);
-  }
-  if (op == MF_SEM_OP_COPY_CAST) {
-    out_element_size =
-        out_kind == UINT32_C(3) ? (uint32_t)sizeof(long long)
-        : out_kind == UINT32_C(2) ? (uint32_t)sizeof(double)
-        : out_kind == UINT32_C(1) ? (uint32_t)sizeof(float)
-        : (uint32_t)sizeof(int);
-  }
-  num_elements = *(unsigned int*)kernel_parameters[0];
-  if (num_elements == UINT32_C(0)) {
-    mf_cuda_queue_unlock();
+  if (module_record->remote_id != UINT64_C(0) &&
+      module_record->remote_generation != UINT64_C(0)) {
     return CUDA_SUCCESS;
   }
-  data_array = ((void**)kernel_parameters)[array_slot];
-  int is_closure_kernel =
-      (op == MF_SEM_OP_COPY_CAST) && (array_slot == UINT32_C(1));
-  if (is_closure_kernel) {
-    CUdeviceptr p0 = 0;
-    CUdeviceptr p1 = 0;
-    mf_cuda_object* b0 = (mf_cuda_object*)0;
-    mf_cuda_object* b1 = (mf_cuda_object*)0;
-    uint64_t o0 = 0, o1 = 0;
-    memcpy(&p0, (const char*)data_array + 504, sizeof(p0));
-    memcpy(&p1, (const char*)data_array + 512, sizeof(p1));
-    if (p0 >= 0x01000000u && p1 >= 0x01000000u &&
-        mf_cuda_memory_locked(p0, 4, &b0, &o0) == CUDA_SUCCESS &&
-        mf_cuda_memory_locked(p1, 4, &b1, &o1) == CUDA_SUCCESS &&
-        b0 != (mf_cuda_object*)0 && b1 != (mf_cuda_object*)0) {
-      out_pointer = p0;
-      left_pointer = p1;
-    } else {
-      /* Fallback to scanned pointers */
-      CUdeviceptr scanned_ptrs[8];
-      uint32_t scanned_count = 0;
-      size_t scan_off = 0;
-      const char* raw = (const char*)data_array;
-      for (scan_off = 0; scan_off + 8 <= 1024; scan_off += 4) {
-        CUdeviceptr cand = 0;
-        mf_cuda_object* block = (mf_cuda_object*)0;
-        uint64_t blk_off = 0;
-        memcpy(&cand, raw + scan_off, sizeof(cand));
-        if (cand >= 0x01000000u && cand < 0x8000000000000000ULL && cand % 4 == 0) {
-          if (mf_cuda_memory_locked(cand, 4, &block, &blk_off) == CUDA_SUCCESS &&
-              block != (mf_cuda_object*)0) {
-            uint32_t si = 0;
-            int already = 0;
-            for (si = 0; si < scanned_count; ++si) {
-              if (scanned_ptrs[si] == cand) {
-                already = 1;
-                break;
-              }
-            }
-            if (!already && scanned_count < 8) {
-              scanned_ptrs[scanned_count++] = cand;
-              if (mf_cuda_entry_trace_enabled() != 0) {
-                fprintf(stderr, "MF_CLOSURE_PTR [%u]=%llx at offset 0x%zx (%zu)\n",
-                        scanned_count - 1, (unsigned long long)cand, scan_off, scan_off);
-              }
-            }
-          }
-        }
-      }
-      if (scanned_count >= 2) {
-        out_pointer = scanned_ptrs[0];
-        left_pointer = scanned_ptrs[1];
-      } else {
-        /* Fallback */
-        out_pointer = (CUdeviceptr)mf_last_alloc_pointer();
-        left_pointer = (CUdeviceptr)mf_last_write_pointer();
-        if (left_pointer == (CUdeviceptr)0 || left_pointer == out_pointer) {
-          uint32_t mi = 0;
-          for (mi = 0; mi < MF_CUDA_OBJECT_CAPACITY; ++mi) {
-            mf_cuda_object* mo = &mf_cuda_global.memories[mi];
-            if (mo->active != UINT32_C(0) && (CUdeviceptr)mo->address != out_pointer &&
-                mo->address >= 0x01000000u) {
-              left_pointer = (CUdeviceptr)mo->address;
-              break;
-            }
-          }
-        }
-      }
-    }
-    if (mf_cuda_entry_trace_enabled() != 0) {
-      fprintf(stderr, "MF_CLOSURE_PICKED out=%llx left=%llx\n",
-              (unsigned long long)out_pointer, (unsigned long long)left_pointer);
-    }
-  } else {
-    out_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[0];
-    if (pointer_count == UINT32_C(3)) {
-      left_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[1];
-      right_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[2];
-    } else {
-      left_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[1];
-    }
-  }
-  if (op == MF_SEM_OP_CLAMP_MIN || op == MF_SEM_OP_ALPHA_MUL ||
-      op == MF_SEM_OP_ALPHA_DIV || op == MF_SEM_OP_ALPHA_ADD ||
-      op == MF_SEM_OP_ALPHA_SUB) {
-    if (functor_present != UINT32_C(0)) {
-      /* The functor embeds an empty stateless-op member first, so the scalar
-         lands at offset 4 after its one byte plus alignment padding. */
-      scalar_value = mf_semantic_fetch((char*)kernel_parameters[scalar_slot] + 4, in_kind,
-                                       UINT32_C(0));
-    }
-  }
-  if (op == MF_SEM_OP_CMP && functor_present != UINT32_C(0)) {
-    /* CompareEqFunctor (Eq=0, Ne=1) and CompareFunctor (Ge=0, Gt=1, Le=2, Lt=3)
-       carry the opcode enum at offset zero. */
-    scalar_value = (double)(*(int*)kernel_parameters[1]);
-  }
-  if (is_scalar_cmp) {
-    /* kernel_parameters[1]: struct { OpType op; scalar_t val; } */
-    if (in_kind == UINT32_C(1)) {
-      scalar_value = (double)(*(const float*)((const char*)kernel_parameters[1] + 4));
-    } else if (in_kind == UINT32_C(2)) {
-      scalar_value = *(const double*)((const char*)kernel_parameters[1] + 8);
-    } else {
-      scalar_value = (double)(*(const int*)((const char*)kernel_parameters[1] + 4));
-    }
-  }
-  {
-    size_t in_bytes = (size_t)num_elements *
-                      (in_kind == UINT32_C(2) ? sizeof(double) : sizeof(int));
-    size_t out_bytes = (size_t)num_elements * out_element_size;
-    left_values = malloc(in_bytes);
-    if (left_values == (void*)0) {
-      mf_cuda_queue_unlock();
-      return CUDA_ERROR_OUT_OF_MEMORY;
-    }
-    if (pointer_count == UINT32_C(3)) {
-      right_values = malloc(in_bytes);
-      if (right_values == (void*)0) {
-        free(left_values);
-        mf_cuda_queue_unlock();
-        return CUDA_ERROR_OUT_OF_MEMORY;
-      }
-    }
-    out_values = malloc(out_bytes);
-    if (out_values == (void*)0) {
-      free(left_values);
-      free(right_values);
-      mf_cuda_queue_unlock();
-      return CUDA_ERROR_OUT_OF_MEMORY;
-    }
-    /* mf_cuda_copy takes the queue lock itself; the launch path already
-       holds it, so release before copying and return without re-lock. */
-    mf_cuda_queue_unlock();
-    result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, left_values, left_pointer,
-                          (const void*)0, in_bytes, stream, UINT32_C(0), per_thread_default);
-    if (result != CUDA_SUCCESS) {
-      if (mf_cuda_entry_trace_enabled() != 0) {
-        fprintf(stderr, "MF_ELEM_COPY_FAIL left_ptr=%llx bytes=%zu rc=%u\n",
-                (unsigned long long)left_pointer, in_bytes, result);
-      }
-      free(left_values);
-      if (pointer_count == UINT32_C(3)) {
-        free(right_values);
-      }
-      free(out_values);
-      return result;
-    }
-    if (result == CUDA_SUCCESS && pointer_count == UINT32_C(3)) {
-      result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, right_values, right_pointer,
-                            (const void*)0, in_bytes, stream, UINT32_C(0), per_thread_default);
-    }
-    if (result == CUDA_SUCCESS) {
-      if (is_closure_kernel) {
-        const unsigned char* packed = (const unsigned char*)kernel_parameters[1];
-        int dims = 0;
-        unsigned int d0 = 0;
-        unsigned int d1 = 0;
-        if (packed != (const unsigned char*)0) {
-          memcpy(&dims, packed, sizeof(dims));
-          memcpy(&d0, packed + 4, sizeof(d0));
-          memcpy(&d1, packed + 16, sizeof(d1));
-        }
-        for (element_index = 0; element_index < num_elements; ++element_index) {
-          uint32_t src_idx = element_index;
-          uint32_t dst_idx = element_index;
-          if (dims == 2 && d0 > 0 && d1 > 0) {
-            uint32_t row = element_index / d0;
-            uint32_t col = element_index % d0;
-            src_idx = col * d1 + row;
-          }
-          if (src_idx >= num_elements) {
-            src_idx = element_index;
-          }
-          double v = mf_semantic_fetch(left_values, in_kind, src_idx);
-          mf_semantic_store(out_values, out_kind, dst_idx, v);
-        }
-      } else {
-        for (element_index = 0; element_index < num_elements; ++element_index) {
-          double a = mf_semantic_fetch(left_values, in_kind, element_index);
-          double b = pointer_count == UINT32_C(3)
-                         ? mf_semantic_fetch(right_values, in_kind, element_index)
-                         : scalar_value;
-          double value = 0.0;
-          switch (op) {
-            case MF_SEM_OP_ABS:
-              value = a < 0.0 ? -a : a;
-              break;
-            case MF_SEM_OP_NEG:
-              value = -a;
-              break;
-            case MF_SEM_OP_EXP: {
-              /* exp with range reduction to |x| <= 0.5 and a 9-term series;
-                 squaring multiplies the relative error by 2^n, which stays
-                 within float32 precision for the values these kernels see. */
-              double x = a;
-              int n = 0;
-              if (x < -708.0) {
-                value = 0.0;
-                break;
-              }
-              while (x > 0.5) {
-                x = x / 2.0;
-                n = n + 1;
-              }
-              while (x < -0.5) {
-                x = x / 2.0;
-                n = n + 1;
-              }
-              {
-                double term = 1.0;
-                double series = 1.0;
-                int i = 0;
-                for (i = 1; i <= 9; ++i) {
-                  term = term * x / (double)i;
-                  series = series + term;
-                }
-                value = series;
-              }
-              while (n > 0) {
-                value = value * value;
-                n = n - 1;
-              }
-            } break;
-            case MF_SEM_OP_SIGMOID: {
-              double e;
-              double x = a < 0.0 ? -a : a;
-              int n = 0;
-              while (x > 0.5) {
-                x = x / 2.0;
-                n = n + 1;
-              }
-              {
-                double term = 1.0;
-                double series = 1.0;
-                int i = 0;
-                for (i = 1; i <= 9; ++i) {
-                  term = term * x / (double)i;
-                  series = series + term;
-                }
-                e = series;
-              }
-              while (n > 0) {
-                e = e * e;
-                n = n - 1;
-              }
-              value = 1.0 / (1.0 + (a < 0.0 ? e : 1.0 / e));
-            } break;
-            case MF_SEM_OP_SQRT: {
-              double x = a < 0.0 ? 0.0 : a;
-              double guess = x > 1.0 ? x / 2.0 : 1.0;
-              int iter = 0;
-              if (x == 0.0) {
-                value = 0.0;
-                break;
-              }
-              for (iter = 0; iter < 40; ++iter) {
-                guess = (guess + x / guess) / 2.0;
-              }
-              value = guess;
-            } break;
-            case MF_SEM_OP_CLAMP_MIN:
-              value = a < scalar_value ? scalar_value : a;
-              break;
-            case MF_SEM_OP_COPY_CAST:
-              value = a;
-              break;
-            case MF_SEM_OP_MUL:
-              value = a * b;
-              break;
-            case MF_SEM_OP_DIV:
-              value = b == 0.0 ? 0.0 : a / b;
-              break;
-            case MF_SEM_OP_EQ:
-              value = a == b ? 1.0 : 0.0;
-              break;
-            case MF_SEM_OP_CMP: {
-              int eq_fam = strstr(kernel_name, "CompareEqFunctor") != (char*)0;
-              int code = is_scalar_cmp
-                             ? (*(const int*)kernel_parameters[1])
-                             : (int)scalar_value;
-              if (eq_fam) {
-                value = code == 0 ? (a == b ? 1.0 : 0.0) : (a != b ? 1.0 : 0.0);
-              } else {
-                /* OpType: 0 = GE, 1 = GT, 2 = LE, 3 = LT */
-                switch (code) {
-                  case 0: value = a >= b ? 1.0 : 0.0; break;
-                  case 1: value = a > b ? 1.0 : 0.0; break;
-                  case 2: value = a <= b ? 1.0 : 0.0; break;
-                  case 3: value = a < b ? 1.0 : 0.0; break;
-                  default: value = 0.0; break;
-                }
-              }
-            } break;
-            case MF_SEM_OP_ALPHA_MUL:
-              value = scalar_value * a;
-              break;
-            case MF_SEM_OP_ALPHA_DIV:
-              value = a / (scalar_value == 0.0 ? 1.0 : scalar_value);
-              break;
-            case MF_SEM_OP_ALPHA_ADD:
-              value = a + scalar_value;
-              break;
-            case MF_SEM_OP_ALPHA_SUB:
-              value = a - scalar_value;
-              break;
-            default:
-              value = a;
-              break;
-          }
-          if (op == MF_SEM_OP_EQ || op == MF_SEM_OP_CMP) {
-            ((unsigned char*)out_values)[element_index] = value != 0.0 ? (unsigned char)1 : 0;
-          } else {
-            mf_semantic_store(out_values, out_kind, element_index, value);
-          }
-        }
-      }
-      result = mf_cuda_copy(MF_CUDA_COPY_H2D, out_pointer, (void*)0, (CUdeviceptr)0, out_values,
-                            out_bytes, stream, UINT32_C(0), per_thread_default);
-      mf_track_write(out_pointer);
-    }
-  }
-  free(left_values);
-  free(right_values);
-  free(out_values);
-  if (mf_cuda_entry_trace_enabled() != 0) {
-    fprintf(stderr, "MF_SEMANTIC elem op=%u n=%u rc=%d\n", op, num_elements, (int)result);
-  }
-  return result;
-}
-
-static CUresult mf_semantic_reduce(const char* kernel_name, void** kernel_parameters,
-                                   CUstream stream, uint32_t per_thread_default) {
-  uint32_t reduction_op = UINT32_C(0); /* 0 sum, 1 mean, 2 max, 3 min */
-  if (strstr(kernel_name, "MeanOps") != (char*)0) {
-    reduction_op = UINT32_C(1);
-  } else if (strstr(kernel_name, "MaxNanFunctor") != (char*)0 ||
-             strstr(kernel_name, "MaxFunctor") != (char*)0) {
-    reduction_op = UINT32_C(2);
-  } else if (strstr(kernel_name, "MinNanFunctor") != (char*)0 ||
-             strstr(kernel_name, "MinFunctor") != (char*)0) {
-    reduction_op = UINT32_C(3);
+  if (module_record->remote_id != UINT64_C(0) ||
+      module_record->remote_generation != UINT64_C(0) ||
+      module_record->materialized_id != UINT64_C(0) ||
+      module_record->materialized_generation != UINT64_C(0)) {
+    return CUDA_ERROR_INVALID_HANDLE;
   }
 
-  {
-    const unsigned char* packed = (const unsigned char*)kernel_parameters[0];
-    const unsigned long long* q = (const unsigned long long*)kernel_parameters[0];
-    uint32_t num_inputs = 0;
-    uint32_t k = 0;
-    for (k = 0; k < 6; ++k) {
-      uint32_t high = (uint32_t)(q[k] >> 32);
-      uint32_t low = (uint32_t)(q[k] & 0xFFFFFFFF);
-      if (high > 0 && high <= 10000000 && (low == 1 || low == 2 || low == 4 || low == 8)) {
-        num_inputs = high;
-        break;
-      }
-    }
-    if (num_inputs == 0) {
-      num_inputs = *(const unsigned int*)((const char*)kernel_parameters[0] + 0x14);
-    }
-    if (num_inputs == 0) {
-      num_inputs = *(const unsigned int*)((const char*)kernel_parameters[0] + 0x0C);
-    }
-
-    uint32_t candidates[16];
-    uint32_t candidate_count = 0;
-    size_t scan_index = 0;
-    double extreme = 0.0;
-    int have_extreme = 0;
-    void* input_values = (void*)0;
-    double output_value = 0.0;
-    size_t in_element_width = sizeof(float);
-    size_t out_element_width = sizeof(float);
-    int in_is_int64 = 0;
-    int in_is_int32 = 0;
-    int in_is_double = 0;
-    CUresult copy_result = CUDA_SUCCESS;
-    CUresult result = CUDA_SUCCESS;
-
-    if (strstr(kernel_name, "ReduceOpIl") != (char*)0 ||
-        strstr(kernel_name, "UllE") != (char*)0) {
-      in_element_width = sizeof(long long);
-      out_element_width = sizeof(long long);
-      in_is_int64 = 1;
-    } else if (strstr(kernel_name, "ReduceOpIi") != (char*)0 ||
-               strstr(kernel_name, "UiE") != (char*)0) {
-      in_element_width = sizeof(int);
-      out_element_width = sizeof(int);
-      in_is_int32 = 1;
-    } else if (strstr(kernel_name, "ReduceOpId") != (char*)0 ||
-               strstr(kernel_name, "UdE") != (char*)0) {
-      in_element_width = sizeof(double);
-      out_element_width = sizeof(double);
-      in_is_double = 1;
-    }
-
-    for (scan_index = 0; scan_index + 4 <= 0x400; ++scan_index) {
-      unsigned int value = 0;
-      mf_cuda_object* block = (mf_cuda_object*)0;
-      uint64_t block_offset = 0;
-      memcpy(&value, packed + scan_index, sizeof(value));
-      if (value < 0x01000000u || value >= 0x80000000u || value % 4 != 0) {
-        continue;
-      }
-      if (mf_cuda_memory_locked((CUdeviceptr)value, 4, &block, &block_offset) !=
-              CUDA_SUCCESS ||
-          block == (mf_cuda_object*)0) {
-        continue;
-      }
-      {
-        uint32_t j = 0;
-        int seen = 0;
-        for (j = 0; j < candidate_count; ++j) {
-          if (candidates[j] == value) {
-            seen = 1;
-            break;
-          }
-        }
-        if (!seen && candidate_count < UINT32_C(16)) {
-          candidates[candidate_count++] = value;
-          if (mf_cuda_entry_trace_enabled() != 0) {
-            fprintf(stderr, " MF_CAND_OFF val=%x at 0x%zx\n", value, scan_index);
-          }
-        }
-      }
-    }
-
-    if (mf_cuda_entry_trace_enabled() != 0) {
-      fprintf(stderr, "MF_REDUCE_CAND op=%u n=%u count=%u:", reduction_op, num_inputs,
-              candidate_count);
-      for (k = 0; k < candidate_count; ++k) {
-        fprintf(stderr, " %x", candidates[k]);
-      }
-      fprintf(stderr, " lastwrite=%llx\n", (unsigned long long)mf_last_write_pointer());
-    }
-
-    if (num_inputs == UINT32_C(0) || candidate_count < UINT32_C(2)) {
-      mf_cuda_queue_unlock();
-      return CUDA_ERROR_NOT_SUPPORTED;
-    }
-
-    CUdeviceptr input_pointer = (CUdeviceptr)0;
-    CUdeviceptr output_pointer = (CUdeviceptr)0;
-
-    /* Select input pointer based on reduction type */
-    if (in_is_int64) {
-      /* Integer sum uses the typed staging copy written by direct_copy_kernel_cuda */
-      for (k = 0; k < candidate_count; ++k) {
-        if ((unsigned long long)candidates[k] == mf_last_write_pointer()) {
-          input_pointer = (CUdeviceptr)candidates[k];
-          break;
-        }
-      }
-      if (input_pointer == (CUdeviceptr)0) {
-        input_pointer = (CUdeviceptr)candidates[0];
-      }
-    } else if (in_is_int32) {
-      /* Integer max/min uses the original int32 tensor directly (lowest address candidate) */
-      input_pointer = (CUdeviceptr)candidates[0];
-    } else {
-      /* Float sum/mean: candidates may contain [ci, cf, out]. cf is the float candidate (not candidates[0] if ci is present) */
-      if (candidate_count >= 3 && candidates[0] == 0x10000000u) {
-        input_pointer = (CUdeviceptr)candidates[1];
-      } else {
-        input_pointer = (CUdeviceptr)candidates[0];
-      }
-    }
-
-    output_pointer = (CUdeviceptr)candidates[candidate_count - 1];
-    if (output_pointer == input_pointer && candidate_count >= 2) {
-      output_pointer = (CUdeviceptr)candidates[candidate_count - 2];
-    }
-
-    if (input_pointer == (CUdeviceptr)0 || output_pointer == (CUdeviceptr)0 ||
-        input_pointer == output_pointer) {
-      mf_cuda_queue_unlock();
-      return CUDA_ERROR_NOT_SUPPORTED;
-    }
-
-    input_values = malloc((size_t)num_inputs * in_element_width);
-    if (input_values == (void*)0) {
-      mf_cuda_queue_unlock();
-      return CUDA_ERROR_OUT_OF_MEMORY;
-    }
-
-    {
-      CUstream stream_arg = stream;
-      mf_cuda_queue_unlock();
-      copy_result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, input_values,
-                                 input_pointer, (const void*)0,
-                                 (size_t)num_inputs * in_element_width, stream_arg,
-                                 UINT32_C(0), per_thread_default);
-      if (copy_result == CUDA_SUCCESS) {
-        uint32_t element_index = 0;
-        double total = 0.0;
-        for (element_index = 0; element_index < num_inputs; ++element_index) {
-          double v = in_is_int64
-                         ? (double)((const long long*)input_values)[element_index]
-                         : in_is_int32
-                             ? (double)((const int*)input_values)[element_index]
-                             : in_is_double
-                                 ? ((const double*)input_values)[element_index]
-                                 : (double)((const float*)input_values)[element_index];
-          total += v;
-          if (!have_extreme || v > extreme) {
-            if (reduction_op == UINT32_C(2)) extreme = v;
-          }
-          if (!have_extreme || v < extreme) {
-            if (reduction_op == UINT32_C(3)) extreme = v;
-          }
-          have_extreme = 1;
-        }
-        if (reduction_op == UINT32_C(0)) {
-          output_value = total;
-        } else if (reduction_op == UINT32_C(1)) {
-          output_value = total / (double)num_inputs;
-        } else if (reduction_op == UINT32_C(2) || reduction_op == UINT32_C(3)) {
-          output_value = extreme;
-        }
-      }
-    }
-
-    free(input_values);
-    if (copy_result != CUDA_SUCCESS) {
-      return copy_result;
-    }
-
-    {
-      CUstream stream_arg = stream;
-      if (mf_cuda_entry_trace_enabled() != 0) {
-        fprintf(stderr, "MF_SEMANTIC reduce op=%u n=%u in=%llx out=%llx value=%g\n",
-                reduction_op, num_inputs, (unsigned long long)input_pointer,
-                (unsigned long long)output_pointer, output_value);
-      }
-      if (in_is_int64) {
-        long long out_val = (long long)output_value;
-        result = mf_cuda_copy(MF_CUDA_COPY_H2D, output_pointer, (void*)0, (CUdeviceptr)0,
-                              (const void*)&out_val, out_element_width, stream_arg,
-                              UINT32_C(0), per_thread_default);
-      } else if (in_is_int32) {
-        int out_val = (int)output_value;
-        result = mf_cuda_copy(MF_CUDA_COPY_H2D, output_pointer, (void*)0, (CUdeviceptr)0,
-                              (const void*)&out_val, out_element_width, stream_arg,
-                              UINT32_C(0), per_thread_default);
-      } else if (in_is_double) {
-        double out_val = output_value;
-        result = mf_cuda_copy(MF_CUDA_COPY_H2D, output_pointer, (void*)0, (CUdeviceptr)0,
-                              (const void*)&out_val, out_element_width, stream_arg,
-                              UINT32_C(0), per_thread_default);
-      } else {
-        float out_val = (float)output_value;
-        result = mf_cuda_copy(MF_CUDA_COPY_H2D, output_pointer, (void*)0, (CUdeviceptr)0,
-                              (const void*)&out_val, out_element_width, stream_arg,
-                              UINT32_C(0), per_thread_default);
-      }
-      mf_track_write(output_pointer);
-    }
+  result = mf_cuda_control_locked(
+      MF_CLIENT_CONTROL_ARTIFACT_REGISTER_V1,
+      MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD | MF_CLIENT_CONTROL_FLAG_PTX,
+      mf_cuda_global.transport.runtime_context_id,
+      (uint64_t)(sizeof(mf_pytorch_baseline_add_ptx) - 1U), mf_pytorch_baseline_add_ptx,
+      (uint64_t)(sizeof(mf_pytorch_baseline_add_ptx) - 1U), &artifact_id, &artifact_generation);
+  if (result != CUDA_SUCCESS) {
     return result;
   }
-}
 
-static CUresult mf_semantic_cat(const char* kernel_name, void** kernel_parameters,
-                                unsigned int grid_y, CUstream stream,
-                                uint32_t per_thread_default) {
-  uint32_t elem_size = 4;
-  if (strstr(kernel_name, "OpaqueTypeILj8EE") != (char*)0 ||
-      strstr(kernel_name, "OpaqueType<8>") != (char*)0) {
-    elem_size = 8;
-  } else if (strstr(kernel_name, "OpaqueTypeILj2EE") != (char*)0 ||
-             strstr(kernel_name, "OpaqueType<2>") != (char*)0) {
-    elem_size = 2;
-  } else if (strstr(kernel_name, "OpaqueTypeILj1EE") != (char*)0 ||
-             strstr(kernel_name, "OpaqueType<1>") != (char*)0) {
-    elem_size = 1;
+  load_command.target = artifact_id;
+  load_command.arguments[0] = artifact_generation;
+  result = mf_cuda_submit_locked(&load_command, &completion);
+  if (result == CUDA_SUCCESS &&
+      (completion.result_id == UINT64_C(0) || completion.result_generation == UINT64_C(0))) {
+    result = CUDA_ERROR_UNKNOWN;
+  }
+  if (result == CUDA_SUCCESS) {
+    module_record->remote_id = completion.result_id;
+    module_record->remote_generation = completion.result_generation;
+    module_record->materialized_id = artifact_id;
+    module_record->materialized_generation = artifact_generation;
+    if (mf_cuda_entry_trace_enabled() != 0) {
+      fprintf(stderr, "MF_PYTORCH_BASELINE_MODULE artifact=%llu/%llu module=%llu/%llu\n",
+              (unsigned long long)artifact_id, (unsigned long long)artifact_generation,
+              (unsigned long long)completion.result_id,
+              (unsigned long long)completion.result_generation);
+    }
+    return CUDA_SUCCESS;
   }
 
-  if (kernel_parameters[0] == (void*)0 || kernel_parameters[1] == (void*)0) {
-    mf_cuda_queue_unlock();
-    return CUDA_ERROR_INVALID_VALUE;
+  if (completion.result_id != UINT64_C(0) && completion.result_generation != UINT64_C(0)) {
+    mf_client_completion_v1 cleanup_completion = {0};
+    const mf_cuda_command cleanup_command = {MF_CUDA_COMMAND_MODULE_UNLOAD,
+                                             completion.result_id,
+                                             {completion.result_generation, 0, 0, 0}, UINT32_C(0)};
+    (void)mf_cuda_submit_locked(&cleanup_command, &cleanup_completion);
   }
-
-  CUdeviceptr out_pointer = *(CUdeviceptr*)kernel_parameters[0];
-  const char* meta = (const char*)kernel_parameters[1];
-  const CUdeviceptr* inputs = (const CUdeviceptr*)meta;
-  const unsigned int* offsets = (const unsigned int*)(meta + 0x400);
-  const unsigned int* nElements = (const unsigned int*)(meta + 0x800);
-
-  uint32_t num_tensors = grid_y > 0 ? grid_y : 1;
-  if (num_tensors > 128) {
-    num_tensors = 128;
-  }
-
-  mf_cuda_queue_unlock();
-
-  CUresult result = CUDA_SUCCESS;
-  uint32_t t = 0;
-  size_t accumulated_offset = 0;
-
-  for (t = 0; t < num_tensors; ++t) {
-    CUdeviceptr src = inputs[t];
-    if (src == (CUdeviceptr)0) {
-      break;
-    }
-    unsigned int count = nElements[t];
-    unsigned int off = offsets[t];
-    if (count == 0) {
-      continue;
-    }
-    /* Fall back to accumulated offset if offsets[t] is 0 for t > 0 */
-    size_t elem_offset = (t > 0 && off == 0) ? accumulated_offset : (size_t)off;
-    accumulated_offset = elem_offset + count;
-
-    size_t copy_bytes = (size_t)count * elem_size;
-    CUdeviceptr dst = out_pointer + elem_offset * elem_size;
-
-    void* temp = malloc(copy_bytes);
-    if (temp == (void*)0) {
-      return CUDA_ERROR_OUT_OF_MEMORY;
-    }
-    result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, temp, src, (const void*)0,
-                          copy_bytes, stream, UINT32_C(0), per_thread_default);
-    if (result == CUDA_SUCCESS) {
-      result = mf_cuda_copy(MF_CUDA_COPY_H2D, dst, (void*)0, (CUdeviceptr)0,
-                            (const void*)temp, copy_bytes, stream, UINT32_C(0),
-                            per_thread_default);
-      mf_track_write(dst);
-    }
-    free(temp);
-    if (result != CUDA_SUCCESS) {
-      break;
-    }
-  }
+  (void)mf_cuda_control_locked(MF_CLIENT_CONTROL_ARTIFACT_RELEASE_V1, UINT16_C(0), artifact_id,
+                               artifact_generation, (const void*)0, UINT64_C(0),
+                               (uint64_t*)0, (uint64_t*)0);
   return result;
 }
 
@@ -6941,6 +6236,10 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
   mf_cuda_object* module_record = (mf_cuda_object*)0;
   mf_cuda_object* stream_record = (mf_cuda_object*)0;
   mf_cuda_add_argument_block arguments;
+  CUdeviceptr normalized_pointers[3] = {0, 0, 0};
+  uint32_t normalized_element_count = UINT32_C(0);
+  void* normalized_parameters[4] = {&normalized_pointers[0], &normalized_pointers[1],
+                                    &normalized_pointers[2], &normalized_element_count};
   mf_cuda_pending pending;
   mf_cuda_command command = {MF_CUDA_COMMAND_LAUNCH, 0, {0, 0, 0, 0}, 0};
   uint64_t request_id = UINT64_C(0);
@@ -6967,418 +6266,63 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         mf_cuda_lookup_token_locked((void*)function, MF_CUDA_TAG_FUNCTION, MF_CUDA_OBJECT_FUNCTION,
                                     mf_cuda_global.functions, &function_index, &function_record);
   }
-  /* Semantic kernel profile: deferred client cubins (framework fatbins) do
-     not materialize in the daemon; launches route by registered kernel name
-     to provider-side equivalents. Deferred kernels carry framework-shaped
-     parameter lists, so the strict four-slot validation only applies to
-     provider-compiled kernels below. */
+  /* Deferred client cubins (framework fatbins) are accepted only when their
+     registered name and arguments match a daemon-owned adapter. They use
+     framework-shaped parameter lists; the strict four-slot validation below
+     applies after the adapter has normalized those arguments. */
   if (result == CUDA_SUCCESS && mf_module_deferred[function_record->aux] != 0) {
     const char* kernel_name = mf_function_names[function_index];
-    if (kernel_name[0] != '\0' && strstr(kernel_name, "sleep_kernel") != (char*)0) {
-      /* torch.cuda._sleep busy-waits in the kernel; the smoke contract only
-         requires the launch to complete. */
-      mf_cuda_queue_unlock();
-      return CUDA_SUCCESS;
-    }
-    if (kernel_name[0] != '\0' && strstr(kernel_name, "spin_kernel") != (char*)0) {
-      /* torch _sleep compiles as at::cuda::{anonymous}::spin_kernel<long>
-         (Sleep.cu): a clock64 spin with no observable memory effect. */
-      mf_cuda_queue_unlock();
-      return CUDA_SUCCESS;
-    }
-    if (kernel_name[0] != '\0' && strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+    const char* add_type = (const char*)0;
+    size_t add_type_offset = 0;
+    void** add_data_array = (void**)0;
+    int32_t alpha = 0;
+
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
         (strstr(kernel_name, "CUDAFunctor_add") != (char*)0 ||
          strstr(kernel_name, "AddFunctor") != (char*)0)) {
-      /* vectorized_elementwise_kernel<num, CUDAFunctor_add<T>, ...>: params
-         are (int numel, functor{T alpha}, array_t data) with data = {out,
-         in1, in2}. The element type comes from the mangled template
-         parameter (IiE=int, IfE=float, IdE=double) and the add executes as
-         a host-side computation over daemon-backed memory through the
-         existing copy path. */
-      unsigned int num_elements = 0;
-      uint32_t element_size = sizeof(int);
-      uint32_t kind = UINT32_C(0); /* 0 = int32, 1 = float32, 2 = float64 */
-      const char* tag = strstr(kernel_name, "CUDAFunctor_addI");
-      size_t tag_length = 16;
-      int alpha_int = 0;
-      float alpha_float = 0.0f;
-      double alpha_double = 0.0;
-      void* data_array = (void*)0;
-      CUdeviceptr out_pointer = 0;
-      CUdeviceptr left_pointer = 0;
-      CUdeviceptr right_pointer = 0;
-      void* left_values = (void*)0;
-      void* right_values = (void*)0;
-      uint32_t element_index = 0;
-      if (tag == (char*)0) {
-        tag = strstr(kernel_name, "AddFunctorI");
-        tag_length = 11;
+      add_type = strstr(kernel_name, "CUDAFunctor_addI");
+      add_type_offset = 16U;
+      if (add_type == (const char*)0) {
+        add_type = strstr(kernel_name, "AddFunctorI");
+        add_type_offset = 11U;
       }
-      if (tag != (char*)0) {
-        char type_char = tag[tag_length];
-        if (type_char == 'f') {
-          kind = UINT32_C(1);
-        } else if (type_char == 'd') {
-          kind = UINT32_C(2);
-        }
-      }
-      element_size = kind == UINT32_C(2) ? (uint32_t)sizeof(double) : (uint32_t)sizeof(int);
-      if (kernel_parameters[0] == (void*)0 || kernel_parameters[1] == (void*)0 ||
+      if (add_type == (const char*)0 || add_type[add_type_offset] != 'i' ||
+          kernel_parameters[0] == (void*)0 || kernel_parameters[1] == (void*)0 ||
           kernel_parameters[2] == (void*)0) {
         mf_cuda_queue_unlock();
-        return CUDA_ERROR_INVALID_VALUE;
+        return CUDA_ERROR_NOT_SUPPORTED;
       }
-      num_elements = *(unsigned int*)kernel_parameters[0];
-      if (kind == UINT32_C(1)) {
-        alpha_float = *(float*)kernel_parameters[1];
-      } else if (kind == UINT32_C(2)) {
-        alpha_double = *(double*)kernel_parameters[1];
-      } else {
-        alpha_int = *(int*)kernel_parameters[1];
-      }
-      data_array = (void**)kernel_parameters[2];
-      out_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[0];
-      left_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[1];
-      right_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[2];
-      if (num_elements == UINT32_C(0)) {
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      alpha = *(const int32_t*)kernel_parameters[1];
+      add_data_array = (void**)kernel_parameters[2];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)add_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)add_data_array[1];
+      normalized_pointers[2] = (CUdeviceptr)(uintptr_t)add_data_array[2];
+      if (alpha != INT32_C(1) || normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0 ||
+          normalized_pointers[2] == (CUdeviceptr)0) {
         mf_cuda_queue_unlock();
-        return CUDA_SUCCESS;
+        return CUDA_ERROR_NOT_SUPPORTED;
       }
-      left_values = malloc((size_t)num_elements * element_size);
-      right_values = malloc((size_t)num_elements * element_size);
-      if (left_values == (void*)0 || right_values == (void*)0) {
-        free(left_values);
-        free(right_values);
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_add_locked(module_record);
+      if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();
-        return CUDA_ERROR_OUT_OF_MEMORY;
+        return result;
       }
-      {
-        CUstream stream_arg = stream;
-        size_t copy_bytes = (size_t)num_elements * element_size;
-        /* mf_cuda_copy takes the queue lock itself; the launch path already
-           holds it, so release before copying and return without re-lock. */
-        mf_cuda_queue_unlock();
-        result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, left_values, left_pointer,
-                              (const void*)0, copy_bytes, stream_arg,
-                              UINT32_C(0), per_thread_default);
-        if (result == CUDA_SUCCESS) {
-          result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, right_values, right_pointer,
-                                (const void*)0, copy_bytes, stream_arg,
-                                UINT32_C(0), per_thread_default);
-        }
-        if (result == CUDA_SUCCESS) {
-          if (kind == UINT32_C(1)) {
-            float* left = (float*)left_values;
-            const float* right = (const float*)right_values;
-            for (element_index = 0; element_index < num_elements; ++element_index) {
-              left[element_index] = left[element_index] + alpha_float * right[element_index];
-            }
-          } else if (kind == UINT32_C(2)) {
-            double* left = (double*)left_values;
-            const double* right = (const double*)right_values;
-            for (element_index = 0; element_index < num_elements; ++element_index) {
-              left[element_index] = left[element_index] + alpha_double * right[element_index];
-            }
-          } else {
-            int* left = (int*)left_values;
-            const int* right = (const int*)right_values;
-            for (element_index = 0; element_index < num_elements; ++element_index) {
-              left[element_index] += alpha_int * right[element_index];
-            }
-          }
-          result = mf_cuda_copy(MF_CUDA_COPY_H2D, out_pointer, (void*)0,
-                                (CUdeviceptr)0, left_values,
-                                copy_bytes, stream_arg, UINT32_C(0),
-                                per_thread_default);
-        }
-      }
-      free(left_values);
-      free(right_values);
-      if (mf_cuda_entry_trace_enabled() != 0) {
-        fprintf(stderr, "MF_SEMANTIC add kind=%u numel=%u rc=%d\n", kind, num_elements,
-                (int)result);
-      }
-      return result;
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
     }
-    if (kernel_name[0] != '\0' && strstr(kernel_name, "elementwise_kernel") != (char*)0 &&
-        strstr(kernel_name, "FillFunctor") != (char*)0) {
-      /* vectorized_elementwise_kernel<num, FillFunctor<T>, ...>: params are
-         (int numel, T value, array_t data) with data = {out}. The fill
-         executes as a host-side constant write over the copy path. */
-      unsigned int num_elements = 0;
-      uint32_t element_size = sizeof(int);
-      uint32_t kind = UINT32_C(0); /* 0 = int32, 1 = float32, 2 = float64 */
-      const char* tag = strstr(kernel_name, "FillFunctorI");
-      void* data_array = (void*)0;
-      CUdeviceptr out_pointer = 0;
-      void* fill_values = (void*)0;
-      uint32_t element_index = 0;
-      if (tag != (char*)0) {
-        char type_char = tag[11];
-        if (type_char == 'f') {
-          kind = UINT32_C(1);
-        } else if (type_char == 'd') {
-          kind = UINT32_C(2);
-        }
-      }
-      element_size = kind == UINT32_C(2) ? (uint32_t)sizeof(double) : (uint32_t)sizeof(int);
-      if (kernel_parameters[0] == (void*)0 || kernel_parameters[1] == (void*)0 ||
-          kernel_parameters[2] == (void*)0) {
-        mf_cuda_queue_unlock();
-        return CUDA_ERROR_INVALID_VALUE;
-      }
-      num_elements = *(unsigned int*)kernel_parameters[0];
-      data_array = (void**)kernel_parameters[2];
-      out_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[0];
-      if (num_elements == UINT32_C(0)) {
-        mf_cuda_queue_unlock();
-        return CUDA_SUCCESS;
-      }
-      fill_values = malloc((size_t)num_elements * element_size);
-      if (fill_values == (void*)0) {
-        mf_cuda_queue_unlock();
-        return CUDA_ERROR_OUT_OF_MEMORY;
-      }
-      if (kind == UINT32_C(1)) {
-        float value = *(float*)kernel_parameters[1];
-        float* cells = (float*)fill_values;
-        for (element_index = 0; element_index < num_elements; ++element_index) {
-          cells[element_index] = value;
-        }
-      } else if (kind == UINT32_C(2)) {
-        double value = *(double*)kernel_parameters[1];
-        double* cells = (double*)fill_values;
-        for (element_index = 0; element_index < num_elements; ++element_index) {
-          cells[element_index] = value;
-        }
-      } else {
-        int value = *(int*)kernel_parameters[1];
-        int* cells = (int*)fill_values;
-        for (element_index = 0; element_index < num_elements; ++element_index) {
-          cells[element_index] = value;
-        }
-      }
-      {
-        CUstream stream_arg = stream;
-        mf_cuda_queue_unlock();
-        result = mf_cuda_copy(MF_CUDA_COPY_H2D, out_pointer, (void*)0,
-                              (CUdeviceptr)0, fill_values,
-                              (size_t)num_elements * element_size, stream_arg, UINT32_C(0),
-                              per_thread_default);
-      }
-      free(fill_values);
-      if (mf_cuda_entry_trace_enabled() != 0) {
-        fprintf(stderr, "MF_SEMANTIC fill kind=%u numel=%u rc=%d\n", kind, num_elements,
-                (int)result);
-      }
-      return result;
-    }
-    if (kernel_name[0] != '\0' && strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
-        strstr(kernel_name, "CUDAFunctorOnSelf_add") != (char*)0) {
-      /* vectorized_elementwise_kernel<num, CUDAFunctorOnSelf_add<T>, ...>:
-         params are (int numel, functor{T other}, array_t data) with
-         data = {out, in}; out[i] = in[i] + other. */
-      unsigned int num_elements = 0;
-      uint32_t element_size = sizeof(int);
-      uint32_t kind = UINT32_C(0); /* 0 = int32, 1 = float32, 2 = float64 */
-      const char* tag = strstr(kernel_name, "CUDAFunctorOnSelf_addI");
-      void* data_array = (void*)0;
-      CUdeviceptr out_pointer = 0;
-      CUdeviceptr in_pointer = 0;
-      void* out_values = (void*)0;
-      void* in_values = (void*)0;
-      uint32_t element_index = 0;
-      if (tag != (char*)0) {
-        char type_char = tag[22];
-        if (type_char == 'f') {
-          kind = UINT32_C(1);
-        } else if (type_char == 'd') {
-          kind = UINT32_C(2);
-        }
-      }
-      element_size = kind == UINT32_C(2) ? (uint32_t)sizeof(double) : (uint32_t)sizeof(int);
-      if (kernel_parameters[0] == (void*)0 || kernel_parameters[1] == (void*)0 ||
-          kernel_parameters[2] == (void*)0) {
-        mf_cuda_queue_unlock();
-        return CUDA_ERROR_INVALID_VALUE;
-      }
-      num_elements = *(unsigned int*)kernel_parameters[0];
-      data_array = (void**)kernel_parameters[2];
-      out_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[0];
-      in_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[1];
-      if (num_elements == UINT32_C(0)) {
-        mf_cuda_queue_unlock();
-        return CUDA_SUCCESS;
-      }
-      out_values = malloc((size_t)num_elements * element_size);
-      in_values = malloc((size_t)num_elements * element_size);
-      if (out_values == (void*)0 || in_values == (void*)0) {
-        free(out_values);
-        free(in_values);
-        mf_cuda_queue_unlock();
-        return CUDA_ERROR_OUT_OF_MEMORY;
-      }
-      {
-        CUstream stream_arg = stream;
-        size_t copy_bytes = (size_t)num_elements * element_size;
-        mf_cuda_queue_unlock();
-        result = mf_cuda_copy(MF_CUDA_COPY_D2H, (CUdeviceptr)0, in_values, in_pointer,
-                              (const void*)0, copy_bytes, stream_arg,
-                              UINT32_C(0), per_thread_default);
-        if (result == CUDA_SUCCESS) {
-          if (kind == UINT32_C(1)) {
-            float other = *(float*)kernel_parameters[1];
-            float* out_cells = (float*)out_values;
-            const float* in_cells = (const float*)in_values;
-            for (element_index = 0; element_index < num_elements; ++element_index) {
-              out_cells[element_index] = in_cells[element_index] + other;
-            }
-          } else if (kind == UINT32_C(2)) {
-            double other = *(double*)kernel_parameters[1];
-            double* out_cells = (double*)out_values;
-            const double* in_cells = (const double*)in_values;
-            for (element_index = 0; element_index < num_elements; ++element_index) {
-              out_cells[element_index] = in_cells[element_index] + other;
-            }
-          } else {
-            int other = *(int*)kernel_parameters[1];
-            int* out_cells = (int*)out_values;
-            const int* in_cells = (const int*)in_values;
-            for (element_index = 0; element_index < num_elements; ++element_index) {
-              out_cells[element_index] = in_cells[element_index] + other;
-            }
-          }
-        }
-        if (result == CUDA_SUCCESS) {
-          result = mf_cuda_copy(MF_CUDA_COPY_H2D, out_pointer, (void*)0,
-                                (CUdeviceptr)0, out_values,
-                                copy_bytes, stream_arg, UINT32_C(0),
-                                per_thread_default);
-        }
-      }
-      free(out_values);
-      free(in_values);
-      if (mf_cuda_entry_trace_enabled() != 0) {
-        fprintf(stderr, "MF_SEMANTIC self-add kind=%u numel=%u rc=%d\n", kind, num_elements,
-                (int)result);
-      }
-      return result;
-    }
-    {
-      uint32_t sem_op = UINT32_C(0);
-      if (strstr(kernel_name, "AbsFunctor") != (char*)0) {
-        sem_op = MF_SEM_OP_ABS;
-      } else if (strstr(kernel_name, "neg_kernel_cuda") != (char*)0) {
-        sem_op = MF_SEM_OP_NEG;
-      } else if (strstr(kernel_name, "exp_kernel_cuda") != (char*)0) {
-        sem_op = MF_SEM_OP_EXP;
-      } else if (strstr(kernel_name, "sigmoid_kernel_cuda") != (char*)0) {
-        sem_op = MF_SEM_OP_SIGMOID;
-      } else if (strstr(kernel_name, "sqrt_kernel_cuda") != (char*)0) {
-        sem_op = MF_SEM_OP_SQRT;
-      } else if (strstr(kernel_name, "launch_clamp_scalar") != (char*)0) {
-        sem_op = MF_SEM_OP_CLAMP_MIN;
-      } else if (strstr(kernel_name, "direct_copy_kernel_cuda") != (char*)0) {
-        sem_op = MF_SEM_OP_COPY_CAST;
-      } else if (strstr(kernel_name, "AUnaryFunctor") != (char*)0 &&
-                 strstr(kernel_name, "MulFunctor") != (char*)0) {
-        sem_op = MF_SEM_OP_ALPHA_MUL;
-      } else if (strstr(kernel_name, "AUnaryFunctor") != (char*)0 &&
-                 strstr(kernel_name, "DivFunctor") != (char*)0) {
-        sem_op = MF_SEM_OP_ALPHA_DIV;
-      } else if (strstr(kernel_name, "AUnaryFunctor") != (char*)0 &&
-                 strstr(kernel_name, "AddFunctor") != (char*)0) {
-        sem_op = MF_SEM_OP_ALPHA_ADD;
-      } else if (strstr(kernel_name, "AUnaryFunctor") != (char*)0 &&
-                 strstr(kernel_name, "SubFunctor") != (char*)0) {
-        sem_op = MF_SEM_OP_ALPHA_SUB;
-      } else if (strstr(kernel_name, "BinaryFunctor") != (char*)0 &&
-                 strstr(kernel_name, "MulFunctor") != (char*)0) {
-        sem_op = MF_SEM_OP_MUL;
-      } else if (strstr(kernel_name, "BinaryFunctor") != (char*)0 &&
-                 strstr(kernel_name, "DivFunctor") != (char*)0) {
-        sem_op = MF_SEM_OP_DIV;
-      } else if (strstr(kernel_name, "CompareEqFunctor") != (char*)0 ||
-                 strstr(kernel_name, "CompareFunctor") != (char*)0 ||
-                 strstr(kernel_name, "compare_scalar_kernel") != (char*)0) {
-        int cmp_op = kernel_parameters[1] != (void*)0
-                         ? *(int*)kernel_parameters[1]
-                         : -1;
-        int eq_family = strstr(kernel_name, "CompareEqFunctor") != (char*)0;
-        if (eq_family ? (cmp_op >= 0 && cmp_op <= 1) : (cmp_op >= 0 && cmp_op <= 3)) {
-          sem_op = MF_SEM_OP_CMP;
-        }
-      }
-      if (sem_op != UINT32_C(0)) {
-        return mf_semantic_elementwise(kernel_name, sem_op, kernel_parameters, stream,
-                                       per_thread_default);
-      }
-    }
-    if (kernel_name[0] != '\0' &&
-        strstr(kernel_name, "CatArrayBatchedCopy") != (char*)0) {
-      return mf_semantic_cat(kernel_name, kernel_parameters, grid_y, stream, per_thread_default);
-    }
-    if (kernel_name[0] != '\0' && strstr(kernel_name, "reduce_kernel") != (char*)0 &&
-        kernel_parameters[0] != (void*)0) {
-      return mf_semantic_reduce(kernel_name, kernel_parameters, stream, per_thread_default);
-    }
-    if (kernel_name[0] != '\0' &&
-        strstr(kernel_name, "elementwise_kernel_with_index") != (char*)0) {
-      /* arange: params are (numel, {start, step}, array_t data{out}). The
-         output element width is not recoverable at launch time (the caching
-         allocator rounds allocations), so the intent is registered and the
-         values materialize when the consumer reads the tensor back through
-         the copy path, sized by that read. */
-      unsigned int num_elements = 0;
-      uint32_t kind = UINT32_C(0);
-      void* data_array = (void*)0;
-      CUdeviceptr out_pointer = 0;
-      if (strstr(kernel_name, "with_indexIf") != (char*)0) {
-        kind = UINT32_C(1);
-      } else if (strstr(kernel_name, "with_indexId") != (char*)0) {
-        kind = UINT32_C(2);
-      }
-      if (kernel_parameters[0] == (void*)0 || kernel_parameters[1] == (void*)0 ||
-          kernel_parameters[2] == (void*)0) {
-        mf_cuda_queue_unlock();
-        return CUDA_ERROR_INVALID_VALUE;
-      }
-      num_elements = *(unsigned int*)kernel_parameters[0];
-      data_array = ((void**)kernel_parameters)[2];
-      out_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[0];
-      if (num_elements == UINT32_C(0)) {
-        mf_cuda_queue_unlock();
-        return CUDA_SUCCESS;
-      }
-      mf_cuda_queue_unlock();
-      mf_arange_pending_register((unsigned long long)out_pointer, num_elements, kind,
-                                 kernel_parameters[1]);
-      if (mf_cuda_entry_trace_enabled() != 0) {
-        fprintf(stderr, "MF_SEMANTIC arange deferred kind=%u n=%u\n", kind,
-                num_elements);
-      }
-      return CUDA_SUCCESS;
-    }
+
+    /* The baseline must not accept provider-side tensor emulation. Every
+     * deferred kernel other than the neutral int32 add adapter fails at the
+     * CUDA boundary until its daemon-owned Kernel IR route is implemented. */
     mf_cuda_queue_unlock();
-    if (mf_cuda_entry_trace_enabled() != 0) {
-      unsigned int n0 = kernel_parameters[0] != (void*)0
-                            ? *(unsigned int*)kernel_parameters[0]
-                            : UINT32_C(0);
-      fprintf(stderr, "MF_SEMANTIC miss name=%s\n", kernel_name);
-      fprintf(stderr, "MF_MISS_P p0=%p p1=%p p2=%p p3=%p numel=%u\n",
-              kernel_parameters[0], kernel_parameters[1], kernel_parameters[2],
-              kernel_parameters[3], n0);
-      if (kernel_parameters[1] != (void*)0) {
-        const unsigned long long* q = (const unsigned long long*)kernel_parameters[1];
-        fprintf(stderr, "MF_MISS_Q1 %016llx %016llx %016llx\n", q[0], q[1], q[2]);
-      }
-      if (kernel_parameters[2] != (void*)0) {
-        const unsigned long long* q = (const unsigned long long*)kernel_parameters[2];
-        fprintf(stderr, "MF_MISS_Q2 %016llx %016llx %016llx\n", q[0], q[1], q[2]);
-      }
-    }
     return CUDA_ERROR_NOT_SUPPORTED;
   }
+daemon_launch:
   if (result == CUDA_SUCCESS &&
       (grid_z != UINT32_C(1) || block_z != UINT32_C(1) ||
        shared_memory_bytes != UINT32_C(0))) {

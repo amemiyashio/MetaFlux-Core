@@ -17,13 +17,6 @@ extern "C" {
 
 MF_CUDA_PROVIDER_API uint32_t mf_cuda_provider_bootstrap_abi_version(void);
 
-/* Pending-arange read-through bridge (see provider_stubs.c). */
-void mf_arange_pending_register(unsigned long long pointer, unsigned int count,
-                                unsigned int kind, const void* functor);
-void mf_arange_pending_invalidate(unsigned long long pointer);
-int mf_arange_pending_read(unsigned long long source, void* host, size_t bytes);
-
-
 #if defined(METAFLUX_PROVIDER_TESTING)
 #include "metaflux/client/fastpath.h"
 #include "metaflux/client/protocol.h"
