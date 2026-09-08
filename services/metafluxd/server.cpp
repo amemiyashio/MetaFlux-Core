@@ -1,6 +1,7 @@
 #include "server.hpp"
 
 #include "execution.hpp"
+#include "vulkan_execution.hpp"
 
 #include "metaflux/backend/cpu.h"
 #include "metaflux/client/fastpath.h"
@@ -1377,6 +1378,7 @@ struct Object final {
   std::vector<std::uint8_t> owned_bytes;
   PayloadMapping mapped_bytes;
   std::unique_ptr<PreparedModule> prepared_module;
+  std::unique_ptr<VulkanKernelModule> vulkan_module;
 #if METAFLUX_DAEMON_CDEV_BACKEND
   mf_backend_memory_v1 cdev_backend_memory = 0U;
   mf_backend_module_v1 cdev_backend_module = 0U;
@@ -1575,6 +1577,7 @@ private:
   ucred credentials_{};
   mf_registry_view_id_v1 view_id_{};
   std::shared_ptr<CpuExecutionEngine> execution_;
+  std::shared_ptr<VulkanExecutionRoute> vulkan_route_;
 #if METAFLUX_DAEMON_CDEV_BACKEND
   const mf_backend_api_v1* cdev_backend_api_ = nullptr;
   mf_backend_instance_v1 cdev_backend_instance_ = 0U;
@@ -3073,6 +3076,38 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
   if (module->prepared_module == nullptr) {
     return MF_SHARED_MALFORMED;
   }
+#if METAFLUX_DAEMON_VULKAN_EXECUTION
+  if (vulkan_route_ == nullptr) {
+    vulkan_route_ = global_vulkan_execution_route();
+  }
+  if (vulkan_route_ != nullptr && module->vulkan_module != nullptr &&
+      module->vulkan_module->dispatchable()) {
+    std::vector<VulkanLaunchBuffer> launch_buffers;
+    launch_buffers.reserve(arguments.size());
+    std::uint32_t element_count = 0U;
+    for (const auto& argument : arguments) {
+      if (const auto* buffer = std::get_if<backend::cpu::BufferArgument>(&argument)) {
+        launch_buffers.push_back(VulkanLaunchBuffer{
+            reinterpret_cast<std::byte*>(buffer->words.data()),
+            buffer->words.size() * sizeof(std::uint32_t), buffer->writable});
+      } else if (const auto* scalar = std::get_if<std::uint32_t>(&argument)) {
+        // The lowered shaders take every kernel parameter, scalars included,
+        // as a one-element storage buffer; the view aliases the local copy.
+        element_count = *scalar;
+        launch_buffers.push_back(VulkanLaunchBuffer{
+            reinterpret_cast<std::byte*>(&element_count), sizeof(element_count), false});
+      }
+    }
+    std::string vulkan_diagnostic;
+    if (vulkan_route_->launch(*module->vulkan_module, launch_buffers, element_count,
+                              vulkan_diagnostic)) {
+      memory_active = true;
+      return MF_SHARED_SUCCESS;
+    }
+    std::cerr << "metafluxd: vulkan launch failed diagnostic=" << vulkan_diagnostic << '\n';
+    return MF_SHARED_DEVICE_LOST;
+  }
+#endif
   const backend::cpu::ExecutionResult result =
       module->prepared_module->launch(arguments, dimensions, process_stop_token());
   if (result.ok()) {
@@ -3164,7 +3199,27 @@ mf_shared_status_v1 Session::process_command(const mf_ring_descriptor_v1& comman
                 << " diagnostic=" << prepared.diagnostic << '\n';
       return module_preparation_status(prepared.error);
     }
-    return add_module(std::move(prepared.module), result_id, result_generation);
+    const mf_shared_status_v1 added =
+        add_module(std::move(prepared.module), result_id, result_generation);
+    if (added != MF_SHARED_SUCCESS) {
+      return added;
+    }
+    if (vulkan_route_ == nullptr) {
+      vulkan_route_ = global_vulkan_execution_route();
+    }
+    Object* module_object = nullptr;
+    if (vulkan_route_ != nullptr && resolve(result_id, result_generation, ObjectKind::kModule,
+                                            module_object) == MF_SHARED_SUCCESS &&
+        module_object->vulkan_module == nullptr) {
+      std::string vulkan_diagnostic;
+      module_object->vulkan_module =
+          vulkan_route_->prepare(*parsed.kernel, vulkan_diagnostic);
+      if (module_object->vulkan_module != nullptr) {
+        std::cerr << "metafluxd: vulkan route prepared artifact entry="
+                  << module_object->vulkan_module->entry_point() << '\n';
+      }
+    }
+    return MF_SHARED_SUCCESS;
   }
   case MF_RING_OPCODE_MODULE_UNLOAD:
     result_generation = command.arguments[0];

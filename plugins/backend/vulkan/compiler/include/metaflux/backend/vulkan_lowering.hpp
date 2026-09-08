@@ -52,6 +52,11 @@ enum class SpirvSemanticOpcode : std::uint32_t {
   store_workgroup_u32 = 28,
   control_barrier = 29,
   return_value = 30,
+  move_immediate_u32 = 31,
+  abs_s32 = 32,
+  abs_f32 = 33,
+  sqrt_rn_f32 = 34,
+  divide_rn_f32 = 35,
 };
 
 struct SpirvLoweredInstruction final {

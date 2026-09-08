@@ -136,6 +136,16 @@ SpirvSemanticOpcode map_opcode(Opcode opcode) noexcept {
     return SpirvSemanticOpcode::control_barrier;
   case Return:
     return SpirvSemanticOpcode::return_value;
+  case MoveImmediateU32:
+    return SpirvSemanticOpcode::move_immediate_u32;
+  case AbsS32:
+    return SpirvSemanticOpcode::abs_s32;
+  case AbsF32:
+    return SpirvSemanticOpcode::abs_f32;
+  case SqrtRnF32:
+    return SpirvSemanticOpcode::sqrt_rn_f32;
+  case DivRnF32:
+    return SpirvSemanticOpcode::divide_rn_f32;
   }
   return SpirvSemanticOpcode::return_value;
 }
@@ -269,16 +279,23 @@ bool is_elementwise_u32_kernel(const compiler::Kernel& kernel, Opcode arithmetic
     return false;
   }
   const auto& arithmetic_operation = kernel.operations[16];
+  const auto& store = kernel.operations[17];
+  const auto left = kernel.operations[14].result;
+  const auto right = kernel.operations[15].result;
+  const auto count = kernel.operations[3].result;
+  const auto product = arithmetic_operation.result;
   const bool operands = arithmetic == Opcode::MadLoU32
                             ? arithmetic_operation.input_count == 3U &&
-                                  arithmetic_operation.inputs[0] == 13U &&
-                                  arithmetic_operation.inputs[1] == 14U &&
-                                  arithmetic_operation.inputs[2] == 3U
+                                  arithmetic_operation.inputs[0] == left &&
+                                  arithmetic_operation.inputs[1] == right &&
+                                  arithmetic_operation.inputs[2] == count
                             : arithmetic_operation.input_count == 2U &&
-                                  arithmetic_operation.inputs[0] == 13U &&
-                                  arithmetic_operation.inputs[1] == 14U;
-  return operands && kernel.registers.size() > 15U && kernel.registers[13].kind == ValueKind::U32 &&
-         kernel.registers[14].kind == ValueKind::U32 && kernel.registers[15].kind == ValueKind::U32;
+                                  arithmetic_operation.inputs[0] == left &&
+                                  arithmetic_operation.inputs[1] == right;
+  return operands && store.input_count == 2U && store.inputs[0] == kernel.operations[11].result &&
+         store.inputs[1] == product && kernel.registers[left].kind == ValueKind::U32 &&
+         kernel.registers[right].kind == ValueKind::U32 &&
+         kernel.registers[product].kind == ValueKind::U32;
 }
 
 bool is_add_u32_kernel(const compiler::Kernel& kernel) noexcept {
@@ -332,23 +349,34 @@ bool is_elementwise_f32_kernel(const compiler::Kernel& kernel, Opcode arithmetic
       kernel.operations[17].opcode != Opcode::StoreGlobalF32) {
     return false;
   }
-  if (kernel.registers.size() <= 15U || kernel.registers[13].kind != ValueKind::F32 ||
-      kernel.registers[14].kind != ValueKind::F32 || kernel.registers[15].kind != ValueKind::F32) {
+  const auto& arithmetic_operation = kernel.operations[16];
+  const auto& store = kernel.operations[17];
+  const auto left = kernel.operations[14].result;
+  const auto right = kernel.operations[15].result;
+  const auto product = arithmetic_operation.result;
+  if (arithmetic == Opcode::MadRnF32 || arithmetic == Opcode::FmaRnF32) {
+    // The emitted shader folds the addend into the left operand, so only the
+    // addend==left spelling has verified semantics.
+    if (!(arithmetic_operation.input_count == 3U && arithmetic_operation.inputs[0] == left &&
+          arithmetic_operation.inputs[1] == right && arithmetic_operation.inputs[2] == left)) {
+      return false;
+    }
+  } else if (!(arithmetic_operation.input_count == 2U &&
+               arithmetic_operation.inputs[0] == left &&
+               arithmetic_operation.inputs[1] == right)) {
     return false;
   }
-  const auto& arithmetic_operation = kernel.operations[16];
-  if (arithmetic == Opcode::MadRnF32 || arithmetic == Opcode::FmaRnF32) {
-    return arithmetic_operation.input_count == 3U && arithmetic_operation.inputs[0] == 13U &&
-           arithmetic_operation.inputs[1] == 14U && arithmetic_operation.inputs[2] == 13U;
-  }
-  return arithmetic_operation.input_count == 2U && arithmetic_operation.inputs[0] == 13U &&
-         arithmetic_operation.inputs[1] == 14U;
+  return store.input_count == 2U && store.inputs[0] == kernel.operations[11].result &&
+         store.inputs[1] == product && kernel.registers[left].kind == ValueKind::F32 &&
+         kernel.registers[right].kind == ValueKind::F32 &&
+         kernel.registers[product].kind == ValueKind::F32;
 }
 
 bool is_elementwise_conversion_kernel(const compiler::Kernel& kernel, Opcode conversion) noexcept {
   if (!has_elementwise_shape(kernel) || kernel.operations[16].opcode != conversion ||
-      kernel.registers.size() <= 15U || kernel.operations[16].input_count != 1U ||
-      kernel.operations[16].inputs[0] != 13U || kernel.operations[17].inputs[1] != 15U) {
+      kernel.operations[16].input_count != 1U ||
+      kernel.operations[16].inputs[0] != kernel.operations[14].result ||
+      kernel.operations[17].inputs[1] != kernel.operations[16].result) {
     return false;
   }
   const bool f32_from_u32 = conversion == Opcode::ConvertRnF32U32;
@@ -361,9 +389,12 @@ bool is_elementwise_conversion_kernel(const compiler::Kernel& kernel, Opcode con
   return kernel.operations[14].opcode == expected_load &&
          kernel.operations[15].opcode == expected_load &&
          kernel.operations[17].opcode == expected_store &&
-         kernel.registers[13].kind == (f32_from_u32 ? ValueKind::U32 : ValueKind::F32) &&
-         kernel.registers[14].kind == (f32_from_u32 ? ValueKind::U32 : ValueKind::F32) &&
-         kernel.registers[15].kind == (f32_from_u32 ? ValueKind::F32 : ValueKind::U32);
+         kernel.registers[kernel.operations[14].result].kind ==
+             (f32_from_u32 ? ValueKind::U32 : ValueKind::F32) &&
+         kernel.registers[kernel.operations[15].result].kind ==
+             (f32_from_u32 ? ValueKind::U32 : ValueKind::F32) &&
+         kernel.registers[kernel.operations[16].result].kind ==
+             (f32_from_u32 ? ValueKind::F32 : ValueKind::U32);
 }
 
 bool is_predicate_f32_kernel(const compiler::Kernel& kernel) noexcept {
@@ -691,6 +722,32 @@ std::string diagnostic_text(mlir::Diagnostic& diagnostic) {
   return text;
 }
 
+// The emitted shader binds kernel parameters in the template's order, which
+// differs from the Kernel IR parameter order for some forms. Record each
+// binding's role and its feeding Kernel IR parameter index so launchers can
+// map launch arguments without depending on the template layout.
+void apply_binding_roles(SpirvLoweredModule& module) {
+  auto& roles = module.reflection.argument_roles;
+  auto& sources = module.reflection.argument_sources;
+  roles.fill(kBindingRoleRead);
+  sources.fill(0U);
+  // The canonical elementwise binary convention is {left, right, out, count}
+  // over Kernel IR parameters {out, left, right, count}.
+  const bool elementwise =
+      module.canonical_text.find("spirv.store_global") != std::string::npos &&
+      module.reflection.argument_count == 4U;
+  if (elementwise) {
+    roles[0] = kBindingRoleRead;
+    sources[0] = 1U;
+    roles[1] = kBindingRoleRead;
+    sources[1] = 2U;
+    roles[2] = kBindingRoleWrite;
+    sources[2] = 0U;
+    roles[3] = kBindingRoleScalar;
+    sources[3] = 3U;
+  }
+}
+
 LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
                                  const std::array<std::uint32_t, 3>& workgroup_size,
                                  SpirvLoweredModule* module) {
@@ -816,6 +873,7 @@ LoweringResult emit_actual_spirv(const compiler::Kernel& kernel,
     context.getDiagEngine().eraseHandler(handler);
     module->mlir_text = std::move(lowered_text);
     module->spirv_binary.assign(binary.begin(), binary.end());
+    apply_binding_roles(*module);
     return {.status = LoweringStatus::success, .diagnostic = {}};
   } catch (const std::exception& error) {
     return {.status = LoweringStatus::resource_exhausted,
@@ -1014,7 +1072,17 @@ const char* spirv_semantic_opcode_string(SpirvSemanticOpcode opcode) noexcept {
     return "store_workgroup_u32";
   case SpirvSemanticOpcode::control_barrier:
     return "control_barrier";
-  case SpirvSemanticOpcode::return_value:
+  case SpirvSemanticOpcode::move_immediate_u32:
+    return "move_immediate_u32";
+  case SpirvSemanticOpcode::abs_s32:
+    return "abs_s32";
+  case SpirvSemanticOpcode::abs_f32:
+    return "abs_f32";
+  case SpirvSemanticOpcode::sqrt_rn_f32:
+    return "sqrt_rn_f32";
+  case SpirvSemanticOpcode::divide_rn_f32:
+    return "divide_rn_f32";
+    case SpirvSemanticOpcode::return_value:
     return "return";
   }
   return "unknown";

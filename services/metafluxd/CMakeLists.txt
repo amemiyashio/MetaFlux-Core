@@ -20,11 +20,33 @@ add_executable(
   execution.cpp
   main.cpp
   server.cpp
+  vulkan_execution.cpp
 )
 target_compile_definitions(
   metafluxd
   PRIVATE "METAFLUX_PROJECT_VERSION=\"${PROJECT_VERSION}\""
 )
+
+option(
+  METAFLUX_DAEMON_VULKAN_EXECUTION
+  "Route lowered daemon kernels to a Vulkan compute device"
+  OFF
+)
+if(METAFLUX_DAEMON_VULKAN_EXECUTION)
+  if(NOT METAFLUX_BUILD_VULKAN_BACKEND OR NOT METAFLUX_VULKAN_SDK_DIR)
+    message(
+      FATAL_ERROR
+        "METAFLUX_DAEMON_VULKAN_EXECUTION requires METAFLUX_BUILD_VULKAN_BACKEND and METAFLUX_VULKAN_SDK_DIR"
+    )
+  endif()
+  target_link_libraries(metafluxd PRIVATE MetaFlux::VulkanCompiler MetaFlux::VulkanBackend)
+  target_include_directories(
+    metafluxd
+    PRIVATE "${PROJECT_SOURCE_DIR}/plugins/backend/vulkan/runtime/src"
+            "${METAFLUX_VULKAN_SDK_DIR}/include"
+  )
+  target_compile_definitions(metafluxd PRIVATE METAFLUX_DAEMON_VULKAN_EXECUTION=1)
+endif()
 
 target_link_libraries(
   metafluxd
@@ -49,10 +71,14 @@ endif()
 # Keep zlib/libstdcxx discoverable under env-cleared live/root helpers that
 # invoke the build-tree daemon without the ambient Nix shell PATH/LD path.
 get_filename_component(_metafluxd_zlib_dir "${ZLIB_LIBRARY}" DIRECTORY)
+set(_metafluxd_extra_rpath "")
+if(METAFLUX_DAEMON_VULKAN_EXECUTION)
+  set(_metafluxd_extra_rpath "${METAFLUX_VULKAN_SDK_DIR}/lib;")
+endif()
 set_target_properties(
   metafluxd
   PROPERTIES
-    BUILD_RPATH "${_metafluxd_zlib_dir};$ORIGIN;$ORIGIN/../lib"
+    BUILD_RPATH "${_metafluxd_extra_rpath}${_metafluxd_zlib_dir};$ORIGIN;$ORIGIN/../lib"
     INSTALL_RPATH "$ORIGIN;$ORIGIN/../lib"
 )
 metaflux_configure_target(metafluxd CXX)

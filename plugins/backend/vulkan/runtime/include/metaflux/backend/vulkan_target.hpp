@@ -36,6 +36,14 @@ struct SpirvModuleRequirements {
 };
 
 constexpr std::uint32_t kSpirvExecutionModelGlCompute = 5U;
+// Binding roles for lowered kernel parameters: each binary binding reads an
+// input, writes an output, or reads a scalar, fed from one Kernel IR
+// parameter index (the daemon's launch argument order).
+constexpr std::uint8_t kBindingRoleRead = 0U;
+constexpr std::uint8_t kBindingRoleWrite = 1U;
+constexpr std::uint8_t kBindingRoleScalar = 2U;
+constexpr std::uint8_t kMaxBindingArguments = 8U;
+
 constexpr std::uint32_t kReflectionBuiltinLocalInvocationId = 1U << 0U;
 constexpr std::uint32_t kReflectionBuiltinWorkgroupId = 1U << 1U;
 constexpr std::uint32_t kReflectionBuiltinNumWorkgroups = 1U << 2U;
@@ -59,6 +67,10 @@ struct SpirvReflection {
   std::uint32_t argument_block_size = 0;
   std::array<std::uint8_t, 32> argument_target_digest{};
   bool has_workgroup_storage = false;
+  // Per-binding role (kBindingRole*) and the feeding Kernel IR parameter
+  // index; entries beyond argument_count are zero-filled.
+  std::array<std::uint8_t, kMaxBindingArguments> argument_roles{};
+  std::array<std::uint8_t, kMaxBindingArguments> argument_sources{};
 };
 
 [[nodiscard]] TargetStatus validate_target_profile(const mf_vulkan_capability_profile_v1& profile,
