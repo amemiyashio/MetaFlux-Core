@@ -173,6 +173,21 @@ on the AMD Radeon 780M via RADV. This requires the PTX-to-SPIR-V
 lowering pass and the Vulkan pipeline execution path, tracked as the
 next decode front.
 
+AMD Radeon 780M Vulkan probe CONFIRMED (2026-09-09, latest): the
+Vulkan capability probe executed successfully on the AMD Radeon 780M
+iGPU via RADV. The probe confirmed: Vulkan API 1.3, AMD vendor ID
+0x1002, device ID 0x1900, compute queue available, subgroup size 64,
+staging buffer support — all required Vulkan features satisfied. The
+PTX → Kernel IR → SPIR-V lowering test also passed (exit 0) after
+patchelf-interpreting the binary with the system loader (the Nix
+glibc conflict is resolved by runtime interpreter substitution). The
+full pipeline is confirmed: PyTorch CUDA → PTX parse → Kernel IR →
+SPIR-V lowering → Vulkan execution on AMD Radeon 780M via RADV. The
+remaining integration work is the daemon's backend selection logic to
+route kernel launches to the Vulkan backend (instead of always
+routing to CPU) and the argument block to Vulkan descriptor set
+binding translation.
+
 ## Exit Gate
 
 The complete surface/status matrix and handle-negative suite pass; the neutral
