@@ -4,8 +4,8 @@
  "target": "sm_70",
  "digest_algorithm": "sha256",
  "aggregate_definition": "sha256 of UTF-8 id, NUL, fixture sha256, LF in lexical id order",
- "corpus_sha256": "3e4454a7edda71f4990328808110d935b4f2ab89b97f369a3996b7bc8617ad68",
- "forms_sha256": "53d89dff9a4eef1c78d7cd7671cba691b9ad2985ff34b760e092ae0d39747e08",
+ "corpus_sha256": "fc61f23e9d4b9930413f6cb67ba16128322a1be226fcdd144467df110bd9ea25",
+ "forms_sha256": "6bd894346276019e74cd0a16931bebc97e6123c6900832af842af255bb00bdc7",
  "fixtures": [
   {
    "id": "edge-2d-specials",
@@ -193,21 +193,23 @@
   {
    "id": "positive-integer-forms",
    "path": "fixtures/positive-integer-forms.ptx",
-   "sha256": "77f4832c0b348b3a14db4a5c42258568ad0ce374505af59577f22941ebd7911b",
+   "sha256": "06b9592d3ac0d1d8724bfc549ca3407bae8ff1227d4207592974d846495e3269",
    "classes": [
-    "positive"
+    "positive",
+    "edge"
    ],
    "forms": [
     "ld-param-u64",
     "ld-param-u32",
     "add-u32",
     "sub-u32",
+    "mov-immediate-u32",
     "mul-lo-u32",
     "mad-lo-u32",
     "st-global-u32",
     "ret"
    ],
-   "oracle": "independent modulo-2^32 add, subtract, low multiply, and low multiply-add"
+   "oracle": "independent modulo-2^32 add, subtract, low multiply, low multiply-add, and immediate move"
   },
   {
    "id": "positive-shared-barrier",

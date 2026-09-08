@@ -65,6 +65,7 @@ enum class Opcode : std::uint32_t {
   LoadParameterF32,
   LoadSharedAddress,
   MoveSpecialU32,
+  MoveImmediateU32,
   AddU32,
   SubU32,
   MultiplyLoU32,
@@ -194,12 +195,13 @@ std::optional<ValueKind> parse_value_kind(std::string_view text) {
 
 std::optional<Opcode> parse_opcode(std::string_view text) {
   using Pair = std::pair<std::string_view, Opcode>;
-  constexpr std::array<Pair, 33> entries{{
+  constexpr std::array<Pair, 34> entries{{
       {"load_parameter_address", Opcode::LoadParameterAddress},
       {"load_parameter_u32", Opcode::LoadParameterU32},
       {"load_parameter_f32", Opcode::LoadParameterF32},
       {"load_shared_address", Opcode::LoadSharedAddress},
       {"move_special_u32", Opcode::MoveSpecialU32},
+      {"move_immediate_u32", Opcode::MoveImmediateU32},
       {"add_u32", Opcode::AddU32},
       {"sub_u32", Opcode::SubU32},
       {"multiply_lo_u32", Opcode::MultiplyLoU32},
@@ -267,6 +269,8 @@ OperationContract operation_contract(Opcode opcode) {
   case LoadSharedAddress:
     return {true, SharedAddress, {}, 0};
   case MoveSpecialU32:
+    return {true, U32, {}, 0};
+  case MoveImmediateU32:
     return {true, U32, {}, 0};
   case AddU32:
   case SubU32:
@@ -890,6 +894,10 @@ std::optional<ExecutionResult> execute_one(const Kernel& kernel,
     break;
   case Opcode::MoveSpecialU32:
     values[operation.result] = special_value(operation.attribute, coordinates, launch);
+    ++thread.pc;
+    break;
+  case Opcode::MoveImmediateU32:
+    values[operation.result] = operation.attribute;
     ++thread.pc;
     break;
   case Opcode::AddU32:

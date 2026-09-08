@@ -83,6 +83,7 @@ enum class Opcode : std::uint32_t {
   LoadParameterF32,
   LoadSharedAddress,
   MoveSpecialU32,
+  MoveImmediateU32,
   AddU32,
   SubU32,
   MultiplyLoU32,

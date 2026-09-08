@@ -893,6 +893,7 @@ private:
     case Opcode::LoadParameterF32:
     case Opcode::LoadSharedAddress:
     case Opcode::MoveSpecialU32:
+    case Opcode::MoveImmediateU32:
     case Opcode::AddU32:
     case Opcode::SubU32:
     case Opcode::MultiplyLoU32:
@@ -1170,6 +1171,9 @@ private:
           result = splat_scalar("%grid_y", "i32");
           break;
         }
+        break;
+      case Opcode::MoveImmediateU32:
+        result = constant_splat_i32(operation.attribute);
         break;
       case Opcode::AddU32:
         result = binary("add", vinput(0U), vinput(1U), vtype("i32"), &operation);
@@ -1450,6 +1454,7 @@ private:
     case Opcode::LoadParameterF32:
     case Opcode::LoadSharedAddress:
     case Opcode::MoveSpecialU32:
+    case Opcode::MoveImmediateU32:
     case Opcode::AddU32:
     case Opcode::SubU32:
     case Opcode::MultiplyLoU32:
@@ -1735,6 +1740,9 @@ private:
       result = binary("mul", extended, multiplier, "i64", &operation);
       break;
     }
+    case Opcode::MoveImmediateU32:
+      result = constant_i32(operation.attribute);
+      break;
     case Opcode::AddGlobalAddress: {
       const auto base = input(0U);
       result = binary("add", base, input(1U), "i64", &operation);

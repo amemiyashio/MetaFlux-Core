@@ -397,8 +397,9 @@ bool test_integer_forms(Harness& harness) {
                                           5U};
   return harness.execute_fixture("positive-integer-forms.ptx", arguments) &&
          expect(add[0] == 1U && subtract[0] == 0xfffffffdU && multiply[0] == 0xfffffffeU &&
-                    mad[0] == 3U,
-                "compiled integer forms must match modulo-2^32 goldens");
+                    mad[0] == 45U,
+                "compiled integer forms must match modulo-2^32 goldens and the "
+                "mov.u32 immediate 42 must zero-extend into the addend");
 }
 
 bool test_fp_forms(Harness& harness) {

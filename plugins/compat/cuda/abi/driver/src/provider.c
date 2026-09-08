@@ -331,6 +331,149 @@ static const char mf_pytorch_baseline_neg_ptx[] =
     "  ret;\n"
     "}\n";
 
+/* The stock-PyTorch int32 tensor-fill kernel maps to this neutral PTX
+ * artifact: a runtime scalar parameter stored over the linear-index shape.
+ * The scalar rides a MF_ARGUMENT_KIND_U32 entry; the unused entry keeps the
+ * four-entry normalization shape aligned with the artifact parameters. */
+static const char mf_pytorch_baseline_fill_i32_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry fill_i32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u32 unused,\n"
+    "  .param .u32 value,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  ld.param.u32 %r1, [value];\n"
+    "  mov.u32 %r2, %tid.x;\n"
+    "  mov.u32 %r3, %ctaid.x;\n"
+    "  mov.u32 %r4, %ntid.x;\n"
+    "  mad.lo.u32 %r5, %r3, %r4, %r2;\n"
+    "  setp.ge.u32 %p, %r5, %r0;\n"
+    "  @%p bra done;\n"
+    "  mul.wide.u32 %rd1, %r5, 4;\n"
+    "  add.u64 %rd2, %rd0, %rd1;\n"
+    "  st.global.u32 [%rd2], %r1;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
+/* torch tensor + int scalar: the runtime scalar rides the third entry. */
+static const char mf_pytorch_baseline_scadd_i32_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry scadd_i32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 input,\n"
+    "  .param .u32 scalar,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [input];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  ld.param.u32 %r1, [scalar];\n"
+    "  mov.u32 %r2, %tid.x;\n"
+    "  mov.u32 %r3, %ctaid.x;\n"
+    "  mov.u32 %r4, %ntid.x;\n"
+    "  mad.lo.u32 %r5, %r3, %r4, %r2;\n"
+    "  setp.ge.u32 %p, %r5, %r0;\n"
+    "  @%p bra done;\n"
+    "  mul.wide.u32 %rd2, %r5, 4;\n"
+    "  add.u64 %rd3, %rd0, %rd2;\n"
+    "  add.u64 %rd4, %rd1, %rd2;\n"
+    "  ld.global.u32 %r6, [%rd4];\n"
+    "  add.u32 %r7, %r6, %r1;\n"
+    "  st.global.u32 [%rd3], %r7;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
+/* torch tensor * int scalar over the same scalar-entry shape. */
+static const char mf_pytorch_baseline_scmul_i32_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry scmul_i32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 input,\n"
+    "  .param .u32 scalar,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [input];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  ld.param.u32 %r1, [scalar];\n"
+    "  mov.u32 %r2, %tid.x;\n"
+    "  mov.u32 %r3, %ctaid.x;\n"
+    "  mov.u32 %r4, %ntid.x;\n"
+    "  mad.lo.u32 %r5, %r3, %r4, %r2;\n"
+    "  setp.ge.u32 %p, %r5, %r0;\n"
+    "  @%p bra done;\n"
+    "  mul.wide.u32 %rd2, %r5, 4;\n"
+    "  add.u64 %rd3, %rd0, %rd2;\n"
+    "  add.u64 %rd4, %rd1, %rd2;\n"
+    "  ld.global.u32 %r6, [%rd4];\n"
+    "  mul.lo.u32 %r7, %r6, %r1;\n"
+    "  st.global.u32 [%rd3], %r7;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
+/* torch tensor + alpha * tensor: a fifth entry carries the runtime alpha. */
+static const char mf_pytorch_baseline_alphaadd_i32_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry alphaadd_i32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 left,\n"
+    "  .param .u64 right,\n"
+    "  .param .u32 count,\n"
+    "  .param .u32 alpha\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [left];\n"
+    "  ld.param.u64 %rd2, [right];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  ld.param.u32 %r1, [alpha];\n"
+    "  mov.u32 %r2, %tid.x;\n"
+    "  mov.u32 %r3, %ctaid.x;\n"
+    "  mov.u32 %r4, %ntid.x;\n"
+    "  mad.lo.u32 %r5, %r3, %r4, %r2;\n"
+    "  setp.ge.u32 %p, %r5, %r0;\n"
+    "  @%p bra done;\n"
+    "  mul.wide.u32 %rd3, %r5, 4;\n"
+    "  add.u64 %rd4, %rd0, %rd3;\n"
+    "  add.u64 %rd5, %rd1, %rd3;\n"
+    "  add.u64 %rd6, %rd2, %rd3;\n"
+    "  ld.global.u32 %r6, [%rd5];\n"
+    "  ld.global.u32 %r7, [%rd6];\n"
+    "  mad.lo.u32 %r8, %r1, %r7, %r6;\n"
+    "  st.global.u32 [%rd4], %r8;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
 /* float32 subtract: sub.rn.f32 over the linear-index copy shape. */
 static const char mf_pytorch_baseline_subf32_ptx[] =
     ".version 9.0\n"
@@ -669,7 +812,7 @@ typedef struct mf_cuda_pending_slot {
 
 typedef struct mf_cuda_add_argument_block {
   mf_argument_block_header_v1 header;
-  mf_argument_entry_v1 entries[4];
+  mf_argument_entry_v1 entries[5];
 } mf_cuda_add_argument_block;
 
 typedef struct mf_cuda_copy_argument_block {
@@ -1503,8 +1646,8 @@ static CUresult mf_cuda_argument_cache_acquire_locked(
   }
   result = mf_cuda_control_locked(
       MF_CLIENT_CONTROL_ARGUMENT_BLOCK_REGISTER_V1, MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD,
-      mf_cuda_global.transport.runtime_context_id, (uint64_t)sizeof(*block), block,
-      (uint64_t)sizeof(*block), out_id, out_generation);
+      mf_cuda_global.transport.runtime_context_id, block->header.total_size, block,
+      block->header.total_size, out_id, out_generation);
   if (result == CUDA_SUCCESS && free_index != MF_CUDA_ARGUMENT_CACHE_CAPACITY) {
     mf_cuda_argument_cache_entry* entry = &mf_cuda_global.argument_cache[free_index];
     uint32_t memory_index = UINT32_C(0);
@@ -6590,7 +6733,6 @@ static CUresult mf_cuda_materialize_pytorch_baseline_locked(mf_cuda_object* modu
   load_command.target = artifact_id;
   load_command.arguments[0] = artifact_generation;
   result = mf_cuda_submit_locked(&load_command, &completion);
-  fprintf(stderr, "MF_MAT_SUBMIT rc=%d mod=%llu/%llu\n", (int)result, (unsigned long long)completion.result_id, (unsigned long long)completion.result_generation);
   if (result == CUDA_SUCCESS &&
       (completion.result_id == UINT64_C(0) || completion.result_generation == UINT64_C(0))) {
     result = CUDA_ERROR_UNKNOWN;
@@ -6648,8 +6790,16 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
   mf_cuda_add_argument_block arguments;
   CUdeviceptr normalized_pointers[3] = {0, 0, 0};
   uint32_t normalized_element_count = UINT32_C(0);
-  void* normalized_parameters[4] = {&normalized_pointers[0], &normalized_pointers[1],
-                                    &normalized_pointers[2], &normalized_element_count};
+  /* Entries 0..2 may carry runtime u32 scalars instead of buffer handles.
+     normalized_kinds marks those entries; entry 3 is always the element
+     count and an optional fifth entry carries the alpha scalar. */
+  uint32_t normalized_scalars[3] = {0, 0, 0};
+  uint32_t normalized_kinds[3] = {0, 0, 0};
+  uint32_t normalized_alpha = UINT32_C(0);
+  uint32_t normalized_entry_total = UINT32_C(4);
+  void* normalized_parameters[5] = {&normalized_pointers[0], &normalized_pointers[1],
+                                    &normalized_pointers[2], &normalized_element_count,
+                                    &normalized_alpha};
   mf_cuda_pending pending;
   mf_cuda_command command = {MF_CUDA_COMMAND_LAUNCH, 0, {0, 0, 0, 0}, 0};
   uint64_t request_id = UINT64_C(0);
@@ -6745,10 +6895,31 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       }
       /* torch lowers sub to add with alpha = -1: alpha 1 selects the add
          PTX, alpha -1 the sub PTX (out = left - right); any other alpha
-         stays a clean error until an alpha-parameterized PTX exists. */
+         routes to the alpha-parameterized artifact whose fifth entry
+         carries the runtime multiplier. */
       if (alpha != INT32_C(1) && alpha != INT32_C(-1)) {
-        mf_cuda_queue_unlock();
-        return CUDA_ERROR_NOT_SUPPORTED;
+        /* negative alpha wraps to the two's-complement multiplier, which the
+           modulo-2^32 mad artifact applies bit-exactly */
+        normalized_alpha = (uint32_t)alpha;
+        normalized_entry_total = UINT32_C(5);
+        if (normalized_element_count == UINT32_C(0) ||
+            normalized_pointers[0] == (CUdeviceptr)0 ||
+            normalized_pointers[1] == (CUdeviceptr)0 ||
+            normalized_pointers[2] == (CUdeviceptr)0) {
+          mf_cuda_queue_unlock();
+          return CUDA_ERROR_NOT_SUPPORTED;
+        }
+        module_record = &mf_cuda_global.modules[function_record->aux];
+        result = mf_cuda_materialize_pytorch_baseline_locked(
+            module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ALPHA_ADD_I32_V1,
+            mf_pytorch_baseline_alphaadd_i32_ptx,
+            sizeof(mf_pytorch_baseline_alphaadd_i32_ptx) - 1U, "elementwise-alpha-add-i32");
+        if (result != CUDA_SUCCESS) {
+          mf_cuda_queue_unlock();
+          return result;
+        }
+        kernel_parameters = normalized_parameters;
+        goto daemon_launch;
       }
       if (normalized_element_count == UINT32_C(0) ||
           normalized_pointers[0] == (CUdeviceptr)0 ||
@@ -6934,25 +7105,130 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
           module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_NEG_I32_V1,
           mf_pytorch_baseline_neg_ptx, sizeof(mf_pytorch_baseline_neg_ptx) - 1U,
           "elementwise-neg-i32");
-      fprintf(stderr, "MF_NEG_MATERIALIZE rc=%d\n", (int)result);
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();
         return result;
       }
-      fprintf(stderr, "MF_NEG_GOTO daemon_launch\n");
       kernel_parameters = normalized_parameters;
-      fprintf(stderr, "MF_NEG_GOTO daemon_launch\n");
+      goto daemon_launch;
+    }
+
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "FillFunctor") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0) {
+      /* torch int32 fill (zeros/ones/full/fill_): a one-pointer array
+         {out} plus the value carried inside the FillFunctor object; the
+         scalar rides entry 2 and the unused entry stays zero. */
+      void** fill_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)fill_data_array[0];
+      normalized_kinds[1] = UINT32_C(1);
+      normalized_scalars[1] = UINT32_C(0);
+      normalized_kinds[2] = UINT32_C(1);
+      normalized_scalars[2] = *(const uint32_t*)kernel_parameters[1];
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_FILL_I32_V1,
+          mf_pytorch_baseline_fill_i32_ptx, sizeof(mf_pytorch_baseline_fill_i32_ptx) - 1U,
+          "fill-i32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "CUDAFunctorOnSelf_addIiE") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0) {
+      /* torch tensor + int scalar: a two-pointer array {out, input} with
+         the addend inside the CUDAFunctorOnSelf_add object at offset 0. */
+      void** scadd_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)scadd_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)scadd_data_array[1];
+      normalized_kinds[2] = UINT32_C(1);
+      normalized_scalars[2] = *(const uint32_t*)kernel_parameters[1];
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_SCALAR_ADD_I32_V1,
+          mf_pytorch_baseline_scadd_i32_ptx, sizeof(mf_pytorch_baseline_scadd_i32_ptx) - 1U,
+          "scalar-add-i32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "AUnaryFunctor") != (char*)0 &&
+        strstr(kernel_name, "MulFunctorIiE") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0) {
+      /* torch tensor * int scalar: a two-pointer array {out, input} with
+         the AUnaryFunctor carrying an empty functor member before the
+         multiplier, so alpha_ lives at functor offset 4. */
+      void** scmul_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)scmul_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)scmul_data_array[1];
+      normalized_kinds[2] = UINT32_C(1);
+      normalized_scalars[2] =
+          *(const uint32_t*)((const uint8_t*)kernel_parameters[1] + UINT32_C(4));
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_SCALAR_MUL_I32_V1,
+          mf_pytorch_baseline_scmul_i32_ptx, sizeof(mf_pytorch_baseline_scmul_i32_ptx) - 1U,
+          "scalar-mul-i32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
       goto daemon_launch;
     }
 
     /* The baseline must not accept provider-side tensor emulation. Every
-     * deferred kernel other than the neutral int32 add adapter fails at the
-     * CUDA boundary until its daemon-owned Kernel IR route is implemented. */
+     * deferred kernel other than a daemon-owned adapter route fails at the
+     * CUDA boundary until its Kernel IR route is implemented; the trace dump
+     * records the deferred identity and parameter bytes for adapter design. */
+    if (mf_cuda_entry_trace_enabled() != 0) {
+      uint32_t dump_index = 0;
+      fprintf(stderr, "MF_DEFERRED_UNSUPPORTED name=%s\n", kernel_name);
+      for (dump_index = 0; dump_index < UINT32_C(4); ++dump_index) {
+        fprintf(stderr, "MF_DEFERRED_PARAMS slot=%u raw=%llx\n", dump_index,
+                (unsigned long long)(uintptr_t)kernel_parameters[dump_index]);
+      }
+    }
     mf_cuda_queue_unlock();
     return CUDA_ERROR_NOT_SUPPORTED;
   }
 daemon_launch:
-  fprintf(stderr, "MF_DL_REACHED\n");
   if (mf_cuda_entry_trace_enabled() != 0) {
     fprintf(stderr, "MF_DL entered sm=%u pz=%u bz=%u\n", shared_memory_bytes, grid_z, block_z);
   }
@@ -6963,7 +7239,7 @@ daemon_launch:
     result = CUDA_ERROR_NOT_SUPPORTED;
   }
   for (parameter_index = 0;
-       result == CUDA_SUCCESS && parameter_index < UINT32_C(4); ++parameter_index) {
+       result == CUDA_SUCCESS && parameter_index < normalized_entry_total; ++parameter_index) {
     if (kernel_parameters[parameter_index] == (void*)0) {
       if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_DL null param %u\n", parameter_index); }
       result = CUDA_ERROR_INVALID_VALUE;
@@ -6991,6 +7267,12 @@ daemon_launch:
   }
   if (result == CUDA_SUCCESS) {
     for (parameter_index = 0; parameter_index < UINT32_C(3); ++parameter_index) {
+      if (normalized_kinds[parameter_index] != UINT32_C(0)) {
+        pointers[parameter_index] = (CUdeviceptr)0;
+        memories[parameter_index] = (mf_cuda_object*)0;
+        offsets[parameter_index] = UINT64_C(0);
+        continue;
+      }
       (void)memcpy(&pointers[parameter_index], kernel_parameters[parameter_index],
                    sizeof(pointers[parameter_index]));
       result = mf_cuda_memory_locked(pointers[parameter_index], (size_t)1,
@@ -7017,6 +7299,9 @@ daemon_launch:
   if (result == CUDA_SUCCESS) {
     (void)memcpy(&element_count, kernel_parameters[3], sizeof(element_count));
     for (parameter_index = 0; parameter_index < UINT32_C(3); ++parameter_index) {
+      if (normalized_kinds[parameter_index] != UINT32_C(0)) {
+        continue;
+      }
       if ((offsets[parameter_index] & UINT64_C(3)) != UINT64_C(0) ||
           offsets[parameter_index] > memories[parameter_index]->size ||
           (uint64_t)element_count >
@@ -7032,36 +7317,52 @@ daemon_launch:
     arguments.header.abi_version = MF_SHARED_DEVICE_ABI_VERSION_1;
     arguments.header.header_size = (uint32_t)sizeof(arguments.header);
     arguments.header.entry_size = (uint32_t)sizeof(arguments.entries[0]);
-    arguments.header.entry_count = UINT32_C(4);
+    arguments.header.entry_count = normalized_entry_total;
     arguments.header.flags = MF_ARGUMENT_BLOCK_FLAG_LAUNCH_DIMENSIONS_XY_V1;
-    arguments.header.total_size = (uint64_t)sizeof(arguments);
+    arguments.header.total_size = (uint64_t)(sizeof(arguments.header) +
+                                             normalized_entry_total * sizeof(arguments.entries[0]));
     arguments.header.reserved[MF_ARGUMENT_BLOCK_LAUNCH_GRID_X_INDEX_V1] = (uint64_t)grid_x;
     arguments.header.reserved[MF_ARGUMENT_BLOCK_LAUNCH_GRID_Y_INDEX_V1] = (uint64_t)grid_y;
     arguments.header.reserved[MF_ARGUMENT_BLOCK_LAUNCH_BLOCK_X_INDEX_V1] = (uint64_t)block_x;
     arguments.header.reserved[MF_ARGUMENT_BLOCK_LAUNCH_BLOCK_Y_INDEX_V1] = (uint64_t)block_y;
-    arguments.entries[0].kind = MF_ARGUMENT_KIND_BUFFER;
-    arguments.entries[0].flags = MF_ARGUMENT_BUFFER_WRITE;
-    arguments.entries[0].object_id = memories[0]->remote_id;
-    arguments.entries[0].object_generation = memories[0]->remote_generation;
-    arguments.entries[0].value = offsets[0];
-    arguments.entries[1].kind = MF_ARGUMENT_KIND_BUFFER;
-    arguments.entries[1].flags = MF_ARGUMENT_BUFFER_READ;
-    arguments.entries[1].object_id = memories[1]->remote_id;
-    arguments.entries[1].object_generation = memories[1]->remote_generation;
-    arguments.entries[1].value = offsets[1];
-    arguments.entries[2].kind = MF_ARGUMENT_KIND_BUFFER;
-    arguments.entries[2].flags = MF_ARGUMENT_BUFFER_READ;
-    arguments.entries[2].object_id = memories[2]->remote_id;
-    arguments.entries[2].object_generation = memories[2]->remote_generation;
-    arguments.entries[2].value = offsets[2];
+    for (parameter_index = 0; parameter_index < UINT32_C(3); ++parameter_index) {
+      if (normalized_kinds[parameter_index] != UINT32_C(0)) {
+        arguments.entries[parameter_index].kind = MF_ARGUMENT_KIND_U32;
+        arguments.entries[parameter_index].flags = UINT32_C(0);
+        arguments.entries[parameter_index].object_id = UINT64_C(0);
+        arguments.entries[parameter_index].object_generation = UINT64_C(0);
+        arguments.entries[parameter_index].value = (uint64_t)normalized_scalars[parameter_index];
+        continue;
+      }
+      arguments.entries[parameter_index].kind = MF_ARGUMENT_KIND_BUFFER;
+      arguments.entries[parameter_index].flags =
+          parameter_index == UINT32_C(0) ? MF_ARGUMENT_BUFFER_WRITE : MF_ARGUMENT_BUFFER_READ;
+      arguments.entries[parameter_index].object_id = memories[parameter_index]->remote_id;
+      arguments.entries[parameter_index].object_generation =
+          memories[parameter_index]->remote_generation;
+      arguments.entries[parameter_index].value = offsets[parameter_index];
+    }
     arguments.entries[3].kind = MF_ARGUMENT_KIND_U32;
     arguments.entries[3].value = (uint64_t)element_count;
+    if (normalized_entry_total == UINT32_C(5)) {
+      arguments.entries[4].kind = MF_ARGUMENT_KIND_U32;
+      arguments.entries[4].flags = UINT32_C(0);
+      arguments.entries[4].object_id = UINT64_C(0);
+      arguments.entries[4].object_generation = UINT64_C(0);
+      arguments.entries[4].value = (uint64_t)normalized_alpha;
+    }
     result = mf_cuda_status(
-        mf_client_argument_block_validate_v1((const uint8_t*)&arguments, sizeof(arguments)));
+        mf_client_argument_block_validate_v1((const uint8_t*)&arguments, arguments.header.total_size));
   }
   if (result == CUDA_SUCCESS) {
     module_record = &mf_cuda_global.modules[function_record->aux];
     for (parameter_index = UINT32_C(0); parameter_index < UINT32_C(3); ++parameter_index) {
+      if (normalized_kinds[parameter_index] != UINT32_C(0) ||
+          memories[parameter_index] == (mf_cuda_object*)0) {
+        memory_indices[parameter_index] = MF_CUDA_INDEX_NONE;
+        memory_generations[parameter_index] = UINT32_C(0);
+        continue;
+      }
       memory_indices[parameter_index] =
           (uint32_t)(memories[parameter_index] - mf_cuda_global.memories);
       memory_generations[parameter_index] = memories[parameter_index]->generation;

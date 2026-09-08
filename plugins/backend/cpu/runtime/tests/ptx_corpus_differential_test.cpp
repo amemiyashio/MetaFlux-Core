@@ -97,7 +97,8 @@ bool test_integer_forms() {
          expect(add[0] == 1U, "add.u32 must wrap modulo 2^32") &&
          expect(subtract[0] == 0xfffffffdU, "sub.u32 must wrap modulo 2^32") &&
          expect(multiply[0] == 0xfffffffeU, "mul.lo.u32 must retain low product bits") &&
-         expect(mad[0] == 3U, "mad.lo.u32 must retain low a*b+c bits");
+         expect(mad[0] == 45U, "mad.lo.u32 must retain low a*b+c bits and mov.u32 "
+                              "immediate 42 must zero-extend into the addend");
 }
 
 bool test_fp_forms() {

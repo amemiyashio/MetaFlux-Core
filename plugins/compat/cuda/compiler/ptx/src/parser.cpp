@@ -17,7 +17,7 @@
 namespace metaflux::compiler::ptx {
 namespace {
 
-constexpr std::array<SupportedForm, 32> kSupportedForms{{
+constexpr std::array<SupportedForm, 33> kSupportedForms{{
     {"ld-param-u64", "ld.param.u64", "b64,param.u64", "param,register", "", 70,
      "load_parameter_address", "bounded global buffer handle"},
     {"ld-param-u32", "ld.param.u32", "b32,param.u32", "param,register", "", 70,
@@ -26,6 +26,8 @@ constexpr std::array<SupportedForm, 32> kSupportedForms{{
      "load_parameter_f32", "exact binary32 parameter bits"},
     {"mov-special-u32", "mov.u32", "b32,special.u32", "special,register", "x|y", 70,
      "move_special_u32", "exact 2D coordinate or extent"},
+    {"mov-immediate-u32", "mov.u32", "b32,u32-immediate", "register", "", 70,
+     "move_immediate_u32", "exact zero-extended 32-bit immediate"},
     {"mov-shared-address", "mov.u32", "b32,shared-symbol", "shared,register", "", 70,
      "load_shared_address", "CTA-local allocation base"},
     {"add-u32", "add.u32", "u32,u32,u32", "register", "", 70, "add_u32", "modulo 2^32"},
@@ -928,6 +930,22 @@ private:
       if (!failed_ && define_result(*result, ValueKind::U32)) {
         add_operation(Opcode::MoveSpecialU32, result->index, {},
                       static_cast<std::uint32_t>(found->second), false, opcode.location);
+      }
+      return;
+    }
+    if (current().kind == TokenKind::Number) {
+      const auto immediate = take(TokenKind::Number, "u32 immediate");
+      semicolon();
+      const auto value = parse_u32(immediate.text);
+      if (!failed_ && !value.has_value()) {
+        fail(DiagnosticCode::PtxSyntax, immediate, "immediate is not a u32 value");
+        return;
+      }
+      if (!failed_ && result.has_value() && value.has_value()) {
+        if (define_result(*result, ValueKind::U32)) {
+          add_operation(Opcode::MoveImmediateU32, result->index, {}, *value, false,
+                        opcode.location);
+        }
       }
       return;
     }
