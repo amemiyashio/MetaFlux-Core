@@ -1076,7 +1076,7 @@ typedef struct mf_cuda_pending_slot {
 
 typedef struct mf_cuda_add_argument_block {
   mf_argument_block_header_v1 header;
-  mf_argument_entry_v1 entries[5];
+  mf_argument_entry_v1 entries[10];
 } mf_cuda_add_argument_block;
 
 typedef struct mf_cuda_copy_argument_block {
@@ -7059,14 +7059,18 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
      count and an optional fifth entry carries the alpha scalar. */
   uint32_t normalized_scalars[3] = {0, 0, 0};
   uint32_t normalized_kinds[3] = {0, 0, 0};
-  uint32_t normalized_alpha = UINT32_C(0);
+  /* Entries beyond the fourth carry extra u32 payload (the alpha scalar, or
+     the strided-copy descriptor) in record order. */
+  uint32_t normalized_extra[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   uint32_t normalized_entry_total = UINT32_C(4);
   /* Output element size in bytes for the per-entry capacity check; the
      comparison kernels write one bool byte per element. */
   uint32_t normalized_output_element_size = UINT32_C(4);
-  void* normalized_parameters[5] = {&normalized_pointers[0], &normalized_pointers[1],
-                                    &normalized_pointers[2], &normalized_element_count,
-                                    &normalized_alpha};
+  void* normalized_parameters[10] = {&normalized_pointers[0], &normalized_pointers[1],
+                                     &normalized_pointers[2], &normalized_element_count,
+                                     &normalized_extra[0],    &normalized_extra[1],
+                                     &normalized_extra[2],    &normalized_extra[3],
+                                     &normalized_extra[4],    &normalized_extra[5]};
   mf_cuda_pending pending;
   mf_cuda_command command = {MF_CUDA_COMMAND_LAUNCH, 0, {0, 0, 0, 0}, 0};
   uint64_t request_id = UINT64_C(0);
@@ -7167,7 +7171,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       if (alpha != INT32_C(1) && alpha != INT32_C(-1)) {
         /* negative alpha wraps to the two's-complement multiplier, which the
            modulo-2^32 mad artifact applies bit-exactly */
-        normalized_alpha = (uint32_t)alpha;
+        normalized_extra[0] = (uint32_t)alpha;
         normalized_entry_total = UINT32_C(5);
         if (normalized_element_count == UINT32_C(0) ||
             normalized_pointers[0] == (CUdeviceptr)0 ||
@@ -7816,6 +7820,91 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       goto daemon_launch;
     }
 
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "unrolled_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "direct_copy_kernel_cuda") != (char*)0 &&
+        strstr(kernel_name, "EUlfE_") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[2] != (void*)0) {
+      /* torch int32-to-float cast copy: the unrolled layout with the data
+         array ordered {destination, source}; the daemon converts natively. */
+      void** tof_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)tof_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)tof_data_array[1];
+      normalized_pointers[2] = (CUdeviceptr)0;
+      normalized_kinds[2] = UINT32_C(1);
+      normalized_scalars[2] = UINT32_C(0);
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_TO_F32_V1,
+          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          "cast-to-f32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
+    if (kernel_name[0] != '\0' && strstr(kernel_name, "elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "gpu_kernel_impl_nocast") != (char*)0 &&
+        strstr(kernel_name, "direct_copy_kernel_cuda") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0) {
+      /* torch strided contiguous copy: the kernel's second argument is the
+         launch closure {OffsetCalculator<2> at +0, data pointers at +504 and
+         +512}. The adapter decodes dims, sizes, and per-argument byte
+         strides from the calculator and ships them as extra u32 entries; the
+         daemon scatters the copy natively so transposed views keep their
+         element order. */
+      const unsigned char* closure = (const unsigned char*)kernel_parameters[1];
+      const int32_t dims = *(const int32_t*)closure;
+      if (dims <= 0 || dims > 2) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      void** copy_data_array = (void**)(closure + UINT32_C(504));
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)copy_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)copy_data_array[1];
+      normalized_pointers[2] = (CUdeviceptr)0;
+      normalized_kinds[2] = UINT32_C(1);
+      normalized_scalars[2] = (uint32_t)dims;
+      normalized_entry_total = UINT32_C(4) + (uint32_t)dims * UINT32_C(3);
+      for (uint32_t dim = UINT32_C(0); dim < (uint32_t)dims; ++dim) {
+        (void)memcpy(&normalized_extra[dim],
+                     closure + UINT32_C(4) + (size_t)dim * UINT32_C(12), sizeof(uint32_t));
+        (void)memcpy(&normalized_extra[UINT32_C(2) + dim],
+                     closure + UINT32_C(304) + (size_t)dim * UINT32_C(8), sizeof(uint32_t));
+        (void)memcpy(&normalized_extra[UINT32_C(4) + dim],
+                     closure + UINT32_C(304) + (size_t)dim * UINT32_C(8) + UINT32_C(4),
+                     sizeof(uint32_t));
+      }
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_STRIDED_COPY_U32_V1,
+          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          "strided-copy-u32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
     /* The baseline must not accept provider-side tensor emulation. Every
      * deferred kernel other than a daemon-owned adapter route fails at the
      * CUDA boundary until its Kernel IR route is implemented; the trace dump
@@ -7950,12 +8039,14 @@ daemon_launch:
     }
     arguments.entries[3].kind = MF_ARGUMENT_KIND_U32;
     arguments.entries[3].value = (uint64_t)element_count;
-    if (normalized_entry_total == UINT32_C(5)) {
-      arguments.entries[4].kind = MF_ARGUMENT_KIND_U32;
-      arguments.entries[4].flags = UINT32_C(0);
-      arguments.entries[4].object_id = UINT64_C(0);
-      arguments.entries[4].object_generation = UINT64_C(0);
-      arguments.entries[4].value = (uint64_t)normalized_alpha;
+    for (parameter_index = UINT32_C(4); parameter_index < normalized_entry_total;
+         ++parameter_index) {
+      arguments.entries[parameter_index].kind = MF_ARGUMENT_KIND_U32;
+      arguments.entries[parameter_index].flags = UINT32_C(0);
+      arguments.entries[parameter_index].object_id = UINT64_C(0);
+      arguments.entries[parameter_index].object_generation = UINT64_C(0);
+      arguments.entries[parameter_index].value =
+          (uint64_t)normalized_extra[parameter_index - UINT32_C(4)];
     }
     result = mf_cuda_status(
         mf_client_argument_block_validate_v1((const uint8_t*)&arguments, arguments.header.total_size));

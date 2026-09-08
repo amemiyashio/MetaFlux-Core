@@ -3168,6 +3168,60 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
       }
       destination.words[0] = static_cast<uint32_t>(static_cast<uint64_t>(accumulator));
       destination.words[1] = static_cast<uint32_t>(static_cast<uint64_t>(accumulator) >> 32U);
+    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_STRIDED_COPY_U32_V1) {
+      if (arguments.size() < 4U || arguments[0].index() != 2U || arguments[1].index() != 2U) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      const auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
+      const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1]);
+      const auto dims = std::get<uint32_t>(arguments[2]);
+      if (dims == 0U || dims > 4U || 4U + 3U * dims > arguments.size()) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      std::array<uint32_t, 4> sizes{};
+      std::array<uint32_t, 4> out_strides{};
+      std::array<uint32_t, 4> in_strides{};
+      for (uint32_t dim = 0U; dim < dims; ++dim) {
+        sizes[dim] = std::get<uint32_t>(arguments[4U + dim]);
+        out_strides[dim] = std::get<uint32_t>(arguments[4U + dims + dim]);
+        in_strides[dim] = std::get<uint32_t>(arguments[4U + 2U * dims + dim]);
+      }
+      uint64_t total = 1U;
+      for (uint32_t dim = 0U; dim < dims; ++dim) {
+        total *= sizes[dim];
+      }
+      const auto element_count = std::get<uint32_t>(arguments[3]);
+      for (uint64_t index = 0; index < total && index < (uint64_t)element_count; ++index) {
+        uint64_t remaining = index;
+        uint64_t out_byte = 0U;
+        uint64_t in_byte = 0U;
+        for (uint32_t dim = dims; dim-- > 0U;) {
+          const uint32_t coordinate = remaining % sizes[dim];
+          remaining /= sizes[dim];
+          out_byte += (uint64_t)coordinate * out_strides[dim];
+          in_byte += (uint64_t)coordinate * in_strides[dim];
+        }
+        const uint64_t out_word = out_byte / 4U;
+        const uint64_t in_word = in_byte / 4U;
+        if (out_byte % 4U != 0U || in_byte % 4U != 0U || out_word >= destination.words.size() ||
+            in_word >= source.words.size()) {
+          continue;
+        }
+        destination.words[out_word] = source.words[in_word];
+      }
+    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_TO_F32_V1) {
+      if (arguments.size() < 3U || arguments[0].index() != 2U || arguments[1].index() != 2U) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      const auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
+      const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1]);
+      const auto element_count = std::get<uint32_t>(arguments.back());
+      for (uint32_t index = 0; index < element_count && index < source.words.size() &&
+                               index < destination.words.size();
+           ++index) {
+        const float widened = static_cast<float>(static_cast<int32_t>(source.words[index]));
+        std::memcpy(&destination.words[index], &widened, sizeof(widened));
+      }
     } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1 ||
                operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1) {
       if (arguments.size() < 4U || arguments[0].index() != 2U || arguments[1].index() != 2U) {
