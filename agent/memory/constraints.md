@@ -148,6 +148,19 @@ identity and provisioning boundaries live in
   measured decision explicitly changes that boundary.
 - The runtime and compiler core remain ecosystem-neutral. Compatibility plugins
   do not depend on concrete execution backends.
+- The stock PyTorch CUDA baseline must negotiate `KERNEL_REQUEST_REGISTER`
+  capability bit 11 before it submits its v1 neutral kernel request. The sealed
+  request carries only the baseline operation/profile and Kernel IR versions;
+  source remains live through module load, after which daemon-owned canonical
+  Kernel IR outlives the client artifact until module unload (decision-0048).
+- The baseline's profile-specific cudart table UUIDs and slot behavior are
+  observations, never CUDA Driver guarantees. Any reached but unclassified slot
+  returns `CUDA_ERROR_NOT_SUPPORTED`; it may not synthesize a successful result
+  or leave output undefined (decision-0049).
+- The stock PyTorch baseline is CPU-interpreter-only. It records source
+  provenance and compiler/cache non-use, while compiled-artifact cache identity
+  remains mandatory only for future JIT/AOT CPU-profile operations
+  (decision-0050).
 - Local managed providers select cdev before memfd. cdev uses the Unix daemon
   session as its object-table control plane and the cdev queue as its steady-state
   data plane, bound to one session/view/generation for the provider initialization

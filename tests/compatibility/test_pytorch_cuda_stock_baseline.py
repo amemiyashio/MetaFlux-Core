@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import subprocess
 import unittest
+from unittest import mock
 
 
 COMPATIBILITY_DIR = Path(__file__).resolve().parent
@@ -127,6 +129,29 @@ class StockBaselineEvidenceTests(unittest.TestCase):
         self.assertEqual(stock_baseline.select_baseline_cpu({4, 9, 12}), 4)
         with self.assertRaisesRegex(RuntimeError, "no effective CPU affinity"):
             stock_baseline.select_baseline_cpu(set())
+
+    def test_source_provenance_binds_the_gate_to_head_and_tree_state(self) -> None:
+        revision = "f92304e55d9849de5c3694a4755dbcf22418b3e5"
+        with mock.patch.object(
+            stock_baseline.subprocess,
+            "run",
+            side_effect=(
+                subprocess.CompletedProcess(["git"], 0, stdout=f"{revision}\n", stderr=""),
+                subprocess.CompletedProcess(["git"], 0, stdout=" M tests/example.py\n", stderr=""),
+            ),
+        ):
+            self.assertEqual(
+                stock_baseline.source_provenance(),
+                {"revision": revision, "tree_state": "dirty"},
+            )
+
+        with mock.patch.object(
+            stock_baseline.subprocess,
+            "run",
+            return_value=subprocess.CompletedProcess(["git"], 0, stdout="not-a-revision\n", stderr=""),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "could not identify"):
+                stock_baseline.source_provenance()
 
 
 if __name__ == "__main__":

@@ -26,13 +26,20 @@ surfaces.
 The provider implements a broad CUDA initialization surface, primary contexts,
 device attributes, CUDA library/kernel query entry points, observed cudart
 export-table adapters, repeated function-token reuse, and selected
-profile-specific kernel recognition. The five-stage probe and pinned client
-profile manifest are checked in.
+profile-specific kernel recognition. The checked-in stock-client gate provisions
+pinned PyTorch `2.11.0+cu126` and reaches all five stages through the normal
+`torch.cuda` API. Its eager int32 add is registered through the negotiated v1
+neutral kernel request, loaded into daemon-owned canonical Kernel IR, and
+completed by the CPU interpreter without provider-local tensor arithmetic or a
+fabricated-success path.
 
-The registered probe test uses a fake torch object. Deferred client cubins skip
-daemon artifact registration and launch, while selected eager operations are
-computed over host buffers inside the application-side provider. The current
-tree therefore does not satisfy this work item.
+The gate records the exact baseline request/profile versions, direct provider
+and internal-table surface, daemon launch, CPU mode, and result bytes. It is a
+single-operation baseline, not the CPU profile or a general PyTorch CUDA claim.
+The exact Driver/internal-table, neutral request/lifetime, and CPU interpreter
+cache-non-use decisions are closed by decisions 0048-0050. Cumulative
+regression and explicit Batch integration remain the only transition to an
+integrated lane state.
 
 ## Decisions Before Integration
 
@@ -40,13 +47,14 @@ tree therefore does not satisfy this work item.
   inspecting framework call paths. Its gitlink and notes are research-only;
   any relied-upon conclusion must be promoted to an owning Core decision,
   contract, source path, or test (decision-0047).
-- Close the exact baseline-required Driver and profile-specific internal-table
-  surface. Every entry records normative, pinned observation, or
-  MetaFlux-strengthened provenance; unsupported slots fail stably.
-- Close the minimal versioned neutral request schema and lifetime required for
-  the eager-add launch to become canonical Kernel IR.
-- Close the daemon CPU execution-mode surface and cache identity used by this
-  real-client path.
+- The exact baseline-required Driver and profile-specific internal-table surface
+  is resolved by decision-0049: observed/strengthened entries are pinned to the
+  stock profile and unclassified reached slots fail stably.
+- The minimal versioned neutral request and module-load lifetime are resolved by
+  decision-0048.
+- The baseline daemon CPU interpreter mode and compiled-cache non-use are
+  resolved by decision-0050; compiled CPU cache identity remains
+  work-item-0.2.0.2 scope.
 
 These are minimum vertical-slice decisions. The complete surface matrix,
 handle-negative expansion, broad operator corpus, library boundary, and Vulkan
@@ -54,21 +62,23 @@ routing remain in their dependent work items.
 
 ## Work
 
-- [ ] Materialize `pytorch-v2.11.0` through the checked-in reference tool and
+- [x] Materialize `pytorch-v2.11.0` through the checked-in reference tool and
   use only its exact detached revision for source-path inspection.
-- [ ] Pin and provision stock PyTorch `2.11.0+cu126` in a checked-in gate without
+- [x] Pin and provision stock PyTorch `2.11.0+cu126` in a checked-in gate without
   editing its source, wheel, or `torch.cuda` API.
-- [ ] Make import, driver enumeration, and runtime copy pass against a stock
+- [x] Make import, driver enumeration, and runtime copy pass against a stock
   daemon using only the exact baseline-required provider surface.
-- [ ] Carry artifact intake through the minimum neutral request and canonical
+- [x] Carry artifact intake through the minimum neutral request and canonical
   Kernel IR boundary instead of bypassing daemon module ownership.
-- [ ] Lower and execute eager add through the daemon CPU path, recording a
+- [x] Lower and execute eager add through the daemon CPU path, recording a
   daemon submission, backend completion, result bytes, source revision, client
-  profile, request/Kernel IR versions, compiler inputs, and cache identity.
-- [ ] Remove the provider-local eager-add arithmetic and success shortcut from
+  profile, request/Kernel IR versions, and interpreter cache non-use. The
+  future compiled-cache identity remains outside this baseline under
+  decision-0050.
+- [x] Remove the provider-local eager-add arithmetic and success shortcut from
   the accepted path. Unsupported inputs fail with a stable classified error and
   no output mutation.
-- [ ] Keep the fake-client probe test as control-flow coverage, clearly
+- [x] Keep the fake-client probe test as control-flow coverage, clearly
   separated from the real-client acceptance gate.
 
 ## Exit Gate

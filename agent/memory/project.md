@@ -43,19 +43,21 @@ through the five-stage daemon/CPU baseline, a complete CPU execution profile,
 then Vulkan/SPIR-V and lifecycle qualification (decisions 0044 and 0046).
 milestone-1.0.0.0 / `v1.0.0` remains queued until this foundation closes.
 
-Current v0.2 maturity is a provider-side compatibility prototype, not qualified
-daemon/backend execution (decision-0044). The repository has a five-stage probe,
-pinned client manifests, and selected PyTorch kernel-name handlers, but CTest
-exercises the probe with a fake client and no checked-in real-client operator
-corpus exists. Epoch-0013 preserves the shortest observable stock-client
-path: eager add must move through a minimal versioned neutral request into
-canonical Kernel IR and the daemon CPU backend before the surface and corpus
-broaden. Its first implementation lane now has a research-only readiness
-prerequisite: the exact PyTorch v2.11.0 gitlink and catalog entry under
-`references/` must be materialized and verified before source inspection.
-This reference is not product, build, qualification, or release evidence
-(decision-0047). MLIR remains internal to backend compilation; Vulkan
-qualification then reuses the same Kernel IR corpus (decision-0046).
+Current v0.2 maturity includes a checked-in real five-stage baseline for pinned
+stock PyTorch `2.11.0+cu126`: import, driver enumeration, runtime copy,
+artifact intake, and `torch.add` execute through the normal `torch.cuda` API
+against the daemon CPU interpreter. Eager add negotiates the v1 neutral kernel
+request, loads daemon-owned canonical Kernel IR, records a daemon launch, and
+has no provider-local semantic execution (decision-0048). This is one verified
+profile operation, not a qualified CPU operator corpus or a claim of general
+PyTorch usability. The baseline Driver/internal-table, neutral request, and
+CPU interpreter/cache-non-use decisions are closed by decisions 0048-0050;
+its remaining action is cumulative regression and explicit Batch integration,
+not another provider-local shortcut. Its research-only prerequisite remains the
+exact PyTorch v2.11.0 gitlink and catalog entry under `references/`; it is not
+product, build, qualification, or release evidence (decision-0047). MLIR
+remains internal to backend compilation; Vulkan qualification then reuses the
+same Kernel IR corpus (decision-0046).
 Intel x86_64 qualification and physical NVIDIA
 binding-performance promotion belong to milestone-2.0.0.0 / `v2.0.0`
 (decision-0040), and native NixOS VM/package qualification remains the

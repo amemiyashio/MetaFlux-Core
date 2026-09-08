@@ -121,6 +121,33 @@ def load_profile(path: Path, profile_name: str) -> dict[str, str]:
     }
 
 
+def source_provenance() -> dict[str, str]:
+    revision_result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=REPOSITORY_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    revision = revision_result.stdout.strip()
+    if revision_result.returncode != 0 or not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise RuntimeError("stock PyTorch baseline could not identify its source revision")
+
+    status_result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=REPOSITORY_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if status_result.returncode != 0:
+        raise RuntimeError("stock PyTorch baseline could not inspect its source tree state")
+    return {
+        "revision": revision,
+        "tree_state": "clean" if not status_result.stdout else "dirty",
+    }
+
+
 def result(stage_name: str, **details: Any) -> dict[str, Any]:
     return {"name": stage_name, "status": "passed", "details": details}
 
@@ -437,14 +464,19 @@ def run_pinned_baseline(
         if daemon_statistics["loaded_modules"] < provider_surface["canonical_artifact_module_loads"]:
             raise RuntimeError("daemon statistics did not retain every canonical baseline module")
         return {
-            "schema_version": 2,
+            "schema_version": 3,
             "gate": "metaflux-pytorch-cuda-stock-baseline",
             "result": "complete",
             "runner": {"cpu_affinity": affinity},
+            "source": source_provenance(),
             "daemon": {
                 "cpu_execution_mode": "interpreter",
                 "socket": "private",
                 "execution_statistics": daemon_statistics,
+                "compiler": {
+                    "input_identity": "not-applicable-in-interpreter-mode",
+                    "used": False,
+                },
                 "compiled_artifact_cache": {
                     "used": False,
                     "identity": "not-applicable-in-interpreter-mode",

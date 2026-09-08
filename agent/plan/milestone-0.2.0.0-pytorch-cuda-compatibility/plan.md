@@ -34,27 +34,29 @@ reserved for `v0.3.0`.
 | Dimension | Current evidence | Route consequence |
 | --- | --- | --- |
 | Architecture | Provider, neutral protocol, daemon/compiler worker, canonical Kernel IR, CPU backend, and Vulkan backend owners exist. | Keep component boundaries and make stock PyTorch behavior the outer success signal. |
-| Activation | The provider and five-stage probe exist, but the registered probe test uses a fake torch object. | First lane must provision the pinned stock client and exercise the stock daemon. |
-| Implementation maturity | Provider-side cubin recognition and host-buffer tensor handlers demonstrate a prototype; deferred client cubins bypass daemon artifact registration and launch. | Move eager add through the neutral request into daemon CPU execution before broad surface or corpus work. |
-| Release evidence | No checked-in real-client five-stage gate or daemon-backed operator corpus currently qualifies `v0.2.0`. | Treat earlier probe observations as diagnostic only and build release evidence in lane order. |
+| Activation | The checked-in gate provisions pinned stock PyTorch `2.11.0+cu126` and reaches all five stages against the stock daemon. | Preserve this exact profile as the CPU-profile and Vulkan qualification input. |
+| Implementation maturity | The eager int32 add crosses a capability-gated neutral request into daemon-owned Kernel IR and CPU interpreter execution. Deferred profile operations return classified unsupported errors rather than bypassing the daemon. | Broaden only through the versioned corpus and its daemon-owned routes. |
+| Release evidence | One real-client operation has baseline evidence, but no versioned CPU corpus, compiled-cache profile, Vulkan differential gate, or current gap manifests qualify `v0.2.0`. | Treat the baseline as an integration candidate, not a release. |
 
-The readiness result is `not ready` for release and `ready for the first
-vertical Iteration`: architecture owners exist, but activation and execution
-evidence stop before the required daemon/backend path.
+The readiness result is `not ready` for release and `ready for the first-lane
+integration candidate`: its three baseline decisions have real evidence, while
+the broad corpus and Vulkan work remain in the following lanes.
 
 ## Current Evidence
 
-The repository contains the pinned baseline/frontier client manifest, a
-five-stage probe, provider ABI and semantic tests, and a provider prototype that
-parses client fatbins and recognizes selected PyTorch kernel names. The
-prototype executes selected tensor operations in the application-side provider
-by copying data to host buffers.
+The repository contains the pinned baseline/frontier client manifest, provider
+ABI and semantic tests, and a checked-in five-stage stock-client gate. The gate
+runs stock PyTorch `2.11.0+cu126`, records the exact direct provider/internal
+table surface and neutral request, then verifies daemon-owned canonical Kernel
+IR and CPU interpreter completion for eager int32 add. The accepted baseline
+path has no provider-local tensor arithmetic or fabricated-success event.
 
-CTest currently runs the probe logic against a fake torch object; it does not
-run pinned stock PyTorch or the claimed common-operator corpus. Deferred client
-cubins bypass daemon artifact registration and module launch. Earlier manual
-5/5 and 41/41 observations therefore establish prototype reach, not integrated
-CPU-backend execution or milestone qualification.
+The same gate deliberately rejects an unexpected internal-table surface,
+unclassified reached slot, mismatched neutral request, or local semantic event.
+It is limited to the named profile and one operation: no common-operator corpus,
+compiled-cache profile, or Vulkan route is yet qualified. That distinction keeps
+the real baseline as integration evidence without overstating milestone
+completion.
 
 ## Evidence and Execution Boundary (decision-0044)
 
@@ -194,15 +196,77 @@ Excluded:
 
 ## Decisions to Close
 
-1. Exact baseline-required CUDA Driver and profile-specific internal-table surface, with behavior provenance and stable unsupported-slot failures.
-2. Minimal versioned ecosystem-neutral request schema and lifetime required for stock PyTorch eager add to become canonical Kernel IR.
-3. Daemon CPU execution-mode surface and cache identity required for the stock PyTorch baseline.
-4. Library-backed operator boundary, including whether matmul is supported without vendored cuBLAS execution.
-5. Vulkan daemon routing shape and its qualification matrix.
+1. Library-backed operator boundary, including whether matmul is supported without vendored cuBLAS execution.
+2. Vulkan daemon routing shape and its qualification matrix.
 
-Decisions 1-3 block integration of work-item-0.2.0.1. Decision 4 may wait until
-work-item-0.2.0.2 but must close before its corpus freezes. Decision 5 may wait
+Decision 1 may wait until work-item-0.2.0.2 but must close before its corpus
+freezes. Decision 2 may wait
 until work-item-0.2.0.3 but must close before Vulkan route implementation.
+
+## Resolved Decisions
+
+### Neutral baseline kernel request and lifetime (decision-0048)
+
+The first stock-PyTorch baseline uses protocol capability bit 11 and control
+opcode 17, `KERNEL_REQUEST_REGISTER`, rather than the generic raw-artifact
+registration path. The wire payload is a sealed, 64-byte v1 header followed by
+source bytes. Its only accepted baseline profile is `ELEMENTWISE_ADD_I32` with
+operation ABI v1, Kernel IR schema v2, and `MODULE_LOAD` lifetime. No CUDA,
+PyTorch, MLIR, LLVM, Vulkan, target, or native-layout type crosses this wire
+boundary.
+
+The request artifact must remain live until `MODULE_LOAD` completes. Successful
+module load parses and serializes the source into daemon-owned canonical Kernel
+IR; the client may then release the artifact while the loaded module remains
+valid until module unload. A runtime without the negotiated capability rejects
+the session, malformed or raw-PTX request payloads are rejected, and an
+artifact released before module load completes with the stable stale-handle
+result.
+
+Evidence is the encoded protocol contract and negative validation test in
+`contracts/protocol/client/v1/`, the daemon lifecycle coverage in
+`services/metafluxd/tests/client.c`, and the pinned stock PyTorch gate at
+revision `f92304e55d9849de5c3694a4755dbcf22418b3e5`. That gate reports one
+`baseline:elementwise-add-i32:1:2:module-load` request, daemon-owned canonical
+module intake, CPU-backend completion, and no provider-local semantic event.
+
+### Baseline Driver and internal-table surface (decision-0049)
+
+The baseline ABI target remains the pinned R610 CUDA Driver 13.3 header
+surface. The only profile-specific internal tables accepted for stock PyTorch
+`2.11.0+cu126` are UUIDs `a094798c-2e74-2e74-93f2-0800200c0a66`,
+`42d85a81-23f6-cb47-8298-f6e78a3aecdc`,
+`c693336e-1121-df11-a8c3-68f355d89593`,
+`263e8860-7cd2-6143-92f6-bbd5006dfa7e`,
+and the remaining two UUIDs in the exact `BASELINE_INTERNAL_TABLES` set in the
+stock gate. They are profile observations, not CUDA Driver API guarantees.
+
+The c693 slot 0 status-success and slot 1 void-no-op behaviors are observed
+from the pinned PyTorch `libcudart.so.12` image named in the provider source.
+They are explicit MetaFlux-strengthened no-op behavior for this profile only.
+Every unclassified reached table slot returns `CUDA_ERROR_NOT_SUPPORTED`; it
+never returns a success value with unspecified caller-owned output. The
+provider semantic test exercises unknown a094, c693, 42d8, and d408 slots, and
+the real gate rejects unexpected table UUIDs, slot calls, or unclassified-slot
+traces. The full table/symbol ABI remains governed by the frozen R610 header
+manifest rather than these observations.
+
+### CPU interpreter baseline and cache boundary (decision-0050)
+
+The stock five-stage baseline selects `METAFLUX_CPU_EXECUTION_MODE=interpreter`.
+`MODULE_LOAD` retains canonical Kernel IR and executes it in the daemon's CPU
+interpreter. This profile never invokes the compiler worker, opens no mutable
+or AOT compiled-artifact cache, and therefore has no compiled-artifact cache
+identity. Its evidence reports those fields explicitly as
+`not-applicable-in-interpreter-mode`, with zero compiler requests, cache hits,
+and cache misses; the checked-in gate schema also binds the result to the exact
+source revision and clean/dirty tree state.
+
+This is a bounded baseline decision, not a cache-policy relaxation. Cold JIT,
+warm JIT, and AOT retain their existing deterministic cache identities and
+qualification rules. Any future stock-PyTorch compiled path must promote its
+compiler inputs, target/cache identity, and cache hit/miss evidence in
+work-item-0.2.0.2 before it joins the versioned CPU corpus.
 
 ## Definition of Done
 
