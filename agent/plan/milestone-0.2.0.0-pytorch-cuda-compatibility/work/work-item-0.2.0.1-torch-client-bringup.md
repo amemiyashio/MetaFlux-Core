@@ -524,7 +524,14 @@ through batch tensor concatenation dispatch and closure-based strided copy routi
    - Used `mf_cuda_memory_locked` dynamic candidate scanning across parameter memory to robustly locate `out_pointer` (at offset 504 / 0x1F8) and `left_pointer` (at offset 512 / 0x200), immune to caching allocator slicing.
    - Extracted packed dimensional strides (`dims == 2`, `d0 = 4`, `d1 = 6`) and mapped linear output indices to source transposed coordinates (`src_idx = col * d1 + row`).
    - Verified bit-exact PASS for `m.t().contiguous()`.
-3. Suite Verification:
+3. Scalar Comparison (`compare_scalar_kernel`):
+   - Added support for tensor-scalar comparisons (`compare_scalar_kernelIfE` / `IdE`).
+   - Mapped opcode and unpacked scalar threshold directly from packed parameter metadata.
+   - Verified tensor masking operations (e.g. `tokens > 5.0`) pass bit-exact.
+4. Composite Neural Network Verification:
+   - Successfully ran end-to-end composite pipeline: MLP forward pass, ReLU, Sigmoid, Sum/Mean/Max/Min reductions, Transpose-Contiguous reshaping, Batched Cat/Stack, and Scalar Comparison masking.
+   - All operations executed natively on virtual GPU with zero patch to PyTorch client code.
+5. Suite Verification:
    - Full common operator test suite: **TOTAL 41 | PASS 41 | FAIL 0 (100%)**.
    - Zero crashes, zero invalid memory accesses, zero data pollution across tensor lifecycles.
    - All repository gates clean: CTest 144/144 passed, `check-agent-state.py` OK, `pytorch_cuda_probe.py --profile baseline` 5/5 passed.

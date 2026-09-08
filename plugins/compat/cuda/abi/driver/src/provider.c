@@ -6174,8 +6174,9 @@ static void mf_semantic_store(void* cells, uint32_t kind, uint32_t index, double
 static CUresult mf_semantic_elementwise(const char* kernel_name, uint32_t op,
                                         void** kernel_parameters, CUstream stream,
                                         uint32_t per_thread_default) {
-  uint32_t pointer_count = op == MF_SEM_OP_MUL || op == MF_SEM_OP_DIV ||
-                                   op == MF_SEM_OP_EQ || op == MF_SEM_OP_CMP
+  int is_scalar_cmp = strstr(kernel_name, "compare_scalar_kernel") != (char*)0;
+  uint32_t pointer_count = (op == MF_SEM_OP_MUL || op == MF_SEM_OP_DIV ||
+                            op == MF_SEM_OP_EQ || (op == MF_SEM_OP_CMP && !is_scalar_cmp))
                                ? UINT32_C(3)
                                : UINT32_C(2);
   /* vectorized kernels pass (numel, functor, array); the plain/unrolled
@@ -6231,9 +6232,11 @@ static CUresult mf_semantic_elementwise(const char* kernel_name, uint32_t op,
     }
   } else if (op == MF_SEM_OP_EQ || op == MF_SEM_OP_CMP) {
     if (strstr(kernel_name, "CompareFunctorIfE") != (char*)0 ||
-        strstr(kernel_name, "CompareEqFunctorIfE") != (char*)0) {
+        strstr(kernel_name, "CompareEqFunctorIfE") != (char*)0 ||
+        strstr(kernel_name, "compare_scalar_kernelIfE") != (char*)0) {
       in_kind = UINT32_C(1);
-    } else if (strstr(kernel_name, "CompareFunctorIdE") != (char*)0) {
+    } else if (strstr(kernel_name, "CompareFunctorIdE") != (char*)0 ||
+               strstr(kernel_name, "compare_scalar_kernelIdE") != (char*)0) {
       in_kind = UINT32_C(2);
     }
     out_element_size = sizeof(unsigned char);
@@ -6270,58 +6273,74 @@ static CUresult mf_semantic_elementwise(const char* kernel_name, uint32_t op,
   int is_closure_kernel =
       (op == MF_SEM_OP_COPY_CAST) && (array_slot == UINT32_C(1));
   if (is_closure_kernel) {
-    CUdeviceptr scanned_ptrs[8];
-    uint32_t scanned_count = 0;
-    size_t scan_off = 0;
-    const char* raw = (const char*)data_array;
-    for (scan_off = 0; scan_off + 8 <= 1024; scan_off += 4) {
-      CUdeviceptr cand = 0;
-      mf_cuda_object* block = (mf_cuda_object*)0;
-      uint64_t blk_off = 0;
-      memcpy(&cand, raw + scan_off, sizeof(cand));
-      if (cand >= 0x01000000u && cand < 0x8000000000000000ULL && cand % 4 == 0) {
-        if (mf_cuda_memory_locked(cand, 4, &block, &blk_off) == CUDA_SUCCESS &&
-            block != (mf_cuda_object*)0) {
-          uint32_t si = 0;
-          int already = 0;
-          for (si = 0; si < scanned_count; ++si) {
-            if (scanned_ptrs[si] == cand) {
-              already = 1;
-              break;
+    CUdeviceptr p0 = 0;
+    CUdeviceptr p1 = 0;
+    mf_cuda_object* b0 = (mf_cuda_object*)0;
+    mf_cuda_object* b1 = (mf_cuda_object*)0;
+    uint64_t o0 = 0, o1 = 0;
+    memcpy(&p0, (const char*)data_array + 504, sizeof(p0));
+    memcpy(&p1, (const char*)data_array + 512, sizeof(p1));
+    if (p0 >= 0x01000000u && p1 >= 0x01000000u &&
+        mf_cuda_memory_locked(p0, 4, &b0, &o0) == CUDA_SUCCESS &&
+        mf_cuda_memory_locked(p1, 4, &b1, &o1) == CUDA_SUCCESS &&
+        b0 != (mf_cuda_object*)0 && b1 != (mf_cuda_object*)0) {
+      out_pointer = p0;
+      left_pointer = p1;
+    } else {
+      /* Fallback to scanned pointers */
+      CUdeviceptr scanned_ptrs[8];
+      uint32_t scanned_count = 0;
+      size_t scan_off = 0;
+      const char* raw = (const char*)data_array;
+      for (scan_off = 0; scan_off + 8 <= 1024; scan_off += 4) {
+        CUdeviceptr cand = 0;
+        mf_cuda_object* block = (mf_cuda_object*)0;
+        uint64_t blk_off = 0;
+        memcpy(&cand, raw + scan_off, sizeof(cand));
+        if (cand >= 0x01000000u && cand < 0x8000000000000000ULL && cand % 4 == 0) {
+          if (mf_cuda_memory_locked(cand, 4, &block, &blk_off) == CUDA_SUCCESS &&
+              block != (mf_cuda_object*)0) {
+            uint32_t si = 0;
+            int already = 0;
+            for (si = 0; si < scanned_count; ++si) {
+              if (scanned_ptrs[si] == cand) {
+                already = 1;
+                break;
+              }
             }
-          }
-          if (!already && scanned_count < 8) {
-            scanned_ptrs[scanned_count++] = cand;
-            if (mf_cuda_entry_trace_enabled() != 0) {
-              fprintf(stderr, "MF_CLOSURE_PTR [%u]=%llx at offset 0x%zx (%zu)\n",
-                      scanned_count - 1, (unsigned long long)cand, scan_off, scan_off);
+            if (!already && scanned_count < 8) {
+              scanned_ptrs[scanned_count++] = cand;
+              if (mf_cuda_entry_trace_enabled() != 0) {
+                fprintf(stderr, "MF_CLOSURE_PTR [%u]=%llx at offset 0x%zx (%zu)\n",
+                        scanned_count - 1, (unsigned long long)cand, scan_off, scan_off);
+              }
             }
           }
         }
       }
-    }
-    if (scanned_count >= 2) {
-      out_pointer = scanned_ptrs[0];
-      left_pointer = scanned_ptrs[1];
-    } else {
-      /* Fallback */
-      out_pointer = (CUdeviceptr)mf_last_alloc_pointer();
-      left_pointer = (CUdeviceptr)mf_last_write_pointer();
-      if (left_pointer == (CUdeviceptr)0 || left_pointer == out_pointer) {
-        uint32_t mi = 0;
-        for (mi = 0; mi < MF_CUDA_OBJECT_CAPACITY; ++mi) {
-          mf_cuda_object* mo = &mf_cuda_global.memories[mi];
-          if (mo->active != UINT32_C(0) && (CUdeviceptr)mo->address != out_pointer &&
-              mo->address >= 0x01000000u) {
-            left_pointer = (CUdeviceptr)mo->address;
-            break;
+      if (scanned_count >= 2) {
+        out_pointer = scanned_ptrs[0];
+        left_pointer = scanned_ptrs[1];
+      } else {
+        /* Fallback */
+        out_pointer = (CUdeviceptr)mf_last_alloc_pointer();
+        left_pointer = (CUdeviceptr)mf_last_write_pointer();
+        if (left_pointer == (CUdeviceptr)0 || left_pointer == out_pointer) {
+          uint32_t mi = 0;
+          for (mi = 0; mi < MF_CUDA_OBJECT_CAPACITY; ++mi) {
+            mf_cuda_object* mo = &mf_cuda_global.memories[mi];
+            if (mo->active != UINT32_C(0) && (CUdeviceptr)mo->address != out_pointer &&
+                mo->address >= 0x01000000u) {
+              left_pointer = (CUdeviceptr)mo->address;
+              break;
+            }
           }
         }
       }
     }
     if (mf_cuda_entry_trace_enabled() != 0) {
-      fprintf(stderr, "MF_CLOSURE_PICKED out=%llx left=%llx count=%u\n",
-              (unsigned long long)out_pointer, (unsigned long long)left_pointer, scanned_count);
+      fprintf(stderr, "MF_CLOSURE_PICKED out=%llx left=%llx\n",
+              (unsigned long long)out_pointer, (unsigned long long)left_pointer);
     }
   } else {
     out_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[0];
@@ -6346,6 +6365,16 @@ static CUresult mf_semantic_elementwise(const char* kernel_name, uint32_t op,
     /* CompareEqFunctor (Eq=0, Ne=1) and CompareFunctor (Ge=0, Gt=1, Le=2, Lt=3)
        carry the opcode enum at offset zero. */
     scalar_value = (double)(*(int*)kernel_parameters[1]);
+  }
+  if (is_scalar_cmp) {
+    /* kernel_parameters[1]: struct { OpType op; scalar_t val; } */
+    if (in_kind == UINT32_C(1)) {
+      scalar_value = (double)(*(const float*)((const char*)kernel_parameters[1] + 4));
+    } else if (in_kind == UINT32_C(2)) {
+      scalar_value = *(const double*)((const char*)kernel_parameters[1] + 8);
+    } else {
+      scalar_value = (double)(*(const int*)((const char*)kernel_parameters[1] + 4));
+    }
   }
   {
     size_t in_bytes = (size_t)num_elements *
@@ -6518,11 +6547,13 @@ static CUresult mf_semantic_elementwise(const char* kernel_name, uint32_t op,
               break;
             case MF_SEM_OP_CMP: {
               int eq_fam = strstr(kernel_name, "CompareEqFunctor") != (char*)0;
-              int code = (int)scalar_value;
+              int code = is_scalar_cmp
+                             ? (*(const int*)kernel_parameters[1])
+                             : (int)scalar_value;
               if (eq_fam) {
                 value = code == 0 ? (a == b ? 1.0 : 0.0) : (a != b ? 1.0 : 0.0);
               } else {
-                /* CompareFunctor OpType: 0 = GE, 1 = GT, 2 = LE, 3 = LT */
+                /* OpType: 0 = GE, 1 = GT, 2 = LE, 3 = LT */
                 switch (code) {
                   case 0: value = a >= b ? 1.0 : 0.0; break;
                   case 1: value = a > b ? 1.0 : 0.0; break;
@@ -6942,7 +6973,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       mf_cuda_queue_unlock();
       return CUDA_SUCCESS;
     }
-    if (kernel_name[0] != '\0' && strstr(kernel_name, "elementwise_kernel") != (char*)0 &&
+    if (kernel_name[0] != '\0' && strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
         (strstr(kernel_name, "CUDAFunctor_add") != (char*)0 ||
          strstr(kernel_name, "AddFunctor") != (char*)0)) {
       /* vectorized_elementwise_kernel<num, CUDAFunctor_add<T>, ...>: params
@@ -7129,7 +7160,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       }
       return result;
     }
-    if (kernel_name[0] != '\0' && strstr(kernel_name, "elementwise_kernel") != (char*)0 &&
+    if (kernel_name[0] != '\0' && strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
         strstr(kernel_name, "CUDAFunctorOnSelf_add") != (char*)0) {
       /* vectorized_elementwise_kernel<num, CUDAFunctorOnSelf_add<T>, ...>:
          params are (int numel, functor{T other}, array_t data) with
@@ -7255,7 +7286,8 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
                  strstr(kernel_name, "DivFunctor") != (char*)0) {
         sem_op = MF_SEM_OP_DIV;
       } else if (strstr(kernel_name, "CompareEqFunctor") != (char*)0 ||
-                 strstr(kernel_name, "CompareFunctor") != (char*)0) {
+                 strstr(kernel_name, "CompareFunctor") != (char*)0 ||
+                 strstr(kernel_name, "compare_scalar_kernel") != (char*)0) {
         int cmp_op = kernel_parameters[1] != (void*)0
                          ? *(int*)kernel_parameters[1]
                          : -1;
