@@ -150,6 +150,29 @@ call for the neg payload. The int32 add/sub/mul operations continue to
 work through the same path (verified bit-exact). GPU passthrough
 backend skeleton compiles and is ready for real-GPU verification.
 
+AMD CPU and AMD iGPU (Radeon 780M) transparent execution assessment
+(2026-09-09): the host system is AMD Ryzen 7 H 255 with Radeon 780M
+(Phoenix APU). AMD CPU transparent execution is already working — the
+daemon CPU backend compiles Kernel IR through LLVM targeting the host
+CPU natively, and all verified operators (add/sub/mul/neg/div, int32
+and float32) execute bit-exact on this AMD CPU. AMD Radeon 780M iGPU
+execution has a clear path: the repository's Vulkan backend (5881
+lines under plugins/backend/vulkan/ with device, memory, staging,
+stream, pipeline, and cache management) compiled successfully with
+-DMETAFLUX_BUILD_VULKAN_BACKEND=ON -DMETAFLUX_VULKAN_SDK_DIR=/usr, and
+the RADV Vulkan ICD (/usr/share/vulkan/icd.d/radeon_icd.json) is
+available for the Radeon 780M. The build produces
+libmetaflux_vulkan_backend.a. The Vulkan backend runtime tests fail
+with a Nix/system glibc symbol conflict (__pointer_chk_guard) because
+CTest runs under the Nix-pinned glibc while the system Vulkan loader
+links the system glibc — resolvable by either running the Vulkan tests
+outside the Nix shell or pinning a Nix Vulkan SDK. The kernel
+execution integration route: PyTorch CUDA → compat provider → daemon
+Kernel Request → Vulkan compute pipeline (SPIR-V from PTX lowering)
+on the AMD Radeon 780M via RADV. This requires the PTX-to-SPIR-V
+lowering pass and the Vulkan pipeline execution path, tracked as the
+next decode front.
+
 ## Exit Gate
 
 The complete surface/status matrix and handle-negative suite pass; the neutral
