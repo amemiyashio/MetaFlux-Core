@@ -579,6 +579,130 @@ static const char mf_pytorch_baseline_sqrtf32_ptx[] =
     "  ret;\n"
     "}\n";
 
+/* The stock-PyTorch comparison kernels map to these neutral PTX artifacts:
+   a predicate over the two inputs, selected 1/0 stored as one bool byte.
+   The output address advances one byte per element. */
+static const char mf_pytorch_baseline_eq_i32_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry eq_i32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 left,\n"
+    "  .param .u64 right,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p<4>;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [left];\n"
+    "  ld.param.u64 %rd2, [right];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  mov.u32 %r1, %tid.x;\n"
+    "  mov.u32 %r2, %ctaid.x;\n"
+    "  mov.u32 %r3, %ntid.x;\n"
+    "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
+    "  setp.ge.u32 %p1, %r4, %r0;\n"
+    "  @%p1 bra done;\n"
+    "  mul.wide.u32 %rd3, %r4, 1;\n"
+    "  add.u64 %rd4, %rd0, %rd3;\n"
+    "  mul.wide.u32 %rd5, %r4, 4;\n"
+    "  add.u64 %rd6, %rd1, %rd5;\n"
+    "  add.u64 %rd7, %rd2, %rd5;\n"
+    "  ld.global.u32 %r5, [%rd6];\n"
+    "  ld.global.u32 %r6, [%rd7];\n"
+    "  mov.u32 %r7, 1;\n"
+    "  mov.u32 %r8, 0;\n"
+    "  setp.eq.u32 %p2, %r5, %r6;\n"
+    "  selp.b32 %r9, %r7, %r8, %p2;\n"
+    "  st.global.u8 [%rd4], %r9;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
+static const char mf_pytorch_baseline_gt_i32_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry gt_i32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 left,\n"
+    "  .param .u64 right,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p<4>;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [left];\n"
+    "  ld.param.u64 %rd2, [right];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  mov.u32 %r1, %tid.x;\n"
+    "  mov.u32 %r2, %ctaid.x;\n"
+    "  mov.u32 %r3, %ntid.x;\n"
+    "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
+    "  setp.ge.u32 %p1, %r4, %r0;\n"
+    "  @%p1 bra done;\n"
+    "  mul.wide.u32 %rd3, %r4, 1;\n"
+    "  add.u64 %rd4, %rd0, %rd3;\n"
+    "  mul.wide.u32 %rd5, %r4, 4;\n"
+    "  add.u64 %rd6, %rd1, %rd5;\n"
+    "  add.u64 %rd7, %rd2, %rd5;\n"
+    "  ld.global.u32 %r5, [%rd6];\n"
+    "  ld.global.u32 %r6, [%rd7];\n"
+    "  mov.u32 %r7, 1;\n"
+    "  mov.u32 %r8, 0;\n"
+    "  setp.gt.s32 %p2, %r5, %r6;\n"
+    "  selp.b32 %r9, %r7, %r8, %p2;\n"
+    "  st.global.u8 [%rd4], %r9;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
+static const char mf_pytorch_baseline_lt_f32_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry lt_f32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 left,\n"
+    "  .param .u64 right,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p<4>;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .f32 %f<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [left];\n"
+    "  ld.param.u64 %rd2, [right];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  mov.u32 %r1, %tid.x;\n"
+    "  mov.u32 %r2, %ctaid.x;\n"
+    "  mov.u32 %r3, %ntid.x;\n"
+    "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
+    "  setp.ge.u32 %p1, %r4, %r0;\n"
+    "  @%p1 bra done;\n"
+    "  mul.wide.u32 %rd3, %r4, 1;\n"
+    "  add.u64 %rd4, %rd0, %rd3;\n"
+    "  mul.wide.u32 %rd5, %r4, 4;\n"
+    "  add.u64 %rd6, %rd1, %rd5;\n"
+    "  add.u64 %rd7, %rd2, %rd5;\n"
+    "  ld.global.f32 %f1, [%rd6];\n"
+    "  ld.global.f32 %f2, [%rd7];\n"
+    "  mov.u32 %r5, 1;\n"
+    "  mov.u32 %r6, 0;\n"
+    "  setp.lt.f32 %p2, %f1, %f2;\n"
+    "  selp.b32 %r9, %r5, %r6, %p2;\n"
+    "  st.global.u8 [%rd4], %r9;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
 /* float32 subtract: sub.rn.f32 over the linear-index copy shape. */
 static const char mf_pytorch_baseline_subf32_ptx[] =
     ".version 9.0\n"
@@ -6902,6 +7026,9 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
   uint32_t normalized_kinds[3] = {0, 0, 0};
   uint32_t normalized_alpha = UINT32_C(0);
   uint32_t normalized_entry_total = UINT32_C(4);
+  /* Output element size in bytes for the per-entry capacity check; the
+     comparison kernels write one bool byte per element. */
+  uint32_t normalized_output_element_size = UINT32_C(4);
   void* normalized_parameters[5] = {&normalized_pointers[0], &normalized_pointers[1],
                                     &normalized_pointers[2], &normalized_element_count,
                                     &normalized_alpha};
@@ -7385,6 +7512,106 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       goto daemon_launch;
     }
 
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "CompareEqFunctor") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0) {
+      /* torch tensor equality: a three-pointer binary shape {out, left,
+         right} with the equality op baked in; the output is one bool byte
+         per element, so the launch validates a one-byte output element. */
+      void** eq_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)eq_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)eq_data_array[1];
+      normalized_pointers[2] = (CUdeviceptr)(uintptr_t)eq_data_array[2];
+      normalized_output_element_size = UINT32_C(1);
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0 ||
+          normalized_pointers[2] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_COMPARE_EQ_I32_V1,
+          mf_pytorch_baseline_eq_i32_ptx, sizeof(mf_pytorch_baseline_eq_i32_ptx) - 1U,
+          "compare-eq-i32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "CompareFunctorIiE") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0) {
+      /* torch int32 greater-than: the same three-pointer shape with the
+         comparison op baked into the anonymous-namespace functor. */
+      void** gt_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)gt_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)gt_data_array[1];
+      normalized_pointers[2] = (CUdeviceptr)(uintptr_t)gt_data_array[2];
+      normalized_output_element_size = UINT32_C(1);
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0 ||
+          normalized_pointers[2] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_COMPARE_GT_I32_V1,
+          mf_pytorch_baseline_gt_i32_ptx, sizeof(mf_pytorch_baseline_gt_i32_ptx) - 1U,
+          "compare-gt-i32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "CompareFunctorIfE") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0) {
+      /* torch float32 less-than: identical shape, f32 loads and an ordered
+         less-than predicate. */
+      void** lt_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)lt_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)lt_data_array[1];
+      normalized_pointers[2] = (CUdeviceptr)(uintptr_t)lt_data_array[2];
+      normalized_output_element_size = UINT32_C(1);
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0 ||
+          normalized_pointers[2] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_COMPARE_LT_F32_V1,
+          mf_pytorch_baseline_lt_f32_ptx, sizeof(mf_pytorch_baseline_lt_f32_ptx) - 1U,
+          "compare-lt-f32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
     /* The baseline must not accept provider-side tensor emulation. Every
      * deferred kernel other than a daemon-owned adapter route fails at the
      * CUDA boundary until its Kernel IR route is implemented; the trace dump
@@ -7474,10 +7701,13 @@ daemon_launch:
       if (normalized_kinds[parameter_index] != UINT32_C(0)) {
         continue;
       }
+      const uint64_t element_bytes = parameter_index == UINT32_C(0)
+                                         ? normalized_output_element_size
+                                         : UINT32_C(4);
       if ((offsets[parameter_index] & UINT64_C(3)) != UINT64_C(0) ||
           offsets[parameter_index] > memories[parameter_index]->size ||
           (uint64_t)element_count >
-              (memories[parameter_index]->size - offsets[parameter_index]) / UINT64_C(4)) {
+              (memories[parameter_index]->size - offsets[parameter_index]) / element_bytes) {
         result = CUDA_ERROR_INVALID_VALUE;
         break;
       }

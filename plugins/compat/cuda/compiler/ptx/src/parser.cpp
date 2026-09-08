@@ -17,7 +17,7 @@
 namespace metaflux::compiler::ptx {
 namespace {
 
-constexpr std::array<SupportedForm, 36> kSupportedForms{{
+constexpr std::array<SupportedForm, 39> kSupportedForms{{
     {"ld-param-u64", "ld.param.u64", "b64,param.u64", "param,register", "", 70,
      "load_parameter_address", "bounded global buffer handle"},
     {"ld-param-u32", "ld.param.u32", "b32,param.u32", "param,register", "", 70,
@@ -48,6 +48,12 @@ constexpr std::array<SupportedForm, 36> kSupportedForms{{
      "binary32 round-nearest-even"},
     {"div-rn-f32", "div.rn.f32", "f32,f32,f32", "register", "rn", 70, "div_rn_f32",
      "binary32 round-nearest-even"},
+    {"setp-gt-s32", "setp.gt.s32", "pred,s32,s32", "register", "gt", 70, "set_predicate_gt_s32",
+     "signed greater-than"},
+    {"selp-b32", "selp.b32", "b32,b32,pred", "register", "", 70, "select_u32",
+     "predicate-selected 32-bit value"},
+    {"st-global-u8", "st.global.u8", "global-address,b32", "global,register", "guard:none|@p|@!p",
+     70, "store_global_u8", "checked exact u8 byte store"},
     {"abs-s32", "abs.s32", "s32,s32", "register", "", 70, "abs_s32",
      "exact two's-complement absolute value"},
     {"abs-f32", "abs.f32", "f32,f32", "register", "", 70, "abs_f32",
@@ -839,6 +845,15 @@ private:
     } else if (opcode.text == "setp.eq.u32") {
       parse_set_predicate(opcode, Opcode::SetPredicateEqU32, DeclaredRegisterKind::B32,
                           ValueKind::U32);
+    } else if (opcode.text == "setp.gt.s32") {
+      parse_set_predicate(opcode, Opcode::SetPredicateGtS32, DeclaredRegisterKind::B32,
+                          ValueKind::U32);
+    } else if (opcode.text == "selp.b32") {
+      parse_select(opcode);
+    } else if (opcode.text == "st.global.u8") {
+      parse_store_memory(opcode, Opcode::StoreGlobalU8, DeclaredRegisterKind::B64,
+                         ValueKind::GlobalAddress, DeclaredRegisterKind::B32, ValueKind::U32,
+                         guard);
     } else if (opcode.text == "setp.lt.f32") {
       parse_set_predicate(opcode, Opcode::SetPredicateLtF32, DeclaredRegisterKind::F32,
                           ValueKind::F32);
@@ -1063,6 +1078,23 @@ private:
     semicolon();
     if (!failed_ && result.has_value() && base.has_value() && offset.has_value()) {
       add_operation(Opcode::AddGlobalAddress, result->index, {base->index, offset->index}, 0, false,
+                    opcode.location);
+    }
+  }
+
+  void parse_select(const Token& opcode) {
+    const auto result = take_result(DeclaredRegisterKind::B32, ValueKind::U32);
+    comma();
+    const auto true_value = take_source(DeclaredRegisterKind::B32, ValueKind::U32);
+    comma();
+    const auto false_value = take_source(DeclaredRegisterKind::B32, ValueKind::U32);
+    comma();
+    const auto predicate = take_source(DeclaredRegisterKind::Predicate, ValueKind::Predicate);
+    semicolon();
+    if (!failed_ && result.has_value() && true_value.has_value() && false_value.has_value() &&
+        predicate.has_value()) {
+      add_operation(Opcode::SelectU32, result->index,
+                    {true_value->index, false_value->index, predicate->index}, 0, false,
                     opcode.location);
     }
   }

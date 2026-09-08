@@ -96,6 +96,10 @@ OperationContract operation_contract(Opcode opcode) {
     return {true, Predicate, {U32, U32, U32}, 2};
   case SetPredicateLtF32:
     return {true, Predicate, {F32, F32, U32}, 2};
+  case SetPredicateGtS32:
+    return {true, Predicate, {U32, U32, U32}, 2};
+  case SelectU32:
+    return {true, U32, {U32, U32, Predicate}, 3};
   case BranchIf:
     return {false, U32, {Predicate, U32, U32}, 1};
   case LoadGlobalU32:
@@ -106,6 +110,8 @@ OperationContract operation_contract(Opcode opcode) {
     return {true, F32, {GlobalAddress, U32, U32}, 1};
   case StoreGlobalF32:
     return {false, U32, {GlobalAddress, F32, U32}, 2};
+  case StoreGlobalU8:
+    return {false, U32, {GlobalAddress, U32, U32}, 2};
   case StoreGlobalU64:
     return {false, U32, {GlobalAddress, U64, U32}, 2};
   case LoadSharedU32:
@@ -273,6 +279,10 @@ std::string_view opcode_name(Opcode opcode) noexcept {
     return "set_predicate_eq_u32";
   case SetPredicateLtF32:
     return "set_predicate_lt_f32";
+  case SetPredicateGtS32:
+    return "set_predicate_gt_s32";
+  case SelectU32:
+    return "select_u32";
   case BranchIf:
     return "branch_if";
   case LoadGlobalU32:
@@ -283,6 +293,8 @@ std::string_view opcode_name(Opcode opcode) noexcept {
     return "load_global_f32";
   case StoreGlobalF32:
     return "store_global_f32";
+  case StoreGlobalU8:
+    return "store_global_u8";
   case StoreGlobalU64:
     return "store_global_u64";
   case LoadSharedU32:

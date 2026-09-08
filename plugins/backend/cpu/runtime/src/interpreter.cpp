@@ -87,11 +87,14 @@ enum class Opcode : std::uint32_t {
   SetPredicateGeU32,
   SetPredicateEqU32,
   SetPredicateLtF32,
+  SetPredicateGtS32,
+  SelectU32,
   BranchIf,
   LoadGlobalU32,
   StoreGlobalU32,
   LoadGlobalF32,
   StoreGlobalF32,
+  StoreGlobalU8,
   StoreGlobalU64,
   LoadSharedU32,
   StoreSharedU32,
@@ -198,7 +201,7 @@ std::optional<ValueKind> parse_value_kind(std::string_view text) {
 
 std::optional<Opcode> parse_opcode(std::string_view text) {
   using Pair = std::pair<std::string_view, Opcode>;
-  constexpr std::array<Pair, 37> entries{{
+  constexpr std::array<Pair, 40> entries{{
       {"load_parameter_address", Opcode::LoadParameterAddress},
       {"load_parameter_u32", Opcode::LoadParameterU32},
       {"load_parameter_f32", Opcode::LoadParameterF32},
@@ -226,11 +229,14 @@ std::optional<Opcode> parse_opcode(std::string_view text) {
       {"set_predicate_ge_u32", Opcode::SetPredicateGeU32},
       {"set_predicate_eq_u32", Opcode::SetPredicateEqU32},
       {"set_predicate_lt_f32", Opcode::SetPredicateLtF32},
+      {"set_predicate_gt_s32", Opcode::SetPredicateGtS32},
+      {"select_u32", Opcode::SelectU32},
       {"branch_if", Opcode::BranchIf},
       {"load_global_u32", Opcode::LoadGlobalU32},
       {"store_global_u32", Opcode::StoreGlobalU32},
       {"load_global_f32", Opcode::LoadGlobalF32},
       {"store_global_f32", Opcode::StoreGlobalF32},
+      {"store_global_u8", Opcode::StoreGlobalU8},
       {"store_global_u64", Opcode::StoreGlobalU64},
       {"load_shared_u32", Opcode::LoadSharedU32},
       {"store_shared_u32", Opcode::StoreSharedU32},
@@ -312,6 +318,10 @@ OperationContract operation_contract(Opcode opcode) {
     return {true, Predicate, {U32, U32, U32}, 2};
   case SetPredicateLtF32:
     return {true, Predicate, {F32, F32, U32}, 2};
+  case SetPredicateGtS32:
+    return {true, Predicate, {U32, U32, U32}, 2};
+  case SelectU32:
+    return {true, U32, {U32, U32, Predicate}, 3};
   case BranchIf:
     return {false, U32, {Predicate, U32, U32}, 1};
   case LoadGlobalU32:
@@ -322,6 +332,8 @@ OperationContract operation_contract(Opcode opcode) {
     return {true, F32, {GlobalAddress, U32, U32}, 1};
   case StoreGlobalF32:
     return {false, U32, {GlobalAddress, F32, U32}, 2};
+  case StoreGlobalU8:
+    return {false, U32, {GlobalAddress, U32, U32}, 2};
   case StoreGlobalU64:
     return {false, U32, {GlobalAddress, U64, U32}, 2};
   case LoadSharedU32:
@@ -818,6 +830,25 @@ std::optional<ExecutionError> global_word(const GlobalAddress& address,
   return std::nullopt;
 }
 
+std::optional<ExecutionError> global_byte(const GlobalAddress& address,
+                                          std::span<const Argument> arguments, bool write,
+                                          std::uint8_t*& byte) {
+  if (address.parameter >= arguments.size() ||
+      !std::holds_alternative<BufferArgument>(arguments[address.parameter])) {
+    return ExecutionError::ArgumentType;
+  }
+  auto buffer = std::get<BufferArgument>(arguments[address.parameter]);
+  if (write && !buffer.writable) {
+    return ExecutionError::WriteToReadOnly;
+  }
+  const auto byte_offset = address.byte_offset;
+  if (byte_offset >= buffer.words.size() * sizeof(std::uint32_t)) {
+    return ExecutionError::OutOfBounds;
+  }
+  byte = reinterpret_cast<std::uint8_t*>(buffer.words.data()) + byte_offset;
+  return std::nullopt;
+}
+
 std::optional<ExecutionError> store_global_u64(const GlobalAddress& address,
                                                std::span<const Argument> arguments,
                                                std::uint64_t value) {
@@ -1032,6 +1063,17 @@ std::optional<ExecutionResult> execute_one(const Kernel& kernel,
                                std::get<std::uint32_t>(values[operation.inputs[1]]);
     ++thread.pc;
     break;
+  case Opcode::SetPredicateGtS32:
+    values[operation.result] = static_cast<std::int32_t>(std::get<std::uint32_t>(values[operation.inputs[0]])) >
+                               static_cast<std::int32_t>(std::get<std::uint32_t>(values[operation.inputs[1]]));
+    ++thread.pc;
+    break;
+  case Opcode::SelectU32:
+    values[operation.result] = std::get<bool>(values[operation.inputs[2]])
+                                   ? std::get<std::uint32_t>(values[operation.inputs[0]])
+                                   : std::get<std::uint32_t>(values[operation.inputs[1]]);
+    ++thread.pc;
+    break;
   case Opcode::SetPredicateEqU32:
     values[operation.result] = std::get<std::uint32_t>(values[operation.inputs[0]]) ==
                                std::get<std::uint32_t>(values[operation.inputs[1]]);
@@ -1073,6 +1115,16 @@ std::optional<ExecutionResult> execute_one(const Kernel& kernel,
     *word = operation.opcode == Opcode::StoreGlobalU32
                 ? std::get<std::uint32_t>(values[operation.inputs[1]])
                 : bit_cast_compatible<std::uint32_t>(std::get<float>(values[operation.inputs[1]]));
+    ++thread.pc;
+    break;
+  }
+  case Opcode::StoreGlobalU8: {
+    const auto address = std::get<GlobalAddress>(values[operation.inputs[0]]);
+    std::uint8_t* byte = nullptr;
+    if (const auto error = global_byte(address, arguments, true, byte); error.has_value()) {
+      return execution_failure(*error, thread.pc, coordinates);
+    }
+    *byte = static_cast<std::uint8_t>(std::get<std::uint32_t>(values[operation.inputs[1]]));
     ++thread.pc;
     break;
   }

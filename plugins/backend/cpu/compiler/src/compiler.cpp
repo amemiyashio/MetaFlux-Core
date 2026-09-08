@@ -1332,6 +1332,13 @@ private:
       case Opcode::SetPredicateLtF32:
         result = compare("olt", vinput(0U), vinput(1U), vtype("f32"), &operation, true);
         break;
+      case Opcode::SetPredicateGtS32:
+        result = compare("ugt", vinput(0U), vinput(1U), vtype("i32"), &operation);
+        break;
+      case Opcode::SelectU32:
+        result = select(vinput(2U), vinput(0U), vinput(1U), vtype("i32"), &operation,
+                        vtype("i1"));
+        break;
       default:
         break;
       }
@@ -1885,6 +1892,16 @@ private:
     case Opcode::SetPredicateLtF32:
       result = compare("olt", input(0U), input(1U), "f32", &operation, true);
       break;
+    case Opcode::SetPredicateGtS32:
+      result = compare("sgt", input(0U), input(1U), "i32", &operation);
+      break;
+    case Opcode::SelectU32:
+      result = select(input(2U), input(0U), input(1U), "i32", &operation);
+      break;
+    case Opcode::StoreGlobalU8:
+      emit_global_store_u8(state, operation, lane64, input(1U));
+      line("llvm.br " + std::string(continuation));
+      return;
     case Opcode::BranchIf: {
       auto taken = input(0U);
       if (operation.flag) {
@@ -1968,6 +1985,34 @@ private:
       stored_value = cast("bitcast", stored_value, "f32", "i32", &operation);
     }
     store(stored_value, pointer, "i32", &operation);
+  }
+
+  // Byte-granularity global store: no alignment proof required, one-byte
+  // bounds, and a byte-typed address.
+  void emit_global_store_u8(const EntryState& state, const Operation& operation,
+                            std::string_view lane64, std::string stored_value) {
+    const auto address_register = operation.inputs[0];
+    const auto origin = origins_[address_register];
+    const auto byte_offset = load_register(state, address_register, lane64, &operation);
+    const auto writable_pointer = gep_constant("%writable", origin.index, "i32");
+    const auto writable_value = load(writable_pointer, "i32", &operation);
+    const auto writable = compare("ne", writable_value, state.zero_i32, "i32", &operation);
+    const auto writable_ok = block();
+    line("llvm.cond_br " + writable + ", " + writable_ok + ", " + state.readonly_error);
+    declare_block(writable_ok);
+    const auto size_pointer = gep_constant("%sizes", origin.index, "i64");
+    const auto size_words = load(size_pointer, "i64", &operation);
+    const auto size_bytes = binary("shl", size_words, constant_i64(2U), "i64", &operation);
+    const auto in_bounds = compare("ult", byte_offset, size_bytes, "i64", &operation);
+    const auto bounds_ok = block();
+    line("llvm.cond_br " + in_bounds + ", " + bounds_ok + ", " + state.bounds_error);
+    declare_block(bounds_ok);
+    const auto address_pointer = gep_constant("%buffers", origin.index, "i64");
+    const auto address = load(address_pointer, "i64", &operation);
+    const auto base = cast("inttoptr", address, "i64", "!llvm.ptr", &operation);
+    const auto byte_pointer = gep(base, byte_offset, "i8");
+    const auto byte_value = cast("trunc", stored_value, "i32", "i8", &operation);
+    store(byte_value, byte_pointer, "i8", &operation);
   }
 
   void emit_global_store_u64(const EntryState& state, const Operation& operation,

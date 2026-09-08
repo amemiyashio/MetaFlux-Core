@@ -146,6 +146,12 @@ SpirvSemanticOpcode map_opcode(Opcode opcode) noexcept {
     return SpirvSemanticOpcode::sqrt_rn_f32;
   case DivRnF32:
     return SpirvSemanticOpcode::divide_rn_f32;
+  case SetPredicateGtS32:
+    return SpirvSemanticOpcode::set_predicate_gt_s32;
+  case SelectU32:
+    return SpirvSemanticOpcode::select_u32;
+  case StoreGlobalU8:
+    return SpirvSemanticOpcode::store_global_u8;
   }
   return SpirvSemanticOpcode::return_value;
 }
@@ -1082,6 +1088,12 @@ const char* spirv_semantic_opcode_string(SpirvSemanticOpcode opcode) noexcept {
     return "sqrt_rn_f32";
   case SpirvSemanticOpcode::divide_rn_f32:
     return "divide_rn_f32";
+  case SpirvSemanticOpcode::set_predicate_gt_s32:
+    return "set_predicate_gt_s32";
+  case SpirvSemanticOpcode::select_u32:
+    return "select_u32";
+  case SpirvSemanticOpcode::store_global_u8:
+    return "store_global_u8";
     case SpirvSemanticOpcode::return_value:
     return "return";
   }

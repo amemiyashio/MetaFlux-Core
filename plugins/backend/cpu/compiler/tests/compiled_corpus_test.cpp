@@ -387,19 +387,21 @@ bool test_add_and_control(Harness& harness) {
 }
 
 bool test_integer_forms(Harness& harness) {
-  std::vector<std::uint32_t> add(1U), subtract(1U), multiply(1U), mad(1U);
-  const std::array<Argument, 7> arguments{buffer(add, true),
+  std::vector<std::uint32_t> add(1U), subtract(1U), multiply(1U), mad(1U), compare(1U);
+  const std::array<Argument, 8> arguments{buffer(add, true),
                                           buffer(subtract, true),
                                           buffer(multiply, true),
                                           buffer(mad, true),
+                                          buffer(compare, true),
                                           0xffffffffU,
                                           2U,
                                           5U};
   return harness.execute_fixture("positive-integer-forms.ptx", arguments) &&
          expect(add[0] == 1U && subtract[0] == 0xfffffffdU && multiply[0] == 0xfffffffeU &&
-                    mad[0] == 45U,
-                "compiled integer forms must match modulo-2^32 goldens and the "
-                "mov.u32 immediate 42 must zero-extend into the addend");
+                    mad[0] == 45U && compare[0] == 45U,
+                "compiled integer forms must match modulo-2^32 goldens, the "
+                "mov.u32 immediate must zero-extend, and the signed compare "
+                "must select the false arm");
 }
 
 bool test_fp_forms(Harness& harness) {

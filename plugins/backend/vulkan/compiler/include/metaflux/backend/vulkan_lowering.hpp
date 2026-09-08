@@ -57,6 +57,9 @@ enum class SpirvSemanticOpcode : std::uint32_t {
   abs_f32 = 33,
   sqrt_rn_f32 = 34,
   divide_rn_f32 = 35,
+  set_predicate_gt_s32 = 36,
+  select_u32 = 37,
+  store_global_u8 = 38,
 };
 
 struct SpirvLoweredInstruction final {

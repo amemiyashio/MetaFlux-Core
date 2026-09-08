@@ -85,11 +85,12 @@ bool test_add_and_control() {
 }
 
 bool test_integer_forms() {
-  std::vector<std::uint32_t> add(1U), subtract(1U), multiply(1U), mad(1U);
-  const std::array<Argument, 7> arguments{buffer(add, true),
+  std::vector<std::uint32_t> add(1U), subtract(1U), multiply(1U), mad(1U), compare(1U);
+  const std::array<Argument, 8> arguments{buffer(add, true),
                                           buffer(subtract, true),
                                           buffer(multiply, true),
                                           buffer(mad, true),
+                                          buffer(compare, true),
                                           0xffffffffU,
                                           2U,
                                           5U};
@@ -98,7 +99,9 @@ bool test_integer_forms() {
          expect(subtract[0] == 0xfffffffdU, "sub.u32 must wrap modulo 2^32") &&
          expect(multiply[0] == 0xfffffffeU, "mul.lo.u32 must retain low product bits") &&
          expect(mad[0] == 45U, "mad.lo.u32 must retain low a*b+c bits and mov.u32 "
-                              "immediate 42 must zero-extend into the addend");
+                              "immediate 42 must zero-extend into the addend") &&
+         expect(compare[0] == 45U, "setp.gt.s32 must select the false arm for -3 > 2 and "
+                                   "st.global.u8 must store the exact low byte");
 }
 
 bool test_fp_forms() {
