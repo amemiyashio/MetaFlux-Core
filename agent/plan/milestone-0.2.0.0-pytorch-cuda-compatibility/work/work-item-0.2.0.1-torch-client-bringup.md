@@ -444,6 +444,25 @@ reductions (ReduceOp config structs), cat/stack (batched-copy metadata),
 strided-view contiguous copies (require stride-aware reads), int32/float
 small arange variants (read-back width ambiguous with int32).
 
+reduce_kernel decode front, partial (2026-09-08, seventh pass): the sum
+launch passes two arguments — params[0] = &ReduceOp, params[1] = pointer
+to the reduction functor code. ReduceOp fields decoded so far (offsets in
+qwords from params[0]): [2] = {8, 6} (buffer element size 8,
+num_inputs 6 for a 6-element float sum), [3..5] and [7..8] = index
+calculator strides {1, 4} pairs (contiguous 1-D input), [10] = {1, 6}
+(num_inputs), [11] = {0x55555556, 3} (division magic for the /6 mean).
+The device input/output pointers are NOT within the first 0x100 bytes —
+offsets 0x80..0x200 are caller stack-frame noise — so the ReduceConfig
+src/dst live either deeper, behind a nested pointer, or in a separate
+argument. Next decode steps: dump 0x400 bytes, and break at the CUDA
+launch inside reduce_kernel itself to capture the device pointers at the
+memory-instruction level; then implement host-side sum/mean/max/min by
+reading the input through the copy path and writing the scalar output.
+cat/stack: the CatArrayBatchedCopy params[1] holds the input device
+pointer array {in1, in2, NULL} (verified in the gap dump), and the output
+pointer plus per-input length metadata sit in the adjacent metadata
+structure — decode front continues there.
+
 ## Exit Gate
 
 `pytorch_cuda_probe.py --profile baseline --require-stage runtime-copy`

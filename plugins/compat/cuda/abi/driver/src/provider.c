@@ -6883,9 +6883,25 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
                             ? *(unsigned int*)kernel_parameters[0]
                             : UINT32_C(0);
       fprintf(stderr, "MF_SEMANTIC miss name=%s\n", kernel_name);
-      fprintf(stderr, "MF_MISS_P p1=%p p2=%p p3=%p numel=%u\n",
-              kernel_parameters[1], kernel_parameters[2],
+      fprintf(stderr, "MF_MISS_P p0=%p p1=%p p2=%p p3=%p numel=%u\n",
+              kernel_parameters[0], kernel_parameters[1], kernel_parameters[2],
               kernel_parameters[3], n0);
+      if (strstr(kernel_name, "reduce_kernel") != (char*)0) {
+        unsigned int slot = 0;
+        for (slot = 0; slot < 4; ++slot) {
+          if (kernel_parameters[slot] == (void*)0) {
+            fprintf(stderr, "MF_RED p%u = NULL\n", slot);
+            continue;
+          }
+          {
+            const unsigned long long* q = (const unsigned long long*)kernel_parameters[slot];
+            unsigned int k = 0;
+            for (k = 0; k < 64; ++k) {
+              fprintf(stderr, "MF_RED p%u[%02u] %016llx\n", slot, k, q[k]);
+            }
+          }
+        }
+      }
       if (kernel_parameters[1] != (void*)0) {
         const unsigned long long* q = (const unsigned long long*)kernel_parameters[1];
         fprintf(stderr, "MF_MISS_Q1 %016llx %016llx %016llx\n", q[0], q[1], q[2]);
