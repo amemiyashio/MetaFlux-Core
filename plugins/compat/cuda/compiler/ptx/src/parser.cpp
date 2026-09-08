@@ -17,7 +17,7 @@
 namespace metaflux::compiler::ptx {
 namespace {
 
-constexpr std::array<SupportedForm, 31> kSupportedForms{{
+constexpr std::array<SupportedForm, 32> kSupportedForms{{
     {"ld-param-u64", "ld.param.u64", "b64,param.u64", "param,register", "", 70,
      "load_parameter_address", "bounded global buffer handle"},
     {"ld-param-u32", "ld.param.u32", "b32,param.u32", "param,register", "", 70,
@@ -43,6 +43,8 @@ constexpr std::array<SupportedForm, 31> kSupportedForms{{
     {"add-rn-f32", "add.rn.f32", "f32,f32,f32", "register", "rn", 70, "add_rn_f32",
      "binary32 round-nearest-even"},
     {"sub-rn-f32", "sub.rn.f32", "f32,f32,f32", "register", "rn", 70, "sub_rn_f32",
+     "binary32 round-nearest-even"},
+    {"div-rn-f32", "div.rn.f32", "f32,f32,f32", "register", "rn", 70, "div_rn_f32",
      "binary32 round-nearest-even"},
     {"mul-rn-f32", "mul.rn.f32", "f32,f32,f32", "register", "rn", 70, "multiply_rn_f32",
      "binary32 round-nearest-even"},
@@ -803,6 +805,8 @@ private:
       parse_binary_f32(opcode, Opcode::AddRnF32);
     } else if (opcode.text == "sub.rn.f32") {
       parse_binary_f32(opcode, Opcode::SubRnF32);
+    } else if (opcode.text == "div.rn.f32") {
+      parse_binary_f32(opcode, Opcode::DivRnF32);
     } else if (opcode.text == "mul.rn.f32") {
       parse_binary_f32(opcode, Opcode::MultiplyRnF32);
     } else if (opcode.text == "mad.rn.f32") {

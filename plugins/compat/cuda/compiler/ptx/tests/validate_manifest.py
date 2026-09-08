@@ -32,7 +32,7 @@ def main() -> int:
         "id", "spelling", "types", "spaces", "modifiers", "min_sm", "kir_op", "oracle",
         "fixture_ids", "stable_diagnostic",
     }
-    require(len(forms) == 31, "forms.jsonl must contain exactly 31 advertised forms", failures)
+    require(len(forms) == 32, "forms.jsonl must contain exactly 31 advertised forms", failures)
     form_ids: set[str] = set()
     for line_number, form in enumerate(forms, start=1):
         require(set(form) == required_form_fields,

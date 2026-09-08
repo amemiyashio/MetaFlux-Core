@@ -11,6 +11,7 @@ option(METAFLUX_BUILD_VROOT_MODEL "Build the host-independent experimental vroot
 option(METAFLUX_BUILD_COMPILER "Build the compiler core fixture" ON)
 option(METAFLUX_BUILD_CPU_BACKEND_COMPILER "Build the CPU backend compiler" ON)
 option(METAFLUX_BUILD_CPU_BACKEND_RUNTIME "Build the CPU backend runtime fixture" ON)
+option(METAFLUX_BUILD_GPU_BACKEND_PASSTHROUGH "Build the GPU passthrough backend skeleton" ON)
 option(METAFLUX_BUILD_VULKAN_BACKEND "Build the Vulkan capability/backend fixture" OFF)
 option(
   METAFLUX_VULKAN_BACKEND_SHARED

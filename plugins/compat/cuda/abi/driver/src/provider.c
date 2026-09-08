@@ -256,6 +256,45 @@ static const char mf_pytorch_baseline_mulf32_ptx[] =
     "  ret;\n"
     "}\n";
 
+/* The stock-PyTorch float32 tensor-division kernel maps to this neutral PTX
+ * artifact: div.rn.f32 over the same linear-index copy shape. */
+static const char mf_pytorch_baseline_divf32_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry div_f32(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 left,\n"
+    "  .param .u64 right,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .f32 %f<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [left];\n"
+    "  ld.param.u64 %rd2, [right];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  mov.u32 %r1, %tid.x;\n"
+    "  mov.u32 %r2, %ctaid.x;\n"
+    "  mov.u32 %r3, %ntid.x;\n"
+    "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
+    "  setp.ge.u32 %p, %r4, %r0;\n"
+    "  @%p bra done;\n"
+    "  mul.wide.u32 %rd3, %r4, 4;\n"
+    "  add.u64 %rd4, %rd0, %rd3;\n"
+    "  add.u64 %rd5, %rd1, %rd3;\n"
+    "  add.u64 %rd6, %rd2, %rd3;\n"
+    "  ld.global.f32 %f1, [%rd5];\n"
+    "  ld.global.f32 %f2, [%rd6];\n"
+    "  div.rn.f32 %f3, %f1, %f2;\n"
+    "  st.global.f32 [%rd4], %f3;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
 /* Client fatbin blobs and their parsed kernel names. The blob pointers stay
    valid for the process lifetime (client images). Kernel names come from the
    cubin ELF symbol tables so cudart's enumerate-and-match binding finds a
@@ -6651,6 +6690,38 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       goto daemon_launch;
     }
 
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "BinaryFunctor") != (char*)0 &&
+        strstr(kernel_name, "DivFunctorIfE") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0) {
+      /* torch float32 tensor*tensor division: the same binary shape as
+         mul, routed to the div.rn.f32 PTX artifact. */
+      void** divf_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)divf_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)divf_data_array[1];
+      normalized_pointers[2] = (CUdeviceptr)(uintptr_t)divf_data_array[2];
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0 ||
+          normalized_pointers[2] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_DIV_F32_V1,
+          mf_pytorch_baseline_divf32_ptx, sizeof(mf_pytorch_baseline_divf32_ptx) - 1U,
+          "elementwise-div-f32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
     if (kernel_name[0] != '\0' &&
         strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
         strstr(kernel_name, "BinaryFunctor") != (char*)0 &&

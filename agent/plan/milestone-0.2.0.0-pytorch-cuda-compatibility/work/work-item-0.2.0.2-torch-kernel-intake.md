@@ -101,6 +101,27 @@ bootstrap (a pinned forwarding libcuda, mirroring toolchains' ICD
 recipe). This is tracked here as the next decode front after the
 multi-operation corpus freezes.
 
+div.rn.f32 full stack (2026-09-09): div.rn.f32 joined the PTX frontend
+form table (parser dispatch, manifest form id div-rn-f32 with spelling
+div.rn.f32 and kir_op div_rn_f32), the Kernel IR opcode DivRnF32, the
+CPU interpreter (div_rn IEEE division), and the CPU compiler's LLVM
+emitters (fdiv in both the JIT and AOT pipelines); positive-fp-forms
+gained the div fixture and the forms manifest grew to 32 entries with
+the pinned counts and hash updated. ELEMENTWISE_DIV_F32_V1 = 6 joined
+the kernel request operations, and the provider routes the torch
+DivFunctorIfE binary shape through the daemon. The GPU passthrough
+backend skeleton landed under plugins/backend/gpu: a
+mf_backend_api_v1 backend whose driver probe dlopens the real driver
+(METAFLUX_GPU_PASSTHROUGH_DRIVER, default libcuda.so.1), enumerates its
+devices, loads the Kernel Request PTX via cuModuleLoadData, and
+forwards launches via cuLaunchKernel; without a usable driver it
+enumerates zero devices and stays inert. The component follows
+backend-runtime rules (backend-plugin-api + dl only).
+
+Verification: fdiv bit-exact ([3.0, -1.125, -3.125, -0.125]); ptx-parser,
+both corpus differentials, stock-baseline four modes all pass; CTest
+154/154.
+
 ## Exit Gate
 
 The complete surface/status matrix and handle-negative suite pass; the neutral

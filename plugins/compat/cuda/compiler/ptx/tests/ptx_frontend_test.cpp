@@ -160,7 +160,7 @@ bool test_manifest() {
       return false;
     }
   }
-  return expect(forms.size() == 31U && ids.size() == forms.size(),
+  return expect(forms.size() == 32U && ids.size() == forms.size(),
                 "the supported PTX form manifest must be complete and unique");
 }
 
