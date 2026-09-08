@@ -92,6 +92,7 @@ enum class Opcode : std::uint32_t {
   AddSharedAddress,
   AddRnF32,
   SubRnF32,
+  DivRnF32,
   MultiplyRnF32,
   MadRnF32,
   FmaRnF32,

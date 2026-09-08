@@ -180,6 +180,7 @@ bool uses_floating_point(const Kernel& kernel) {
     case Opcode::LoadParameterF32:
     case Opcode::AddRnF32:
     case Opcode::SubRnF32:
+    case Opcode::DivRnF32:
     case Opcode::MultiplyRnF32:
     case Opcode::MadRnF32:
     case Opcode::FmaRnF32:
@@ -901,6 +902,7 @@ private:
     case Opcode::AddGlobalAddress:
     case Opcode::AddRnF32:
     case Opcode::SubRnF32:
+    case Opcode::DivRnF32:
     case Opcode::MultiplyRnF32:
     case Opcode::MadRnF32:
     case Opcode::FmaRnF32:
@@ -1274,6 +1276,9 @@ private:
       case Opcode::SubRnF32:
         result = binary("fsub", vinput(0U), vinput(1U), vtype("f32"), &operation);
         break;
+      case Opcode::DivRnF32:
+        result = binary("fdiv", vinput(0U), vinput(1U), vtype("f32"), &operation);
+        break;
       case Opcode::MultiplyRnF32:
         result = binary("fmul", vinput(0U), vinput(1U), vtype("f32"), &operation);
         break;
@@ -1453,6 +1458,7 @@ private:
     case Opcode::AddSharedAddress:
     case Opcode::AddRnF32:
     case Opcode::SubRnF32:
+    case Opcode::DivRnF32:
     case Opcode::MultiplyRnF32:
     case Opcode::MadRnF32:
     case Opcode::FmaRnF32:
@@ -1748,6 +1754,9 @@ private:
       break;
     case Opcode::SubRnF32:
       result = binary("fsub", input(0U), input(1U), "f32", &operation);
+      break;
+    case Opcode::DivRnF32:
+      result = binary("fdiv", input(0U), input(1U), "f32", &operation);
       break;
     case Opcode::MultiplyRnF32:
       result = binary("fmul", input(0U), input(1U), "f32", &operation);

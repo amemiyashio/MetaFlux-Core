@@ -74,6 +74,7 @@ enum class Opcode : std::uint32_t {
   AddSharedAddress,
   AddRnF32,
   SubRnF32,
+  DivRnF32,
   MultiplyRnF32,
   MadRnF32,
   FmaRnF32,
@@ -193,7 +194,7 @@ std::optional<ValueKind> parse_value_kind(std::string_view text) {
 
 std::optional<Opcode> parse_opcode(std::string_view text) {
   using Pair = std::pair<std::string_view, Opcode>;
-  constexpr std::array<Pair, 32> entries{{
+  constexpr std::array<Pair, 33> entries{{
       {"load_parameter_address", Opcode::LoadParameterAddress},
       {"load_parameter_u32", Opcode::LoadParameterU32},
       {"load_parameter_f32", Opcode::LoadParameterF32},
@@ -208,6 +209,7 @@ std::optional<Opcode> parse_opcode(std::string_view text) {
       {"add_shared_address", Opcode::AddSharedAddress},
       {"add_rn_f32", Opcode::AddRnF32},
       {"sub_rn_f32", Opcode::SubRnF32},
+      {"div_rn_f32", Opcode::DivRnF32},
       {"multiply_rn_f32", Opcode::MultiplyRnF32},
       {"mad_rn_f32", Opcode::MadRnF32},
       {"fma_rn_f32", Opcode::FmaRnF32},
@@ -280,6 +282,7 @@ OperationContract operation_contract(Opcode opcode) {
     return {true, SharedAddress, {SharedAddress, U32, U32}, 2};
   case AddRnF32:
   case SubRnF32:
+  case DivRnF32:
   case MultiplyRnF32:
     return {true, F32, {F32, F32, U32}, 2};
   case MadRnF32:
@@ -697,6 +700,7 @@ bool has_fp_operations(const Kernel& kernel) {
     case Opcode::LoadParameterF32:
     case Opcode::AddRnF32:
     case Opcode::SubRnF32:
+    case Opcode::DivRnF32:
     case Opcode::MultiplyRnF32:
     case Opcode::MadRnF32:
     case Opcode::FmaRnF32:
@@ -733,6 +737,11 @@ float add_rn(float left, float right) {
 
 float sub_rn(float left, float right) {
   volatile float result = left - right;
+  return result;
+}
+
+float div_rn(float left, float right) {
+  volatile float result = left / right;
   return result;
 }
 
@@ -936,6 +945,11 @@ std::optional<ExecutionResult> execute_one(const Kernel& kernel,
     break;
   case Opcode::SubRnF32:
     values[operation.result] = sub_rn(std::get<float>(values[operation.inputs[0]]),
+                                      std::get<float>(values[operation.inputs[1]]));
+    ++thread.pc;
+    break;
+  case Opcode::DivRnF32:
+    values[operation.result] = div_rn(std::get<float>(values[operation.inputs[0]]),
                                       std::get<float>(values[operation.inputs[1]]));
     ++thread.pc;
     break;

@@ -74,6 +74,7 @@ OperationContract operation_contract(Opcode opcode) {
     return {true, SharedAddress, {SharedAddress, U32, U32}, 2};
   case AddRnF32:
   case SubRnF32:
+  case DivRnF32:
   case MultiplyRnF32:
     return {true, F32, {F32, F32, U32}, 2};
   case MadRnF32:
@@ -239,6 +240,8 @@ std::string_view opcode_name(Opcode opcode) noexcept {
     return "add_rn_f32";
   case SubRnF32:
     return "sub_rn_f32";
+  case DivRnF32:
+    return "div_rn_f32";
   case MultiplyRnF32:
     return "multiply_rn_f32";
   case MadRnF32:

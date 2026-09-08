@@ -1,152 +1,304 @@
 {
-  "schema_version": 1,
-  "ptx_isa": "9.0",
-  "target": "sm_70",
-  "digest_algorithm": "sha256",
-  "aggregate_definition": "sha256 of UTF-8 id, NUL, fixture sha256, LF in lexical id order",
-  "corpus_sha256": "585718e3480f0a9c8e1a21b777ffdd63e8a558f210c89f07e58ca47ed68562fe",
-  "forms_sha256": "6b37afb70ac7f28a53b876ddcbaa622c2d77dd17b35586f700ff135cdc63a79a",
-  "fixtures": [
-    {
-      "id": "edge-2d-specials",
-      "path": "fixtures/edge-2d-specials.ptx",
-      "sha256": "b8d2aa3c836ed2a335a0c9899faa449193244004a6b5991a742d32d955e1fc12",
-      "classes": ["positive", "edge"],
-      "forms": ["ld-param-u64", "mov-special-u32", "mad-lo-u32", "mul-lo-u32", "mul-wide-u32", "add-u64-global-address", "st-global-u32", "ret"],
-      "oracle": "2x2 CTAs of 3x2 threads write the independent row-major indices 0..23"
-    },
-    {
-      "id": "edge-fp-rn",
-      "path": "fixtures/edge-fp-rn.ptx",
-      "sha256": "13116e69b6233943ec8f062c84c40be082da8842bb8d9d144e69533d881d8aae",
-      "classes": ["positive", "edge"],
-      "forms": ["ld-param-u64", "ld-param-u32", "ld-param-f32", "ld-global-f32", "cvt-rn-f32-u32", "add-rn-f32", "st-global-f32", "ret"],
-      "oracle": "16777217 converts to 16777216 and adding 1.0 ties back to binary32 bits 0x4b800000"
-    },
-    {
-      "id": "edge-ordered-nan",
-      "path": "fixtures/edge-ordered-nan.ptx",
-      "sha256": "5601e5eb1d0bdcdb3018ec322c6422ec33df80d8f9e44c5f17780b04cbeb649f",
-      "classes": ["positive", "edge"],
-      "forms": ["ld-param-u64", "ld-param-u32", "ld-param-f32", "setp-lt-f32", "st-global-u32", "ret"],
-      "oracle": "ordered less-than with quiet NaN is false and suppresses the guarded store"
-    },
-    {
-      "id": "edge-u32-wrap",
-      "path": "fixtures/edge-u32-wrap.ptx",
-      "sha256": "8972cd0465d0150eb432842854813a5d84d0c4423174c10d04696c1bd6452eb6",
-      "classes": ["positive", "edge"],
-      "forms": ["ld-param-u64", "ld-param-u32", "add-u32", "sub-u32", "mul-lo-u32", "mad-lo-u32", "st-global-u32", "ret"],
-      "oracle": "0xffffffff + 2 wraps to 1"
-    },
-    {
-      "id": "malformed-barrier-id",
-      "path": "fixtures/malformed-barrier-id.ptx",
-      "sha256": "7ca5b2b665ecdcb7fba6e12ed4db6daee5bfad1d2daa4c6190ba956e61520144",
-      "classes": ["malformed"],
-      "forms": ["bar-sync-0"],
-      "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION"
-    },
-    {
-      "id": "malformed-missing-semicolon",
-      "path": "fixtures/malformed-missing-semicolon.ptx",
-      "sha256": "a849f993c2465cbe221a9406ab956ec7f7565ba88f874f98f462182ed67eb884",
-      "classes": ["malformed"],
-      "forms": ["ld-param-u32"],
-      "stable_diagnostic": "MF_PTX_SYNTAX"
-    },
-    {
-      "id": "malformed-register-type",
-      "path": "fixtures/malformed-register-type.ptx",
-      "sha256": "925b40fe21a8ad12b55e5031dc07e67bbda65ccc4fc34ce641fbc9e7cae27bfc",
-      "classes": ["malformed"],
-      "forms": ["ld-param-f32"],
-      "stable_diagnostic": "MF_PTX_TYPE_MISMATCH"
-    },
-    {
-      "id": "positive-add-copy",
-      "path": "fixtures/positive-add-copy.ptx",
-      "sha256": "c4c139e207f1fda49bdebbb936d12500d79903c75952dc716a972a6b5ce54956",
-      "classes": ["positive", "edge"],
-      "forms": ["ld-param-u64", "ld-param-u32", "mov-special-u32", "mad-lo-u32", "setp-ge-u32", "bra-predicate", "mul-wide-u32", "add-u64-global-address", "ld-global-u32", "add-u32", "st-global-u32", "ret"],
-      "oracle": "bounded 1D modulo-u32 Add with inactive tail threads"
-    },
-    {
-      "id": "positive-convert-predicate",
-      "path": "fixtures/positive-convert-predicate.ptx",
-      "sha256": "c8c18e2309355c2487ea4c4d51b5b5482ad65aa12036c00843ea3ff4b29f927f",
-      "classes": ["positive", "edge"],
-      "forms": ["ld-param-u64", "ld-param-u32", "ld-param-f32", "cvt-rn-f32-u32", "cvt-rzi-u32-f32", "setp-ge-u32", "setp-eq-u32", "setp-lt-f32", "st-global-f32", "st-global-u32", "ret"],
-      "oracle": "golden conversion bits plus true, false, and negated store guards"
-    },
-    {
-      "id": "positive-fp-forms",
-      "path": "fixtures/positive-fp-forms.ptx",
-      "sha256": "5d974c0158995cb47f407216af43ec1e3d34935929209efec4ad86abde97b85d",
-      "classes": ["positive", "edge"],
-      "forms": ["ld-param-u64", "ld-param-f32", "add-rn-f32", "sub-rn-f32", "mul-rn-f32", "mad-rn-f32", "fma-rn-f32", "st-global-f32", "ret"],
-      "oracle": "hard-coded IEEE-754 bit patterns for 1.5, 2.25, and 0.5"
-    },
-    {
-      "id": "positive-integer-forms",
-      "path": "fixtures/positive-integer-forms.ptx",
-      "sha256": "77f4832c0b348b3a14db4a5c42258568ad0ce374505af59577f22941ebd7911b",
-      "classes": ["positive"],
-      "forms": ["ld-param-u64", "ld-param-u32", "add-u32", "sub-u32", "mul-lo-u32", "mad-lo-u32", "st-global-u32", "ret"],
-      "oracle": "independent modulo-2^32 add, subtract, low multiply, and low multiply-add"
-    },
-    {
-      "id": "positive-shared-barrier",
-      "path": "fixtures/positive-shared-barrier.ptx",
-      "sha256": "fdf33304ea4dd6cf521c948d107e7449da7401f195d0dd57aa1b639901cad896",
-      "classes": ["positive", "edge"],
-      "forms": ["ld-param-u64", "ld-param-u32", "mov-special-u32", "mov-shared-address", "add-u32", "sub-u32", "mul-lo-u32", "add-u32-shared-address", "mul-wide-u32", "add-u64-global-address", "setp-eq-u32", "st-shared-u32", "bar-sync-0", "ld-shared-u32", "st-global-u32", "ret"],
-      "oracle": "four threads publish 1..4 then read the reversed CTA-shared indices after barrier"
-    },
-    {
-      "id": "unsupported-atomic",
-      "path": "fixtures/unsupported-atomic.ptx",
-      "sha256": "ce4ce95748eac9ee961c8e7faf89e7d389b5b6dcdfabd5fdf89e501a805a8183",
-      "classes": ["unsupported"],
-      "forms": [],
-      "rejected_spelling": "atom.global.add.u32",
-      "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION"
-    },
-    {
-      "id": "unsupported-ftz",
-      "path": "fixtures/unsupported-ftz.ptx",
-      "sha256": "9a118b93e42a3a7399e816fdd31c2e27c25f233f7875541abfa5952c08ae642d",
-      "classes": ["unsupported"],
-      "forms": ["add-rn-f32"],
-      "rejected_spelling": "add.rn.ftz.f32",
-      "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION"
-    },
-    {
-      "id": "unsupported-predicated-arithmetic",
-      "path": "fixtures/unsupported-predicated-arithmetic.ptx",
-      "sha256": "0813a6d525826886403b1f0d411b23c96f546e013bf8360a2716a5b0d83ab166",
-      "classes": ["unsupported"],
-      "forms": ["add-u32"],
-      "rejected_spelling": "@p add.u32",
-      "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION"
-    },
-    {
-      "id": "unsupported-predicated-barrier",
-      "path": "fixtures/unsupported-predicated-barrier.ptx",
-      "sha256": "7915fb2994b87e005dc931ee831f2068dfe15cec21b4e3cce605abb58e6ea760",
-      "classes": ["unsupported"],
-      "forms": ["bar-sync-0"],
-      "rejected_spelling": "@p bar.sync 0",
-      "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION"
-    },
-    {
-      "id": "unsupported-special-z",
-      "path": "fixtures/unsupported-special-z.ptx",
-      "sha256": "d6a96ce5de077d039dc1de2ba7daa78463701f86811afe0a7ba3cca2366e4948",
-      "classes": ["unsupported"],
-      "forms": ["mov-special-u32"],
-      "rejected_spelling": "mov.u32 %tid.z",
-      "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION"
-    }
-  ]
+ "schema_version": 1,
+ "ptx_isa": "9.0",
+ "target": "sm_70",
+ "digest_algorithm": "sha256",
+ "aggregate_definition": "sha256 of UTF-8 id, NUL, fixture sha256, LF in lexical id order",
+ "corpus_sha256": "3e4454a7edda71f4990328808110d935b4f2ab89b97f369a3996b7bc8617ad68",
+ "forms_sha256": "53d89dff9a4eef1c78d7cd7671cba691b9ad2985ff34b760e092ae0d39747e08",
+ "fixtures": [
+  {
+   "id": "edge-2d-specials",
+   "path": "fixtures/edge-2d-specials.ptx",
+   "sha256": "b8d2aa3c836ed2a335a0c9899faa449193244004a6b5991a742d32d955e1fc12",
+   "classes": [
+    "positive",
+    "edge"
+   ],
+   "forms": [
+    "ld-param-u64",
+    "mov-special-u32",
+    "mad-lo-u32",
+    "mul-lo-u32",
+    "mul-wide-u32",
+    "add-u64-global-address",
+    "st-global-u32",
+    "ret"
+   ],
+   "oracle": "2x2 CTAs of 3x2 threads write the independent row-major indices 0..23"
+  },
+  {
+   "id": "edge-fp-rn",
+   "path": "fixtures/edge-fp-rn.ptx",
+   "sha256": "13116e69b6233943ec8f062c84c40be082da8842bb8d9d144e69533d881d8aae",
+   "classes": [
+    "positive",
+    "edge"
+   ],
+   "forms": [
+    "ld-param-u64",
+    "ld-param-u32",
+    "ld-param-f32",
+    "ld-global-f32",
+    "cvt-rn-f32-u32",
+    "add-rn-f32",
+    "st-global-f32",
+    "ret"
+   ],
+   "oracle": "16777217 converts to 16777216 and adding 1.0 ties back to binary32 bits 0x4b800000"
+  },
+  {
+   "id": "edge-ordered-nan",
+   "path": "fixtures/edge-ordered-nan.ptx",
+   "sha256": "5601e5eb1d0bdcdb3018ec322c6422ec33df80d8f9e44c5f17780b04cbeb649f",
+   "classes": [
+    "positive",
+    "edge"
+   ],
+   "forms": [
+    "ld-param-u64",
+    "ld-param-u32",
+    "ld-param-f32",
+    "setp-lt-f32",
+    "st-global-u32",
+    "ret"
+   ],
+   "oracle": "ordered less-than with quiet NaN is false and suppresses the guarded store"
+  },
+  {
+   "id": "edge-u32-wrap",
+   "path": "fixtures/edge-u32-wrap.ptx",
+   "sha256": "8972cd0465d0150eb432842854813a5d84d0c4423174c10d04696c1bd6452eb6",
+   "classes": [
+    "positive",
+    "edge"
+   ],
+   "forms": [
+    "ld-param-u64",
+    "ld-param-u32",
+    "add-u32",
+    "sub-u32",
+    "mul-lo-u32",
+    "mad-lo-u32",
+    "st-global-u32",
+    "ret"
+   ],
+   "oracle": "0xffffffff + 2 wraps to 1"
+  },
+  {
+   "id": "malformed-barrier-id",
+   "path": "fixtures/malformed-barrier-id.ptx",
+   "sha256": "7ca5b2b665ecdcb7fba6e12ed4db6daee5bfad1d2daa4c6190ba956e61520144",
+   "classes": [
+    "malformed"
+   ],
+   "forms": [
+    "bar-sync-0"
+   ],
+   "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION"
+  },
+  {
+   "id": "malformed-missing-semicolon",
+   "path": "fixtures/malformed-missing-semicolon.ptx",
+   "sha256": "a849f993c2465cbe221a9406ab956ec7f7565ba88f874f98f462182ed67eb884",
+   "classes": [
+    "malformed"
+   ],
+   "forms": [
+    "ld-param-u32"
+   ],
+   "stable_diagnostic": "MF_PTX_SYNTAX"
+  },
+  {
+   "id": "malformed-register-type",
+   "path": "fixtures/malformed-register-type.ptx",
+   "sha256": "925b40fe21a8ad12b55e5031dc07e67bbda65ccc4fc34ce641fbc9e7cae27bfc",
+   "classes": [
+    "malformed"
+   ],
+   "forms": [
+    "ld-param-f32"
+   ],
+   "stable_diagnostic": "MF_PTX_TYPE_MISMATCH"
+  },
+  {
+   "id": "positive-add-copy",
+   "path": "fixtures/positive-add-copy.ptx",
+   "sha256": "c4c139e207f1fda49bdebbb936d12500d79903c75952dc716a972a6b5ce54956",
+   "classes": [
+    "positive",
+    "edge"
+   ],
+   "forms": [
+    "ld-param-u64",
+    "ld-param-u32",
+    "mov-special-u32",
+    "mad-lo-u32",
+    "setp-ge-u32",
+    "bra-predicate",
+    "mul-wide-u32",
+    "add-u64-global-address",
+    "ld-global-u32",
+    "add-u32",
+    "st-global-u32",
+    "ret"
+   ],
+   "oracle": "bounded 1D modulo-u32 Add with inactive tail threads"
+  },
+  {
+   "id": "positive-convert-predicate",
+   "path": "fixtures/positive-convert-predicate.ptx",
+   "sha256": "c8c18e2309355c2487ea4c4d51b5b5482ad65aa12036c00843ea3ff4b29f927f",
+   "classes": [
+    "positive",
+    "edge"
+   ],
+   "forms": [
+    "ld-param-u64",
+    "ld-param-u32",
+    "ld-param-f32",
+    "cvt-rn-f32-u32",
+    "cvt-rzi-u32-f32",
+    "setp-ge-u32",
+    "setp-eq-u32",
+    "setp-lt-f32",
+    "st-global-f32",
+    "st-global-u32",
+    "ret"
+   ],
+   "oracle": "golden conversion bits plus true, false, and negated store guards"
+  },
+  {
+   "id": "positive-fp-forms",
+   "path": "fixtures/positive-fp-forms.ptx",
+   "sha256": "6158f98bdce606cf074f7044ba04bdb5ca4c53385fa7ad112a5760ed2765aa5d",
+   "classes": [
+    "positive",
+    "edge"
+   ],
+   "forms": [
+    "ld-param-u64",
+    "ld-param-f32",
+    "add-rn-f32",
+    "sub-rn-f32",
+    "mul-rn-f32",
+    "mad-rn-f32",
+    "fma-rn-f32",
+    "st-global-f32",
+    "ret",
+    "div-rn-f32"
+   ],
+   "oracle": "hard-coded IEEE-754 bit patterns for 1.5, 2.25, and 0.5"
+  },
+  {
+   "id": "positive-integer-forms",
+   "path": "fixtures/positive-integer-forms.ptx",
+   "sha256": "77f4832c0b348b3a14db4a5c42258568ad0ce374505af59577f22941ebd7911b",
+   "classes": [
+    "positive"
+   ],
+   "forms": [
+    "ld-param-u64",
+    "ld-param-u32",
+    "add-u32",
+    "sub-u32",
+    "mul-lo-u32",
+    "mad-lo-u32",
+    "st-global-u32",
+    "ret"
+   ],
+   "oracle": "independent modulo-2^32 add, subtract, low multiply, and low multiply-add"
+  },
+  {
+   "id": "positive-shared-barrier",
+   "path": "fixtures/positive-shared-barrier.ptx",
+   "sha256": "fdf33304ea4dd6cf521c948d107e7449da7401f195d0dd57aa1b639901cad896",
+   "classes": [
+    "positive",
+    "edge"
+   ],
+   "forms": [
+    "ld-param-u64",
+    "ld-param-u32",
+    "mov-special-u32",
+    "mov-shared-address",
+    "add-u32",
+    "sub-u32",
+    "mul-lo-u32",
+    "add-u32-shared-address",
+    "mul-wide-u32",
+    "add-u64-global-address",
+    "setp-eq-u32",
+    "st-shared-u32",
+    "bar-sync-0",
+    "ld-shared-u32",
+    "st-global-u32",
+    "ret"
+   ],
+   "oracle": "four threads publish 1..4 then read the reversed CTA-shared indices after barrier"
+  },
+  {
+   "id": "unsupported-atomic",
+   "path": "fixtures/unsupported-atomic.ptx",
+   "sha256": "ce4ce95748eac9ee961c8e7faf89e7d389b5b6dcdfabd5fdf89e501a805a8183",
+   "classes": [
+    "unsupported"
+   ],
+   "forms": [],
+   "rejected_spelling": "atom.global.add.u32",
+   "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION"
+  },
+  {
+   "id": "unsupported-ftz",
+   "path": "fixtures/unsupported-ftz.ptx",
+   "sha256": "9a118b93e42a3a7399e816fdd31c2e27c25f233f7875541abfa5952c08ae642d",
+   "classes": [
+    "unsupported"
+   ],
+   "forms": [
+    "add-rn-f32"
+   ],
+   "rejected_spelling": "add.rn.ftz.f32",
+   "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION"
+  },
+  {
+   "id": "unsupported-predicated-arithmetic",
+   "path": "fixtures/unsupported-predicated-arithmetic.ptx",
+   "sha256": "0813a6d525826886403b1f0d411b23c96f546e013bf8360a2716a5b0d83ab166",
+   "classes": [
+    "unsupported"
+   ],
+   "forms": [
+    "add-u32"
+   ],
+   "rejected_spelling": "@p add.u32",
+   "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION"
+  },
+  {
+   "id": "unsupported-predicated-barrier",
+   "path": "fixtures/unsupported-predicated-barrier.ptx",
+   "sha256": "7915fb2994b87e005dc931ee831f2068dfe15cec21b4e3cce605abb58e6ea760",
+   "classes": [
+    "unsupported"
+   ],
+   "forms": [
+    "bar-sync-0"
+   ],
+   "rejected_spelling": "@p bar.sync 0",
+   "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION"
+  },
+  {
+   "id": "unsupported-special-z",
+   "path": "fixtures/unsupported-special-z.ptx",
+   "sha256": "d6a96ce5de077d039dc1de2ba7daa78463701f86811afe0a7ba3cca2366e4948",
+   "classes": [
+    "unsupported"
+   ],
+   "forms": [
+    "mov-special-u32"
+   ],
+   "rejected_spelling": "mov.u32 %tid.z",
+   "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION"
+  }
+ ]
 }
