@@ -70,9 +70,14 @@ def route() -> dict:
         "observable_success": "The real-client gate completes.",
         "nodes": [
             {
+                "id": "reference.pytorch",
+                "disposition": "keep",
+                "depends_on": [],
+            },
+            {
                 "id": "decision.surface",
                 "disposition": "rewrite",
-                "depends_on": [],
+                "depends_on": ["reference.pytorch"],
             },
             {
                 "id": "lane.baseline",

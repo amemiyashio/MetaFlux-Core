@@ -149,6 +149,32 @@ earlier by an Agent is not grandfathered: if its current registration fails,
 stop there. Never fall back from a worktree, hook, index, or candidate-tree
 failure to `git clone`, file-tree copying, or a sibling source directory.
 
+## Reference Prerequisites
+
+After validating the supplied clean execution context, inspect the
+`references` array in `agent/goal.json`. For each entry whose `required_by`
+contains the assigned lane, materialize and verify that exact catalog entry:
+
+```sh
+nix develop . --command python3 -B \
+  references/tools/reference.py materialize ENTRY
+nix develop . --command python3 -B \
+  references/tools/reference.py verify ENTRY
+```
+
+Do not materialize entries for other lanes. Materialization populates the
+declared submodule worktree under `references/sources/`; it does not create a
+clone, branch, worktree, execution context, or build input. Require the exact
+manifest revision and URL, a detached HEAD, and a clean reference worktree.
+Treat it as read-only and promote every relied-upon product conclusion to its
+canonical Core source, test, contract, decision, constraint, or plan.
+
+An undeclared entry, URL or revision mismatch, dirty checkout, or failed
+materialization is `reference.prerequisite-invalid` with
+`current-agent / fix-and-retry`. Preserve the raw tool output and resume only
+after the same `materialize` and `verify` commands pass. A lane with no declared
+reference prerequisite performs no reference operation.
+
 ## Assignment And Subagent Boundary
 
 The user or application owns scheduling, worktree, and lane assignment.
@@ -283,5 +309,7 @@ nix develop . --command python3 -B \
 nix develop . --command python3 -B \
   agent/skills/start-work/scripts/test_commit_as_agent_tool.py
 nix develop . --command python3 -B tools/test-agent-diagnostics.py
+nix develop . --command python3 -B references/tools/test_reference.py
+nix develop . --command python3 -B references/tools/reference.py verify
 nix develop . --command python3 -B tools/check-agent-state.py .
 ```

@@ -89,7 +89,8 @@ identity and provisioning boundaries live in
   credential persistence.
 - Agent execution follows decision-0033 as amended by decision-0037.
   `agent/goal.json` stores only the active Epoch, Batch, product target,
-  objective, and planned/integrated/deferred lanes. Workers deliver committed
+  objective, research-only reference prerequisites, and
+  planned/integrated/deferred lanes. Workers deliver committed
   Iteration base/tip revisions; only an explicitly created integration agent
   may update goal state in the successful product integration commit. Product
   source and test mutation prefers a parent briefing, a bounded coding
@@ -108,6 +109,13 @@ identity and provisioning boundaries live in
   updated `goal.json` is on disk, the governing or integrating parent pushes that
   full object ID through `push-repository` (decision-0038). Ordinary Iteration
   commits do not push.
+- Research-only upstream sources live under `references/` as manifest-backed
+  exact submodule gitlinks (decision-0047). Ordinary clone, build, test,
+  package, and release workflows never recurse into them. A lane may require
+  explicit materialization before implementation, but the checkout and its
+  notes are not product truth or acceptance evidence. Relied-upon claims are
+  promoted to one canonical Core owner; any build or qualification input is
+  separately pinned by `toolchains/`.
 - A tool newly required by a repeatable workflow is versioned in the Nix-provided
   tool environment before use; this does not transfer workflow semantics or
   outputs to Nix. decision-0022 supersedes the broader decision-0021 wording.

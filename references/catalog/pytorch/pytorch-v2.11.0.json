@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "id": "pytorch-v2.11.0",
+  "kind": "git-submodule",
+  "upstream": {
+    "url": "https://github.com/pytorch/pytorch.git",
+    "revision": "70d99e998b4955e0049d13a98d77ae1b14db1f45",
+    "tag_hint": "v2.11.0"
+  },
+  "checkout": {
+    "path": "references/sources/pytorch/v2.11.0"
+  },
+  "license": {
+    "source_path": "LICENSE",
+    "url": "https://github.com/pytorch/pytorch/blob/70d99e998b4955e0049d13a98d77ae1b14db1f45/LICENSE"
+  },
+  "purpose": "Inspect the stock PyTorch CUDA initialization, Driver API, internal-table, artifact-intake, and eager-add call paths required by MetaFlux work-item-0.2.0.1.",
+  "consumers": [
+    {
+      "repository": "MetaFlux-Core",
+      "work_item": "work-item-0.2.0.1"
+    }
+  ],
+  "reference_paths": [
+    "torch/csrc/cuda",
+    "aten/src/ATen/cuda",
+    "aten/src/ATen/native/cuda",
+    "c10/cuda"
+  ]
+}

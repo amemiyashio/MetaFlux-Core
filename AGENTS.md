@@ -107,6 +107,15 @@ the repository gates.
     Queued nodes may move in the new Epoch, and existing IDs remain when their
     delivery coordinates and observable outputs remain unchanged. A no-op does
     not advance the Epoch.
+12. **Materialize reference sources only on demand.** `references/` owns
+    research-only catalog manifests, notes, and exact upstream submodule
+    gitlinks. A normal clone, build, test, package, or release must not recurse
+    into them. When the assigned lane names a reference prerequisite in
+    `agent/goal.json`, use `references/tools/reference.py` to materialize and
+    verify that entry before implementation. Treat the detached checkout as
+    read-only. A relied-upon product claim must be promoted to one canonical
+    source, test, contract, decision, constraint, or plan; a build or
+    qualification input must instead be pinned by `toolchains/`.
 
 Product boundaries live in `contracts/README.md` and
 `docs/architecture/repo-layout.md`; the language wall and dependency whitelist

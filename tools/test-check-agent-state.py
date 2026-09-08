@@ -81,7 +81,7 @@ def git(
 
 def goal() -> dict:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "epoch": "epoch-0002",
         "batch": {"id": "batch-0001", "status": "open"},
         "target": {
@@ -89,6 +89,7 @@ def goal() -> dict:
             "work_item": "work-item-0.1.0.1",
         },
         "objective": "Deliver one candidate.",
+        "references": [],
         "lanes": [
             {
                 "id": "lane-one",
@@ -272,6 +273,47 @@ def test_goal_variants(root: Path) -> None:
     found = errors(root)
     assert has_fragment(found, "duplicate iteration")
     assert has_fragment(found, "unresolved dependency")
+
+    reference_manifest = root / "references/catalog/fixture/fixture-v1.json"
+    write(
+        reference_manifest,
+        json.dumps({"schema_version": 1, "id": "fixture-v1"}) + "\n",
+    )
+    document = goal()
+    document["references"] = [
+        {
+            "id": "reference-fixture-v1",
+            "entry": "fixture-v1",
+            "required_by": ["lane-one"],
+        }
+    ]
+    write(path, json.dumps(document))
+    assert not errors(root)
+
+    write(
+        root / "references/sources/fixture/v1/upstream.md",
+        "[upstream-specific-link](missing.md)\nSC2086\n",
+    )
+    assert not errors(root)
+
+    document["references"].append(dict(document["references"][0]))
+    write(path, json.dumps(document))
+    found = errors(root)
+    assert has_fragment(found, "duplicate reference id")
+    assert has_fragment(found, "duplicate reference entry")
+
+    document = goal()
+    document["references"] = [
+        {
+            "id": "reference-missing",
+            "entry": "missing",
+            "required_by": ["lane-missing"],
+        }
+    ]
+    write(path, json.dumps(document))
+    found = errors(root)
+    assert has_fragment(found, "entry does not resolve")
+    assert has_fragment(found, "required_by has unresolved lane")
 
 
 def test_plan_and_legacy(root: Path) -> None:

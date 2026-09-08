@@ -15,7 +15,7 @@ never stored in repository goal state.
 
 This decision replaces the fixed agent product identity retained by
 decision-0033 and the later executable-probe form of the same decision. The
-execution topology remains unchanged; the current Epoch is epoch-0012.
+execution topology remains unchanged; the current Epoch is epoch-0013.
 
 ## Rationale
 

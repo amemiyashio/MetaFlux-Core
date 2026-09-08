@@ -18,9 +18,10 @@ compatibility surface, a proven upgrade path, reproducible no-Nix packages,
 and regression closure for every accepted `v0.x` release, including the
 milestone-0.2.0.0 client and execution corpus.
 
-This milestone remains queued until the milestone-0.2.0.0 MLIR CUDA and PyTorch
-CUDA foundation closes (decisions 0043-0044); passing a bounded operator corpus
-does not accelerate or imply the stable compatibility commitment.
+This milestone remains queued until the milestone-0.2.0.0 PyTorch CUDA
+transparent compatibility foundation closes (decisions 0044 and 0046);
+passing a bounded operator corpus does not accelerate or imply the stable
+compatibility commitment.
 
 decision-0040 moves the Intel x86_64 host qualification and the physical
 NVIDIA binding-performance promotion into milestone-2.0.0.0 / `v2.0.0`; this

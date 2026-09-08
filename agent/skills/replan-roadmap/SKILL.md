@@ -15,7 +15,7 @@ Model the active route as a dependency DAG:
 user objective
   -> milestones
   -> work items
-  -> open decisions and evidence prerequisites
+  -> open decisions, reference inputs, and evidence prerequisites
   -> serial or parallel Iteration lanes
 ```
 
@@ -46,10 +46,13 @@ selection. Do not write tracked files or infer a winner.
    implementation maturity, and release evidence independently. A written
    design is not implementation evidence and a fake-client test is not a real
    client qualification gate.
-4. Build a DAG whose nodes are milestones, work items, open decisions, evidence
-   prerequisites, and bounded Iteration lanes. Use `depends_on`, `blocks`, and
-   `evidenced_by` edges. Reject unresolved dependencies, duplicate node IDs,
-   cycles, and a lane whose Exit Gate can pass without its prerequisites.
+4. Build a DAG whose nodes are milestones, work items, open decisions, active
+   reference prerequisites from `agent/goal.json`, evidence prerequisites, and
+   bounded Iteration lanes. Resolve every reference entry against
+   `references/catalog/` and place it before each lane named by `required_by`.
+   Use `depends_on`, `blocks`, and `evidenced_by` edges. Reject unresolved
+   dependencies, duplicate node IDs, cycles, and a lane whose Exit Gate can pass
+   without its prerequisites.
 5. Classify each affected node as `keep`, `reorder`, `rewrite`, or `delete`.
    Completed milestones and work items remain closed. Active and Queued nodes
    may move in the candidate Epoch. Preserve a milestone or work-item ID when
@@ -109,8 +112,9 @@ do not invoke destructive governance, and do not advance the Epoch.
    or implement a lane during replanning. Replanning only changes route,
    governance, tests for the workflow itself, and current canonical authority.
 5. Run proposal self-tests, skill validation and routing, Agent state and its
-   self-test, exact residual scans, the component graph, affected domain gates,
-   a complete dev build, full CTest, and `git diff --check`.
+   self-test, reference catalog verification and its self-test, exact residual
+   scans, the component graph, affected domain gates, a complete dev build,
+   full CTest, and `git diff --check`.
 6. Commit one atomic activation through the `start-work` commit helper. Resolve
    the resulting full object ID and publish exactly it through
    `push-repository` as required by `govern-epoch`.

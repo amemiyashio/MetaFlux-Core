@@ -35,6 +35,8 @@ EPOCH_ID_RE = re.compile(r"epoch-[0-9]{4}")
 BATCH_ID_RE = re.compile(r"batch-[0-9]{4}")
 ITERATION_ID_RE = re.compile(r"iteration-[0-9]{4}")
 LANE_ID_RE = re.compile(r"lane-[a-z0-9]+(?:-[a-z0-9]+)*")
+REFERENCE_ID_RE = re.compile(r"reference-[a-z0-9]+(?:[.-][a-z0-9]+)*")
+CATALOG_ENTRY_ID_RE = re.compile(r"[a-z0-9]+(?:[.-][a-z0-9]+)*")
 SKILL_SLUG_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 PROGRESS_HEADING_RE = re.compile(
     r"^#{2,6}\s+(?:measured progress|diagnostic record|handoff snapshot)\b",
@@ -106,6 +108,7 @@ FORBIDDEN_PATHS = (
     / "scripts"
     / ("test_commit_as_" + "harness.py"),
 )
+REFERENCE_SOURCE_ROOT = Path("references") / "sources"
 
 
 def parse_scalar(raw: str) -> Any:
@@ -238,6 +241,13 @@ class Checker:
             return path.relative_to(self.root).as_posix()
         except ValueError:
             return str(path)
+
+    def is_reference_source(self, path: Path) -> bool:
+        try:
+            relative = path.resolve().relative_to(self.root)
+        except ValueError:
+            return False
+        return relative == REFERENCE_SOURCE_ROOT or REFERENCE_SOURCE_ROOT in relative.parents
 
     @contextmanager
     def diagnostic_policy(
@@ -496,11 +506,19 @@ class Checker:
         if not isinstance(goal, dict):
             self.error(path, "goal must be an object")
             return
-        expected = {"schema_version", "epoch", "batch", "target", "objective", "lanes"}
+        expected = {
+            "schema_version",
+            "epoch",
+            "batch",
+            "target",
+            "objective",
+            "references",
+            "lanes",
+        }
         if set(goal) != expected:
             self.error(path, f"goal keys must be exactly {sorted(expected)}")
-        if goal.get("schema_version") != 1:
-            self.error(path, "schema_version must be 1")
+        if goal.get("schema_version") != 2:
+            self.error(path, "schema_version must be 2")
         epoch = goal.get("epoch")
         if not isinstance(epoch, str) or EPOCH_ID_RE.fullmatch(epoch) is None:
             self.error(
@@ -597,6 +615,73 @@ class Checker:
             for dependency in dependencies:
                 if dependency not in lane_ids:
                     self.error(path, f"lane {lane_id} has unresolved dependency {dependency}")
+
+        references = goal.get("references")
+        if not isinstance(references, list):
+            self.error(path, "references must be a list")
+            references = []
+        catalog_ids: set[str] = set()
+        for manifest in sorted((self.root / "references/catalog").glob("**/*.json")):
+            if manifest.name == "schema-v1.json":
+                continue
+            try:
+                document = json.loads(manifest.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            identifier = document.get("id") if isinstance(document, dict) else None
+            if isinstance(identifier, str):
+                catalog_ids.add(identifier)
+        reference_ids: set[str] = set()
+        reference_entries: set[str] = set()
+        for index, reference in enumerate(references):
+            where = f"reference[{index}]"
+            if not isinstance(reference, dict) or set(reference) != {
+                "id",
+                "entry",
+                "required_by",
+            }:
+                self.error(
+                    path,
+                    f"{where} keys must be exactly ['entry', 'id', 'required_by']",
+                )
+                continue
+            reference_id = reference.get("id")
+            if (
+                not isinstance(reference_id, str)
+                or REFERENCE_ID_RE.fullmatch(reference_id) is None
+            ):
+                self.error(path, f"{where}.id must be a descriptive reference slug")
+            elif reference_id in reference_ids:
+                self.error(path, f"duplicate reference id: {reference_id}")
+            else:
+                reference_ids.add(reference_id)
+            entry = reference.get("entry")
+            if (
+                not isinstance(entry, str)
+                or CATALOG_ENTRY_ID_RE.fullmatch(entry) is None
+            ):
+                self.error(path, f"{where}.entry must be a catalog entry id")
+            elif entry in reference_entries:
+                self.error(path, f"duplicate reference entry: {entry}")
+            else:
+                reference_entries.add(entry)
+                if entry not in catalog_ids:
+                    self.error(path, f"{where}.entry does not resolve: {entry}")
+            required_by = reference.get("required_by")
+            if (
+                not isinstance(required_by, list)
+                or not required_by
+                or any(not isinstance(item, str) for item in required_by)
+                or len(required_by) != len(set(required_by))
+            ):
+                self.error(path, f"{where}.required_by must be a unique non-empty list")
+            else:
+                for lane_id in required_by:
+                    if lane_id not in lane_ids:
+                        self.error(
+                            path,
+                            f"{where}.required_by has unresolved lane {lane_id}",
+                        )
         cycle = find_cycle(graph)
         if cycle is not None:
             self.error(path, "lane dependency cycle: " + " -> ".join(cycle))
@@ -947,13 +1032,24 @@ class Checker:
                         self.error(path, f"broken Markdown anchor: {raw}")
 
     def markdown_files(self) -> list[Path]:
-        return [path for path in self.root.rglob("*.md") if ".git" not in path.parts and not any(part.startswith("build") for part in path.parts)]
+        return [
+            path
+            for path in self.root.rglob("*.md")
+            if ".git" not in path.parts
+            and not any(part.startswith("build") for part in path.parts)
+            and not self.is_reference_source(path)
+        ]
 
     def text_files(self) -> list[Path]:
         allowed = {".md", ".json", ".py", ".sh", ".cmake", ".txt", ".yaml", ".yml"}
         result: list[Path] = []
         for path in self.root.rglob("*"):
-            if not path.is_file() or ".git" in path.parts or any(part.startswith("build") for part in path.parts):
+            if (
+                not path.is_file()
+                or ".git" in path.parts
+                or any(part.startswith("build") for part in path.parts)
+                or self.is_reference_source(path)
+            ):
                 continue
             if path.suffix.lower() in allowed or path.name in {"AGENTS.md", "CMakeLists.txt", "CLAUDE.md"}:
                 result.append(path)
@@ -981,7 +1077,11 @@ class Checker:
             re.compile(r"\bA[0-9]{3}\b"),
         )
         for path in self.root.rglob("*"):
-            if ".git" in path.parts or any(part.startswith("build") for part in path.parts):
+            if (
+                ".git" in path.parts
+                or any(part.startswith("build") for part in path.parts)
+                or self.is_reference_source(path)
+            ):
                 continue
             relative = path.relative_to(self.root)
             for part in relative.parts:

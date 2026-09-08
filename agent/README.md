@@ -21,7 +21,7 @@ queued plans describe intent, not implemented behavior.
 
 ## Execution Scale
 
-- **Epoch** (`epoch-0012`): one repository-wide semantic governance regime.
+- **Epoch** (`epoch-0013`): one repository-wide semantic governance regime.
   Only explicit `govern-epoch` may advance it, after a full current-authority
   rewrite and passing regression.
 - **Batch** (`batch-0001`): one bounded collection of parallel product lanes
@@ -32,7 +32,7 @@ queued plans describe intent, not implemented behavior.
 
 The full identity is always written as
 `epoch-NNNN / batch-NNNN / iteration-NNNN` (currently
-`epoch-0012 / batch-0001 / iteration-0001`). A worker delivers exact base and tip
+`epoch-0013 / batch-0001 / iteration-0001`). A worker delivers exact base and tip
 revisions. Product source and test mutation prefers a parent briefing, a bounded
 coding subagent, and parent review against drift. Only an explicitly created
 integration agent changes `goal.json`.
@@ -43,11 +43,12 @@ tree; Git and the originating conversation retain their evidence.
 
 | Path | Authority |
 | --- | --- |
-| `goal.json` | Current Epoch, Batch, target, lanes, dependencies, and acceptance |
+| `goal.json` | Current Epoch, Batch, target, reference prerequisites, lanes, dependencies, and acceptance |
 | `plan/` | Product milestones, work items, dependencies, and Exit Gates |
 | `memory/` | Compact stable constraints, decisions, ownership, and terminology |
 | `experience/` | Reusable engineering methods with reproducible evidence |
 | `skills/` | Task-specific operating instructions |
+| `../references/` | Research-only upstream gitlinks, manifests, and non-normative inspection notes |
 
 There are no session, focus, checkpoint, guidance, semantic-change, or roast
 record directories. Git history is the sole prior-state recovery mechanism.

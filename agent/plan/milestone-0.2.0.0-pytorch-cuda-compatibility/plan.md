@@ -101,7 +101,8 @@ contracts with less speculative breadth.
 The dependency DAG and critical path are:
 
 ```text
-baseline-required provider surface
+pytorch-v2.11.0 exact reference gitlink readiness
+  -> baseline-required provider surface
   + minimal neutral request schema and lifetime
   + daemon CPU execution mode and cache identity
       -> work-item-0.2.0.1 stock five-stage baseline
@@ -123,16 +124,22 @@ Node disposition from epoch-0011 is:
 | Pinned client surface, neutral request, Kernel IR, CPU, and Vulkan boundaries | Keep | decision-0044 remains the execution ownership authority. |
 | Full surface matrix and handle-negative expansion | Reorder | Move after the minimal stock-client vertical baseline. |
 | Eager add and minimal CPU execution | Reorder | Pull into the first lane as the earliest user-visible success. |
-| MLIR CUDA headline and compiler-first narrative | Rewrite | MLIR is internal mechanism, not the product objective. |
+| Compiler-first headline and narrative | Rewrite | MLIR is internal mechanism, not the product objective. |
 | Provider-local tensor results as qualifying evidence | Delete | They do not prove daemon submission or backend completion. |
 
-Verification state: this decision is active as the epoch-0012 route. Technical
-decisions listed below remain open until their own closure evidence exists.
+Verification state: this decision is retained by the epoch-0013 route.
+decision-0047 adds only a research-readiness prerequisite before the first
+lane; it does not change the product objective, work-item IDs, or lane order.
+Technical decisions listed below remain open until their own closure evidence
+exists.
 
 ## Scope
 
 Included:
 
+- Exact, on-demand PyTorch v2.11.0 reference-source materialization before
+  first-lane implementation; the catalog and gitlink are research-only
+  readiness inputs under decision-0047.
 - Pinned stock PyTorch `2.11.0+cu126`, its normal `torch.cuda` API, and the
   exact five-stage gate: import, driver enumeration, runtime copy, artifact
   intake, and eager add.

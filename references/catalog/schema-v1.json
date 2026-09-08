@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/amemiyashio/MetaFlux-Core/references/catalog/schema-v1.json",
+  "title": "MetaFlux reference catalog entry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "kind",
+    "upstream",
+    "checkout",
+    "license",
+    "purpose",
+    "consumers",
+    "reference_paths"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*$" },
+    "kind": { "const": "git-submodule" },
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "revision", "tag_hint"],
+      "properties": {
+        "url": { "type": "string", "pattern": "^https://" },
+        "revision": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "tag_hint": { "type": "string", "minLength": 1 }
+      }
+    },
+    "checkout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^references/sources/" }
+      }
+    },
+    "license": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_path", "url"],
+      "properties": {
+        "source_path": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "pattern": "^https://" }
+      }
+    },
+    "purpose": { "type": "string", "minLength": 1 },
+    "consumers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repository", "work_item"],
+        "properties": {
+          "repository": { "type": "string", "minLength": 1 },
+          "work_item": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "reference_paths": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

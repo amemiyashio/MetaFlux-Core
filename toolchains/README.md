@@ -9,6 +9,7 @@ they do not redefine them.
 | Concern | Owner |
 | --- | --- |
 | Project source identity and history | Git commits and trees |
+| Research-only upstream source identity | `references/` manifests and exact Git submodule gitlinks |
 | Tool versions, upstream identities, patches, and input hashes | `toolchains/` manifests and `flake.lock` |
 | Materializing and exposing the declared tools | Nix |
 | Configure and build graph | CMake and Ninja |
@@ -49,6 +50,13 @@ qualification ownership.
 The default repository Python closure includes PyYAML for the static skill and
 repository YAML validators. The pinned nixpkgs revision fixes both identities;
 the validators, not Nix, continue to own schema meaning and acceptance.
+
+Research-only upstream source under `references/` is outside the tool-provider
+boundary. Nix does not fetch or expose those submodules, and their presence is
+never a build, test, package, qualification, or release prerequisite. If a
+reference later becomes an input to any of those workflows, its exact identity
+must be promoted into the owning `toolchains/` manifest and validated there;
+the reference catalog is not a second toolchain authority (decision-0047).
 
 Under decision-0031, command resolution is Nix-first and the Nix shell is the
 first-choice execution environment. Development enters the Git-aware

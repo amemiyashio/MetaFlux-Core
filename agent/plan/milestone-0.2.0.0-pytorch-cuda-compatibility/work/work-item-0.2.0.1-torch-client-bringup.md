@@ -36,6 +36,10 @@ tree therefore does not satisfy this work item.
 
 ## Decisions Before Integration
 
+- Materialize and verify the `pytorch-v2.11.0` reference entry before
+  inspecting framework call paths. Its gitlink and notes are research-only;
+  any relied-upon conclusion must be promoted to an owning Core decision,
+  contract, source path, or test (decision-0047).
 - Close the exact baseline-required Driver and profile-specific internal-table
   surface. Every entry records normative, pinned observation, or
   MetaFlux-strengthened provenance; unsupported slots fail stably.
@@ -50,6 +54,8 @@ routing remain in their dependent work items.
 
 ## Work
 
+- [ ] Materialize `pytorch-v2.11.0` through the checked-in reference tool and
+  use only its exact detached revision for source-path inspection.
 - [ ] Pin and provision stock PyTorch `2.11.0+cu126` in a checked-in gate without
   editing its source, wheel, or `torch.cuda` API.
 - [ ] Make import, driver enumeration, and runtime copy pass against a stock

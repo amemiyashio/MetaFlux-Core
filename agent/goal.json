@@ -1,6 +1,6 @@
 {
-  "schema_version": 1,
-  "epoch": "epoch-0012",
+  "schema_version": 2,
+  "epoch": "epoch-0013",
   "batch": {
     "id": "batch-0001",
     "status": "open"
@@ -10,6 +10,13 @@
     "work_item": "work-item-0.2.0.1"
   },
   "objective": "Make pinned stock PyTorch 2.11.0+cu126 run its normal torch.cuda path through MetaFlux without PyTorch source, wheel, or API changes: first pass the five-stage baseline with daemon submission and CPU-backend completion, then expand the versioned CPU corpus, and finally qualify the same Kernel IR corpus on Vulkan.",
+  "references": [
+    {
+      "id": "reference-pytorch-v2.11.0",
+      "entry": "pytorch-v2.11.0",
+      "required_by": ["lane-stock-pytorch-cuda-baseline"]
+    }
+  ],
   "lanes": [
     {
       "id": "lane-stock-pytorch-cuda-baseline",

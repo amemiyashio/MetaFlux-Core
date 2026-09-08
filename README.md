@@ -37,6 +37,9 @@ remain authoritative under `docs/architecture/`, and ABI/UAPI definitions
 remain authoritative under `contracts/`. The directory taxonomy and dependency
 map are in
 [`docs/architecture/repo-layout.md`](docs/architecture/repo-layout.md).
+Research-only upstream source pointers live under [`references/`](references/README.md)
+as exact, on-demand submodule gitlinks; ordinary builds and qualification do
+not materialize them.
 
 Containers for release qualification run under podman through
 `nix develop .#release`; `docker/` is the approved home for their build

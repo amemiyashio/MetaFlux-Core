@@ -47,11 +47,15 @@ Current v0.2 maturity is a provider-side compatibility prototype, not qualified
 daemon/backend execution (decision-0044). The repository has a five-stage probe,
 pinned client manifests, and selected PyTorch kernel-name handlers, but CTest
 exercises the probe with a fake client and no checked-in real-client operator
-corpus exists. Epoch-0012 prioritizes the shortest observable stock-client
+corpus exists. Epoch-0013 preserves the shortest observable stock-client
 path: eager add must move through a minimal versioned neutral request into
 canonical Kernel IR and the daemon CPU backend before the surface and corpus
-broaden. MLIR remains internal to backend compilation; Vulkan qualification
-then reuses the same Kernel IR corpus (decision-0046).
+broaden. Its first implementation lane now has a research-only readiness
+prerequisite: the exact PyTorch v2.11.0 gitlink and catalog entry under
+`references/` must be materialized and verified before source inspection.
+This reference is not product, build, qualification, or release evidence
+(decision-0047). MLIR remains internal to backend compilation; Vulkan
+qualification then reuses the same Kernel IR corpus (decision-0046).
 Intel x86_64 qualification and physical NVIDIA
 binding-performance promotion belong to milestone-2.0.0.0 / `v2.0.0`
 (decision-0040), and native NixOS VM/package qualification remains the

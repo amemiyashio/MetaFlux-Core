@@ -18,6 +18,7 @@ decision-0034 agent-tool identity boundary:
 - full-word milestone, work-item, decision, and experience identities;
 - dotted delivery coordinates, plan dependencies, and Exit Gates;
 - `agent/goal.json` Epoch/Batch/Iteration hierarchy and acyclic lane graph;
+- active reference prerequisites resolve to entries under `references/catalog/`;
 - the current skill catalog, explicit workflow policy, links, and decision refs;
 - absence of superseded execution-history paths, markers, and parsers.
 
@@ -30,6 +31,8 @@ The optional commit gate re-runs the candidate-tree agent-tool detector,
 validates the candidate goal, and requires Git Author/Committer to match the
 conversation-emitted harness subject. Epoch is read once from the candidate
 `agent/goal.json`; no environment copy participates in commit identity.
+`references/tools/reference.py` separately verifies exact gitlinks and
+materializes only the source entry explicitly needed for research.
 Integration agents additionally submit exact committed revisions; the checker
 proves that the current Epoch activation precedes the base, the base precedes
 the tip, and the base belongs to current main history.

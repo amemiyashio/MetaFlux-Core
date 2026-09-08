@@ -48,8 +48,9 @@ the new Epoch is published without rebase and revalidation.
    numbering, preserve the dependency-valid product target, and define the next
    bounded lanes.
 6. Run exact residual scans, the candidate state checker and its self-tests,
-   skill validation/routing, commit identity gates, component graph, relevant
-   domain tests, full CTest, and `git diff --check`.
+   skill validation/routing, reference catalog verification and its self-test,
+   commit identity gates, component graph, relevant domain tests, full CTest,
+   and `git diff --check`.
 
 Any failure means the candidate Epoch is not published. Repair it in the same
 governance work unit and repeat the full regression. Only a completely passing

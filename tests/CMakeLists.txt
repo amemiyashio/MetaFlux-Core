@@ -429,6 +429,27 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "architecture"
   )
   add_test(
+    NAME metaflux.architecture.reference-catalog
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../references/tools/reference.py"
+      --root "${PROJECT_SOURCE_DIR}" verify
+  )
+  set_tests_properties(
+    metaflux.architecture.reference-catalog
+    PROPERTIES LABELS "architecture;reference"
+  )
+  add_test(
+    NAME metaflux.architecture.reference-catalog-selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../references/tools/test_reference.py"
+  )
+  set_tests_properties(
+    metaflux.architecture.reference-catalog-selftest
+    PROPERTIES LABELS "architecture;reference;unit"
+  )
+  add_test(
     NAME metaflux.architecture.agent-diagnostics-selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B

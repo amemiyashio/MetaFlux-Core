@@ -48,6 +48,9 @@ leaves live scheduling to the application that already owns agents and threads.
 - An Iteration is one committed candidate for a lane or one committed repair
   candidate. It is identified by its full Epoch/Batch/Iteration triple and
   exact base/tip revisions.
+- A reference prerequisite maps one catalog entry under `references/` to the
+  lanes that require it for implementation research. It is readiness state,
+  not progress, product capability, or release evidence (decision-0047).
 
 Lane state is `planned`, `integrated`, or `deferred`. Batch state is `open` or
 `integrated`. There is no persisted in-progress state: the application and
@@ -130,11 +133,12 @@ not advance the Epoch. A semantic route change composes `roast` and
 Epoch publisher.
 
 The route is a DAG from user objective through milestones, work items, open
-decisions and evidence prerequisites to Iteration lanes. Completed milestones
-and work items remain closed. Active and Queued nodes may be reordered in a new
-Epoch. Existing IDs remain when delivery coordinates and observable outputs
-are unchanged. Planning does not close evidence-bound technical decisions,
-modify product source, dispatch workers, or create execution contexts.
+decisions, active reference inputs, and evidence prerequisites to Iteration
+lanes. Completed milestones and work items remain closed. Active and Queued
+nodes may be reordered in a new Epoch. Existing IDs remain when delivery
+coordinates and observable outputs are unchanged. Planning does not close
+evidence-bound technical decisions, modify product source, dispatch workers, or
+create execution contexts.
 `agent/goal.json` remains the only active route state; proposals and prior
 routes are not stored as ledgers, databases, or compatibility views.
 
