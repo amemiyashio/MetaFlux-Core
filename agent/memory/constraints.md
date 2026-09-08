@@ -87,12 +87,13 @@ identity and provisioning boundaries live in
   root. That skill is the sole owner for sudo/su, root-helper, persistent-grant,
   and revocation policy. Neither path permits arbitrary root commands or
   credential persistence.
-- Agent execution follows decision-0033 as amended by decision-0037.
+- Agent execution follows decision-0033 as amended by decisions 0037 and 0051.
   `agent/goal.json` stores only the active Epoch, Batch, product target,
   objective, research-only reference prerequisites, and
-  planned/integrated/deferred lanes. Workers deliver committed
-  Iteration base/tip revisions; only an explicitly created integration agent
-  may update goal state in the successful product integration commit. Product
+  planned/integrated/deferred lanes. Workers deliver committed Iteration base/tip
+  revisions; the execution controller automatically invokes the integration
+  stage for dependency-ready qualified deliveries, and only that stage may
+  update goal state in the successful product integration commit. Product
   source and test mutation prefers a parent briefing, a bounded coding
   subagent, and parent conversational review against drift. The parent does not
   start the next coding-subagent dispatch or Iteration cycle until that review

@@ -33,7 +33,7 @@ conversation-emitted harness subject. Epoch is read once from the candidate
 `agent/goal.json`; no environment copy participates in commit identity.
 `references/tools/reference.py` separately verifies exact gitlinks and
 materializes only the source entry explicitly needed for research.
-Integration agents additionally submit exact committed revisions; the checker
+The automatic integration stage additionally submits exact committed revisions; the checker
 proves that the current Epoch activation precedes the base, the base precedes
 the tip, and the base belongs to current main history.
 

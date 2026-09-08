@@ -30,8 +30,8 @@ leaves live scheduling to the application that already owns agents and threads.
 
 - Workers cannot claim repository authority through activity metadata; a
   committed Iteration and its tests are the candidate unit.
-- Parallel work is accepted only by a separate integration agent against exact
-  revisions, so a delivery cannot silently replace main state.
+- Parallel work is accepted by an automatically invoked integration stage against
+  exact revisions, so a delivery cannot silently replace main state.
 - Governance is intentionally destructive and atomic. A failed Epoch candidate
   remains unpublished and is repaired in place.
 - Old execution detail has no current-tree lookup path. Valuable knowledge must
@@ -43,8 +43,9 @@ leaves live scheduling to the application that already owns agents and threads.
 
 - An Epoch is a repository-wide semantic regime and advances only through an
   explicitly requested destructive `govern-epoch` run.
-- A Batch is a bounded set of lanes accepted together. Only an explicit
-  integration run may change Batch or lane state.
+- A Batch is a bounded set of lanes accepted together. The execution controller
+  automatically invokes integration after a dependency-ready qualified delivery;
+  only that stage may change Batch or lane state.
 - An Iteration is one committed candidate for a lane or one committed repair
   candidate. It is identified by its full Epoch/Batch/Iteration triple and
   exact base/tip revisions.
@@ -84,21 +85,28 @@ roast_candidates: material claims only
 The delivery must resolve to committed Git objects. Dirty, staged, untracked,
 or inferred worktree state is not accepted.
 
-## Integration Contract
+## Automatic Batch Integration (decision-0051)
 
-The user explicitly creates an integration agent and supplies exact deliveries.
+After a worker delivers exact committed revisions and its lane dependencies and
+focused gates are ready, the execution controller automatically invokes
+`integrate-batch`. No second user message is a state-transition prerequisite.
 The integrator verifies that each base is at or after the activation commit of
-the current Epoch, reviews `base..tip`, and orders lanes by `depends_on`.
-Accepted lane history is retained through non-fast-forward merges. Bounded
-conflict and composition repairs belong to the relevant merge; a change to the
-lane's intended product semantics returns as a new Iteration.
+the current Epoch, reviews `base..tip`, and orders candidates by `depends_on`.
+
+When a candidate tip is the integration context's current `HEAD`, its linear
+history is already present and the integrator creates an in-place acceptance
+commit. A divergent candidate is retained through a non-fast-forward merge. A
+candidate that is merely an older ancestor of `HEAD` is stale and is rejected
+until it is rebased and revalidated. Bounded conflict and composition repairs
+belong to the relevant merge; a change to the lane's intended product semantics
+returns as a new Iteration.
 
 Each lane receives focused verification. The combined tree then receives the
 Batch regression. Only a passing combined tree may mark lanes or the Batch
-integrated, and that state change is included in the final product merge rather
-than a standalone record commit. Failure leaves main and `goal.json` unchanged.
-After the integration commit is on disk, the integrating parent pushes that
-full object ID through `push-repository`.
+integrated, and that state change is included in the final acceptance commit
+rather than a standalone record commit. Failure leaves main and `goal.json`
+unchanged. After the acceptance commit is on disk, the integrating parent
+pushes that full object ID through `push-repository`.
 
 ## Task-Stop Contract
 

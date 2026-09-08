@@ -604,7 +604,7 @@
       "id": "INTEGRATE-P1",
       "kind": "single",
       "locale": "en",
-      "prompt": "Use $integrate-batch to integrate these exact committed Iteration base and tip revisions in dependency order, preserving lane history and running the combined regression.",
+      "prompt": "A dependency-ready committed Iteration delivery has passed its focused gates. Automatically integrate its exact base and tip revisions in dependency order, preserve lane history, and run the combined regression.",
       "expected_skills": ["integrate-batch"],
       "forbidden_skills": []
     },
@@ -612,7 +612,7 @@
       "id": "INTEGRATE-P2",
       "kind": "single",
       "locale": "en",
-      "prompt": "Use $integrate-batch for the supplied epoch, batch, iteration, base revision, and tip revision deliveries; reject dirty or unrelated input and update goal state only after all tests pass.",
+      "prompt": "After a qualified delivery supplies its epoch, batch, iteration, base revision, and tip revision, automatically run integration; reject dirty or unrelated input and update goal state only after all tests pass.",
       "expected_skills": ["integrate-batch"],
       "forbidden_skills": []
     },
@@ -620,7 +620,7 @@
       "id": "INTEGRATE-N1",
       "kind": "near-miss",
       "locale": "en",
-      "prompt": "Review this CUDA Driver provider patch only for libcuda symbol, handle, and error correctness; no Batch integration was requested.",
+      "prompt": "Review this CUDA Driver provider patch only for libcuda symbol, handle, and error correctness; it supplies no committed lane delivery or gate evidence.",
       "expected_skills": ["cuda-driver-abi-compatibility"],
       "forbidden_skills": ["integrate-batch"]
     },
@@ -628,7 +628,7 @@
       "id": "INTEGRATE-ZH-P1",
       "kind": "single",
       "locale": "zh-CN",
-      "prompt": "使用 $integrate-batch 按依赖顺序集成给定 Iteration 的精确 base/tip revisions，保留工作线历史，并在全部联调通过后更新 goal。",
+      "prompt": "已交付通过 focused gates 的 Iteration 精确 base/tip revisions 后，自动按依赖顺序集成，保留工作线历史，并在全部联调通过后更新 goal。",
       "expected_skills": ["integrate-batch"],
       "forbidden_skills": []
     },

@@ -36,11 +36,12 @@ reserved for `v0.3.0`.
 | Architecture | Provider, neutral protocol, daemon/compiler worker, canonical Kernel IR, CPU backend, and Vulkan backend owners exist. | Keep component boundaries and make stock PyTorch behavior the outer success signal. |
 | Activation | The checked-in gate provisions pinned stock PyTorch `2.11.0+cu126` and reaches all five stages against the stock daemon. | Preserve this exact profile as the CPU-profile and Vulkan qualification input. |
 | Implementation maturity | The eager int32 add crosses a capability-gated neutral request into daemon-owned Kernel IR and CPU interpreter execution. Deferred profile operations return classified unsupported errors rather than bypassing the daemon. | Broaden only through the versioned corpus and its daemon-owned routes. |
-| Release evidence | One real-client operation has baseline evidence, but no versioned CPU corpus, compiled-cache profile, Vulkan differential gate, or current gap manifests qualify `v0.2.0`. | Treat the baseline as an integration candidate, not a release. |
+| Release evidence | One real-client operation has passed its focused and cumulative evidence, but no versioned CPU corpus, compiled-cache profile, Vulkan differential gate, or current gap manifests qualify `v0.2.0`. | Treat the accepted baseline as the CPU-profile prerequisite, not a release. |
 
-The readiness result is `not ready` for release and `ready for the first-lane
-integration candidate`: its three baseline decisions have real evidence, while
-the broad corpus and Vulkan work remain in the following lanes.
+The readiness result is `not ready` for release and `ready for the CPU-profile
+lane`: its three baseline decisions have real evidence and the baseline is
+integrated, while the broad corpus and Vulkan work remain in the following
+lanes.
 
 ## Current Evidence
 
@@ -55,7 +56,7 @@ The same gate deliberately rejects an unexpected internal-table surface,
 unclassified reached slot, mismatched neutral request, or local semantic event.
 It is limited to the named profile and one operation: no common-operator corpus,
 compiled-cache profile, or Vulkan route is yet qualified. That distinction keeps
-the real baseline as integration evidence without overstating milestone
+the accepted baseline from overstating milestone
 completion.
 
 ## Evidence and Execution Boundary (decision-0044)
@@ -129,7 +130,7 @@ Node disposition from epoch-0011 is:
 | Compiler-first headline and narrative | Rewrite | MLIR is internal mechanism, not the product objective. |
 | Provider-local tensor results as qualifying evidence | Delete | They do not prove daemon submission or backend completion. |
 
-Verification state: this decision is retained by the epoch-0013 route.
+Verification state: this decision is retained by the epoch-0014 route.
 decision-0047 adds only a research-readiness prerequisite before the first
 lane; it does not change the product objective, work-item IDs, or lane order.
 Technical decisions listed below remain open until their own closure evidence
@@ -175,7 +176,7 @@ Excluded:
 
 | Workstream | Status | Deliverable |
 | --- | --- | --- |
-| [work-item-0.2.0.1](work/work-item-0.2.0.1-torch-client-bringup.md) | Active | Stock PyTorch CUDA five-stage baseline through daemon CPU execution |
+| [work-item-0.2.0.1](work/work-item-0.2.0.1-torch-client-bringup.md) | Complete | Stock PyTorch CUDA five-stage baseline through daemon CPU execution |
 | [work-item-0.2.0.2](work/work-item-0.2.0.2-torch-kernel-intake.md) | Queued | Complete CPU profile, neutral Kernel IR boundary, and versioned operator corpus |
 | [work-item-0.2.0.3](work/work-item-0.2.0.3-framework-qualification.md) | Queued | PyTorch CUDA Vulkan and lifecycle qualification |
 
@@ -267,6 +268,27 @@ warm JIT, and AOT retain their existing deterministic cache identities and
 qualification rules. Any future stock-PyTorch compiled path must promote its
 compiler inputs, target/cache identity, and cache hit/miss evidence in
 work-item-0.2.0.2 before it joins the versioned CPU corpus.
+
+### Automatic Batch integration (decision-0051)
+
+The execution controller automatically invokes `integrate-batch` after a
+dependency-ready worker delivery provides exact committed base/tip revisions
+and passing focused-gate evidence. A second user message is not a prerequisite
+for the acceptance transition. The integration stage remains the only writer of
+Batch and lane state, runs `roast` and the combined regression, and pushes only
+the resulting acceptance commit.
+
+When the candidate tip is already the integration context's `HEAD`, the
+integration stage preserves that linear history and makes an in-place acceptance
+commit. A divergent candidate is retained through a non-fast-forward merge;
+an older ancestor is stale and must be rebased and revalidated. This allows the
+current five-stage baseline to be accepted without manufacturing a merge while
+keeping future parallel delivery history auditable.
+
+Evidence is the governed automatic-integration skill, routing corpus, state
+checker policy, and the epoch-0014 full regression. This decision changes
+workflow ownership only; it does not broaden the PyTorch compatibility claim or
+close either remaining v0.2 technical decision.
 
 ## Definition of Done
 

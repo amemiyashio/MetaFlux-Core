@@ -2,7 +2,7 @@
 id: work-item-0.2.0.1
 delivery: 0.2.0.1
 milestone: milestone-0.2.0.0
-status: Active
+status: Complete
 area: compat.cuda
 depends_on: [work-item-0.1.0.4]
 updated: 2026-09-08
@@ -37,9 +37,9 @@ The gate records the exact baseline request/profile versions, direct provider
 and internal-table surface, daemon launch, CPU mode, and result bytes. It is a
 single-operation baseline, not the CPU profile or a general PyTorch CUDA claim.
 The exact Driver/internal-table, neutral request/lifetime, and CPU interpreter
-cache-non-use decisions are closed by decisions 0048-0050. Cumulative
-regression and explicit Batch integration remain the only transition to an
-integrated lane state.
+cache-non-use decisions are closed by decisions 0048-0050. The epoch-0014
+governance regression accepts this evidence as the integrated baseline; the
+next work is the dependent CPU profile, not another provider-local shortcut.
 
 ## Decisions Before Integration
 

@@ -177,7 +177,7 @@ reference prerequisite performs no reference operation.
 
 ## Assignment And Subagent Boundary
 
-The user or application owns scheduling, worktree, and lane assignment.
+The execution controller owns scheduling, worktree, and lane assignment.
 `planned` sibling lanes describe the Batch integration topology; they are not a
 queue for the current worker to claim or dispatch. Existing parallel agents and
 worktrees are accepted as external facts, not authorization to create more. After
@@ -225,11 +225,12 @@ attributing the change to another agent. Stop after the first unexplained
 mutation; do not create another worktree or clone as a retry until the source is
 identified and the existing candidate is preserved.
 
-If the user explicitly requests Batch integration, load `integrate-batch`. If
-the user explicitly requests destructive governance, load `govern-epoch`.
-Ordinary Iteration delivery does not load `push-repository`. After an Epoch
-activation or Batch-integration commit owned by those explicit workflows is on
-disk, that parent loads `push-repository` with that commit's full object ID.
+After a dependency-ready committed Iteration delivery, the execution controller
+loads `integrate-batch` automatically. If the user explicitly requests
+destructive governance, load `govern-epoch`. Ordinary Iteration delivery does
+not load `push-repository`. After an Epoch activation or automatic
+Batch-integration commit is on disk, that parent loads `push-repository` with
+that commit's full object ID.
 Any other external Git push still requires an explicit user or application
 request and one full committed object ID.
 
@@ -245,8 +246,9 @@ that review accepts the current dispatch. Do not write a session, roast,
 checkpoint, progress, or review archive. Parent remains sole owner of
 verification commands and the start-work commit helper. Parent remains sole
 owner of `goal.json`; workers never edit it. Only after review may the parent
-run tests and commit via the commit helper. Do not push an ordinary Iteration
-commit.
+run tests and commit via the commit helper. The execution controller then
+automatically runs `integrate-batch` before scheduling another lane. Do not
+push an ordinary Iteration commit.
 
 Implement one coherent lane candidate and run focused tests proportional to its
 risk. Commit all delivered changes; staged, unstaged, untracked, or generated

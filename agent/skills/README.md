@@ -15,7 +15,7 @@ this directory.
 | --- | --- | --- |
 | [start-work](start-work/SKILL.md) | Active | Beginning any repository task or Iteration |
 | [detect-agent-tool](detect-agent-tool/SKILL.md) | Active | Reporting the conversation-emitted harness name without probing executables or model metadata |
-| [integrate-batch](integrate-batch/SKILL.md) | Active | The user explicitly requests integration of committed Iterations |
+| [integrate-batch](integrate-batch/SKILL.md) | Active | Automatically accepting qualified committed Iterations |
 | [govern-epoch](govern-epoch/SKILL.md) | Active | The user explicitly requests destructive Epoch governance |
 | [replan-roadmap](replan-roadmap/SKILL.md) | Active | The user explicitly requests a two-stage objective and route replan |
 | [roast](roast/SKILL.md) | Active | Explicitly promoting valuable knowledge at integration or governance boundaries |
@@ -44,7 +44,7 @@ this directory.
   briefing, a bounded coding subagent, and parent review against drift. The
   next dispatch or Iteration cycle waits until that review accepts the
   briefing goal.
-- Explicit Batch integration composes `integrate-batch`, affected domain
+- Automatic Batch integration composes `integrate-batch`, affected domain
   skills, and `roast` before final acceptance.
 - Explicit destructive governance composes `govern-epoch` and `roast`; domain
   skills retain product semantics.

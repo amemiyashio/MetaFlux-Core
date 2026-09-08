@@ -39,10 +39,14 @@ the repository gates.
    nested Git commands. Attribute an unexpected HEAD/index/config change to the
    exact reflog and invoking hook/test before claiming another agent changed it,
    and do not multiply worktrees as an unattributed retry.
-4. **Integrate only on explicit request.** A user-created integration agent
-   invokes [`integrate-batch`](agent/skills/integrate-batch/SKILL.md) with exact
-   committed revisions. Only that agent may update Batch/lane state, and only
-   in a product integration commit after focused and combined tests pass.
+4. **Integrate qualified deliveries automatically.** After a worker reports an
+   exact committed delivery whose dependencies and focused gates are ready, the
+   execution controller invokes
+   [`integrate-batch`](agent/skills/integrate-batch/SKILL.md) without a second
+   user instruction. Only that integration stage may update Batch/lane state,
+   and only in its acceptance commit after focused and combined tests pass. A
+   candidate already at the integration context's `HEAD` is accepted in place;
+   a divergent candidate remains subject to the governed merge path.
 5. **Govern Epochs directly.** Invoke
    [`govern-epoch`](agent/skills/govern-epoch/SKILL.md) only when the user
    explicitly requests destructive governance. Rewrite every affected current

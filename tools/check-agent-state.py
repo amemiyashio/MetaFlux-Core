@@ -79,7 +79,6 @@ WORKFLOW_SKILL_SLUGS = {
     "roast",
 }
 EXPLICIT_ONLY_SKILLS = {
-    "integrate-batch",
     "govern-epoch",
     "replan-roadmap",
     "roast",
@@ -488,7 +487,7 @@ class Checker:
             responsibility="batch-integrator",
             disposition="stop-and-report",
             required_action=(
-                "The explicit Batch integrator must correct Goal schema, target, "
+                "The automatic Batch integration stage must correct Goal schema, target, "
                 "Batch, or lane authority in its product integration commit; a "
                 "worker must leave goal.json unchanged."
             ),

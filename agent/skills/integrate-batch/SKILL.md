@@ -1,14 +1,16 @@
 ---
 name: integrate-batch
-description: Integrate one explicitly requested MetaFlux Batch from user-supplied committed Iteration revisions in a supplied integration context, without dispatching workers or creating branches, worktrees, tasks, or threads.
+description: Automatically accept one qualified MetaFlux Batch delivery from exact committed Iteration revisions in a supplied integration context, without dispatching workers or creating branches, worktrees, tasks, or threads.
 ---
 
 # Integrate Batch
 
-Use only when the user explicitly creates an integration run or invokes
-`$integrate-batch`. Ordinary worker completion does not trigger it. The user or
-application supplies the integration context and candidate revisions; this
-skill does not create either.
+The execution controller invokes this skill automatically after a worker
+delivers an exact committed candidate whose dependencies are accepted and whose
+focused gates pass. A user may invoke `$integrate-batch` to inspect or repair a
+qualified delivery, but a second user request is never a prerequisite for the
+normal acceptance path. The application supplies the integration context and
+candidate revisions; this skill does not create either.
 
 ## Inputs
 
@@ -51,20 +53,24 @@ nix develop . --command python3 tools/check-agent-state.py . \
    touched domain skill.
 2. Inventory each exact `base..tip` range and reject unrelated scope,
    incompatible product semantics, generated residue, or missing verification.
-3. Order candidates topologically by lane dependencies. Prepare each merge with
-   `git merge --no-commit --no-ff TIP` so the original lane history remains a
-   parent of the integration commit.
+3. Order candidates topologically by lane dependencies. When `TIP` equals the
+   integration context's `HEAD`, retain that linear candidate history and
+   prepare an in-place acceptance commit. When `TIP` diverges from `HEAD`,
+   prepare `git merge --no-commit --no-ff TIP` so the original lane history
+   remains a parent of the integration commit. Reject a non-HEAD ancestor as a
+   stale delivery rather than silently accepting an obscured candidate.
 4. Resolve bounded merge and composition gaps in the merge. If resolution would
    redefine the lane outcome, abort that merge and request a new Iteration.
 5. Run focused tests before committing each non-final merge. Keep all integration
    commits in the supplied integration context; do not create another branch or
    worktree, and leave main unchanged until promotion.
-6. For the final merge, update accepted lane states and Batch state in
-   `agent/goal.json`, invoke `roast`, and apply any canonical promotions. Run the
-   combined Batch regression before creating the final merge commit.
+6. For the final merge or in-place acceptance, update accepted lane states and
+   Batch state in `agent/goal.json`, invoke `roast`, and apply any canonical
+   promotions. Run the combined Batch regression before creating the final
+   acceptance commit.
 7. Commit through the `start-work` helper with the current Epoch. Promote the
-   tested integration tip to main only by an exact fast-forward or explicit
-   user-directed merge.
+   tested integration tip to main only by an exact fast-forward or the prepared
+   governed non-fast-forward merge.
 8. After that integration commit is on disk and `goal.json` lane or Batch state
    was updated in it, resolve its full object ID with `git rev-parse HEAD` and
    invoke `push-repository` to push exactly that OID to `refs/heads/main`. A
@@ -78,9 +84,9 @@ history file.
 
 ## Task Stops
 
-Use the `start-work` task-stop contract. An implicit invocation or missing
-integration context is `integration.explicit-request-required` or
-`integration.context-invalid` with `user-or-application / preserve-and-report`.
+Use the `start-work` task-stop contract. A missing automatic integration context
+is `integration.context-invalid` with `user-or-application /
+preserve-and-report`.
 A planned lane without an exact committed delivery is
 `integration.candidate-missing` with the same external responsibility; it is
 never a dispatch signal. Revision ancestry errors come from the state checker

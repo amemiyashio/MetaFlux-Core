@@ -21,7 +21,7 @@ queued plans describe intent, not implemented behavior.
 
 ## Execution Scale
 
-- **Epoch** (`epoch-0013`): one repository-wide semantic governance regime.
+- **Epoch** (`epoch-0014`): one repository-wide semantic governance regime.
   Only explicit `govern-epoch` may advance it, after a full current-authority
   rewrite and passing regression.
 - **Batch** (`batch-0001`): one bounded collection of parallel product lanes
@@ -31,11 +31,12 @@ queued plans describe intent, not implemented behavior.
   restarts in a new Batch.
 
 The full identity is always written as
-`epoch-NNNN / batch-NNNN / iteration-NNNN` (currently
-`epoch-0013 / batch-0001 / iteration-0001`). A worker delivers exact base and tip
-revisions. Product source and test mutation prefers a parent briefing, a bounded
-coding subagent, and parent review against drift. Only an explicitly created
-integration agent changes `goal.json`.
+`epoch-NNNN / batch-NNNN / iteration-NNNN` (the next planned delivery is
+`epoch-0014 / batch-0001 / iteration-0002`). A worker delivers exact base and
+tip revisions. Product source and test mutation prefers a parent briefing, a
+bounded coding subagent, and parent review against drift. The execution
+controller automatically invokes integration for a dependency-ready qualified
+delivery; only that stage changes `goal.json`.
 Failed candidates and superseded Batch state are not archived in the current
 tree; Git and the originating conversation retain their evidence.
 
@@ -76,8 +77,9 @@ technical namespaces.
    diffs in conversation against the briefing goal, and only then start the
    next dispatch or deliver committed base/tip revisions, tests, blockers, and
    roast candidates.
-4. In a separate user-requested integration run, invoke `integrate-batch` to
-   review, merge, repair bounded integration gaps, and run combined regression.
+4. After each dependency-ready committed delivery, the execution controller
+   automatically invokes `integrate-batch` to review, merge when necessary,
+   repair bounded integration gaps, and run combined regression.
 5. Update lane and Batch status only after acceptance passes. Open the next
    Batch in the same integration commit when the next bounded cohort is known.
 6. If governance drift is detected, leave the Batch state unchanged and invoke
