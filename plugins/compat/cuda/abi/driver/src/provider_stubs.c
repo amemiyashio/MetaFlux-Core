@@ -747,9 +747,10 @@ CUresult cuMemAllocPitch(CUdeviceptr* dptr, size_t* pPitch, size_t WidthInBytes,
 
 CUresult cuMemFreeHost(void* p) {
   MF_STUB_TRACE;
-  (void)p;
-
-  return CUDA_ERROR_NOT_SUPPORTED;
+  if (p != (void*)0) {
+    free(p);
+  }
+  return CUDA_SUCCESS;
 }
 
 CUresult cuMemGetAddressRange(CUdeviceptr* pbase, size_t* psize, CUdeviceptr dptr) {
@@ -771,20 +772,25 @@ CUresult cuMemGetInfo(size_t* free_bytes, size_t* total_bytes) {
 
 CUresult cuMemHostAlloc(void** pp, size_t bytesize, unsigned int Flags) {
   MF_STUB_TRACE;
-  (void)pp;
-  (void)bytesize;
   (void)Flags;
-
-  return CUDA_ERROR_NOT_SUPPORTED;
+  if (pp == (void**)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *pp = malloc(bytesize > 0 ? bytesize : 1);
+  if (*pp == (void*)0) {
+    return CUDA_ERROR_OUT_OF_MEMORY;
+  }
+  return CUDA_SUCCESS;
 }
 
 CUresult cuMemHostGetDevicePointer(CUdeviceptr* pdptr, void* p, unsigned int Flags) {
   MF_STUB_TRACE;
-  (void)pdptr;
-  (void)p;
   (void)Flags;
-
-  return CUDA_ERROR_NOT_SUPPORTED;
+  if (pdptr == (CUdeviceptr*)0 || p == (void*)0) {
+    return CUDA_ERROR_INVALID_VALUE;
+  }
+  *pdptr = (CUdeviceptr)(uintptr_t)p;
+  return CUDA_SUCCESS;
 }
 
 CUresult cuMemHostGetFlags(unsigned int* pFlags, void* p) {
@@ -803,15 +809,13 @@ CUresult cuMemHostRegister(void* p, size_t bytesize, unsigned int Flags) {
   (void)p;
   (void)bytesize;
   (void)Flags;
-
-  return CUDA_ERROR_NOT_SUPPORTED;
+  return CUDA_SUCCESS;
 }
 
 CUresult cuMemHostUnregister(void* p) {
   MF_STUB_TRACE;
   (void)p;
-
-  return CUDA_ERROR_NOT_SUPPORTED;
+  return CUDA_SUCCESS;
 }
 
 CUresult cuMemcpy2D(const CUDA_MEMCPY2D* pCopy) {

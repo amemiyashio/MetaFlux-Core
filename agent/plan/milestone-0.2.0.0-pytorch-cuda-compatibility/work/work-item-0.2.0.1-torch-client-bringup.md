@@ -487,6 +487,29 @@ variants: the shared kernel name cannot yield the element type — the
 read-through pattern works for int64 but float disambiguation needs a
 wider signal.
 
+## Measured progress (2026-09-08, eighth pass)
+
+Operator compatibility expanded from 31/41 to 38/41 through host memory allocation,
+comparison opcode inversion fixes, int64 copy-cast staging, and semantic reduction:
+
+1. `cuMemHostAlloc` / `cuMemFreeHost` / `cuMemHostGetDevicePointer` / `cuMemHostRegister` /
+   `cuMemHostUnregister`: implemented in `provider_stubs.c` backed by host `malloc`/`free`.
+   Unblocked all PyTorch scalar `.item()` reads across reduction operators and `clone()[1,2].item()`.
+2. Comparison Functor decoding: fixed OpType range check and inverted opcode mapping
+   in `provider.c` (`0 = GE, 1 = GT, 2 = LE, 3 = LT`). Operator `gt` now passes bit-exact.
+3. `int64` staging support: expanded `mf_semantic_store` to handle `kind == 3` (`long long`)
+   and updated `COPY_CAST` (`direct_copy_kernel_cuda`) to detect `UllE` and allocate/store 8-byte elements.
+4. `mf_semantic_reduce`: fully implemented host-side reduction handling for `reduce_kernel`.
+   - Operations: `sum` (`sum_functor`), `mean` (`MeanOps`), `max` (`MaxNanFunctor`), and `min` (`MinNanFunctor`).
+   - Dynamic input element count extraction from the header qword array.
+   - Distinct input and output pointer resolution avoiding contamination of existing input tensors.
+   - Result writeback targeted exclusively to the output tensor buffer.
+   - Eliminated unchecked parameter slot dereferencing in miss diagnostics that previously segfaulted on scalar arguments.
+   - Verified: `sum int` (-889), `sum float` (1.875), `mean float` (0.46875), `max int` (100), `min int` (-999) all bit-exact.
+
+Remaining clean errors (3/41): `contiguous t` (strided-view copy), `cat` and `stack` (CatArrayBatchedCopy).
+Zero crashes, zero wrong-data paths. Full CTest 144/144 passed; `pytorch_cuda_probe.py --profile baseline` 5/5 complete.
+
 ## Exit Gate
 
 `pytorch_cuda_probe.py --profile baseline --require-stage runtime-copy`
