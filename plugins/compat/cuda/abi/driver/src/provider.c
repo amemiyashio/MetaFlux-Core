@@ -5406,6 +5406,16 @@ static CUresult mf_cuda_copy(uint32_t direction, CUdeviceptr destination_device,
       (direction == MF_CUDA_COPY_D2H && destination_host == (void*)0)) {
     return CUDA_ERROR_INVALID_VALUE;
   }
+  if (direction == MF_CUDA_COPY_D2H &&
+      mf_arange_pending_read(source_device, destination_host, bytes)) {
+    if (mf_cuda_entry_trace_enabled() != 0) {
+      fprintf(stderr, "MF_ARANGE read-through %zu bytes\n", bytes);
+    }
+    return CUDA_SUCCESS;
+  }
+  if (direction == MF_CUDA_COPY_H2D) {
+    mf_arange_pending_invalidate(destination_device);
+  }
   result = mf_cuda_queue_lock(UINT32_C(0));
   if (result != CUDA_SUCCESS) {
     return result;
@@ -6830,10 +6840,43 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
                                        per_thread_default);
       }
     }
-    /* arange (elementwise_kernel_with_index) stays unsupported: the output
-       element type (torch defaults arange to int64) is not recoverable from
-       the mangled name, and a wrong-width write silently corrupts the
-       result. Fail cleanly instead. */
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "elementwise_kernel_with_index") != (char*)0) {
+      /* arange: params are (numel, {start, step}, array_t data{out}). The
+         output element width is not recoverable at launch time (the caching
+         allocator rounds allocations), so the intent is registered and the
+         values materialize when the consumer reads the tensor back through
+         the copy path, sized by that read. */
+      unsigned int num_elements = 0;
+      uint32_t kind = UINT32_C(0);
+      void* data_array = (void*)0;
+      CUdeviceptr out_pointer = 0;
+      if (strstr(kernel_name, "with_indexIf") != (char*)0) {
+        kind = UINT32_C(1);
+      } else if (strstr(kernel_name, "with_indexId") != (char*)0) {
+        kind = UINT32_C(2);
+      }
+      if (kernel_parameters[0] == (void*)0 || kernel_parameters[1] == (void*)0 ||
+          kernel_parameters[2] == (void*)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_INVALID_VALUE;
+      }
+      num_elements = *(unsigned int*)kernel_parameters[0];
+      data_array = ((void**)kernel_parameters)[2];
+      out_pointer = (CUdeviceptr)(uintptr_t)((void**)data_array)[0];
+      if (num_elements == UINT32_C(0)) {
+        mf_cuda_queue_unlock();
+        return CUDA_SUCCESS;
+      }
+      mf_cuda_queue_unlock();
+      mf_arange_pending_register((unsigned long long)out_pointer, num_elements, kind,
+                                 kernel_parameters[1]);
+      if (mf_cuda_entry_trace_enabled() != 0) {
+        fprintf(stderr, "MF_SEMANTIC arange deferred kind=%u n=%u\n", kind,
+                num_elements);
+      }
+      return CUDA_SUCCESS;
+    }
     mf_cuda_queue_unlock();
     if (mf_cuda_entry_trace_enabled() != 0) {
       unsigned int n0 = kernel_parameters[0] != (void*)0

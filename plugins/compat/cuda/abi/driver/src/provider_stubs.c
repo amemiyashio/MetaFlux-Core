@@ -306,6 +306,111 @@ static void* mf_a094_ops[64];
    slot +0x18 the version-gated capability probe. */
 static unsigned long long mf_263e_table[64];
 
+/* Pending-arange read-through: the arange kernel's output width is not
+   recoverable at launch time (the caching allocator rounds allocations), so
+   the provider registers the intent and materializes the values when the
+   consumer reads the tensor back, using the read's byte width. */
+#define MF_ARANGE_PENDING_MAX 8
+
+static struct {
+  CUdeviceptr pointer;
+  unsigned char functor[16]; /* raw {start, step} in the kernel's element type */
+  unsigned int count;
+  uint32_t kind; /* 0 = int32 element, 1 = float32, 2 = float64 */
+  uint32_t active;
+} mf_arange_pending[MF_ARANGE_PENDING_MAX];
+
+void mf_arange_pending_register(CUdeviceptr pointer, unsigned int count, uint32_t kind,
+                                const void* functor) {
+  uint32_t i = 0;
+  for (i = 0; i < MF_ARANGE_PENDING_MAX; ++i) {
+    if (mf_arange_pending[i].active != UINT32_C(0) &&
+        mf_arange_pending[i].pointer == pointer) {
+      mf_arange_pending[i].active = UINT32_C(0);
+    }
+  }
+  for (i = 0; i < MF_ARANGE_PENDING_MAX; ++i) {
+    if (mf_arange_pending[i].active == UINT32_C(0)) {
+      mf_arange_pending[i].pointer = pointer;
+      memcpy(mf_arange_pending[i].functor, functor, sizeof(mf_arange_pending[i].functor));
+      mf_arange_pending[i].count = count;
+      mf_arange_pending[i].kind = kind;
+      mf_arange_pending[i].active = UINT32_C(1);
+      return;
+    }
+  }
+}
+
+void mf_arange_pending_invalidate(CUdeviceptr pointer) {
+  uint32_t i = 0;
+  for (i = 0; i < MF_ARANGE_PENDING_MAX; ++i) {
+    if (mf_arange_pending[i].active != UINT32_C(0) &&
+        mf_arange_pending[i].pointer == pointer) {
+      mf_arange_pending[i].active = UINT32_C(0);
+    }
+  }
+}
+
+int mf_arange_pending_read(CUdeviceptr source, void* host, size_t bytes) {
+  uint32_t i = 0;
+  if (host == (void*)0) {
+    return 0;
+  }
+  for (i = 0; i < MF_ARANGE_PENDING_MAX; ++i) {
+    if (mf_arange_pending[i].active == UINT32_C(0) ||
+        mf_arange_pending[i].pointer != source) {
+      continue;
+    }
+    if (bytes % (size_t)mf_arange_pending[i].count != 0) {
+      continue;
+    }
+    {
+      /* The ArangeFunctor stores {start, step} in the tensor's element type:
+         int64 tensors carry two int64 scalars, int32 tensors two int32, and
+         float tensors two float. */
+      size_t width = bytes / (size_t)mf_arange_pending[i].count;
+      uint32_t index = 0;
+      const unsigned char* raw = mf_arange_pending[i].functor;
+      uint32_t kind = mf_arange_pending[i].kind;
+      double start = 0.0;
+      double step = 1.0;
+      if (width == 8) {
+        start = (double)*(const long long*)raw;
+        step = (double)*(const long long*)(raw + 8);
+      } else if (width == 4) {
+        if (kind == UINT32_C(1)) {
+          start = (double)*(const float*)raw;
+          step = (double)*(const float*)(raw + 4);
+        } else {
+          start = (double)*(const int*)raw;
+          step = (double)*(const int*)(raw + 4);
+        }
+      } else {
+        continue;
+      }
+      if (width == 8) {
+        long long* cells = (long long*)host;
+        for (index = 0; index < mf_arange_pending[i].count; ++index) {
+          cells[index] = (long long)(start + (double)index * step);
+        }
+      } else if (kind == UINT32_C(1)) {
+        float* cells = (float*)host;
+        for (index = 0; index < mf_arange_pending[i].count; ++index) {
+          cells[index] = (float)(start + (double)index * step);
+        }
+      } else {
+        int* cells = (int*)host;
+        for (index = 0; index < mf_arange_pending[i].count; ++index) {
+          cells[index] = (int)(start + (double)index * step);
+        }
+      }
+      mf_arange_pending[i].active = UINT32_C(0);
+      return 1;
+    }
+  }
+  return 0;
+}
+
 /* Named-request entry (a094 ops slot 5). __cudaInitModule issues the
    "__cudaInitModule" request through this slot in two phases (request+0x28
    is the phase counter) with a 0x30-byte request record whose +0x08 field
