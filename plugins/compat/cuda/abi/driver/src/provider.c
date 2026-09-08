@@ -6552,6 +6552,7 @@ static CUresult mf_cuda_materialize_pytorch_baseline_locked(mf_cuda_object* modu
   load_command.target = artifact_id;
   load_command.arguments[0] = artifact_generation;
   result = mf_cuda_submit_locked(&load_command, &completion);
+  fprintf(stderr, "MF_MAT_SUBMIT rc=%d mod=%llu/%llu\n", (int)result, (unsigned long long)completion.result_id, (unsigned long long)completion.result_generation);
   if (result == CUDA_SUCCESS &&
       (completion.result_id == UINT64_C(0) || completion.result_generation == UINT64_C(0))) {
     result = CUDA_ERROR_UNKNOWN;
@@ -6883,11 +6884,14 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
           module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_NEG_I32_V1,
           mf_pytorch_baseline_neg_ptx, sizeof(mf_pytorch_baseline_neg_ptx) - 1U,
           "elementwise-neg-i32");
+      fprintf(stderr, "MF_NEG_MATERIALIZE rc=%d\n", (int)result);
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();
         return result;
       }
+      fprintf(stderr, "MF_NEG_GOTO daemon_launch\n");
       kernel_parameters = normalized_parameters;
+      fprintf(stderr, "MF_NEG_GOTO daemon_launch\n");
       goto daemon_launch;
     }
 
@@ -6898,6 +6902,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
     return CUDA_ERROR_NOT_SUPPORTED;
   }
 daemon_launch:
+  fprintf(stderr, "MF_DL_REACHED\n");
   if (mf_cuda_entry_trace_enabled() != 0) {
     fprintf(stderr, "MF_DL entered sm=%u pz=%u bz=%u\n", shared_memory_bytes, grid_z, block_z);
   }

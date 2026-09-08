@@ -135,6 +135,21 @@ count) to match the argument block entry count. Next: trace each
 daemon_launch validation step for the neg launch to isolate the exact
 rejecting check.
 
+neg-i32 MODULE_LOAD blocker isolated (2026-09-09, latest): the neg
+adapter correctly matches, materializes (control call succeeds, trace
+prints operation=elementwise-neg-i32), but the MODULE_LOAD submit
+returns CUDA_ERROR_INVALID_VALUE with module id 1025 and generation 0.
+The daemon accepts the kernel request registration (validate passes for
+NEG_I32 = 7) but rejects the module load. The neg PTX uses only
+supported opcodes (sub.u32, mov.u32, ld/st.global.u32 etc.). The root
+cause is in the daemon's MODULE_LOAD processing — likely the execution
+engine's PTX-to-Kernel-IR conversion or the launch binding validation
+rejecting the unary shape. Next: add trace to the daemon-side
+execution.cpp module load path, or instrument the compiler::ptx::parse
+call for the neg payload. The int32 add/sub/mul operations continue to
+work through the same path (verified bit-exact). GPU passthrough
+backend skeleton compiles and is ready for real-GPU verification.
+
 ## Exit Gate
 
 The complete surface/status matrix and handle-negative suite pass; the neutral
