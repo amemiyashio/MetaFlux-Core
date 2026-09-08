@@ -149,7 +149,7 @@ Release compatibility:
 - Ubuntu 20.04.6, Ubuntu 22.04.5, Ubuntu 24.04.4, and Rocky Linux 9.8 comprise
   the `v0.1.0` generic matrix. Native NixOS VM/package qualification belongs to
   the unallocated `v0.3.0` support expansion after `v0.2.0` was assigned to the
-  MLIR CUDA and PyTorch CUDA foundation.
+  PyTorch CUDA transparent compatibility foundation.
 - Packages never replace vendor-owned libraries or devices.
 - Managed and passthrough files coexist through explicit loader paths or isolated
   namespaces.

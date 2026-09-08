@@ -8,50 +8,69 @@ depends_on: [work-item-0.1.0.4]
 updated: 2026-09-08
 ---
 
-# Pinned CUDA/PyTorch Client Contract
+# Stock PyTorch CUDA Baseline
 
 ## Outcome
 
-The pinned baseline client resolves one explicit CUDA-facing surface and passes
-import, driver enumeration, and runtime copy through a stock MetaFlux daemon.
-Every accepted behavior has provenance and executable positive and negative
-evidence.
+Pinned stock PyTorch `2.11.0+cu126` reaches import, driver enumeration, runtime
+copy, artifact intake, and eager add through its normal `torch.cuda` API. Eager
+add crosses the neutral protocol and completes in the daemon CPU backend; the
+CUDA provider neither computes the tensor nor fabricates successful execution.
+
+PyTorch source, wheel contents, and public APIs remain unchanged. MetaFlux
+package, launcher, and loader-environment activation are valid integration
+surfaces.
 
 ## Current Implementation
 
-The provider implements the broad CUDA 12 initialization surface, primary
-context and device attributes, CUDA library/kernel query entry points, observed
-cudart export-table adapters, and repeated function-token reuse. The baseline
-probe and client profile manifest are checked in.
+The provider implements a broad CUDA initialization surface, primary contexts,
+device attributes, CUDA library/kernel query entry points, observed cudart
+export-table adapters, repeated function-token reuse, and selected
+profile-specific kernel recognition. The five-stage probe and pinned client
+profile manifest are checked in.
 
-The registered CTest probe is a fake-client self-test. There is no checked-in
-gate that provisions and runs the pinned real client, and the required
-Driver/internal-table surface is not yet a single versioned status matrix.
-Function-token reuse also lacks the full invalid, stale, destroyed, and
-cross-module negative matrix. This work item remains Active.
+The registered probe test uses a fake torch object. Deferred client cubins skip
+daemon artifact registration and launch, while selected eager operations are
+computed over host buffers inside the application-side provider. The current
+tree therefore does not satisfy this work item.
+
+## Decisions Before Integration
+
+- Close the exact baseline-required Driver and profile-specific internal-table
+  surface. Every entry records normative, pinned observation, or
+  MetaFlux-strengthened provenance; unsupported slots fail stably.
+- Close the minimal versioned neutral request schema and lifetime required for
+  the eager-add launch to become canonical Kernel IR.
+- Close the daemon CPU execution-mode surface and cache identity used by this
+  real-client path.
+
+These are minimum vertical-slice decisions. The complete surface matrix,
+handle-negative expansion, broad operator corpus, library boundary, and Vulkan
+routing remain in their dependent work items.
 
 ## Work
 
-- [ ] Generate one versioned surface matrix from the pinned headers, provider
-  exports, typed stubs, and profile-specific internal-table observations.
-  Classify each behavior as normative, observed on the pinned client/build, or
-  MetaFlux-strengthened.
-- [ ] Add focused handle tests for repeated live lookup, invalid module,
-  destroyed module, stale generation, cross-module name collision, duplicate
-  teardown, and capacity reuse.
-- [ ] Add a checked-in acceptance gate that runs the pinned real client through
-  import, driver enumeration, and runtime copy against a stock daemon and
-  records exact client, provider, source, and backend identities.
-- [ ] Bind the surface matrix, client profile, probe schema, compiler inputs,
-  and cache identity so incompatible artifacts miss.
-- [ ] Keep internal cudart table behavior profile-scoped and fail unsupported
-  UUIDs or slots deterministically; do not expose it as a general CUDA Driver
-  guarantee.
+- [ ] Pin and provision stock PyTorch `2.11.0+cu126` in a checked-in gate without
+  editing its source, wheel, or `torch.cuda` API.
+- [ ] Make import, driver enumeration, and runtime copy pass against a stock
+  daemon using only the exact baseline-required provider surface.
+- [ ] Carry artifact intake through the minimum neutral request and canonical
+  Kernel IR boundary instead of bypassing daemon module ownership.
+- [ ] Lower and execute eager add through the daemon CPU path, recording a
+  daemon submission, backend completion, result bytes, source revision, client
+  profile, request/Kernel IR versions, compiler inputs, and cache identity.
+- [ ] Remove the provider-local eager-add arithmetic and success shortcut from
+  the accepted path. Unsupported inputs fail with a stable classified error and
+  no output mutation.
+- [ ] Keep the fake-client probe test as control-flow coverage, clearly
+  separated from the real-client acceptance gate.
 
 ## Exit Gate
 
-The generated surface/status matrix and handle-negative suite pass; the pinned
-real-client gate reaches `runtime-copy` through a stock daemon from a named
-Git revision; every observed or strengthened behavior is labeled; and ABI,
-dependency-closure, simultaneous CUDA/NVML load, and milestone-0.1.x regression
-gates remain green.
+From a named Git revision, the checked-in gate provisions pinned stock PyTorch
+`2.11.0+cu126` and reports `complete` after all five stages against a stock
+daemon. Eager add has correlated daemon-submission and CPU-backend-completion
+evidence, its result is bit-exact against the torch CPU reference, the provider
+contains no accepted tensor-compute or fabricated-success path, the three
+blocking decisions are closed, and the focused CUDA plus cumulative
+milestone-0.1.x regressions remain green.

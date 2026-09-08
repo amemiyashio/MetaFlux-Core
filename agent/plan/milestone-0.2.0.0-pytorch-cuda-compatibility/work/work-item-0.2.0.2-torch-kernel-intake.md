@@ -2,65 +2,53 @@
 id: work-item-0.2.0.2
 delivery: 0.2.0.2
 milestone: milestone-0.2.0.0
-status: Active
+status: Queued
 area: compiler-cpu
 depends_on: [work-item-0.2.0.1]
 updated: 2026-09-08
 ---
 
-# Kernel IR and MLIR CPU Pipeline
+# PyTorch CUDA CPU Profile
 
 ## Outcome
 
-The pinned CUDA/PyTorch profile becomes a versioned ecosystem-neutral request,
-the daemon/compiler worker validates it into canonical Kernel IR, and the
-backend-owned MLIR/LLVM pipeline executes the declared eager corpus through the
-stock daemon with results bit-exact against the torch CPU reference.
-
-## Current Implementation
-
-The CUDA provider retains deferred client fatbins, parses cubin ELF symbol
-names, resolves selected framework kernels, and contains a profile-specific
-semantic router for elementwise, reduction, concatenation, layout, comparison,
-and range operations. That router performs tensor arithmetic in the
-application-side provider over host copy buffers; deferred modules explicitly
-skip daemon artifact registration and module launch.
-
-No checked-in real-client corpus manifest or CTest gate proves the reported
-operator sweep. This is an implementation prototype, not daemon/CPU-backend
-integration or qualification.
+The proven stock-client vertical slice expands into a versioned CPU execution
+profile: the required Driver/internal-table surface and handle semantics are
+complete, neutral framework requests verify as canonical Kernel IR, and the
+declared operator corpus executes through the backend-owned MLIR/LLVM CPU path
+with stable cache and error behavior.
 
 ## Work
 
-- [ ] Define the exact versioned framework-kernel request selected by
-  decision-0044. It carries neutral operation identity, typed arguments,
-  launch geometry, memory references, profile identity, and semantic options;
-  CUDA, PyTorch, MLIR, and target-specific types remain outside the wire form.
-- [ ] Validate and canonicalize each accepted request into versioned Kernel IR
-  inside the daemon/compiler worker. Unsupported profile operations fail before
-  compilation, and MLIR bytecode is never the durable or cross-process format.
+- [ ] Generate one versioned surface matrix from pinned headers, provider
+  exports, typed stubs, and profile-specific internal-table observations.
+  Classify every entry as implemented, typed-stubbed, observed, or
+  MetaFlux-strengthened and preserve stable failure for unsupported entries.
+- [ ] Add focused handle tests for repeated live lookup, invalid module,
+  destroyed module, stale generation, cross-module name collision, duplicate
+  teardown, and capacity reuse.
+- [ ] Generalize the lane-1 request without adding CUDA, PyTorch, MLIR, LLVM, or
+  target-specific types to the wire; validate each accepted request into
+  versioned canonical Kernel IR in the daemon/compiler worker.
 - [ ] Close the library-backed operator boundary, including matmul behavior when
-  vendored cuBLAS execution remains excluded.
-- [ ] Move tensor arithmetic and result materialization out of the CUDA provider
-  and lower verified Kernel IR through an explicitly legal MLIR conversion to
-  the CPU backend's LLVM dialect, LLVM IR, and validated PIC ELF path.
-- [ ] Add a versioned real-client corpus manifest and checked-in gate covering
-  baseline artifact intake and eager add, module volume, repeated function
-  resolution, cold/warm cache behavior, supported operations, exact
-  inputs/outputs, and classified unsupported operations.
-- [ ] If the route expands PTX or Kernel IR, advance parser, verifier, semantic
-  oracle, interpreter, lowering, differential corpus, compiler epoch, and cache
-  identity together. Bind request schema, canonical pipeline, target triple,
-  CPU features, FP policy, helper/backend ABI, and content hash into the cache.
-- [ ] Prove that every accepted corpus operation produces a daemon submission
-  and a CPU-backend completion rather than a provider-local result.
+  vendored cuBLAS execution remains excluded, before freezing the corpus.
+- [ ] Publish a versioned real-client CPU corpus covering supported operation
+  categories, exact inputs and outputs, module volume, repeated function
+  resolution, cold/warm cache behavior, and classified unsupported operations.
+- [ ] Lower verified Kernel IR through an explicitly legal backend-owned MLIR
+  conversion to LLVM dialect, LLVM IR, validated PIC ELF, and CPU execution.
+- [ ] Bind surface, client profile, request schema, Kernel IR, canonical
+  pipeline, target triple, CPU features, FP policy, helper/backend ABI, compiler
+  epoch, and content hash into cache identity.
+- [ ] Prove every accepted corpus operation with correlated daemon submission
+  and CPU-backend completion evidence.
 
 ## Exit Gate
 
-The request-schema and library-boundary decisions are closed; provider-local
-tensor execution is absent; the real-client gate reaches `complete`; every
-accepted request verifies as canonical Kernel IR and lowers through the
-backend-owned MLIR/LLVM path; the versioned corpus passes bit-exact through the
-neutral protocol, stock daemon, and CPU backend from a named revision; cold/warm
-cache and many-kernel tests pass; and every unsupported operation returns its
-declared error without wrong data.
+The complete surface/status matrix and handle-negative suite pass; the neutral
+request and Kernel IR contracts cover the frozen versioned corpus; the library
+boundary is closed; provider-local tensor execution is absent; every accepted
+operation lowers through the backend-owned MLIR/LLVM path and passes bit-exact
+through the stock daemon and CPU backend; cold/warm and many-kernel cache tests
+pass; and every unsupported operation returns its declared error without wrong
+data.

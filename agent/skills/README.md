@@ -17,6 +17,7 @@ this directory.
 | [detect-agent-tool](detect-agent-tool/SKILL.md) | Active | Reporting the conversation-emitted harness name without probing executables or model metadata |
 | [integrate-batch](integrate-batch/SKILL.md) | Active | The user explicitly requests integration of committed Iterations |
 | [govern-epoch](govern-epoch/SKILL.md) | Active | The user explicitly requests destructive Epoch governance |
+| [replan-roadmap](replan-roadmap/SKILL.md) | Active | The user explicitly requests a two-stage objective and route replan |
 | [roast](roast/SKILL.md) | Active | Explicitly promoting valuable knowledge at integration or governance boundaries |
 | [manage-toolchain](manage-toolchain/SKILL.md) | Active | Pinning tools, manifests, shells, SDK inputs, or Nix exposure |
 | [manage-host-privilege](manage-host-privilege/SKILL.md) | Active | Bounded sudo/su, confirmed-gap package installation, or driver debugging |
@@ -47,6 +48,9 @@ this directory.
   skills, and `roast` before final acceptance.
 - Explicit destructive governance composes `govern-epoch` and `roast`; domain
   skills retain product semantics.
+- Explicit route replanning composes `replan-roadmap` with
+  `implementation-readiness`; a confirmed semantic proposal then composes
+  `roast` and `govern-epoch` for the only destructive cutover.
 - Tool changes use `manage-toolchain`. A confirmed Nix gap or privileged driver
   action additionally uses `manage-host-privilege`.
 - Epoch publication and Batch integration use `push-repository` with the

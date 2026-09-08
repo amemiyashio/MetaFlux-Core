@@ -96,6 +96,18 @@ the repository gates.
     force a push. Only an explicit first push may initialize canonical main.
     Coding subagents never push.
 
+11. **Replan routes only on explicit request.** Invoke
+    [`replan-roadmap`](agent/skills/replan-roadmap/SKILL.md) only when the user
+    explicitly requests a primary-objective or route replan. Stage 1 is
+    read-only and models milestones, work items, decisions, evidence
+    prerequisites, and Iteration lanes as a dependency DAG. Stage 2 requires
+    confirmation of the unchanged proposal baseline and composes `roast` with
+    `govern-epoch`; the latter remains the sole destructive writer and Epoch
+    publisher. Never reopen a completed milestone or work item. Active and
+    Queued nodes may move in the new Epoch, and existing IDs remain when their
+    delivery coordinates and observable outputs remain unchanged. A no-op does
+    not advance the Epoch.
+
 Product boundaries live in `contracts/README.md` and
 `docs/architecture/repo-layout.md`; the language wall and dependency whitelist
 remain machine-checked by `metaflux.architecture.component-graph`.

@@ -490,6 +490,16 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "architecture"
   )
   add_test(
+    NAME metaflux.architecture.replan-roadmap-selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/replan-roadmap/scripts/test_check_route_proposal.py"
+  )
+  set_tests_properties(
+    metaflux.architecture.replan-roadmap-selftest
+    PROPERTIES LABELS "architecture"
+  )
+  add_test(
     NAME metaflux.release.matrix-assertions
     COMMAND
       "${Python3_EXECUTABLE}" -B

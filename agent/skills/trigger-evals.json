@@ -15,9 +15,11 @@
   ],
   "workflow_skills": [
     "detect-agent-tool",
+    "implementation-readiness",
     "integrate-batch",
     "govern-epoch",
     "push-repository",
+    "replan-roadmap",
     "roast"
   ],
   "coverage": {
@@ -517,6 +519,86 @@
       "prompt": "只选择远程推理模型和 reasoning effort，不报告当前对话给出的 harness 名称。",
       "expected_skills": [],
       "forbidden_skills": ["detect-agent-tool"]
+    },
+    {
+      "id": "READY-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Assess whether the active workstream is ready by separating architecture, activation, implementation maturity, and release evidence.",
+      "expected_skills": ["implementation-readiness"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "READY-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Implement the already-approved CUDA handle validation patch and its focused ABI tests; no readiness assessment is requested.",
+      "expected_skills": ["cuda-driver-abi-compatibility"],
+      "forbidden_skills": ["implementation-readiness"]
+    },
+    {
+      "id": "READY-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "实现已经批准的中立协议字段和生成器测试，不做实现就绪度评估。",
+      "expected_skills": ["runtime-contracts-registry"],
+      "forbidden_skills": ["implementation-readiness"]
+    },
+    {
+      "id": "REPLAN-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $replan-roadmap to make unmodified stock PyTorch CUDA the primary objective and rebuild the active dependency DAG around observable client execution.",
+      "expected_skills": ["replan-roadmap"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "REPLAN-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $replan-roadmap to reorder the active milestones, decisions, evidence prerequisites, and Iteration lanes for a new product focus.",
+      "expected_skills": ["replan-roadmap"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "REPLAN-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Summarize the current roadmap and explain which lane is next without changing its objective or order.",
+      "expected_skills": [],
+      "forbidden_skills": ["replan-roadmap"]
+    },
+    {
+      "id": "REPLAN-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "使用 $replan-roadmap，把原版 PyTorch CUDA 无修改运行设为主目标，并按依赖和证据重新编排当前路线。",
+      "expected_skills": ["replan-roadmap"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "REPLAN-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "只解释当前路线和下一个工作项，不改变主目标、依赖或里程碑顺序。",
+      "expected_skills": [],
+      "forbidden_skills": ["replan-roadmap"]
+    },
+    {
+      "id": "COMBO-REPLAN-GOVERN",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Use $replan-roadmap to assess implementation readiness and propose a replacement DAG; after explicit confirmation, use $roast and $govern-epoch to rewrite current authority and publish the next Epoch.",
+      "expected_skills": ["replan-roadmap", "implementation-readiness", "roast", "govern-epoch"],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMBO-ZH-REPLAN-GOVERN",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "使用 $replan-roadmap 审计架构、激活、实现成熟度和发布证据；确认后使用 $roast 与 $govern-epoch 重写当前权威并发布下一 Epoch。",
+      "expected_skills": ["replan-roadmap", "implementation-readiness", "roast", "govern-epoch"],
+      "forbidden_skills": []
     },
     {
       "id": "INTEGRATE-P1",

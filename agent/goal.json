@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "epoch": "epoch-0011",
+  "epoch": "epoch-0012",
   "batch": {
     "id": "batch-0001",
     "status": "open"
@@ -9,42 +9,42 @@
     "milestone": "milestone-0.2.0.0",
     "work_item": "work-item-0.2.0.1"
   },
-  "objective": "Turn the existing CUDA/PyTorch provider prototype into an evidence-bound v0.2.0 MLIR CUDA foundation: close the pinned client contract, materialize verified Kernel IR behind the neutral protocol, lower it through backend-owned MLIR pipelines, then qualify the PyTorch CUDA corpus on CPU and Vulkan.",
+  "objective": "Make pinned stock PyTorch 2.11.0+cu126 run its normal torch.cuda path through MetaFlux without PyTorch source, wheel, or API changes: first pass the five-stage baseline with daemon submission and CPU-backend completion, then expand the versioned CPU corpus, and finally qualify the same Kernel IR corpus on Vulkan.",
   "lanes": [
     {
-      "id": "lane-cuda-client-contract",
+      "id": "lane-stock-pytorch-cuda-baseline",
       "iteration": "iteration-0001",
-      "outcome": "Freeze the pinned-client CUDA surface and prove it with a checked-in real-client gate plus complete handle and profile-identity negative coverage.",
+      "outcome": "Run pinned stock PyTorch through import, driver enumeration, runtime copy, artifact intake, and eager add using the normal torch.cuda API, with eager add completed by a daemon submission on the CPU backend.",
       "status": "planned",
       "depends_on": [],
       "acceptance": [
-        "The Driver API and profile-specific internal-table matrix classifies every required entry as implemented, typed-stubbed, observed, or MetaFlux-strengthened.",
-        "A checked-in gate runs the pinned real client through import, driver enumeration, and runtime copy against a stock daemon; fake probe self-tests are not acceptance evidence.",
-        "Function lookup reuse and invalid, stale, destroyed, and cross-module handle cases pass while surface, probe, and cache identities advance together."
+        "The checked-in gate provisions pinned stock PyTorch 2.11.0+cu126 and reaches all five baseline stages without modifying PyTorch source, wheel contents, or torch.cuda APIs; MetaFlux package, launcher, and loader-environment activation remain allowed.",
+        "The exact baseline-required Driver and internal-table surface, minimal neutral request schema and lifetime, and daemon CPU execution mode plus cache identity are closed before integration.",
+        "Eager add produces an observed daemon submission and CPU-backend completion; the CUDA provider performs no tensor arithmetic, result materialization, or false-success shortcut."
       ]
     },
     {
-      "id": "lane-kernel-ir-mlir-cpu",
+      "id": "lane-pytorch-cuda-cpu-profile",
       "iteration": "iteration-0002",
-      "outcome": "Encode the pinned framework-kernel profile as an ecosystem-neutral request, materialize verified Kernel IR in the compiler worker, and execute the declared corpus through the backend-owned MLIR-to-CPU pipeline.",
+      "outcome": "Broaden the baseline into a versioned PyTorch CUDA CPU profile with a complete provider-surface matrix, handle-negative coverage, canonical neutral request and Kernel IR boundaries, and a backend-executed operator corpus.",
       "status": "planned",
-      "depends_on": ["lane-cuda-client-contract"],
+      "depends_on": ["lane-stock-pytorch-cuda-baseline"],
       "acceptance": [
-        "The versioned framework-kernel request carries no CUDA, PyTorch, MLIR, or target-specific types; the daemon/compiler worker validates it into canonical Kernel IR.",
-        "The CUDA provider performs no tensor arithmetic or result materialization, and the CPU branch lowers verified Kernel IR through MLIR and LLVM to a validated backend artifact.",
-        "A checked-in gate reaches artifact intake and eager add, then proves the declared corpus, module intake, function resolution, cache behavior, and bit-exact CPU execution through daemon submissions."
+        "The Driver and profile-specific internal-table matrix classifies the full pinned surface, and invalid, stale, destroyed, cross-module, reuse, and teardown handle cases pass.",
+        "The versioned neutral framework-kernel request and canonical Kernel IR boundary carry no CUDA, PyTorch, MLIR, LLVM, Vulkan, or target-specific wire types.",
+        "The versioned operator corpus, cache identity, and stable error classes pass through daemon CPU execution; the library-backed matmul boundary closes before corpus freeze."
       ]
     },
     {
-      "id": "lane-pytorch-cuda-multibackend",
+      "id": "lane-pytorch-cuda-vulkan-qualification",
       "iteration": "iteration-0003",
-      "outcome": "Qualify PyTorch CUDA lifecycle semantics and execute the same canonical Kernel IR corpus through independent CPU/LLVM and Vulkan/SPIR-V MLIR branches without regressing v0.1.x.",
+      "outcome": "Route the same versioned PyTorch CUDA Kernel IR corpus through Vulkan/SPIR-V and qualify lifecycle behavior with CPU/Vulkan differential evidence.",
       "status": "planned",
-      "depends_on": ["lane-kernel-ir-mlir-cpu"],
+      "depends_on": ["lane-pytorch-cuda-cpu-profile"],
       "acceptance": [
-        "Stream, event, allocator, multi-stream, synchronization, teardown, and daemon-loss rows pass for the pinned client.",
-        "Framework execution selects qualified CPU and Vulkan daemon routes with bit-exact differential evidence for the same corpus manifest.",
-        "The pinned baseline and frontier gap manifests plus cumulative v0.1.x regression evidence are current and release-facing."
+        "The Vulkan route decision is closed before implementation and the accepted Kernel IR corpus lowers directly through target-constrained MLIR/SPIR-V without an LLVM detour.",
+        "Stream, event, allocator, multi-stream, synchronization, teardown, and daemon-loss rows pass for the pinned client on the Vulkan daemon route.",
+        "CPU and Vulkan execute the same corpus manifest with bit-exact differential evidence, current baseline/frontier gap manifests, and green cumulative v0.1.x regression."
       ]
     }
   ]

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Replan MetaFlux Roadmap"
+  short_description: "Rebuild the active goal and dependency route"
+  default_prompt: "Use $replan-roadmap to propose a new primary objective and evidence-backed dependency DAG."
+policy:
+  allow_implicit_invocation: false

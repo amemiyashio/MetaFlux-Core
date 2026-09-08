@@ -16,11 +16,11 @@ fail.
 
 | Milestone | Decision | Blocks | Closure condition |
 | --- | --- | --- | --- |
-| milestone-0.2.0.0 | Exact versioned ecosystem-neutral framework-kernel request schema and lifetime used to translate the pinned client profile into canonical Kernel IR without CUDA, PyTorch, MLIR, or target-specific types crossing the wire | Kernel IR intake | Before work-item-0.2.0.2 implementation expands |
-| milestone-0.2.0.0 | Exact provider Driver API and profile-specific internal-table surface required by pinned cudart/ATen, with behavior provenance | Baseline client contract | Before work-item-0.2.0.1 integration |
+| milestone-0.2.0.0 | Exact baseline-required CUDA Driver and profile-specific internal-table surface, with behavior provenance and stable unsupported-slot failures | Stock PyTorch baseline | Before work-item-0.2.0.1 integration |
+| milestone-0.2.0.0 | Minimal versioned ecosystem-neutral request schema and lifetime required for stock PyTorch eager add to become canonical Kernel IR | Stock PyTorch baseline | Before work-item-0.2.0.1 integration |
+| milestone-0.2.0.0 | Daemon CPU execution-mode surface and cache identity required for the stock PyTorch baseline | Stock PyTorch baseline | Before work-item-0.2.0.1 integration |
 | milestone-0.2.0.0 | Library-backed operator boundary, including whether matmul is supported without vendored cuBLAS execution | Operator corpus | Before work-item-0.2.0.2 corpus freeze |
-| milestone-0.2.0.0 | Daemon execution-mode surface for framework clients and its cache identity | Framework execution | Before work-item-0.2.0.3 integration |
-| milestone-0.2.0.0 | Vulkan daemon routing shape and its qualification matrix | Framework Vulkan routing | Before work-item-0.2.0.3 qualification |
+| milestone-0.2.0.0 | Vulkan daemon routing shape and its qualification matrix | Framework Vulkan routing | Before work-item-0.2.0.3 route implementation |
 | milestone-1.0.0.0 | Exact v1.0 stable public compatibility surface, upgrade window, and deprecation policy | Stable release contract | Before work-item-1.0.0.3 release qualification |
 | milestone-1.0.0.0 | Released device identity, VID/DID registration, and optional custom presentation identity policy | Release identity | Before work-item-1.0.0.3 release qualification |
 | milestone-1.0.0.0 | Module-signing and Secure Boot packaging workflow | Kernel packaging | Before work-item-1.0.0.3 package qualification |

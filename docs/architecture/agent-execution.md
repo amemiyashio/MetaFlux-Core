@@ -1,7 +1,7 @@
 ---
 status: Verified
 decision: decision-0033
-updated: 2026-09-06
+updated: 2026-09-08
 ---
 
 # Goal-First Multi-Agent Execution
@@ -111,6 +111,38 @@ retry unchanged evidence.
 the operational authority and `tools/agent_diagnostics.py` is its shared
 renderer. Diagnostics are command/conversation output only and never become
 Goal state, Agent identity, a numbered record, or an archive.
+
+## Route Replanning (decision-0045)
+
+`replan-roadmap` is an explicit-only, two-stage workflow. Stage 1 reads the
+current repository and proposes one evidence-backed dependency DAG without
+tracked writes. It reports the baseline revision and Epoch, primary objective
+and observable success, four-axis readiness, critical path, lane order, node
+dispositions, decision timing, affected owners, residual scans, and regression
+plan. With no supplied objective it offers at most three candidates and waits
+for selection.
+
+Stage 2 starts only after explicit confirmation of that exact proposal. It
+rechecks `HEAD`, worktree cleanliness, active Epoch, and proposal baseline; any
+change invalidates the proposal and returns to Stage 1. A semantic no-op does
+not advance the Epoch. A semantic route change composes `roast` and
+`govern-epoch`; the latter remains the sole destructive authority writer and
+Epoch publisher.
+
+The route is a DAG from user objective through milestones, work items, open
+decisions and evidence prerequisites to Iteration lanes. Completed milestones
+and work items remain closed. Active and Queued nodes may be reordered in a new
+Epoch. Existing IDs remain when delivery coordinates and observable outputs
+are unchanged. Planning does not close evidence-bound technical decisions,
+modify product source, dispatch workers, or create execution contexts.
+`agent/goal.json` remains the only active route state; proposals and prior
+routes are not stored as ledgers, databases, or compatibility views.
+
+decision-0045 adopts this protocol because objective changes otherwise mix
+read-only diagnosis with destructive governance and encourage duplicate route
+authority. Verification is the proposal-guard self-test, explicit bilingual
+routing, Agent-state DAG validation, residual scans, and the full governance
+regression.
 
 ## Epoch Governance
 

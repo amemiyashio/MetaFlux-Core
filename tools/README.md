@@ -54,11 +54,16 @@ cannot become fixture output.
 
 `check-skill-routing.py` validates the static English/Chinese routing corpus.
 Every routed skill has positive and near-miss coverage, cross-domain work has
-composition coverage, and explicit workflow cases name their exact skill.
+composition coverage, and explicit workflow cases name their exact skill. The
+`replan-roadmap` proposal guard separately proves target selection,
+confirmation, baseline invalidation, no-op Epoch retention, and DAG acyclicity
+without writing repository state.
 
 ```sh
 nix develop . --command python3 -B tools/check-skill-routing.py .
 nix develop . --command python3 -B tools/test-check-skill-routing.py
+nix develop . --command python3 -B \
+  agent/skills/replan-roadmap/scripts/test_check_route_proposal.py
 ```
 
 ## Component Dependency Graph

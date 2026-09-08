@@ -69,12 +69,19 @@ DOMAIN_SKILL_SLUGS = {
 }
 WORKFLOW_SKILL_SLUGS = {
     "detect-agent-tool",
+    "implementation-readiness",
     "integrate-batch",
     "govern-epoch",
     "push-repository",
+    "replan-roadmap",
     "roast",
 }
-EXPLICIT_ONLY_SKILLS = {"integrate-batch", "govern-epoch", "roast"}
+EXPLICIT_ONLY_SKILLS = {
+    "integrate-batch",
+    "govern-epoch",
+    "replan-roadmap",
+    "roast",
+}
 OBSOLETE_SKILLS = {
     "record-" + "session",
     "session-" + "guidance",
