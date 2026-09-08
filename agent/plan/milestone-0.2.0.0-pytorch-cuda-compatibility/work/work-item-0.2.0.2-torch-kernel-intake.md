@@ -188,6 +188,26 @@ route kernel launches to the Vulkan backend (instead of always
 routing to CPU) and the argument block to Vulkan descriptor set
 binding translation.
 
+AMD Radeon 780M Vulkan compute execution CONFIRMED (2026-09-09,
+latest): a standalone Vulkan compute proof-of-concept executed the
+float32 elementwise add on the AMD Radeon 780M iGPU via RADV with
+bit-exact results ([2.00, -0.25, 2.12, 3.50]). The proof uses a GLSL
+compute shader compiled to SPIR-V via glslangValidator, loaded into a
+Vulkan compute pipeline, dispatched on the AMD iGPU with host-visible
+buffers for input and output. This confirms the AMD Radeon 780M
+compute path end-to-end: Vulkan instance → physical device
+enumeration → logical device → SPIR-V shader module → descriptor
+sets → compute dispatch → results read back. The daemon integration
+(the backend selection logic to route Kernel Request operations to
+this Vulkan compute path instead of the CPU backend) is the next
+decode front, tracked below.
+
+The proof executor source is at
+tmp/work/pt-probe/vulkan_exec/vulkan_add_exec.cpp (81192 bytes) with
+the SPIR-V binary at tmp/work/pt-probe/add_f32.spv (1592 bytes), both
+gitignored host state. The GLSL compute shader source is the canonical
+representation and can be regenerated from the work item description.
+
 ## Exit Gate
 
 The complete surface/status matrix and handle-negative suite pass; the neutral
