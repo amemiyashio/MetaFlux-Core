@@ -2,11 +2,11 @@
 id: milestone-0.2.0.0
 delivery: 0.2.0.0
 release: v0.2.0
-status: Queued
+status: Active
 budgets: provisional
 depends_on: [milestone-0.1.0.0]
 areas: [compat.cuda, compiler.cpu, backend.cpu, backend.vulkan, compatibility]
-updated: 2026-09-06
+updated: 2026-09-08
 ---
 
 # milestone-0.2.0.0: PyTorch CUDA Compatibility
@@ -34,6 +34,23 @@ direct driver-API enumeration through the same provider and daemon returns
 one `MetaFlux Virtual Compute Device`. The daemon currently routes client
 execution to the CPU backend only; the Vulkan backend executes kernels in its
 own probes and tests but has no daemon execution mode.
+
+## Foundation-First Sequencing (decision-0043)
+
+`v0.2.0` is the active product target before stable-release qualification.
+The current 41-case operator sweep and baseline probe are useful compatibility
+evidence, but they do not establish a stable public surface or general PyTorch
+CUDA coverage. Work therefore proceeds through three ordered boundaries:
+
+1. close the baseline client contract, including invalid and stale handle
+   behavior, the required Driver API surface, probe manifest, and cache identity;
+2. select and qualify a durable kernel-intake strategy with bit-exact eager
+   execution on the CPU backend;
+3. qualify framework lifecycle semantics and daemon-routed Vulkan execution.
+
+milestone-1.0.0.0 remains queued until this foundation passes its Definition of
+Done. The selected operator corpus is reported as a bounded corpus, never as a
+claim that every PyTorch, CUDA library, or vendor kernel is supported.
 
 ## Scope
 

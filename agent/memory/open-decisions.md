@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-08-29
+updated: 2026-09-08
 ---
 
 # Open Decisions
@@ -36,6 +36,11 @@ fail.
 | milestone-0.1.3.0 | Pipeline residency, disk quota, and driver-cache qualification | Cache warm path | Before work-item-0.1.3.5 cache work |
 | milestone-0.1.3.0 | Queue topology, batching thresholds, and polling/blocking defaults | Execution streams | Before work-item-0.1.3.4 execution |
 | milestone-0.1.3.0 | Device-loss worker isolation and resource deadline policy | Fault integration | Before work-item-0.1.3.6 release |
-| milestone-1.0.0.0 | Exact Intel x86_64 CPU generation, topology, firmware, and distribution support matrix | Intel support qualification | Before work-item-1.0.0.1 host rows are pinned |
-| milestone-1.0.0.0 | Exact physical NVIDIA GPU, driver, PCIe, and host-role binding reference matrix | Binding performance qualification | Before work-item-1.0.0.2 reference runs |
+| milestone-0.2.0.0 | Kernel-intake strategy for torch kernels: arch-pinned PTX-bearing client profiles versus a cubin/SASS intake worker | Torch kernel intake | Before work-item-0.2.0.2 implementation is frozen |
+| milestone-0.2.0.0 | Exact provider driver-API surface set required by cudart/ATen init | Baseline client contract | Before work-item-0.2.0.1 integration |
+| milestone-0.2.0.0 | Daemon execution-mode surface for framework clients and its cache identity | Framework execution | Before work-item-0.2.0.3 integration |
+| milestone-0.2.0.0 | Vulkan daemon routing shape and its qualification matrix | Framework Vulkan routing | Before work-item-0.2.0.3 qualification |
 | milestone-1.0.0.0 | Exact v1.0 stable public compatibility surface, upgrade window, and deprecation policy | Stable release contract | Before work-item-1.0.0.3 release qualification |
+| milestone-2.0.0.0 | Exact Intel x86_64 CPU generation, topology, firmware, and distribution support matrix | Intel support qualification | Before work-item-2.0.0.1 host rows are pinned |
+| milestone-2.0.0.0 | Exact physical NVIDIA GPU, driver, PCIe, and host-role binding reference matrix | Binding performance qualification | Before work-item-2.0.0.2 reference runs |
+| milestone-2.0.0.0 | Exact physical AMD + NVIDIA dual-driver Vulkan reference matrix and freeze order | Dual-driver qualification | Before work-item-2.0.0.3 reference runs |

@@ -1,38 +1,50 @@
 {
   "schema_version": 1,
-  "epoch": "epoch-0009",
+  "epoch": "epoch-0010",
   "batch": {
     "id": "batch-0001",
     "status": "open"
   },
   "target": {
-    "milestone": "milestone-1.0.0.0",
-    "work_item": "work-item-1.0.0.3"
+    "milestone": "milestone-0.2.0.0",
+    "work_item": "work-item-0.2.0.1"
   },
-  "objective": "Deliver the v1.0.0 stable compatibility release: explicit public surface, upgrade path, reproducible no-Nix packages, and cumulative v0.1.x regression closure on the AMD reference host.",
+  "objective": "Complete the v0.2.0 PyTorch CUDA compatibility foundation before stable-release work: close the baseline client contract, establish durable kernel intake and CPU execution, then qualify framework semantics and Vulkan routing.",
   "lanes": [
     {
-      "id": "lane-generation-drain",
+      "id": "lane-torch-client-contract-closure",
       "iteration": "iteration-0001",
-      "outcome": "Complete daemon/provider replacement-generation rebind, object-reference transfer, and physical drain; prove no stale binding admission after lifecycle commit.",
-      "status": "integrated",
+      "outcome": "Close the baseline PyTorch client contract by hardening provider handle semantics, freezing the required CUDA Driver surface, and binding that surface into compatibility and cache identity.",
+      "status": "planned",
       "depends_on": [],
       "acceptance": [
-        "New work cannot use a stale daemon/provider binding after lifecycle commit.",
-        "Captured backend, lease, memory, queue, payload, and owner references drain before retirement.",
-        "Replacement and same-owner rebind tests prove no duplicate retirement or old-generation admission."
+        "Repeated function lookup reuses live handles without accepting invalid, stale, or cross-module handles.",
+        "The pinned baseline client passes import, driver enumeration, runtime copy, artifact intake, and eager add through a stock daemon.",
+        "The required CUDA Driver surface, compatibility probe manifest, and cache identity advance together with focused negative tests."
       ]
     },
     {
-      "id": "lane-stable-release",
+      "id": "lane-torch-kernel-intake",
       "iteration": "iteration-0002",
-      "outcome": "Publish the explicit v1.0.0 compatibility surface with upgrade, reproducible-package, and cumulative v0.1.x regression closure on the AMD reference host.",
+      "outcome": "Establish the durable torch kernel-intake strategy and execute the eager-operation corpus bit-exact through the managed daemon on the CPU backend.",
       "status": "planned",
-      "depends_on": ["lane-generation-drain"],
+      "depends_on": ["lane-torch-client-contract-closure"],
       "acceptance": [
-        "The stable public API/ABI/CLI/package/persisted-state surface and its deprecation policy are published and explicit.",
-        "DEB, RPM, and tar artifacts reproduce byte-for-byte from one clean revision with declared tool identities and no Nix runtime paths.",
-        "Cumulative milestone-0.1.0.0..0.1.3.0 regression and the generic install/upgrade/coexistence/removal matrices pass."
+        "A recorded decision selects the supported torch kernel-intake strategy and rejects incompatible alternatives.",
+        "Many-kernel module loading, function resolution, cache identity, and warm-cache behavior have executable coverage.",
+        "The extended eager corpus, including add, mul, matmul, and reduction, is bit-exact against the torch CPU reference."
+      ]
+    },
+    {
+      "id": "lane-framework-routing-qualification",
+      "iteration": "iteration-0003",
+      "outcome": "Qualify framework stream, event, allocator, teardown, and fault semantics, then route the eager corpus through CPU and Vulkan backends without regressing v0.1.x.",
+      "status": "planned",
+      "depends_on": ["lane-torch-kernel-intake"],
+      "acceptance": [
+        "Stream, event, allocator, multi-stream, synchronization, teardown, and daemon-loss rows pass for the pinned client.",
+        "Framework execution selects qualified CPU and Vulkan daemon routes with bit-exact differential evidence.",
+        "The frontier gap list and cumulative v0.1.x regression evidence are current and release-facing."
       ]
     }
   ]

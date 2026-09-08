@@ -5,7 +5,7 @@ milestone: milestone-0.1.0.0
 status: Complete
 area: build-toolchain
 depends_on: []
-updated: 2026-08-30
+updated: 2026-09-08
 ---
 
 # Build and Release Prerequisites
@@ -75,8 +75,8 @@ qualification semantics to Nix.
   Independent packages matched for DEB, RPM, and tar bytes. These results
   remain bound to their recorded Git revision and evidence invocation.
 
-decision-0027 supersedes decision-0023 only for the future destination: Intel x86_64 support
-qualification belongs to milestone-1.0.0.0 / `v1.0.0`. The absence of an Intel host does
+decision-0040 supersedes decision-0023 for the future destination: Intel x86_64 support
+qualification belongs to milestone-2.0.0.0 / `v2.0.0`. The absence of an Intel host does
 not leave this milestone-0.1.0.0 work item open.
 
 ## Exit Gate

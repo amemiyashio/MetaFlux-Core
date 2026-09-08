@@ -1,7 +1,7 @@
 ---
 status: Verified
 decision: decision-0034
-updated: 2026-09-06
+updated: 2026-09-08
 ---
 
 # Agent Tool Detection
@@ -15,7 +15,7 @@ never stored in repository goal state.
 
 This decision replaces the fixed agent product identity retained by
 decision-0033 and the later executable-probe form of the same decision. The
-execution topology remains unchanged; the current Epoch is epoch-0009.
+execution topology remains unchanged; the current Epoch is epoch-0010.
 
 ## Rationale
 

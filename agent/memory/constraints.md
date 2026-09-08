@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-09-06
+updated: 2026-09-08
 ---
 
 # Durable Constraints
@@ -170,13 +170,12 @@ identity and provisioning boundaries live in
   oversubscribe, schedules indivisible CTAs, and keeps cross-node stealing off
   by default (decision-0015).
 - milestone-0.1.0.0 / `v0.1.0` host evidence is AMD x86_64. Intel x86_64 support
-  qualification belongs to milestone-1.0.0.0 / `v1.0.0` (decision-0027, superseding decision-0023 only for
-  the future destination).
+  qualification belongs to milestone-2.0.0.0 / `v2.0.0` (decision-0040).
 - Generic packages do not overwrite vendor-owned libraries or device nodes and
   do not require Nix store paths at runtime.
 - milestone-0.1.0.0 performance budgets remain provisional throughout `v0.1.0`. Promotion
   to binding budgets requires the physical NVIDIA H2D/D2H and passthrough
-  evidence owned by milestone-1.0.0.0 / `v1.0.0`; an AMD-only host run cannot promote them.
+  evidence owned by milestone-2.0.0.0 / `v2.0.0`; an AMD-only host run cannot promote them.
   Canonical target values and measurement rules remain in
   [milestone-0.1.0.0](../plan/milestone-0.1.0.0-core-foundation/plan.md).
 

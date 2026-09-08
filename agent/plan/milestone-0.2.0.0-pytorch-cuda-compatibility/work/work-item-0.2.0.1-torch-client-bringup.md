@@ -2,10 +2,10 @@
 id: work-item-0.2.0.1
 delivery: 0.2.0.1
 milestone: milestone-0.2.0.0
-status: Draft
+status: Active
 area: compat.cuda
 depends_on: [work-item-0.1.0.4]
-updated: 2026-09-07
+updated: 2026-09-08
 ---
 
 # Torch Client Bring-Up

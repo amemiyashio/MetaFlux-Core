@@ -4,9 +4,9 @@ delivery: 1.0.0.0
 release: v1.0.0
 status: Queued
 budgets: provisional
-depends_on: [milestone-0.1.0.0, milestone-0.1.1.0, milestone-0.1.2.0, milestone-0.1.3.0]
+depends_on: [milestone-0.1.0.0, milestone-0.1.1.0, milestone-0.1.2.0, milestone-0.1.3.0, milestone-0.2.0.0]
 areas: [release]
-updated: 2026-09-05
+updated: 2026-09-08
 ---
 
 # milestone-1.0.0.0: Stable Compatibility Release Qualification
@@ -16,6 +16,10 @@ updated: 2026-09-05
 Deliver the `v1.0.0` stable-compatibility release: an explicit public
 compatibility surface, a proven upgrade path, reproducible no-Nix packages,
 and regression closure for the cumulative `v0.1.x` product line.
+
+This milestone remains queued until the milestone-0.2.0.0 PyTorch CUDA
+compatibility foundation closes (decision-0043); passing a bounded operator
+corpus does not accelerate or imply the stable compatibility commitment.
 
 decision-0040 moves the Intel x86_64 host qualification and the physical
 NVIDIA binding-performance promotion into milestone-2.0.0.0 / `v2.0.0`; this

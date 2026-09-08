@@ -5,7 +5,7 @@ milestone: milestone-2.0.0.0
 status: Queued
 area: backend.cpu
 depends_on: [milestone-0.1.0.0, milestone-0.1.3.0]
-updated: 2026-09-05
+updated: 2026-09-08
 ---
 
 # Intel x86_64 Host Support
@@ -14,8 +14,8 @@ updated: 2026-09-05
 
 Qualify the cumulative MetaFlux compiler, CPU runtime, compatibility providers,
 services, and generic release path on the approved Intel x86_64 support matrix.
-Intel support is a `v1.0.0` release obligation, not a milestone-0.1.0.0 completion gate and
-not a claim of Intel GPU execution.
+Intel support is a `v2.0.0` release obligation, not a milestone-0.1.0.0 or
+milestone-1.0.0.0 completion gate and not a claim of Intel GPU execution.
 
 ## Work
 

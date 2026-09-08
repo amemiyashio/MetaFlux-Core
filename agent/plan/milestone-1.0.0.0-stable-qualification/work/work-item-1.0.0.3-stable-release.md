@@ -4,8 +4,8 @@ delivery: 1.0.0.3
 milestone: milestone-1.0.0.0
 status: Queued
 area: release.stable
-depends_on: [milestone-0.1.1.0, milestone-0.1.2.0, milestone-0.1.3.0]
-updated: 2026-08-30
+depends_on: [milestone-0.1.1.0, milestone-0.1.2.0, milestone-0.1.3.0, milestone-0.2.0.0]
+updated: 2026-09-08
 ---
 
 # Stable Compatibility and Release
@@ -13,7 +13,7 @@ updated: 2026-08-30
 ## Outcome
 
 Define the exact public compatibility commitment represented by `v1.0.0` and
-ship one reproducible release after the Intel and physical NVIDIA gates close.
+ship one reproducible release after the v0.2 compatibility foundation closes.
 
 ## Work
 
@@ -26,11 +26,12 @@ ship one reproducible release after the Intel and physical NVIDIA gates close.
 - [ ] Reproduce DEB, RPM, and tar artifacts byte-for-byte from one clean Git
   revision and declared tool identities.
 - [ ] Bind the release notes, manifests, package versions, and Git tag to the
-  accepted Intel, physical NVIDIA, compatibility, and provenance evidence.
+  accepted compatibility and provenance evidence. Intel and physical NVIDIA
+  qualification remain milestone-2.0.0.0 scope.
 
 ## Exit Gate
 
 The stable compatibility manifest is explicit, every declared prior-release
-upgrade path passes, work-item-1.0.0.1 and work-item-1.0.0.2 are complete, and one verified Git revision
-reproduces the signed `v1.0.0` artifacts without Nix runtime dependencies or
-vendor-file replacement.
+upgrade path passes, milestone-0.2.0.0 is complete, and one verified Git
+revision reproduces the signed `v1.0.0` artifacts without Nix runtime
+dependencies or vendor-file replacement.

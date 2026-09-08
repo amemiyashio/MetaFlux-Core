@@ -6,7 +6,7 @@ status: Complete
 budgets: provisional
 depends_on: []
 areas: [build, contracts, runtime, compiler, backend.cpu, compat.cuda]
-updated: 2026-08-30
+updated: 2026-09-08
 ---
 
 # milestone-0.1.0.0: Core Foundation
@@ -138,7 +138,7 @@ separate single-thread/contended cases, archive raw samples with the toolchain
 fingerprint, and compare distributions rather than best runs.
 
 These numeric targets remain diagnostic throughout milestone-0.1.0.0 / `v0.1.0`; they do
-not become binding release gates from an AMD-only host run. milestone-1.0.0.0 / `v1.0.0`
+not become binding release gates from an AMD-only host run. milestone-2.0.0.0 / `v2.0.0`
 owns physical NVIDIA H2D/D2H, passthrough, and device-identity evidence and may
 promote the budgets to binding only when that complete harness passes.
 
@@ -186,10 +186,10 @@ separate release matrix; this decision does not substitute for those gates.
 | decision-0012 | Freeze the `v0.1.0` four-distribution generic package matrix without raising the glibc 2.31 floor; move native NixOS qualification to `v0.2.0`. | [work-item-0.1.0.1](work/work-item-0.1.0.1-build-toolchain.md#release-qualification-matrix-decision-0012) | Policy verified; provider matrix passed once and complete matrix passed twice. |
 | decision-0013 | Discover vendor CUDA/NVML only as one validated, same-build absolute-path pair under distribution whitelists or the root-owned override. | [work-item-0.1.0.6](work/work-item-0.1.0.6-modes-release.md#vendor-library-discovery-decision-0013) | Policy frozen; coexistence fixtures remain a release gate. |
 | decision-0014 | Isolate mutable compiler cache content per peer-credential UID with fixed quotas, atomic publication, deterministic eviction, and a separate read-only AOT tier. | [work-item-0.1.0.3](work/work-item-0.1.0.3-compiler-cpu.md#cache-isolation-and-eviction-decision-0014) | Policy frozen; fault and quota tests remain work-item-0.1.0.3 gates. |
-| decision-0015 | Derive workers from effective physical cores, keep NUMA-local pools and CTA-granularity work, and disable cross-node stealing by default. | [work-item-0.1.0.3](work/work-item-0.1.0.3-compiler-cpu.md#cpu-and-numa-placement-decision-0015) | Policy and AMD evidence verified; Intel x86_64 support qualification belongs to milestone-1.0.0.0 / `v1.0.0`. |
+| decision-0015 | Derive workers from effective physical cores, keep NUMA-local pools and CTA-granularity work, and disable cross-node stealing by default. | [work-item-0.1.0.3](work/work-item-0.1.0.3-compiler-cpu.md#cpu-and-numa-placement-decision-0015) | Policy and AMD evidence verified; Intel x86_64 support qualification belongs to milestone-2.0.0.0 / `v2.0.0` under decision-0040. |
 | decision-0017 | Freeze the compiler-epoch-1 PTX 9.0/sm_70 capability, instruction-form, and semantic-oracle corpus manifests. | [work-item-0.1.0.3](work/work-item-0.1.0.3-compiler-cpu.md#ptx-oracle-and-corpus-decision-0017) | Manifest hashes, positive/rejection coverage, interpreter differential tests, and ordinary/ASan runs verified. |
 | decision-0019 | Link the generic daemon to a static MLIR/LLVM component closure; retain shared framework DSOs only as a qualification comparison. | [Compiler link closure](#compiler-link-closure-decision-0019) | AMD cold-process and idle-RSS comparison plus generic distribution packaging verified. |
-| decision-0023 | Use AMD x86_64 as the milestone-0.1.0.0 reference host; decision-0027 supersedes only its future Intel destination and assigns Intel x86_64 support qualification to milestone-1.0.0.0 / `v1.0.0`. | [work-item-0.1.0.1](work/work-item-0.1.0.1-build-toolchain.md) | milestone-0.1.0.0 boundary remains frozen; Intel evidence remains future milestone-1.0.0.0 work. |
+| decision-0023 | Use AMD x86_64 as the milestone-0.1.0.0 reference host; decision-0040 supersedes the future Intel destination and assigns Intel x86_64 support qualification to milestone-2.0.0.0 / `v2.0.0`. | [work-item-0.1.0.1](work/work-item-0.1.0.1-build-toolchain.md) | milestone-0.1.0.0 boundary remains frozen; Intel evidence remains future milestone-2.0.0.0 work. |
 | decision-0024 | Separate standard three-part product SemVer from four-part delivery coordinates and derived M/W/S identities. | [Release and delivery identity](../../../docs/release-versioning.md) | Repository-wide identity policy. |
 
 ## Definition of Done
@@ -203,7 +203,7 @@ is installable without Nix, archives available provisional benchmark and
 compiler fingerprints, and admits no excluded later feature into the `v0.1.0`
 hot path. Intel x86_64 support qualification and physical NVIDIA
 binding-performance promotion are explicitly outside this DoD and begin with
-milestone-1.0.0.0 / `v1.0.0`. Native NixOS VM/package qualification is also outside this
+milestone-2.0.0.0 / `v2.0.0` under decision-0040. Native NixOS VM/package qualification is also outside this
 DoD and remains in the unallocated `v0.3.0` support expansion.
 
 [milestone-0.1.1.0](../milestone-0.1.1.0-kernel-guest-transport/plan.md) begins kernel/cdev and static

@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-09-06
+updated: 2026-09-08
 ---
 
 # MetaFlux Project
@@ -37,11 +37,13 @@ CUDA/NVML core foundation (milestone-0.1.0.0), local cdev and guest transport
 (milestone-0.1.1.0), lifecycle and experimental vPCI presentation
 (milestone-0.1.2.0), and the Vulkan execution backend (milestone-0.1.3.0) are
 all delivered with evidence recorded beside their work items. The current
-target is milestone-1.0.0.0 / `v1.0.0`, the stable compatibility release with
-provisional budgets; Intel x86_64 qualification and physical NVIDIA
+target is milestone-0.2.0.0 / `v0.2.0`, which builds the PyTorch CUDA
+compatibility foundation in three ordered boundaries: baseline client contract,
+durable kernel intake and CPU execution, then framework semantics and Vulkan
+routing (decision-0043). milestone-1.0.0.0 / `v1.0.0` remains queued until this
+foundation closes. Intel x86_64 qualification and physical NVIDIA
 binding-performance promotion belong to milestone-2.0.0.0 / `v2.0.0`
-(decision-0040). The next product slot is milestone-0.2.0.0 / `v0.2.0` (PyTorch CUDA
-compatibility), and native NixOS VM/package qualification remains the
+(decision-0040), and native NixOS VM/package qualification remains the
 unallocated `v0.3.0` support expansion. Canonical scope and acceptance
 remain in the [repository overview](../../README.md),
 [plugin ownership](../../plugins/README.md), and

@@ -5,7 +5,7 @@ milestone: milestone-0.1.0.0
 status: Complete
 area: modes-release
 depends_on: [work-item-0.1.0.1, work-item-0.1.0.3, work-item-0.1.0.4, work-item-0.1.0.5]
-updated: 2026-08-30
+updated: 2026-09-08
 ---
 
 # Modes, Performance, and Release
@@ -77,7 +77,7 @@ counters remain zero.
 
 This binding route is implemented as a strict harness but is not a milestone-0.1.0.0 /
 `v0.1.0` exit gate. Physical NVIDIA execution, passthrough performance, and
-budget promotion belong to milestone-1.0.0.0 / `v1.0.0`; missing physical fields must
+budget promotion belong to milestone-2.0.0.0 / `v2.0.0`; missing physical fields must
 continue to fail binding mode rather than being treated as a provisional pass.
 
 The harness and its self-test are implemented. The recorded clean-revision run
@@ -106,7 +106,7 @@ workflows. A project PGO profile does not enter the compiler epoch or
   eight-row generic package matrices.
 
 Native NixOS VM/package qualification remains unallocated `v0.3.0` work.
-Physical NVIDIA binding-performance promotion belongs to milestone-1.0.0.0 / `v1.0.0`.
+Physical NVIDIA binding-performance promotion belongs to milestone-2.0.0.0 / `v2.0.0`.
 Neither is an unchecked work-item-0.1.0.6 row.
 
 ## Exit Gate
@@ -115,6 +115,6 @@ Recursion is impossible, injected managed failures leave no partial state and
 transfer to the vendor stack, the four generic distribution rows pass from one
 declared Git revision, and all in-scope global acceptance criteria in
 [milestone-0.1.0.0](../plan.md) pass on the AMD reference host. Passthrough loss and the
-other provisional numeric budgets become binding only with milestone-1.0.0.0 / `v1.0.0`
-physical NVIDIA evidence. Intel x86_64 support qualification is also an milestone-1.0.0.0
+other provisional numeric budgets become binding only with milestone-2.0.0.0 / `v2.0.0`
+physical NVIDIA evidence. Intel x86_64 support qualification is also a milestone-2.0.0.0
 obligation; native NixOS qualification remains an unallocated `v0.3.0` gate.
