@@ -22,6 +22,17 @@ from typing import Any
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CLIENT_MANIFEST = REPOSITORY_ROOT / "toolchains" / "pytorch-cuda-clients-1.json"
+DEFAULT_BASELINE_PTX = (
+    REPOSITORY_ROOT
+    / "plugins"
+    / "compat"
+    / "cuda"
+    / "compiler"
+    / "ptx"
+    / "corpus"
+    / "fixtures"
+    / "positive-add-copy.ptx"
+)
 TRACE_LAUNCH = re.compile(r"^MF_LAUNCH ", re.MULTILINE)
 TRACE_MODULE = re.compile(r"^MF_PYTORCH_BASELINE_MODULE ", re.MULTILINE)
 TRACE_KERNEL_REQUEST = re.compile(
@@ -98,6 +109,12 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--provider-dir", type=Path)
     parser.add_argument("--profile", default="baseline", choices=("baseline",))
     parser.add_argument("--client-manifest", type=Path, default=DEFAULT_CLIENT_MANIFEST)
+    parser.add_argument(
+        "--execution-mode",
+        choices=("interpreter", "cold-jit", "warm-jit", "aot"),
+        default="interpreter",
+    )
+    parser.add_argument("--ptx", type=Path, default=DEFAULT_BASELINE_PTX)
     parser.add_argument("--application", action="store_true")
     return parser.parse_args()
 
@@ -207,6 +224,61 @@ def daemon_execution_statistics(output: str) -> dict[str, int | str]:
         "cache_misses": int(fields["cache_misses"]),
         "loaded_modules": int(fields["loaded_modules"]),
     }
+
+
+def require_execution_statistics(
+    statistics: dict[str, int | str],
+    mode: str,
+    compiler_requests: int,
+    cache_hits: int,
+    cache_misses: int,
+    minimum_loaded_modules: int,
+) -> None:
+    expected = {
+        "mode": mode,
+        "compiler_requests": compiler_requests,
+        "cache_hits": cache_hits,
+        "cache_misses": cache_misses,
+    }
+    observed = {name: statistics[name] for name in expected}
+    if observed != expected:
+        raise RuntimeError(
+            f"{mode} CPU execution statistics drifted: "
+            f"expected {expected!r}, observed {observed!r}"
+        )
+    if int(statistics["loaded_modules"]) < minimum_loaded_modules:
+        raise RuntimeError(
+            f"{mode} loaded {statistics['loaded_modules']} modules; "
+            f"expected at least {minimum_loaded_modules}"
+        )
+
+
+def cache_identity(cache_root: Path) -> str:
+    identities: set[str] = set()
+    for metadata_path in cache_root.rglob("metadata.v1"):
+        for line in metadata_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("cache_key="):
+                identities.add(line.removeprefix("cache_key="))
+    if len(identities) != 1:
+        raise RuntimeError(
+            "compiled baseline must materialize exactly one cache identity: "
+            f"observed {sorted(identities)!r}"
+        )
+    identity = next(iter(identities))
+    if re.fullmatch(r"mf-cache-v1-[0-9a-f]{64}", identity) is None:
+        raise RuntimeError(f"compiled baseline cache identity is malformed: {identity!r}")
+    return identity
+
+
+def require_stable_gap(payload: dict[str, Any], expected_error: str) -> None:
+    error = payload.get("error")
+    if payload.get("result") != "gap" or not isinstance(error, str):
+        raise RuntimeError(f"stock PyTorch did not return a structured gap: {payload!r}")
+    first_line = error.splitlines()[0] if error else ""
+    if first_line != expected_error:
+        raise RuntimeError(
+            f"stock PyTorch gap drifted: expected {expected_error!r}, observed {first_line!r}"
+        )
 
 
 def require_baseline_execution_surface(surface: dict[str, Any]) -> None:
@@ -371,6 +443,9 @@ def runner(arguments: argparse.Namespace) -> dict[str, Any]:
         raise ValueError(f"daemon is not executable: {daemon_path}")
     if not (provider_dir / "libcuda.so.1").is_file():
         raise ValueError(f"provider directory has no libcuda.so.1: {provider_dir}")
+    baseline_ptx = arguments.ptx.resolve()
+    if not baseline_ptx.is_file():
+        raise ValueError(f"baseline PTX is not a file: {baseline_ptx}")
 
     original_affinity, affinity = pin_baseline_cpu()
     try:
@@ -381,6 +456,8 @@ def runner(arguments: argparse.Namespace) -> dict[str, Any]:
             affinity,
             arguments.profile,
             arguments.client_manifest,
+            arguments.execution_mode,
+            baseline_ptx,
         )
     finally:
         os.sched_setaffinity(0, original_affinity)
@@ -393,17 +470,17 @@ def run_pinned_baseline(
     affinity: dict[str, int],
     profile_name: str,
     client_manifest: Path,
+    execution_mode: str,
+    baseline_ptx: Path,
 ) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="metaflux-pytorch-stock-") as temporary:
         root = Path(temporary)
-        socket_path = root / "metafluxd.sock"
+        cache_root = root / "compiler-cache"
         environment = os.environ.copy()
         environment.update(
             {
-                "METAFLUX_SOCKET": str(socket_path),
                 "METAFLUX_MODE": "managed",
-                "METAFLUX_CPU_EXECUTION_MODE": "interpreter",
-                "METAFLUX_COMPILER_CACHE": str(root / "compiler-cache"),
+                "METAFLUX_COMPILER_CACHE": str(cache_root),
                 "METAFLUX_TRACE_STUBS": "1",
             }
         )
@@ -412,74 +489,177 @@ def run_pinned_baseline(
         if existing_library_path:
             environment["LD_LIBRARY_PATH"] += os.pathsep + existing_library_path
 
-        daemon = subprocess.Popen(
-            [str(daemon_path), "--socket", str(socket_path)],
-            env=environment,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-        daemon_output = ""
-        application_report: dict[str, Any] | None = None
-        provider_surface: dict[str, Any] | None = None
-        try:
-            wait_for_socket(daemon, socket_path)
-            application_run = subprocess.run(
-                [sys.executable, "-B", str(Path(__file__).resolve()), "--application",
-                 "--profile", profile_name, "--client-manifest", str(client_manifest)],
-                check=False,
-                env=environment,
-                capture_output=True,
+        def run_once(mode: str, label: str, expect_success: bool) -> dict[str, Any]:
+            socket_path = root / f"metafluxd-{label}.sock"
+            run_environment = environment.copy()
+            run_environment.update(
+                {"METAFLUX_SOCKET": str(socket_path), "METAFLUX_CPU_EXECUTION_MODE": mode}
+            )
+            daemon = subprocess.Popen(
+                [str(daemon_path), "--socket", str(socket_path)],
+                env=run_environment,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
                 text=True,
             )
+            daemon_output = ""
+            try:
+                wait_for_socket(daemon, socket_path)
+                application_run = subprocess.run(
+                    [
+                        sys.executable,
+                        "-B",
+                        str(Path(__file__).resolve()),
+                        "--application",
+                        "--profile",
+                        profile_name,
+                        "--client-manifest",
+                        str(client_manifest),
+                    ],
+                    check=False,
+                    env=run_environment,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                )
+            finally:
+                daemon_output = stop_daemon(daemon)
+            if daemon.returncode != 0:
+                raise RuntimeError(
+                    f"metafluxd {label} exited with {daemon.returncode}:\n{daemon_output}"
+                )
+
+            statistics = daemon_execution_statistics(daemon_output)
+            payload = json.loads(application_run.stdout)
+            surface = provider_execution_surface(application_run.stderr)
+            if not expect_success:
+                if application_run.returncode == 0:
+                    raise RuntimeError(
+                        f"stock PyTorch {label} did not report the expected stable gap:\n"
+                        f"stdout:\n{application_run.stdout}\nstderr:\n{application_run.stderr}"
+                    )
+                require_stable_gap(payload, "CUDA error: operation not supported")
+                if surface["local_semantic_execution_events"] != 0:
+                    raise RuntimeError("failed provider path recorded forbidden local execution")
+                return {
+                    "application": payload,
+                    "provider_surface": surface,
+                    "statistics": statistics,
+                }
+
             if application_run.returncode != 0:
                 raise RuntimeError(
                     "stock PyTorch application failed:\n"
                     f"stdout:\n{application_run.stdout}\nstderr:\n{application_run.stderr}"
                 )
-            application_report = json.loads(application_run.stdout)
-            trace = application_run.stderr
-            provider_surface = provider_execution_surface(trace)
-            if provider_surface["launches"] == 0:
+            if surface["launches"] == 0:
                 raise RuntimeError("provider trace did not record a CUDA launch")
-            if provider_surface["canonical_artifact_module_loads"] == 0:
+            if surface["canonical_artifact_module_loads"] == 0:
                 raise RuntimeError("provider trace did not record daemon-owned canonical module intake")
-            if provider_surface["unknown_internal_table_requests"] != 0:
+            if surface["unknown_internal_table_requests"] != 0:
                 raise RuntimeError("provider trace requested an unclassified CUDA internal table")
-            if provider_surface["local_semantic_execution_events"] != 0:
+            if surface["local_semantic_execution_events"] != 0:
                 raise RuntimeError("provider trace recorded forbidden local semantic execution")
-            require_baseline_execution_surface(provider_surface)
-        finally:
-            daemon_output = stop_daemon(daemon)
+            require_baseline_execution_surface(surface)
+            return {
+                "application": payload,
+                "provider_surface": surface,
+                "statistics": statistics,
+            }
 
-        if application_report is None or provider_surface is None:
-            raise RuntimeError("stock PyTorch application produced no report")
-        daemon_statistics = daemon_execution_statistics(daemon_output)
-        if daemon_statistics["mode"] != "interpreter":
-            raise RuntimeError("baseline daemon did not retain interpreter mode")
-        if daemon_statistics["compiler_requests"] != 0:
-            raise RuntimeError("interpreter baseline unexpectedly requested the compiler")
-        if daemon_statistics["cache_hits"] != 0 or daemon_statistics["cache_misses"] != 0:
-            raise RuntimeError("interpreter baseline unexpectedly used the compiled-artifact cache")
-        if daemon_statistics["loaded_modules"] < provider_surface["canonical_artifact_module_loads"]:
-            raise RuntimeError("daemon statistics did not retain every canonical baseline module")
+        seed_evidence: dict[str, Any] | None = None
+        miss_evidence: dict[str, Any] | None = None
+        prewarm_evidence: dict[str, Any] | None = None
+        if execution_mode == "interpreter":
+            final_run = run_once("interpreter", "interpreter", True)
+            require_execution_statistics(final_run["statistics"], "interpreter", 0, 0, 0, 1)
+            compiled_cache_identity: str | None = None
+        elif execution_mode == "cold-jit":
+            final_run = run_once("cold-jit", "cold-jit", True)
+            require_execution_statistics(final_run["statistics"], "cold-jit", 1, 0, 1, 1)
+            compiled_cache_identity = cache_identity(cache_root)
+        elif execution_mode == "warm-jit":
+            seed_run = run_once("cold-jit", "warm-seed", True)
+            require_execution_statistics(seed_run["statistics"], "cold-jit", 1, 0, 1, 1)
+            seed_evidence = {"mode": "cold-jit", "statistics": seed_run["statistics"]}
+            seeded_identity = cache_identity(cache_root)
+            final_run = run_once("warm-jit", "warm-jit", True)
+            require_execution_statistics(final_run["statistics"], "warm-jit", 0, 1, 0, 1)
+            compiled_cache_identity = cache_identity(cache_root)
+            if compiled_cache_identity != seeded_identity:
+                raise RuntimeError("warm JIT did not reuse the cold JIT cache identity")
+        else:
+            miss_run = run_once("aot", "aot-miss", False)
+            require_execution_statistics(miss_run["statistics"], "aot", 0, 0, 1, 0)
+            miss_evidence = {
+                "classification": "stable-not-supported",
+                "statistics": miss_run["statistics"],
+            }
+            prewarm_environment = environment.copy()
+            prewarm_environment["METAFLUX_CPU_EXECUTION_MODE"] = "aot"
+            prewarm = subprocess.run(
+                [str(daemon_path), "--prewarm-aot", str(baseline_ptx)],
+                check=False,
+                env=prewarm_environment,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            match = re.search(
+                r"AOT prewarm compiled cache-key=(mf-cache-v1-[0-9a-f]{64})",
+                prewarm.stdout,
+            )
+            if prewarm.returncode != 0 or match is None:
+                raise RuntimeError(
+                    f"stock PyTorch AOT prewarm failed ({prewarm.returncode}):\n"
+                    f"stdout:\n{prewarm.stdout}\nstderr:\n{prewarm.stderr}"
+                )
+            prewarm_evidence = {"compiled": True, "cache_identity": match.group(1)}
+            final_run = run_once("aot", "aot-hit", True)
+            require_execution_statistics(final_run["statistics"], "aot", 0, 1, 0, 1)
+            compiled_cache_identity = cache_identity(cache_root)
+            if compiled_cache_identity != match.group(1):
+                raise RuntimeError("AOT runtime did not reuse the prewarmed cache identity")
+
+        application_report = final_run["application"]
+        provider_surface = final_run["provider_surface"]
+        daemon_statistics = final_run["statistics"]
+        require_execution_statistics(
+            daemon_statistics,
+            execution_mode,
+            int(daemon_statistics["compiler_requests"]),
+            int(daemon_statistics["cache_hits"]),
+            int(daemon_statistics["cache_misses"]),
+            int(provider_surface["canonical_artifact_module_loads"]),
+        )
         return {
             "schema_version": 3,
             "gate": "metaflux-pytorch-cuda-stock-baseline",
             "result": "complete",
-            "runner": {"cpu_affinity": affinity},
+            "runner": {"cpu_affinity": affinity, "execution_mode": execution_mode},
             "source": source_provenance(),
             "daemon": {
-                "cpu_execution_mode": "interpreter",
+                "cpu_execution_mode": execution_mode,
                 "socket": "private",
                 "execution_statistics": daemon_statistics,
                 "compiler": {
-                    "input_identity": "not-applicable-in-interpreter-mode",
-                    "used": False,
+                    "input_identity": (
+                        "not-applicable-in-interpreter-mode"
+                        if execution_mode == "interpreter"
+                        else "canonical-kernel-ir-v2"
+                    ),
+                    "runtime_requests": daemon_statistics["compiler_requests"],
+                    "prewarm": prewarm_evidence,
                 },
                 "compiled_artifact_cache": {
-                    "used": False,
-                    "identity": "not-applicable-in-interpreter-mode",
+                    "used": execution_mode != "interpreter",
+                    "identity": (
+                        "not-applicable-in-interpreter-mode"
+                        if compiled_cache_identity is None
+                        else compiled_cache_identity
+                    ),
+                    "seed": seed_evidence,
+                    "required_miss": miss_evidence,
                 },
             },
             "protocol": {

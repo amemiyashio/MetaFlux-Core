@@ -35,8 +35,8 @@ reserved for `v0.3.0`.
 | --- | --- | --- |
 | Architecture | Provider, neutral protocol, daemon/compiler worker, canonical Kernel IR, CPU backend, and Vulkan backend owners exist. | Keep component boundaries and make stock PyTorch behavior the outer success signal. |
 | Activation | The checked-in gate provisions pinned stock PyTorch `2.11.0+cu126` and reaches all five stages against the stock daemon. | Preserve this exact profile as the CPU-profile and Vulkan qualification input. |
-| Implementation maturity | The eager int32 add crosses a capability-gated neutral request into daemon-owned Kernel IR and CPU interpreter execution. Deferred profile operations return classified unsupported errors rather than bypassing the daemon. | Broaden only through the versioned corpus and its daemon-owned routes. |
-| Release evidence | One real-client operation has passed its focused and cumulative evidence, but no versioned CPU corpus, compiled-cache profile, Vulkan differential gate, or current gap manifests qualify `v0.2.0`. | Treat the accepted baseline as the CPU-profile prerequisite, not a release. |
+| Implementation maturity | The eager int32 add crosses a capability-gated neutral request into daemon-owned Kernel IR and passes through interpreter, MLIR/LLVM cold JIT, warm JIT, and administrator-prewarmed AOT. Deferred profile operations return classified unsupported errors rather than bypassing the daemon. | Broaden only through the versioned corpus and its daemon-owned routes. |
+| Release evidence | One real-client operation has passed all four CPU execution modes with exact compiler/cache counters, stable cache identity, and an explicit AOT-miss error, but no versioned CPU corpus, complete surface/handle matrix, Vulkan differential gate, or current gap manifests qualify `v0.2.0`. | Treat this as the first CPU-profile slice, not a release. |
 
 The readiness result is `not ready` for release and `ready for the CPU-profile
 lane`: its three baseline decisions have real evidence and the baseline is
@@ -49,15 +49,18 @@ The repository contains the pinned baseline/frontier client manifest, provider
 ABI and semantic tests, and a checked-in five-stage stock-client gate. The gate
 runs stock PyTorch `2.11.0+cu126`, records the exact direct provider/internal
 table surface and neutral request, then verifies daemon-owned canonical Kernel
-IR and CPU interpreter completion for eager int32 add. The accepted baseline
-path has no provider-local tensor arithmetic or fabricated-success event.
+IR completion for eager int32 add through interpreter, cold JIT, warm JIT, and
+AOT. The compiled modes require one shared versioned cache identity: cold JIT
+compiles once, warm JIT performs a lookup-only hit after a cold seed, and AOT
+first proves an unseeded stable unsupported result before the same PTX/KIR is
+prewarmed and loaded without a runtime compiler request. The accepted path has
+no provider-local tensor arithmetic or fabricated-success event.
 
 The same gate deliberately rejects an unexpected internal-table surface,
 unclassified reached slot, mismatched neutral request, or local semantic event.
 It is limited to the named profile and one operation: no common-operator corpus,
-compiled-cache profile, or Vulkan route is yet qualified. That distinction keeps
-the accepted baseline from overstating milestone
-completion.
+complete surface/handle profile, or Vulkan route is yet qualified. That
+distinction keeps the accepted slice from overstating milestone completion.
 
 ## Evidence and Execution Boundary (decision-0044)
 
@@ -177,7 +180,7 @@ Excluded:
 | Workstream | Status | Deliverable |
 | --- | --- | --- |
 | [work-item-0.2.0.1](work/work-item-0.2.0.1-torch-client-bringup.md) | Complete | Stock PyTorch CUDA five-stage baseline through daemon CPU execution |
-| [work-item-0.2.0.2](work/work-item-0.2.0.2-torch-kernel-intake.md) | Queued | Complete CPU profile, neutral Kernel IR boundary, and versioned operator corpus |
+| [work-item-0.2.0.2](work/work-item-0.2.0.2-torch-kernel-intake.md) | Active | Complete CPU profile, neutral Kernel IR boundary, and versioned operator corpus |
 | [work-item-0.2.0.3](work/work-item-0.2.0.3-framework-qualification.md) | Queued | PyTorch CUDA Vulkan and lifecycle qualification |
 
 ## Global Acceptance

@@ -18,6 +18,23 @@ complete, neutral framework requests verify as canonical Kernel IR, and the
 declared operator corpus executes through the backend-owned MLIR/LLVM CPU path
 with stable cache and error behavior.
 
+## Current Implementation
+
+The first CPU-profile slice keeps the pinned stock PyTorch application and its
+normal `torch.cuda` API unchanged while running eager `torch.add(int32)` through
+all four daemon CPU execution modes. Interpreter retains canonical Kernel IR
+without compiler/cache use; cold JIT compiles exactly once; warm JIT reuses that
+identity with a lookup-only hit; and AOT first proves a stable unsupported miss,
+then loads an administrator-prewarmed artifact without a runtime compiler
+request. Cold JIT, warm JIT, and AOT bind to the same `mf-cache-v1` identity.
+
+The gate continues to require the exact direct Driver/internal-table surface,
+the v1 neutral request and Kernel IR v2 boundary, daemon module ownership,
+bit-exact result bytes, and zero provider-local semantic events. This closes the
+compiled-mode uncertainty for the baseline operation only. The complete surface
+and handle matrices, generalized request, library boundary, and versioned
+multi-operation corpus remain open below.
+
 ## Work
 
 - [ ] Generate one versioned surface matrix from pinned headers, provider

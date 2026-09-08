@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 import subprocess
+import tempfile
 import unittest
 from unittest import mock
 
@@ -124,6 +125,56 @@ class StockBaselineEvidenceTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(RuntimeError, "exactly one"):
             stock_baseline.daemon_execution_statistics("")
+
+    def test_execution_statistics_bind_mode_and_cache_behavior(self) -> None:
+        statistics = {
+            "mode": "warm-jit",
+            "compiler_requests": 0,
+            "cache_hits": 1,
+            "cache_misses": 0,
+            "loaded_modules": 1,
+        }
+
+        stock_baseline.require_execution_statistics(statistics, "warm-jit", 0, 1, 0, 1)
+
+        with self.assertRaisesRegex(RuntimeError, "statistics drifted"):
+            stock_baseline.require_execution_statistics(statistics, "cold-jit", 1, 0, 1, 1)
+        with self.assertRaisesRegex(RuntimeError, "expected at least 2"):
+            stock_baseline.require_execution_statistics(statistics, "warm-jit", 0, 1, 0, 2)
+
+    def test_cache_identity_requires_one_versioned_key(self) -> None:
+        identity = "mf-cache-v1-" + "a" * 64
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            entry = root / "mutable" / "entry"
+            entry.mkdir(parents=True)
+            (entry / "metadata.v1").write_text(
+                f"format_version=1\ncache_key={identity}\n", encoding="utf-8"
+            )
+            self.assertEqual(stock_baseline.cache_identity(root), identity)
+
+            second = root / "aot" / "entry"
+            second.mkdir(parents=True)
+            (second / "metadata.v1").write_text(
+                f"format_version=1\ncache_key={'mf-cache-v1-' + 'b' * 64}\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(RuntimeError, "exactly one"):
+                stock_baseline.cache_identity(root)
+
+    def test_stable_gap_requires_the_declared_error(self) -> None:
+        stock_baseline.require_stable_gap(
+            {
+                "result": "gap",
+                "error": "CUDA error: operation not supported\nextra diagnostic",
+            },
+            "CUDA error: operation not supported",
+        )
+        with self.assertRaisesRegex(RuntimeError, "gap drifted"):
+            stock_baseline.require_stable_gap(
+                {"result": "gap", "error": "CUDA error: invalid value"},
+                "CUDA error: operation not supported",
+            )
 
     def test_baseline_cpu_selection_uses_one_effective_cpu(self) -> None:
         self.assertEqual(stock_baseline.select_baseline_cpu({4, 9, 12}), 4)

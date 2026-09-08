@@ -46,12 +46,16 @@ milestone-1.0.0.0 / `v1.0.0` remains queued until this foundation closes.
 Current v0.2 maturity includes a checked-in real five-stage baseline for pinned
 stock PyTorch `2.11.0+cu126`: import, driver enumeration, runtime copy,
 artifact intake, and `torch.add` execute through the normal `torch.cuda` API
-against the daemon CPU interpreter. Eager add negotiates the v1 neutral kernel
+against the daemon CPU interpreter. The same operation also passes through the
+backend-owned MLIR/LLVM cold-JIT, warm-JIT, and administrator-prewarmed AOT
+paths with one stable cache identity; an unseeded AOT load returns the declared
+unsupported error before execution. Eager add negotiates the v1 neutral kernel
 request, loads daemon-owned canonical Kernel IR, records a daemon launch, and
 has no provider-local semantic execution (decision-0048). This is one verified
-profile operation, not a qualified CPU operator corpus or a claim of general
-PyTorch usability. The baseline Driver/internal-table, neutral request, and
-CPU interpreter/cache-non-use decisions are closed by decisions 0048-0050;
+profile operation across four CPU execution modes, not a qualified CPU operator
+corpus or a claim of general PyTorch usability. The baseline
+Driver/internal-table, neutral request, and CPU interpreter/cache-non-use
+decisions are closed by decisions 0048-0050;
 epoch-0015 retains this baseline and advances active work to the dependent CPU
 profile. Qualified future deliveries are checked, accepted, and advanced by the
 decision-0052 controller without a second user instruction; empty or stale
