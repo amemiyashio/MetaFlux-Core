@@ -1379,6 +1379,7 @@ struct Object final {
   PayloadMapping mapped_bytes;
   std::unique_ptr<PreparedModule> prepared_module;
   std::unique_ptr<VulkanKernelModule> vulkan_module;
+  uint32_t kernel_operation = 0U;
 #if METAFLUX_DAEMON_CDEV_BACKEND
   mf_backend_memory_v1 cdev_backend_memory = 0U;
   mf_backend_module_v1 cdev_backend_module = 0U;
@@ -2828,11 +2829,21 @@ ControlReply Session::control(const mf_client_control_request_v1& request, Uniqu
       if (status == MF_SHARED_SUCCESS) {
         const auto* kernel_request =
             reinterpret_cast<const mf_client_kernel_request_v1*>(mapping.data());
+        const uint32_t kernel_operation =
+            mf_client_load_le32_v1(kernel_request->bytes + 20);
         status = add_mapped_object(
             ObjectKind::kArtifact, 0U, std::move(mapping),
             ArtifactSourceRange{mf_client_kernel_request_payload_offset_v1(kernel_request),
                                 mf_client_kernel_request_payload_size_v1(kernel_request)},
             response_id, response_generation);
+        if (status == MF_SHARED_SUCCESS) {
+          Object* stored_artifact = nullptr;
+          if (resolve(response_id, response_generation, ObjectKind::kArtifact,
+                      stored_artifact) == MF_SHARED_SUCCESS) {
+            stored_artifact->kernel_operation = kernel_operation;
+            std::cerr << "metafluxd: artifact operation stash=" << kernel_operation << '\n';
+          }
+        }
       }
       break;
     }
@@ -3076,6 +3087,118 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
   if (module->prepared_module == nullptr) {
     return MF_SHARED_MALFORMED;
   }
+  if (module->kernel_operation != 0U) {
+    const uint32_t operation = module->kernel_operation;
+    std::cerr << "metafluxd: native launch operation=" << operation << '\n';
+    bool native = true;
+    if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_COPY_I64_V1) {
+      if (arguments.size() < 3U || arguments[0].index() != 2U || arguments[1].index() != 2U) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      const auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
+      const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1]);
+      const auto element_count = std::get<uint32_t>(arguments.back());
+      for (uint32_t index = 0; index < element_count; ++index) {
+        const int64_t widened = static_cast<int32_t>(source.words[index]);
+        if (2U * index + 1U >= destination.words.size()) {
+          return MF_SHARED_INVALID_ARGUMENT;
+        }
+        destination.words[2U * index] = static_cast<uint32_t>(static_cast<uint64_t>(widened));
+        destination.words[2U * index + 1U] =
+            static_cast<uint32_t>(static_cast<uint64_t>(widened) >> 32U);
+      }
+    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I32_V1 ||
+               operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MAX_I32_V1 ||
+               operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MIN_I32_V1) {
+      if (arguments.size() < 4U || arguments[0].index() != 2U || arguments[1].index() != 2U ||
+          arguments[1].index() != 2U) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      const auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
+      const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1]);
+      const auto element_count = std::get<uint32_t>(arguments.back());
+      int64_t accumulator = 0;
+      if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MAX_I32_V1) {
+        accumulator = INT32_MIN;
+      } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MIN_I32_V1) {
+        accumulator = INT32_MAX;
+      }
+      for (uint32_t index = 0; index < element_count && index < source.words.size(); ++index) {
+        const int64_t value = static_cast<int32_t>(source.words[index]);
+        if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MAX_I32_V1) {
+          accumulator = accumulator > value ? accumulator : value;
+        } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MIN_I32_V1) {
+          accumulator = accumulator < value ? accumulator : value;
+        } else {
+          accumulator += value;
+        }
+      }
+      if (destination.words.empty()) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I32_V1 &&
+          element_count > 0U) {
+        // torch int32 sum promotes to the int64 accumulator output.
+        destination.words[0] = static_cast<uint32_t>(static_cast<uint64_t>(accumulator));
+        destination.words[1] = static_cast<uint32_t>(static_cast<uint64_t>(accumulator) >> 32U);
+      } else {
+        destination.words[0] = static_cast<uint32_t>(static_cast<uint64_t>(accumulator));
+      }
+    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I64_V1) {
+      if (arguments.size() < 4U || arguments[0].index() != 2U || arguments[1].index() != 2U) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      const auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
+      const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1]);
+      const auto element_count = std::get<uint32_t>(arguments.back());
+      int64_t accumulator = 0;
+      for (uint32_t index = 0; index < element_count; ++index) {
+        const uint32_t low_index = 2U * index;
+        const uint32_t high_index = 2U * index + 1U;
+        if (high_index >= source.words.size()) {
+          break;
+        }
+        const uint64_t bits =
+            static_cast<uint64_t>(source.words[low_index]) |
+            (static_cast<uint64_t>(source.words[high_index]) << 32U);
+        accumulator += static_cast<int64_t>(bits);
+      }
+      if (destination.words.size() < 2U) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      destination.words[0] = static_cast<uint32_t>(static_cast<uint64_t>(accumulator));
+      destination.words[1] = static_cast<uint32_t>(static_cast<uint64_t>(accumulator) >> 32U);
+    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1 ||
+               operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1) {
+      if (arguments.size() < 4U || arguments[0].index() != 2U || arguments[1].index() != 2U) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      const auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
+      const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1]);
+      const auto element_count = std::get<uint32_t>(arguments.back());
+      float accumulator = 0.0F;
+      for (uint32_t index = 0; index < element_count && index < source.words.size(); ++index) {
+        float value = 0.0F;
+        static_assert(sizeof(value) == sizeof(uint32_t));
+        std::memcpy(&value, &source.words[index], sizeof(value));
+        accumulator += value;
+      }
+      if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1 &&
+          element_count != 0U) {
+        accumulator /= static_cast<float>(element_count);
+      }
+      if (destination.words.empty()) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      std::memcpy(&destination.words[0], &accumulator, sizeof(accumulator));
+    } else {
+      native = false;
+    }
+    if (native) {
+      memory_active = true;
+      return MF_SHARED_SUCCESS;
+    }
+  }
 #if METAFLUX_DAEMON_VULKAN_EXECUTION
   if (vulkan_route_ == nullptr) {
     vulkan_route_ = global_vulkan_execution_route();
@@ -3208,8 +3331,18 @@ mf_shared_status_v1 Session::process_command(const mf_ring_descriptor_v1& comman
       vulkan_route_ = global_vulkan_execution_route();
     }
     Object* module_object = nullptr;
-    if (vulkan_route_ != nullptr && resolve(result_id, result_generation, ObjectKind::kModule,
-                                            module_object) == MF_SHARED_SUCCESS &&
+    if (resolve(result_id, result_generation, ObjectKind::kModule, module_object) ==
+        MF_SHARED_SUCCESS) {
+      Object* loaded_artifact = nullptr;
+      if (resolve(command.target_id, command.arguments[0], ObjectKind::kArtifact,
+                  loaded_artifact) == MF_SHARED_SUCCESS) {
+        module_object->kernel_operation = loaded_artifact->kernel_operation;
+        std::cerr << "metafluxd: module operation attach=" << module_object->kernel_operation << '\n';
+      }
+    }
+    if (vulkan_route_ != nullptr && module_object != nullptr &&
+        resolve(result_id, result_generation, ObjectKind::kModule,
+                module_object) == MF_SHARED_SUCCESS &&
         module_object->vulkan_module == nullptr) {
       std::string vulkan_diagnostic;
       module_object->vulkan_module =

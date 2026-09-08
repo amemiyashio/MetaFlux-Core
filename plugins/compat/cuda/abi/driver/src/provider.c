@@ -703,6 +703,41 @@ static const char mf_pytorch_baseline_lt_f32_ptx[] =
     "  ret;\n"
     "}\n";
 
+/* Reduction and cast-copy launches execute through the daemon-native path;
+   this minimal parseable artifact satisfies the module-load contract and is
+   never dispatched. */
+static const char mf_pytorch_baseline_reduce_stub_ptx[] =
+    ".version 9.0\n"
+    ".target sm_70\n"
+    ".address_size 64\n"
+    ".visible .entry reduce_stub(\n"
+    "  .param .u64 destination,\n"
+    "  .param .u64 input,\n"
+    "  .param .u64 unused,\n"
+    "  .param .u32 count\n"
+    ")\n"
+    "{\n"
+    "  .reg .pred %p<4>;\n"
+    "  .reg .b32 %r<10>;\n"
+    "  .reg .b64 %rd<10>;\n"
+    "  ld.param.u64 %rd0, [destination];\n"
+    "  ld.param.u64 %rd1, [input];\n"
+    "  ld.param.u32 %r0, [count];\n"
+    "  mov.u32 %r1, %tid.x;\n"
+    "  mov.u32 %r2, %ctaid.x;\n"
+    "  mov.u32 %r3, %ntid.x;\n"
+    "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
+    "  setp.ge.u32 %p1, %r4, %r0;\n"
+    "  @%p1 bra done;\n"
+    "  mul.wide.u32 %rd3, %r4, 4;\n"
+    "  add.u64 %rd4, %rd0, %rd3;\n"
+    "  add.u64 %rd5, %rd1, %rd3;\n"
+    "  ld.global.u32 %r5, [%rd5];\n"
+    "  st.global.u32 [%rd4], %r5;\n"
+    "done:\n"
+    "  ret;\n"
+    "}\n";
+
 /* float32 subtract: sub.rn.f32 over the linear-index copy shape. */
 static const char mf_pytorch_baseline_subf32_ptx[] =
     ".version 9.0\n"
@@ -7604,6 +7639,140 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
           module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_COMPARE_LT_F32_V1,
           mf_pytorch_baseline_lt_f32_ptx, sizeof(mf_pytorch_baseline_lt_f32_ptx) - 1U,
           "compare-lt-f32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
+    if (kernel_name[0] != '\0' && strstr(kernel_name, "reduce_kernel") != (char*)0 &&
+        kernel_parameters[0] != (void*)0) {
+      /* torch single-output reductions pass one ReduceOp value whose config
+         carries num_inputs and the source pointer, with the destination in
+         the recorded-order later slot. The adapter scans the config for
+         registered device memories instead of pinning struct offsets, and
+         the daemon executes the reduction natively from the operation id. */
+      uint32_t reduce_operation = UINT32_C(0);
+      if (strstr(kernel_name, "MaxNanFunctor") != (char*)0) {
+        reduce_operation = MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MAX_I32_V1;
+      } else if (strstr(kernel_name, "MinNanFunctor") != (char*)0) {
+        reduce_operation = MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MIN_I32_V1;
+      } else if (strstr(kernel_name, "MeanOps") != (char*)0) {
+        reduce_operation = MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1;
+      } else if (strstr(kernel_name, "ReduceOpIf") != (char*)0) {
+        reduce_operation = MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1;
+      } else if (strstr(kernel_name, "ReduceOpIl") != (char*)0) {
+        reduce_operation = MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I64_V1;
+      } else if (strstr(kernel_name, "ReduceOpIi") != (char*)0) {
+        reduce_operation = MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I32_V1;
+      }
+      if (reduce_operation == UINT32_C(0)) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      const unsigned char* config_bytes = (const unsigned char*)kernel_parameters[0];
+      /* The int64-accumulator variant widens the functor/ident front, so its
+         config (element size, then num_inputs) starts sixteen bytes in. */
+      const uint32_t count_offset =
+          reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I64_V1
+              ? UINT32_C(20)
+              : UINT32_C(12);
+      uint32_t config_count = UINT32_C(0);
+      (void)memcpy(&config_count, config_bytes + count_offset, sizeof(config_count));
+      /* The ReduceOp record ends with the source pointer followed by the
+         destination pointers, but its front carries variable garbage, so the
+         adapter keeps the registered-pointer matches in record order and uses
+         the last two distinct records: source, then destination. */
+      uint64_t matches[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+      uint32_t match_count = UINT32_C(0);
+      for (uint32_t offset = UINT32_C(0); offset + UINT32_C(8) <= UINT32_C(1024);
+           offset += UINT32_C(4)) {
+        uint64_t value = UINT64_C(0);
+        for (uint32_t byte = UINT32_C(0); byte < UINT32_C(8); ++byte) {
+          value |= (uint64_t)config_bytes[offset + byte] << (uint32_t)(byte * UINT32_C(8));
+        }
+        if (value == UINT64_C(0)) {
+          continue;
+        }
+        mf_cuda_object* memory = (mf_cuda_object*)0;
+        uint64_t memory_offset = UINT64_C(0);
+        if (mf_cuda_memory_locked((CUdeviceptr)value, (size_t)1, &memory, &memory_offset) ==
+            CUDA_SUCCESS) {
+          uint32_t slot = UINT32_C(0);
+          int duplicate = 0;
+          for (slot = 0; slot < match_count; ++slot) {
+            if (matches[slot] == value) {
+              duplicate = 1;
+            }
+          }
+          if (!duplicate && match_count < UINT32_C(8)) {
+            matches[match_count++] = value;
+          }
+        }
+      }
+      if (match_count < UINT32_C(2) || config_count == UINT32_C(0)) {
+        fprintf(stderr, "MF_REDUCE_SCAN matches=%u count=%u op=%u\n", match_count,
+                config_count, reduce_operation);
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      /* Calculator arrays retain stale stack values, so matches are ranked:
+         the destination is the match from the most recently allocated memory
+         object and the source is the oldest match that still holds
+         count*4 readable bytes. */
+      uint32_t destination_slot = UINT32_C(0);
+      uint64_t destination_index = 0;
+      int destination_found = 0;
+      uint32_t source_slot = UINT32_C(0);
+      uint64_t source_index = UINT64_C(0);
+      int source_found = 0;
+      uint32_t slot = UINT32_C(0);
+      for (slot = 0; slot < match_count; ++slot) {
+        mf_cuda_object* memory = (mf_cuda_object*)0;
+        uint64_t memory_offset = UINT64_C(0);
+        if (mf_cuda_memory_locked((CUdeviceptr)matches[slot], (size_t)1, &memory,
+                                  &memory_offset) != CUDA_SUCCESS ||
+            memory == (mf_cuda_object*)0) {
+          continue;
+        }
+        const uint32_t object_index = (uint32_t)(memory - mf_cuda_global.memories);
+        const uint64_t rank = ((uint64_t)object_index << 32U) | memory_offset;
+        const uint64_t capacity = memory->size > memory_offset
+                                      ? memory->size - memory_offset
+                                      : UINT64_C(0);
+        const int holds_input =
+            capacity >= (uint64_t)config_count * UINT64_C(4);
+        if (!destination_found || rank > destination_index) {
+          destination_index = rank;
+          destination_slot = slot;
+          destination_found = 1;
+        }
+        if (holds_input &&
+            (!source_found || rank < source_index)) {
+          source_index = rank;
+          source_slot = slot;
+          source_found = 1;
+        }
+      }
+      if (!destination_found || !source_found) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      normalized_element_count = config_count;
+      if (reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I64_V1) {
+        normalized_output_element_size = UINT32_C(8);
+      }
+      normalized_pointers[0] = (CUdeviceptr)matches[destination_slot]; /* destination */
+      normalized_pointers[1] = (CUdeviceptr)matches[source_slot];      /* source */
+      normalized_pointers[2] = (CUdeviceptr)0;
+      normalized_kinds[2] = UINT32_C(1);
+      normalized_scalars[2] = UINT32_C(0);
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, reduce_operation, mf_pytorch_baseline_reduce_stub_ptx,
+          sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U, "reduce-native");
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();
         return result;
