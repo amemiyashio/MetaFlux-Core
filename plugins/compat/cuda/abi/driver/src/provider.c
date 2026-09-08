@@ -6896,7 +6896,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
           {
             const unsigned long long* q = (const unsigned long long*)kernel_parameters[slot];
             unsigned int k = 0;
-            for (k = 0; k < 64; ++k) {
+            for (k = 0; k < 32; ++k) {
               fprintf(stderr, "MF_RED p%u[%02u] %016llx\n", slot, k, q[k]);
             }
           }
