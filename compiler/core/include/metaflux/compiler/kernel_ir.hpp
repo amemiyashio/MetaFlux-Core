@@ -118,6 +118,7 @@ enum class Opcode : std::uint32_t {
   StoreSharedU32,
   BarrierSync,
   Return,
+  ConvertRnF32S32,
 };
 
 [[nodiscard]] std::string_view parameter_kind_name(ParameterKind kind) noexcept;

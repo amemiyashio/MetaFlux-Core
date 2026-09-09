@@ -100,6 +100,7 @@ enum class Opcode : std::uint32_t {
   StoreSharedU32,
   BarrierSync,
   Return,
+  ConvertRnF32S32,
 };
 
 struct Operation {
@@ -201,7 +202,7 @@ std::optional<ValueKind> parse_value_kind(std::string_view text) {
 
 std::optional<Opcode> parse_opcode(std::string_view text) {
   using Pair = std::pair<std::string_view, Opcode>;
-  constexpr std::array<Pair, 40> entries{{
+  constexpr std::array<Pair, 41> entries{{
       {"load_parameter_address", Opcode::LoadParameterAddress},
       {"load_parameter_u32", Opcode::LoadParameterU32},
       {"load_parameter_f32", Opcode::LoadParameterF32},
@@ -225,6 +226,7 @@ std::optional<Opcode> parse_opcode(std::string_view text) {
       {"mad_rn_f32", Opcode::MadRnF32},
       {"fma_rn_f32", Opcode::FmaRnF32},
       {"convert_rn_f32_u32", Opcode::ConvertRnF32U32},
+      {"convert_rn_f32_s32", Opcode::ConvertRnF32S32},
       {"convert_rzi_u32_f32", Opcode::ConvertRziU32F32},
       {"set_predicate_ge_u32", Opcode::SetPredicateGeU32},
       {"set_predicate_eq_u32", Opcode::SetPredicateEqU32},
@@ -310,6 +312,7 @@ OperationContract operation_contract(Opcode opcode) {
   case FmaRnF32:
     return {true, F32, {F32, F32, F32}, 3};
   case ConvertRnF32U32:
+  case ConvertRnF32S32:
     return {true, F32, {U32, U32, U32}, 1};
   case ConvertRziU32F32:
     return {true, U32, {F32, U32, U32}, 1};
@@ -732,6 +735,7 @@ bool has_fp_operations(const Kernel& kernel) {
     case Opcode::MadRnF32:
     case Opcode::FmaRnF32:
     case Opcode::ConvertRnF32U32:
+    case Opcode::ConvertRnF32S32:
     case Opcode::ConvertRziU32F32:
     case Opcode::SetPredicateLtF32:
     case Opcode::LoadGlobalF32:
@@ -1050,6 +1054,13 @@ std::optional<ExecutionResult> execute_one(const Kernel& kernel,
   case Opcode::ConvertRnF32U32: {
     volatile float converted =
         static_cast<float>(std::get<std::uint32_t>(values[operation.inputs[0]]));
+    values[operation.result] = converted;
+    ++thread.pc;
+    break;
+  }
+  case Opcode::ConvertRnF32S32: {
+    volatile float converted = static_cast<float>(
+        static_cast<std::int32_t>(std::get<std::uint32_t>(values[operation.inputs[0]])));
     values[operation.result] = converted;
     ++thread.pc;
     break;

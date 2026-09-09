@@ -7377,7 +7377,8 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         strstr(kernel_name, "EUlfE_") != (char*)0 &&
         kernel_parameters[0] != (void*)0 && kernel_parameters[2] != (void*)0) {
       /* torch int32-to-float cast copy: the unrolled layout with the data
-         array ordered {destination, source}; the daemon converts natively. */
+         array ordered {destination, source}; normalize it for the versioned
+         PTX compiler path. */
       void** tof_data_array = (void**)kernel_parameters[2];
       normalized_element_count = *(const uint32_t*)kernel_parameters[0];
       normalized_pointers[0] = (CUdeviceptr)(uintptr_t)tof_data_array[0];
@@ -7394,7 +7395,8 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       module_record = &mf_cuda_global.modules[function_record->aux];
       result = mf_cuda_materialize_pytorch_baseline_locked(
           module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_TO_F32_V1,
-          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          mf_pytorch_baseline_cast_i32_f32_ptx,
+          sizeof(mf_pytorch_baseline_cast_i32_f32_ptx) - 1U,
           "cast-to-f32");
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();

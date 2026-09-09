@@ -86,8 +86,8 @@ struct KernelFixture final {
   std::string canonical;
 };
 
-[[nodiscard]] std::optional<KernelFixture> load_kernel() {
-  const auto source = read_source(METAFLUX_DAEMON_ADD_PTX);
+[[nodiscard]] std::optional<KernelFixture> load_kernel(const std::filesystem::path& path) {
+  const auto source = read_source(path);
   if (!source.has_value()) {
     return std::nullopt;
   }
@@ -268,12 +268,15 @@ configuration(std::string_view mode, const std::filesystem::path& cache_root,
 
 int main() {
   TemporaryDirectory temporary;
-  const auto fixture = load_kernel();
+  const auto fixture = load_kernel(METAFLUX_DAEMON_ADD_PTX);
+  const auto cast_fixture = load_kernel(METAFLUX_DAEMON_CAST_PTX);
   if (!expect(!temporary.path().empty(), "temporary directory must be available") ||
-      !expect(fixture.has_value(), "canonical Add Kernel IR must load")) {
+      !expect(fixture.has_value(), "canonical Add Kernel IR must load") ||
+      !expect(cast_fixture.has_value(), "canonical signed-conversion Kernel IR must load")) {
     return 1;
   }
-  const bool real = test_real_worker_and_warm_bypass(temporary, *fixture);
+  const bool real = test_real_worker_and_warm_bypass(temporary, *fixture) &&
+                    test_real_worker_and_warm_bypass(temporary, *cast_fixture);
   const bool crash = test_worker_fault(temporary, *fixture, "crash", "kill -SEGV $$",
                                        "terminated by signal", std::chrono::seconds(5));
   const bool timeout = test_worker_fault(temporary, *fixture, "timeout", "sleep 30",

@@ -88,6 +88,7 @@ OperationContract operation_contract(Opcode opcode) {
   case FmaRnF32:
     return {true, F32, {F32, F32, F32}, 3};
   case ConvertRnF32U32:
+  case ConvertRnF32S32:
     return {true, F32, {U32, U32, U32}, 1};
   case ConvertRziU32F32:
     return {true, U32, {F32, U32, U32}, 1};
@@ -137,7 +138,8 @@ bool valid_value_kind(ValueKind kind) {
 }
 
 bool valid_opcode(Opcode opcode) {
-  return static_cast<std::uint32_t>(opcode) <= static_cast<std::uint32_t>(Opcode::Return);
+  return static_cast<std::uint32_t>(opcode) <=
+         static_cast<std::uint32_t>(Opcode::ConvertRnF32S32);
 }
 
 bool may_be_predicated(Opcode opcode) {
@@ -271,6 +273,8 @@ std::string_view opcode_name(Opcode opcode) noexcept {
     return "fma_rn_f32";
   case ConvertRnF32U32:
     return "convert_rn_f32_u32";
+  case ConvertRnF32S32:
+    return "convert_rn_f32_s32";
   case ConvertRziU32F32:
     return "convert_rzi_u32_f32";
   case SetPredicateGeU32:

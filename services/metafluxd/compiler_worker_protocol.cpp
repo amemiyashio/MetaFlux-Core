@@ -138,7 +138,7 @@ private:
 }
 
 [[nodiscard]] bool valid_opcode(std::uint32_t value) {
-  return value <= static_cast<std::uint32_t>(compiler::Opcode::Return);
+  return value <= static_cast<std::uint32_t>(compiler::Opcode::ConvertRnF32S32);
 }
 
 [[nodiscard]] bool valid_compile_error(std::uint32_t value) {

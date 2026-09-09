@@ -72,6 +72,7 @@ bool kernel_uses_floating_point(const metaflux::compiler::Kernel& kernel) {
     case Opcode::MadRnF32:
     case Opcode::FmaRnF32:
     case Opcode::ConvertRnF32U32:
+    case Opcode::ConvertRnF32S32:
     case Opcode::ConvertRziU32F32:
     case Opcode::SetPredicateLtF32:
     case Opcode::LoadGlobalF32:

@@ -456,6 +456,21 @@ bool test_conversion_and_predication(Harness& harness) {
          expect(guard[0] == 3U, "compiled negated predicate store must execute");
 }
 
+bool test_signed_conversion(Harness& harness) {
+  std::vector<std::uint32_t> negative(1U), tie(1U), minimum(1U);
+  const std::array<Argument, 6> arguments{
+      buffer(negative, true), buffer(tie, true), buffer(minimum, true),
+      UINT32_C(0xfffffff9),   UINT32_C(0xfeffffff), UINT32_C(0x80000000),
+  };
+  return harness.execute_fixture("edge-convert-s32.ptx", arguments) &&
+         expect(negative[0] == UINT32_C(0xc0e00000),
+                "compiled cvt.rn.f32.s32 must preserve exact negative values") &&
+         expect(tie[0] == UINT32_C(0xcb800000),
+                "compiled cvt.rn.f32.s32 must round a negative tie to even") &&
+         expect(minimum[0] == UINT32_C(0xcf000000),
+                "compiled cvt.rn.f32.s32 must preserve INT_MIN exactly");
+}
+
 bool test_2d_special_registers(Harness& harness) {
   std::vector<std::uint32_t> output(24U, 0xffffffffU);
   const std::array<Argument, 1> arguments{buffer(output, true)};
@@ -560,7 +575,8 @@ int main() {
   return harness.ready() && test_add_and_control(harness) && test_integer_forms(harness) &&
                  test_abs_int_min(harness) && test_fp_forms(harness) &&
                  harness.stress_fused_rounding() && test_conversion_and_predication(harness) &&
-                 test_2d_special_registers(harness) && test_shared_barrier(harness) &&
+                 test_signed_conversion(harness) && test_2d_special_registers(harness) &&
+                 test_shared_barrier(harness) &&
                  test_edge_oracles(harness) && test_random_add_copy(harness) &&
                  test_compiled_form_coverage()
              ? 0

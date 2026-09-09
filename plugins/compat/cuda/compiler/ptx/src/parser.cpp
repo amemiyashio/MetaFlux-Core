@@ -17,7 +17,7 @@
 namespace metaflux::compiler::ptx {
 namespace {
 
-constexpr std::array<SupportedForm, 39> kSupportedForms{{
+constexpr std::array<SupportedForm, 40> kSupportedForms{{
     {"ld-param-u64", "ld.param.u64", "b64,param.u64", "param,register", "", 70,
      "load_parameter_address", "bounded global buffer handle"},
     {"ld-param-u32", "ld.param.u32", "b32,param.u32", "param,register", "", 70,
@@ -68,6 +68,8 @@ constexpr std::array<SupportedForm, 39> kSupportedForms{{
      "single binary32 rounding"},
     {"cvt-rn-f32-u32", "cvt.rn.f32.u32", "f32,u32", "register", "rn", 70, "convert_rn_f32_u32",
      "u32 to binary32 round-nearest-even"},
+    {"cvt-rn-f32-s32", "cvt.rn.f32.s32", "f32,s32", "register", "rn", 70,
+     "convert_rn_f32_s32", "s32 to binary32 round-nearest-even"},
     {"cvt-rzi-u32-f32", "cvt.rzi.u32.f32", "u32,f32", "register", "rzi", 70, "convert_rzi_u32_f32",
      "binary32 to u32 round-zero"},
     {"setp-ge-u32", "setp.ge.u32", "pred,u32,u32", "register", "ge", 70, "set_predicate_ge_u32",
@@ -835,6 +837,9 @@ private:
       parse_ternary(opcode, Opcode::FmaRnF32, DeclaredRegisterKind::F32, ValueKind::F32);
     } else if (opcode.text == "cvt.rn.f32.u32") {
       parse_conversion(opcode, Opcode::ConvertRnF32U32, DeclaredRegisterKind::F32, ValueKind::F32,
+                       DeclaredRegisterKind::B32, ValueKind::U32);
+    } else if (opcode.text == "cvt.rn.f32.s32") {
+      parse_conversion(opcode, Opcode::ConvertRnF32S32, DeclaredRegisterKind::F32, ValueKind::F32,
                        DeclaredRegisterKind::B32, ValueKind::U32);
     } else if (opcode.text == "cvt.rzi.u32.f32") {
       parse_conversion(opcode, Opcode::ConvertRziU32F32, DeclaredRegisterKind::B32, ValueKind::U32,

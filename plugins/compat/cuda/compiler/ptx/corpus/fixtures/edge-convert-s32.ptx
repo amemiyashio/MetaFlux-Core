@@ -1,0 +1,29 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.entry convert_s32_edges(
+  .param .u64 out_negative,
+  .param .u64 out_tie,
+  .param .u64 out_minimum,
+  .param .u32 negative_value,
+  .param .u32 tie_value,
+  .param .u32 minimum_value
+)
+{
+  .reg .b32 %r<3>;
+  .reg .b64 %rd<3>;
+  .reg .f32 %f<3>;
+  ld.param.u64 %rd0, [out_negative];
+  ld.param.u64 %rd1, [out_tie];
+  ld.param.u64 %rd2, [out_minimum];
+  ld.param.u32 %r0, [negative_value];
+  ld.param.u32 %r1, [tie_value];
+  ld.param.u32 %r2, [minimum_value];
+  cvt.rn.f32.s32 %f0, %r0;
+  cvt.rn.f32.s32 %f1, %r1;
+  cvt.rn.f32.s32 %f2, %r2;
+  st.global.f32 [%rd0], %f0;
+  st.global.f32 [%rd1], %f1;
+  st.global.f32 [%rd2], %f2;
+  ret;
+}

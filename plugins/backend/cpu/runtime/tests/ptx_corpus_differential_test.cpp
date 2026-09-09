@@ -185,6 +185,21 @@ bool test_conversion_and_predication() {
          expect(guard[0] == 3U, "@!p store must execute when ordered comparison is false");
 }
 
+bool test_signed_conversion() {
+  std::vector<std::uint32_t> negative(1U), tie(1U), minimum(1U);
+  const std::array<Argument, 6> arguments{
+      buffer(negative, true), buffer(tie, true), buffer(minimum, true),
+      UINT32_C(0xfffffff9),   UINT32_C(0xfeffffff), UINT32_C(0x80000000),
+  };
+  return execute("edge-convert-s32.ptx", arguments) &&
+         expect(negative[0] == UINT32_C(0xc0e00000),
+                "cvt.rn.f32.s32 must preserve exact negative values") &&
+         expect(tie[0] == UINT32_C(0xcb800000),
+                "cvt.rn.f32.s32 must round a negative tie to even") &&
+         expect(minimum[0] == UINT32_C(0xcf000000),
+                "cvt.rn.f32.s32 must preserve INT_MIN exactly");
+}
+
 bool test_2d_special_registers() {
   std::vector<std::uint32_t> output(24U, 0xffffffffU);
   const std::array<Argument, 1> arguments{buffer(output, true)};
@@ -251,7 +266,8 @@ bool test_executed_form_coverage() {
 int main() {
   return test_add_and_control() && test_integer_forms() && test_abs_int_min() && test_fp_forms() &&
                  test_fp_environment_rejection() && test_conversion_and_predication() &&
-                 test_2d_special_registers() && test_shared_barrier() && test_edge_oracles() &&
+                 test_signed_conversion() && test_2d_special_registers() &&
+                 test_shared_barrier() && test_edge_oracles() &&
                  test_executed_form_coverage()
              ? 0
              : 1;

@@ -68,6 +68,7 @@ metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_gt_i32_ptx gt-i32.ptx)
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_lt_f32_ptx lt-f32.ptx)
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_reluf32_ptx relu-f32.ptx)
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_clamp_min_f32_ptx clamp-min-f32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_cast_i32_f32_ptx cast-i32-f32.ptx)
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_reduce_stub_ptx native-stub.ptx)
 file(APPEND "${cuda_pytorch_cpu_kernels}" "#endif\n")
 

@@ -573,6 +573,7 @@ def run_corpus(
             text=True,
         )
         daemon_output = ""
+        application_failure: Exception | None = None
         try:
             wait_for_socket(daemon, socket_path)
             cases = {
@@ -581,10 +582,16 @@ def run_corpus(
                 )
                 for entry in entries
             }
+        except Exception as error:
+            application_failure = error
         finally:
             daemon_output = stop_daemon(daemon)
         if daemon.returncode != 0:
             raise RuntimeError(f"metafluxd exited with {daemon.returncode}:\n{daemon_output}")
+        if application_failure is not None:
+            raise RuntimeError(
+                f"{application_failure}\nmetafluxd output:\n{daemon_output}"
+            ) from application_failure
         statistics = parse_daemon_statistics(daemon_output)
         expected_modules = (
             sum(len(entry.get("expected_requests", [])) for entry in entries)

@@ -185,6 +185,7 @@ bool uses_floating_point(const Kernel& kernel) {
     case Opcode::MadRnF32:
     case Opcode::FmaRnF32:
     case Opcode::ConvertRnF32U32:
+    case Opcode::ConvertRnF32S32:
     case Opcode::ConvertRziU32F32:
     case Opcode::SetPredicateLtF32:
     case Opcode::LoadGlobalF32:
@@ -919,6 +920,7 @@ private:
     case Opcode::MultiplyRnF32:
     case Opcode::MadRnF32:
     case Opcode::FmaRnF32:
+    case Opcode::ConvertRnF32S32:
     case Opcode::SetPredicateGeU32:
     case Opcode::SetPredicateEqU32:
     case Opcode::SetPredicateLtF32:
@@ -1322,6 +1324,9 @@ private:
         result = fma_rn_vector(inputs, operation);
         break;
       }
+      case Opcode::ConvertRnF32S32:
+        result = cast("sitofp", vinput(0U), vtype("i32"), vtype("f32"), &operation);
+        break;
       case Opcode::SetPredicateGeU32:
         result = compare("uge", vinput(0U), vinput(1U), vtype("i32"), &operation);
         break;
@@ -1508,6 +1513,7 @@ private:
     case Opcode::MadRnF32:
     case Opcode::FmaRnF32:
     case Opcode::ConvertRnF32U32:
+    case Opcode::ConvertRnF32S32:
     case Opcode::ConvertRziU32F32:
     case Opcode::SetPredicateGeU32:
     case Opcode::SetPredicateEqU32:
@@ -1873,6 +1879,9 @@ private:
     }
     case Opcode::ConvertRnF32U32:
       result = cast("uitofp", input(0U), "i32", "f32", &operation);
+      break;
+    case Opcode::ConvertRnF32S32:
+      result = cast("sitofp", input(0U), "i32", "f32", &operation);
       break;
     case Opcode::ConvertRziU32F32: {
       const auto source = input(0U);

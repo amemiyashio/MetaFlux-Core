@@ -3216,19 +3216,6 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
         }
         destination.words[out_word] = source.words[in_word];
       }
-    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_TO_F32_V1) {
-      if (arguments.size() < 3U || arguments[0].index() != 2U || arguments[1].index() != 2U) {
-        return MF_SHARED_INVALID_ARGUMENT;
-      }
-      const auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
-      const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1]);
-      const auto element_count = std::get<uint32_t>(arguments.back());
-      for (uint32_t index = 0; index < element_count && index < source.words.size() &&
-                               index < destination.words.size();
-           ++index) {
-        const float widened = static_cast<float>(static_cast<int32_t>(source.words[index]));
-        std::memcpy(&destination.words[index], &widened, sizeof(widened));
-      }
     } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_CONCAT_U32_V1) {
       if (arguments.size() < 6U || arguments[0].index() != 2U ||
           ((arguments.size() - 2U) % 2U) != 0U) {
