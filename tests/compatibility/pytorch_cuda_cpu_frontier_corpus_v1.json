@@ -11,7 +11,7 @@
   "scope": {
     "claim": "Observed stock-client CPU frontier only",
     "exit_gate_complete": false,
-    "library_boundary_closed": false
+    "library_boundary_closed": true
   },
   "cases": [
     {"id":"add-i32","oracle":{"kind":"i32-exact","expected":[15,-3,94,1,-997,2]},"expected_requests":["baseline:elementwise-add-i32:1:2:module-load"],"repetitions":2},

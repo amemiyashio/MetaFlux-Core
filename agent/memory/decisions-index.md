@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-09-08
+updated: 2026-09-09
 ---
 
 # Decision Index
@@ -62,6 +62,7 @@ an index row does not promote `Proposed` material to `Verified`.
 | decision-0050 | The stock PyTorch baseline is daemon CPU interpreter-only: it records source provenance and explicit compiled-cache non-use; JIT/AOT cache identity remains CPU-profile scope | [milestone-0.2.0.0 CPU interpreter baseline](../plan/milestone-0.2.0.0-pytorch-cuda-compatibility/plan.md#cpu-interpreter-baseline-and-cache-boundary-decision-0050) | Verified by CpuExecutionEngine mode boundary and stock-client gate schema v3 |
 | decision-0051 | Epoch-0014 automatically integrates dependency-ready verified deliveries, accepts a current-HEAD candidate in place, and preserves divergent candidate history through governed merge | [Automatic acceptance and advancement](../../docs/architecture/agent-execution.md#automatic-acceptance-and-advancement-decision-0052) | Superseded by decision-0052; merge semantics retained |
 | decision-0052 | Epoch-0015 uses an implicit accept-and-advance controller to reject unqualified or empty deliveries, compose explicit-only integration, transactionally advance lane/work-item/target state, and expose the next dependency-ready lane | [Automatic acceptance and advancement](../../docs/architecture/agent-execution.md#automatic-acceptance-and-advancement-decision-0052) | Active workflow authority with executable behavior coverage |
+| decision-0053 | Pinned stock PyTorch float32 matmul, addmm, and linear use bounded MetaFlux cuBLAS/cuBLASLt ABI shims that translate to a neutral daemon request without vendored cuBLAS or provider-local tensor execution | [milestone-0.2.0.0 library-backed operator boundary](../plan/milestone-0.2.0.0-pytorch-cuda-compatibility/plan.md#library-backed-operator-boundary-decision-0053) | Verified for the five checked-in interpreter-corpus library rows and provider negative suite; broader library compatibility remains unclaimed |
 
 New decisions receive the next `decision-NNNN` identifier and point to a plan or
 architecture record containing rationale, consequences, and verification state.

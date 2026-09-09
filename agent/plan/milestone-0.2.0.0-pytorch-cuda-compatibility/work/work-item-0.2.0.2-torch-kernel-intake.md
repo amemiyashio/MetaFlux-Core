@@ -5,7 +5,7 @@ milestone: milestone-0.2.0.0
 status: Active
 area: compiler-cpu
 depends_on: [work-item-0.2.0.1]
-updated: 2026-09-08
+updated: 2026-09-09
 ---
 
 # PyTorch CUDA CPU Profile
@@ -32,8 +32,9 @@ The gate continues to require the exact direct Driver/internal-table surface,
 the v1 neutral request and Kernel IR v2 boundary, daemon module ownership,
 bit-exact result bytes, and zero provider-local semantic events. This closes the
 compiled-mode uncertainty for the baseline operation only. The complete surface
-and handle matrices, generalized request, library boundary, and versioned
-multi-operation corpus remain open below.
+and handle matrices are complete, and decision-0053 closes the qualified
+library boundary. The generalized request, frozen versioned multi-operation
+corpus, compiled lowering, and cache identity remain open below.
 
 ## Work
 
@@ -47,8 +48,10 @@ multi-operation corpus remain open below.
 - [ ] Generalize the lane-1 request without adding CUDA, PyTorch, MLIR, LLVM, or
   target-specific types to the wire; validate each accepted request into
   versioned canonical Kernel IR in the daemon/compiler worker.
-- [ ] Close the library-backed operator boundary, including matmul behavior when
-  vendored cuBLAS execution remains excluded, before freezing the corpus.
+- [x] Close the library-backed operator boundary in decision-0053: pinned
+  float32 SGEMM and single-batch cuBLASLt bias-linear calls translate to the
+  neutral matmul request and execute only in the daemon; broader calls fail
+  with typed statuses before submission.
 - [ ] Publish a versioned real-client CPU corpus covering supported operation
   categories, exact inputs and outputs, module volume, repeated function
   resolution, cold/warm cache behavior, and classified unsupported operations.

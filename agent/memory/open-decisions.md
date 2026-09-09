@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-09-08
+updated: 2026-09-09
 ---
 
 # Open Decisions
@@ -16,7 +16,6 @@ fail.
 
 | Milestone | Decision | Blocks | Closure condition |
 | --- | --- | --- | --- |
-| milestone-0.2.0.0 | Library-backed operator boundary, including whether matmul is supported without vendored cuBLAS execution | Operator corpus | Before work-item-0.2.0.2 corpus freeze |
 | milestone-0.2.0.0 | Vulkan daemon routing shape and its qualification matrix | Framework Vulkan routing | Before work-item-0.2.0.3 route implementation |
 | milestone-1.0.0.0 | Exact v1.0 stable public compatibility surface, upgrade window, and deprecation policy | Stable release contract | Before work-item-1.0.0.3 release qualification |
 | milestone-1.0.0.0 | Released device identity, VID/DID registration, and optional custom presentation identity policy | Release identity | Before work-item-1.0.0.3 release qualification |

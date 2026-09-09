@@ -6,7 +6,7 @@ status: Active
 budgets: provisional
 depends_on: [milestone-0.1.0.0, milestone-0.1.1.0, milestone-0.1.2.0, milestone-0.1.3.0]
 areas: [compat.cuda, compiler, compiler.cpu, compiler.spirv, backend.cpu, backend.vulkan, compatibility]
-updated: 2026-09-08
+updated: 2026-09-09
 ---
 
 # milestone-0.2.0.0: PyTorch CUDA Transparent Compatibility Foundation
@@ -200,12 +200,10 @@ Excluded:
 
 ## Decisions to Close
 
-1. Library-backed operator boundary, including whether matmul is supported without vendored cuBLAS execution.
-2. Vulkan daemon routing shape and its qualification matrix.
+1. Vulkan daemon routing shape and its qualification matrix.
 
-Decision 1 may wait until work-item-0.2.0.2 but must close before its corpus
-freezes. Decision 2 may wait
-until work-item-0.2.0.3 but must close before Vulkan route implementation.
+This decision may wait until work-item-0.2.0.3 but must close before Vulkan
+route implementation.
 
 ## Resolved Decisions
 
@@ -292,7 +290,47 @@ is transactional for controller-owned writes, and committed replay is a no-op.
 Evidence is the controller behavior test, bilingual routing corpus, schema-v3
 state checker, and the epoch-0015 full regression. Decision-0052 replaces the
 policy-only automatic trigger in decision-0051 without broadening the PyTorch
-compatibility claim or closing either remaining v0.2 technical decision.
+compatibility claim; decision-0053 below subsequently closes the library
+boundary while Vulkan routing remains open.
+
+### Library-backed operator boundary (decision-0053)
+
+Matmul is supported without vendored cuBLAS execution only through the exact
+library calls reached by pinned stock PyTorch `2.11.0+cu126`. MetaFlux's C17
+cuBLAS compatibility provider accepts host-pointer-mode float32
+`cublasSgemm_v2` with `alpha=1`, `beta=0` or `beta=1`, valid column-major
+leading dimensions, and `N`, `T`, or real-valued `C` transpose operands. This
+covers the qualified `torch.matmul`, rectangular matmul, bias-free linear, and
+`torch.addmm` cases. The cuBLASLt path is narrower: float32 compute and scale,
+column-major `T/N` single-batch layouts with zero batch strides, `alpha=1`,
+`beta=0`, identical C/D storage and layout, the bias epilogue, and the
+provider-issued zero-workspace algorithm. It covers the qualified biased
+linear case.
+
+Both paths wrap the accepted call in the versioned neutral `MATMUL_F32`
+request and invoke the Driver provider. The Driver validates device pointers,
+matrix spans, launch geometry, and descriptor values before daemon submission;
+the daemon CPU backend alone reads inputs and materializes results. The library
+provider performs no tensor arithmetic and does not load or execute an NVIDIA
+cuBLAS implementation.
+
+This is a pinned client profile, not a general cuBLAS compatibility claim.
+Invalid handles and malformed objects return `CUBLAS_STATUS_NOT_INITIALIZED`
+or `CUBLAS_STATUS_INVALID_VALUE`; valid but unqualified scalar modes, data
+types, layouts, batching, algorithms, and epilogues return
+`CUBLAS_STATUS_NOT_SUPPORTED` before submission. Any broader library-backed
+operator must add an explicit compatibility surface, a versioned neutral
+request/KIR operation, stable negative cases, and a real-client corpus row
+before it is accepted.
+
+Evidence is the provider semantic suite, including handle and negative-status
+coverage, plus the checked-in interpreter corpus. Its five library-backed rows
+produce bit-exact results for matmul, rectangular matmul, bias-free linear,
+addmm, and biased linear; they record `sgemm-f32` or
+`lt-matmul-bias-f32`, one daemon `matmul-f32` request, backend completion, and
+zero provider-local execution. This closes the library boundary only; corpus
+freeze, generalized lowering, compiled cache identity, and full CPU-profile
+acceptance remain open in work-item-0.2.0.2.
 
 ## Definition of Done
 

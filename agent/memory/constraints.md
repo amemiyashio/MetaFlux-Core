@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-09-08
+updated: 2026-09-09
 ---
 
 # Durable Constraints
@@ -164,6 +164,13 @@ identity and provisioning boundaries live in
   provenance and compiler/cache non-use, while compiled-artifact cache identity
   remains mandatory only for future JIT/AOT CPU-profile operations
   (decision-0050).
+- Library-backed PyTorch operations use only qualified MetaFlux ABI shims that
+  translate accepted calls into versioned neutral requests for daemon-owned
+  execution. No compatibility provider vendors or executes an upstream GPU
+  library, reads tensor inputs, or materializes results. The current boundary is
+  limited to decision-0053's pinned float32 SGEMM and cuBLASLt bias-linear
+  profiles; other valid configurations fail before submission until separately
+  specified and qualified.
 - Local managed providers select cdev before memfd. cdev uses the Unix daemon
   session as its object-table control plane and the cdev queue as its steady-state
   data plane, bound to one session/view/generation for the provider initialization

@@ -24,6 +24,8 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
         corpus = frontier.load_corpus(frontier.CORPUS, frontier.CLIENT_MANIFEST)
         self.assertEqual(len(corpus["cases"]), 37)
         self.assertEqual(len(corpus["gaps"]), 0)
+        self.assertTrue(corpus["scope"]["library_boundary_closed"])
+        self.assertFalse(corpus["scope"]["exit_gate_complete"])
         self.assertEqual(corpus["cases"][-1]["id"], "softmax-f32-nonlast")
         self.assertEqual(corpus["cases"][-2]["id"], "softmax-f32")
         self.assertEqual(corpus["cases"][-3]["id"], "linear-bias-f32")
