@@ -162,6 +162,15 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unique"):
                 frontier.load_corpus(corpus_path, client_path)
 
+    def test_corpus_rejects_compiled_subset_drift(self) -> None:
+        corpus = json.loads(frontier.CORPUS.read_text(encoding="utf-8"))
+        corpus["scope"]["compiled_subset"] = []
+        with tempfile.TemporaryDirectory() as temporary:
+            corpus_path = Path(temporary) / "corpus.json"
+            corpus_path.write_text(json.dumps(corpus), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "compiled-subset"):
+                frontier.load_corpus(corpus_path, frontier.CLIENT_MANIFEST)
+
     def test_source_provenance_binds_revision_and_tree_state(self) -> None:
         revision = "f92304e55d9849de5c3694a4755dbcf22418b3e5"
         with mock.patch.object(

@@ -120,6 +120,10 @@ def load_corpus(path: Path, profile_path: Path) -> dict[str, Any]:
     for entry in gaps:
         if entry.get("status") != "frontier-gap" or not entry.get("expected_error"):
             raise ValueError(f"gap {entry['id']} lacks a stable error classification")
+    compiled_identifiers = [entry["id"] for entry in cases if "compiled" in entry]
+    scope = corpus.get("scope")
+    if not isinstance(scope, dict) or scope.get("compiled_subset") != compiled_identifiers:
+        raise ValueError("CPU frontier compiled-subset identity drifted")
     return corpus
 
 
