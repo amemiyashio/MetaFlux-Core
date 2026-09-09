@@ -18,8 +18,9 @@ device nodes are never overwritten.
 
 Packaging is responsible for two generic artifact families:
 
-- `generic-provider-{tar,deb,rpm}` packages the CUDA Driver and NVML providers,
-  passthrough SDK, and public build manifest as `metaflux-provider`.
+- `generic-provider-{tar,deb,rpm}` packages the CUDA Driver, bounded cuBLAS,
+  and NVML providers, passthrough SDK, and public build manifest as
+  `metaflux-provider`.
 - `generic-release-{tar,deb,rpm}` packages the complete CPU-backed runtime as
   `metaflux`: provider payload, daemon, frozen target LLD, stable target
   toolchain manifests, and service integration. The target distribution's

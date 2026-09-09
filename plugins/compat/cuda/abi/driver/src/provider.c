@@ -61,6 +61,10 @@ static int mf_cuda_entry_trace_enabled(void) {
    coverage. Their functions stay deferred until an exact daemon-owned
    adapter is implemented. */
 static uint8_t mf_module_deferred[MF_CUDA_MODULE_CAPACITY];
+/* A nonzero value identifies an ecosystem-neutral Kernel Request loaded
+   through cuModuleLoadData. It selects only argument normalization; execution
+   remains daemon/backend owned. */
+static uint32_t mf_module_kernel_operation[MF_CUDA_MODULE_CAPACITY];
 /* Per-function registered name used to select an exact daemon-owned adapter. */
 static char mf_function_names[MF_CUDA_OBJECT_CAPACITY][512];
 
@@ -3751,6 +3755,7 @@ void mf_cuda_provider_test_reset_managed_v1(void) {
   (void)memset(mf_cuda_global.modules, 0, sizeof(mf_cuda_global.modules));
   (void)memset(mf_cuda_global.functions, 0, sizeof(mf_cuda_global.functions));
   (void)memset(mf_module_deferred, 0, sizeof(mf_module_deferred));
+  (void)memset(mf_module_kernel_operation, 0, sizeof(mf_module_kernel_operation));
   (void)memset(mf_module_blob, 0, sizeof(mf_module_blob));
   (void)memset(mf_module_blob_size, 0, sizeof(mf_module_blob_size));
   (void)memset(mf_kernel_entries, 0, sizeof(mf_kernel_entries));
@@ -5067,6 +5072,7 @@ static void mf_cuda_invalidate_module_functions_locked(uint32_t module_index) {
 
 static void mf_cuda_clear_deferred_module_locked(uint32_t module_index) {
   mf_module_deferred[module_index] = UINT8_C(0);
+  mf_module_kernel_operation[module_index] = UINT32_C(0);
   mf_module_blob[module_index] = (const unsigned char*)0;
   mf_module_blob_size[module_index] = (size_t)0;
   mf_kernel_entry_parsed[module_index] = UINT32_C(0);
@@ -5538,6 +5544,9 @@ CUresult cuModuleLoadData(CUmodule* module, const void* image) {
   size_t image_size = 0;
   uint64_t artifact_id = 0;
   uint64_t artifact_generation = 0;
+  uint16_t control_opcode = MF_CLIENT_CONTROL_ARTIFACT_REGISTER_V1;
+  uint16_t control_flags = MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD | MF_CLIENT_CONTROL_FLAG_PTX;
+  uint32_t kernel_operation = UINT32_C(0);
   CUresult result = CUDA_SUCCESS;
   if (module == (CUmodule*)0 || image == (const void*)0) {
     return CUDA_ERROR_INVALID_VALUE;
@@ -5548,9 +5557,24 @@ CUresult cuModuleLoadData(CUmodule* module, const void* image) {
     result = mf_cuda_current_locked(&context_index, &context);
   }
   if (result == CUDA_SUCCESS) {
-    image_size = mf_cuda_string_length((const char*)image, (size_t)(1U << 20U));
-    if (image_size == (size_t)0 || image_size == (size_t)(1U << 20U)) {
-      result = CUDA_ERROR_INVALID_IMAGE;
+    if (mf_client_load_le32_v1((const uint8_t*)image) == MF_CLIENT_KERNEL_REQUEST_MAGIC_V1) {
+      const mf_client_kernel_request_v1* request = (const mf_client_kernel_request_v1*)image;
+      const uint64_t request_size = mf_client_load_le64_v1(request->bytes + 8);
+      if (request_size > (uint64_t)(1U << 20U) ||
+          mf_client_kernel_request_validate_v1((const uint8_t*)image, request_size) !=
+              MF_CLIENT_CONTROL_OK) {
+        result = CUDA_ERROR_INVALID_IMAGE;
+      } else {
+        image_size = (size_t)request_size;
+        kernel_operation = mf_client_load_le32_v1(request->bytes + 20);
+        control_opcode = MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1;
+        control_flags = MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD;
+      }
+    } else {
+      image_size = mf_cuda_string_length((const char*)image, (size_t)(1U << 20U));
+      if (image_size == (size_t)0 || image_size == (size_t)(1U << 20U)) {
+        result = CUDA_ERROR_INVALID_IMAGE;
+      }
     }
   }
   module_index = mf_cuda_free_module_slot();
@@ -5558,11 +5582,9 @@ CUresult cuModuleLoadData(CUmodule* module, const void* image) {
     result = CUDA_ERROR_OUT_OF_MEMORY;
   }
   if (result == CUDA_SUCCESS) {
-    result =
-        mf_cuda_control_locked(MF_CLIENT_CONTROL_ARTIFACT_REGISTER_V1,
-                               MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD | MF_CLIENT_CONTROL_FLAG_PTX,
-                               mf_cuda_global.transport.runtime_context_id, (uint64_t)image_size,
-                               image, (uint64_t)image_size, &artifact_id, &artifact_generation);
+    result = mf_cuda_control_locked(
+        control_opcode, control_flags, mf_cuda_global.transport.runtime_context_id,
+        (uint64_t)image_size, image, (uint64_t)image_size, &artifact_id, &artifact_generation);
   }
   if (result == CUDA_SUCCESS) {
     command.kind = MF_CUDA_COMMAND_MODULE_LOAD;
@@ -5587,6 +5609,16 @@ CUresult cuModuleLoadData(CUmodule* module, const void* image) {
     mf_cuda_global.modules[module_index].remote_generation = completion.result_generation;
     mf_cuda_global.modules[module_index].materialized_id = artifact_id;
     mf_cuda_global.modules[module_index].materialized_generation = artifact_generation;
+    mf_module_kernel_operation[module_index] = kernel_operation;
+    if (kernel_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1 &&
+        mf_cuda_entry_trace_enabled() != 0) {
+      fprintf(stderr, "MF_PYTORCH_BASELINE_REQUEST profile=baseline operation=matmul-f32 "
+                      "version=1 kernel-ir=2 lifetime=module-load\n");
+      fprintf(stderr, "MF_PYTORCH_BASELINE_MODULE artifact=%llu/%llu module=%llu/%llu\n",
+              (unsigned long long)artifact_id, (unsigned long long)artifact_generation,
+              (unsigned long long)completion.result_id,
+              (unsigned long long)completion.result_generation);
+    }
     *module = (CUmodule)(uintptr_t)mf_cuda_token(MF_CUDA_TAG_MODULE, module_index,
                                                  mf_cuda_global.modules[module_index].generation);
   } else {
@@ -7074,6 +7106,17 @@ static CUresult mf_cuda_materialize_pytorch_baseline_locked(mf_cuda_object* modu
   return result;
 }
 
+static int mf_cuda_matrix_span(uint32_t rows, uint32_t columns, uint32_t leading, uint32_t* span) {
+  const uint64_t required =
+      columns == UINT32_C(0) ? UINT64_C(0) : (uint64_t)(columns - UINT32_C(1)) * leading + rows;
+  if (span == (uint32_t*)0 || rows == UINT32_C(0) || columns == UINT32_C(0) || leading < rows ||
+      required > UINT32_MAX) {
+    return 0;
+  }
+  *span = (uint32_t)required;
+  return 1;
+}
+
 static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, unsigned int grid_y,
                                       unsigned int grid_z, unsigned int block_x,
                                       unsigned int block_y, unsigned int block_z,
@@ -7154,6 +7197,66 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
     result =
         mf_cuda_lookup_token_locked((void*)function, MF_CUDA_TAG_FUNCTION, MF_CUDA_OBJECT_FUNCTION,
                                     mf_cuda_global.functions, &function_index, &function_record);
+  }
+  if (result == CUDA_SUCCESS && mf_module_kernel_operation[function_record->aux] ==
+                                    MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1) {
+    const char* kernel_name = mf_function_names[function_index];
+    uint32_t descriptor[9] = {0};
+    uint32_t output_span = UINT32_C(0);
+    uint32_t left_span = UINT32_C(0);
+    uint32_t right_span = UINT32_C(0);
+    uint32_t index = UINT32_C(0);
+    if (strcmp(kernel_name, "metaflux_cublas_sgemm_f32") != 0) {
+      mf_cuda_queue_unlock();
+      return CUDA_ERROR_NOT_SUPPORTED;
+    }
+    for (index = UINT32_C(0); index < UINT32_C(12); ++index) {
+      if (kernel_parameters[index] == (void*)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_INVALID_VALUE;
+      }
+    }
+    (void)memcpy(&normalized_pointers[0], kernel_parameters[0], sizeof(normalized_pointers[0]));
+    (void)memcpy(&normalized_pointers[1], kernel_parameters[1], sizeof(normalized_pointers[1]));
+    (void)memcpy(&normalized_pointers[2], kernel_parameters[2], sizeof(normalized_pointers[2]));
+    for (index = UINT32_C(0); index < UINT32_C(9); ++index) {
+      (void)memcpy(&descriptor[index], kernel_parameters[index + UINT32_C(3)],
+                   sizeof(descriptor[index]));
+    }
+    if (normalized_pointers[0] == (CUdeviceptr)0 || normalized_pointers[1] == (CUdeviceptr)0 ||
+        normalized_pointers[2] == (CUdeviceptr)0 || descriptor[0] == UINT32_C(0) ||
+        descriptor[1] > UINT32_C(1) || descriptor[2] > UINT32_C(1) ||
+        descriptor[3] == UINT32_C(0) || descriptor[4] == UINT32_C(0) ||
+        descriptor[5] == UINT32_C(0) || (uint64_t)descriptor[3] * descriptor[4] != descriptor[0] ||
+        !mf_cuda_matrix_span(descriptor[1] == UINT32_C(0) ? descriptor[3] : descriptor[5],
+                             descriptor[1] == UINT32_C(0) ? descriptor[5] : descriptor[3],
+                             descriptor[6], &left_span) ||
+        !mf_cuda_matrix_span(descriptor[2] == UINT32_C(0) ? descriptor[5] : descriptor[4],
+                             descriptor[2] == UINT32_C(0) ? descriptor[4] : descriptor[5],
+                             descriptor[7], &right_span) ||
+        !mf_cuda_matrix_span(descriptor[3], descriptor[4], descriptor[8], &output_span) ||
+        block_x != UINT32_C(8) || block_y != UINT32_C(8) ||
+        grid_x != (descriptor[3] + block_x - UINT32_C(1)) / block_x ||
+        grid_y != (descriptor[4] + block_y - UINT32_C(1)) / block_y) {
+      mf_cuda_queue_unlock();
+      return CUDA_ERROR_INVALID_VALUE;
+    }
+    normalized_buffer_count = UINT32_C(3);
+    normalized_element_count_index = UINT32_C(3);
+    normalized_entry_total = UINT32_C(12);
+    normalized_output_element_size = UINT32_C(4);
+    normalized_buffer_element_counts[0] = output_span;
+    normalized_buffer_element_counts[1] = left_span;
+    normalized_buffer_element_counts[2] = right_span;
+    normalized_element_count = descriptor[0];
+    for (index = UINT32_C(3); index < UINT32_C(12); ++index) {
+      normalized_kinds[index] = UINT32_C(1);
+      normalized_scalars[index] = descriptor[index - UINT32_C(3)];
+      normalized_parameters[index] = &normalized_scalars[index];
+    }
+    module_record = &mf_cuda_global.modules[function_record->aux];
+    kernel_parameters = normalized_parameters;
+    goto daemon_launch;
   }
   /* Deferred client cubins (framework fatbins) are accepted only when their
      registered name and arguments match a daemon-owned adapter. They use

@@ -419,16 +419,23 @@ assert_no_recursive_match() {
 VERIFY_PAYLOAD = NEGATIVE_ASSERTION_HELPERS + r"""
 verify_payload() {
   test -f /usr/lib/metaflux/providers/libcuda.so.1.0.0
+  test -f /usr/lib/metaflux/providers/libmetaflux-cublas-provider.so.1.0.0
   test -f /usr/lib/metaflux/providers/libnvidia-ml.so.1.0.0
   test -L /usr/lib/metaflux/providers/libcuda.so.1
+  test -L /usr/lib/metaflux/providers/libmetaflux-cublas-provider.so.1
   test -L /usr/lib/metaflux/providers/libnvidia-ml.so.1
   test "$(readlink /usr/lib/metaflux/providers/libcuda.so.1)" = libcuda.so.1.0.0
+  test "$(readlink /usr/lib/metaflux/providers/libmetaflux-cublas-provider.so.1)" = \
+    libmetaflux-cublas-provider.so.1.0.0
   test "$(readlink /usr/lib/metaflux/providers/libnvidia-ml.so.1)" = libnvidia-ml.so.1.0.0
   LD_LIBRARY_PATH=/usr/lib/metaflux/providers ldd \
     /usr/lib/metaflux/providers/libcuda.so.1 > /tmp/metaflux-ldd-cuda
   LD_LIBRARY_PATH=/usr/lib/metaflux/providers ldd \
+    /usr/lib/metaflux/providers/libmetaflux-cublas-provider.so.1 > /tmp/metaflux-ldd-cublas
+  LD_LIBRARY_PATH=/usr/lib/metaflux/providers ldd \
     /usr/lib/metaflux/providers/libnvidia-ml.so.1 > /tmp/metaflux-ldd-nvml
-  assert_no_fixed_match 'not found' /tmp/metaflux-ldd-cuda /tmp/metaflux-ldd-nvml
+  assert_no_fixed_match 'not found' \
+    /tmp/metaflux-ldd-cuda /tmp/metaflux-ldd-cublas /tmp/metaflux-ldd-nvml
   assert_no_recursive_match /nix/store/ \
     /usr/lib/metaflux /usr/include/metaflux /usr/share/metaflux
 }

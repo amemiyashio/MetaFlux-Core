@@ -504,15 +504,21 @@ verify_payload() {
   test -f /usr/share/metaflux/toolchains/ubuntu-20.04-target-sdk.manifest
   test -f /usr/share/metaflux/toolchains/generic-llvm-toolchain.manifest
   test -f /usr/lib/metaflux/providers/libcuda.so.1.0.0
+  test -f /usr/lib/metaflux/providers/libmetaflux-cublas-provider.so.1.0.0
   test -f /usr/lib/metaflux/providers/libnvidia-ml.so.1.0.0
   test -L /usr/lib/metaflux/providers/libcuda.so.1
+  test -L /usr/lib/metaflux/providers/libmetaflux-cublas-provider.so.1
   test -L /usr/lib/metaflux/providers/libnvidia-ml.so.1
   test "$(readlink /usr/lib/metaflux/providers/libcuda.so.1)" = libcuda.so.1.0.0
+  test "$(readlink /usr/lib/metaflux/providers/libmetaflux-cublas-provider.so.1)" = \
+    libmetaflux-cublas-provider.so.1.0.0
   test "$(readlink /usr/lib/metaflux/providers/libnvidia-ml.so.1)" = libnvidia-ml.so.1.0.0
   /usr/bin/metafluxd --version | grep -Fx 'metafluxd 0.1.0'
   /usr/libexec/metaflux/ld.lld --version | grep -F 'LLD 22.1.8'
   LD_LIBRARY_PATH=/usr/lib/metaflux/providers ldd \
     /usr/lib/metaflux/providers/libcuda.so.1 > /tmp/metaflux-ldd-cuda
+  LD_LIBRARY_PATH=/usr/lib/metaflux/providers ldd \
+    /usr/lib/metaflux/providers/libmetaflux-cublas-provider.so.1 > /tmp/metaflux-ldd-cublas
   LD_LIBRARY_PATH=/usr/lib/metaflux/providers ldd \
     /usr/lib/metaflux/providers/libnvidia-ml.so.1 > /tmp/metaflux-ldd-nvml
   LD_LIBRARY_PATH=/usr/lib/metaflux/providers ldd \
@@ -522,13 +528,13 @@ verify_payload() {
   ldd /usr/bin/metafluxd > /tmp/metaflux-ldd-daemon
   ldd /usr/libexec/metaflux/ld.lld > /tmp/metaflux-ldd-lld
   assert_no_fixed_match 'not found' \
-    /tmp/metaflux-ldd-cuda /tmp/metaflux-ldd-nvml \
+    /tmp/metaflux-ldd-cuda /tmp/metaflux-ldd-cublas /tmp/metaflux-ldd-nvml \
     /tmp/metaflux-ldd-acceptance /tmp/metaflux-ldd-daemon /tmp/metaflux-ldd-lld
   assert_no_fixed_match '/nix/store/' \
-    /tmp/metaflux-ldd-cuda /tmp/metaflux-ldd-nvml \
+    /tmp/metaflux-ldd-cuda /tmp/metaflux-ldd-cublas /tmp/metaflux-ldd-nvml \
     /tmp/metaflux-ldd-acceptance /tmp/metaflux-ldd-daemon /tmp/metaflux-ldd-lld
   assert_no_extended_match 'version .* not found|error while loading shared libraries' \
-    /tmp/metaflux-ldd-cuda /tmp/metaflux-ldd-nvml \
+    /tmp/metaflux-ldd-cuda /tmp/metaflux-ldd-cublas /tmp/metaflux-ldd-nvml \
     /tmp/metaflux-ldd-acceptance /tmp/metaflux-ldd-daemon /tmp/metaflux-ldd-lld
   assert_no_recursive_match /nix/store/ \
     /usr/bin/metafluxd \

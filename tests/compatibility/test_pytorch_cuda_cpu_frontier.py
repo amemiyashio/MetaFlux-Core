@@ -22,9 +22,12 @@ SPEC.loader.exec_module(frontier)
 class CpuFrontierEvidenceTests(unittest.TestCase):
     def test_repository_corpus_matches_pinned_profile(self) -> None:
         corpus = frontier.load_corpus(frontier.CORPUS, frontier.CLIENT_MANIFEST)
-        self.assertEqual(len(corpus["cases"]), 29)
-        self.assertEqual(len(corpus["gaps"]), 3)
+        self.assertEqual(len(corpus["cases"]), 31)
+        self.assertEqual(len(corpus["gaps"]), 2)
         self.assertEqual(corpus["cases"][-1]["id"], "softmax-f32")
+        self.assertEqual(corpus["cases"][-2]["id"], "matmul-rect-f32")
+        self.assertEqual(corpus["cases"][-2]["expected_library_calls"], ["sgemm-f32"])
+        self.assertEqual(corpus["cases"][-3]["id"], "matmul-f32")
         self.assertEqual(corpus["gaps"][-2]["id"], "softmax-f32-nonlast")
         self.assertEqual(corpus["gaps"][-1]["id"], "clamp-min-nonzero-f32")
 
@@ -37,6 +40,7 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
             "MF_PYTORCH_BASELINE_MODULE artifact=0x2\n"
             "MF_PYTORCH_BASELINE_REQUEST profile=baseline operation=reduce-sum-i64 "
             "version=1 kernel-ir=2 lifetime=module-load\n"
+            "MF_CUBLAS_REQUEST operation=sgemm-f32 rows=2 columns=2 inner=2\n"
         )
         self.assertEqual(
             evidence["requests"],
@@ -46,6 +50,7 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
             ],
         )
         self.assertEqual(evidence["module_loads"], 2)
+        self.assertEqual(evidence["library_calls"], ["sgemm-f32"])
         self.assertEqual(evidence["local_execution"], 0)
 
     def test_provider_evidence_exposes_forbidden_local_execution(self) -> None:

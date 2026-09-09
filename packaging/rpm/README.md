@@ -2,10 +2,10 @@
 
 This directory defines the generic x86_64 provider RPM. The packaging workflow,
 not Nix, owns construction of the product package; Nix may only supply its
-pinned tools. The package requires glibc 2.31 or newer and installs CUDA/NVML
-compatibility libraries only below `/usr/lib/metaflux/providers`; it never
-replaces a distribution or vendor-owned library. DKMS artifacts begin in a
-later milestone.
+pinned tools. The package requires glibc 2.31 or newer and installs CUDA,
+bounded cuBLAS, and NVML compatibility libraries only below
+`/usr/lib/metaflux/providers`; it never replaces a distribution or vendor-owned
+library. DKMS artifacts begin in a later milestone.
 
 The complete `metaflux` RPM contains the daemon, frozen target linker, static
 non-glibc closure, target provenance, service integration, and providers. It

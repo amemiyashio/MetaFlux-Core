@@ -644,22 +644,25 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
         TIMEOUT 180
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
     )
-    add_test(
-      NAME metaflux.compatibility.pytorch-cuda-cpu-frontier
-      COMMAND
-        "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline" --command
-        python3 -B
-        "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_pytorch_cuda_cpu_frontier.py"
-        --daemon $<TARGET_FILE:metafluxd>
-        --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
-    )
-    set_tests_properties(
-      metaflux.compatibility.pytorch-cuda-cpu-frontier
-      PROPERTIES
-        LABELS "compatibility;integration;cuda;pytorch;cpu"
-        TIMEOUT 600
-        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
-    )
+    if(TARGET metaflux_cublas_provider)
+      add_test(
+        NAME metaflux.compatibility.pytorch-cuda-cpu-frontier
+        COMMAND
+          "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline" --command
+          python3 -B
+          "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_pytorch_cuda_cpu_frontier.py"
+          --daemon $<TARGET_FILE:metafluxd>
+          --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
+          --cublas-provider $<TARGET_FILE:metaflux_cublas_provider>
+      )
+      set_tests_properties(
+        metaflux.compatibility.pytorch-cuda-cpu-frontier
+        PROPERTIES
+          LABELS "compatibility;integration;cuda;pytorch;cpu"
+          TIMEOUT 600
+          WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+      )
+    endif()
     foreach(metaflux_pytorch_execution_mode IN ITEMS cold-jit warm-jit aot)
       add_test(
         NAME "metaflux.compatibility.pytorch-cuda-stock-baseline.${metaflux_pytorch_execution_mode}"
@@ -694,7 +697,11 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   )
 endif()
 
-if(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER OR METAFLUX_BUILD_NVML_PROVIDER)
+if(
+  METAFLUX_BUILD_CUDA_DRIVER_PROVIDER
+  OR METAFLUX_BUILD_CUBLAS_PROVIDER
+  OR METAFLUX_BUILD_NVML_PROVIDER
+)
   find_program(METAFLUX_READELF_EXECUTABLE NAMES llvm-readelf readelf REQUIRED)
 
   function(
@@ -732,7 +739,7 @@ if(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER OR METAFLUX_BUILD_NVML_PROVIDER)
     # the glibc 2.31 (Ubuntu 20.04) floor requires the historical DSO.
     # Passthrough discovery uses dlmopen/dlvsym. Those symbols live in libc on
     # glibc 2.34+ host builds, while the frozen 2.31 sysroot requires libdl.
-    if(CMAKE_SYSROOT)
+    if(provider_name STREQUAL "cublas" OR CMAKE_SYSROOT)
       set(provider_expected_needed "libc.so.6;libdl.so.2")
     else()
       set(provider_expected_needed "libc.so.6")
@@ -776,6 +783,17 @@ if(METAFLUX_BUILD_CUDA_DRIVER_PROVIDER OR METAFLUX_BUILD_NVML_PROVIDER)
       mf_cuda_provider_bootstrap_abi_version
       libcuda.so.1
       METAFLUX_CUDA_PROVIDER_1
+    )
+  endif()
+
+  if(METAFLUX_BUILD_CUBLAS_PROVIDER)
+    metaflux_add_provider_abi_gate(
+      cublas
+      metaflux_cublas_provider
+      metaflux/cublas/provider.h
+      mf_cublas_provider_bootstrap_abi_version
+      libmetaflux-cublas-provider.so.1
+      METAFLUX_CUBLAS_PROVIDER_1
     )
   endif()
 

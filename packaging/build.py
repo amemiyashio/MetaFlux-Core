@@ -558,8 +558,10 @@ def validate_payload(stage: Path, kind: str, readelf: str) -> None:
             raise ValueError("package payload is missing metaflux providers directory")
         required = [
             f"{lib_dir}/providers/libcuda.so.1.0.0",
+            f"{lib_dir}/providers/libmetaflux-cublas-provider.so.1.0.0",
             f"{lib_dir}/providers/libnvidia-ml.so.1.0.0",
             f"{lib_dir}/providers/libcuda.so.1",
+            f"{lib_dir}/providers/libmetaflux-cublas-provider.so.1",
             f"{lib_dir}/providers/libnvidia-ml.so.1",
             "usr/include/metaflux",
             "usr/share/metaflux",

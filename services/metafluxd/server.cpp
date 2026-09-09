@@ -3281,6 +3281,73 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
         return MF_SHARED_INVALID_ARGUMENT;
       }
       std::memcpy(&destination.words[0], &accumulator, sizeof(accumulator));
+    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1) {
+      if (arguments.size() != 12U || arguments[0].index() != 2U || arguments[1].index() != 2U ||
+          arguments[2].index() != 2U) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      for (std::size_t index = 3U; index < arguments.size(); ++index) {
+        if (!std::holds_alternative<std::uint32_t>(arguments[index])) {
+          return MF_SHARED_INVALID_ARGUMENT;
+        }
+      }
+      auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
+      const auto& left = std::get<backend::cpu::BufferArgument>(arguments[1]);
+      const auto& right = std::get<backend::cpu::BufferArgument>(arguments[2]);
+      const auto element_count = std::get<std::uint32_t>(arguments[3]);
+      const auto transpose_left = std::get<std::uint32_t>(arguments[4]);
+      const auto transpose_right = std::get<std::uint32_t>(arguments[5]);
+      const auto rows = std::get<std::uint32_t>(arguments[6]);
+      const auto columns = std::get<std::uint32_t>(arguments[7]);
+      const auto inner = std::get<std::uint32_t>(arguments[8]);
+      const auto leading_left = std::get<std::uint32_t>(arguments[9]);
+      const auto leading_right = std::get<std::uint32_t>(arguments[10]);
+      const auto leading_destination = std::get<std::uint32_t>(arguments[11]);
+      const auto matrix_span = [](std::uint32_t matrix_rows, std::uint32_t matrix_columns,
+                                  std::uint32_t leading, std::size_t capacity) -> bool {
+        if (matrix_rows == 0U || matrix_columns == 0U || leading < matrix_rows) {
+          return false;
+        }
+        const std::uint64_t required =
+            static_cast<std::uint64_t>(matrix_columns - 1U) * leading + matrix_rows;
+        return required <= capacity;
+      };
+      if (transpose_left > 1U || transpose_right > 1U || rows == 0U || columns == 0U ||
+          inner == 0U || static_cast<std::uint64_t>(rows) * columns != element_count ||
+          !matrix_span(transpose_left == 0U ? rows : inner, transpose_left == 0U ? inner : rows,
+                       leading_left, left.words.size()) ||
+          !matrix_span(transpose_right == 0U ? inner : columns,
+                       transpose_right == 0U ? columns : inner, leading_right,
+                       right.words.size()) ||
+          !matrix_span(rows, columns, leading_destination, destination.words.size())) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      for (std::uint32_t column = 0U; column < columns; ++column) {
+        for (std::uint32_t row = 0U; row < rows; ++row) {
+          float accumulator = 0.0F;
+          for (std::uint32_t index = 0U; index < inner; ++index) {
+            const std::size_t left_index =
+                transpose_left == 0U
+                    ? static_cast<std::size_t>(row) + static_cast<std::size_t>(index) * leading_left
+                    : static_cast<std::size_t>(index) +
+                          static_cast<std::size_t>(row) * leading_left;
+            const std::size_t right_index =
+                transpose_right == 0U ? static_cast<std::size_t>(index) +
+                                            static_cast<std::size_t>(column) * leading_right
+                                      : static_cast<std::size_t>(column) +
+                                            static_cast<std::size_t>(index) * leading_right;
+            float left_value = 0.0F;
+            float right_value = 0.0F;
+            std::memcpy(&left_value, &left.words[left_index], sizeof(left_value));
+            std::memcpy(&right_value, &right.words[right_index], sizeof(right_value));
+            accumulator = std::fma(left_value, right_value, accumulator);
+          }
+          const std::size_t destination_index =
+              static_cast<std::size_t>(row) +
+              static_cast<std::size_t>(column) * leading_destination;
+          std::memcpy(&destination.words[destination_index], &accumulator, sizeof(accumulator));
+        }
+      }
     } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_F32_V1) {
       if (arguments.size() != 5U || arguments[0].index() != 2U || arguments[1].index() != 2U ||
           !std::holds_alternative<std::uint32_t>(arguments[2]) ||

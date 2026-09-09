@@ -2,10 +2,11 @@
 
 MetaFlux Core is a low-overhead compatibility and execution substrate for
 unmodified accelerator applications. The compatibility layer already presents a
-functional CUDA Driver and NVML ecosystem on top of its own execution backends:
-the CPU backend runs unmodified PTX kernels through interpreter, cold-JIT,
-warm-JIT, and AOT paths, and the Vulkan backend executes SPIR-V compute on
-physical adapters. Measured evidence lives beside each owning work item.
+functional CUDA Driver and NVML ecosystem plus a bounded cuBLAS profile on top
+of its own execution backends: the CPU backend runs unmodified PTX kernels
+through interpreter, cold-JIT, warm-JIT, and AOT paths, and the Vulkan backend
+executes SPIR-V compute on physical adapters. Measured evidence lives beside
+each owning work item.
 
 Agents start at [`AGENTS.md`](AGENTS.md) before making any change.
 

@@ -32,12 +32,16 @@ STATISTICS_PATTERN = re.compile(
     r"direct-host-destination-operations=(?P<destination_operations>\d+)",
     re.MULTILINE,
 )
+CUBLAS_REQUEST_PATTERN = re.compile(
+    r"^MF_CUBLAS_REQUEST operation=(?P<operation>[a-z0-9-]+) ", re.MULTILINE
+)
 
 
 def arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--daemon", type=Path)
     parser.add_argument("--provider-dir", type=Path)
+    parser.add_argument("--cublas-provider", type=Path)
     parser.add_argument("--application", action="store_true")
     parser.add_argument("--case")
     parser.add_argument("--corpus", type=Path, default=CORPUS)
@@ -80,6 +84,11 @@ def load_corpus(path: Path, profile_path: Path) -> dict[str, Any]:
             raise ValueError(f"supported case {entry['id']} has no neutral request")
         if entry.get("repetitions", 1) < 1:
             raise ValueError(f"supported case {entry['id']} has invalid repetitions")
+        library_calls = entry.get("expected_library_calls", [])
+        if not isinstance(library_calls, list) or any(
+            not isinstance(call, str) or not call for call in library_calls
+        ):
+            raise ValueError(f"supported case {entry['id']} has invalid library-call evidence")
     for entry in gaps:
         if entry.get("status") != "frontier-gap" or not entry.get("expected_error"):
             raise ValueError(f"gap {entry['id']} lacks a stable error classification")
@@ -169,6 +178,10 @@ def operation_cases(torch: Any) -> dict[str, Callable[[], Any]]:
         "matmul-f32": lambda: torch.matmul(
             f32([1.0, 2.0, 3.0, 4.0]).reshape(2, 2),
             f32([5.0, 6.0, 7.0, 8.0]).reshape(2, 2),
+        ),
+        "matmul-rect-f32": lambda: torch.matmul(
+            f32([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).reshape(2, 3),
+            f32(list(range(7, 19))).reshape(3, 4),
         ),
         "softmax-f32": lambda: torch.softmax(
             f32([0.0, 1.0, 2.0, 2.0, 1.0, 0.0]).reshape(2, 3), dim=1
@@ -260,6 +273,9 @@ def parse_provider_evidence(trace: str) -> dict[str, Any]:
     ]
     return {
         "requests": requests,
+        "library_calls": [
+            match.group("operation") for match in CUBLAS_REQUEST_PATTERN.finditer(trace)
+        ],
         "launches": len(re.findall(r"^MF_LAUNCH ", trace, re.MULTILINE)),
         "module_loads": len(re.findall(r"^MF_PYTORCH_BASELINE_MODULE ", trace, re.MULTILINE)),
         "local_execution": len(re.findall(r"^MF_SEMANTIC ", trace, re.MULTILINE)),
@@ -310,7 +326,12 @@ def run_case(
             raise RuntimeError(f"gap {case_id} materialized a daemon module: {provider!r}")
     else:
         expected_requests = entry["expected_requests"]
-        if payload.get("result") != "complete" or provider["requests"] != expected_requests:
+        expected_library_calls = entry.get("expected_library_calls", [])
+        if (
+            payload.get("result") != "complete"
+            or provider["requests"] != expected_requests
+            or provider["library_calls"] != expected_library_calls
+        ):
             raise RuntimeError(
                 f"supported evidence drifted for {case_id}: {payload!r}, {provider!r}"
             )
@@ -349,6 +370,7 @@ def run_corpus(
     entries: list[dict[str, Any]],
     daemon_path: Path,
     provider_dir: Path,
+    cublas_provider: Path,
     corpus_path: Path,
     profile_path: Path,
 ) -> tuple[dict[str, Any], dict[str, int | str]]:
@@ -368,6 +390,9 @@ def run_corpus(
                     else ""
                 ),
             }
+        )
+        environment["LD_PRELOAD"] = str(cublas_provider) + (
+            os.pathsep + environment["LD_PRELOAD"] if environment.get("LD_PRELOAD") else ""
         )
         daemon = subprocess.Popen(
             [str(daemon_path), "--socket", str(socket_path)],
@@ -411,14 +436,17 @@ def run_corpus(
 
 
 def runner(parsed: argparse.Namespace) -> dict[str, Any]:
-    if parsed.daemon is None or parsed.provider_dir is None:
-        raise ValueError("--daemon and --provider-dir are required")
+    if parsed.daemon is None or parsed.provider_dir is None or parsed.cublas_provider is None:
+        raise ValueError("--daemon, --provider-dir, and --cublas-provider are required")
     daemon_path = parsed.daemon.resolve()
     provider_dir = parsed.provider_dir.resolve()
     if not daemon_path.is_file() or not os.access(daemon_path, os.X_OK):
         raise ValueError(f"daemon is not executable: {daemon_path}")
     if not (provider_dir / "libcuda.so.1").is_file():
         raise ValueError(f"provider directory has no libcuda.so.1: {provider_dir}")
+    cublas_provider = parsed.cublas_provider.resolve()
+    if not cublas_provider.is_file():
+        raise ValueError(f"cuBLAS provider is not a file: {cublas_provider}")
     corpus_path = parsed.corpus.resolve()
     profile_path = parsed.client_manifest.resolve()
     corpus = load_corpus(corpus_path, profile_path)
@@ -430,7 +458,7 @@ def runner(parsed: argparse.Namespace) -> dict[str, Any]:
     original_affinity, affinity = pin_client_cpu()
     try:
         cases, statistics = run_corpus(
-            entries, daemon_path, provider_dir, corpus_path, profile_path
+            entries, daemon_path, provider_dir, cublas_provider, corpus_path, profile_path
         )
     finally:
         os.sched_setaffinity(0, original_affinity)

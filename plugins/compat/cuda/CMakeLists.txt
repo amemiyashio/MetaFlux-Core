@@ -22,6 +22,15 @@ metaflux_add_component(
 )
 
 metaflux_add_component(
+  ID compat.cuda.cublas
+  ROLE compat-provider
+  OPTION METAFLUX_BUILD_CUBLAS_PROVIDER
+  DIRECTORY libraries/cublas
+  TARGET metaflux_cublas_provider
+  LANGUAGE C
+)
+
+metaflux_add_component(
   ID compat.cuda.nvml
   ROLE management-provider
   OPTION METAFLUX_BUILD_NVML_PROVIDER
