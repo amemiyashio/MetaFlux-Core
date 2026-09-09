@@ -387,21 +387,42 @@ bool test_add_and_control(Harness& harness) {
 }
 
 bool test_integer_forms(Harness& harness) {
-  std::vector<std::uint32_t> add(1U), subtract(1U), multiply(1U), mad(1U), compare(1U);
-  const std::array<Argument, 8> arguments{buffer(add, true),
+  std::vector<std::uint32_t> add(1U), subtract(1U), multiply(1U), mad(1U), compare(1U),
+      absolute(1U);
+  const std::array<Argument, 9> arguments{buffer(add, true),
                                           buffer(subtract, true),
                                           buffer(multiply, true),
                                           buffer(mad, true),
                                           buffer(compare, true),
+                                          buffer(absolute, true),
                                           0xffffffffU,
                                           2U,
                                           5U};
   return harness.execute_fixture("positive-integer-forms.ptx", arguments) &&
          expect(add[0] == 1U && subtract[0] == 0xfffffffdU && multiply[0] == 0xfffffffeU &&
-                    mad[0] == 45U && compare[0] == 45U,
+                    mad[0] == 45U && compare[0] == 45U && absolute[0] == 3U,
                 "compiled integer forms must match modulo-2^32 goldens, the "
-                "mov.u32 immediate must zero-extend, and the signed compare "
-                "must select the false arm");
+                "mov.u32 immediate must zero-extend, abs.s32 must preserve the "
+                "two's-complement magnitude, and the signed compare must select the false arm");
+}
+
+bool test_abs_int_min(Harness& harness) {
+  std::array<std::vector<std::uint32_t>, 6> outputs{
+      std::vector<std::uint32_t>(1U), std::vector<std::uint32_t>(1U),
+      std::vector<std::uint32_t>(1U), std::vector<std::uint32_t>(1U),
+      std::vector<std::uint32_t>(1U), std::vector<std::uint32_t>(1U)};
+  const std::array<Argument, 9> arguments{buffer(outputs[0], true),
+                                          buffer(outputs[1], true),
+                                          buffer(outputs[2], true),
+                                          buffer(outputs[3], true),
+                                          buffer(outputs[4], true),
+                                          buffer(outputs[5], true),
+                                          0x80000000U,
+                                          0U,
+                                          0U};
+  return harness.execute_fixture("positive-integer-forms.ptx", arguments) &&
+         expect(outputs[5][0] == 0x80000000U,
+                "compiled abs.s32 must preserve the PTX INT_MIN result");
 }
 
 bool test_fp_forms(Harness& harness) {
@@ -537,10 +558,11 @@ bool test_compiled_form_coverage() {
 int main() {
   Harness harness;
   return harness.ready() && test_add_and_control(harness) && test_integer_forms(harness) &&
-                 test_fp_forms(harness) && harness.stress_fused_rounding() &&
-                 test_conversion_and_predication(harness) && test_2d_special_registers(harness) &&
-                 test_shared_barrier(harness) && test_edge_oracles(harness) &&
-                 test_random_add_copy(harness) && test_compiled_form_coverage()
+                 test_abs_int_min(harness) && test_fp_forms(harness) &&
+                 harness.stress_fused_rounding() && test_conversion_and_predication(harness) &&
+                 test_2d_special_registers(harness) && test_shared_barrier(harness) &&
+                 test_edge_oracles(harness) && test_random_add_copy(harness) &&
+                 test_compiled_form_coverage()
              ? 0
              : 1;
 }

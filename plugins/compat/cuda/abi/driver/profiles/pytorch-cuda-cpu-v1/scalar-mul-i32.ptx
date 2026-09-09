@@ -1,0 +1,32 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.visible .entry scmul_i32(
+  .param .u64 destination,
+  .param .u64 input,
+  .param .u32 scalar,
+  .param .u32 count
+)
+{
+  .reg .pred %p;
+  .reg .b32 %r<10>;
+  .reg .b64 %rd<10>;
+  ld.param.u64 %rd0, [destination];
+  ld.param.u64 %rd1, [input];
+  ld.param.u32 %r0, [count];
+  ld.param.u32 %r1, [scalar];
+  mov.u32 %r2, %tid.x;
+  mov.u32 %r3, %ctaid.x;
+  mov.u32 %r4, %ntid.x;
+  mad.lo.u32 %r5, %r3, %r4, %r2;
+  setp.ge.u32 %p, %r5, %r0;
+  @%p bra done;
+  mul.wide.u32 %rd2, %r5, 4;
+  add.u64 %rd3, %rd0, %rd2;
+  add.u64 %rd4, %rd1, %rd2;
+  ld.global.u32 %r6, [%rd4];
+  mul.lo.u32 %r7, %r6, %r1;
+  st.global.u32 [%rd3], %r7;
+done:
+  ret;
+}

@@ -18,6 +18,30 @@ assert SPEC is not None and SPEC.loader is not None
 frontier = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(frontier)
 
+EXPECTED_COMPILED_SUBSET = [
+    "add-i32",
+    "sub-i32",
+    "mul-i32",
+    "add-f32",
+    "sub-f32",
+    "mul-f32",
+    "div-f32",
+    "neg-i32",
+    "fill-i32",
+    "scalar-add-i32",
+    "scalar-mul-i32",
+    "alpha-add-i32",
+    "abs-i32",
+    "abs-f32",
+    "sqrt-f32",
+    "eq-i32",
+    "gt-i32",
+    "lt-f32",
+    "relu-f32",
+    "clamp-min-nonzero-f32",
+    "clamp-min-negative-f32",
+]
+
 
 class CpuFrontierEvidenceTests(unittest.TestCase):
     def test_repository_corpus_matches_pinned_profile(self) -> None:
@@ -27,7 +51,7 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
         self.assertEqual(corpus["execution_modes"], list(frontier.EXECUTION_MODES))
         self.assertTrue(corpus["scope"]["library_boundary_closed"])
         self.assertFalse(corpus["scope"]["exit_gate_complete"])
-        self.assertEqual(corpus["scope"]["compiled_subset"], ["sqrt-f32"])
+        self.assertEqual(corpus["scope"]["compiled_subset"], EXPECTED_COMPILED_SUBSET)
         self.assertEqual(corpus["cases"][-1]["id"], "sigmoid-f32")
         self.assertEqual(corpus["cases"][-2]["id"], "softmax-f32-nonlast")
         self.assertEqual(corpus["cases"][-3]["id"], "softmax-f32")
@@ -44,7 +68,11 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
         self.assertEqual(corpus["gaps"][0]["id"], "sigmoid-f64")
         self.assertEqual(corpus["gaps"][0]["status"], "frontier-gap")
         self.assertEqual(corpus["gaps"][0]["expected_error"], "operation not supported")
-        sqrt = next(entry for entry in corpus["cases"] if entry["id"] == "sqrt-f32")
+        compiled_entries = [entry for entry in corpus["cases"] if "compiled" in entry]
+        compiled_sources = [frontier.compiled_ptx(entry) for entry in compiled_entries]
+        self.assertEqual(len(compiled_entries), 21)
+        self.assertEqual(len(set(compiled_sources)), 20)
+        sqrt = next(entry for entry in compiled_entries if entry["id"] == "sqrt-f32")
         self.assertEqual(
             frontier.compiled_ptx(sqrt),
             frontier.ROOT
@@ -111,6 +139,21 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
             second.write_text(f"cache_key={'mf-cache-v1-' + 'b' * 64}\n", encoding="utf-8")
             with self.assertRaisesRegex(RuntimeError, "exactly one"):
                 frontier.cache_identity(Path(temporary))
+
+    def test_compiled_cache_identities_accept_expected_many_kernel_set(self) -> None:
+        first_identity = "mf-cache-v1-" + "a" * 64
+        second_identity = "mf-cache-v1-" + "b" * 64
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for directory, identity in (("first", first_identity), ("second", second_identity)):
+                metadata = root / directory / "metadata.v1"
+                metadata.parent.mkdir(parents=True)
+                metadata.write_text(f"cache_key={identity}\n", encoding="utf-8")
+            self.assertEqual(
+                frontier.cache_identities(root, 2), [first_identity, second_identity]
+            )
+            with self.assertRaisesRegex(RuntimeError, "exactly one"):
+                frontier.cache_identities(root, 1)
 
     def test_compiled_ptx_must_be_repository_relative(self) -> None:
         with self.assertRaisesRegex(ValueError, "invalid compiled PTX path"):

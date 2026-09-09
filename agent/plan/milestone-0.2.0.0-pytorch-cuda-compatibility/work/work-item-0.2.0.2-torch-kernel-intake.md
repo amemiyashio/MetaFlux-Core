@@ -20,24 +20,34 @@ with stable cache and error behavior.
 
 ## Current Implementation
 
-The first CPU-profile slice keeps the pinned stock PyTorch application and its
-normal `torch.cuda` API unchanged while running eager `torch.add(int32)` through
-all four daemon CPU execution modes. Interpreter retains canonical Kernel IR
-without compiler/cache use; cold JIT compiles exactly once; warm JIT reuses that
-identity with a lookup-only hit; and AOT first proves a stable unsupported miss,
-then loads an administrator-prewarmed artifact without a runtime compiler
-request. Cold JIT, warm JIT, and AOT bind to the same `mf-cache-v1` identity.
+The checked-in `frontier-not-frozen` corpus runs pinned stock PyTorch
+`2.11.0+cu126` through its normal `torch.cuda` API. Its current interpreter
+matrix contains 38 supported cases and one classified gap
+(`sigmoid-f64`). Every supported case records its neutral request, daemon
+module intake and CPU-backend completion, and every case rejects
+provider-local semantic execution.
 
-The gate continues to require the exact direct Driver/internal-table surface,
-the v1 neutral request and Kernel IR v2 boundary, daemon module ownership,
-bit-exact result bytes, and zero provider-local semantic events. The frontier
-now also qualifies stock `torch.sqrt(float32)` through cold JIT, warm JIT, and
-AOT using one profile-owned PTX source: cold compiles once, warm performs a
-lookup-only hit, and AOT proves a stable miss before reusing the prewarmed
-identity. The complete surface and handle matrices are complete, and
-decision-0053 closes the qualified library boundary. The remaining accepted
-operations still require generalized compiled lowering and many-kernel cache
-evidence before the versioned corpus freezes.
+A compiled subset now covers 21 real-client cases across 20 unique
+profile-owned PTX sources: integer and float arithmetic, negation, fill,
+scalar and alpha arithmetic, integer and float absolute value, square root,
+comparisons, ReLU, and two clamp inputs sharing one kernel. These sources live
+beside the PyTorch CUDA CPU profile and are generated into the C17 provider at
+configure time; the provider no longer owns a duplicate block of embedded PTX
+definitions.
+
+The compiled `abs.s32` exposed an incorrect signed-mask formula in both the
+scalar and SIMD LLVM emitters. The lowering now implements
+`(value xor sign) - sign`, and the independent interpreter/compiled corpus
+checks both `abs(-3) == 3` and the PTX two's-complement `INT_MIN` result.
+
+The many-kernel gate binds every result to an exact `mf-cache-v1` identity.
+Cold JIT compiles 20 unique inputs, loads 21 modules, and records the expected
+single same-source hit for the two clamp cases. Warm JIT seeds the same 20
+identities and then loads all 21 modules without a compiler request. AOT first
+proves 21 stable unsupported misses, prewarms the 20 unique inputs, and then
+loads all 21 modules without runtime compilation. The complete
+Driver/internal-table surface and handle-negative matrices remain qualified,
+and decision-0053 remains the closed library boundary.
 
 ## Work
 
@@ -66,153 +76,16 @@ evidence before the versioned corpus freezes.
 - [ ] Prove every accepted corpus operation with correlated daemon submission
   and CPU-backend completion evidence.
 
-Third operation (2026-09-08, continued): int32 subtract is live through
-the same neutral request path. torch lowers `a - b` to the add kernel
-with alpha = -1, so the add adapter now routes alpha 1 to the add PTX and
-alpha -1 to a new sub_u32 PTX (OPERATION_ELEMENTWISE_SUB_I32_V1 = 3,
-accepted by the wire validation alongside add and mul). A critical
-launch-binding rule was decoded and fixed: the daemon binds every launch
-to the most recently materialized kernel-request artifact for the
-module, so an operation switch must re-register — the materializer now
-tracks the last operation per module and re-registers on a switch
-(replacing the module/artifact ids in place; superseded daemon objects
-leak until context teardown). Verified bit-exact: add, sub, mul, and
-re-switching add/sub/mul in one process all return exact results.
+## Remaining Work
 
-Remaining: float/i64 variants of add/sub/mul (each needs its own PTX and
-dtype discrimination), gt/ge routing, and the torch.cuda._sleep bundled
-smoke kernel (the probe's artifact-intake stage currently fails cleanly
-on it — pre-existing on this architecture).
-
-F32 variants and GPU backend slice plan (2026-09-09): float32 add and
-mul joined the kernel-request path — OPERATION_ELEMENTWISE_ADD_F32_V1 = 4
-and MUL_F32_V1 = 5, with add_f32/mul_f32 PTX artifacts (add.rn.f32 /
-mul.rn.f32 over the same linear-index copy shape) and provider adapters
-keyed on the mangled dtype suffix (CUDAFunctor_addIfE / MulFunctorIfE;
-alpha 1.0 only for f32 add). Verified bit-exact: [2.0, -0.25, 2.125,
-3.5] and [0.75, -4.5, -3.125, -2.0]. div stays a clean error (div.rn.f32
-is not yet in the PTX frontend or the CPU interpreter opcode table).
-
-GPU backend minimal vertical slice (plan, next front): register a
-passthrough backend under plugins/backend/ per mf_backend_api_v1 that
-forwards accepted Kernel Requests to the real GPU driver — the daemon
-hands the Kernel Request PTX payload to cuModuleLoadData/cuLaunchKernel
-on a real CUDA context (via a forwarding libcuda session) instead of the
-CPU pipeline. Gate: with no GPU visible the backend returns its declared
-NOT_SUPPORTED; with a GPU present the same stock-baseline suite must
-pass bit-exact on the device. Decode prerequisites: the Kernel Request
-artifact must carry the launch dimensions already present in the
-argument block, and the passthrough layer needs the real-driver session
-bootstrap (a pinned forwarding libcuda, mirroring toolchains' ICD
-recipe). This is tracked here as the next decode front after the
-multi-operation corpus freezes.
-
-div.rn.f32 full stack (2026-09-09): div.rn.f32 joined the PTX frontend
-form table (parser dispatch, manifest form id div-rn-f32 with spelling
-div.rn.f32 and kir_op div_rn_f32), the Kernel IR opcode DivRnF32, the
-CPU interpreter (div_rn IEEE division), and the CPU compiler's LLVM
-emitters (fdiv in both the JIT and AOT pipelines); positive-fp-forms
-gained the div fixture and the forms manifest grew to 32 entries with
-the pinned counts and hash updated. ELEMENTWISE_DIV_F32_V1 = 6 joined
-the kernel request operations, and the provider routes the torch
-DivFunctorIfE binary shape through the daemon. The GPU passthrough
-backend skeleton landed under plugins/backend/gpu: a
-mf_backend_api_v1 backend whose driver probe dlopens the real driver
-(METAFLUX_GPU_PASSTHROUGH_DRIVER, default libcuda.so.1), enumerates its
-devices, loads the Kernel Request PTX via cuModuleLoadData, and
-forwards launches via cuLaunchKernel; without a usable driver it
-enumerates zero devices and stays inert. The component follows
-backend-runtime rules (backend-plugin-api + dl only).
-
-Verification: fdiv bit-exact ([3.0, -1.125, -3.125, -0.125]); ptx-parser,
-both corpus differentials, stock-baseline four modes all pass; CTest
-154/154.
-
-neg-i32 adapter and remaining daemon_launch binding issue (2026-09-09):
-the neg adapter (neg_kernel_cuda, two-pointer unary shape) correctly
-matches, materializes OPERATION_ELEMENTWISE_NEG_I32_V1 = 7, and reaches
-the daemon launch. The remaining "invalid argument" is in the
-daemon_launch path after the goto — not in the adapter itself. Debug
-traces confirm the adapter fires, element_count reads correctly, and
-the materialize succeeds; the failure is in the argument block
-validation, argument cache acquire, or the daemon-side execution. The
-neg PTX was widened to four parameters (destination, input, unused,
-count) to match the argument block entry count. Next: trace each
-daemon_launch validation step for the neg launch to isolate the exact
-rejecting check.
-
-neg-i32 MODULE_LOAD blocker isolated (2026-09-09, latest): the neg
-adapter correctly matches, materializes (control call succeeds, trace
-prints operation=elementwise-neg-i32), but the MODULE_LOAD submit
-returns CUDA_ERROR_INVALID_VALUE with module id 1025 and generation 0.
-The daemon accepts the kernel request registration (validate passes for
-NEG_I32 = 7) but rejects the module load. The neg PTX uses only
-supported opcodes (sub.u32, mov.u32, ld/st.global.u32 etc.). The root
-cause is in the daemon's MODULE_LOAD processing — likely the execution
-engine's PTX-to-Kernel-IR conversion or the launch binding validation
-rejecting the unary shape. Next: add trace to the daemon-side
-execution.cpp module load path, or instrument the compiler::ptx::parse
-call for the neg payload. The int32 add/sub/mul operations continue to
-work through the same path (verified bit-exact). GPU passthrough
-backend skeleton compiles and is ready for real-GPU verification.
-
-AMD CPU and AMD iGPU (Radeon 780M) transparent execution assessment
-(2026-09-09): the host system is AMD Ryzen 7 H 255 with Radeon 780M
-(Phoenix APU). AMD CPU transparent execution is already working — the
-daemon CPU backend compiles Kernel IR through LLVM targeting the host
-CPU natively, and all verified operators (add/sub/mul/neg/div, int32
-and float32) execute bit-exact on this AMD CPU. AMD Radeon 780M iGPU
-execution has a clear path: the repository's Vulkan backend (5881
-lines under plugins/backend/vulkan/ with device, memory, staging,
-stream, pipeline, and cache management) compiled successfully with
--DMETAFLUX_BUILD_VULKAN_BACKEND=ON -DMETAFLUX_VULKAN_SDK_DIR=/usr, and
-the RADV Vulkan ICD (/usr/share/vulkan/icd.d/radeon_icd.json) is
-available for the Radeon 780M. The build produces
-libmetaflux_vulkan_backend.a. The Vulkan backend runtime tests fail
-with a Nix/system glibc symbol conflict (__pointer_chk_guard) because
-CTest runs under the Nix-pinned glibc while the system Vulkan loader
-links the system glibc — resolvable by either running the Vulkan tests
-outside the Nix shell or pinning a Nix Vulkan SDK. The kernel
-execution integration route: PyTorch CUDA → compat provider → daemon
-Kernel Request → Vulkan compute pipeline (SPIR-V from PTX lowering)
-on the AMD Radeon 780M via RADV. This requires the PTX-to-SPIR-V
-lowering pass and the Vulkan pipeline execution path, tracked as the
-next decode front.
-
-AMD Radeon 780M Vulkan probe CONFIRMED (2026-09-09, latest): the
-Vulkan capability probe executed successfully on the AMD Radeon 780M
-iGPU via RADV. The probe confirmed: Vulkan API 1.3, AMD vendor ID
-0x1002, device ID 0x1900, compute queue available, subgroup size 64,
-staging buffer support — all required Vulkan features satisfied. The
-PTX → Kernel IR → SPIR-V lowering test also passed (exit 0) after
-patchelf-interpreting the binary with the system loader (the Nix
-glibc conflict is resolved by runtime interpreter substitution). The
-full pipeline is confirmed: PyTorch CUDA → PTX parse → Kernel IR →
-SPIR-V lowering → Vulkan execution on AMD Radeon 780M via RADV. The
-remaining integration work is the daemon's backend selection logic to
-route kernel launches to the Vulkan backend (instead of always
-routing to CPU) and the argument block to Vulkan descriptor set
-binding translation.
-
-AMD Radeon 780M Vulkan compute execution CONFIRMED (2026-09-09,
-latest): a standalone Vulkan compute proof-of-concept executed the
-float32 elementwise add on the AMD Radeon 780M iGPU via RADV with
-bit-exact results ([2.00, -0.25, 2.12, 3.50]). The proof uses a GLSL
-compute shader compiled to SPIR-V via glslangValidator, loaded into a
-Vulkan compute pipeline, dispatched on the AMD iGPU with host-visible
-buffers for input and output. This confirms the AMD Radeon 780M
-compute path end-to-end: Vulkan instance → physical device
-enumeration → logical device → SPIR-V shader module → descriptor
-sets → compute dispatch → results read back. The daemon integration
-(the backend selection logic to route Kernel Request operations to
-this Vulkan compute path instead of the CPU backend) is the next
-decode front, tracked below.
-
-The proof executor source is at
-tmp/work/pt-probe/vulkan_exec/vulkan_add_exec.cpp (81192 bytes) with
-the SPIR-V binary at tmp/work/pt-probe/add_f32.spv (1592 bytes), both
-gitignored host state. The GLSL compute shader source is the canonical
-representation and can be regenerated from the work item description.
+The remaining 17 supported interpreter cases are reductions, cast, strided
+copy, concat, the five library-backed matrix/linear cases, two softmax shapes,
+and sigmoid. They already cross the neutral daemon boundary, but they still
+use operation-specific daemon execution rather than the general
+Kernel IR -> MLIR -> LLVM compiled path. The next slices must promote those
+semantics into the compiled pipeline, extend stable negative coverage, and
+freeze the corpus only after every accepted row passes interpreter, cold JIT,
+warm JIT, and AOT with the same cache-identity contract.
 
 ## Exit Gate
 

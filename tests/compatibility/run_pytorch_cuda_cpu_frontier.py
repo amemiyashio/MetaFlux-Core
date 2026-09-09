@@ -48,6 +48,7 @@ def arguments() -> argparse.Namespace:
     parser.add_argument("--cublas-provider", type=Path)
     parser.add_argument("--application", action="store_true")
     parser.add_argument("--case")
+    parser.add_argument("--compiled-subset", action="store_true")
     parser.add_argument("--execution-mode", choices=EXECUTION_MODES, default="interpreter")
     parser.add_argument("--corpus", type=Path, default=CORPUS)
     parser.add_argument("--client-manifest", type=Path, default=CLIENT_MANIFEST)
@@ -117,6 +118,10 @@ def load_corpus(path: Path, profile_path: Path) -> dict[str, Any]:
             raise ValueError(f"supported case {entry['id']} has invalid library-call evidence")
         if "compiled" in entry:
             compiled_ptx(entry)
+            if len(requests) != 1:
+                raise ValueError(
+                    f"compiled case {entry['id']} must map to exactly one neutral request"
+                )
     for entry in gaps:
         if entry.get("status") != "frontier-gap" or not entry.get("expected_error"):
             raise ValueError(f"gap {entry['id']} lacks a stable error classification")
@@ -370,21 +375,27 @@ def require_execution_statistics(
         )
 
 
-def cache_identity(cache_root: Path) -> str:
+def cache_identities(cache_root: Path, expected_count: int) -> list[str]:
     identities: set[str] = set()
     for metadata_path in cache_root.rglob("metadata.v1"):
         for line in metadata_path.read_text(encoding="utf-8").splitlines():
             if line.startswith("cache_key="):
                 identities.add(line.removeprefix("cache_key="))
-    if len(identities) != 1:
+    if len(identities) != expected_count:
+        expected = "exactly one" if expected_count == 1 else f"exactly {expected_count}"
         raise RuntimeError(
-            "compiled CPU frontier case must materialize exactly one cache identity: "
+            f"compiled CPU frontier must materialize {expected} cache identities: "
             f"observed {sorted(identities)!r}"
         )
-    identity = next(iter(identities))
-    if re.fullmatch(r"mf-cache-v1-[0-9a-f]{64}", identity) is None:
-        raise RuntimeError(f"compiled CPU frontier cache identity is malformed: {identity!r}")
-    return identity
+    ordered = sorted(identities)
+    for identity in ordered:
+        if re.fullmatch(r"mf-cache-v1-[0-9a-f]{64}", identity) is None:
+            raise RuntimeError(f"compiled CPU frontier cache identity is malformed: {identity!r}")
+    return ordered
+
+
+def cache_identity(cache_root: Path) -> str:
+    return cache_identities(cache_root, 1)[0]
 
 
 def require_stable_gap(payload: dict[str, Any], expected_error: str) -> None:
@@ -396,6 +407,37 @@ def require_stable_gap(payload: dict[str, Any], expected_error: str) -> None:
         raise RuntimeError(
             f"CPU frontier gap drifted: expected {expected_error!r}, observed {first_line!r}"
         )
+
+
+def prewarm_aot(daemon_path: Path, cache_root: Path, source: Path) -> dict[str, Any]:
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "METAFLUX_CPU_EXECUTION_MODE": "aot",
+            "METAFLUX_COMPILER_CACHE": str(cache_root),
+        }
+    )
+    process = subprocess.run(
+        [str(daemon_path), "--prewarm-aot", str(source)],
+        check=False,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    match = re.search(
+        r"AOT prewarm compiled cache-key=(mf-cache-v1-[0-9a-f]{64})", process.stdout
+    )
+    if process.returncode != 0 or match is None:
+        raise RuntimeError(
+            f"CPU frontier AOT prewarm failed ({process.returncode}):\n"
+            f"stdout:\n{process.stdout}\nstderr:\n{process.stderr}"
+        )
+    return {
+        "compiled": True,
+        "source": str(source.relative_to(ROOT)),
+        "cache_identity": match.group(1),
+    }
 
 
 def run_case(
@@ -587,17 +629,23 @@ def runner(parsed: argparse.Namespace) -> dict[str, Any]:
     corpus_path = parsed.corpus.resolve()
     profile_path = parsed.client_manifest.resolve()
     corpus = load_corpus(corpus_path, profile_path)
+    if parsed.case and parsed.compiled_subset:
+        raise ValueError("--case and --compiled-subset are mutually exclusive")
     entries = corpus["cases"] + corpus["gaps"]
     if parsed.case:
         entries = [entry for entry in entries if entry["id"] == parsed.case]
         if not entries:
             raise ValueError(f"CPU frontier corpus has no case {parsed.case!r}")
+    elif parsed.compiled_subset:
+        compiled_set = set(corpus["scope"]["compiled_subset"])
+        entries = [entry for entry in corpus["cases"] if entry["id"] in compiled_set]
     execution_mode = parsed.execution_mode
-    compiled_source: Path | None = None
+    compiled_sources: list[Path] = []
     if execution_mode != "interpreter":
-        if not parsed.case or len(entries) != 1:
-            raise ValueError("compiled CPU frontier qualification requires exactly one --case")
-        compiled_source = compiled_ptx(entries[0])
+        if not parsed.case and not parsed.compiled_subset:
+            raise ValueError("compiled CPU frontier qualification requires --case or --compiled-subset")
+        compiled_sources = list(dict.fromkeys(compiled_ptx(entry) for entry in entries))
+    expected_cache_identities = len(compiled_sources)
     expected_modules = sum(len(entry.get("expected_requests", [])) for entry in entries)
     original_affinity, affinity = pin_client_cpu()
     try:
@@ -622,79 +670,83 @@ def runner(parsed: argparse.Namespace) -> dict[str, Any]:
 
             seed_evidence: dict[str, Any] | None = None
             miss_evidence: dict[str, Any] | None = None
-            prewarm_evidence: dict[str, Any] | None = None
+            prewarm_evidence: list[dict[str, Any]] | None = None
             if execution_mode == "interpreter":
                 cases, statistics = run_once("interpreter", "interpreter")
                 require_execution_statistics(statistics, "interpreter", 0, 0, 0, expected_modules)
-                compiled_cache_identity: str | None = None
+                compiled_cache_identities: list[str] = []
             elif execution_mode == "cold-jit":
                 cases, statistics = run_once("cold-jit", "cold-jit")
-                require_execution_statistics(statistics, "cold-jit", 1, 0, 1, expected_modules)
-                compiled_cache_identity = cache_identity(cache_root)
+                require_execution_statistics(
+                    statistics, "cold-jit", expected_cache_identities,
+                    expected_modules - expected_cache_identities, expected_cache_identities,
+                    expected_modules,
+                )
+                compiled_cache_identities = cache_identities(
+                    cache_root, expected_cache_identities
+                )
             elif execution_mode == "warm-jit":
                 _, seed_statistics = run_once("cold-jit", "warm-seed")
                 require_execution_statistics(
-                    seed_statistics, "cold-jit", 1, 0, 1, expected_modules
+                    seed_statistics, "cold-jit", expected_cache_identities,
+                    expected_modules - expected_cache_identities, expected_cache_identities,
+                    expected_modules,
                 )
-                seeded_identity = cache_identity(cache_root)
+                seeded_identities = cache_identities(cache_root, expected_cache_identities)
                 seed_evidence = {"mode": "cold-jit", "statistics": seed_statistics}
                 cases, statistics = run_once("warm-jit", "warm-jit")
-                require_execution_statistics(statistics, "warm-jit", 0, 1, 0, expected_modules)
-                compiled_cache_identity = cache_identity(cache_root)
-                if compiled_cache_identity != seeded_identity:
-                    raise RuntimeError("warm JIT did not reuse the cold JIT cache identity")
+                require_execution_statistics(
+                    statistics, "warm-jit", 0, expected_modules, 0, expected_modules
+                )
+                compiled_cache_identities = cache_identities(
+                    cache_root, expected_cache_identities
+                )
+                if compiled_cache_identities != seeded_identities:
+                    raise RuntimeError("warm JIT did not reuse the cold JIT cache identities")
             else:
                 miss_cases, miss_statistics = run_once("aot", "aot-miss", False)
-                require_execution_statistics(miss_statistics, "aot", 0, 0, 1, 0)
+                require_execution_statistics(
+                    miss_statistics, "aot", 0, 0, expected_modules, 0
+                )
                 miss_evidence = {
                     "classification": "stable-not-supported",
                     "cases": miss_cases,
                     "statistics": miss_statistics,
                 }
-                assert compiled_source is not None
-                prewarm_environment = os.environ.copy()
-                prewarm_environment.update(
-                    {
-                        "METAFLUX_CPU_EXECUTION_MODE": "aot",
-                        "METAFLUX_COMPILER_CACHE": str(cache_root),
-                    }
+                if not compiled_sources:
+                    raise RuntimeError("AOT qualification has no compiled sources")
+                prewarm_evidence = [
+                    prewarm_aot(daemon_path, cache_root, source)
+                    for source in compiled_sources
+                ]
+                prewarmed_identities = sorted(
+                    evidence["cache_identity"] for evidence in prewarm_evidence
                 )
-                prewarm = subprocess.run(
-                    [str(daemon_path), "--prewarm-aot", str(compiled_source)],
-                    check=False,
-                    env=prewarm_environment,
-                    capture_output=True,
-                    text=True,
-                    timeout=120,
-                )
-                match = re.search(
-                    r"AOT prewarm compiled cache-key=(mf-cache-v1-[0-9a-f]{64})",
-                    prewarm.stdout,
-                )
-                if prewarm.returncode != 0 or match is None:
-                    raise RuntimeError(
-                        f"CPU frontier AOT prewarm failed ({prewarm.returncode}):\n"
-                        f"stdout:\n{prewarm.stdout}\nstderr:\n{prewarm.stderr}"
-                    )
-                prewarm_evidence = {
-                    "compiled": True,
-                    "source": str(compiled_source.relative_to(ROOT)),
-                    "cache_identity": match.group(1),
-                }
+                if len(set(prewarmed_identities)) != expected_cache_identities:
+                    raise RuntimeError("AOT prewarm produced duplicate cache identities")
                 cases, statistics = run_once("aot", "aot-hit")
-                require_execution_statistics(statistics, "aot", 0, 1, 0, expected_modules)
-                compiled_cache_identity = cache_identity(cache_root)
-                if compiled_cache_identity != match.group(1):
-                    raise RuntimeError("AOT runtime did not reuse the prewarmed cache identity")
+                require_execution_statistics(
+                    statistics, "aot", 0, expected_modules, 0, expected_modules
+                )
+                compiled_cache_identities = cache_identities(
+                    cache_root, expected_cache_identities
+                )
+                if compiled_cache_identities != prewarmed_identities:
+                    raise RuntimeError("AOT runtime did not reuse the prewarmed cache identities")
     finally:
         os.sched_setaffinity(0, original_affinity)
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "gate": "metaflux-pytorch-cuda-cpu-frontier",
         "result": "complete",
         "source": source_provenance(),
         "runner": {"cpu_affinity": affinity, "execution_mode": execution_mode},
-        "corpus": {"id": corpus["id"], "status": corpus["status"]},
+        "corpus": {
+            "id": corpus["id"],
+            "status": corpus["status"],
+            "selected_cases": [entry["id"] for entry in entries],
+            "compiled_source_count": expected_cache_identities,
+        },
         "cases": cases,
         "daemon": {
             "cpu_execution_mode": execution_mode,
@@ -710,11 +762,12 @@ def runner(parsed: argparse.Namespace) -> dict[str, Any]:
             },
             "compiled_artifact_cache": {
                 "used": execution_mode != "interpreter",
-                "identity": (
+                "identity_status": (
                     "not-applicable-in-interpreter-mode"
-                    if compiled_cache_identity is None
-                    else compiled_cache_identity
+                    if execution_mode == "interpreter"
+                    else "versioned"
                 ),
+                "identities": compiled_cache_identities,
                 "seed": seed_evidence,
                 "required_miss": miss_evidence,
             },

@@ -665,7 +665,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
       foreach(metaflux_pytorch_frontier_mode IN ITEMS cold-jit warm-jit aot)
         add_test(
           NAME
-            "metaflux.compatibility.pytorch-cuda-cpu-frontier.sqrt-f32.${metaflux_pytorch_frontier_mode}"
+            "metaflux.compatibility.pytorch-cuda-cpu-frontier.compiled-subset.${metaflux_pytorch_frontier_mode}"
           COMMAND
             "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline" --command
             python3 -B
@@ -673,14 +673,14 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
             --daemon $<TARGET_FILE:metafluxd>
             --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
             --cublas-provider $<TARGET_FILE:metaflux_cublas_provider>
-            --case sqrt-f32
+            --compiled-subset
             --execution-mode "${metaflux_pytorch_frontier_mode}"
         )
         set_tests_properties(
-          "metaflux.compatibility.pytorch-cuda-cpu-frontier.sqrt-f32.${metaflux_pytorch_frontier_mode}"
+          "metaflux.compatibility.pytorch-cuda-cpu-frontier.compiled-subset.${metaflux_pytorch_frontier_mode}"
           PROPERTIES
             LABELS "compatibility;integration;cuda;pytorch;compiler;cpu"
-            TIMEOUT 360
+            TIMEOUT 900
             WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
         )
       endforeach()

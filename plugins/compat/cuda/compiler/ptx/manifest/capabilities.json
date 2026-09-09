@@ -50,5 +50,5 @@
  "forms_path": "forms.jsonl",
  "forms_sha256": "07b1af0c093b86c6b9d679441d2d38c1e17947d1d4d7abd2b2868efaa16003a0",
  "corpus_index_path": "../corpus/index.json",
- "corpus_index_sha256": "47311b4c45287a1d2a7daac9694ed7ee4bc28fde111d1073b6b5063773f01871"
+ "corpus_index_sha256": "e428e65a996b675a952145b00d475458466bd28ad0e2b3bde4f65c039ba95181"
 }

@@ -85,12 +85,14 @@ bool test_add_and_control() {
 }
 
 bool test_integer_forms() {
-  std::vector<std::uint32_t> add(1U), subtract(1U), multiply(1U), mad(1U), compare(1U);
-  const std::array<Argument, 8> arguments{buffer(add, true),
+  std::vector<std::uint32_t> add(1U), subtract(1U), multiply(1U), mad(1U), compare(1U),
+      absolute(1U);
+  const std::array<Argument, 9> arguments{buffer(add, true),
                                           buffer(subtract, true),
                                           buffer(multiply, true),
                                           buffer(mad, true),
                                           buffer(compare, true),
+                                          buffer(absolute, true),
                                           0xffffffffU,
                                           2U,
                                           5U};
@@ -99,9 +101,28 @@ bool test_integer_forms() {
          expect(subtract[0] == 0xfffffffdU, "sub.u32 must wrap modulo 2^32") &&
          expect(multiply[0] == 0xfffffffeU, "mul.lo.u32 must retain low product bits") &&
          expect(mad[0] == 45U, "mad.lo.u32 must retain low a*b+c bits and mov.u32 "
-                              "immediate 42 must zero-extend into the addend") &&
+                               "immediate 42 must zero-extend into the addend") &&
+         expect(absolute[0] == 3U, "abs.s32 must produce the exact two's-complement magnitude") &&
          expect(compare[0] == 45U, "setp.gt.s32 must select the false arm for -3 > 2 and "
                                    "st.global.u8 must store the exact low byte");
+}
+
+bool test_abs_int_min() {
+  std::array<std::vector<std::uint32_t>, 6> outputs{
+      std::vector<std::uint32_t>(1U), std::vector<std::uint32_t>(1U),
+      std::vector<std::uint32_t>(1U), std::vector<std::uint32_t>(1U),
+      std::vector<std::uint32_t>(1U), std::vector<std::uint32_t>(1U)};
+  const std::array<Argument, 9> arguments{buffer(outputs[0], true),
+                                          buffer(outputs[1], true),
+                                          buffer(outputs[2], true),
+                                          buffer(outputs[3], true),
+                                          buffer(outputs[4], true),
+                                          buffer(outputs[5], true),
+                                          0x80000000U,
+                                          0U,
+                                          0U};
+  return execute("positive-integer-forms.ptx", arguments) &&
+         expect(outputs[5][0] == 0x80000000U, "abs.s32 must preserve the PTX INT_MIN result");
 }
 
 bool test_fp_forms() {
@@ -228,7 +249,7 @@ bool test_executed_form_coverage() {
 } // namespace
 
 int main() {
-  return test_add_and_control() && test_integer_forms() && test_fp_forms() &&
+  return test_add_and_control() && test_integer_forms() && test_abs_int_min() && test_fp_forms() &&
                  test_fp_environment_rejection() && test_conversion_and_predication() &&
                  test_2d_special_registers() && test_shared_barrier() && test_edge_oracles() &&
                  test_executed_form_coverage()

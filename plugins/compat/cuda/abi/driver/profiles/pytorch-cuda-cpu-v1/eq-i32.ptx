@@ -1,0 +1,38 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.visible .entry eq_i32(
+  .param .u64 destination,
+  .param .u64 left,
+  .param .u64 right,
+  .param .u32 count
+)
+{
+  .reg .pred %p<4>;
+  .reg .b32 %r<10>;
+  .reg .b64 %rd<10>;
+  ld.param.u64 %rd0, [destination];
+  ld.param.u64 %rd1, [left];
+  ld.param.u64 %rd2, [right];
+  ld.param.u32 %r0, [count];
+  mov.u32 %r1, %tid.x;
+  mov.u32 %r2, %ctaid.x;
+  mov.u32 %r3, %ntid.x;
+  mad.lo.u32 %r4, %r2, %r3, %r1;
+  setp.ge.u32 %p1, %r4, %r0;
+  @%p1 bra done;
+  mul.wide.u32 %rd3, %r4, 1;
+  add.u64 %rd4, %rd0, %rd3;
+  mul.wide.u32 %rd5, %r4, 4;
+  add.u64 %rd6, %rd1, %rd5;
+  add.u64 %rd7, %rd2, %rd5;
+  ld.global.u32 %r5, [%rd6];
+  ld.global.u32 %r6, [%rd7];
+  mov.u32 %r7, 1;
+  mov.u32 %r8, 0;
+  setp.eq.u32 %p2, %r5, %r6;
+  selp.b32 %r9, %r7, %r8, %p2;
+  st.global.u8 [%rd4], %r9;
+done:
+  ret;
+}

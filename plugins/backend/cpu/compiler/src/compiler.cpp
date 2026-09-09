@@ -1190,9 +1190,8 @@ private:
       case Opcode::AbsS32: {
         const auto sign = binary("ashr", vinput(0U), constant_splat_i32(31U), vtype("i32"),
                                  &operation);
-        const auto mask = binary("sub", constant_splat_i32(0U), sign, vtype("i32"), &operation);
-        const auto flipped = binary("xor", vinput(0U), mask, vtype("i32"), &operation);
-        result = binary("sub", flipped, mask, vtype("i32"), &operation);
+        const auto flipped = binary("xor", vinput(0U), sign, vtype("i32"), &operation);
+        result = binary("sub", flipped, sign, vtype("i32"), &operation);
         break;
       }
       case Opcode::AbsF32: {
@@ -1786,9 +1785,8 @@ private:
       break;
     case Opcode::AbsS32: {
       const auto sign = binary("ashr", input(0U), constant_i32(31U), "i32", &operation);
-      const auto mask = binary("sub", constant_i32(0U), sign, "i32", &operation);
-      const auto flipped = binary("xor", input(0U), mask, "i32", &operation);
-      result = binary("sub", flipped, mask, "i32", &operation);
+      const auto flipped = binary("xor", input(0U), sign, "i32", &operation);
+      result = binary("sub", flipped, sign, "i32", &operation);
       break;
     }
     case Opcode::AbsF32: {

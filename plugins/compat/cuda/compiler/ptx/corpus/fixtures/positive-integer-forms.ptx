@@ -7,6 +7,7 @@
   .param .u64 out_mul,
   .param .u64 out_mad,
   .param .u64 out_cmp,
+  .param .u64 out_abs,
   .param .u32 a,
   .param .u32 b,
   .param .u32 c
@@ -20,6 +21,7 @@
   ld.param.u64 %rd2, [out_mul];
   ld.param.u64 %rd3, [out_mad];
   ld.param.u64 %rd4, [out_cmp];
+  ld.param.u64 %rd5, [out_abs];
   ld.param.u32 %r0, [a];
   ld.param.u32 %r1, [b];
   ld.param.u32 %r2, [c];
@@ -33,6 +35,7 @@
   setp.gt.s32 %p1, %r0, %r1;
   selp.b32 %r10, %r7, %r8, %p1;
   st.global.u8 [%rd4], %r10;
+  st.global.u32 [%rd5], %r9;
   st.global.u32 [%rd0], %r3;
   st.global.u32 [%rd1], %r4;
   st.global.u32 [%rd2], %r5;

@@ -33,23 +33,43 @@ file(
 
 find_package(Threads REQUIRED)
 
-set(
-  cuda_pytorch_sqrt_f32_ptx
-  "${CMAKE_CURRENT_SOURCE_DIR}/profiles/pytorch-cuda-cpu-v1/sqrt-f32.ptx"
-)
-set_property(
-  DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${cuda_pytorch_sqrt_f32_ptx}"
-)
-file(READ "${cuda_pytorch_sqrt_f32_ptx}" METAFLUX_PYTORCH_SQRT_F32_PTX)
-string(REPLACE "\\" "\\\\" METAFLUX_PYTORCH_SQRT_F32_PTX "${METAFLUX_PYTORCH_SQRT_F32_PTX}")
-string(REPLACE "\"" "\\\"" METAFLUX_PYTORCH_SQRT_F32_PTX "${METAFLUX_PYTORCH_SQRT_F32_PTX}")
-string(REPLACE "\n" "\\n\"\n    \"" METAFLUX_PYTORCH_SQRT_F32_PTX "${METAFLUX_PYTORCH_SQRT_F32_PTX}")
 set(cuda_pytorch_cpu_kernels "${CMAKE_CURRENT_BINARY_DIR}/pytorch-cuda-cpu-kernels.h")
-configure_file(
-  src/pytorch-cuda-cpu-kernels.h.in
-  "${cuda_pytorch_cpu_kernels}"
-  @ONLY
+file(
+  WRITE "${cuda_pytorch_cpu_kernels}"
+  "#ifndef METAFLUX_PYTORCH_CUDA_CPU_KERNELS_H\n#define METAFLUX_PYTORCH_CUDA_CPU_KERNELS_H\n\n"
 )
+function(metaflux_embed_pytorch_cpu_kernel symbol filename)
+  set(source "${CMAKE_CURRENT_SOURCE_DIR}/profiles/pytorch-cuda-cpu-v1/${filename}")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${source}")
+  file(READ "${source}" ptx)
+  string(REPLACE "\\" "\\\\" ptx "${ptx}")
+  string(REPLACE "\"" "\\\"" ptx "${ptx}")
+  string(REPLACE "\n" "\\n\"\n    \"" ptx "${ptx}")
+  file(APPEND "${cuda_pytorch_cpu_kernels}" "static const char ${symbol}[] =\n    \"${ptx}\";\n\n")
+endfunction()
+
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_add_ptx add-i32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_sub_ptx sub-i32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_mul_ptx mul-i32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_addf32_ptx add-f32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_subf32_ptx sub-f32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_mulf32_ptx mul-f32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_divf32_ptx div-f32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_neg_ptx neg-i32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_fill_i32_ptx fill-i32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_scadd_i32_ptx scalar-add-i32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_scmul_i32_ptx scalar-mul-i32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_alphaadd_i32_ptx alpha-add-i32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_absi32_ptx abs-i32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_absf32_ptx abs-f32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_sqrtf32_ptx sqrt-f32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_eq_i32_ptx eq-i32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_gt_i32_ptx gt-i32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_lt_f32_ptx lt-f32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_reluf32_ptx relu-f32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_clamp_min_f32_ptx clamp-min-f32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_reduce_stub_ptx native-stub.ptx)
+file(APPEND "${cuda_pytorch_cpu_kernels}" "#endif\n")
 
 add_library(
   metaflux_cuda_provider
