@@ -8,5 +8,9 @@ submission, and result completion; this library never reads or writes tensor
 buffers.
 
 The first profile accepts host-pointer-mode float32 `cublasSgemm_v2` with
-`alpha=1` and `beta=0`. Other parameter combinations return a typed cuBLAS
-status and do not fall through to provider-local computation.
+`alpha=1` and `beta=0` or `beta=1`. The latter marks the destination as
+read/write and covers stock `torch.addmm`; `beta=0` also covers ordinary
+`torch.matmul` and bias-free `torch.nn.functional.linear`. Other scalar
+combinations return a typed cuBLAS status and do not fall through to
+provider-local computation. cuBLASLt epilogues, including the observed
+bias-fused Linear path, remain outside this bounded profile.

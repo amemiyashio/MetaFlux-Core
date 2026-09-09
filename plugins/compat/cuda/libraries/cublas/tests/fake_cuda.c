@@ -53,13 +53,16 @@ int cuLaunchKernel(void* function, unsigned int grid_x, unsigned int grid_y, uns
       shared_memory_bytes != 0U || parameters == NULL || extra != NULL) {
     return 1;
   }
-  for (index = 0U; index < 12U; ++index) {
+  for (index = 0U; index < 14U; ++index) {
     if (parameters[index] == NULL) {
       return 1;
     }
   }
   return *(const uint32_t*)parameters[3] == 4U && *(const uint32_t*)parameters[6] == 2U &&
-                 *(const uint32_t*)parameters[7] == 2U && *(const uint32_t*)parameters[8] == 2U
+                 *(const uint32_t*)parameters[7] == 2U && *(const uint32_t*)parameters[8] == 2U &&
+                 *(const uint32_t*)parameters[12] == UINT32_C(0x3f800000) &&
+                 (*(const uint32_t*)parameters[13] == UINT32_C(0) ||
+                  *(const uint32_t*)parameters[13] == UINT32_C(0x3f800000))
              ? 0
              : 1;
 }

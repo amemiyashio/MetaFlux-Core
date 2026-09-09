@@ -22,14 +22,17 @@ SPEC.loader.exec_module(frontier)
 class CpuFrontierEvidenceTests(unittest.TestCase):
     def test_repository_corpus_matches_pinned_profile(self) -> None:
         corpus = frontier.load_corpus(frontier.CORPUS, frontier.CLIENT_MANIFEST)
-        self.assertEqual(len(corpus["cases"]), 31)
-        self.assertEqual(len(corpus["gaps"]), 2)
+        self.assertEqual(len(corpus["cases"]), 33)
+        self.assertEqual(len(corpus["gaps"]), 3)
         self.assertEqual(corpus["cases"][-1]["id"], "softmax-f32")
-        self.assertEqual(corpus["cases"][-2]["id"], "matmul-rect-f32")
+        self.assertEqual(corpus["cases"][-2]["id"], "addmm-f32")
         self.assertEqual(corpus["cases"][-2]["expected_library_calls"], ["sgemm-f32"])
-        self.assertEqual(corpus["cases"][-3]["id"], "matmul-f32")
-        self.assertEqual(corpus["gaps"][-2]["id"], "softmax-f32-nonlast")
-        self.assertEqual(corpus["gaps"][-1]["id"], "clamp-min-nonzero-f32")
+        self.assertEqual(corpus["cases"][-3]["id"], "linear-no-bias-f32")
+        self.assertEqual(corpus["cases"][-4]["id"], "matmul-rect-f32")
+        self.assertEqual(corpus["cases"][-5]["id"], "matmul-f32")
+        self.assertEqual(corpus["gaps"][-3]["id"], "softmax-f32-nonlast")
+        self.assertEqual(corpus["gaps"][-2]["id"], "clamp-min-nonzero-f32")
+        self.assertEqual(corpus["gaps"][-1]["id"], "linear-bias-f32")
 
     def test_provider_evidence_preserves_request_order(self) -> None:
         evidence = frontier.parse_provider_evidence(

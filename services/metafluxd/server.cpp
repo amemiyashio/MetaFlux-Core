@@ -3282,7 +3282,7 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
       }
       std::memcpy(&destination.words[0], &accumulator, sizeof(accumulator));
     } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1) {
-      if (arguments.size() != 12U || arguments[0].index() != 2U || arguments[1].index() != 2U ||
+      if (arguments.size() != 14U || arguments[0].index() != 2U || arguments[1].index() != 2U ||
           arguments[2].index() != 2U) {
         return MF_SHARED_INVALID_ARGUMENT;
       }
@@ -3303,6 +3303,8 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
       const auto leading_left = std::get<std::uint32_t>(arguments[9]);
       const auto leading_right = std::get<std::uint32_t>(arguments[10]);
       const auto leading_destination = std::get<std::uint32_t>(arguments[11]);
+      const auto alpha_bits = std::get<std::uint32_t>(arguments[12]);
+      const auto beta_bits = std::get<std::uint32_t>(arguments[13]);
       const auto matrix_span = [](std::uint32_t matrix_rows, std::uint32_t matrix_columns,
                                   std::uint32_t leading, std::size_t capacity) -> bool {
         if (matrix_rows == 0U || matrix_columns == 0U || leading < matrix_rows) {
@@ -3314,6 +3316,8 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
       };
       if (transpose_left > 1U || transpose_right > 1U || rows == 0U || columns == 0U ||
           inner == 0U || static_cast<std::uint64_t>(rows) * columns != element_count ||
+          alpha_bits != UINT32_C(0x3f800000) ||
+          (beta_bits != UINT32_C(0) && beta_bits != UINT32_C(0x3f800000)) ||
           !matrix_span(transpose_left == 0U ? rows : inner, transpose_left == 0U ? inner : rows,
                        leading_left, left.words.size()) ||
           !matrix_span(transpose_right == 0U ? inner : columns,
@@ -3345,6 +3349,11 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
           const std::size_t destination_index =
               static_cast<std::size_t>(row) +
               static_cast<std::size_t>(column) * leading_destination;
+          if (beta_bits != UINT32_C(0)) {
+            float prior = 0.0F;
+            std::memcpy(&prior, &destination.words[destination_index], sizeof(prior));
+            accumulator += prior;
+          }
           std::memcpy(&destination.words[destination_index], &accumulator, sizeof(accumulator));
         }
       }

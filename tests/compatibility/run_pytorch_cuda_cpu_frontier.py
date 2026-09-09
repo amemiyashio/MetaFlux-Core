@@ -183,6 +183,20 @@ def operation_cases(torch: Any) -> dict[str, Callable[[], Any]]:
             f32([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).reshape(2, 3),
             f32(list(range(7, 19))).reshape(3, 4),
         ),
+        "linear-no-bias-f32": lambda: torch.nn.functional.linear(
+            f32([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).reshape(2, 3),
+            f32([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).reshape(2, 3),
+        ),
+        "addmm-f32": lambda: torch.addmm(
+            f32([1.0, 2.0, 3.0, 4.0]).reshape(2, 2),
+            f32([1.0, 2.0, 3.0, 4.0]).reshape(2, 2),
+            f32([5.0, 6.0, 7.0, 8.0]).reshape(2, 2),
+        ),
+        "linear-bias-f32": lambda: torch.nn.functional.linear(
+            f32([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).reshape(2, 3),
+            f32([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).reshape(2, 3),
+            f32([0.5, -0.5]),
+        ),
         "softmax-f32": lambda: torch.softmax(
             f32([0.0, 1.0, 2.0, 2.0, 1.0, 0.0]).reshape(2, 3), dim=1
         ),

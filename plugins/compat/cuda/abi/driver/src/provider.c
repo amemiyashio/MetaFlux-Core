@@ -7155,6 +7155,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
      the strided-copy descriptor) in record order. */
   uint32_t normalized_extra[MF_CUDA_LAUNCH_ARGUMENT_CAPACITY] = {0};
   uint32_t normalized_entry_total = UINT32_C(4);
+  uint32_t normalized_output_read = UINT32_C(0);
   /* Output element size in bytes for the per-entry capacity check; the
      comparison kernels write one bool byte per element. */
   uint32_t normalized_output_element_size = UINT32_C(4);
@@ -7201,7 +7202,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
   if (result == CUDA_SUCCESS && mf_module_kernel_operation[function_record->aux] ==
                                     MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1) {
     const char* kernel_name = mf_function_names[function_index];
-    uint32_t descriptor[9] = {0};
+    uint32_t descriptor[11] = {0};
     uint32_t output_span = UINT32_C(0);
     uint32_t left_span = UINT32_C(0);
     uint32_t right_span = UINT32_C(0);
@@ -7210,7 +7211,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       mf_cuda_queue_unlock();
       return CUDA_ERROR_NOT_SUPPORTED;
     }
-    for (index = UINT32_C(0); index < UINT32_C(12); ++index) {
+    for (index = UINT32_C(0); index < UINT32_C(14); ++index) {
       if (kernel_parameters[index] == (void*)0) {
         mf_cuda_queue_unlock();
         return CUDA_ERROR_INVALID_VALUE;
@@ -7219,7 +7220,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
     (void)memcpy(&normalized_pointers[0], kernel_parameters[0], sizeof(normalized_pointers[0]));
     (void)memcpy(&normalized_pointers[1], kernel_parameters[1], sizeof(normalized_pointers[1]));
     (void)memcpy(&normalized_pointers[2], kernel_parameters[2], sizeof(normalized_pointers[2]));
-    for (index = UINT32_C(0); index < UINT32_C(9); ++index) {
+    for (index = UINT32_C(0); index < UINT32_C(11); ++index) {
       (void)memcpy(&descriptor[index], kernel_parameters[index + UINT32_C(3)],
                    sizeof(descriptor[index]));
     }
@@ -7228,6 +7229,8 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         descriptor[1] > UINT32_C(1) || descriptor[2] > UINT32_C(1) ||
         descriptor[3] == UINT32_C(0) || descriptor[4] == UINT32_C(0) ||
         descriptor[5] == UINT32_C(0) || (uint64_t)descriptor[3] * descriptor[4] != descriptor[0] ||
+        descriptor[9] != UINT32_C(0x3f800000) ||
+        (descriptor[10] != UINT32_C(0) && descriptor[10] != UINT32_C(0x3f800000)) ||
         !mf_cuda_matrix_span(descriptor[1] == UINT32_C(0) ? descriptor[3] : descriptor[5],
                              descriptor[1] == UINT32_C(0) ? descriptor[5] : descriptor[3],
                              descriptor[6], &left_span) ||
@@ -7243,13 +7246,14 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
     }
     normalized_buffer_count = UINT32_C(3);
     normalized_element_count_index = UINT32_C(3);
-    normalized_entry_total = UINT32_C(12);
+    normalized_entry_total = UINT32_C(14);
     normalized_output_element_size = UINT32_C(4);
+    normalized_output_read = descriptor[10] != UINT32_C(0) ? UINT32_C(1) : UINT32_C(0);
     normalized_buffer_element_counts[0] = output_span;
     normalized_buffer_element_counts[1] = left_span;
     normalized_buffer_element_counts[2] = right_span;
     normalized_element_count = descriptor[0];
-    for (index = UINT32_C(3); index < UINT32_C(12); ++index) {
+    for (index = UINT32_C(3); index < UINT32_C(14); ++index) {
       normalized_kinds[index] = UINT32_C(1);
       normalized_scalars[index] = descriptor[index - UINT32_C(3)];
       normalized_parameters[index] = &normalized_scalars[index];
@@ -8411,7 +8415,10 @@ daemon_launch:
       }
       arguments.entries[parameter_index].kind = MF_ARGUMENT_KIND_BUFFER;
       arguments.entries[parameter_index].flags =
-          parameter_index == UINT32_C(0) ? MF_ARGUMENT_BUFFER_WRITE : MF_ARGUMENT_BUFFER_READ;
+          parameter_index == UINT32_C(0)
+              ? MF_ARGUMENT_BUFFER_WRITE |
+                    (normalized_output_read != UINT32_C(0) ? MF_ARGUMENT_BUFFER_READ : UINT32_C(0))
+              : MF_ARGUMENT_BUFFER_READ;
       arguments.entries[parameter_index].object_id = memories[parameter_index]->remote_id;
       arguments.entries[parameter_index].object_generation =
           memories[parameter_index]->remote_generation;

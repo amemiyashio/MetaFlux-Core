@@ -73,7 +73,9 @@ static const char mf_cublas_sgemm_ptx[] = ".version 9.0\n"
                                           "  .param .u32 inner,\n"
                                           "  .param .u32 leading_left,\n"
                                           "  .param .u32 leading_right,\n"
-                                          "  .param .u32 leading_destination\n"
+                                          "  .param .u32 leading_destination,\n"
+                                          "  .param .u32 alpha_bits,\n"
+                                          "  .param .u32 beta_bits\n"
                                           ")\n"
                                           "{\n"
                                           "  ret;\n"
@@ -471,9 +473,9 @@ cublasStatus_t cublasSgemm_v2(cublasHandle_t handle, cublasOperation_t transa,
   uint32_t output_span = 0U;
   uint32_t left_span = 0U;
   uint32_t right_span = 0U;
-  uint32_t values[9];
+  uint32_t values[11];
   mf_cu_device_pointer pointers[3];
-  void* parameters[12];
+  void* parameters[14];
   mf_cu_result result = 0;
   uint32_t transpose_left = 0U;
   uint32_t transpose_right = 0U;
@@ -494,7 +496,7 @@ cublasStatus_t cublasSgemm_v2(cublasHandle_t handle, cublasOperation_t transa,
   }
   if (!mf_cublas_operation_supported(transa) || !mf_cublas_operation_supported(transb) || m <= 0 ||
       n <= 0 || k <= 0 || alpha == NULL || beta == NULL || a == NULL || b == NULL || c == NULL ||
-      *alpha != 1.0F || *beta != 0.0F) {
+      *alpha != 1.0F || (*beta != 0.0F && *beta != 1.0F)) {
     status = CUBLAS_STATUS_NOT_SUPPORTED;
     goto done;
   }
@@ -529,6 +531,12 @@ cublasStatus_t cublasSgemm_v2(cublasHandle_t handle, cublasOperation_t transa,
   values[6] = (uint32_t)lda;
   values[7] = (uint32_t)ldb;
   values[8] = (uint32_t)ldc;
+  (void)memcpy(&values[9], alpha, sizeof(values[9]));
+  if (*beta == 0.0F) {
+    values[10] = UINT32_C(0);
+  } else {
+    (void)memcpy(&values[10], beta, sizeof(values[10]));
+  }
   parameters[0] = &pointers[0];
   parameters[1] = &pointers[1];
   parameters[2] = &pointers[2];
@@ -541,6 +549,8 @@ cublasStatus_t cublasSgemm_v2(cublasHandle_t handle, cublasOperation_t transa,
   parameters[9] = &values[6];
   parameters[10] = &values[7];
   parameters[11] = &values[8];
+  parameters[12] = &values[9];
+  parameters[13] = &values[10];
   grid_x = ((unsigned int)m + block_x - 1U) / block_x;
   grid_y = ((unsigned int)n + block_y - 1U) / block_y;
   result = current->driver.launch_kernel(current->function, grid_x, grid_y, 1U, block_x, block_y,
@@ -549,9 +559,11 @@ cublasStatus_t cublasSgemm_v2(cublasHandle_t handle, cublasOperation_t transa,
   if (status == CUBLAS_STATUS_SUCCESS && mf_cublas_trace_enabled() != 0) {
     fprintf(stderr,
             "MF_CUBLAS_REQUEST operation=sgemm-f32 transa=%u transb=%u m=%u n=%u k=%u "
-            "lda=%u ldb=%u ldc=%u left-span=%u right-span=%u output-span=%u\n",
+            "lda=%u ldb=%u ldc=%u alpha-bits=%08x beta-bits=%08x "
+            "left-span=%u right-span=%u output-span=%u\n",
             transpose_left, transpose_right, (uint32_t)m, (uint32_t)n, (uint32_t)k, (uint32_t)lda,
-            (uint32_t)ldb, (uint32_t)ldc, left_span, right_span, output_span);
+            (uint32_t)ldb, (uint32_t)ldc, values[9], values[10], left_span, right_span,
+            output_span);
   }
 
 done:
