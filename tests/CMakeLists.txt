@@ -600,6 +600,16 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     metaflux.compatibility.pytorch-cuda-concat-selftest
     PROPERTIES LABELS "compatibility;cuda;pytorch;unit"
   )
+  add_test(
+    NAME metaflux.compatibility.pytorch-cuda-cpu-frontier-selftest
+    COMMAND
+      "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/test_pytorch_cuda_cpu_frontier.py"
+  )
+  set_tests_properties(
+    metaflux.compatibility.pytorch-cuda-cpu-frontier-selftest
+    PROPERTIES LABELS "compatibility;cuda;pytorch;cpu;unit"
+  )
   find_program(METAFLUX_NIX_EXECUTABLE NAMES nix)
   if(METAFLUX_NIX_EXECUTABLE)
     add_test(
@@ -632,6 +642,22 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
       PROPERTIES
         LABELS "compatibility;integration;cuda;pytorch;cpu"
         TIMEOUT 180
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    )
+    add_test(
+      NAME metaflux.compatibility.pytorch-cuda-cpu-frontier
+      COMMAND
+        "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline" --command
+        python3 -B
+        "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_pytorch_cuda_cpu_frontier.py"
+        --daemon $<TARGET_FILE:metafluxd>
+        --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
+    )
+    set_tests_properties(
+      metaflux.compatibility.pytorch-cuda-cpu-frontier
+      PROPERTIES
+        LABELS "compatibility;integration;cuda;pytorch;cpu"
+        TIMEOUT 600
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
     )
     foreach(metaflux_pytorch_execution_mode IN ITEMS cold-jit warm-jit aot)

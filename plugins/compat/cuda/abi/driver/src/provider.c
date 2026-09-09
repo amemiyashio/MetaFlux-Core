@@ -62,7 +62,7 @@ static int mf_cuda_entry_trace_enabled(void) {
    adapter is implemented. */
 static uint8_t mf_module_deferred[MF_CUDA_MODULE_CAPACITY];
 /* Per-function registered name used to select an exact daemon-owned adapter. */
-static char mf_function_names[MF_CUDA_OBJECT_CAPACITY][160];
+static char mf_function_names[MF_CUDA_OBJECT_CAPACITY][512];
 
 /* The stock-PyTorch baseline maps its pinned int32 add kernel to this neutral
  * PTX artifact. The provider only adapts CUDA call arguments; artifact intake,
@@ -702,6 +702,45 @@ static const char mf_pytorch_baseline_lt_f32_ptx[] =
     "done:\n"
     "  ret;\n"
     "}\n";
+
+/* ReLU uses ordered comparison so a NaN and negative zero retain their input
+ * bits, while a negative finite value selects canonical positive zero. */
+static const char mf_pytorch_baseline_reluf32_ptx[] = ".version 9.0\n"
+                                                      ".target sm_70\n"
+                                                      ".address_size 64\n"
+                                                      ".visible .entry relu_f32(\n"
+                                                      "  .param .u64 destination,\n"
+                                                      "  .param .u64 input,\n"
+                                                      "  .param .u32 zero,\n"
+                                                      "  .param .u32 count\n"
+                                                      ")\n"
+                                                      "{\n"
+                                                      "  .reg .pred %p<3>;\n"
+                                                      "  .reg .b32 %r<10>;\n"
+                                                      "  .reg .f32 %f<3>;\n"
+                                                      "  .reg .b64 %rd<10>;\n"
+                                                      "  ld.param.u64 %rd0, [destination];\n"
+                                                      "  ld.param.u64 %rd1, [input];\n"
+                                                      "  ld.param.u32 %r0, [zero];\n"
+                                                      "  ld.param.u32 %r1, [count];\n"
+                                                      "  mov.u32 %r2, %tid.x;\n"
+                                                      "  mov.u32 %r3, %ctaid.x;\n"
+                                                      "  mov.u32 %r4, %ntid.x;\n"
+                                                      "  mad.lo.u32 %r5, %r3, %r4, %r2;\n"
+                                                      "  setp.ge.u32 %p1, %r5, %r1;\n"
+                                                      "  @%p1 bra done;\n"
+                                                      "  mul.wide.u32 %rd2, %r5, 4;\n"
+                                                      "  add.u64 %rd3, %rd0, %rd2;\n"
+                                                      "  add.u64 %rd4, %rd1, %rd2;\n"
+                                                      "  ld.global.f32 %f1, [%rd4];\n"
+                                                      "  ld.global.u32 %r6, [%rd4];\n"
+                                                      "  cvt.rn.f32.u32 %f2, %r0;\n"
+                                                      "  setp.lt.f32 %p2, %f1, %f2;\n"
+                                                      "  selp.b32 %r7, %r0, %r6, %p2;\n"
+                                                      "  st.global.u32 [%rd3], %r7;\n"
+                                                      "done:\n"
+                                                      "  ret;\n"
+                                                      "}\n";
 
 /* Reduction and cast-copy launches execute through the daemon-native path;
    this minimal parseable artifact satisfies the module-load contract and is
@@ -7572,6 +7611,49 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
 
     if (kernel_name[0] != '\0' &&
         strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "TensorCompare") != (char*)0 &&
+        strstr(kernel_name, "launch_clamp_scalar") != (char*)0 &&
+        strstr(kernel_name, "EUlfE_") != (char*)0 && kernel_parameters[0] != (void*)0 &&
+        kernel_parameters[1] != (void*)0 && kernel_parameters[2] != (void*)0) {
+      /* Pinned torch.relu(float32) lowers to clamp_min_scalar. Its closure is
+         {float lower, float upper, ClampLimits mode}; ReLU is +0,+0,Min(0).
+         Reject every other clamp closure instead of widening this observed
+         profile adapter into general clamp semantics. */
+      void** relu_data_array = (void**)kernel_parameters[2];
+      uint32_t lower_bits = UINT32_C(0);
+      uint32_t upper_bits = UINT32_C(0);
+      uint32_t clamp_mode = UINT32_C(0);
+      (void)memcpy(&lower_bits, kernel_parameters[1], sizeof(lower_bits));
+      (void)memcpy(&upper_bits, (const uint8_t*)kernel_parameters[1] + UINT32_C(4),
+                   sizeof(upper_bits));
+      (void)memcpy(&clamp_mode, (const uint8_t*)kernel_parameters[1] + UINT32_C(8),
+                   sizeof(clamp_mode));
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)relu_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)relu_data_array[1];
+      normalized_kinds[2] = UINT32_C(1);
+      normalized_scalars[2] = UINT32_C(0);
+      if (normalized_element_count == UINT32_C(0) || normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0 || lower_bits != UINT32_C(0) ||
+          upper_bits != UINT32_C(0) || clamp_mode != UINT32_C(0)) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_RELU_F32_V1,
+          mf_pytorch_baseline_reluf32_ptx, sizeof(mf_pytorch_baseline_reluf32_ptx) - 1U,
+          "elementwise-relu-f32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
         strstr(kernel_name, "CompareEqFunctor") != (char*)0 &&
         kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
         kernel_parameters[2] != (void*)0) {
@@ -7793,9 +7875,33 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       normalized_kinds[2] = UINT32_C(1);
       normalized_scalars[2] = UINT32_C(0);
       module_record = &mf_cuda_global.modules[function_record->aux];
+      const char* reduce_operation_name = (const char*)0;
+      switch (reduce_operation) {
+      case MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I32_V1:
+        reduce_operation_name = "reduce-sum-i32";
+        break;
+      case MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1:
+        reduce_operation_name = "reduce-sum-f32";
+        break;
+      case MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1:
+        reduce_operation_name = "reduce-mean-f32";
+        break;
+      case MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MAX_I32_V1:
+        reduce_operation_name = "reduce-max-i32";
+        break;
+      case MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MIN_I32_V1:
+        reduce_operation_name = "reduce-min-i32";
+        break;
+      case MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I64_V1:
+        reduce_operation_name = "reduce-sum-i64";
+        break;
+      default:
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
       result = mf_cuda_materialize_pytorch_baseline_locked(
           module_record, reduce_operation, mf_pytorch_baseline_reduce_stub_ptx,
-          sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U, "reduce-native");
+          sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U, reduce_operation_name);
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();
         return result;

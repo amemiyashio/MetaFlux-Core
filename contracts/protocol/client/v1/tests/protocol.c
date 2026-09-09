@@ -25,8 +25,45 @@ _Static_assert(MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1 == UINT16_C(17),
                "kernel-request opcode");
 _Static_assert(MF_CLIENT_KERNEL_REQUEST_OPERATION_CONCAT_U32_V1 == UINT32_C(27),
                "concat-u32 operation");
+_Static_assert(MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_NEG_I32_V1 == UINT32_C(7),
+               "elementwise-neg-i32 operation");
+_Static_assert(MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SUB_F32_V1 == UINT32_C(28),
+               "elementwise-sub-f32 operation");
+_Static_assert(MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_RELU_F32_V1 == UINT32_C(29),
+               "elementwise-relu-f32 operation");
 
 int main(void) {
+  static const uint32_t kernel_operations[] = {
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_MUL_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SUB_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_F32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_MUL_F32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_DIV_F32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_NEG_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_FILL_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_SCALAR_ADD_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_SCALAR_MUL_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ALPHA_ADD_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ABS_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ABS_F32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SQRT_F32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_COMPARE_EQ_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_COMPARE_GT_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_COMPARE_LT_F32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_COPY_I64_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MAX_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MIN_I32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I64_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_TO_F32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_STRIDED_COPY_U32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_CONCAT_U32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SUB_F32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_RELU_F32_V1,
+  };
   mf_client_negotiation_request_v1 request;
   mf_client_negotiation_response_v1 response;
   mf_client_control_request_v1 control_request;
@@ -48,6 +85,23 @@ int main(void) {
   const uint64_t copy_region = MF_CLIENT_CAP_COPY_REGION_V1;
   const uint64_t cdev_binding = MF_CLIENT_CAP_CDEV_BINDING_V1;
   const uint64_t kernel_request_capability = MF_CLIENT_CAP_KERNEL_REQUEST_V1;
+  uint32_t operation_index = UINT32_C(0);
+  uint32_t other_operation_index = UINT32_C(0);
+
+  for (operation_index = UINT32_C(0);
+       operation_index < sizeof(kernel_operations) / sizeof(kernel_operations[0]);
+       ++operation_index) {
+    if (kernel_operations[operation_index] != operation_index + UINT32_C(1)) {
+      return 30;
+    }
+    for (other_operation_index = operation_index + UINT32_C(1);
+         other_operation_index < sizeof(kernel_operations) / sizeof(kernel_operations[0]);
+         ++other_operation_index) {
+      if (kernel_operations[operation_index] == kernel_operations[other_operation_index]) {
+        return 31;
+      }
+    }
+  }
 
   mf_client_negotiation_request_init_v1(&request, UINT16_C(1), UINT16_C(2), required, optional,
                                         MF_CLIENT_FLAG_JOIN_EXISTING_VIEW_V1);
@@ -228,6 +282,14 @@ int main(void) {
   if (mf_client_kernel_request_validate_v1(
           kernel_request_payload, sizeof(kernel_request_payload)) != MF_CLIENT_CONTROL_OK) {
     return 29;
+  }
+  mf_client_kernel_request_init_v1(kernel_request, MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_RELU_F32_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_KERNEL_IR_SCHEMA_VERSION_V1,
+                                   sizeof(kernel_request_payload));
+  if (mf_client_kernel_request_validate_v1(
+          kernel_request_payload, sizeof(kernel_request_payload)) != MF_CLIENT_CONTROL_OK) {
+    return 32;
   }
   mf_client_kernel_request_init_v1(kernel_request, MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1,
                                    MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1,
