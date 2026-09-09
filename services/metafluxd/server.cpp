@@ -2841,7 +2841,6 @@ ControlReply Session::control(const mf_client_control_request_v1& request, Uniqu
           if (resolve(response_id, response_generation, ObjectKind::kArtifact,
                       stored_artifact) == MF_SHARED_SUCCESS) {
             stored_artifact->kernel_operation = kernel_operation;
-            std::cerr << "metafluxd: artifact operation stash=" << kernel_operation << '\n';
           }
         }
       }
@@ -3089,7 +3088,6 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
   }
   if (module->kernel_operation != 0U) {
     const uint32_t operation = module->kernel_operation;
-    std::cerr << "metafluxd: native launch operation=" << operation << '\n';
     bool native = true;
     if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_COPY_I64_V1) {
       if (arguments.size() < 3U || arguments[0].index() != 2U || arguments[1].index() != 2U) {
@@ -3221,6 +3219,43 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
            ++index) {
         const float widened = static_cast<float>(static_cast<int32_t>(source.words[index]));
         std::memcpy(&destination.words[index], &widened, sizeof(widened));
+      }
+    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_CONCAT_U32_V1) {
+      if (arguments.size() < 6U || arguments[0].index() != 2U ||
+          ((arguments.size() - 2U) % 2U) != 0U) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
+      const auto source_count = static_cast<std::size_t>((arguments.size() - 2U) / 2U);
+      if (source_count < 2U || !std::holds_alternative<std::uint32_t>(arguments.back())) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      const auto element_count = std::get<uint32_t>(arguments[arguments.size() - 1U]);
+      std::uint64_t total = 0U;
+      for (std::size_t index = 0U; index < source_count; ++index) {
+        if (arguments[1U + index].index() != 2U ||
+            !std::holds_alternative<std::uint32_t>(arguments[1U + source_count + index])) {
+          return MF_SHARED_INVALID_ARGUMENT;
+        }
+        const auto length = static_cast<std::uint32_t>(
+            std::get<std::uint32_t>(arguments[1U + source_count + index]));
+        total += length;
+        const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1U + index]);
+        if (length > source.words.size()) {
+          return MF_SHARED_INVALID_ARGUMENT;
+        }
+      }
+      if (total != element_count || total > destination.words.size()) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      std::size_t cursor = 0U;
+      for (std::size_t index = 0U; index < source_count; ++index) {
+        const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1U + index]);
+        const auto length = static_cast<std::uint32_t>(
+            std::get<std::uint32_t>(arguments[1U + source_count + index]));
+        for (std::size_t word = 0U; word < length; ++word) {
+          destination.words[cursor++] = source.words[word];
+        }
       }
     } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1 ||
                operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1) {
@@ -3391,7 +3426,6 @@ mf_shared_status_v1 Session::process_command(const mf_ring_descriptor_v1& comman
       if (resolve(command.target_id, command.arguments[0], ObjectKind::kArtifact,
                   loaded_artifact) == MF_SHARED_SUCCESS) {
         module_object->kernel_operation = loaded_artifact->kernel_operation;
-        std::cerr << "metafluxd: module operation attach=" << module_object->kernel_operation << '\n';
       }
     }
     if (vulkan_route_ != nullptr && module_object != nullptr &&

@@ -23,6 +23,8 @@ _Static_assert(MF_CLIENT_CONTROL_HOST_ADDRESS_SPACE_REGISTER_V1 == UINT16_C(15),
 _Static_assert(MF_CLIENT_CONTROL_CDEV_BIND_V1 == UINT16_C(16), "cdev-binding opcode");
 _Static_assert(MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1 == UINT16_C(17),
                "kernel-request opcode");
+_Static_assert(MF_CLIENT_KERNEL_REQUEST_OPERATION_CONCAT_U32_V1 == UINT32_C(27),
+               "concat-u32 operation");
 
 int main(void) {
   mf_client_negotiation_request_v1 request;
@@ -219,6 +221,18 @@ int main(void) {
       mf_client_kernel_request_payload_size_v1(kernel_request) != UINT64_C(1)) {
     return 25;
   }
+  mf_client_kernel_request_init_v1(kernel_request, MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_OPERATION_CONCAT_U32_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_KERNEL_IR_SCHEMA_VERSION_V1,
+                                   sizeof(kernel_request_payload));
+  if (mf_client_kernel_request_validate_v1(
+          kernel_request_payload, sizeof(kernel_request_payload)) != MF_CLIENT_CONTROL_OK) {
+    return 29;
+  }
+  mf_client_kernel_request_init_v1(kernel_request, MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_KERNEL_IR_SCHEMA_VERSION_V1,
+                                   sizeof(kernel_request_payload));
   kernel_request->bytes[56] = UINT8_C(1);
   if (mf_client_kernel_request_validate_v1(
           kernel_request_payload, sizeof(kernel_request_payload)) != MF_CLIENT_CONTROL_MALFORMED) {

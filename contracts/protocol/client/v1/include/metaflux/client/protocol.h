@@ -108,6 +108,7 @@ extern "C" {
 #define MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I64_V1 UINT32_C(24)
 #define MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_TO_F32_V1 UINT32_C(25)
 #define MF_CLIENT_KERNEL_REQUEST_OPERATION_STRIDED_COPY_U32_V1 UINT32_C(26)
+#define MF_CLIENT_KERNEL_REQUEST_OPERATION_CONCAT_U32_V1 UINT32_C(27)
 #define MF_CLIENT_KERNEL_REQUEST_OPERATION_ABI_VERSION_V1 UINT32_C(1)
 #define MF_CLIENT_KERNEL_REQUEST_KERNEL_IR_SCHEMA_VERSION_V1 UINT32_C(2)
 #define MF_CLIENT_KERNEL_REQUEST_LIFETIME_MODULE_LOAD_V1 UINT32_C(1)
@@ -238,57 +239,59 @@ static inline uint32_t mf_client_kernel_request_validate_v1(const uint8_t* paylo
       mf_client_load_le64_v1(request->bytes + 8) != byte_count ||
       mf_client_load_le32_v1(request->bytes + 16) != MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1 ||
       (mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_MUL_I32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_MUL_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SUB_I32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SUB_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
            MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_F32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_MUL_F32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_MUL_F32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_DIV_F32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_DIV_F32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_NEG_I32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_NEG_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_FILL_I32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_FILL_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_SCALAR_ADD_I32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_SCALAR_ADD_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_SCALAR_MUL_I32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_SCALAR_MUL_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
            MF_CLIENT_KERNEL_REQUEST_OPERATION_ALPHA_ADD_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ABS_I32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ABS_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ABS_F32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ABS_F32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
            MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SQRT_F32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_COMPARE_EQ_I32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_COMPARE_EQ_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_COMPARE_GT_I32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_COMPARE_GT_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
            MF_CLIENT_KERNEL_REQUEST_OPERATION_COMPARE_LT_F32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_COPY_I64_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_COPY_I64_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MAX_I32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MAX_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
            MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MIN_I32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
            MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I64_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_TO_F32_V1 &&
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_TO_F32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
            MF_CLIENT_KERNEL_REQUEST_OPERATION_STRIDED_COPY_U32_V1 &&
+       mf_client_load_le32_v1(request->bytes + 20) !=
+           MF_CLIENT_KERNEL_REQUEST_OPERATION_CONCAT_U32_V1 &&
        mf_client_load_le32_v1(request->bytes + 20) !=
            MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SUB_F32_V1) ||
       mf_client_load_le32_v1(request->bytes + 24) !=

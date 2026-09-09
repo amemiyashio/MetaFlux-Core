@@ -950,6 +950,10 @@ static uint32_t mf_module_kernel_count(uint32_t module_index, uint32_t module_ge
 #define MF_CUDA_PENDING_CAPACITY UINT32_C(128)
 #define MF_CUDA_ARGUMENT_CACHE_CAPACITY UINT32_C(64)
 #define MF_CUDA_COPY_CACHE_CAPACITY UINT32_C(64)
+#define MF_CUDA_LAUNCH_ARGUMENT_CAPACITY UINT32_C(64)
+#define MF_CUDA_LAUNCH_BUFFER_CAPACITY UINT32_C(32)
+/* One destination, N sources, N lengths, and one total must fit in 64 entries. */
+#define MF_CUDA_CONCAT_SOURCE_CAPACITY (MF_CUDA_LAUNCH_BUFFER_CAPACITY - UINT32_C(1))
 #define MF_CUDA_COPY_ARGUMENT_SIZE                                                                 \
   (sizeof(mf_argument_block_header_v1) +                                                           \
    ((size_t)MF_COPY_REGION_ARGUMENT_ENTRY_COUNT_V1 * sizeof(mf_argument_entry_v1)))
@@ -1055,8 +1059,8 @@ typedef struct mf_cuda_pending {
   uint32_t event_generation;
   uint32_t module_index;
   uint32_t module_generation;
-  uint32_t memory_indices[3];
-  uint32_t memory_generations[3];
+  uint32_t memory_indices[MF_CUDA_LAUNCH_BUFFER_CAPACITY];
+  uint32_t memory_generations[MF_CUDA_LAUNCH_BUFFER_CAPACITY];
   uint32_t kind;
   uint32_t defer_error;
   uint32_t argument_cached;
@@ -1076,7 +1080,7 @@ typedef struct mf_cuda_pending_slot {
 
 typedef struct mf_cuda_add_argument_block {
   mf_argument_block_header_v1 header;
-  mf_argument_entry_v1 entries[10];
+  mf_argument_entry_v1 entries[MF_CUDA_LAUNCH_ARGUMENT_CAPACITY];
 } mf_cuda_add_argument_block;
 
 typedef struct mf_cuda_copy_argument_block {
@@ -1092,8 +1096,8 @@ typedef struct mf_cuda_argument_cache_entry {
   uint32_t context_generation;
   uint32_t module_index;
   uint32_t module_generation;
-  uint32_t memory_indices[3];
-  uint32_t memory_generations[3];
+  uint32_t memory_indices[MF_CUDA_LAUNCH_BUFFER_CAPACITY];
+  uint32_t memory_generations[MF_CUDA_LAUNCH_BUFFER_CAPACITY];
   uint32_t active;
 } mf_cuda_argument_cache_entry;
 
@@ -1802,7 +1806,7 @@ static void mf_cuda_pending_initialize(mf_cuda_pending* pending) {
   pending->stream_index = MF_CUDA_INDEX_NONE;
   pending->event_index = MF_CUDA_INDEX_NONE;
   pending->module_index = MF_CUDA_INDEX_NONE;
-  for (index = UINT32_C(0); index < UINT32_C(3); ++index) {
+  for (index = UINT32_C(0); index < MF_CUDA_LAUNCH_BUFFER_CAPACITY; ++index) {
     pending->memory_indices[index] = MF_CUDA_INDEX_NONE;
   }
 }
@@ -1827,7 +1831,7 @@ static int mf_cuda_argument_cache_matches_scope(const mf_cuda_argument_cache_ent
   if (scope == MF_CUDA_ARGUMENT_CACHE_MODULE) {
     return entry->module_index == index && entry->module_generation == generation;
   }
-  for (memory_index = UINT32_C(0); memory_index < UINT32_C(3); ++memory_index) {
+  for (memory_index = UINT32_C(0); memory_index < MF_CUDA_LAUNCH_BUFFER_CAPACITY; ++memory_index) {
     if (entry->memory_indices[memory_index] == index &&
         entry->memory_generations[memory_index] == generation) {
       return 1;
@@ -1880,9 +1884,10 @@ static int mf_cuda_argument_cache_is_empty_locked(void) {
 
 static CUresult mf_cuda_argument_cache_acquire_locked(
     const mf_cuda_add_argument_block* block, uint32_t context_index, uint32_t context_generation,
-    uint32_t module_index, uint32_t module_generation, const uint32_t memory_indices[3],
-    const uint32_t memory_generations[3], uint64_t* out_id, uint64_t* out_generation,
-    uint32_t* out_cached) {
+    uint32_t module_index, uint32_t module_generation,
+    const uint32_t memory_indices[MF_CUDA_LAUNCH_BUFFER_CAPACITY],
+    const uint32_t memory_generations[MF_CUDA_LAUNCH_BUFFER_CAPACITY], uint64_t* out_id,
+    uint64_t* out_generation, uint32_t* out_cached) {
   uint32_t cache_index = UINT32_C(0);
   uint32_t free_index = MF_CUDA_ARGUMENT_CACHE_CAPACITY;
   CUresult result = CUDA_SUCCESS;
@@ -1927,7 +1932,8 @@ static CUresult mf_cuda_argument_cache_acquire_locked(
     entry->context_generation = context_generation;
     entry->module_index = module_index;
     entry->module_generation = module_generation;
-    for (memory_index = UINT32_C(0); memory_index < UINT32_C(3); ++memory_index) {
+    for (memory_index = UINT32_C(0); memory_index < MF_CUDA_LAUNCH_BUFFER_CAPACITY;
+         ++memory_index) {
       entry->memory_indices[memory_index] = memory_indices[memory_index];
       entry->memory_generations[memory_index] = memory_generations[memory_index];
     }
@@ -3215,7 +3221,8 @@ static int mf_cuda_pending_references(const mf_cuda_pending* pending, mf_cuda_re
   case MF_CUDA_REFERENCE_MODULE:
     return pending->module_index == index && pending->module_generation == generation;
   case MF_CUDA_REFERENCE_MEMORY:
-    for (memory_index = UINT32_C(0); memory_index < UINT32_C(3); ++memory_index) {
+    for (memory_index = UINT32_C(0); memory_index < MF_CUDA_LAUNCH_BUFFER_CAPACITY;
+         ++memory_index) {
       if (pending->memory_indices[memory_index] == index &&
           pending->memory_generations[memory_index] == generation) {
         return 1;
@@ -7039,43 +7046,55 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
   uint32_t parameter_index = 0;
   uint32_t element_count = 0;
   uint32_t argument_cached = UINT32_C(0);
-  uint32_t memory_indices[3] = {MF_CUDA_INDEX_NONE, MF_CUDA_INDEX_NONE, MF_CUDA_INDEX_NONE};
-  uint32_t memory_generations[3] = {UINT32_C(0), UINT32_C(0), UINT32_C(0)};
-  uint64_t offsets[3] = {0, 0, 0};
+  uint32_t memory_indices[MF_CUDA_LAUNCH_BUFFER_CAPACITY];
+  uint32_t memory_generations[MF_CUDA_LAUNCH_BUFFER_CAPACITY] = {0};
+  uint64_t offsets[MF_CUDA_LAUNCH_BUFFER_CAPACITY] = {0};
   uint64_t argument_id = 0;
   uint64_t argument_generation = 0;
   uint64_t stream_last_request = UINT64_C(0);
-  CUdeviceptr pointers[3] = {0, 0, 0};
-  mf_cuda_object* memories[3] = {(mf_cuda_object*)0, (mf_cuda_object*)0, (mf_cuda_object*)0};
+  CUdeviceptr pointers[MF_CUDA_LAUNCH_BUFFER_CAPACITY] = {0};
+  mf_cuda_object* memories[MF_CUDA_LAUNCH_BUFFER_CAPACITY] = {0};
   mf_cuda_object* context = (mf_cuda_object*)0;
   mf_cuda_object* function_record = (mf_cuda_object*)0;
   mf_cuda_object* module_record = (mf_cuda_object*)0;
   mf_cuda_object* stream_record = (mf_cuda_object*)0;
   mf_cuda_add_argument_block arguments;
-  CUdeviceptr normalized_pointers[3] = {0, 0, 0};
+  CUdeviceptr normalized_pointers[MF_CUDA_LAUNCH_ARGUMENT_CAPACITY] = {0};
   uint32_t normalized_element_count = UINT32_C(0);
-  /* Entries 0..2 may carry runtime u32 scalars instead of buffer handles.
-     normalized_kinds marks those entries; entry 3 is always the element
-     count and an optional fifth entry carries the alpha scalar. */
-  uint32_t normalized_scalars[3] = {0, 0, 0};
-  uint32_t normalized_kinds[3] = {0, 0, 0};
+  /* Adapter entries may carry runtime u32 scalars instead of buffer handles;
+     normalized_kinds marks those entries. The element-count index is normally
+     three and moves to the final entry for variable-arity concatenation. */
+  uint32_t normalized_scalars[MF_CUDA_LAUNCH_ARGUMENT_CAPACITY] = {0};
+  uint32_t normalized_kinds[MF_CUDA_LAUNCH_ARGUMENT_CAPACITY] = {0};
+  uint32_t normalized_buffer_element_counts[MF_CUDA_LAUNCH_BUFFER_CAPACITY] = {0};
+  uint32_t normalized_buffer_count = UINT32_C(3);
+  uint32_t normalized_element_count_index = UINT32_C(3);
   /* Entries beyond the fourth carry extra u32 payload (the alpha scalar, or
      the strided-copy descriptor) in record order. */
-  uint32_t normalized_extra[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  uint32_t normalized_extra[MF_CUDA_LAUNCH_ARGUMENT_CAPACITY] = {0};
   uint32_t normalized_entry_total = UINT32_C(4);
   /* Output element size in bytes for the per-entry capacity check; the
      comparison kernels write one bool byte per element. */
   uint32_t normalized_output_element_size = UINT32_C(4);
-  void* normalized_parameters[10] = {&normalized_pointers[0], &normalized_pointers[1],
-                                     &normalized_pointers[2], &normalized_element_count,
-                                     &normalized_extra[0],    &normalized_extra[1],
-                                     &normalized_extra[2],    &normalized_extra[3],
-                                     &normalized_extra[4],    &normalized_extra[5]};
+  void* normalized_parameters[MF_CUDA_LAUNCH_ARGUMENT_CAPACITY] = {0};
   mf_cuda_pending pending;
   mf_cuda_command command = {MF_CUDA_COMMAND_LAUNCH, 0, {0, 0, 0, 0}, 0};
   uint64_t request_id = UINT64_C(0);
   CUresult result = CUDA_SUCCESS;
   mf_cuda_pending_initialize(&pending);
+  for (parameter_index = UINT32_C(0); parameter_index < MF_CUDA_LAUNCH_ARGUMENT_CAPACITY;
+       ++parameter_index) {
+    normalized_parameters[parameter_index] = &normalized_pointers[parameter_index];
+  }
+  normalized_parameters[UINT32_C(3)] = &normalized_element_count;
+  for (parameter_index = UINT32_C(4); parameter_index < MF_CUDA_LAUNCH_ARGUMENT_CAPACITY;
+       ++parameter_index) {
+    normalized_parameters[parameter_index] = &normalized_extra[parameter_index - UINT32_C(4)];
+  }
+  for (parameter_index = UINT32_C(0); parameter_index < MF_CUDA_LAUNCH_BUFFER_CAPACITY;
+       ++parameter_index) {
+    memory_indices[parameter_index] = MF_CUDA_INDEX_NONE;
+  }
   if (grid_x == UINT32_C(0) || grid_y == UINT32_C(0) || grid_z == UINT32_C(0) ||
       block_x == UINT32_C(0) || block_y == UINT32_C(0) || block_z == UINT32_C(0) ||
       kernel_parameters == (void**)0 || extra != (void**)0) {
@@ -7905,6 +7924,102 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       goto daemon_launch;
     }
 
+    if (kernel_name[0] != '\0' && strstr(kernel_name, "CatArrayBatchedCopy") != (char*)0 &&
+        (strstr(kernel_name, "alignedK_contig") != (char*)0 ||
+         strstr(kernel_name, "vectorized") != (char*)0) &&
+        strstr(kernel_name, "OpaqueTypeILj4") != (char*)0 &&
+        strstr(kernel_name, "Li128ELi1E") != (char*)0 && grid_y >= UINT32_C(2) &&
+        grid_y <= MF_CUDA_CONCAT_SOURCE_CAPACITY && kernel_parameters[0] != (void*)0 &&
+        kernel_parameters[1] != (void*)0 && kernel_parameters[2] != (void*)0 &&
+        kernel_parameters[3] != (void*)0 && kernel_parameters[4] != (void*)0) {
+      /* Pinned PyTorch's batch_size=128/stride_size=1 metadata is a fixed record:
+         input[128], offset[128], dimSize[128], nElements[128], and
+         isContiguous[128]. Only grid_y entries are active for this launch. */
+      const uint8_t* metadata = (const uint8_t*)kernel_parameters[1];
+      uint64_t output_pointer = UINT64_C(0);
+      uint32_t total_elements = UINT32_C(0);
+      uint32_t concat_dim = UINT32_C(0);
+      uint32_t trailing_size = UINT32_C(0);
+      uint32_t running_elements = UINT32_C(0);
+      const uint32_t source_count = grid_y;
+      uint32_t source_index = UINT32_C(0);
+      (void)memcpy(&output_pointer, kernel_parameters[0], sizeof(output_pointer));
+      (void)memcpy(&concat_dim, kernel_parameters[3], sizeof(concat_dim));
+      (void)memcpy(&trailing_size, kernel_parameters[4], sizeof(trailing_size));
+      if (output_pointer == UINT64_C(0) || concat_dim != UINT32_C(0) ||
+          trailing_size != UINT32_C(1)) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      normalized_buffer_count = source_count + UINT32_C(1);
+      normalized_element_count_index = normalized_buffer_count + source_count;
+      normalized_entry_total = normalized_element_count_index + UINT32_C(1);
+      if (normalized_entry_total > MF_CUDA_LAUNCH_ARGUMENT_CAPACITY) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      normalized_pointers[0] = (CUdeviceptr)output_pointer;
+      normalized_parameters[0] = &normalized_pointers[0];
+      for (source_index = UINT32_C(0); source_index < source_count; ++source_index) {
+        uint64_t source_pointer = UINT64_C(0);
+        uint32_t source_offset = UINT32_C(0);
+        uint32_t source_dim_size = UINT32_C(0);
+        uint32_t source_elements = UINT32_C(0);
+        uint8_t source_contiguous = UINT8_C(0);
+        const size_t source_slot = (size_t)source_index;
+        (void)memcpy(&source_pointer, metadata + source_slot * sizeof(source_pointer),
+                     sizeof(source_pointer));
+        (void)memcpy(&source_offset,
+                     metadata + UINT32_C(1024) + source_slot * sizeof(source_offset),
+                     sizeof(source_offset));
+        (void)memcpy(&source_dim_size,
+                     metadata + UINT32_C(1536) + source_slot * sizeof(source_dim_size),
+                     sizeof(source_dim_size));
+        (void)memcpy(&source_elements,
+                     metadata + UINT32_C(2048) + source_slot * sizeof(source_elements),
+                     sizeof(source_elements));
+        (void)memcpy(&source_contiguous,
+                     metadata + UINT32_C(2560) + source_slot * sizeof(source_contiguous),
+                     sizeof(source_contiguous));
+        if (source_pointer == UINT64_C(0) || source_offset != running_elements ||
+            source_dim_size != source_elements || source_contiguous == UINT8_C(0) ||
+            UINT32_MAX - running_elements < source_elements) {
+          mf_cuda_queue_unlock();
+          return CUDA_ERROR_NOT_SUPPORTED;
+        }
+        normalized_pointers[UINT32_C(1) + source_index] = (CUdeviceptr)source_pointer;
+        normalized_parameters[UINT32_C(1) + source_index] =
+            &normalized_pointers[UINT32_C(1) + source_index];
+        normalized_buffer_element_counts[UINT32_C(1) + source_index] = source_elements;
+        normalized_kinds[normalized_buffer_count + source_index] = UINT32_C(1);
+        normalized_scalars[normalized_buffer_count + source_index] = source_elements;
+        normalized_parameters[normalized_buffer_count + source_index] =
+            &normalized_scalars[normalized_buffer_count + source_index];
+        running_elements += source_elements;
+      }
+      total_elements = running_elements;
+      if (total_elements == UINT32_C(0)) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      normalized_buffer_element_counts[0] = total_elements;
+      normalized_kinds[normalized_element_count_index] = UINT32_C(1);
+      normalized_scalars[normalized_element_count_index] = total_elements;
+      normalized_parameters[normalized_element_count_index] =
+          &normalized_scalars[normalized_element_count_index];
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_CONCAT_U32_V1,
+          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          "concat-u32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
     /* The baseline must not accept provider-side tensor emulation. Every
      * deferred kernel other than a daemon-owned adapter route fails at the
      * CUDA boundary until its Kernel IR route is implemented; the trace dump
@@ -7921,19 +8036,13 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
     return CUDA_ERROR_NOT_SUPPORTED;
   }
 daemon_launch:
-  if (mf_cuda_entry_trace_enabled() != 0) {
-    fprintf(stderr, "MF_DL entered sm=%u pz=%u bz=%u\n", shared_memory_bytes, grid_z, block_z);
-  }
   if (result == CUDA_SUCCESS &&
-      (grid_z != UINT32_C(1) || block_z != UINT32_C(1) ||
-       shared_memory_bytes != UINT32_C(0))) {
-    if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_DL fail z/shared\n"); }
+      (grid_z != UINT32_C(1) || block_z != UINT32_C(1) || shared_memory_bytes != UINT32_C(0))) {
     result = CUDA_ERROR_NOT_SUPPORTED;
   }
   for (parameter_index = 0;
        result == CUDA_SUCCESS && parameter_index < normalized_entry_total; ++parameter_index) {
     if (kernel_parameters[parameter_index] == (void*)0) {
-      if (mf_cuda_entry_trace_enabled() != 0) { fprintf(stderr, "MF_DL null param %u\n", parameter_index); }
       result = CUDA_ERROR_INVALID_VALUE;
     }
   }
@@ -7954,11 +8063,8 @@ daemon_launch:
                                          &pending.stream_index, &pending.stream_generation,
                                          &stream_last_request);
   }
-  if (mf_cuda_entry_trace_enabled() != 0) {
-    fprintf(stderr, "MF_DL after stream rc=%d\n", (int)result);
-  }
   if (result == CUDA_SUCCESS) {
-    for (parameter_index = 0; parameter_index < UINT32_C(3); ++parameter_index) {
+    for (parameter_index = 0; parameter_index < normalized_buffer_count; ++parameter_index) {
       if (normalized_kinds[parameter_index] != UINT32_C(0)) {
         pointers[parameter_index] = (CUdeviceptr)0;
         memories[parameter_index] = (mf_cuda_object*)0;
@@ -7970,36 +8076,30 @@ daemon_launch:
       result = mf_cuda_memory_locked(pointers[parameter_index], (size_t)1,
                                      &memories[parameter_index], &offsets[parameter_index]);
       if (result != CUDA_SUCCESS) {
-        if (mf_cuda_entry_trace_enabled() != 0) {
-          fprintf(stderr, "MF_DL mem[%u] ptr=%llx rc=%d\n", parameter_index,
-                  (unsigned long long)pointers[parameter_index], (int)result);
-        }
         break;
       }
       if (memories[parameter_index]->owner_context != context_index) {
-        if (mf_cuda_entry_trace_enabled() != 0) {
-          fprintf(stderr, "MF_DL ctx mismatch mem[%u]\n", parameter_index);
-        }
         result = CUDA_ERROR_INVALID_CONTEXT;
         break;
       }
     }
   }
-  if (mf_cuda_entry_trace_enabled() != 0) {
-    fprintf(stderr, "MF_DL after mem rc=%d count=%u\n", (int)result, element_count);
-  }
   if (result == CUDA_SUCCESS) {
-    (void)memcpy(&element_count, kernel_parameters[3], sizeof(element_count));
-    for (parameter_index = 0; parameter_index < UINT32_C(3); ++parameter_index) {
+    (void)memcpy(&element_count, kernel_parameters[normalized_element_count_index],
+                 sizeof(element_count));
+    for (parameter_index = 0; parameter_index < normalized_buffer_count; ++parameter_index) {
       if (normalized_kinds[parameter_index] != UINT32_C(0)) {
         continue;
       }
       const uint64_t element_bytes = parameter_index == UINT32_C(0)
                                          ? normalized_output_element_size
                                          : UINT32_C(4);
+      const uint32_t required_elements = normalized_buffer_element_counts[parameter_index] != 0U
+                                             ? normalized_buffer_element_counts[parameter_index]
+                                             : element_count;
       if ((offsets[parameter_index] & UINT64_C(3)) != UINT64_C(0) ||
           offsets[parameter_index] > memories[parameter_index]->size ||
-          (uint64_t)element_count >
+          (uint64_t)required_elements >
               (memories[parameter_index]->size - offsets[parameter_index]) / element_bytes) {
         result = CUDA_ERROR_INVALID_VALUE;
         break;
@@ -8020,13 +8120,21 @@ daemon_launch:
     arguments.header.reserved[MF_ARGUMENT_BLOCK_LAUNCH_GRID_Y_INDEX_V1] = (uint64_t)grid_y;
     arguments.header.reserved[MF_ARGUMENT_BLOCK_LAUNCH_BLOCK_X_INDEX_V1] = (uint64_t)block_x;
     arguments.header.reserved[MF_ARGUMENT_BLOCK_LAUNCH_BLOCK_Y_INDEX_V1] = (uint64_t)block_y;
-    for (parameter_index = 0; parameter_index < UINT32_C(3); ++parameter_index) {
-      if (normalized_kinds[parameter_index] != UINT32_C(0)) {
+    for (parameter_index = 0; parameter_index < normalized_entry_total; ++parameter_index) {
+      if (normalized_kinds[parameter_index] != UINT32_C(0) ||
+          parameter_index == normalized_element_count_index ||
+          parameter_index >= normalized_buffer_count) {
+        uint32_t scalar_value = UINT32_C(0);
+        if (normalized_kinds[parameter_index] != UINT32_C(0)) {
+          scalar_value = normalized_scalars[parameter_index];
+        } else {
+          (void)memcpy(&scalar_value, kernel_parameters[parameter_index], sizeof(scalar_value));
+        }
         arguments.entries[parameter_index].kind = MF_ARGUMENT_KIND_U32;
         arguments.entries[parameter_index].flags = UINT32_C(0);
         arguments.entries[parameter_index].object_id = UINT64_C(0);
         arguments.entries[parameter_index].object_generation = UINT64_C(0);
-        arguments.entries[parameter_index].value = (uint64_t)normalized_scalars[parameter_index];
+        arguments.entries[parameter_index].value = (uint64_t)scalar_value;
         continue;
       }
       arguments.entries[parameter_index].kind = MF_ARGUMENT_KIND_BUFFER;
@@ -8037,23 +8145,13 @@ daemon_launch:
           memories[parameter_index]->remote_generation;
       arguments.entries[parameter_index].value = offsets[parameter_index];
     }
-    arguments.entries[3].kind = MF_ARGUMENT_KIND_U32;
-    arguments.entries[3].value = (uint64_t)element_count;
-    for (parameter_index = UINT32_C(4); parameter_index < normalized_entry_total;
-         ++parameter_index) {
-      arguments.entries[parameter_index].kind = MF_ARGUMENT_KIND_U32;
-      arguments.entries[parameter_index].flags = UINT32_C(0);
-      arguments.entries[parameter_index].object_id = UINT64_C(0);
-      arguments.entries[parameter_index].object_generation = UINT64_C(0);
-      arguments.entries[parameter_index].value =
-          (uint64_t)normalized_extra[parameter_index - UINT32_C(4)];
-    }
     result = mf_cuda_status(
         mf_client_argument_block_validate_v1((const uint8_t*)&arguments, arguments.header.total_size));
   }
   if (result == CUDA_SUCCESS) {
     module_record = &mf_cuda_global.modules[function_record->aux];
-    for (parameter_index = UINT32_C(0); parameter_index < UINT32_C(3); ++parameter_index) {
+    for (parameter_index = UINT32_C(0); parameter_index < normalized_buffer_count;
+         ++parameter_index) {
       if (normalized_kinds[parameter_index] != UINT32_C(0) ||
           memories[parameter_index] == (mf_cuda_object*)0) {
         memory_indices[parameter_index] = MF_CUDA_INDEX_NONE;
@@ -8081,7 +8179,8 @@ daemon_launch:
     pending.context_generation = context->generation;
     pending.module_index = function_record->aux;
     pending.module_generation = module_record->generation;
-    for (parameter_index = UINT32_C(0); parameter_index < UINT32_C(3); ++parameter_index) {
+    for (parameter_index = UINT32_C(0); parameter_index < normalized_buffer_count;
+         ++parameter_index) {
       pending.memory_indices[parameter_index] = memory_indices[parameter_index];
       pending.memory_generations[parameter_index] = memory_generations[parameter_index];
     }
