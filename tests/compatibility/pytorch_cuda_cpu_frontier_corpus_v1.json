@@ -41,11 +41,12 @@
     {"id":"cast-i32-f32","oracle":{"kind":"f32-bits","expected":["0x41400000","0xc0e00000","0x42c80000","0x00000000","0xc479c000","0x40a00000"]},"expected_requests":["baseline:cast-to-f32:1:2:module-load"]},
     {"id":"strided-contiguous-copy-u32","oracle":{"kind":"i32-exact","expected":[0,6,12,18,1,7,13,19,2,8,14,20,3,9,15,21,4,10,16,22,5,11,17,23]},"expected_requests":["baseline:strided-copy-u32:1:2:module-load"]},
     {"id":"concat-u32","oracle":{"kind":"i32-exact","expected":[12,-7,100,0,-999,5,3,4,-6,1,2,-3]},"expected_requests":["baseline:concat-u32:1:2:module-load"]},
-    {"id":"relu-f32","oracle":{"kind":"f32-bits","expected":["0x80000000","0x00000000","0x7fc00000","0x00000000","0x40400000"]},"expected_requests":["baseline:elementwise-relu-f32:1:2:module-load"]}
+    {"id":"relu-f32","oracle":{"kind":"f32-bits","expected":["0x80000000","0x00000000","0x7fc00000","0x00000000","0x40400000"]},"expected_requests":["baseline:elementwise-relu-f32:1:2:module-load"]},
+    {"id":"softmax-f32","oracle":{"kind":"f32-bits","expected":["0x3db861f3","0x3e7a9a1a","0x3f2a4d3b","0x3f2a4d3b","0x3e7a9a1a","0x3db861f3"]},"expected_requests":["baseline:softmax-f32:1:2:module-load"]}
   ],
   "gaps": [
     {"id":"matmul-f32","status":"frontier-gap","expected_error":"CUBLAS_STATUS_NOT_INITIALIZED","reason":"Library-backed cuBLAS execution boundary remains an open decision."},
-    {"id":"softmax-f32","status":"frontier-gap","expected_error":"CUDA error: operation not supported","reason":"Pinned stock softmax kernel has no accepted neutral request route."},
+    {"id":"softmax-f32-nonlast","status":"frontier-gap","expected_error":"CUDA error: operation not supported","reason":"The accepted row-wise warp adapter does not cover the distinct spatial softmax kernel used for a non-last dimension."},
     {"id":"clamp-min-nonzero-f32","status":"frontier-gap","expected_error":"CUDA error: operation not supported","reason":"The pinned ReLU adapter rejects a nonzero clamp closure instead of broadening into unqualified clamp semantics."}
   ]
 }

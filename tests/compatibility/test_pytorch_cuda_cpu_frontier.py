@@ -22,9 +22,10 @@ SPEC.loader.exec_module(frontier)
 class CpuFrontierEvidenceTests(unittest.TestCase):
     def test_repository_corpus_matches_pinned_profile(self) -> None:
         corpus = frontier.load_corpus(frontier.CORPUS, frontier.CLIENT_MANIFEST)
-        self.assertEqual(len(corpus["cases"]), 28)
+        self.assertEqual(len(corpus["cases"]), 29)
         self.assertEqual(len(corpus["gaps"]), 3)
-        self.assertEqual(corpus["cases"][-1]["id"], "relu-f32")
+        self.assertEqual(corpus["cases"][-1]["id"], "softmax-f32")
+        self.assertEqual(corpus["gaps"][-2]["id"], "softmax-f32-nonlast")
         self.assertEqual(corpus["gaps"][-1]["id"], "clamp-min-nonzero-f32")
 
     def test_provider_evidence_preserves_request_order(self) -> None:

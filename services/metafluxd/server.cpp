@@ -18,6 +18,7 @@
 #include <cerrno>
 #include <charconv>
 #include <chrono>
+#include <cmath>
 #include <csignal>
 #include <cstddef>
 #include <cstdint>
@@ -46,8 +47,8 @@
 #include <sys/un.h>
 #include <sys/vfs.h>
 #include <thread>
-#include <unordered_map>
 #include <unistd.h>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -3280,6 +3281,45 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
         return MF_SHARED_INVALID_ARGUMENT;
       }
       std::memcpy(&destination.words[0], &accumulator, sizeof(accumulator));
+    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_F32_V1) {
+      if (arguments.size() != 5U || arguments[0].index() != 2U || arguments[1].index() != 2U ||
+          !std::holds_alternative<std::uint32_t>(arguments[2]) ||
+          !std::holds_alternative<std::uint32_t>(arguments[3]) ||
+          !std::holds_alternative<std::uint32_t>(arguments[4])) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
+      const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1]);
+      const auto row_count = std::get<std::uint32_t>(arguments[2]);
+      const auto column_count = std::get<std::uint32_t>(arguments[3]);
+      const auto element_count = std::get<std::uint32_t>(arguments[4]);
+      const std::uint64_t expected_elements =
+          static_cast<std::uint64_t>(row_count) * static_cast<std::uint64_t>(column_count);
+      if (row_count == 0U || column_count == 0U || expected_elements != element_count ||
+          element_count > source.words.size() || element_count > destination.words.size()) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      for (std::uint32_t row = 0U; row < row_count; ++row) {
+        const auto begin = static_cast<std::size_t>(row) * column_count;
+        float maximum = -std::numeric_limits<float>::infinity();
+        for (std::uint32_t column = 0U; column < column_count; ++column) {
+          float value = 0.0F;
+          std::memcpy(&value, &source.words[begin + column], sizeof(value));
+          maximum = std::max(maximum, value);
+        }
+        float denominator = 0.0F;
+        for (std::uint32_t column = 0U; column < column_count; ++column) {
+          float value = 0.0F;
+          std::memcpy(&value, &source.words[begin + column], sizeof(value));
+          denominator += std::exp(value - maximum);
+        }
+        for (std::uint32_t column = 0U; column < column_count; ++column) {
+          float value = 0.0F;
+          std::memcpy(&value, &source.words[begin + column], sizeof(value));
+          const float output = std::exp(value - maximum) / denominator;
+          std::memcpy(&destination.words[begin + column], &output, sizeof(output));
+        }
+      }
     } else {
       native = false;
     }

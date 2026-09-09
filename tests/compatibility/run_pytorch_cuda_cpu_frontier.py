@@ -170,7 +170,12 @@ def operation_cases(torch: Any) -> dict[str, Callable[[], Any]]:
             f32([1.0, 2.0, 3.0, 4.0]).reshape(2, 2),
             f32([5.0, 6.0, 7.0, 8.0]).reshape(2, 2),
         ),
-        "softmax-f32": lambda: torch.softmax(f32([0.0, 0.0]).reshape(1, 2), dim=1),
+        "softmax-f32": lambda: torch.softmax(
+            f32([0.0, 1.0, 2.0, 2.0, 1.0, 0.0]).reshape(2, 3), dim=1
+        ),
+        "softmax-f32-nonlast": lambda: torch.softmax(
+            f32(list(range(12))).reshape(2, 3, 2), dim=1
+        ),
         "clamp-min-nonzero-f32": lambda: torch.clamp_min(f32([-2.0, 0.0, 3.0]), 1.0),
     }
 

@@ -31,6 +31,8 @@ _Static_assert(MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SUB_F32_V1 == UINT
                "elementwise-sub-f32 operation");
 _Static_assert(MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_RELU_F32_V1 == UINT32_C(29),
                "elementwise-relu-f32 operation");
+_Static_assert(MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_F32_V1 == UINT32_C(30),
+               "softmax-f32 operation");
 
 int main(void) {
   static const uint32_t kernel_operations[] = {
@@ -63,6 +65,7 @@ int main(void) {
       MF_CLIENT_KERNEL_REQUEST_OPERATION_CONCAT_U32_V1,
       MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SUB_F32_V1,
       MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_RELU_F32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_F32_V1,
   };
   mf_client_negotiation_request_v1 request;
   mf_client_negotiation_response_v1 response;
@@ -290,6 +293,14 @@ int main(void) {
   if (mf_client_kernel_request_validate_v1(
           kernel_request_payload, sizeof(kernel_request_payload)) != MF_CLIENT_CONTROL_OK) {
     return 32;
+  }
+  mf_client_kernel_request_init_v1(kernel_request, MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_F32_V1,
+                                   MF_CLIENT_KERNEL_REQUEST_KERNEL_IR_SCHEMA_VERSION_V1,
+                                   sizeof(kernel_request_payload));
+  if (mf_client_kernel_request_validate_v1(
+          kernel_request_payload, sizeof(kernel_request_payload)) != MF_CLIENT_CONTROL_OK) {
+    return 33;
   }
   mf_client_kernel_request_init_v1(kernel_request, MF_CLIENT_KERNEL_REQUEST_PROFILE_BASELINE_V1,
                                    MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_ADD_I32_V1,
