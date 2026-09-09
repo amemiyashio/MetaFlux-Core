@@ -33,6 +33,24 @@ file(
 
 find_package(Threads REQUIRED)
 
+set(
+  cuda_pytorch_sqrt_f32_ptx
+  "${CMAKE_CURRENT_SOURCE_DIR}/profiles/pytorch-cuda-cpu-v1/sqrt-f32.ptx"
+)
+set_property(
+  DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${cuda_pytorch_sqrt_f32_ptx}"
+)
+file(READ "${cuda_pytorch_sqrt_f32_ptx}" METAFLUX_PYTORCH_SQRT_F32_PTX)
+string(REPLACE "\\" "\\\\" METAFLUX_PYTORCH_SQRT_F32_PTX "${METAFLUX_PYTORCH_SQRT_F32_PTX}")
+string(REPLACE "\"" "\\\"" METAFLUX_PYTORCH_SQRT_F32_PTX "${METAFLUX_PYTORCH_SQRT_F32_PTX}")
+string(REPLACE "\n" "\\n\"\n    \"" METAFLUX_PYTORCH_SQRT_F32_PTX "${METAFLUX_PYTORCH_SQRT_F32_PTX}")
+set(cuda_pytorch_cpu_kernels "${CMAKE_CURRENT_BINARY_DIR}/pytorch-cuda-cpu-kernels.h")
+configure_file(
+  src/pytorch-cuda-cpu-kernels.h.in
+  "${cuda_pytorch_cpu_kernels}"
+  @ONLY
+)
+
 add_library(
   metaflux_cuda_provider
   SHARED
@@ -42,6 +60,7 @@ add_library(
     src/dispatch.c
     "${cuda_symbol_manifest}"
     "${cuda_managed_renames}"
+    "${cuda_pytorch_cpu_kernels}"
 )
 add_library(MetaFlux::CudaProvider ALIAS metaflux_cuda_provider)
 

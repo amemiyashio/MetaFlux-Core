@@ -24,8 +24,10 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
         corpus = frontier.load_corpus(frontier.CORPUS, frontier.CLIENT_MANIFEST)
         self.assertEqual(len(corpus["cases"]), 38)
         self.assertEqual(len(corpus["gaps"]), 1)
+        self.assertEqual(corpus["execution_modes"], list(frontier.EXECUTION_MODES))
         self.assertTrue(corpus["scope"]["library_boundary_closed"])
         self.assertFalse(corpus["scope"]["exit_gate_complete"])
+        self.assertEqual(corpus["scope"]["compiled_subset"], ["sqrt-f32"])
         self.assertEqual(corpus["cases"][-1]["id"], "sigmoid-f32")
         self.assertEqual(corpus["cases"][-2]["id"], "softmax-f32-nonlast")
         self.assertEqual(corpus["cases"][-3]["id"], "softmax-f32")
@@ -42,6 +44,12 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
         self.assertEqual(corpus["gaps"][0]["id"], "sigmoid-f64")
         self.assertEqual(corpus["gaps"][0]["status"], "frontier-gap")
         self.assertEqual(corpus["gaps"][0]["expected_error"], "operation not supported")
+        sqrt = next(entry for entry in corpus["cases"] if entry["id"] == "sqrt-f32")
+        self.assertEqual(
+            frontier.compiled_ptx(sqrt),
+            frontier.ROOT
+            / "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/sqrt-f32.ptx",
+        )
 
     def test_provider_evidence_preserves_request_order(self) -> None:
         evidence = frontier.parse_provider_evidence(
@@ -81,9 +89,44 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
         )
         statistics = frontier.parse_daemon_statistics(line)
         self.assertEqual(statistics["loaded_modules"], 2)
+        self.assertEqual(statistics["compiler_requests"], 0)
+        self.assertEqual(statistics["cache_hits"], 0)
+        self.assertEqual(statistics["cache_misses"], 0)
         self.assertEqual(statistics["destination_operations"], 1)
+        frontier.require_execution_statistics(statistics, "interpreter", 0, 0, 0, 2)
+        with self.assertRaisesRegex(RuntimeError, "statistics drifted"):
+            frontier.require_execution_statistics(statistics, "cold-jit", 1, 0, 1, 2)
         with self.assertRaisesRegex(RuntimeError, "exactly one"):
             frontier.parse_daemon_statistics("")
+
+    def test_compiled_cache_identity_is_exactly_one_versioned_key(self) -> None:
+        identity = "mf-cache-v1-" + "a" * 64
+        with tempfile.TemporaryDirectory() as temporary:
+            metadata = Path(temporary) / "epoch-1" / "metadata.v1"
+            metadata.parent.mkdir(parents=True)
+            metadata.write_text(f"cache_key={identity}\n", encoding="utf-8")
+            self.assertEqual(frontier.cache_identity(Path(temporary)), identity)
+            second = Path(temporary) / "other" / "metadata.v1"
+            second.parent.mkdir(parents=True)
+            second.write_text(f"cache_key={'mf-cache-v1-' + 'b' * 64}\n", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "exactly one"):
+                frontier.cache_identity(Path(temporary))
+
+    def test_compiled_ptx_must_be_repository_relative(self) -> None:
+        with self.assertRaisesRegex(ValueError, "invalid compiled PTX path"):
+            frontier.compiled_ptx({"id": "bad", "compiled": {"ptx": "/tmp/bad.ptx"}})
+        with self.assertRaisesRegex(ValueError, "escapes the repository"):
+            frontier.compiled_ptx({"id": "bad", "compiled": {"ptx": "../bad.ptx"}})
+
+    def test_stable_aot_gap_requires_exact_first_line(self) -> None:
+        frontier.require_stable_gap(
+            {"result": "gap", "error": frontier.STABLE_AOT_MISS + "\ndetail"},
+            frontier.STABLE_AOT_MISS,
+        )
+        with self.assertRaisesRegex(RuntimeError, "gap drifted"):
+            frontier.require_stable_gap(
+                {"result": "gap", "error": "different"}, frontier.STABLE_AOT_MISS
+            )
 
     def test_client_cpu_pin_selects_lowest_effective_cpu(self) -> None:
         with (
@@ -102,6 +145,7 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
         corpus = {
             "schema_version": 1,
             "status": "frontier-not-frozen",
+            "execution_modes": list(frontier.EXECUTION_MODES),
             "client": {"python": "3.13.15", "torch": "2.11.0+cu126", "cuda": "12.6"},
             "cases": [
                 {"id": "same", "oracle": {}, "expected_requests": ["request"]},

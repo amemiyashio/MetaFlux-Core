@@ -30,11 +30,14 @@ request. Cold JIT, warm JIT, and AOT bind to the same `mf-cache-v1` identity.
 
 The gate continues to require the exact direct Driver/internal-table surface,
 the v1 neutral request and Kernel IR v2 boundary, daemon module ownership,
-bit-exact result bytes, and zero provider-local semantic events. This closes the
-compiled-mode uncertainty for the baseline operation only. The complete surface
-and handle matrices are complete, and decision-0053 closes the qualified
-library boundary. The generalized request, frozen versioned multi-operation
-corpus, compiled lowering, and cache identity remain open below.
+bit-exact result bytes, and zero provider-local semantic events. The frontier
+now also qualifies stock `torch.sqrt(float32)` through cold JIT, warm JIT, and
+AOT using one profile-owned PTX source: cold compiles once, warm performs a
+lookup-only hit, and AOT proves a stable miss before reusing the prewarmed
+identity. The complete surface and handle matrices are complete, and
+decision-0053 closes the qualified library boundary. The remaining accepted
+operations still require generalized compiled lowering and many-kernel cache
+evidence before the versioned corpus freezes.
 
 ## Work
 

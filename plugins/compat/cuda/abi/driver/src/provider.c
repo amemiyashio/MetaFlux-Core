@@ -8,6 +8,7 @@
 
 #include "metaflux/client/fastpath.h"
 #include "metaflux/client/protocol.h"
+#include "pytorch-cuda-cpu-kernels.h"
 #ifndef METAFLUX_PROVIDER_CDEV
 #define METAFLUX_PROVIDER_CDEV 0
 #endif
@@ -542,42 +543,6 @@ static const char mf_pytorch_baseline_absf32_ptx[] =
     "  add.u64 %rd5, %rd1, %rd3;\n"
     "  ld.global.f32 %f1, [%rd5];\n"
     "  abs.f32 %f2, %f1;\n"
-    "  st.global.f32 [%rd4], %f2;\n"
-    "done:\n"
-    "  ret;\n"
-    "}\n";
-
-/* The stock-PyTorch float32 square-root kernel maps to this neutral PTX
- * artifact: correctly-rounded sqrt.rn.f32 over the unary shape. */
-static const char mf_pytorch_baseline_sqrtf32_ptx[] =
-    ".version 9.0\n"
-    ".target sm_70\n"
-    ".address_size 64\n"
-    ".visible .entry sqrt_f32(\n"
-    "  .param .u64 destination,\n"
-    "  .param .u64 input,\n"
-    "  .param .u64 unused,\n"
-    "  .param .u32 count\n"
-    ")\n"
-    "{\n"
-    "  .reg .pred %p;\n"
-    "  .reg .b32 %r<10>;\n"
-    "  .reg .f32 %f<10>;\n"
-    "  .reg .b64 %rd<10>;\n"
-    "  ld.param.u64 %rd0, [destination];\n"
-    "  ld.param.u64 %rd1, [input];\n"
-    "  ld.param.u32 %r0, [count];\n"
-    "  mov.u32 %r1, %tid.x;\n"
-    "  mov.u32 %r2, %ctaid.x;\n"
-    "  mov.u32 %r3, %ntid.x;\n"
-    "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
-    "  setp.ge.u32 %p, %r4, %r0;\n"
-    "  @%p bra done;\n"
-    "  mul.wide.u32 %rd3, %r4, 4;\n"
-    "  add.u64 %rd4, %rd0, %rd3;\n"
-    "  add.u64 %rd5, %rd1, %rd3;\n"
-    "  ld.global.f32 %f1, [%rd5];\n"
-    "  sqrt.rn.f32 %f2, %f1;\n"
     "  st.global.f32 [%rd4], %f2;\n"
     "done:\n"
     "  ret;\n"

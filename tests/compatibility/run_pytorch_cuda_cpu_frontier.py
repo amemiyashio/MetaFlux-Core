@@ -19,6 +19,8 @@ from typing import Any, Callable
 ROOT = Path(__file__).resolve().parents[2]
 CORPUS = Path(__file__).with_name("pytorch_cuda_cpu_frontier_corpus_v1.json")
 CLIENT_MANIFEST = ROOT / "toolchains" / "pytorch-cuda-clients-1.json"
+EXECUTION_MODES = ("interpreter", "cold-jit", "warm-jit", "aot")
+STABLE_AOT_MISS = "CUDA error: operation not supported"
 REQUEST_PATTERN = re.compile(
     r"^MF_PYTORCH_BASELINE_REQUEST profile=(?P<profile>[a-z0-9-]+) "
     r"operation=(?P<operation>[a-z0-9-]+) version=(?P<version>\d+) "
@@ -26,7 +28,9 @@ REQUEST_PATTERN = re.compile(
     re.MULTILINE,
 )
 STATISTICS_PATTERN = re.compile(
-    r"^metafluxd: cpu-execution mode=(?P<mode>[a-z-]+) .*"
+    r"^metafluxd: cpu-execution mode=(?P<mode>[a-z-]+) "
+    r"compiler-requests=(?P<compiler_requests>\d+) "
+    r"cache-hits=(?P<cache_hits>\d+) cache-misses=(?P<cache_misses>\d+) "
     r"loaded-modules=(?P<loaded_modules>\d+) .*"
     r"direct-host-source-operations=(?P<source_operations>\d+) .*"
     r"direct-host-destination-operations=(?P<destination_operations>\d+)",
@@ -44,6 +48,7 @@ def arguments() -> argparse.Namespace:
     parser.add_argument("--cublas-provider", type=Path)
     parser.add_argument("--application", action="store_true")
     parser.add_argument("--case")
+    parser.add_argument("--execution-mode", choices=EXECUTION_MODES, default="interpreter")
     parser.add_argument("--corpus", type=Path, default=CORPUS)
     parser.add_argument("--client-manifest", type=Path, default=CLIENT_MANIFEST)
     return parser.parse_args()
@@ -60,10 +65,31 @@ def pinned_profile(path: Path) -> dict[str, str]:
     }
 
 
+def compiled_ptx(entry: dict[str, Any]) -> Path:
+    compiled = entry.get("compiled")
+    if not isinstance(compiled, dict) or set(compiled) != {"ptx"}:
+        raise ValueError(f"CPU frontier case {entry.get('id')!r} has no compiled PTX identity")
+    relative = compiled["ptx"]
+    if not isinstance(relative, str) or not relative or Path(relative).is_absolute():
+        raise ValueError(f"CPU frontier case {entry.get('id')!r} has invalid compiled PTX path")
+    path = (ROOT / relative).resolve()
+    try:
+        path.relative_to(ROOT)
+    except ValueError as error:
+        raise ValueError(
+            f"CPU frontier case {entry.get('id')!r} compiled PTX escapes the repository"
+        ) from error
+    if not path.is_file():
+        raise ValueError(f"CPU frontier compiled PTX is not a file: {path}")
+    return path
+
+
 def load_corpus(path: Path, profile_path: Path) -> dict[str, Any]:
     corpus = json.loads(path.read_text(encoding="utf-8"))
     if corpus.get("schema_version") != 1 or corpus.get("status") != "frontier-not-frozen":
         raise ValueError("CPU frontier corpus identity or status drifted")
+    if corpus.get("execution_modes") != list(EXECUTION_MODES):
+        raise ValueError("CPU frontier execution-mode matrix drifted")
     profile = pinned_profile(profile_path)
     if corpus.get("client") != profile:
         raise ValueError(
@@ -89,6 +115,8 @@ def load_corpus(path: Path, profile_path: Path) -> dict[str, Any]:
             not isinstance(call, str) or not call for call in library_calls
         ):
             raise ValueError(f"supported case {entry['id']} has invalid library-call evidence")
+        if "compiled" in entry:
+            compiled_ptx(entry)
     for entry in gaps:
         if entry.get("status") != "frontier-gap" or not entry.get("expected_error"):
             raise ValueError(f"gap {entry['id']} lacks a stable error classification")
@@ -316,8 +344,62 @@ def parse_daemon_statistics(output: str) -> dict[str, int | str]:
     return {key: (value if key == "mode" else int(value)) for key, value in values.items()}
 
 
+def require_execution_statistics(
+    statistics: dict[str, int | str],
+    mode: str,
+    compiler_requests: int,
+    cache_hits: int,
+    cache_misses: int,
+    loaded_modules: int,
+) -> None:
+    expected: dict[str, int | str] = {
+        "mode": mode,
+        "compiler_requests": compiler_requests,
+        "cache_hits": cache_hits,
+        "cache_misses": cache_misses,
+        "loaded_modules": loaded_modules,
+    }
+    observed = {name: statistics[name] for name in expected}
+    if observed != expected:
+        raise RuntimeError(
+            f"{mode} CPU frontier statistics drifted: expected {expected!r}, observed {observed!r}"
+        )
+
+
+def cache_identity(cache_root: Path) -> str:
+    identities: set[str] = set()
+    for metadata_path in cache_root.rglob("metadata.v1"):
+        for line in metadata_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("cache_key="):
+                identities.add(line.removeprefix("cache_key="))
+    if len(identities) != 1:
+        raise RuntimeError(
+            "compiled CPU frontier case must materialize exactly one cache identity: "
+            f"observed {sorted(identities)!r}"
+        )
+    identity = next(iter(identities))
+    if re.fullmatch(r"mf-cache-v1-[0-9a-f]{64}", identity) is None:
+        raise RuntimeError(f"compiled CPU frontier cache identity is malformed: {identity!r}")
+    return identity
+
+
+def require_stable_gap(payload: dict[str, Any], expected_error: str) -> None:
+    error = payload.get("error")
+    if payload.get("result") != "gap" or not isinstance(error, str):
+        raise RuntimeError(f"CPU frontier did not return a structured gap: {payload!r}")
+    first_line = error.splitlines()[0] if error else ""
+    if first_line != expected_error:
+        raise RuntimeError(
+            f"CPU frontier gap drifted: expected {expected_error!r}, observed {first_line!r}"
+        )
+
+
 def run_case(
-    entry: dict[str, Any], environment: dict[str, str], corpus_path: Path, profile_path: Path
+    entry: dict[str, Any],
+    environment: dict[str, str],
+    corpus_path: Path,
+    profile_path: Path,
+    expect_success: bool = True,
 ) -> dict[str, Any]:
     case_id = entry["id"]
     process = subprocess.run(
@@ -339,12 +421,23 @@ def run_case(
         text=True,
         timeout=120,
     )
-    if process.returncode != 0:
-        raise RuntimeError(f"application {case_id} failed:\n{process.stdout}\n{process.stderr}")
     payload = json.loads(process.stdout)
     provider = parse_provider_evidence(process.stderr)
     if provider["local_execution"] != 0:
         raise RuntimeError(f"provider performed local execution for {case_id}: {provider!r}")
+    if not expect_success:
+        if process.returncode == 0:
+            raise RuntimeError(f"application {case_id} unexpectedly succeeded")
+        require_stable_gap(payload, STABLE_AOT_MISS)
+        if (
+            provider["requests"] != entry["expected_requests"]
+            or provider["library_calls"] != entry.get("expected_library_calls", [])
+            or provider["module_loads"] != 0
+        ):
+            raise RuntimeError(f"compiled miss evidence drifted for {case_id}: {provider!r}")
+        return {"application": payload, "provider": provider}
+    if process.returncode != 0:
+        raise RuntimeError(f"application {case_id} failed:\n{process.stdout}\n{process.stderr}")
     if entry.get("status") == "frontier-gap":
         if payload.get("result") != "expected-gap" or provider["requests"]:
             raise RuntimeError(f"gap evidence drifted for {case_id}: {payload!r}, {provider!r}")
@@ -399,15 +492,19 @@ def run_corpus(
     cublas_provider: Path,
     corpus_path: Path,
     profile_path: Path,
+    execution_mode: str,
+    cache_root: Path | None,
+    expect_success: bool,
+    label: str,
 ) -> tuple[dict[str, Any], dict[str, int | str]]:
-    with tempfile.TemporaryDirectory(prefix="mf-pytorch-frontier-") as temporary:
+    with tempfile.TemporaryDirectory(prefix=f"mf-pytorch-frontier-{label}-") as temporary:
         socket_path = Path(temporary) / "daemon.sock"
         environment = os.environ.copy()
         environment.update(
             {
                 "METAFLUX_MODE": "managed",
                 "METAFLUX_SOCKET": str(socket_path),
-                "METAFLUX_CPU_EXECUTION_MODE": "interpreter",
+                "METAFLUX_CPU_EXECUTION_MODE": execution_mode,
                 "METAFLUX_TRACE_STUBS": "1",
                 "LD_LIBRARY_PATH": str(provider_dir)
                 + (
@@ -417,6 +514,8 @@ def run_corpus(
                 ),
             }
         )
+        if cache_root is not None:
+            environment["METAFLUX_COMPILER_CACHE"] = str(cache_root)
         environment["LD_PRELOAD"] = str(cublas_provider) + (
             os.pathsep + environment["LD_PRELOAD"] if environment.get("LD_PRELOAD") else ""
         )
@@ -431,7 +530,9 @@ def run_corpus(
         try:
             wait_for_socket(daemon, socket_path)
             cases = {
-                entry["id"]: run_case(entry, environment, corpus_path, profile_path)
+                entry["id"]: run_case(
+                    entry, environment, corpus_path, profile_path, expect_success
+                )
                 for entry in entries
             }
         finally:
@@ -439,21 +540,27 @@ def run_corpus(
         if daemon.returncode != 0:
             raise RuntimeError(f"metafluxd exited with {daemon.returncode}:\n{daemon_output}")
         statistics = parse_daemon_statistics(daemon_output)
-        expected_modules = sum(
-            len(entry.get("expected_requests", [])) for entry in entries
+        expected_modules = (
+            sum(len(entry.get("expected_requests", [])) for entry in entries)
+            if expect_success
+            else 0
         )
-        expected_destinations = sum(
-            entry.get("repetitions", 1)
-            for entry in entries
-            if entry.get("status") != "frontier-gap"
+        expected_destinations = (
+            sum(
+                entry.get("repetitions", 1)
+                for entry in entries
+                if entry.get("status") != "frontier-gap"
+            )
+            if expect_success
+            else 0
         )
-        if statistics["mode"] != "interpreter":
+        if statistics["mode"] != execution_mode:
             raise RuntimeError(f"daemon mode drifted: {statistics!r}")
         if statistics["loaded_modules"] != expected_modules:
             raise RuntimeError(
                 f"daemon module intake drifted: expected {expected_modules}, observed {statistics!r}"
             )
-        if statistics["destination_operations"] < expected_destinations:
+        if expect_success and statistics["destination_operations"] < expected_destinations:
             raise RuntimeError(
                 f"daemon result completion drifted: expected at least {expected_destinations}, "
                 f"observed {statistics!r}"
@@ -481,22 +588,133 @@ def runner(parsed: argparse.Namespace) -> dict[str, Any]:
         entries = [entry for entry in entries if entry["id"] == parsed.case]
         if not entries:
             raise ValueError(f"CPU frontier corpus has no case {parsed.case!r}")
+    execution_mode = parsed.execution_mode
+    compiled_source: Path | None = None
+    if execution_mode != "interpreter":
+        if not parsed.case or len(entries) != 1:
+            raise ValueError("compiled CPU frontier qualification requires exactly one --case")
+        compiled_source = compiled_ptx(entries[0])
+    expected_modules = sum(len(entry.get("expected_requests", [])) for entry in entries)
     original_affinity, affinity = pin_client_cpu()
     try:
-        cases, statistics = run_corpus(
-            entries, daemon_path, provider_dir, cublas_provider, corpus_path, profile_path
-        )
+        with tempfile.TemporaryDirectory(prefix="mf-pytorch-frontier-cache-") as temporary:
+            cache_root = Path(temporary) / "compiler-cache"
+
+            def run_once(
+                mode: str, label: str, expect_success: bool = True
+            ) -> tuple[dict[str, Any], dict[str, int | str]]:
+                return run_corpus(
+                    entries,
+                    daemon_path,
+                    provider_dir,
+                    cublas_provider,
+                    corpus_path,
+                    profile_path,
+                    mode,
+                    cache_root if mode != "interpreter" else None,
+                    expect_success,
+                    label,
+                )
+
+            seed_evidence: dict[str, Any] | None = None
+            miss_evidence: dict[str, Any] | None = None
+            prewarm_evidence: dict[str, Any] | None = None
+            if execution_mode == "interpreter":
+                cases, statistics = run_once("interpreter", "interpreter")
+                require_execution_statistics(statistics, "interpreter", 0, 0, 0, expected_modules)
+                compiled_cache_identity: str | None = None
+            elif execution_mode == "cold-jit":
+                cases, statistics = run_once("cold-jit", "cold-jit")
+                require_execution_statistics(statistics, "cold-jit", 1, 0, 1, expected_modules)
+                compiled_cache_identity = cache_identity(cache_root)
+            elif execution_mode == "warm-jit":
+                _, seed_statistics = run_once("cold-jit", "warm-seed")
+                require_execution_statistics(
+                    seed_statistics, "cold-jit", 1, 0, 1, expected_modules
+                )
+                seeded_identity = cache_identity(cache_root)
+                seed_evidence = {"mode": "cold-jit", "statistics": seed_statistics}
+                cases, statistics = run_once("warm-jit", "warm-jit")
+                require_execution_statistics(statistics, "warm-jit", 0, 1, 0, expected_modules)
+                compiled_cache_identity = cache_identity(cache_root)
+                if compiled_cache_identity != seeded_identity:
+                    raise RuntimeError("warm JIT did not reuse the cold JIT cache identity")
+            else:
+                miss_cases, miss_statistics = run_once("aot", "aot-miss", False)
+                require_execution_statistics(miss_statistics, "aot", 0, 0, 1, 0)
+                miss_evidence = {
+                    "classification": "stable-not-supported",
+                    "cases": miss_cases,
+                    "statistics": miss_statistics,
+                }
+                assert compiled_source is not None
+                prewarm_environment = os.environ.copy()
+                prewarm_environment.update(
+                    {
+                        "METAFLUX_CPU_EXECUTION_MODE": "aot",
+                        "METAFLUX_COMPILER_CACHE": str(cache_root),
+                    }
+                )
+                prewarm = subprocess.run(
+                    [str(daemon_path), "--prewarm-aot", str(compiled_source)],
+                    check=False,
+                    env=prewarm_environment,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                )
+                match = re.search(
+                    r"AOT prewarm compiled cache-key=(mf-cache-v1-[0-9a-f]{64})",
+                    prewarm.stdout,
+                )
+                if prewarm.returncode != 0 or match is None:
+                    raise RuntimeError(
+                        f"CPU frontier AOT prewarm failed ({prewarm.returncode}):\n"
+                        f"stdout:\n{prewarm.stdout}\nstderr:\n{prewarm.stderr}"
+                    )
+                prewarm_evidence = {
+                    "compiled": True,
+                    "source": str(compiled_source.relative_to(ROOT)),
+                    "cache_identity": match.group(1),
+                }
+                cases, statistics = run_once("aot", "aot-hit")
+                require_execution_statistics(statistics, "aot", 0, 1, 0, expected_modules)
+                compiled_cache_identity = cache_identity(cache_root)
+                if compiled_cache_identity != match.group(1):
+                    raise RuntimeError("AOT runtime did not reuse the prewarmed cache identity")
     finally:
         os.sched_setaffinity(0, original_affinity)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "gate": "metaflux-pytorch-cuda-cpu-frontier",
         "result": "complete",
         "source": source_provenance(),
-        "affinity": affinity,
+        "runner": {"cpu_affinity": affinity, "execution_mode": execution_mode},
         "corpus": {"id": corpus["id"], "status": corpus["status"]},
         "cases": cases,
-        "daemon": statistics,
+        "daemon": {
+            "cpu_execution_mode": execution_mode,
+            "execution_statistics": statistics,
+            "compiler": {
+                "input_identity": (
+                    "not-applicable-in-interpreter-mode"
+                    if execution_mode == "interpreter"
+                    else "canonical-kernel-ir-v2"
+                ),
+                "runtime_requests": statistics["compiler_requests"],
+                "prewarm": prewarm_evidence,
+            },
+            "compiled_artifact_cache": {
+                "used": execution_mode != "interpreter",
+                "identity": (
+                    "not-applicable-in-interpreter-mode"
+                    if compiled_cache_identity is None
+                    else compiled_cache_identity
+                ),
+                "seed": seed_evidence,
+                "required_miss": miss_evidence,
+            },
+        },
     }
 
 

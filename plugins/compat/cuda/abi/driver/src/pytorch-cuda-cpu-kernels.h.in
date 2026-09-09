@@ -1,0 +1,7 @@
+#ifndef METAFLUX_PYTORCH_CUDA_CPU_KERNELS_H
+#define METAFLUX_PYTORCH_CUDA_CPU_KERNELS_H
+
+static const char mf_pytorch_baseline_sqrtf32_ptx[] =
+    "@METAFLUX_PYTORCH_SQRT_F32_PTX@";
+
+#endif

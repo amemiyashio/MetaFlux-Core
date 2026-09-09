@@ -7,11 +7,12 @@
     "torch": "2.11.0+cu126",
     "cuda": "12.6"
   },
-  "execution_mode": "interpreter",
+  "execution_modes": ["interpreter", "cold-jit", "warm-jit", "aot"],
   "scope": {
     "claim": "Observed stock-client CPU frontier only",
     "exit_gate_complete": false,
-    "library_boundary_closed": true
+    "library_boundary_closed": true,
+    "compiled_subset": ["sqrt-f32"]
   },
   "cases": [
     {"id":"add-i32","oracle":{"kind":"i32-exact","expected":[15,-3,94,1,-997,2]},"expected_requests":["baseline:elementwise-add-i32:1:2:module-load"],"repetitions":2},
@@ -28,7 +29,7 @@
     {"id":"alpha-add-i32","oracle":{"kind":"i32-exact","expected":[21,5,82,3,-993,-4]},"expected_requests":["baseline:elementwise-alpha-add-i32:1:2:module-load"]},
     {"id":"abs-i32","oracle":{"kind":"i32-exact","expected":[12,7,100,0,999,5]},"expected_requests":["baseline:elementwise-abs-i32:1:2:module-load"]},
     {"id":"abs-f32","oracle":{"kind":"f32-bits","expected":["0x3fc00000","0x40100000","0x40480000","0x3f000000"]},"expected_requests":["baseline:elementwise-abs-f32:1:2:module-load"]},
-    {"id":"sqrt-f32","oracle":{"kind":"f32-bits","expected":["0x00000000","0x3f800000","0x40000000","0x40400000"]},"expected_requests":["baseline:elementwise-sqrt-f32:1:2:module-load"]},
+    {"id":"sqrt-f32","oracle":{"kind":"f32-bits","expected":["0x00000000","0x3f800000","0x40000000","0x40400000"]},"expected_requests":["baseline:elementwise-sqrt-f32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/sqrt-f32.ptx"}},
     {"id":"eq-i32","oracle":{"kind":"bool-exact","expected":[false,false,false,false,false,false]},"expected_requests":["baseline:compare-eq-i32:1:2:module-load"]},
     {"id":"gt-i32","oracle":{"kind":"bool-exact","expected":[true,false,true,false,false,true]},"expected_requests":["baseline:compare-gt-i32:1:2:module-load"]},
     {"id":"lt-f32","oracle":{"kind":"bool-exact","expected":[false,true,false,true]},"expected_requests":["baseline:compare-lt-f32:1:2:module-load"]},
