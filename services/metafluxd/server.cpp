@@ -3390,43 +3390,58 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
           std::memcpy(&destination.words[destination_index], &accumulator, sizeof(accumulator));
         }
       }
-    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_F32_V1) {
-      if (arguments.size() != 5U || arguments[0].index() != 2U || arguments[1].index() != 2U ||
-          !std::holds_alternative<std::uint32_t>(arguments[2]) ||
-          !std::holds_alternative<std::uint32_t>(arguments[3]) ||
-          !std::holds_alternative<std::uint32_t>(arguments[4])) {
+    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_F32_V1 ||
+               operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_DIM_F32_V1) {
+      const bool dimensioned = operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_DIM_F32_V1;
+      const std::size_t expected_arguments = dimensioned ? 6U : 5U;
+      if (arguments.size() != expected_arguments || arguments[0].index() != 2U ||
+          arguments[1].index() != 2U) {
         return MF_SHARED_INVALID_ARGUMENT;
+      }
+      for (std::size_t index = 2U; index < arguments.size(); ++index) {
+        if (!std::holds_alternative<std::uint32_t>(arguments[index])) {
+          return MF_SHARED_INVALID_ARGUMENT;
+        }
       }
       auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
       const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1]);
-      const auto row_count = std::get<std::uint32_t>(arguments[2]);
-      const auto column_count = std::get<std::uint32_t>(arguments[3]);
-      const auto element_count = std::get<std::uint32_t>(arguments[4]);
-      const std::uint64_t expected_elements =
-          static_cast<std::uint64_t>(row_count) * static_cast<std::uint64_t>(column_count);
-      if (row_count == 0U || column_count == 0U || expected_elements != element_count ||
-          element_count > source.words.size() || element_count > destination.words.size()) {
+      const auto outer_size = std::get<std::uint32_t>(arguments[2]);
+      const auto dim_size = std::get<std::uint32_t>(arguments[3]);
+      const auto inner_size = dimensioned ? std::get<std::uint32_t>(arguments[4]) : 1U;
+      const auto element_count = std::get<std::uint32_t>(arguments.back());
+      const std::uint64_t outer_dim_elements =
+          static_cast<std::uint64_t>(outer_size) * static_cast<std::uint64_t>(dim_size);
+      if (outer_size == 0U || dim_size == 0U || inner_size == 0U ||
+          outer_dim_elements > UINT32_MAX ||
+          static_cast<std::uint64_t>(inner_size) > UINT32_MAX / outer_dim_elements ||
+          outer_dim_elements * inner_size != element_count || element_count > source.words.size() ||
+          element_count > destination.words.size()) {
         return MF_SHARED_INVALID_ARGUMENT;
       }
-      for (std::uint32_t row = 0U; row < row_count; ++row) {
-        const auto begin = static_cast<std::size_t>(row) * column_count;
-        float maximum = -std::numeric_limits<float>::infinity();
-        for (std::uint32_t column = 0U; column < column_count; ++column) {
-          float value = 0.0F;
-          std::memcpy(&value, &source.words[begin + column], sizeof(value));
-          maximum = std::max(maximum, value);
-        }
-        float denominator = 0.0F;
-        for (std::uint32_t column = 0U; column < column_count; ++column) {
-          float value = 0.0F;
-          std::memcpy(&value, &source.words[begin + column], sizeof(value));
-          denominator += std::exp(value - maximum);
-        }
-        for (std::uint32_t column = 0U; column < column_count; ++column) {
-          float value = 0.0F;
-          std::memcpy(&value, &source.words[begin + column], sizeof(value));
-          const float output = std::exp(value - maximum) / denominator;
-          std::memcpy(&destination.words[begin + column], &output, sizeof(output));
+      for (std::uint32_t outer = 0U; outer < outer_size; ++outer) {
+        for (std::uint32_t inner = 0U; inner < inner_size; ++inner) {
+          const auto begin = static_cast<std::size_t>(outer) * dim_size * inner_size + inner;
+          float maximum = -std::numeric_limits<float>::infinity();
+          for (std::uint32_t dim = 0U; dim < dim_size; ++dim) {
+            const auto offset = begin + static_cast<std::size_t>(dim) * inner_size;
+            float value = 0.0F;
+            std::memcpy(&value, &source.words[offset], sizeof(value));
+            maximum = std::max(maximum, value);
+          }
+          float denominator = 0.0F;
+          for (std::uint32_t dim = 0U; dim < dim_size; ++dim) {
+            const auto offset = begin + static_cast<std::size_t>(dim) * inner_size;
+            float value = 0.0F;
+            std::memcpy(&value, &source.words[offset], sizeof(value));
+            denominator += std::exp(value - maximum);
+          }
+          for (std::uint32_t dim = 0U; dim < dim_size; ++dim) {
+            const auto offset = begin + static_cast<std::size_t>(dim) * inner_size;
+            float value = 0.0F;
+            std::memcpy(&value, &source.words[offset], sizeof(value));
+            const float output = std::exp(value - maximum) / denominator;
+            std::memcpy(&destination.words[offset], &output, sizeof(output));
+          }
         }
       }
     } else {

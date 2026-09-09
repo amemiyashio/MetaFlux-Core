@@ -8371,6 +8371,67 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       goto daemon_launch;
     }
 
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "cunn_SpatialSoftMaxForwardIfffi") != (char*)0 &&
+        strstr(kernel_name, "22SoftMaxForwardEpilogue") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0 && kernel_parameters[3] != (void*)0 &&
+        kernel_parameters[4] != (void*)0) {
+      uint64_t output_pointer = UINT64_C(0);
+      uint64_t input_pointer = UINT64_C(0);
+      int32_t outer_size = INT32_C(0);
+      int32_t dim_size = INT32_C(0);
+      int32_t inner_size = INT32_C(0);
+      uint64_t total_elements = UINT64_C(0);
+      (void)memcpy(&output_pointer, kernel_parameters[0], sizeof(output_pointer));
+      (void)memcpy(&input_pointer, kernel_parameters[1], sizeof(input_pointer));
+      (void)memcpy(&outer_size, kernel_parameters[2], sizeof(outer_size));
+      (void)memcpy(&dim_size, kernel_parameters[3], sizeof(dim_size));
+      (void)memcpy(&inner_size, kernel_parameters[4], sizeof(inner_size));
+      if (outer_size <= INT32_C(0) || dim_size <= INT32_C(0) || inner_size <= INT32_C(0) ||
+          output_pointer == UINT64_C(0) || input_pointer == UINT64_C(0)) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      total_elements = (uint64_t)(uint32_t)outer_size * (uint64_t)(uint32_t)dim_size;
+      if (total_elements > UINT32_MAX ||
+          (uint64_t)(uint32_t)inner_size > (uint64_t)UINT32_MAX / total_elements) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      total_elements *= (uint64_t)(uint32_t)inner_size;
+      normalized_buffer_count = UINT32_C(2);
+      normalized_element_count_index = UINT32_C(5);
+      normalized_entry_total = UINT32_C(6);
+      normalized_pointers[0] = (CUdeviceptr)output_pointer;
+      normalized_pointers[1] = (CUdeviceptr)input_pointer;
+      normalized_buffer_element_counts[0] = (uint32_t)total_elements;
+      normalized_buffer_element_counts[1] = (uint32_t)total_elements;
+      normalized_kinds[2] = UINT32_C(1);
+      normalized_kinds[3] = UINT32_C(1);
+      normalized_kinds[4] = UINT32_C(1);
+      normalized_kinds[5] = UINT32_C(1);
+      normalized_scalars[2] = (uint32_t)outer_size;
+      normalized_scalars[3] = (uint32_t)dim_size;
+      normalized_scalars[4] = (uint32_t)inner_size;
+      normalized_scalars[5] = (uint32_t)total_elements;
+      normalized_parameters[2] = &normalized_scalars[2];
+      normalized_parameters[3] = &normalized_scalars[3];
+      normalized_parameters[4] = &normalized_scalars[4];
+      normalized_parameters[5] = &normalized_scalars[5];
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_DIM_F32_V1,
+          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          "softmax-dim-f32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
     /* The baseline must not accept provider-side tensor emulation. Every
      * deferred kernel other than a daemon-owned adapter route fails at the
      * CUDA boundary until its Kernel IR route is implemented; the trace dump

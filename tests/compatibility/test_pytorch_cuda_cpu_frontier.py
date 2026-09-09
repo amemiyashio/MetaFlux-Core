@@ -22,21 +22,21 @@ SPEC.loader.exec_module(frontier)
 class CpuFrontierEvidenceTests(unittest.TestCase):
     def test_repository_corpus_matches_pinned_profile(self) -> None:
         corpus = frontier.load_corpus(frontier.CORPUS, frontier.CLIENT_MANIFEST)
-        self.assertEqual(len(corpus["cases"]), 36)
-        self.assertEqual(len(corpus["gaps"]), 1)
-        self.assertEqual(corpus["cases"][-1]["id"], "softmax-f32")
-        self.assertEqual(corpus["cases"][-2]["id"], "linear-bias-f32")
+        self.assertEqual(len(corpus["cases"]), 37)
+        self.assertEqual(len(corpus["gaps"]), 0)
+        self.assertEqual(corpus["cases"][-1]["id"], "softmax-f32-nonlast")
+        self.assertEqual(corpus["cases"][-2]["id"], "softmax-f32")
+        self.assertEqual(corpus["cases"][-3]["id"], "linear-bias-f32")
         self.assertEqual(
-            corpus["cases"][-2]["expected_library_calls"], ["lt-matmul-bias-f32"]
+            corpus["cases"][-3]["expected_library_calls"], ["lt-matmul-bias-f32"]
         )
-        self.assertEqual(corpus["cases"][-3]["id"], "addmm-f32")
-        self.assertEqual(corpus["cases"][-3]["expected_library_calls"], ["sgemm-f32"])
-        self.assertEqual(corpus["cases"][-4]["id"], "linear-no-bias-f32")
-        self.assertEqual(corpus["cases"][-5]["id"], "matmul-rect-f32")
-        self.assertEqual(corpus["cases"][-6]["id"], "matmul-f32")
-        self.assertEqual(corpus["cases"][-7]["id"], "clamp-min-negative-f32")
-        self.assertEqual(corpus["cases"][-8]["id"], "clamp-min-nonzero-f32")
-        self.assertEqual(corpus["gaps"][-1]["id"], "softmax-f32-nonlast")
+        self.assertEqual(corpus["cases"][-4]["id"], "addmm-f32")
+        self.assertEqual(corpus["cases"][-4]["expected_library_calls"], ["sgemm-f32"])
+        self.assertEqual(corpus["cases"][-5]["id"], "linear-no-bias-f32")
+        self.assertEqual(corpus["cases"][-6]["id"], "matmul-rect-f32")
+        self.assertEqual(corpus["cases"][-7]["id"], "matmul-f32")
+        self.assertEqual(corpus["cases"][-8]["id"], "clamp-min-negative-f32")
+        self.assertEqual(corpus["cases"][-9]["id"], "clamp-min-nonzero-f32")
 
     def test_provider_evidence_preserves_request_order(self) -> None:
         evidence = frontier.parse_provider_evidence(

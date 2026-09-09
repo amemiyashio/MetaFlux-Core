@@ -71,8 +71,8 @@ def load_corpus(path: Path, profile_path: Path) -> dict[str, Any]:
         )
     cases = corpus.get("cases")
     gaps = corpus.get("gaps")
-    if not isinstance(cases, list) or not isinstance(gaps, list) or not cases or not gaps:
-        raise ValueError("CPU frontier corpus must contain supported cases and explicit gaps")
+    if not isinstance(cases, list) or not isinstance(gaps, list) or not cases:
+        raise ValueError("CPU frontier corpus must contain supported cases and a gap list")
     identifiers = [entry.get("id") for entry in cases + gaps]
     if any(not isinstance(identifier, str) or not identifier for identifier in identifiers):
         raise ValueError("CPU frontier case has no stable identifier")
