@@ -205,6 +205,19 @@ static int run_argument_block_test(void) {
       MF_SHARED_SUCCESS) {
     return 1;
   }
+  block.entries[1].kind = MF_ARGUMENT_KIND_F32;
+  block.entries[1].value = UINT32_C(0x3f800000);
+  if (mf_client_argument_block_validate_v1((const uint8_t*)&block, sizeof(block)) !=
+      MF_SHARED_SUCCESS) {
+    return 9;
+  }
+  block.entries[1].value = (uint64_t)UINT32_MAX + UINT64_C(1);
+  if (mf_client_argument_block_validate_v1((const uint8_t*)&block, sizeof(block)) !=
+      MF_SHARED_MALFORMED) {
+    return 10;
+  }
+  block.entries[1].kind = MF_ARGUMENT_KIND_U32;
+  block.entries[1].value = UINT64_C(1);
   block.header.reserved[0] = UINT64_C(1);
   if (mf_client_argument_block_validate_v1((const uint8_t*)&block, sizeof(block)) !=
       MF_SHARED_MALFORMED) {

@@ -15,6 +15,7 @@ _Static_assert(_Alignof(mf_lifecycle_range_record_v1) == 64, "range alignment");
 _Static_assert(_Alignof(mf_telemetry_publish_record_v1) == 64, "telemetry publish alignment");
 _Static_assert(_Alignof(mf_shared_registry_extension_header_v1) == 64, "extension alignment");
 _Static_assert(sizeof(mf_argument_entry_v1) == 32, "argument entry size");
+_Static_assert(MF_ARGUMENT_KIND_F32 == UINT32_C(4), "float32 argument kind");
 _Static_assert(MF_ARGUMENT_BLOCK_KNOWN_FLAGS_V1 == UINT32_C(3), "argument block known flags");
 _Static_assert(MF_RING_COPY_FLAG_REGION_ARGUMENT_BLOCK_V1 == UINT32_C(1), "copy region ring flag");
 _Static_assert(MF_RING_COPY_FLAG_DIRECT_HOST_SOURCE_V1 == UINT32_C(2),

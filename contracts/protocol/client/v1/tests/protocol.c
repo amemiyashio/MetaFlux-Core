@@ -35,6 +35,8 @@ _Static_assert(MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_F32_V1 == UINT32_C(30)
                "softmax-f32 operation");
 _Static_assert(MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1 == UINT32_C(31),
                "matmul-f32 operation");
+_Static_assert(MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_CLAMP_MIN_F32_V1 == UINT32_C(32),
+               "elementwise-clamp-min-f32 operation");
 
 int main(void) {
   static const uint32_t kernel_operations[] = {
@@ -69,6 +71,7 @@ int main(void) {
       MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_RELU_F32_V1,
       MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_F32_V1,
       MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1,
+      MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_CLAMP_MIN_F32_V1,
   };
   mf_client_negotiation_request_v1 request;
   mf_client_negotiation_response_v1 response;

@@ -563,7 +563,7 @@ mf_shared_status_v1 mf_client_argument_block_validate_v1(const uint8_t* bytes,
   entries = (const mf_argument_entry_v1*)(bytes + sizeof(*header));
   for (index = 0; index < header->entry_count; ++index) {
     const mf_argument_entry_v1* entry = &entries[index];
-    if (entry->kind == MF_ARGUMENT_KIND_U32) {
+    if (entry->kind == MF_ARGUMENT_KIND_U32 || entry->kind == MF_ARGUMENT_KIND_F32) {
       if (entry->flags != UINT32_C(0) || entry->object_id != UINT64_C(0) ||
           entry->object_generation != UINT64_C(0) || entry->value > UINT32_MAX) {
         return MF_SHARED_MALFORMED;

@@ -1899,14 +1899,18 @@ mf_shared_status_v1 Session::cdev_launch_resolve(
     const mf_argument_entry_v1& source_entry = source_entries[index];
     mf_cpu_backend_argument_v1& destination_entry = destination_entries[index];
     destination_entry = {};
-    if (source_entry.kind == MF_ARGUMENT_KIND_U32) {
+    if (source_entry.kind == MF_ARGUMENT_KIND_U32 || source_entry.kind == MF_ARGUMENT_KIND_F32) {
       if (source_entry.flags != 0U || source_entry.object_id != 0U ||
           source_entry.object_generation != 0U || source_entry.value > UINT32_MAX) {
         return MF_SHARED_INVALID_ARGUMENT;
       }
-      destination_entry.kind = MF_CPU_BACKEND_ARGUMENT_KIND_U32_V1;
+      destination_entry.kind = source_entry.kind == MF_ARGUMENT_KIND_F32
+                                   ? MF_CPU_BACKEND_ARGUMENT_KIND_F32_V1
+                                   : MF_CPU_BACKEND_ARGUMENT_KIND_U32_V1;
       destination_entry.value = source_entry.value;
-      launch_count = static_cast<std::uint32_t>(source_entry.value);
+      if (source_entry.kind == MF_ARGUMENT_KIND_U32) {
+        launch_count = static_cast<std::uint32_t>(source_entry.value);
+      }
       continue;
     }
     if (source_entry.kind != MF_ARGUMENT_KIND_BUFFER ||
@@ -3032,10 +3036,14 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
   std::uint32_t launch_count = 1U;
   for (std::uint32_t index = 0; index < header->entry_count; ++index) {
     const mf_argument_entry_v1& entry = entries[index];
-    if (entry.kind == MF_ARGUMENT_KIND_U32) {
+    if (entry.kind == MF_ARGUMENT_KIND_U32 || entry.kind == MF_ARGUMENT_KIND_F32) {
       const auto value = static_cast<std::uint32_t>(entry.value);
-      arguments.emplace_back(value);
-      launch_count = value;
+      if (entry.kind == MF_ARGUMENT_KIND_F32) {
+        arguments.emplace_back(backend::cpu::Float32Argument{.bits = value});
+      } else {
+        arguments.emplace_back(value);
+        launch_count = value;
+      }
       continue;
     }
     if (entry.kind != MF_ARGUMENT_KIND_BUFFER) {
@@ -3437,18 +3445,25 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
       module->vulkan_module->dispatchable()) {
     std::vector<VulkanLaunchBuffer> launch_buffers;
     launch_buffers.reserve(arguments.size());
+    std::vector<std::uint32_t> scalar_storage;
+    scalar_storage.reserve(arguments.size());
     std::uint32_t element_count = 0U;
     for (const auto& argument : arguments) {
       if (const auto* buffer = std::get_if<backend::cpu::BufferArgument>(&argument)) {
-        launch_buffers.push_back(VulkanLaunchBuffer{
-            reinterpret_cast<std::byte*>(buffer->words.data()),
-            buffer->words.size() * sizeof(std::uint32_t), buffer->writable});
+        launch_buffers.push_back(
+            VulkanLaunchBuffer{reinterpret_cast<std::byte*>(buffer->words.data()),
+                               buffer->words.size() * sizeof(std::uint32_t), buffer->writable});
       } else if (const auto* scalar = std::get_if<std::uint32_t>(&argument)) {
         // The lowered shaders take every kernel parameter, scalars included,
         // as a one-element storage buffer; the view aliases the local copy.
         element_count = *scalar;
+        scalar_storage.push_back(*scalar);
         launch_buffers.push_back(VulkanLaunchBuffer{
-            reinterpret_cast<std::byte*>(&element_count), sizeof(element_count), false});
+            reinterpret_cast<std::byte*>(&scalar_storage.back()), sizeof(std::uint32_t), false});
+      } else if (const auto* scalar = std::get_if<backend::cpu::Float32Argument>(&argument)) {
+        scalar_storage.push_back(scalar->bits);
+        launch_buffers.push_back(VulkanLaunchBuffer{
+            reinterpret_cast<std::byte*>(&scalar_storage.back()), sizeof(std::uint32_t), false});
       }
     }
     std::string vulkan_diagnostic;

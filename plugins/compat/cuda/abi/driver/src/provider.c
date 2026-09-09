@@ -746,6 +746,45 @@ static const char mf_pytorch_baseline_reluf32_ptx[] = ".version 9.0\n"
                                                       "  ret;\n"
                                                       "}\n";
 
+/* clamp_min keeps NaN and equal-value input bits, including signed zero.
+ * The threshold is a launch-time float scalar and execution stays in the
+ * daemon-owned Kernel IR path. */
+static const char mf_pytorch_baseline_clamp_min_f32_ptx[] = ".version 9.0\n"
+                                                            ".target sm_70\n"
+                                                            ".address_size 64\n"
+                                                            ".visible .entry clamp_min_f32(\n"
+                                                            "  .param .u64 destination,\n"
+                                                            "  .param .u64 input,\n"
+                                                            "  .param .f32 lower,\n"
+                                                            "  .param .u32 count\n"
+                                                            ")\n"
+                                                            "{\n"
+                                                            "  .reg .pred %p<3>;\n"
+                                                            "  .reg .b32 %r<10>;\n"
+                                                            "  .reg .f32 %f<3>;\n"
+                                                            "  .reg .b64 %rd<10>;\n"
+                                                            "  ld.param.u64 %rd0, [destination];\n"
+                                                            "  ld.param.u64 %rd1, [input];\n"
+                                                            "  ld.param.f32 %f2, [lower];\n"
+                                                            "  ld.param.u32 %r0, [count];\n"
+                                                            "  mov.u32 %r1, %tid.x;\n"
+                                                            "  mov.u32 %r2, %ctaid.x;\n"
+                                                            "  mov.u32 %r3, %ntid.x;\n"
+                                                            "  mad.lo.u32 %r4, %r2, %r3, %r1;\n"
+                                                            "  setp.ge.u32 %p1, %r4, %r0;\n"
+                                                            "  @%p1 bra done;\n"
+                                                            "  mul.wide.u32 %rd2, %r4, 4;\n"
+                                                            "  add.u64 %rd3, %rd0, %rd2;\n"
+                                                            "  add.u64 %rd4, %rd1, %rd2;\n"
+                                                            "  ld.global.f32 %f1, [%rd4];\n"
+                                                            "  ld.global.u32 %r5, [%rd4];\n"
+                                                            "  setp.lt.f32 %p2, %f1, %f2;\n"
+                                                            "  st.global.f32 [%rd3], %f2;\n"
+                                                            "  @!%p2 st.global.u32 [%rd3], %r5;\n"
+                                                            "done:\n"
+                                                            "  ret;\n"
+                                                            "}\n";
+
 /* Daemon-native adapter launches use this minimal parseable artifact to
    satisfy the module-load contract. The artifact itself is never dispatched;
    the neutral request operation owns the daemon-side semantics. */
@@ -995,6 +1034,8 @@ static uint32_t mf_module_kernel_count(uint32_t module_index, uint32_t module_ge
 #define MF_CUDA_COPY_CACHE_CAPACITY UINT32_C(64)
 #define MF_CUDA_LAUNCH_ARGUMENT_CAPACITY UINT32_C(64)
 #define MF_CUDA_LAUNCH_BUFFER_CAPACITY UINT32_C(32)
+#define MF_CUDA_NORMALIZED_KIND_U32 UINT32_C(1)
+#define MF_CUDA_NORMALIZED_KIND_F32 UINT32_C(2)
 /* One destination, N sources, N lengths, and one total must fit in 64 entries. */
 #define MF_CUDA_CONCAT_SOURCE_CAPACITY (MF_CUDA_LAUNCH_BUFFER_CAPACITY - UINT32_C(1))
 #define MF_CUDA_COPY_ARGUMENT_SIZE                                                                 \
@@ -7744,35 +7785,47 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         strstr(kernel_name, "launch_clamp_scalar") != (char*)0 &&
         strstr(kernel_name, "EUlfE_") != (char*)0 && kernel_parameters[0] != (void*)0 &&
         kernel_parameters[1] != (void*)0 && kernel_parameters[2] != (void*)0) {
-      /* Pinned torch.relu(float32) lowers to clamp_min_scalar. Its closure is
-         {float lower, float upper, ClampLimits mode}; ReLU is +0,+0,Min(0).
-         Reject every other clamp closure instead of widening this observed
-         profile adapter into general clamp semantics. */
-      void** relu_data_array = (void**)kernel_parameters[2];
+      /* Pinned torch.relu(float32) and torch.clamp_min(float32, scalar) share
+         clamp_min_scalar. The observed lambda closure stores ClampLimits
+         first, then the two equal scalar limits; Min is mode 0. */
+      void** clamp_data_array = (void**)kernel_parameters[2];
       uint32_t lower_bits = UINT32_C(0);
       uint32_t upper_bits = UINT32_C(0);
       uint32_t clamp_mode = UINT32_C(0);
-      (void)memcpy(&lower_bits, kernel_parameters[1], sizeof(lower_bits));
-      (void)memcpy(&upper_bits, (const uint8_t*)kernel_parameters[1] + UINT32_C(4),
+      (void)memcpy(&clamp_mode, kernel_parameters[1], sizeof(clamp_mode));
+      (void)memcpy(&lower_bits, (const uint8_t*)kernel_parameters[1] + UINT32_C(4),
+                   sizeof(lower_bits));
+      (void)memcpy(&upper_bits, (const uint8_t*)kernel_parameters[1] + UINT32_C(8),
                    sizeof(upper_bits));
-      (void)memcpy(&clamp_mode, (const uint8_t*)kernel_parameters[1] + UINT32_C(8),
-                   sizeof(clamp_mode));
       normalized_element_count = *(const uint32_t*)kernel_parameters[0];
-      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)relu_data_array[0];
-      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)relu_data_array[1];
-      normalized_kinds[2] = UINT32_C(1);
-      normalized_scalars[2] = UINT32_C(0);
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)clamp_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)clamp_data_array[1];
+      normalized_scalars[2] = lower_bits;
+      if (mf_cuda_entry_trace_enabled() != 0) {
+        fprintf(stderr, "MF_PYTORCH_CLAMP_CLOSURE lower=%08x upper=%08x mode=%u\n", lower_bits,
+                upper_bits, clamp_mode);
+      }
       if (normalized_element_count == UINT32_C(0) || normalized_pointers[0] == (CUdeviceptr)0 ||
-          normalized_pointers[1] == (CUdeviceptr)0 || lower_bits != UINT32_C(0) ||
-          upper_bits != UINT32_C(0) || clamp_mode != UINT32_C(0)) {
+          normalized_pointers[1] == (CUdeviceptr)0 || upper_bits != lower_bits ||
+          clamp_mode != UINT32_C(0) ||
+          (lower_bits & UINT32_C(0x7f800000)) == UINT32_C(0x7f800000)) {
         mf_cuda_queue_unlock();
         return CUDA_ERROR_NOT_SUPPORTED;
       }
       module_record = &mf_cuda_global.modules[function_record->aux];
-      result = mf_cuda_materialize_pytorch_baseline_locked(
-          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_RELU_F32_V1,
-          mf_pytorch_baseline_reluf32_ptx, sizeof(mf_pytorch_baseline_reluf32_ptx) - 1U,
-          "elementwise-relu-f32");
+      if (lower_bits == UINT32_C(0)) {
+        normalized_kinds[2] = MF_CUDA_NORMALIZED_KIND_U32;
+        result = mf_cuda_materialize_pytorch_baseline_locked(
+            module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_RELU_F32_V1,
+            mf_pytorch_baseline_reluf32_ptx, sizeof(mf_pytorch_baseline_reluf32_ptx) - 1U,
+            "elementwise-relu-f32");
+      } else {
+        normalized_kinds[2] = MF_CUDA_NORMALIZED_KIND_F32;
+        result = mf_cuda_materialize_pytorch_baseline_locked(
+            module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_CLAMP_MIN_F32_V1,
+            mf_pytorch_baseline_clamp_min_f32_ptx,
+            sizeof(mf_pytorch_baseline_clamp_min_f32_ptx) - 1U, "elementwise-clamp-min-f32");
+      }
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();
         return result;
@@ -8428,7 +8481,9 @@ daemon_launch:
         } else {
           (void)memcpy(&scalar_value, kernel_parameters[parameter_index], sizeof(scalar_value));
         }
-        arguments.entries[parameter_index].kind = MF_ARGUMENT_KIND_U32;
+        arguments.entries[parameter_index].kind =
+            normalized_kinds[parameter_index] == MF_CUDA_NORMALIZED_KIND_F32 ? MF_ARGUMENT_KIND_F32
+                                                                             : MF_ARGUMENT_KIND_U32;
         arguments.entries[parameter_index].flags = UINT32_C(0);
         arguments.entries[parameter_index].object_id = UINT64_C(0);
         arguments.entries[parameter_index].object_generation = UINT64_C(0);

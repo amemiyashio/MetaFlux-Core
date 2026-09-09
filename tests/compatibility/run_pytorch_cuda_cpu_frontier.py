@@ -175,6 +175,12 @@ def operation_cases(torch: Any) -> dict[str, Callable[[], Any]]:
         "strided-contiguous-copy-u32": lambda: i32(list(range(24))).reshape(4, 6).t().contiguous(),
         "concat-u32": lambda: torch.cat((i32(left_i32), i32(right_i32)), dim=0),
         "relu-f32": lambda: torch.relu(f32([negative_zero, 0.0, quiet_nan, -2.0, 3.0])),
+        "clamp-min-nonzero-f32": lambda: torch.clamp_min(
+            f32([-2.0, 0.0, 1.0, 3.0, negative_zero, quiet_nan]), 1.0
+        ),
+        "clamp-min-negative-f32": lambda: torch.clamp_min(
+            f32([-3.0, -2.5, 0.0, quiet_nan]), -2.5
+        ),
         "matmul-f32": lambda: torch.matmul(
             f32([1.0, 2.0, 3.0, 4.0]).reshape(2, 2),
             f32([5.0, 6.0, 7.0, 8.0]).reshape(2, 2),
@@ -203,7 +209,6 @@ def operation_cases(torch: Any) -> dict[str, Callable[[], Any]]:
         "softmax-f32-nonlast": lambda: torch.softmax(
             f32(list(range(12))).reshape(2, 3, 2), dim=1
         ),
-        "clamp-min-nonzero-f32": lambda: torch.clamp_min(f32([-2.0, 0.0, 3.0]), 1.0),
     }
 
 
