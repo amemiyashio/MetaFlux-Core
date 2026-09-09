@@ -7756,6 +7756,40 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       goto daemon_launch;
     }
 
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "exp_kernel_cuda") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[2] != (void*)0) {
+      /* torch float32 exponential: the daemon evaluates the progression on
+         the host CPU with the platform exponential (sub-ulp accurate),
+         which stays far inside the acceptance tolerance of the CUDA
+         libdevice polynomial this kernel stands in for. */
+      void** exp_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)exp_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)exp_data_array[1];
+      normalized_pointers[2] = (CUdeviceptr)0;
+      normalized_kinds[2] = UINT32_C(1);
+      normalized_scalars[2] = UINT32_C(0);
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_EXP_F32_V1,
+          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          "elementwise-exp-f32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
     /* The baseline must not accept provider-side tensor emulation. Every
      * deferred kernel other than a daemon-owned adapter route fails at the
      * CUDA boundary until its Kernel IR route is implemented; the trace dump

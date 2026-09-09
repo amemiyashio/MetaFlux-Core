@@ -3454,6 +3454,22 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
           }
         }
       }
+    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_EXP_F32_V1) {
+      if (arguments.size() < 3U || arguments[0].index() != 2U || arguments[1].index() != 2U) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      const auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
+      const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1]);
+      const auto element_count = std::get<uint32_t>(arguments.back());
+      for (uint32_t index = 0;
+           index < element_count && index < source.words.size() &&
+           index < destination.words.size();
+           ++index) {
+        float value = 0.0F;
+        std::memcpy(&value, &source.words[index], sizeof(value));
+        const float exponential = std::exp(value);
+        std::memcpy(&destination.words[index], &exponential, sizeof(exponential));
+      }
     } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_CLAMP_MIN_I32_V1) {
       if (arguments.size() < 5U || arguments[0].index() != 2U || arguments[1].index() != 2U) {
         return MF_SHARED_INVALID_ARGUMENT;
