@@ -12,5 +12,12 @@ The first profile accepts host-pointer-mode float32 `cublasSgemm_v2` with
 read/write and covers stock `torch.addmm`; `beta=0` also covers ordinary
 `torch.matmul` and bias-free `torch.nn.functional.linear`. Other scalar
 combinations return a typed cuBLAS status and do not fall through to
-provider-local computation. cuBLASLt epilogues, including the observed
-bias-fused Linear path, remain outside this bounded profile.
+provider-local computation.
+
+The profile also owns the exact cuBLASLt object, preference, heuristic, and
+matmul sequence emitted by the pinned client for float32
+`torch.nn.functional.linear` with bias. It accepts column-major `T/N` layouts,
+host `alpha=1`, `beta=0`, an in-place C/D output, and the bias epilogue, then
+submits the fourth device buffer and neutral matmul descriptor to the daemon.
+Other layouts, scalar combinations, batched forms, data types, algorithms, and
+epilogues fail with a typed status before submission.

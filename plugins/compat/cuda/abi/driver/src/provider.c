@@ -7202,35 +7202,51 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
   if (result == CUDA_SUCCESS && mf_module_kernel_operation[function_record->aux] ==
                                     MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1) {
     const char* kernel_name = mf_function_names[function_index];
-    uint32_t descriptor[11] = {0};
+    uint32_t descriptor[12] = {0};
     uint32_t output_span = UINT32_C(0);
     uint32_t left_span = UINT32_C(0);
     uint32_t right_span = UINT32_C(0);
+    uint32_t with_bias = UINT32_C(0);
+    uint32_t buffer_count = UINT32_C(3);
+    uint32_t descriptor_count = UINT32_C(11);
+    uint32_t argument_count = UINT32_C(14);
     uint32_t index = UINT32_C(0);
-    if (strcmp(kernel_name, "metaflux_cublas_sgemm_f32") != 0) {
+    if (strcmp(kernel_name, "metaflux_cublas_lt_matmul_bias_f32") == 0) {
+      with_bias = UINT32_C(1);
+      buffer_count = UINT32_C(4);
+      descriptor_count = UINT32_C(12);
+      argument_count = UINT32_C(16);
+    } else if (strcmp(kernel_name, "metaflux_cublas_sgemm_f32") != 0) {
       mf_cuda_queue_unlock();
       return CUDA_ERROR_NOT_SUPPORTED;
     }
-    for (index = UINT32_C(0); index < UINT32_C(14); ++index) {
+    for (index = UINT32_C(0); index < argument_count; ++index) {
       if (kernel_parameters[index] == (void*)0) {
         mf_cuda_queue_unlock();
         return CUDA_ERROR_INVALID_VALUE;
       }
     }
-    (void)memcpy(&normalized_pointers[0], kernel_parameters[0], sizeof(normalized_pointers[0]));
-    (void)memcpy(&normalized_pointers[1], kernel_parameters[1], sizeof(normalized_pointers[1]));
-    (void)memcpy(&normalized_pointers[2], kernel_parameters[2], sizeof(normalized_pointers[2]));
-    for (index = UINT32_C(0); index < UINT32_C(11); ++index) {
-      (void)memcpy(&descriptor[index], kernel_parameters[index + UINT32_C(3)],
+    for (index = UINT32_C(0); index < buffer_count; ++index) {
+      (void)memcpy(&normalized_pointers[index], kernel_parameters[index],
+                   sizeof(normalized_pointers[index]));
+    }
+    for (index = UINT32_C(0); index < descriptor_count; ++index) {
+      (void)memcpy(&descriptor[index], kernel_parameters[index + buffer_count],
                    sizeof(descriptor[index]));
     }
     if (normalized_pointers[0] == (CUdeviceptr)0 || normalized_pointers[1] == (CUdeviceptr)0 ||
-        normalized_pointers[2] == (CUdeviceptr)0 || descriptor[0] == UINT32_C(0) ||
+        normalized_pointers[2] == (CUdeviceptr)0 ||
+        (with_bias != UINT32_C(0) && normalized_pointers[3] == (CUdeviceptr)0) ||
+        descriptor[0] == UINT32_C(0) ||
         descriptor[1] > UINT32_C(1) || descriptor[2] > UINT32_C(1) ||
         descriptor[3] == UINT32_C(0) || descriptor[4] == UINT32_C(0) ||
         descriptor[5] == UINT32_C(0) || (uint64_t)descriptor[3] * descriptor[4] != descriptor[0] ||
         descriptor[9] != UINT32_C(0x3f800000) ||
-        (descriptor[10] != UINT32_C(0) && descriptor[10] != UINT32_C(0x3f800000)) ||
+        (with_bias == UINT32_C(0) && descriptor[10] != UINT32_C(0) &&
+         descriptor[10] != UINT32_C(0x3f800000)) ||
+        (with_bias != UINT32_C(0) &&
+         (descriptor[10] != UINT32_C(0) ||
+          descriptor[11] != UINT32_C(4))) ||
         !mf_cuda_matrix_span(descriptor[1] == UINT32_C(0) ? descriptor[3] : descriptor[5],
                              descriptor[1] == UINT32_C(0) ? descriptor[5] : descriptor[3],
                              descriptor[6], &left_span) ||
@@ -7244,18 +7260,24 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       mf_cuda_queue_unlock();
       return CUDA_ERROR_INVALID_VALUE;
     }
-    normalized_buffer_count = UINT32_C(3);
-    normalized_element_count_index = UINT32_C(3);
-    normalized_entry_total = UINT32_C(14);
+    normalized_buffer_count = buffer_count;
+    normalized_element_count_index = buffer_count;
+    normalized_entry_total = argument_count;
     normalized_output_element_size = UINT32_C(4);
     normalized_output_read = descriptor[10] != UINT32_C(0) ? UINT32_C(1) : UINT32_C(0);
     normalized_buffer_element_counts[0] = output_span;
     normalized_buffer_element_counts[1] = left_span;
     normalized_buffer_element_counts[2] = right_span;
+    if (with_bias != UINT32_C(0)) {
+      normalized_buffer_element_counts[3] = descriptor[3];
+    }
     normalized_element_count = descriptor[0];
-    for (index = UINT32_C(3); index < UINT32_C(14); ++index) {
+    for (index = UINT32_C(0); index < buffer_count; ++index) {
+      normalized_parameters[index] = &normalized_pointers[index];
+    }
+    for (index = buffer_count; index < argument_count; ++index) {
       normalized_kinds[index] = UINT32_C(1);
-      normalized_scalars[index] = descriptor[index - UINT32_C(3)];
+      normalized_scalars[index] = descriptor[index - buffer_count];
       normalized_parameters[index] = &normalized_scalars[index];
     }
     module_record = &mf_cuda_global.modules[function_record->aux];

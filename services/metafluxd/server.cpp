@@ -3282,11 +3282,15 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
       }
       std::memcpy(&destination.words[0], &accumulator, sizeof(accumulator));
     } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1) {
-      if (arguments.size() != 14U || arguments[0].index() != 2U || arguments[1].index() != 2U ||
-          arguments[2].index() != 2U) {
+      const bool has_bias = arguments.size() == 16U;
+      const std::size_t scalar_offset = has_bias ? 4U : 3U;
+      if ((arguments.size() != 14U && !has_bias) ||
+          arguments[0].index() != 2U || arguments[1].index() != 2U ||
+          arguments[2].index() != 2U ||
+          (has_bias && arguments[3].index() != 2U)) {
         return MF_SHARED_INVALID_ARGUMENT;
       }
-      for (std::size_t index = 3U; index < arguments.size(); ++index) {
+      for (std::size_t index = scalar_offset; index < arguments.size(); ++index) {
         if (!std::holds_alternative<std::uint32_t>(arguments[index])) {
           return MF_SHARED_INVALID_ARGUMENT;
         }
@@ -3294,17 +3298,30 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
       auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
       const auto& left = std::get<backend::cpu::BufferArgument>(arguments[1]);
       const auto& right = std::get<backend::cpu::BufferArgument>(arguments[2]);
-      const auto element_count = std::get<std::uint32_t>(arguments[3]);
-      const auto transpose_left = std::get<std::uint32_t>(arguments[4]);
-      const auto transpose_right = std::get<std::uint32_t>(arguments[5]);
-      const auto rows = std::get<std::uint32_t>(arguments[6]);
-      const auto columns = std::get<std::uint32_t>(arguments[7]);
-      const auto inner = std::get<std::uint32_t>(arguments[8]);
-      const auto leading_left = std::get<std::uint32_t>(arguments[9]);
-      const auto leading_right = std::get<std::uint32_t>(arguments[10]);
-      const auto leading_destination = std::get<std::uint32_t>(arguments[11]);
-      const auto alpha_bits = std::get<std::uint32_t>(arguments[12]);
-      const auto beta_bits = std::get<std::uint32_t>(arguments[13]);
+      const backend::cpu::BufferArgument* bias =
+          has_bias ? &std::get<backend::cpu::BufferArgument>(arguments[3]) : nullptr;
+      const auto element_count =
+          std::get<std::uint32_t>(arguments[scalar_offset]);
+      const auto transpose_left =
+          std::get<std::uint32_t>(arguments[scalar_offset + 1U]);
+      const auto transpose_right =
+          std::get<std::uint32_t>(arguments[scalar_offset + 2U]);
+      const auto rows = std::get<std::uint32_t>(arguments[scalar_offset + 3U]);
+      const auto columns =
+          std::get<std::uint32_t>(arguments[scalar_offset + 4U]);
+      const auto inner = std::get<std::uint32_t>(arguments[scalar_offset + 5U]);
+      const auto leading_left =
+          std::get<std::uint32_t>(arguments[scalar_offset + 6U]);
+      const auto leading_right =
+          std::get<std::uint32_t>(arguments[scalar_offset + 7U]);
+      const auto leading_destination =
+          std::get<std::uint32_t>(arguments[scalar_offset + 8U]);
+      const auto alpha_bits =
+          std::get<std::uint32_t>(arguments[scalar_offset + 9U]);
+      const auto beta_bits =
+          std::get<std::uint32_t>(arguments[scalar_offset + 10U]);
+      const auto epilogue =
+          has_bias ? std::get<std::uint32_t>(arguments[scalar_offset + 11U]) : 0U;
       const auto matrix_span = [](std::uint32_t matrix_rows, std::uint32_t matrix_columns,
                                   std::uint32_t leading, std::size_t capacity) -> bool {
         if (matrix_rows == 0U || matrix_columns == 0U || leading < matrix_rows) {
@@ -3318,6 +3335,9 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
           inner == 0U || static_cast<std::uint64_t>(rows) * columns != element_count ||
           alpha_bits != UINT32_C(0x3f800000) ||
           (beta_bits != UINT32_C(0) && beta_bits != UINT32_C(0x3f800000)) ||
+          (has_bias &&
+           (beta_bits != UINT32_C(0) || epilogue != UINT32_C(4) ||
+            bias == nullptr || rows > bias->words.size())) ||
           !matrix_span(transpose_left == 0U ? rows : inner, transpose_left == 0U ? inner : rows,
                        leading_left, left.words.size()) ||
           !matrix_span(transpose_right == 0U ? inner : columns,
@@ -3345,6 +3365,11 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
             std::memcpy(&left_value, &left.words[left_index], sizeof(left_value));
             std::memcpy(&right_value, &right.words[right_index], sizeof(right_value));
             accumulator = std::fma(left_value, right_value, accumulator);
+          }
+          if (has_bias) {
+            float bias_value = 0.0F;
+            std::memcpy(&bias_value, &bias->words[row], sizeof(bias_value));
+            accumulator += bias_value;
           }
           const std::size_t destination_index =
               static_cast<std::size_t>(row) +

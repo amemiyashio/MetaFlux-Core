@@ -10,6 +10,15 @@ file(
   "    cublasGetMathMode;\n    cublasSetMathMode;\n"
   "    cublasGetStatusName;\n    cublasGetStatusString;\n"
   "    cublasSgemm_v2;\n  local:\n    *;\n} METAFLUX_CUBLAS_PROVIDER_1;\n"
+  "libcublasLt.so.12 {\n  global:\n"
+  "    cublasLtMatmulDescCreate;\n    cublasLtMatmulDescDestroy;\n"
+  "    cublasLtMatmulDescSetAttribute;\n"
+  "    cublasLtMatrixLayoutCreate;\n    cublasLtMatrixLayoutDestroy;\n"
+  "    cublasLtMatrixLayoutSetAttribute;\n"
+  "    cublasLtMatmulPreferenceCreate;\n    cublasLtMatmulPreferenceDestroy;\n"
+  "    cublasLtMatmulPreferenceSetAttribute;\n"
+  "    cublasLtMatmulAlgoGetHeuristic;\n    cublasLtMatmul;\n"
+  "} METAFLUX_CUBLAS_PROVIDER_1;\n"
 )
 
 find_package(Threads REQUIRED)

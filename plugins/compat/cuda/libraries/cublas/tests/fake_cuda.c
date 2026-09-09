@@ -30,11 +30,16 @@ int cuModuleLoadData(void** module, const void* image) {
 }
 
 int cuModuleGetFunction(void** function, void* module, const char* name) {
-  if (function == NULL || module != (void*)(uintptr_t)UINT64_C(0x4d4f4401) || name == NULL ||
-      strcmp(name, "metaflux_cublas_sgemm_f32") != 0) {
+  if (function == NULL || module != (void*)(uintptr_t)UINT64_C(0x4d4f4401) || name == NULL) {
     return 1;
   }
-  *function = (void*)(uintptr_t)UINT64_C(0x46554e01);
+  if (strcmp(name, "metaflux_cublas_sgemm_f32") == 0) {
+    *function = (void*)(uintptr_t)UINT64_C(0x46554e01);
+  } else if (strcmp(name, "metaflux_cublas_lt_matmul_bias_f32") == 0) {
+    *function = (void*)(uintptr_t)UINT64_C(0x46554e02);
+  } else {
+    return 1;
+  }
   return 0;
 }
 
@@ -47,22 +52,42 @@ int cuLaunchKernel(void* function, unsigned int grid_x, unsigned int grid_y, uns
                    unsigned int shared_memory_bytes, void* stream, void** parameters,
                    void** extra) {
   uint32_t index = 0U;
+  uint32_t argument_count = 0U;
+  uint32_t scalar_offset = 0U;
+  uint32_t epilogue = UINT32_C(0);
   (void)stream;
-  if (function != (void*)(uintptr_t)UINT64_C(0x46554e01) || grid_x != 1U || grid_y != 1U ||
-      grid_z != 1U || block_x != 8U || block_y != 8U || block_z != 1U ||
-      shared_memory_bytes != 0U || parameters == NULL || extra != NULL) {
+  if (function == (void*)(uintptr_t)UINT64_C(0x46554e01)) {
+    argument_count = UINT32_C(14);
+    scalar_offset = UINT32_C(3);
+  } else if (function == (void*)(uintptr_t)UINT64_C(0x46554e02)) {
+    argument_count = UINT32_C(16);
+    scalar_offset = UINT32_C(4);
+    epilogue = UINT32_C(4);
+  } else {
     return 1;
   }
-  for (index = 0U; index < 14U; ++index) {
+  if (grid_x != 1U || grid_y != 1U || grid_z != 1U || block_x != 8U ||
+      block_y != 8U || block_z != 1U || shared_memory_bytes != 0U ||
+      parameters == NULL || extra != NULL) {
+    return 1;
+  }
+  for (index = 0U; index < argument_count; ++index) {
     if (parameters[index] == NULL) {
       return 1;
     }
   }
-  return *(const uint32_t*)parameters[3] == 4U && *(const uint32_t*)parameters[6] == 2U &&
-                 *(const uint32_t*)parameters[7] == 2U && *(const uint32_t*)parameters[8] == 2U &&
-                 *(const uint32_t*)parameters[12] == UINT32_C(0x3f800000) &&
-                 (*(const uint32_t*)parameters[13] == UINT32_C(0) ||
-                  *(const uint32_t*)parameters[13] == UINT32_C(0x3f800000))
+  return *(const uint32_t*)parameters[scalar_offset] == 4U &&
+                 *(const uint32_t*)parameters[scalar_offset + 3U] == 2U &&
+                 *(const uint32_t*)parameters[scalar_offset + 4U] == 2U &&
+                 *(const uint32_t*)parameters[scalar_offset + 5U] == 2U &&
+                 *(const uint32_t*)parameters[scalar_offset + 9U] ==
+                     UINT32_C(0x3f800000) &&
+                 (*(const uint32_t*)parameters[scalar_offset + 10U] == UINT32_C(0) ||
+                  (epilogue == UINT32_C(0) &&
+                   *(const uint32_t*)parameters[scalar_offset + 10U] ==
+                       UINT32_C(0x3f800000))) &&
+                 (epilogue == UINT32_C(0) ||
+                  *(const uint32_t*)parameters[scalar_offset + 11U] == epilogue)
              ? 0
              : 1;
 }
