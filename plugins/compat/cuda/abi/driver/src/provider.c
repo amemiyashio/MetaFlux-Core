@@ -7781,6 +7781,37 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
 
     if (kernel_name[0] != '\0' &&
         strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        strstr(kernel_name, "sigmoid_kernel_cuda") != (char*)0 &&
+        strstr(kernel_name, "EUlfE_") != (char*)0 && kernel_parameters[0] != (void*)0 &&
+        kernel_parameters[1] != (void*)0 && kernel_parameters[2] != (void*)0) {
+      /* Pinned torch.sigmoid(float32) uses the same stateless two-pointer
+         unary closure as sqrt: {destination, source} plus element count. */
+      void** sigmoid_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)sigmoid_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)sigmoid_data_array[1];
+      normalized_pointers[2] = normalized_pointers[1];
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SIGMOID_F32_V1,
+          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          "elementwise-sigmoid-f32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
         strstr(kernel_name, "TensorCompare") != (char*)0 &&
         strstr(kernel_name, "launch_clamp_scalar") != (char*)0 &&
         strstr(kernel_name, "EUlfE_") != (char*)0 && kernel_parameters[0] != (void*)0 &&

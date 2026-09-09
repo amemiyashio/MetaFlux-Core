@@ -134,6 +134,7 @@ def operation_cases(torch: Any) -> dict[str, Callable[[], Any]]:
     right_i32 = [3, 4, -6, 1, 2, -3]
     i32 = lambda values: cuda_tensor(torch, values, torch.int32)
     f32 = lambda values: cuda_tensor(torch, values, torch.float32)
+    f64 = lambda values: cuda_tensor(torch, values, torch.float64)
     negative_zero = struct.unpack("<f", struct.pack("<I", 0x80000000))[0]
     quiet_nan = struct.unpack("<f", struct.pack("<I", 0x7FC00000))[0]
     return {
@@ -208,6 +209,12 @@ def operation_cases(torch: Any) -> dict[str, Callable[[], Any]]:
         ),
         "softmax-f32-nonlast": lambda: torch.softmax(
             f32(list(range(12))).reshape(2, 3, 2), dim=1
+        ),
+        "sigmoid-f32": lambda: torch.sigmoid(
+            f32([-4.0, -2.0, -1.0, 0.0, 1.0, 2.0, 4.0])
+        ),
+        "sigmoid-f64": lambda: torch.sigmoid(
+            f64([-4.0, -2.0, -1.0, 0.0, 1.0, 2.0, 4.0])
         ),
     }
 

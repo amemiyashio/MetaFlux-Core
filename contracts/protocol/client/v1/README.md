@@ -35,10 +35,12 @@ followed immediately by the requested source bytes: magic at 0, version and
 header size at 4/6, total size at 8, profile and operation at 16/20, operation
 ABI version and Kernel IR schema version at 24/28, lifetime at 32, source offset
 and size at 40/48, and zeroed reserved bytes elsewhere. The v1 baseline accepts
-only the declared baseline profile, `ELEMENTWISE_ADD_I32` operation ABI v1,
-Kernel IR schema v2, and `MODULE_LOAD` lifetime. These values are
-ecosystem-neutral: the encoded request contains no CUDA, PyTorch, MLIR, LLVM,
-Vulkan, target, or native-layout type.
+only the declared baseline profile and the closed
+`MF_CLIENT_KERNEL_REQUEST_OPERATION_*_V1` set in `protocol.h`, with operation
+ABI v1, Kernel IR schema v2, and `MODULE_LOAD` lifetime. Every newly accepted
+operation receives a unique value and protocol validation coverage before a
+provider may emit it. These values are ecosystem-neutral: the encoded request
+contains no CUDA, PyTorch, MLIR, LLVM, Vulkan, target, or native-layout type.
 
 The registered request becomes an immutable artifact. Its source bytes remain
 valid through successful `MODULE_LOAD`; that operation validates and retains the

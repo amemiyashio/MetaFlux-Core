@@ -50,7 +50,10 @@
     {"id":"addmm-f32","oracle":{"kind":"f32-bits","expected":["0x41a00000","0x41c00000","0x42380000","0x42580000"]},"expected_requests":["baseline:matmul-f32:1:2:module-load"],"expected_library_calls":["sgemm-f32"]},
     {"id":"linear-bias-f32","oracle":{"kind":"f32-bits","expected":["0x41680000","0x41fc0000","0x42020000","0x42990000"]},"expected_requests":["baseline:matmul-f32:1:2:module-load"],"expected_library_calls":["lt-matmul-bias-f32"]},
     {"id":"softmax-f32","oracle":{"kind":"f32-bits","expected":["0x3db861f3","0x3e7a9a1a","0x3f2a4d3b","0x3f2a4d3b","0x3e7a9a1a","0x3db861f3"]},"expected_requests":["baseline:softmax-f32:1:2:module-load"]},
-    {"id":"softmax-f32-nonlast","oracle":{"kind":"f32-bits","expected":["0x3c820ee4","0x3c820ee4","0x3df04073","0x3df04073","0x3f5de77b","0x3f5de77b","0x3c820ee4","0x3c820ee4","0x3df04073","0x3df04073","0x3f5de77b","0x3f5de77b"]},"expected_requests":["baseline:softmax-dim-f32:1:2:module-load"]}
+    {"id":"softmax-f32-nonlast","oracle":{"kind":"f32-bits","expected":["0x3c820ee4","0x3c820ee4","0x3df04073","0x3df04073","0x3f5de77b","0x3f5de77b","0x3c820ee4","0x3c820ee4","0x3df04073","0x3df04073","0x3f5de77b","0x3f5de77b"]},"expected_requests":["baseline:softmax-dim-f32:1:2:module-load"]},
+    {"id":"sigmoid-f32","oracle":{"kind":"f32-bits","expected":["0x3c9357d1","0x3df420a9","0x3e89b2b1","0x3f000000","0x3f3b26a8","0x3f617bea","0x3f7b6541"]},"expected_requests":["baseline:elementwise-sigmoid-f32:1:2:module-load"]}
   ],
-  "gaps": []
+  "gaps": [
+    {"id":"sigmoid-f64","status":"frontier-gap","expected_error":"operation not supported"}
+  ]
 }
