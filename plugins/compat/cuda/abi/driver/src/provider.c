@@ -7678,6 +7678,84 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       goto daemon_launch;
     }
 
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "launch_clamp_scalar") != (char*)0 &&
+        strstr(kernel_name, "vectorized_elementwise_kernel") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0) {
+      /* torch clamp_min (relu): the vectorized unary shape {out, input} with
+         the lower bound carried at the head of the functor; the daemon
+         clamps natively with signed comparison. */
+      void** clamp_data_array = (void**)kernel_parameters[2];
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)clamp_data_array[0];
+      normalized_pointers[1] = (CUdeviceptr)(uintptr_t)clamp_data_array[1];
+      normalized_pointers[2] = (CUdeviceptr)0;
+      normalized_kinds[2] = UINT32_C(1);
+      normalized_scalars[2] = UINT32_C(0);
+      normalized_extra[0] = *(const uint32_t*)kernel_parameters[1];
+      normalized_entry_total = UINT32_C(5);
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0 ||
+          normalized_pointers[1] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_CLAMP_MIN_I32_V1,
+          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          "clamp-min-i32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
+    if (kernel_name[0] != '\0' &&
+        strstr(kernel_name, "elementwise_kernel_with_index") != (char*)0 &&
+        kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
+        kernel_parameters[2] != (void*)0) {
+      /* torch arange: the with-index kernel takes the element count, the
+         {start, step} int64 functor, and the data array {output}; the daemon
+         evaluates the progression natively. */
+      normalized_element_count = *(const uint32_t*)kernel_parameters[0];
+      normalized_pointers[0] = (CUdeviceptr)(uintptr_t)*(void* const*)kernel_parameters[2];
+      normalized_pointers[1] = (CUdeviceptr)0;
+      normalized_pointers[2] = (CUdeviceptr)0;
+      normalized_kinds[1] = UINT32_C(1);
+      normalized_scalars[1] = UINT32_C(0);
+      normalized_kinds[2] = UINT32_C(1);
+      normalized_scalars[2] = UINT32_C(0);
+      {
+        const uint64_t start = *(const uint64_t*)kernel_parameters[1];
+        const uint64_t step = *(const uint64_t*)((const uint8_t*)kernel_parameters[1] + UINT32_C(8));
+        normalized_extra[0] = (uint32_t)start;
+        normalized_extra[1] = (uint32_t)(start >> 32U);
+        normalized_extra[2] = (uint32_t)step;
+        normalized_extra[3] = (uint32_t)(step >> 32U);
+      }
+      normalized_entry_total = UINT32_C(8);
+      if (normalized_element_count == UINT32_C(0) ||
+          normalized_pointers[0] == (CUdeviceptr)0) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      module_record = &mf_cuda_global.modules[function_record->aux];
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ARANGE_I64_V1,
+          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          "arange-i64");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      kernel_parameters = normalized_parameters;
+      goto daemon_launch;
+    }
+
     /* The baseline must not accept provider-side tensor emulation. Every
      * deferred kernel other than a daemon-owned adapter route fails at the
      * CUDA boundary until its Kernel IR route is implemented; the trace dump

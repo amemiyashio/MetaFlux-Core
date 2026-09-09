@@ -3454,6 +3454,45 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
           }
         }
       }
+    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_CLAMP_MIN_I32_V1) {
+      if (arguments.size() < 5U || arguments[0].index() != 2U || arguments[1].index() != 2U) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      const auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
+      const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1]);
+      const auto element_count = std::get<uint32_t>(arguments[3U]);
+      const auto floor_value = static_cast<int32_t>(std::get<uint32_t>(arguments[4U]));
+      for (uint32_t index = 0;
+           index < element_count && index < source.words.size() &&
+           index < destination.words.size();
+           ++index) {
+        const auto value = static_cast<int32_t>(source.words[index]);
+        const auto clamped = value < floor_value ? floor_value : value;
+        destination.words[index] = static_cast<uint32_t>(clamped);
+      }
+    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_ARANGE_I64_V1) {
+      if (arguments.size() < 8U || arguments[0].index() != 2U) {
+        return MF_SHARED_INVALID_ARGUMENT;
+      }
+      auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
+      const auto element_count = std::get<uint32_t>(arguments[3U]);
+      const uint64_t start =
+          static_cast<uint64_t>(std::get<uint32_t>(arguments[4U])) |
+          (static_cast<uint64_t>(std::get<uint32_t>(arguments[5U])) << 32U);
+      const uint64_t step =
+          static_cast<uint64_t>(std::get<uint32_t>(arguments[6U])) |
+          (static_cast<uint64_t>(std::get<uint32_t>(arguments[7U])) << 32U);
+      for (uint32_t index = 0; index < element_count; ++index) {
+        const int64_t value = static_cast<int64_t>(start) +
+                              static_cast<int64_t>(step) * static_cast<int64_t>(index);
+        const uint64_t low_index = 2U * static_cast<uint64_t>(index);
+        if (low_index + 1U >= destination.words.size()) {
+          return MF_SHARED_INVALID_ARGUMENT;
+        }
+        destination.words[low_index] = static_cast<uint32_t>(static_cast<uint64_t>(value));
+        destination.words[low_index + 1U] =
+            static_cast<uint32_t>(static_cast<uint64_t>(value) >> 32U);
+      }
     } else {
       native = false;
     }
