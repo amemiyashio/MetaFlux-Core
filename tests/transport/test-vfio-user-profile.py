@@ -9,8 +9,8 @@ import tempfile
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = Path(__file__).resolve().with_name("validate-vfio-user-profile.py")
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "tools/validate-vfio-user-profile.py"
 SCHEMA = ROOT / "contracts/protocol/transport/v1/schema/vfio_user.json"
 MANIFEST = ROOT / "contracts/protocol/transport/v1/schema/manifest.json"
 

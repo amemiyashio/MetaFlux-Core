@@ -52,300 +52,9 @@ BACKEND_VULKAN_HEADERS = (
 BACKEND_VULKAN_SHARED_LIBRARY = "usr/lib/metaflux/backends/libmetaflux_vulkan_backend.so"
 
 
-DEB_PREINST = r"""#!/bin/sh
-set -e
-
-capture_upgrade_state() {
-  test -d /run/systemd/system || return 0
-  command -v systemctl >/dev/null 2>&1 || return 0
-  test -e /run/metafluxd-package-upgrade.state && return 0
-  active=0
-  enabled=0
-  if systemctl is-active --quiet metafluxd.socket; then active=1; fi
-  if systemctl is-enabled --quiet metafluxd.socket; then enabled=1; fi
-  printf 'active=%s\nenabled=%s\n' "$active" "$enabled" \
-    > /run/metafluxd-package-upgrade.state
-  systemctl stop metafluxd.socket metafluxd.service || true
-}
-
-case "${1:-}" in
-  upgrade) capture_upgrade_state ;;
-esac
-exit 0
-"""
-
-
-DEB_POSTINST = r"""#!/bin/sh
-set -e
-
-ensure_account() {
-  if command -v systemd-sysusers >/dev/null 2>&1; then
-    systemd-sysusers /usr/lib/sysusers.d/metaflux.conf || true
-  fi
-  if ! getent group metaflux >/dev/null 2>&1; then
-    if command -v groupadd >/dev/null 2>&1; then
-      groupadd --system metaflux
-    elif command -v addgroup >/dev/null 2>&1; then
-      addgroup --system metaflux
-    else
-      echo 'metaflux group creation tool is missing' >&2
-      exit 1
-    fi
-  fi
-  if ! getent passwd metaflux >/dev/null 2>&1; then
-    shell=/usr/sbin/nologin
-    test -x "$shell" || shell=/sbin/nologin
-    test -x "$shell" || shell=/bin/false
-    if command -v useradd >/dev/null 2>&1; then
-      useradd --system --gid metaflux --home-dir /var/lib/metaflux \
-        --no-create-home --shell "$shell" \
-        --comment 'MetaFlux compute service' metaflux
-    elif command -v adduser >/dev/null 2>&1; then
-      adduser --system --ingroup metaflux --home /var/lib/metaflux \
-        --no-create-home --disabled-login \
-        --gecos 'MetaFlux compute service' metaflux
-    else
-      echo 'metaflux user creation tool is missing' >&2
-      exit 1
-    fi
-  fi
-}
-
-ensure_directories() {
-  if command -v systemd-tmpfiles >/dev/null 2>&1; then
-    systemd-tmpfiles --create /usr/lib/tmpfiles.d/metaflux.conf || true
-  fi
-  install -d -m 0755 -o root -g metaflux /run/metaflux
-  install -d -m 0750 -o metaflux -g metaflux /var/cache/metaflux
-  install -d -m 0700 -o metaflux -g metaflux \
-    /var/cache/metaflux/compiler/users
-  install -d -m 0750 -o metaflux -g metaflux /var/lib/metaflux
-  install -d -m 0755 -o root -g root /var/lib/metaflux/aot
-}
-
-systemd_running() {
-  test -d /run/systemd/system || return 1
-  command -v systemctl >/dev/null 2>&1
-}
-
-start_fresh_socket() {
-  systemctl daemon-reload || true
-  if command -v deb-systemd-helper >/dev/null 2>&1; then
-    deb-systemd-helper preset metafluxd.socket || true
-  else
-    systemctl preset metafluxd.socket || true
-  fi
-  if command -v deb-systemd-invoke >/dev/null 2>&1; then
-    deb-systemd-invoke start metafluxd.socket || true
-  else
-    systemctl start metafluxd.socket || true
-  fi
-}
-
-restore_upgrade_socket() {
-  active=0
-  enabled=0
-  . /run/metafluxd-package-upgrade.state
-  rm -f /run/metafluxd-package-upgrade.state
-  systemctl daemon-reload || true
-  if test "$enabled" -eq 1; then
-    if command -v deb-systemd-helper >/dev/null 2>&1; then
-      deb-systemd-helper enable metafluxd.socket || true
-    else
-      systemctl enable metafluxd.socket || true
-    fi
-  fi
-  if test "$active" -eq 1; then
-    if command -v deb-systemd-invoke >/dev/null 2>&1; then
-      deb-systemd-invoke start metafluxd.socket || true
-    else
-      systemctl start metafluxd.socket || true
-    fi
-  fi
-}
-
-ensure_account
-ensure_directories
-if systemd_running; then
-  if test -f /run/metafluxd-package-upgrade.state; then
-    restore_upgrade_socket
-  else
-    start_fresh_socket
-  fi
-else
-  rm -f /run/metafluxd-package-upgrade.state
-fi
-exit 0
-"""
-
-
-DEB_PRERM = r"""#!/bin/sh
-set -e
-
-systemd_running() {
-  test -d /run/systemd/system || return 1
-  command -v systemctl >/dev/null 2>&1
-}
-
-capture_upgrade_state() {
-  systemd_running || return 0
-  test -e /run/metafluxd-package-upgrade.state && return 0
-  active=0
-  enabled=0
-  if systemctl is-active --quiet metafluxd.socket; then active=1; fi
-  if systemctl is-enabled --quiet metafluxd.socket; then enabled=1; fi
-  printf 'active=%s\nenabled=%s\n' "$active" "$enabled" \
-    > /run/metafluxd-package-upgrade.state
-  systemctl stop metafluxd.socket metafluxd.service || true
-}
-
-stop_for_removal() {
-  systemd_running || return 0
-  systemctl stop metafluxd.socket metafluxd.service || true
-}
-
-case "${1:-}" in
-  upgrade) capture_upgrade_state ;;
-  remove|purge) stop_for_removal ;;
-esac
-exit 0
-"""
-
-
-DEB_POSTRM = r"""#!/bin/sh
-set -e
-if test -d /run/systemd/system && command -v systemctl >/dev/null 2>&1; then
-  systemctl daemon-reload || true
-fi
-case "${1:-}" in
-  purge) rm -f /run/metafluxd-package-upgrade.state ;;
-esac
-exit 0
-"""
-
-
-RPM_PRE = r"""if test "${1:-0}" -eq 2; then
-  if test -d /run/systemd/system && command -v systemctl >/dev/null 2>&1 &&
-    test ! -e /run/metafluxd-package-upgrade.state; then
-    active=0
-    enabled=0
-    if systemctl is-active --quiet metafluxd.socket; then active=1; fi
-    if systemctl is-enabled --quiet metafluxd.socket; then enabled=1; fi
-    printf 'active=%s\nenabled=%s\n' "$active" "$enabled" \
-      > /run/metafluxd-package-upgrade.state
-    systemctl stop metafluxd.socket metafluxd.service || true
-  fi
-fi
-"""
-
-
-RPM_POST = r"""ensure_account() {
-  if command -v systemd-sysusers >/dev/null 2>&1; then
-    systemd-sysusers /usr/lib/sysusers.d/metaflux.conf || true
-  fi
-  if ! getent group metaflux >/dev/null 2>&1; then
-    if command -v groupadd >/dev/null 2>&1; then
-      groupadd --system metaflux
-    elif command -v addgroup >/dev/null 2>&1; then
-      addgroup --system metaflux
-    else
-      echo 'metaflux group creation tool is missing' >&2
-      exit 1
-    fi
-  fi
-  if ! getent passwd metaflux >/dev/null 2>&1; then
-    shell=/usr/sbin/nologin
-    test -x "$shell" || shell=/sbin/nologin
-    test -x "$shell" || shell=/bin/false
-    if command -v useradd >/dev/null 2>&1; then
-      useradd --system --gid metaflux --home-dir /var/lib/metaflux \
-        --no-create-home --shell "$shell" \
-        --comment 'MetaFlux compute service' metaflux
-    elif command -v adduser >/dev/null 2>&1; then
-      adduser --system --ingroup metaflux --home /var/lib/metaflux \
-        --no-create-home --disabled-login \
-        --gecos 'MetaFlux compute service' metaflux
-    else
-      echo 'metaflux user creation tool is missing' >&2
-      exit 1
-    fi
-  fi
-}
-
-ensure_directories() {
-  if command -v systemd-tmpfiles >/dev/null 2>&1; then
-    systemd-tmpfiles --create /usr/lib/tmpfiles.d/metaflux.conf || true
-  fi
-  install -d -m 0755 -o root -g metaflux /run/metaflux
-  install -d -m 0750 -o metaflux -g metaflux /var/cache/metaflux
-  install -d -m 0700 -o metaflux -g metaflux \
-    /var/cache/metaflux/compiler/users
-  install -d -m 0750 -o metaflux -g metaflux /var/lib/metaflux
-  install -d -m 0755 -o root -g root /var/lib/metaflux/aot
-}
-
-systemd_running() {
-  test -d /run/systemd/system || return 1
-  command -v systemctl >/dev/null 2>&1
-}
-
-ensure_account
-ensure_directories
-if systemd_running; then
-  if test -f /run/metafluxd-package-upgrade.state; then
-    active=0
-    enabled=0
-    . /run/metafluxd-package-upgrade.state
-    rm -f /run/metafluxd-package-upgrade.state
-    systemctl daemon-reload || true
-    if test "$enabled" -eq 1; then
-      if command -v deb-systemd-helper >/dev/null 2>&1; then
-        deb-systemd-helper enable metafluxd.socket || true
-      else
-        systemctl enable metafluxd.socket || true
-      fi
-    fi
-    if test "$active" -eq 1; then
-      if command -v deb-systemd-invoke >/dev/null 2>&1; then
-        deb-systemd-invoke start metafluxd.socket || true
-      else
-        systemctl start metafluxd.socket || true
-      fi
-    fi
-  else
-    systemctl daemon-reload || true
-    if command -v deb-systemd-helper >/dev/null 2>&1; then
-      deb-systemd-helper preset metafluxd.socket || true
-    else
-      systemctl preset metafluxd.socket || true
-    fi
-    if command -v deb-systemd-invoke >/dev/null 2>&1; then
-      deb-systemd-invoke start metafluxd.socket || true
-    else
-      systemctl start metafluxd.socket || true
-    fi
-  fi
-else
-  rm -f /run/metafluxd-package-upgrade.state
-fi
-"""
-
-
-RPM_PREUN = r"""if test "${1:-0}" -eq 0; then
-  if test -d /run/systemd/system && command -v systemctl >/dev/null 2>&1; then
-    systemctl stop metafluxd.socket metafluxd.service || true
-  fi
-fi
-"""
-
-
-RPM_POSTUN = r"""if test -d /run/systemd/system && command -v systemctl >/dev/null 2>&1; then
-  systemctl daemon-reload || true
-fi
-if test "${1:-0}" -eq 0; then
-  rm -f /run/metafluxd-package-upgrade.state
-fi
-"""
+def package_script(package_format: str, name: str) -> str:
+    """Read a format-owned lifecycle script without altering its contents."""
+    return (PROJECT_ROOT / "packaging" / package_format / name).read_text(encoding="ascii")
 
 
 def validate_project_version(value: str, source: str) -> str:
@@ -751,10 +460,10 @@ def prepare_deb_root(stage: Path, kind: str, version: str, workspace: Path) -> P
     control_dir.mkdir()
     write_text(control_dir / "control", deb_control(kind, version))
     if kind == "complete":
-        write_text(control_dir / "preinst", DEB_PREINST, 0o755)
-        write_text(control_dir / "postinst", DEB_POSTINST, 0o755)
-        write_text(control_dir / "prerm", DEB_PRERM, 0o755)
-        write_text(control_dir / "postrm", DEB_POSTRM, 0o755)
+        write_text(control_dir / "preinst", package_script("deb", "preinst"), 0o755)
+        write_text(control_dir / "postinst", package_script("deb", "postinst"), 0o755)
+        write_text(control_dir / "prerm", package_script("deb", "prerm"), 0o755)
+        write_text(control_dir / "postrm", package_script("deb", "postrm"), 0o755)
     return root
 
 
@@ -823,13 +532,13 @@ def rpm_spec(stage: Path, kind: str, version: str, release: str) -> str:
     if kind == "complete":
         scriptlets = (
             "\n%pre\n"
-            + RPM_PRE
+            + package_script("rpm", "pre")
             + "\n%post\n"
-            + RPM_POST
+            + package_script("rpm", "post")
             + "\n%preun\n"
-            + RPM_PREUN
+            + package_script("rpm", "preun")
             + "\n%postun\n"
-            + RPM_POSTUN
+            + package_script("rpm", "postun")
         )
     stage_shell = "'" + str(stage).replace("'", "'\\''") + "'"
     files = "\n".join(rpm_files(stage))

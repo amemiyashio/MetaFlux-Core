@@ -39,7 +39,7 @@ empty-to-nonempty distributions independently.
 
 - [x] Produce packaging-owned `metaflux-vpci-dkms` staging and keep
   `metaflux-vfio-userd` as the sibling service artifact.
-  `tools/stage-vpci-dkms.py` freezes the guest profile header and stages
+  `packaging/dkms/stage-vpci-dkms.py` freezes the guest profile header and stages
   `packaging/dkms/metaflux-vpci/`; CTest `metaflux.packaging.vpci-dkms` proves
   separation from experimental `metaflux-vroot-dkms`. Service packaging notes
   live under `packaging/services/metaflux-vfio-userd/`. Live module/service

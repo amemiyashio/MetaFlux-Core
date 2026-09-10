@@ -1,5 +1,5 @@
 # Files staged into the metaflux-vroot DKMS source tree by
-# tools/stage-vroot-dkms.py. Paths are relative to the package root.
+# packaging/dkms/stage-vroot-dkms.py. Paths are relative to the package root.
 dkms.conf
 Makefile
 metaflux_vroot_main.c

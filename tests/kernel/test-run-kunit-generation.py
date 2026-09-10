@@ -19,7 +19,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-SCRIPT = Path(__file__).with_name("run-kunit-generation.py").resolve()
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "tools/run-kunit-generation.py"
 
 
 def run_runner(env: dict[str, str]) -> tuple[int, str, str]:

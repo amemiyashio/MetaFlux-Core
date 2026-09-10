@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage the packaging-owned metaflux-vpci DKMS source tree."""
+"""Stage the packaging-owned metaflux-vroot DKMS source tree."""
 
 from __future__ import annotations
 
@@ -12,17 +12,20 @@ from pathlib import Path
 from typing import Any
 
 
-ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_DIR = ROOT / "packaging/dkms/metaflux-vpci"
-KERNEL_MAIN = ROOT / "kernel/pci/metaflux_pci_main.c"
-GENERATOR = ROOT / "tools/generate-pci-guest-profile.py"
+ROOT = Path(__file__).resolve().parents[2]
+PACKAGE_DIR = ROOT / "packaging/dkms/metaflux-vroot"
+KERNEL_MAIN = ROOT / "kernel/vroot/metaflux_vroot_main.c"
+VROOT_MANIFEST = (
+    ROOT / "contracts/protocol/transport/v1/schema/extensions/vroot/v1/manifest.json"
+)
 VERSION_FILE = ROOT / "VERSION"
+VALIDATOR = ROOT / "tools/validate-vroot-profile.py"
 
 REQUIRED_STAGED = (
     "dkms.conf",
     "Makefile",
-    "metaflux_pci_main.c",
-    "generated/include/metaflux/pci/generated_guest_profile.h",
+    "metaflux_vroot_main.c",
+    "generated/include/metaflux/vroot/generated_profile.h",
     "package-metadata.json",
     "README.md",
 )
@@ -43,12 +46,12 @@ def load_version() -> str:
     return text
 
 
-def load_generator():
+def load_validator():
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location("metaflux_pci_guest_profile", GENERATOR)
+    spec = importlib.util.spec_from_file_location("metaflux_vroot_profile_validator", VALIDATOR)
     if spec is None or spec.loader is None:
-        raise StageError("cannot load generate-pci-guest-profile.py")
+        raise StageError("cannot load validate-vroot-profile.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -87,19 +90,20 @@ def stage(output_dir: Path, package_version: str) -> dict[str, Any]:
     else:
         output_dir.mkdir(parents=True)
 
-    generator = load_generator()
-    fixture = generator.compose(ROOT)
-    header_text = generator.header_text(fixture, kernel=True)
+    validator = load_validator()
+    profile, image, writable = validator.validate(ROOT, VROOT_MANIFEST)
+    header_text = validator.header_text(profile, image, writable, kernel=True)
 
     shutil.copy2(PACKAGE_DIR / "dkms.conf", output_dir / "dkms.conf")
     shutil.copy2(PACKAGE_DIR / "Makefile", output_dir / "Makefile")
     shutil.copy2(PACKAGE_DIR / "README.md", output_dir / "README.md")
-    shutil.copy2(KERNEL_MAIN, output_dir / "metaflux_pci_main.c")
+    shutil.copy2(KERNEL_MAIN, output_dir / "metaflux_vroot_main.c")
 
-    header_path = output_dir / "generated/include/metaflux/pci/generated_guest_profile.h"
+    header_path = output_dir / "generated/include/metaflux/vroot/generated_profile.h"
     header_path.parent.mkdir(parents=True, exist_ok=True)
     header_path.write_text(header_text, encoding="utf-8")
 
+    # Rewrite PACKAGE_VERSION in the staged dkms.conf to the selected version.
     dkms_conf = (output_dir / "dkms.conf").read_text(encoding="utf-8")
     rewritten = []
     for line in dkms_conf.splitlines():
@@ -119,33 +123,38 @@ def stage(output_dir: Path, package_version: str) -> dict[str, Any]:
         files[relative] = digest(path)
 
     metadata = {
-        "id": "metaflux-vpci-dkms",
-        "package_name": "metaflux-vpci",
+        "id": "metaflux-vroot-dkms",
+        "package_name": "metaflux-vroot",
         "package_version": package_version,
-        "kind": "guest-pci-dkms-source",
-        "module": "metaflux_pci",
+        "kind": "experimental-vroot-dkms-source",
+        "module": "metaflux_vroot",
         "autoinstall": False,
         "depends_on": [],
-        "sibling_packages": ["metaflux-vfio-userd"],
-        "forbidden_dependencies": ["metaflux-vroot-dkms", "metaflux-vroot"],
+        "forbidden_dependencies": ["metaflux-vpci-dkms", "metaflux-vpci"],
         "profile": {
-            "vendor_id": fixture["vendor_id"],
-            "device_id": fixture["device_id"],
-            "class_code": fixture["class_code"],
-            "bar0_size": fixture["bar0_size"],
-            "bar2_size": fixture["bar2_size"],
-            "bar4_size": fixture["bar4_size"],
-            "msix_vectors": fixture["msix_vectors"],
+            "manifest": VROOT_MANIFEST.relative_to(ROOT).as_posix(),
+            "manifest_sha256": digest(VROOT_MANIFEST),
+            "vendor_id": profile["identity"]["vendor_id"],
+            "device_id": profile["identity"]["device_id"],
+            "class_code": profile["identity"]["class_code"],
+            "config_size": profile["config_size"],
+            "max_functions": profile["max_functions"],
+            "config_image_sha256": hashlib.sha256(image).hexdigest(),
+            "writable_mask_sha256": hashlib.sha256(writable).hexdigest(),
         },
         "sources": files,
         "policy": {
-            "presentation": "static-guest-pci",
-            "default_off_autoinstall": True,
-            "binds_vendor_drivers": False,
+            "presentation_only": True,
+            "default_off": True,
+            "launch_path": "forbidden",
             "canonical_nodes": ["/dev/metafluxctl", "/dev/metafluxN"],
+            "vendor_matching": False,
         },
     }
     metadata_path = output_dir / "package-metadata.json"
+    metadata_path.write_text(json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    metadata["sources"]["package-metadata.json"] = digest(metadata_path)
+    # Re-write with self hash excluded from circularity: keep sources without self.
     frozen = dict(metadata)
     frozen["sources"] = dict(files)
     metadata_path.write_text(json.dumps(frozen, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -158,10 +167,10 @@ def main() -> int:
     try:
         metadata = stage(arguments.output_dir.resolve(), version)
     except StageError as error:
-        print(f"stage-vpci-dkms: {error}", file=sys.stderr)
+        print(f"stage-vroot-dkms: {error}", file=sys.stderr)
         return 1
-    except Exception as error:  # noqa: BLE001
-        print(f"stage-vpci-dkms: {error}", file=sys.stderr)
+    except Exception as error:  # noqa: BLE001 - surface validator failures cleanly
+        print(f"stage-vroot-dkms: {error}", file=sys.stderr)
         return 1
     print(json.dumps({"status": "ok", "package": metadata["id"], "version": version}, sort_keys=True))
     return 0

@@ -20,7 +20,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[2]
-STAGER = ROOT / "tools/stage-vroot-dkms.py"
+STAGER = ROOT / "packaging/dkms/stage-vroot-dkms.py"
 LAUNCHER = ROOT / "packaging/vroot-launcher/metaflux-vroot-launcher.sh"
 VPCI_PACKAGE = ROOT / "packaging/dkms/metaflux-vpci"
 

@@ -61,7 +61,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   )
   add_test(
     NAME metaflux.kernel.vroot-profile-selftest
-    COMMAND "${Python3_EXECUTABLE}" -B "${PROJECT_SOURCE_DIR}/tools/test-vroot-profile.py"
+    COMMAND "${Python3_EXECUTABLE}" -B "${PROJECT_SOURCE_DIR}/tests/lifecycle/test-vroot-profile.py"
   )
   set_tests_properties(
     metaflux.kernel.vroot-profile-selftest

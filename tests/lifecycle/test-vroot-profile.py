@@ -10,8 +10,8 @@ import tempfile
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = Path(__file__).resolve().with_name("validate-vroot-profile.py")
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "tools/validate-vroot-profile.py"
 MANIFEST = ROOT / "contracts/protocol/transport/v1/schema/extensions/vroot/v1/manifest.json"
 
 

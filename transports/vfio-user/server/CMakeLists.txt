@@ -75,7 +75,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   )
   add_test(
     NAME metaflux.transport.vfio-user-profile-selftest
-    COMMAND "${Python3_EXECUTABLE}" -B "${PROJECT_SOURCE_DIR}/tools/test-vfio-user-profile.py"
+    COMMAND "${Python3_EXECUTABLE}" -B "${PROJECT_SOURCE_DIR}/tests/transport/test-vfio-user-profile.py"
   )
   set_tests_properties(
     metaflux.transport.vfio-user-profile-selftest
@@ -94,7 +94,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   )
   add_test(
     NAME metaflux.transport.pci-guest-profile-selftest
-    COMMAND "${Python3_EXECUTABLE}" -B "${PROJECT_SOURCE_DIR}/tools/test-pci-guest-profile.py"
+    COMMAND "${Python3_EXECUTABLE}" -B "${PROJECT_SOURCE_DIR}/tests/transport/test-pci-guest-profile.py"
   )
   set_tests_properties(
     metaflux.transport.pci-guest-profile-selftest

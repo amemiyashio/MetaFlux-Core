@@ -15,8 +15,10 @@ package-manager upgrade from the provider-only artifact has one owner for every
 installed path. Vendor CUDA/NVML libraries remain untouched.
 
 The complete DEB ships idempotent `preinst`, `postinst`, `prerm`, and `postrm`
-hooks. `postinst` creates the system account and strict state/cache directories,
-preferring sysusers/tmpfiles and falling back to Debian's shadow utilities.
+hooks stored as files in this directory. The builder copies their contents into
+`DEBIAN/` with executable mode `0755`. `postinst` creates the system account
+and strict state/cache directories, preferring sysusers/tmpfiles and falling
+back to Debian's shadow utilities.
 When systemd is actually running, the hooks stop the old units for upgrade or
 removal and reload the unit database. A fresh install applies the preset and
 starts the socket through `deb-systemd-invoke` when available. An upgrade

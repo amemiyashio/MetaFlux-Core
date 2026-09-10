@@ -98,7 +98,7 @@ An unset value exits 77, as do a missing bzImage (run
 `cmake`/`ninja`. The runner checks each `.ko` vermagic against the kernel
 release before shipping it to the guest. The CTest row
 `metaflux.kernel.debug-kernel-selftest` runs only the parser/config self-test
-(`tools/test-run-debug-kernel-qualification.py`); booting the real guest stays
+(`tests/kernel/test-run-debug-kernel-qualification.py`); booting the real guest stays
 a manual batch gate.
 
 ## KUnit Execution

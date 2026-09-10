@@ -8,6 +8,17 @@ qualification, and architecture checks such as the component dependency-graph
 gate (`tools/check-component-graph.py`), which runs as
 `metaflux.architecture.component-graph`.
 
+`CMakeLists.txt` discovers the shared test interpreter and includes the
+domain-owned `registration.cmake` files under `contract/`, `unit/`, `kernel/`,
+`cmake/`, `architecture/`, `lifecycle/`, `release/`, `compatibility/`, and
+`performance/`. Build-entrypoint policy checks live under `cmake/`; repository
+and Agent governance checks live under `architecture/`. These files use
+`include()` in the `tests/` directory scope so test executable locations,
+relative source paths, evidence paths, and default working directories remain
+stable. Add cross-component registrations to their domain file and retain
+their component-availability guards; component-owned unit tests stay beside
+the component they qualify.
+
 The suite verifies consistent device identity across visible interfaces,
 provider-only and core-only build boundaries, deterministic AOT/JIT/interpreter
 results, transport teardown, and the published latency and throughput budgets.

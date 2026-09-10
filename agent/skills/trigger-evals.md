@@ -14,7 +14,7 @@ committed delivery or gate evidence remains a near miss.
 
 ```sh
 nix develop . --command python3 -B tools/check-skill-routing.py .
-nix develop . --command python3 -B tools/test-check-skill-routing.py
+nix develop . --command python3 -B tests/architecture/test-check-skill-routing.py
 ```
 
 The checks are local and deterministic. They validate the corpus and package

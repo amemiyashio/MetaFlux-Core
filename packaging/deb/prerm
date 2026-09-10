@@ -1,0 +1,30 @@
+#!/bin/sh
+set -e
+
+systemd_running() {
+  test -d /run/systemd/system || return 1
+  command -v systemctl >/dev/null 2>&1
+}
+
+capture_upgrade_state() {
+  systemd_running || return 0
+  test -e /run/metafluxd-package-upgrade.state && return 0
+  active=0
+  enabled=0
+  if systemctl is-active --quiet metafluxd.socket; then active=1; fi
+  if systemctl is-enabled --quiet metafluxd.socket; then enabled=1; fi
+  printf 'active=%s\nenabled=%s\n' "$active" "$enabled" \
+    > /run/metafluxd-package-upgrade.state
+  systemctl stop metafluxd.socket metafluxd.service || true
+}
+
+stop_for_removal() {
+  systemd_running || return 0
+  systemctl stop metafluxd.socket metafluxd.service || true
+}
+
+case "${1:-}" in
+  upgrade) capture_upgrade_state ;;
+  remove|purge) stop_for_removal ;;
+esac
+exit 0

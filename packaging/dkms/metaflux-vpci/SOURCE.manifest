@@ -1,5 +1,5 @@
 # Files staged into the metaflux-vpci DKMS source tree by
-# tools/stage-vpci-dkms.py. Paths are relative to the package root.
+# packaging/dkms/stage-vpci-dkms.py. Paths are relative to the package root.
 dkms.conf
 Makefile
 metaflux_pci_main.c

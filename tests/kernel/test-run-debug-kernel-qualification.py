@@ -21,7 +21,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-REPOSITORY = Path(__file__).resolve().parent.parent
+REPOSITORY = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPOSITORY / "tools"))
 RUNNER = REPOSITORY / "tools" / "run-debug-kernel-qualification.py"
 
 BUILD_ONLY_FLAGS = [

@@ -1,0 +1,101 @@
+#!/bin/sh
+set -e
+
+ensure_account() {
+  if command -v systemd-sysusers >/dev/null 2>&1; then
+    systemd-sysusers /usr/lib/sysusers.d/metaflux.conf || true
+  fi
+  if ! getent group metaflux >/dev/null 2>&1; then
+    if command -v groupadd >/dev/null 2>&1; then
+      groupadd --system metaflux
+    elif command -v addgroup >/dev/null 2>&1; then
+      addgroup --system metaflux
+    else
+      echo 'metaflux group creation tool is missing' >&2
+      exit 1
+    fi
+  fi
+  if ! getent passwd metaflux >/dev/null 2>&1; then
+    shell=/usr/sbin/nologin
+    test -x "$shell" || shell=/sbin/nologin
+    test -x "$shell" || shell=/bin/false
+    if command -v useradd >/dev/null 2>&1; then
+      useradd --system --gid metaflux --home-dir /var/lib/metaflux \
+        --no-create-home --shell "$shell" \
+        --comment 'MetaFlux compute service' metaflux
+    elif command -v adduser >/dev/null 2>&1; then
+      adduser --system --ingroup metaflux --home /var/lib/metaflux \
+        --no-create-home --disabled-login \
+        --gecos 'MetaFlux compute service' metaflux
+    else
+      echo 'metaflux user creation tool is missing' >&2
+      exit 1
+    fi
+  fi
+}
+
+ensure_directories() {
+  if command -v systemd-tmpfiles >/dev/null 2>&1; then
+    systemd-tmpfiles --create /usr/lib/tmpfiles.d/metaflux.conf || true
+  fi
+  install -d -m 0755 -o root -g metaflux /run/metaflux
+  install -d -m 0750 -o metaflux -g metaflux /var/cache/metaflux
+  install -d -m 0700 -o metaflux -g metaflux \
+    /var/cache/metaflux/compiler/users
+  install -d -m 0750 -o metaflux -g metaflux /var/lib/metaflux
+  install -d -m 0755 -o root -g root /var/lib/metaflux/aot
+}
+
+systemd_running() {
+  test -d /run/systemd/system || return 1
+  command -v systemctl >/dev/null 2>&1
+}
+
+start_fresh_socket() {
+  systemctl daemon-reload || true
+  if command -v deb-systemd-helper >/dev/null 2>&1; then
+    deb-systemd-helper preset metafluxd.socket || true
+  else
+    systemctl preset metafluxd.socket || true
+  fi
+  if command -v deb-systemd-invoke >/dev/null 2>&1; then
+    deb-systemd-invoke start metafluxd.socket || true
+  else
+    systemctl start metafluxd.socket || true
+  fi
+}
+
+restore_upgrade_socket() {
+  active=0
+  enabled=0
+  . /run/metafluxd-package-upgrade.state
+  rm -f /run/metafluxd-package-upgrade.state
+  systemctl daemon-reload || true
+  if test "$enabled" -eq 1; then
+    if command -v deb-systemd-helper >/dev/null 2>&1; then
+      deb-systemd-helper enable metafluxd.socket || true
+    else
+      systemctl enable metafluxd.socket || true
+    fi
+  fi
+  if test "$active" -eq 1; then
+    if command -v deb-systemd-invoke >/dev/null 2>&1; then
+      deb-systemd-invoke start metafluxd.socket || true
+    else
+      systemctl start metafluxd.socket || true
+    fi
+  fi
+}
+
+ensure_account
+ensure_directories
+if systemd_running; then
+  if test -f /run/metafluxd-package-upgrade.state; then
+    restore_upgrade_socket
+  else
+    start_fresh_socket
+  fi
+else
+  rm -f /run/metafluxd-package-upgrade.state
+fi
+exit 0

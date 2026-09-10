@@ -43,15 +43,15 @@ run_without_git_local_environment nix develop . --command python3 \
   --commit-gate \
   --diagnostic-format "$diagnostic_format"
 run_without_git_local_environment nix develop . --command python3 \
-  "$candidate_root/tools/test-check-agent-state.py"
+  "$candidate_root/tests/architecture/test-check-agent-state.py"
 run_without_git_local_environment nix develop . --command python3 -B \
-  "$candidate_root/tools/test-agent-diagnostics.py"
+  "$candidate_root/tests/architecture/test-agent-diagnostics.py"
 run_without_git_local_environment nix develop . --command python3 -B \
   "$candidate_root/tools/check-skill-routing.py" \
   "$candidate_root" \
   --diagnostic-format "$diagnostic_format"
 run_without_git_local_environment nix develop . --command python3 -B \
-  "$candidate_root/tools/test-check-skill-routing.py"
+  "$candidate_root/tests/architecture/test-check-skill-routing.py"
 run_without_git_local_environment nix develop . --command python3 -B \
   "$candidate_root/agent/skills/detect-agent-tool/scripts/test_detect_agent_tool.py"
 run_without_git_local_environment nix develop . --command python3 -B \

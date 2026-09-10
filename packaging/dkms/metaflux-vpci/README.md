@@ -15,7 +15,7 @@ identity plus BAR0/BAR2/BAR4 and MSI-X vector counts.
 ## Staging
 
 ```sh
-nix develop . --command python3 tools/stage-vpci-dkms.py \
+nix develop . --command python3 packaging/dkms/stage-vpci-dkms.py \
   --output-dir /path/to/metaflux-vpci-0.1.0
 ```
 

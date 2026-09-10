@@ -9,8 +9,8 @@ import tempfile
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = Path(__file__).resolve().with_name("validate-lifecycle-admin.py")
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "tools/validate-lifecycle-admin.py"
 EXTENSION = ROOT / "contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/manifest.json"
 ADMIN = ROOT / "contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/admin.json"
 MODEL = ROOT / "contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/model.json"

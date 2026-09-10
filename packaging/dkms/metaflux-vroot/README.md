@@ -13,7 +13,7 @@ Experimental, default-off bare-metal vPCI presentation package. It ships only
 ## Staging
 
 ```sh
-nix develop . --command python3 tools/stage-vroot-dkms.py \
+nix develop . --command python3 packaging/dkms/stage-vroot-dkms.py \
   --output-dir /path/to/metaflux-vroot-0.1.0
 ```
 

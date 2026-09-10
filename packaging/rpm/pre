@@ -1,0 +1,12 @@
+if test "${1:-0}" -eq 2; then
+  if test -d /run/systemd/system && command -v systemctl >/dev/null 2>&1 &&
+    test ! -e /run/metafluxd-package-upgrade.state; then
+    active=0
+    enabled=0
+    if systemctl is-active --quiet metafluxd.socket; then active=1; fi
+    if systemctl is-enabled --quiet metafluxd.socket; then enabled=1; fi
+    printf 'active=%s\nenabled=%s\n' "$active" "$enabled" \
+      > /run/metafluxd-package-upgrade.state
+    systemctl stop metafluxd.socket metafluxd.service || true
+  fi
+fi

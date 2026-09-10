@@ -97,7 +97,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     NAME metaflux.contract.transport-measurement-selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B
-      "${PROJECT_SOURCE_DIR}/tools/test-transport-measurement.py"
+      "${PROJECT_SOURCE_DIR}/tests/performance/test-transport-measurement.py"
   )
   set_tests_properties(
     metaflux.contract.transport-measurement-selftest

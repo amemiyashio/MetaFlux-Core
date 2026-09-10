@@ -318,7 +318,7 @@ nix develop . --command python3 -B \
   agent/skills/detect-agent-tool/scripts/test_detect_agent_tool.py
 nix develop . --command python3 -B \
   agent/skills/start-work/scripts/test_commit_as_agent_tool.py
-nix develop . --command python3 -B tools/test-agent-diagnostics.py
+nix develop . --command python3 -B tests/architecture/test-agent-diagnostics.py
 nix develop . --command python3 -B references/tools/test_reference.py
 nix develop . --command python3 -B references/tools/reference.py verify
 nix develop . --command python3 -B tools/check-agent-state.py .

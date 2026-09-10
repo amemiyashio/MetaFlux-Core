@@ -19,8 +19,8 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[2]
-VPCI_STAGER = ROOT / "tools/stage-vpci-dkms.py"
-VROOT_STAGER = ROOT / "tools/stage-vroot-dkms.py"
+VPCI_STAGER = ROOT / "packaging/dkms/stage-vpci-dkms.py"
+VROOT_STAGER = ROOT / "packaging/dkms/stage-vroot-dkms.py"
 VFIO_USERD_NOTES = ROOT / "packaging/services/metaflux-vfio-userd/README.md"
 
 

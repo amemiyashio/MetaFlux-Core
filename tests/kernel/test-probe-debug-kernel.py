@@ -18,7 +18,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-SCRIPT = Path(__file__).with_name("probe-debug-kernel.py").resolve()
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "tools/probe-debug-kernel.py"
 
 REQUIRED = [
     "CONFIG_KASAN",

@@ -127,7 +127,7 @@ def fail(message: str, excerpts: list[str]) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Importable pure helpers (exercised by tools/test-run-debug-kernel-qualification.py)
+# Importable pure helpers (exercised by tests/kernel/test-run-debug-kernel-qualification.py)
 # ---------------------------------------------------------------------------
 
 

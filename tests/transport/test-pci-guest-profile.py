@@ -9,8 +9,8 @@ import tempfile
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = Path(__file__).resolve().with_name("generate-pci-guest-profile.py")
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "tools/generate-pci-guest-profile.py"
 
 # Consumers that previously hardcoded CI Type-0 identity / BAR sizes.
 HANDWRITTEN_TARGETS = (

@@ -10,9 +10,9 @@ import tempfile
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
-STAGER = ROOT / "tools/stage-vpci-dkms.py"
-VROOT_STAGER = ROOT / "tools/stage-vroot-dkms.py"
+ROOT = Path(__file__).resolve().parents[2]
+STAGER = ROOT / "packaging/dkms/stage-vpci-dkms.py"
+VROOT_STAGER = ROOT / "packaging/dkms/stage-vroot-dkms.py"
 PYTHON = sys.executable
 
 

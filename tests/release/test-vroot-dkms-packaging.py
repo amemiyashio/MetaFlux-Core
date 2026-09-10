@@ -12,8 +12,8 @@ import tempfile
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
-STAGER = ROOT / "tools/stage-vroot-dkms.py"
+ROOT = Path(__file__).resolve().parents[2]
+STAGER = ROOT / "packaging/dkms/stage-vroot-dkms.py"
 LAUNCHER = ROOT / "packaging/vroot-launcher/metaflux-vroot-launcher.sh"
 PYTHON = sys.executable
 

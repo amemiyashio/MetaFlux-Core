@@ -19,7 +19,9 @@ so package removal leaves no empty `/usr/include/metaflux` hierarchy behind.
 
 The complete RPM's pre/post and preun/postun scriptlets provide the same
 idempotent account, directory, upgrade, activation, and removal behavior as the
-DEB. Sysusers/tmpfiles are preferred when installed; `groupadd`/`useradd` and
+DEB. Their source files, `pre`, `post`, `preun`, and `postun`, live in this
+directory; the builder inserts their contents into the matching RPM spec
+sections. Sysusers/tmpfiles are preferred when installed; `groupadd`/`useradd` and
 explicit modes are the fallback, including on the frozen Rocky Linux 9 minimal
 row where no systemd command is present. Erase retains the `metaflux` account,
 `/var/lib/metaflux`, and `/var/cache/metaflux` by policy.

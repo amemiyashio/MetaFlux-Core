@@ -4,6 +4,11 @@ Repository scripts implement narrow checks owned by their domain. Nix provides
 their executable toolchain; the scripts, CMake, CTest, and Git retain command
 semantics and evidence ownership.
 
+This directory owns repository commands and their support modules. Their
+self-tests live under `tests/architecture/`, `tests/kernel/`, `tests/lifecycle/`,
+`tests/performance/`, `tests/release/`, and `tests/transport/`. DKMS staging
+entrypoints belong to [`packaging/dkms/`](../packaging/dkms/README.md).
+
 ## Build Directories
 
 CMake presets and build entrypoints use `tmp/build/<name>` for workspace
@@ -39,7 +44,7 @@ decision-0034 agent-tool identity boundary:
 
 ```sh
 nix develop . --command python3 tools/check-agent-state.py .
-nix develop . --command python3 tools/test-check-agent-state.py
+nix develop . --command python3 tests/architecture/test-check-agent-state.py
 ```
 
 The optional commit gate re-runs the candidate-tree agent-tool detector,
@@ -79,7 +84,7 @@ without writing repository state.
 
 ```sh
 nix develop . --command python3 -B tools/check-skill-routing.py .
-nix develop . --command python3 -B tools/test-check-skill-routing.py
+nix develop . --command python3 -B tests/architecture/test-check-skill-routing.py
 nix develop . --command python3 -B \
   agent/skills/replan-roadmap/scripts/test_check_route_proposal.py
 ```
@@ -114,4 +119,6 @@ nix develop . --command python3 tools/check-lifecycle-model.py \
 ```
 
 Other scripts remain owned by the plan, component, release, or toolchain surface
-that invokes them. Their focused tests are registered in `tests/CMakeLists.txt`.
+that invokes them. Cross-component focused tests are registered in the matching
+`tests/<domain>/registration.cmake`, included by `tests/CMakeLists.txt`;
+component-owned gates retain their existing component registration.

@@ -96,7 +96,7 @@ node, or changes a vendor-owned node.
   coexistence, and uninstall for this separate package. The launcher and gate
   depend on the vroot package, never the milestone-0.1.1.0 base `metaflux-vpci-dkms`
   artifact.
-  Host-independent slice: `tools/stage-vroot-dkms.py` stages
+  Host-independent slice: `packaging/dkms/stage-vroot-dkms.py` stages
   `packaging/dkms/metaflux-vroot/` with a frozen profile header;
   `packaging/vroot-launcher/metaflux-vroot-launcher.sh` validates metadata and
   emits a canonical-node-only namespace plan; `tests/release/run_baremetal_vpci_gate.py`

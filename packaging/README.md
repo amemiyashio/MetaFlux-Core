@@ -7,8 +7,11 @@ fixed tool versions and does not construct product packages.
 
 Planned ownership is `common/` for shared release metadata, `nixos/` for NixOS
 modules and exact-kernel integration, `dkms/` for generic external-module source,
-and `deb/`, `rpm/`, and `tar/` for their respective generic artifacts. These
-directories contain packaging integration rather than alternate build systems.
+and `deb/`, `rpm/`, and `tar/` for their respective generic artifacts. DEB and
+RPM lifecycle scripts live beside their format documentation; `build.py`
+loads them and continues to own shared staging and artifact construction.
+These directories contain packaging integration rather than alternate build
+systems.
 
 Generic artifacts use the Ubuntu 20.04 target SDK and the system glibc 2.31 ABI
 floor. Their LLVM, MLIR, libstdc++, libgcc, and zlib dependencies are static,

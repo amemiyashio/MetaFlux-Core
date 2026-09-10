@@ -16,7 +16,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-SCRIPT = Path(__file__).with_name("run-kunit-uml-ctest.py").resolve()
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "tools/run-kunit-uml-ctest.py"
 REPOSITORY = SCRIPT.parent.parent
 RUNNER = REPOSITORY / "tools" / "run-kunit-generation.py"
 

@@ -10,8 +10,9 @@ import sys
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = Path(__file__).with_name("check-skill-routing.py")
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools"))
+SCRIPT = ROOT / "tools/check-skill-routing.py"
 CORPUS = ROOT / "agent" / "skills" / "trigger-evals.json"
 
 

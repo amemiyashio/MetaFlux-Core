@@ -19,7 +19,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-REPOSITORY = Path(__file__).resolve().parent.parent
+REPOSITORY = Path(__file__).resolve().parents[2]
 BUILD_SCRIPT = REPOSITORY / "packaging" / "build.py"
 DEFAULT_GENERIC_TREE = (
     REPOSITORY / "tmp" / "build" / "generic-release"

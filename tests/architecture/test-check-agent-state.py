@@ -12,7 +12,9 @@ import tempfile
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).with_name("check-agent-state.py").resolve()
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools"))
+SCRIPT = ROOT / "tools/check-agent-state.py"
 DETECTOR_SCRIPT = (
     SCRIPT.parents[1]
     / "agent"

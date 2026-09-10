@@ -10,7 +10,7 @@ The sole ownership chain is:
 
 Consumers (metaflux_pci.ko, live vfio-user server, guest bring-up) must take
 identity and BAR sizes from the generated header. Handwritten competing
-constants are rejected by tools/test-pci-guest-profile.py.
+constants are rejected by tests/transport/test-pci-guest-profile.py.
 """
 
 from __future__ import annotations

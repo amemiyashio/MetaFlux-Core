@@ -9,9 +9,10 @@ import tempfile
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).with_name("validate-transport-measurement.py").resolve()
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "tools/validate-transport-measurement.py"
 CONTRACT = (
-    Path(__file__).parents[1]
+    ROOT
     / "tests"
     / "performance"
     / "milestone-0.1.1.0-measurement.json"
