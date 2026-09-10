@@ -17,7 +17,10 @@ updated: 2026-09-10
 | Logical device | Stable MetaFlux-visible compute identity presented consistently through enabled interfaces | [work-item-0.1.0.2](../plan/milestone-0.1.0.0-core-foundation/work/work-item-0.1.0.2-contracts-runtime.md) |
 | Registry view | One process-scoped selection policy and `registry_view_id`, with provider-specific generation-bound membership revisions captured at permitted initialization boundaries | [runtime](../../runtime/README.md) |
 | Generation | Monotonic incarnation of a logical device; stale objects retain their old generation and fail deterministically | [milestone-0.1.2.0](../plan/milestone-0.1.2.0-vpci-lifecycle/plan.md) |
-| Epoch | Persistent monotonic retirement counter advanced by checked addition exactly once per committed retirement; exhaustion never wraps | [work-item-0.1.2.1](../plan/milestone-0.1.2.0-vpci-lifecycle/work/work-item-0.1.2.1-lifecycle-model.md) |
+| Workflow Epoch | One effective product objective, route, and governance regime; explicit semantic governance advances it | [Agent execution](../../docs/architecture/agent-execution.md) |
+| Batch | A bounded collection of dependent work within one workflow Epoch | [Agent execution](../../docs/architecture/agent-execution.md) |
+| Iteration | One bounded, reviewed, verified delivery; it may complete a slice of a work item | [Agent execution](../../docs/architecture/agent-execution.md) |
+| Device epoch | Persistent monotonic retirement counter advanced by checked addition exactly once per committed retirement; exhaustion never wraps | [work-item-0.1.2.1](../plan/milestone-0.1.2.0-vpci-lifecycle/work/work-item-0.1.2.1-lifecycle-model.md) |
 | Lifecycle sequence | View-scoped no-wrap serial published through a FIFO range gate; only the head range writes, unused suffixes retire permanently, and `UINT64_MAX` closes the process mapping | [work-item-0.1.0.2](../plan/milestone-0.1.0.0-core-foundation/work/work-item-0.1.0.2-contracts-runtime.md) |
 | Worker lease | Exclusive authority for one data-plane worker to own a backend instance and consume queues for a generation | [control/data plane](../../docs/architecture/control-and-data-plane.md) |
 | Control plane | Registry, policy, generation, negotiation, and lifecycle authority outside steady-state submissions | [control/data plane](../../docs/architecture/control-and-data-plane.md) |

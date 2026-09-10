@@ -62,32 +62,32 @@ def main() -> int:
     explicit = next(
         case
         for case in changed["cases"]
-        if "govern-epoch" in case["expected_skills"]
+        if "epoch" in case["expected_skills"]
     )
-    explicit["prompt"] = explicit["prompt"].replace("$govern-epoch", "govern epoch")
-    expect(changed, "must explicitly invoke $govern-epoch")
+    explicit["prompt"] = explicit["prompt"].replace("$epoch", "govern epoch")
+    expect(changed, "must explicitly invoke $epoch")
 
     changed = copy.deepcopy(corpus)
     explicit = next(
         case
         for case in changed["cases"]
-        if "replan-roadmap" in case["expected_skills"]
+        if "epoch" in case["expected_skills"]
     )
     explicit["prompt"] = explicit["prompt"].replace(
-        "$replan-roadmap", "replan roadmap"
+        "$epoch", "replan roadmap"
     )
-    expect(changed, "must explicitly invoke $replan-roadmap")
+    expect(changed, "must explicitly invoke $epoch")
 
     changed = copy.deepcopy(corpus)
     explicit = next(
         case
         for case in changed["cases"]
-        if "integrate-batch" in case["expected_skills"]
+        if "batch" in case["expected_skills"]
     )
     explicit["prompt"] = explicit["prompt"].replace(
-        "$integrate-batch", "integrate batch"
+        "$batch", "integrate batch"
     )
-    expect(changed, "must explicitly invoke $integrate-batch")
+    assert not errors(changed), "Qualified Batch acceptance supports automatic invocation"
 
     changed = copy.deepcopy(corpus)
     changed["cases"][0]["forbidden_skills"] = list(
@@ -96,7 +96,7 @@ def main() -> int:
     expect(changed, "expects and forbids")
 
     changed = copy.deepcopy(corpus)
-    changed["workflow_skills"] = ["roast"]
+    changed["workflow_skills"] = ["main"]
     expect(changed, "workflow_skills do not match")
 
     print("skill routing self-tests: 8 groups passed")

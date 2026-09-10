@@ -27,7 +27,7 @@ fails validation. Follow every step.
    instead of deleting it, and keep the plan item count matching.
 5. Promote the consequence into `memory/` when it is a durable constraint.
    Keep implementation work in the assigned Iteration and return its exact
-   base/tip revisions; only `accept-and-advance` may update delivery-time
+   base/tip revisions; only `batch` may update delivery-time
    `agent/goal.json`.
 
 ## Verification

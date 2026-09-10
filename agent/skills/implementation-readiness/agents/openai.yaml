@@ -1,4 +1,0 @@
-interface:
-  display_name: "Implementation Readiness"
-  short_description: "Assess architecture and implementation readiness"
-  default_prompt: "Use $implementation-readiness to assess whether this repository is ready for implementation and identify the next concrete boundary."

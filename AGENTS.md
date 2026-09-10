@@ -3,9 +3,8 @@
 These rules apply to every agent changing this repository and are enforced by
 the repository gates.
 
-1. **Resolve the executing tool before repository work.** Follow `start-work`
-   Stage Zero and invoke
-   [`detect-agent-tool`](agent/skills/detect-agent-tool/SKILL.md) inside the
+1. **Enter the main workflow before repository work.** Follow main Bootstrap and invoke
+   [`main`](agent/skills/main/SKILL.md) inside the
    Git-aware Nix environment. Consume only the harness name already emitted in
    this conversation (`zcode`, `codex`, `claude`, or another tool-shaped name)
    after it normalizes to a subject. Do not search PATH, processes, `/proc`,
@@ -19,21 +18,23 @@ the repository gates.
    never executes repository tools.
 2. **Read the current goal.** Read [`agent/README.md`](agent/README.md), durable
    memory, [`agent/goal.json`](agent/goal.json), the target milestone/work item
-   and its Exit Gate, then the matching domain skill. Work only on the assigned
+   and its Exit Gate, then the matching domain skill. Product work uses the assigned
    `epoch-NNNN / batch-NNNN / iteration-NNNN` identity and lane. Agent identity and execution
    ownership are not repository records.
-3. **Deliver one committed Iteration.** Use a separate worktree based on an
-   exact revision supplied by the assignment. Do not edit `agent/goal.json`.
+3. **Deliver the bounded scope.** Main handles read-only work and maintenance;
+   maintenance leaves Goal unchanged and has no product Iteration identity.
+   Product Iterations use the exact application-supplied context and base.
+   Workers do not edit `agent/goal.json` or allocate execution contexts.
    Prefer bounded coding subagents for product source and test lookup, add,
    delete, and modify: the parent writes a self-contained briefing from loaded
    authority, then reviews returned diffs in conversation against that briefing
    and product boundaries before tests or commit. Do not start the next
    coding-subagent dispatch or Iteration cycle until that review accepts the
    dispatched briefing goal without drift. Coding subagents must not
-   edit `goal.json`, integrate, govern, push, or create execution contexts.
+   edit `goal.json`, integrate, govern, commit, push, or create execution contexts.
    Review is conversation output only; there is no review archive. Report the
    full Epoch/Batch/Iteration identity, base and tip revisions, tests,
-   blockers, and roast candidates. Uncommitted or ambient worktree state is
+   blockers, and knowledge candidates. Uncommitted or ambient worktree state is
    never an integration input. Linked worktrees share common Git state;
    temporary-repository tests must clear Git local environment variables before
    nested Git commands. Attribute an unexpected HEAD/index/config change to the
@@ -42,23 +43,26 @@ the repository gates.
 4. **Accept and advance qualified deliveries automatically.** After a worker
    emits an exact committed delivery with passing focused tests and no blockers,
    the controlling parent invokes
-   [`accept-and-advance`](agent/skills/accept-and-advance/SKILL.md) in the same
+   [`batch`](agent/skills/batch/SKILL.md) in the same
    turn without another user instruction. Its controller rejects empty or stale
-   candidates, composes explicit-only `integrate-batch` for merge and combined
-   verification, then alone advances Batch/lane/target and work-item state in
-   the acceptance commit. It pushes that exact commit and exposes the next
+   candidates, performs merge and fresh combined verification, then alone
+   advances accepted state. A slice keeps the lane/work item/target and assigns
+   the Batch maximum Iteration plus one. Whole-work-item acceptance requires
+   its full Exit Gate. Next work follows DAG dependencies and lane array order.
+   Batch completion does not complete a milestone or create an Epoch.
+   It pushes the exact acceptance commit and exposes the next
    dependency-ready lane; execution-context creation remains application-owned.
 5. **Govern Epochs directly.** Invoke
-   [`govern-epoch`](agent/skills/govern-epoch/SKILL.md) only when the user
+   [`epoch`](agent/skills/epoch/SKILL.md) only when the user
    explicitly requests destructive governance. Rewrite every affected current
    authority, remove obsolete semantics, and publish the next Epoch only after
    immediate full regression. There is no compatibility, historical record
    migration, or grandfather path. Work based before the active Epoch must be
    rebased and reverified before integration.
 6. **Promote knowledge, not process.** At automatic acceptance and Epoch
-   governance, invoke [`roast`](agent/skills/roast/SKILL.md). Material claims
+   governance, use main's [knowledge promotion](agent/skills/main/references/knowledge-promotion.md). Material claims
    update exactly one canonical source, test, plan, decision, constraint, or
-   experience owner. There is no roast archive, session ledger, checkpoint, or
+   experience owner. There is no knowledge archive, session ledger, checkpoint, or
    progress diary; Git preserves prior states.
 7. **Keep tool and privilege ownership narrow.** Nix pins, materializes, and
    exposes clear, reproducibly stable tool versions; it does not own builds,
@@ -72,7 +76,8 @@ the repository gates.
    proceed after exhausting both provisioning paths (decision-0036).
 8. **Verify and identify commits.** Run
    `nix develop . --command python3 tools/check-agent-state.py .` plus relevant
-   CTest/domain gates. Agent commits use the `start-work` commit helper. The
+   CTest/domain gates. Agent commits use main's shared commit helper, requiring
+   expected HEAD, exact staged tree, and an actual content-bound receipt. The
    helper accepts the conversation-emitted harness name, derives
    `SUBJECT <SUBJECT@localhost>`, and passes that name to the
    candidate-tree commit gate. Epoch exists only in `agent/goal.json`; it is not
@@ -81,34 +86,36 @@ the repository gates.
    self-tests are side-effect-free with respect to the invoking repository,
    including from linked worktrees.
 9. **Report actionable task stops.** Follow the sole diagnostic contract in
-   [`start-work`](agent/skills/start-work/SKILL.md#task-stop-diagnostics) whenever
+   [`main`](agent/skills/main/SKILL.md#task-stop-diagnostics) whenever
    a gate, required verification, or loaded Skill prohibition blocks the next
    phase. Preserve child diagnostics and raw product-tool output; do not replace
    them with a generic rejection, retry unchanged evidence, or turn an external
    responsibility into implicit scheduling, source-copy creation, privilege,
    cleanup, or repository state.
-10. **Push only through the governed transport.** An ordinary Iteration commit
-    is not authorization to push. After an Epoch activation commit or an
-    automatic acceptance commit that updated `goal.json` lane or Batch state is
-    on disk, the governing or accepting parent must invoke
-    [`push-repository`](agent/skills/push-repository/SKILL.md) with that
-    commit's full object ID. Other pushes still require an explicit user or
+10. **Publish exact deliveries through the governed transport.** Maintenance,
+    Epoch activation, and Batch acceptance automatically publish unless the user
+    limits publication. Worker candidates go to Batch without pushing.
+    After the guarded commit is on disk, the controlling parent invokes
+    [`main`](agent/skills/main/SKILL.md) with that
+    commit's full object ID. Standalone pushes require an explicit user or
     application request and one full commit object ID. The skill alone
     configures and validates the canonical GitHub remote, Nix Git/OpenSSH,
     external SSH-key path and public fingerprint, and fixed `refs/heads/main`
     destination. Never read or copy private-key bytes, infer a revision from a
     dirty tree or conversation, allocate another branch, broaden a refspec, or
     force a push. Only an explicit first push may initialize canonical main.
+    Verify remote revision equality or actual ancestry. Publication recovery
+    retains the same commit; remote advancement needs a new application base.
     Coding subagents never push.
 
 11. **Replan routes only on explicit request.** Invoke
-    [`replan-roadmap`](agent/skills/replan-roadmap/SKILL.md) only when the user
+    [`epoch`](agent/skills/epoch/SKILL.md) only when the user
     explicitly requests a primary-objective or route replan. Stage 1 is
     read-only and models milestones, work items, decisions, evidence
     prerequisites, and Iteration lanes as a dependency DAG. Stage 2 requires
-    confirmation of the unchanged proposal baseline and composes `roast` with
-    `govern-epoch`; the latter remains the sole destructive writer and Epoch
-    publisher. Never reopen a completed milestone or work item. Active and
+    confirmation of the unchanged proposal baseline; an already approved full
+    implementation plan supplies confirmation. Epoch remains the sole destructive
+    writer and publisher. Never reopen a completed milestone or work item. Active and
     Queued nodes may move in the new Epoch, and existing IDs remain when their
     delivery coordinates and observable outputs remain unchanged. A no-op does
     not advance the Epoch.
@@ -121,6 +128,16 @@ the repository gates.
     read-only. A relied-upon product claim must be promoted to one canonical
     source, test, contract, decision, constraint, or plan; a build or
     qualification input must instead be pinned by `toolchains/`.
+
+13. **Keep recovery state separate from product authority.** Goal schema v4 is
+    the sole product route and accepted progress authority. Git-ignored
+    `agent/tmp/main/` holds current operation state, receipts, and pending
+    transactions only; none may be tracked or used as authorization. Build and
+    product-test outputs remain under root `tmp/`. Use main's common Git lock,
+    exact before/after blobs and modes, and validated commit records for recovery.
+    Lost pre-commit state requires new review and evaluation. Existing matching
+    contexts continue automatically; otherwise emit an exact application
+    assignment request without manufacturing a context.
 
 Product boundaries live in `contracts/README.md` and
 `docs/architecture/repo-layout.md`; the language wall and dependency whitelist

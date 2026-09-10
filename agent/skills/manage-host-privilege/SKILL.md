@@ -31,7 +31,7 @@ inability to proceed after exhausting both provisioning paths.
 
 ## Ownership And Routing
 
-- `start-work` resolves the harness, enters Nix, and routes a privilege need
+- `iteration` resolves the harness, enters Nix, and routes a privilege need
   here. It does not define sudo commands, package operations, driver actions,
   credential handling, helper installation, or revocation.
 - `manage-toolchain` owns Nix declarations, locks, and the determination that a
@@ -112,7 +112,7 @@ ownership or mode is invalid, an action is unknown, argument arity is wrong, an
 artifact escapes the configured repository root, or a required kernel facility
 is absent. Do not widen the command set to bypass a failure.
 
-Render these failures through the `start-work` task-stop contract. Invalid
+Render these failures through the `main` task-stop contract. Invalid
 package names, actions, arity, and canonical in-repository artifact shape are
 `current-agent / fix-and-retry`. An artifact outside the configured repository
 is `host-privilege.artifact-outside-repository` with

@@ -45,7 +45,7 @@ external input consumed by a build or qualification gate.
 A reference prerequisite establishes implementation readiness, not product
 maturity or release evidence. `agent/goal.json` may require an entry before a
 lane begins, but lane acceptance still comes from Core source and owning
-tests. Notes remain non-normative until `roast` promotes a relied-upon claim to
+tests. Notes remain non-normative until knowledge promotion promotes a relied-upon claim to
 one canonical Core owner.
 
 A reference update changes the smallest manifest and matching gitlink in one

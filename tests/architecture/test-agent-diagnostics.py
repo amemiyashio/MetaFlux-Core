@@ -26,7 +26,7 @@ from agent_diagnostics import (
 def fixture() -> TaskStopDiagnostic:
     return task_stop_error(
         code="git-topology.local-clone",
-        source="start-work / Stage Zero",
+        source="main / Bootstrap",
         summary="The current checkout is a standalone local clone.",
         evidence=("remote origin -> /source",),
         responsibility="user-or-application",
@@ -34,7 +34,7 @@ def fixture() -> TaskStopDiagnostic:
         required_action=(
             "Preserve this checkout and supply an existing registered Git context."
         ),
-        resume_when="Stage Zero passes in the supplied registered context.",
+        resume_when="Bootstrap passes in the supplied registered context.",
     ).diagnostic
 
 

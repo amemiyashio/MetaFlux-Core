@@ -27,7 +27,7 @@ driver debugging, and later revocation. Repository agents use its Nix-provided
    configuration.
 
 The canonical client, helper, sudoers-template, and regression sources live in
-`agent/skills/manage-host-privilege/`. `start-work` only routes a privilege need
+`agent/skills/manage-host-privilege/`. `iteration` only routes a privilege need
 after Nix-first entry; `manage-toolchain` only establishes a Nix gap; the owning
 domain skill retains operation semantics and evidence.
 
@@ -114,5 +114,5 @@ plaintext-credential compatibility route.
   grants.
 - The current host verifies both root-owned helpers through non-interactive sudo
   without installing an unnecessary package or executing a driver mutation.
-- The Agent state checker, start-work identity regression, routing corpus, and
+- The Agent state checker, iteration identity regression, routing corpus, and
   repository pre-commit gate cover the synchronized workflow surfaces.

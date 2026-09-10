@@ -1,6 +1,0 @@
-interface:
-  display_name: "Govern MetaFlux Epoch"
-  short_description: "Perform one explicit destructive semantic Epoch cutover"
-  default_prompt: "Use $govern-epoch to apply this destructive governance change."
-policy:
-  allow_implicit_invocation: false

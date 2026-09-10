@@ -66,7 +66,7 @@ nix develop . --command python3 tools/check-agent-state.py . \
 The pre-commit hook materializes the exact Git index into a temporary tree and
 runs its candidate state checker, checker self-test, routing gates, detector and
 identity-helper tests, and `git diff --cached --check`. Agent commits are made
-through `agent/skills/start-work/scripts/commit_as_agent_tool.py`. Before any
+through `agent/skills/main/scripts/commit_as_agent_tool.py`. Before any
 candidate self-test can create a foreign temporary repository, the hook clears
 the invoking repository variables reported by `git rev-parse --local-env-vars`.
 The individual Git-fixture tests repeat that isolation defensively so a linked
@@ -78,7 +78,7 @@ cannot become fixture output.
 `check-skill-routing.py` validates the static English/Chinese routing corpus.
 Every routed skill has positive and near-miss coverage, cross-domain work has
 composition coverage, and explicit workflow cases name their exact skill. The
-`replan-roadmap` proposal guard separately proves target selection,
+`epoch` proposal guard separately proves target selection,
 confirmation, baseline invalidation, no-op Epoch retention, and DAG acyclicity
 without writing repository state.
 
@@ -86,7 +86,7 @@ without writing repository state.
 nix develop . --command python3 -B tools/check-skill-routing.py .
 nix develop . --command python3 -B tests/architecture/test-check-skill-routing.py
 nix develop . --command python3 -B \
-  agent/skills/replan-roadmap/scripts/test_check_route_proposal.py
+  agent/skills/epoch/scripts/test_check_route_proposal.py
 ```
 
 ## Component Dependency Graph

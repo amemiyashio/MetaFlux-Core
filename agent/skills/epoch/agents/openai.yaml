@@ -1,0 +1,6 @@
+interface:
+  display_name: "MetaFlux Epoch"
+  short_description: "Audit and apply an explicitly confirmed Epoch cutover"
+  default_prompt: "Use $epoch to audit and apply this explicitly requested MetaFlux governance change."
+policy:
+  allow_implicit_invocation: false

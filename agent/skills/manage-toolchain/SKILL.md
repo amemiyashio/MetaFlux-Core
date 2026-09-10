@@ -132,7 +132,7 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 
 ## Task Stops
 
-Use the `start-work` task-stop contract. Ambient host probing or `path:.` use is
+Use the `main` task-stop contract. Ambient host probing or `path:.` use is
 `toolchain.nix-boundary-violated` with `current-agent / fix-and-retry`: discard
 that observation and repeat the exact probe through the Git-aware Nix entry.
 Host package escalation without proved Nix provision/materialization failure is

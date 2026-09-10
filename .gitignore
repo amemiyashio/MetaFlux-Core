@@ -15,6 +15,9 @@ __pycache__/
 /tmp/**
 !/tmp/README.md
 
+# Current Agent controller state is disposable and never product authority.
+/agent/tmp/
+
 # Obsolete workspace scratch homes. They remain ignored so leftover host
 # trees cannot re-enter Git, but no workflow may write them.
 /.cache/

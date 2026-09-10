@@ -1,7 +1,9 @@
 # Workspace Scratch
 
-This directory is the only in-repository home for workspace scratch
-(decision-0042). Git tracks this README so the directory exists; every other
+This directory owns build and product-test scratch (decision-0042).
+Current Agent operation state, receipts, and pending transactions have the
+narrow ignored home `agent/tmp/main/` (decision-0054); they are not build outputs
+or product authority. Git tracks this README so the directory exists; every other
 path under `tmp/` is host state and stays gitignored.
 
 | Kind | Home |

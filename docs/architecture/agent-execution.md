@@ -1,203 +1,178 @@
 ---
 status: Verified
 decision: decision-0033
-updated: 2026-09-08
+updated: 2026-09-10
 ---
 
 # Goal-First Multi-Agent Execution
 
 ## Decision
 
-MetaFlux coordinates repository work through Epoch, Batch, and Iteration. The
-current tree stores only the active goal and canonical product knowledge. Agent
-identity, activity, conversation detail, handoffs, and historical progress are
-not repository authorities.
+MetaFlux uses Epoch, Batch, and Iteration to coordinate product work. Decision-0054
+consolidates the operational interface while retaining product delivery IDs and
+the application ownership of execution contexts. Goal records product intent
+and accepted progress; activity and identity never confer repository authority.
 
-This decision supersedes the session/focus authority of decision-0029, the
-semantic-change ledger of decision-0025, and the record-shaped roast contract
-of decision-0026. Earlier detailed records have no current-tree compatibility
-or lookup surface. Git history preserves their factual capture state.
+## Four Workflow Skills (decision-0054)
 
-## Rationale
+The four entries are `main`, `epoch`, `batch`, and `iteration`. Main bootstraps
+identity and Nix, interprets the current request, and controls preparation,
+implementation, review, evaluation, delivery, publication, and handoff. These
+stages have no numbers. Its scripts validate events and evidence; the parent
+Agent calls the appropriate skill. Scripts create no agent, branch, worktree,
+clone, task, or thread.
 
-The superseded model made repository bookkeeping an execution objective: stale
-owners blocked unrelated work, repeated ledgers duplicated canonical facts, and
-handoff mechanics could consume more effort than the product Exit Gate. The new
-model keeps durable state proportional to the product decision being made and
-leaves live scheduling to the application that already owns agents and threads.
+Epoch is one effective objective, route, and governance regime. Batch is a
+bounded set of dependent work in that Epoch. Iteration is one bounded, reviewed,
+verified delivery and may cover part of a work item. Milestones and work items
+remain product targets; lanes describe DAG work lines rather than another
+execution level.
 
-## Consequences
+The consolidation removes duplicate entrypoints and makes shared identity,
+readiness, knowledge promotion, commit, and publication capabilities main's
+internal operations. Eleven domain skills and four utility skills retain their
+existing product/tool ownership. Packages remain flat and the routing policy
+is owned once by `tools/check-agent-state.py`.
 
-- Workers cannot claim repository authority through activity metadata; a
-  committed Iteration and its tests are the candidate unit.
-- Parallel work is accepted by the automatically invoked
-  `accept-and-advance` controller against exact revisions, so a delivery cannot
-  silently replace main state or advance from an empty candidate.
-- Governance is intentionally destructive and atomic. A failed Epoch candidate
-  remains unpublished and is repaired in place.
-- Old execution detail has no current-tree lookup path. Valuable knowledge must
-  live in its product, test, plan, decision, constraint, or experience owner.
+Rationale: separate overlapping entrypoints allowed contradictory dispatch and
+progress rules. One controller makes the next required action explicit, while
+four operation owners preserve meaningful write boundaries. This governance
+changes workflow capability only and does not promote product maturity.
+
+Verification: four-entry discovery/routing; controller, proposal, acceptance,
+commit and publication behavioral tests; authority/temporary-state checks;
+component graph; complete dev build and CTest. Failure leaves the candidate
+Epoch unpublished.
 
 ## State Model
 
-`agent/goal.json` is the only execution-state document.
+Goal schema v4 in `agent/goal.json` is the sole active product-route and accepted
+progress authority. It contains Epoch, Batch, target, objective, reference
+prerequisites, and lanes; no process stage or history arrays. Lane states are
+`planned`, `integrated`, and `deferred`; Batch states are `open` and `integrated`.
 
-- An Epoch is a repository-wide semantic regime and advances only through an
-  explicitly requested destructive `govern-epoch` run.
-- A Batch is a bounded set of lanes accepted together. The controlling parent
-  automatically invokes `accept-and-advance` after a dependency-ready qualified
-  delivery; only that controller may change delivery-time Batch, lane, target,
-  or work-item state.
-- An Iteration is one committed candidate for a lane or one committed repair
-  candidate. It is identified by its full Epoch/Batch/Iteration triple and
-  exact base/tip revisions.
-- A reference prerequisite maps one catalog entry under `references/` to the
-  lanes that require it for implementation research. It is readiness state,
-  not progress, product capability, or release evidence (decision-0047).
-
-Lane state is `planned`, `integrated`, or `deferred`. Batch state is `open` or
-`integrated`. There is no persisted in-progress state: the application and
-conversation own live scheduling.
+Ignored `agent/tmp/main/` contains only the current worktree's operation state,
+verification receipts, delivery envelopes, and pending transaction. It supplies
+neither authorization nor product-completion evidence. Authority scanning skips
+this directory, and staged contents are rejected even when force-added.
+Build and product-test artifacts remain under root `tmp/`. Git preserves prior
+committed facts; no process archive or duplicate route database exists.
 
 ## Worker Contract
 
-A worker starts from an exact revision in a separate worktree, reads the active
-goal and domain authority, and changes only its assigned lane. Product source
-and test lookup, add, delete, and modify prefer a parent-written briefing, a
-bounded coding subagent, and parent review of returned diffs against that
-briefing and the product boundary. The parent does not start the next
-coding-subagent dispatch or Iteration cycle until that review accepts the
-dispatched briefing goal without drift. The parent owns verification commands,
-the commit helper, and never lets a coding subagent edit `goal.json`,
-integrate, govern, push, or create an execution context. Review stays in
-conversation; there is no review archive. Its delivery is:
+Main keeps inspection read-only, including status questions during active work.
+Maintenance uses its review/evaluation/commit/publication stages without a
+product tuple or Goal change. Product work enters iteration with an exact base
+and full `epoch-NNNN / batch-NNNN / iteration-NNNN` plus lane assignment from the
+application. The parent briefs bounded coding subagents and reviews returned
+diffs against the briefing and domain boundaries before further dispatch.
+Coding subagents do not change Goal, accept, govern, commit, publish, or allocate
+contexts. Parent semantic review remains necessary alongside machine checks.
 
-```text
-epoch: epoch-NNNN
-batch: batch-NNNN
-iteration: iteration-NNNN
-lane: lane-slug
-base_revision: full Git revision
-tip_revision: full Git revision
-tests: exact commands and results
-blockers: bounded unresolved conditions
-roast_candidates: material claims only
-```
-
-The delivery must resolve to committed Git objects. Dirty, staged, untracked,
-or inferred worktree state is not accepted.
+Delivery schema v2 names exact base/tip and the product tuple, `acceptance_kind`
+(`slice` or `work-item`), `slice_objective`, actual checks,
+`verification_receipt`, `exit_gate`, blockers, and `knowledge_candidates`.
+Reported passed strings without executed receipts are rejected.
 
 ## Automatic Acceptance And Advancement (decision-0052)
 
-After `start-work` produces one exact committed delivery, the controlling
-parent automatically invokes `accept-and-advance` in the same turn. No second
-user message is a state-transition prerequisite. The transient schema-v1 JSON
-names the Epoch, Batch, Iteration, lane, full base/tip objects, exact focused
-tests, blockers, and roast candidates. It stays under ignored `tmp/work/` and
-never becomes route or progress authority.
+Main immediately invokes batch after a qualified committed candidate. Batch
+checks existing validated acceptance history before current Iteration identity
+so a replay cannot advance twice. A current-HEAD candidate is accepted in place;
+a divergent candidate needs its exact prepared merge and fresh integration
+verification. A stale non-HEAD ancestor is not a new candidate.
 
-The controller's `check` action rejects malformed identity, dirty context,
-unaccepted dependencies, failed or absent focused tests, blockers, equal
-base/tip, an empty tree diff, pre-Epoch history, unrelated bases, and stale
-non-HEAD ancestors. A candidate at current `HEAD` is accepted in place. A
-divergent candidate proceeds only as the exact `MERGE_HEAD` of a prepared
-non-fast-forward merge. These executable checks close the orchestration gap
-left by decision-0051's policy-only automatic-integration rule.
+Candidate and integration receipts independently bind the baseline, tested
+content, toolchain inputs, reviewed check plan, actual results, and output
+digests. Changed inputs invalidate affected evidence. Optional skips are not
+passes for required Exit Gates. Knowledge promotion happens before final
+evaluation so its changes also receive review and verification.
 
-`integrate-batch` is now an explicit-only lower-level merge and combined-test
-workflow. It does not route itself, edit Goal state, select a lane, commit, or
-push. After fresh focused and combined gates pass, `accept-and-advance` invokes
-`roast` and its `advance` action. Goal schema v3 binds every lane directly to
-one work item. The action marks the lane and work item complete, activates the
-first dependency-ready planned lane in Iteration order, changes `target`, or
-closes the Batch when no planned lane remains. It runs the Agent-state gate and
-restores its own writes on failure; replay after the committed transition is a
-no-op.
+A slice retains its planned lane, Active work item, and target, and assigns that
+lane the Batch's maximum existing Iteration plus one. Exhaustion never wraps.
+Whole-work-item acceptance requires the current complete Exit Gate, completes
+the lane/work item, and selects the first array-ordered planned lane whose
+dependencies are integrated. Iteration numbers carry no priority. Batch closure
+does not complete a milestone or begin an Epoch.
 
-The controlling parent includes state advancement in the final acceptance
-commit and pushes exactly that object through `push-repository`. It immediately
-exposes the next lane identity. If the application already supplied the next
-worker context, it invokes `start-work` in the same turn; the controller itself
-does not create a task, thread, branch, worktree, clone, or worker. Any failure
-keeps the current lane planned and returns a bounded repair to that lane.
-
-## Task-Stop Contract
-
-A task-stopping gate or Skill prohibition reports bounded evidence, the
-authority responsible for the next action, and the exact condition for
-resuming. A child gate's structured cause remains visible through callers;
-required product verification keeps its original command output and receives
-one actionable wrapper per distinct root cause. External responsibility never
-authorizes an Agent to create another execution context, widen privilege, or
-retry unchanged evidence.
-
-[`start-work`](../../agent/skills/start-work/SKILL.md#task-stop-diagnostics) is
-the operational authority and `tools/agent_diagnostics.py` is its shared
-renderer. Diagnostics are command/conversation output only and never become
-Goal state, Agent identity, a numbered record, or an archive.
-
-## Route Replanning (decision-0045)
-
-`replan-roadmap` is an explicit-only, two-stage workflow. Stage 1 reads the
-current repository and proposes one evidence-backed dependency DAG without
-tracked writes. It reports the baseline revision and Epoch, primary objective
-and observable success, four-axis readiness, critical path, lane order, node
-dispositions, decision timing, affected owners, residual scans, and regression
-plan. With no supplied objective it offers at most three candidates and waits
-for selection.
-
-Stage 2 starts only after explicit confirmation of that exact proposal. It
-rechecks `HEAD`, worktree cleanliness, active Epoch, and proposal baseline; any
-change invalidates the proposal and returns to Stage 1. A semantic no-op does
-not advance the Epoch. A semantic route change composes `roast` and
-`govern-epoch`; the latter remains the sole destructive authority writer and
-Epoch publisher.
-
-The route is a DAG from user objective through milestones, work items, open
-decisions, active reference inputs, and evidence prerequisites to Iteration
-lanes. Completed milestones and work items remain closed. Active and Queued
-nodes may be reordered in a new Epoch. Existing IDs remain when delivery
-coordinates and observable outputs are unchanged. Planning does not close
-evidence-bound technical decisions, modify product source, dispatch workers, or
-create execution contexts.
-`agent/goal.json` remains the only active route state; proposals and prior
-routes are not stored as ledgers, databases, or compatibility views.
-
-decision-0045 adopts this protocol because objective changes otherwise mix
-read-only diagnosis with destructive governance and encourage duplicate route
-authority. Verification is the proposal-guard self-test, explicit bilingual
-routing, Agent-state DAG validation, residual scans, and the full governance
-regression.
-
-## Epoch Governance
-
-`govern-epoch` is explicit-only. It applies when duplicate authority, ambiguous
-terminology, incompatible rules, or process work displaces product progress.
-The governance run promotes valuable knowledge, rewrites every affected current
-authority, removes obsolete surfaces, and stages the next monotonic Epoch.
-
-The new Epoch is not published until the state checker, skill gates, architecture
-graph, relevant domain tests, and full regression pass. A failed candidate is
-fixed in the same governance work unit under the old published Epoch. After the
-activation commit is on disk, the governing parent pushes that full object ID
-through `push-repository`. After publication, older-base work must rerun
-`start-work`, rebase onto the new Epoch, and repeat verification before
-integration. Existing branches are not deleted.
-
-## Knowledge Promotion
-
-`roast` is an ephemeral disposition step. Light, medium, and dark describe the
-semantic transformation required to update one canonical owner; they are not
-durable record statuses. Source, tests, contracts, plans, decisions,
-constraints, and validated experience are valid owners. Duplicate, routine,
-local-only, and failed-route material is discarded. No roast archive is kept.
+Batch alone makes daily accepted-state changes. Its pending transaction retains
+exact before/after blob IDs and modes for each affected authority. Final
+evaluation covers the advanced tree before one acceptance commit.
 
 ## Commit Boundary
 
-Decision-0034 supersedes the fixed identity portion of this decision. The
-[`agent-tool detection boundary`](agent-tool-detection.md) derives Author and
-Committer from the harness name already emitted in the current conversation.
-The active Epoch is represented
-once in `agent/goal.json` and is not part of commit identity or command
-environment. The Epoch/Batch/Iteration topology and candidate-tree commit gate
-defined here remain authoritative.
+Main's shared helper requires expected HEAD, exact staged tree, operation kind,
+and a current verification receipt. Candidate-tree hooks load helpers from that
+same tree and remain side-effect-free in the invoking repository. Linked
+worktree fixtures clear Git local environment variables. Unexpected changes are
+attributed to exact reflog/hook/test evidence before another actor is blamed.
+
+Workflow commit trailers bind the operation, tree, verification digest, and
+publication policy. Acceptance additionally binds delivery identity, candidate,
+kind, integration receipt, and authority blob transition. Replays verify actual
+Git state rather than trusting a trailer label alone. Decision-0034 owns
+conversation-derived Author/Committer identity; Epoch is not a Git identity or
+environment declaration.
+
+## Publication And Recovery
+
+Maintenance, Batch acceptance, and Epoch activation automatically publish their
+exact guarded commit unless the user limits publication. A worker candidate goes
+to Batch. Main's governed transport validates canonical main, Nix Git/OpenSSH,
+the external public fingerprint, and a narrow exact refspec without force.
+
+Remote revision equality proves publication. A different remote revision must
+be ancestry-checked; if it contains the target, that delivery is published, but
+new work waits for an application-supplied current base. Divergence preserves
+the local commit and reports the required context. Publication failure resumes
+publication of the same commit instead of repeating acceptance.
+
+The common Git lock serializes transitions, and expected input checks detect
+concurrent changes. Pre-commit recovery restores only transaction-owned bytes
+and modes, preserving external edits. Lost pre-commit state requires renewed
+review and evaluation. Post-commit recovery validates Git records and restores
+only publication/handoff. Temporary flags never create authorization.
+
+Main continues next work when the application already supplied a matching
+context. Otherwise it emits the precise tuple, lane, full base, objective, and
+checks required for allocation; scripts do not allocate that context.
+
+## Task-Stop Contract
+
+[main](../../agent/skills/main/SKILL.md#task-stop-diagnostics) owns the diagnostic
+shape rendered by `tools/agent_diagnostics.py`. Preserve child causes and raw
+tool output. External responsibility does not authorize scheduling, privilege,
+cleanup, source copies, or unchanged retries. Diagnostics are current-operation
+output, not product authority or historical records.
+
+## Route Replanning (decision-0045)
+
+Epoch is explicit-only. Stage 1 is read-only and reports the exact revision and
+Epoch, objective and observable success, architecture/activation/maturity/release
+matrix, DAG/critical path/lane order, node dispositions, decision timing,
+affected owners, residual scans, and regression plan. Without a supplied focus,
+offer at most three candidates and wait for selection.
+
+Stage 2 requires confirmation of the unchanged proposal. A complete approved
+implementation plan supplies that confirmation. Recheck HEAD, worktree, and
+active Epoch; changed input invalidates the proposal. No-op leaves Epoch
+unchanged. Completed milestones/work items stay closed. Active/Queued nodes may
+move; unchanged delivery coordinates and outputs retain their IDs. Planning
+does not close evidence-bound technical decisions or implement product code.
+
+## Epoch Governance
+
+The governing parent rewrites affected current authority, removes obsolete
+semantics, promotes reusable facts, advances Epoch, and resets Batch/Iteration
+numbering while retaining completed product facts. No aliases, compatibility
+parsers, dual writes, or migration ledgers remain. The next Epoch is committed
+and published only after complete regression. Older-base product work needs a
+current application context and renewed verification before acceptance.
+
+## Knowledge Promotion
+
+Promote each measured reusable claim to one source, test, contract, plan,
+decision, constraint, glossary, or validated experience owner. Discard duplicate
+process material. Knowledge promotion is a normal shared step with no separate
+entrypoint, grading vocabulary, or archive. Standalone promotion stays within
+the user's requested scope.

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Detect Agent Tool"
-  short_description: "Report the conversation-emitted harness name"
-  default_prompt: "Use $detect-agent-tool to report the harness name already emitted in this conversation."

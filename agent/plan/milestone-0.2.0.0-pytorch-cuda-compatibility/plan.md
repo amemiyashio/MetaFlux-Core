@@ -133,7 +133,7 @@ Node disposition from epoch-0011 is:
 | Compiler-first headline and narrative | Rewrite | MLIR is internal mechanism, not the product objective. |
 | Provider-local tensor results as qualifying evidence | Delete | They do not prove daemon submission or backend completion. |
 
-Verification state: this decision is retained by the epoch-0015 route.
+Verification state: this decision is retained by the active route.
 decision-0047 adds only a research-readiness prerequisite before the first
 lane; it does not change the product objective, work-item IDs, or lane order.
 Technical decisions listed below remain open until their own closure evidence
@@ -272,26 +272,11 @@ work-item-0.2.0.2 before it joins the versioned CPU corpus.
 
 ### Automatic acceptance and advancement (decision-0052)
 
-The controlling parent automatically invokes `accept-and-advance` after a
-dependency-ready worker emits a non-empty committed base/tip range, passing
-focused-test evidence, and no blockers. A second user message is not a
-prerequisite. The controller rejects mismatched or stale history, composes
-explicit-only `integrate-batch` for merge and combined verification, invokes
-`roast`, advances Goal/work-item state, and pushes only the resulting acceptance
-commit.
-
-Goal schema v3 binds every lane directly to its work item. On acceptance the
-controller completes the current lane/work item, activates and targets the
-first dependency-ready planned lane in Iteration order, or closes the Batch.
-Current-HEAD candidates retain linear history; divergent candidates use a
-prepared non-fast-forward merge; older ancestors remain stale. State validation
-is transactional for controller-owned writes, and committed replay is a no-op.
-
-Evidence is the controller behavior test, bilingual routing corpus, schema-v3
-state checker, and the epoch-0015 full regression. Decision-0052 replaces the
-policy-only automatic trigger in decision-0051 without broadening the PyTorch
-compatibility claim; decision-0053 below subsequently closes the library
-boundary while Vulkan routing remains open.
+The [Agent execution authority](../../../docs/architecture/agent-execution.md#automatic-acceptance-and-advancement-decision-0052)
+owns automatic acceptance, refined by decision-0054 for partial delivery and
+evidence-bound recovery. Workflow governance does not broaden the PyTorch
+compatibility claim. Decision-0053 below closes the bounded library interface;
+Vulkan route qualification remains separate product work.
 
 ### Library-backed operator boundary (decision-0053)
 

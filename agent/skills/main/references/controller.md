@@ -1,0 +1,105 @@
+# Controller Interface
+
+Run each command through the Git-aware Nix shell. The executable is
+`agent/skills/main/scripts/main.py --root .`; its operations are `inspect`,
+`begin REQUEST.json`, `step EVENT --payload PAYLOAD.json`, and
+`resume [--revision FULL_COMMIT]`. JSON input lives under ignored
+`agent/tmp/main/`. Inspect reads without creating state. A read-only request
+never replaces an active operation. The Agent interprets natural language;
+the script validates the selected workflow, rather than guessing user intent.
+
+## Request
+
+Request schema 1 has `kind` (`read-only`, `maintenance`, `iteration`, `batch`,
+or `epoch`), `objective`, exact `base_revision`, repository-relative
+`allowed_paths`, `checks`, and `publication` (`auto` by default or `local` when
+the user limits publication). A trailing slash allows a subtree; other scope
+paths match exactly. Epoch requests additionally quote the already received
+`confirmation`. Product requests include `assignment` with exact `epoch`,
+`batch`, `iteration`, and `lane`. Temporary fields record the conversation;
+they never replace actual user authorization or application context.
+
+Checks are objects with unique `id`, non-empty `argv` arrays, and optionally
+`optional_skip_reason` for an environment-dependent exit 77. The parent selects
+checks before evaluation. Required checks must return zero. Receipt creation
+executes the commands and retains their raw output and digest.
+
+## Events
+
+| Event | Required stage | Effect |
+| --- | --- | --- |
+| `prepared` | preparation | Confirms bounded scope and enters implementation |
+| `review` | implementation/review/evaluation/delivery | Payload `summary` binds parent review and the check plan to current content; enters evaluation |
+| `evaluate` | evaluation | Executes checks; passing receipts enter delivery; failure returns to current implementation |
+| `deliver` | delivery | Payload `agent_tool` and `message`; requires exact staged reviewed content; guarded commit then publication or handoff |
+| `publish` | publication | Calls governed exact-commit transport; failure preserves this stage and commit |
+| `handoff` | handoff | Payload `assignment_request` records the current handoff text; completes this operation |
+| `repair` | any pre-commit working stage | Invalidates evidence and returns to bounded implementation |
+
+Every response contains only the stage, evidence, next operation, and delivery
+target. The parent provides its user-facing explanation and invokes the next
+skill. Handoff is not permission to create a task or source context: emit the
+exact Epoch/Batch/Iteration/lane, full base, objective, Exit Gate, and required
+checks, then reuse a matching context if the application supplied one.
+
+## Verification And Acceptance
+
+`workflow_state.review()` binds the semantic review to content and check plan.
+`evaluate()` executes a reviewed plan and produces schema-1 receipts under
+`agent/tmp/main/receipts/`. Candidate receipts use kind `iteration`, integration
+receipts use `integration`, and final acceptance receipts use `batch`.
+Maintenance and governance use `maintenance` and `epoch` respectively. Receipts
+bind actual content, toolchain input identity, HEAD, exact base, reviewed plan,
+executed commands, return codes, and log hashes. Staging unchanged content does
+not invalidate evidence; changing mode, content, HEAD, or toolchain does.
+
+An Iteration delivery has exactly these schema-v2 fields:
+
+```json
+{
+  "schema_version": 2,
+  "epoch": "epoch-NNNN",
+  "batch": "batch-NNNN",
+  "iteration": "iteration-NNNN",
+  "lane": "lane-slug",
+  "base_revision": "FULL_BASE",
+  "tip_revision": "FULL_TIP",
+  "acceptance_kind": "slice",
+  "slice_objective": "The observed bounded result",
+  "tests": [{"command": ["PROGRAM", "ARG"], "status": "passed"}],
+  "verification_receipt": {},
+  "exit_gate": null,
+  "blockers": [],
+  "knowledge_candidates": []
+}
+```
+
+Replace the empty receipt with the actual candidate receipt. Tests mirror its
+executed argv and status (`passed` or `optional-skip`). A `work-item` delivery
+sets `exit_gate` to `{ "digest": "SHA256_OF_EXIT_GATE_JSON_STRING", "checks":
+["CHECK_ID"] }`. Hash the exact trimmed body under the current `## Exit Gate`
+using `workflow_state.digest()`. The mapped checks must pass in both candidate
+and integration phases. The parent reviews their full semantic coverage.
+
+Batch first runs `batch.py check DELIVERY`. After an exact prepared merge or
+in-place candidate and knowledge promotion, generate a fresh `integration`
+receipt against the delivery's base and actual integration content. Pass it to
+`batch.py advance DELIVERY --receipt RECEIPT`. This writes only the recoverable
+Goal/work-item transition. Then main review/evaluate with kind `batch` covers
+the final acceptance tree before deliver. The acceptance trailer includes the
+transaction's exact before/after authority blobs and delivery identity.
+
+## Recovery
+
+Resume rechecks request identity and exact context. An unrelated HEAD change
+invalidates an unfinished proposal/assignment. A committed matching operation
+restores publication or handoff; `resume --revision` supports lost temporary
+state by validating the exact Git workflow record. Pre-commit cache loss
+requires a new scope review and actual checks. A pending acceptance rollback
+restores only its owned file and index changes; other edits remain intact.
+
+Temporary JSON is not an authorization store. If user scope changed, re-read it
+before any transition. The shared lock and expected HEAD/tree guard concurrent
+workflow actors. The helper accepts only `-m MESSAGE` or `-F FILE`, expected
+HEAD/tree, `--kind`, `--receipt`, and the conversation-emitted `--agent-tool`.
+It preserves candidate-hook diagnostics and verifies the committed tree.

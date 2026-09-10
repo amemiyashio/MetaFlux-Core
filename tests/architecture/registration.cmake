@@ -1,6 +1,12 @@
 # Included from tests/CMakeLists.txt; paths retain the tests/ directory scope.
 
 if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
+  add_test(
+    NAME metaflux.architecture.main-workflow-selftest
+    COMMAND "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/main/scripts/test_workflow_state.py"
+  )
+  set_tests_properties(metaflux.architecture.main-workflow-selftest PROPERTIES LABELS "architecture")
   if(NOT EXISTS "${CMAKE_BINARY_DIR}/metaflux-component-graph.json")
     message(FATAL_ERROR "MetaFlux component graph is missing from the build tree")
   endif()
@@ -59,7 +65,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     NAME metaflux.architecture.agent-tool-detection-selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/detect-agent-tool/scripts/test_detect_agent_tool.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/main/scripts/test_detect_agent_tool.py"
   )
   set_tests_properties(
     metaflux.architecture.agent-tool-detection-selftest
@@ -69,7 +75,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     NAME metaflux.architecture.agent-commit-identity-selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/start-work/scripts/test_commit_as_agent_tool.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/main/scripts/test_commit_as_agent_tool.py"
   )
   set_tests_properties(
     metaflux.architecture.agent-commit-identity-selftest
@@ -79,7 +85,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     NAME metaflux.architecture.repository-push-selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/push-repository/scripts/test_push_repository.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/main/scripts/test_push_repository.py"
   )
   set_tests_properties(
     metaflux.architecture.repository-push-selftest
@@ -107,23 +113,23 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     PROPERTIES LABELS "architecture"
   )
   add_test(
-    NAME metaflux.architecture.replan-roadmap-selftest
+    NAME metaflux.architecture.epoch-selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/replan-roadmap/scripts/test_check_route_proposal.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/epoch/scripts/test_check_route_proposal.py"
   )
   set_tests_properties(
-    metaflux.architecture.replan-roadmap-selftest
+    metaflux.architecture.epoch-selftest
     PROPERTIES LABELS "architecture"
   )
   add_test(
-    NAME metaflux.architecture.accept-and-advance-selftest
+    NAME metaflux.architecture.batch-selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/accept-and-advance/scripts/test_accept_and_advance.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/batch/scripts/test_batch.py"
   )
   set_tests_properties(
-    metaflux.architecture.accept-and-advance-selftest
+    metaflux.architecture.batch-selftest
     PROPERTIES LABELS "architecture"
   )
 endif()

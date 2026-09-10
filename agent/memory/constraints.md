@@ -59,7 +59,7 @@ identity and provisioning boundaries live in
   preferred form when a workflow needs one named tool output without the
   whole development shell. Ambient host execution is never preferred; it is
   only a recorded prerequisite after a proved Nix gap (decision-0036).
-  `detect-agent-tool` runs inside the Git-aware Nix
+  `main` runs inside the Git-aware Nix
   environment and derives its ephemeral subject only from the harness name
   already emitted in the current conversation. It does not scan PATH, walk
   processes, or probe an executable or `--version`.
@@ -87,31 +87,33 @@ identity and provisioning boundaries live in
   root. That skill is the sole owner for sudo/su, root-helper, persistent-grant,
   and revocation policy. Neither path permits arbitrary root commands or
   credential persistence.
-- Agent execution follows decision-0033 as amended by decisions 0037 and 0052.
+- Agent execution follows decision-0033 as amended by decisions 0037 and 0054.
   `agent/goal.json` stores only the active Epoch, Batch, product target,
   objective, research-only reference prerequisites, and
-  planned/integrated/deferred lanes. Goal schema v3 binds every lane to one work
-  item. Workers deliver committed Iteration base/tip revisions, focused tests,
-  blockers, and roast candidates; the controlling parent automatically invokes
-  `accept-and-advance`, which rejects empty or stale candidates, composes
-  explicit-only integration, and alone updates delivery-time goal/work-item
-  state in the successful acceptance commit. Product
+  planned/integrated/deferred lanes. Goal schema v4 binds every lane to one work
+  item. Main dispatches epoch, batch, or iteration. Workers deliver schema-v2
+  exact candidates and actual content-bound verification receipts. Batch alone
+  advances daily accepted state after fresh integration verification. Slice
+  acceptance preserves the lane/work item/target and allocates the Batch maximum
+  Iteration plus one; complete acceptance requires the full Exit Gate. Selection
+  uses dependencies and lane array order, never Iteration priority. Product
   source and test mutation prefers a parent briefing, a bounded coding
   subagent, and parent conversational review against drift. The parent does not
   start the next coding-subagent dispatch or Iteration cycle until that review
   accepts the dispatched briefing goal. Coding subagents never edit
-  `goal.json`, integrate, govern, or push. Conversation, actor,
+  `goal.json`, integrate, govern, commit, or push. Conversation, actor,
   branch, worktree, timeline, activity, and review notes are not repository
   authorities.
-- Breaking repository governance uses an explicitly requested `govern-epoch`
+- Breaking repository governance uses an explicitly requested `epoch`
   cutover. It directly rewrites all affected current authority, promotes useful
-  knowledge through `roast`, deletes obsolete surfaces, and publishes the next
+  knowledge through knowledge promotion, deletes obsolete surfaces, and publishes the next
   Epoch only after complete regression. There is no dual-write, alias, old-format
   parser, migration ledger, or compatibility route; Git history is the recovery
-  boundary. After the Epoch activation commit or an automatic acceptance commit
-  that updated `goal.json` is on disk, the governing or accepting parent pushes that
-  full object ID through `push-repository` (decision-0038). Ordinary Iteration
-  commits do not push.
+  boundary. Maintenance, Epoch activation, and Batch acceptance automatically
+  publish their exact guarded commit through main unless the user limits
+  publication (decisions 0038 and 0054). Worker candidates go to Batch without
+  pushing. Failed publication recovers the same commit; changed remote ancestry
+  requires the application's new exact execution context.
 - Research-only upstream sources live under `references/` as manifest-backed
   exact submodule gitlinks (decision-0047). Ordinary clone, build, test,
   package, and release workflows never recurse into them. A lane may require
@@ -188,14 +190,18 @@ identity and provisioning boundaries live in
   administrator AOT tier is separate and read-only (decision-0014). Those
   installed roots remain `/var/cache/metaflux/compiler` and
   `/var/lib/metaflux/aot`.
-- In-repository workspace scratch lives only under `tmp/` at the repository
+- Build and product-test scratch live under `tmp/` at the repository
   root (decision-0042): CMake/Ninja trees in `tmp/build/<preset>`,
   debug-kernel overlays in `tmp/build/debug-kernel`, measurement dumps and
   checker JSON in `tmp/outputs/<name>`, retained work directories in
   `tmp/work/<name>`. The invoking tool owns cleanup. Do not write
   `build/`, `.cache/`, `outputs/`, `../.metaflux-build`, or
   `../.metaflux-evidence`. Guest or container `/tmp` inside a qualification
-  image is that image's filesystem. Nix store GC remains host-operator
+  image is that image's filesystem. Decision-0054 adds the narrow Git-ignored
+  `agent/tmp/main/` home for current controller state, verification receipts,
+  and pending transactions; it is excluded from authority scans and forbidden
+  from tracking. It is neither authorization nor product-completion evidence.
+  Nix store GC remains host-operator
   ownership (decision-0022).
 - CPU execution uses effective physical cores and NUMA-local pools, does not
   oversubscribe, schedules indivisible CTAs, and keeps cross-node stealing off

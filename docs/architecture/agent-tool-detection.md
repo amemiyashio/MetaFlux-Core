@@ -9,13 +9,13 @@ updated: 2026-09-08
 ## Decision
 
 MetaFlux derives agent commit identity from the harness name already emitted in
-the current conversation. `detect-agent-tool` reports only the normalized
+the current conversation. `main` reports only the normalized
 subject, CLI interface, and `declared` source. The result is ephemeral and is
 never stored in repository goal state.
 
 This decision replaces the fixed agent product identity retained by
 decision-0033 and the later executable-probe form of the same decision. The
-execution topology is refined by decision-0052; the current Epoch is epoch-0015.
+execution topology is refined by decision-0054; the current Epoch is read from Goal.
 
 ## Rationale
 

@@ -26,7 +26,7 @@ stock PyTorch 2.11.0+cu126 normal torch.cuda path
 
 The first lane must correlate eager add with daemon submission and CPU-backend
 completion; provider-local tensor arithmetic is not acceptance evidence. The
-reference entry is an implementation-readiness prerequisite only and is not
+reference entry is an main prerequisite only and is not
 a product, build, qualification, or release input. The
 two target branches are independent after canonical Kernel IR, and Vulkan never
 routes through LLVM IR. MLIR remains inside compiler-worker and backend compiler

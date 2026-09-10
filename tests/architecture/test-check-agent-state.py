@@ -19,7 +19,7 @@ DETECTOR_SCRIPT = (
     SCRIPT.parents[1]
     / "agent"
     / "skills"
-    / "detect-agent-tool"
+    / "main"
     / "scripts"
     / "detect_agent_tool.py"
 )
@@ -83,7 +83,7 @@ def git(
 
 def goal() -> dict:
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "epoch": "epoch-0002",
         "batch": {"id": "batch-0001", "status": "open"},
         "target": {
@@ -147,7 +147,7 @@ Pass.
         "| ID | Topic | Canonical source | Source status |\n"
         "| --- | --- | --- | --- |\n"
         "| decision-0033 | Current execution | [goal](../goal.json) | Verified |\n"
-        "| decision-0034 | Agent-tool detection | [tool](../skills/detect-agent-tool/SKILL.md) | Verified |\n",
+        "| decision-0034 | Agent-tool detection | [tool](../skills/main/SKILL.md) | Verified |\n",
     )
     write(
         root / "agent/memory/open-decisions.md",
@@ -156,34 +156,34 @@ Pass.
     )
     write(root / "agent/experience/README.md", "# Experience\n")
     write(
-        root / "agent/skills/start-work/SKILL.md",
-        "---\nname: start-work\ndescription: Start current work.\n---\n\n# Start\n",
+        root / "agent/skills/iteration/SKILL.md",
+        "---\nname: iteration\ndescription: Start current work.\n---\n\n# Start\n",
     )
     write(
-        root / "agent/skills/start-work/agents/openai.yaml",
+        root / "agent/skills/iteration/agents/openai.yaml",
         "interface:\n"
         "  display_name: \"Start Work\"\n"
         "  short_description: \"Start one current repository work iteration\"\n"
-        "  default_prompt: \"Use $start-work to begin.\"\n",
+        "  default_prompt: \"Use $iteration to begin.\"\n",
     )
     write(
-        root / "agent/skills/detect-agent-tool/SKILL.md",
+        root / "agent/skills/main/SKILL.md",
         "---\n"
-        "name: detect-agent-tool\n"
+        "name: main\n"
         "description: Detect the current executable agent tool.\n"
         "---\n\n"
         "# Detect Agent Tool\n",
     )
     write(
-        root / "agent/skills/detect-agent-tool/agents/openai.yaml",
+        root / "agent/skills/main/agents/openai.yaml",
         "interface:\n"
         "  display_name: \"Detect Agent Tool\"\n"
         "  short_description: \"Detect the current executable agent tool\"\n"
-        "  default_prompt: \"Use $detect-agent-tool to report the tool.\"\n",
+        "  default_prompt: \"Use $main to report the tool.\"\n",
     )
     write(
         root
-        / "agent/skills/detect-agent-tool/scripts/detect_agent_tool.py",
+        / "agent/skills/main/scripts/detect_agent_tool.py",
         DETECTOR_SCRIPT.read_text(encoding="utf-8"),
     )
     write(
@@ -195,8 +195,8 @@ Pass.
         "## Index\n\n"
         "| Skill | Status | Use when |\n"
         "| --- | --- | --- |\n"
-        "| [start-work](start-work/SKILL.md) | Active | Starting |\n"
-        "| [detect-agent-tool](detect-agent-tool/SKILL.md) | Active | Detecting |\n",
+        "| [iteration](iteration/SKILL.md) | Active | Starting |\n"
+        "| [main](main/SKILL.md) | Active | Detecting |\n",
     )
     write(
         root / "agent/skills/trigger-evals.json",
@@ -206,7 +206,7 @@ Pass.
                 "workflow_skills": sorted(STATE.WORKFLOW_SKILL_SLUGS),
                 "cases": [
                     {
-                        "expected_skills": ["roast"],
+                        "expected_skills": ["main"],
                         "forbidden_skills": [],
                     }
                 ],
@@ -547,8 +547,35 @@ def main() -> int:
         test_integration_ancestry(Path(temp) / "integration")
         test_json_cli(Path(temp) / "json")
         test_foreign_git_environment_isolation(Path(temp) / "isolation")
-    print("agent state self-tests: 13 groups passed")
+        test_temporary_state(Path(temp) / "temporary")
+    print("agent state self-tests: 14 groups passed")
     return 0
+
+
+def test_temporary_state(root: Path) -> None:
+    create_fixture(root)
+    write(root / ".gitignore", "/agent/tmp/\n")
+    cache = root / "agent/tmp/main/current.md"
+    write(cache, "[broken](missing.md)\n" + "METAFLUX_" + "SESSION_ID\n")
+    assert not errors(root)
+    checker = STATE.Checker(root)
+    checker.validate_temporary_state(exported=True)
+    assert has_fragment(checker.errors, "must never be tracked")
+    git(root, "init", "-q")
+    git(root, "add", "-f", "agent/tmp/main/current.md")
+    checker = STATE.Checker(root)
+    checker.validate_temporary_state(exported=False)
+    assert has_fragment(checker.errors, "must never be tracked")
+    # A tracked symlink with exactly this name is rejected too.
+    git(root, "rm", "--cached", "-f", "agent/tmp/main/current.md")
+    cache.unlink()
+    cache.parent.rmdir()
+    (root / "agent/tmp").rmdir()
+    (root / "agent/tmp").symlink_to("../elsewhere")
+    git(root, "add", "-f", "agent/tmp")
+    checker = STATE.Checker(root)
+    checker.validate_temporary_state(exported=False)
+    assert has_fragment(checker.errors, "must never be tracked")
 
 
 if __name__ == "__main__":

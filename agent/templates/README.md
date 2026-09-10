@@ -10,4 +10,4 @@ per-run template or archive.
 | [work-item.md](work-item.md) | `agent/plan/milestone-.../work/work-item-MAJOR.MINOR.PATCH.WORK-slug.md` |
 | [experience.md](experience.md) | `agent/experience/experience-NNNN-slug.md` |
 
-Breaking changes to these shapes require explicit `govern-epoch` execution.
+Breaking changes to these shapes require explicit `epoch` execution.

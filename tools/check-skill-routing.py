@@ -24,7 +24,6 @@ CASE_ID_RE = re.compile(r"[A-Z0-9]+(?:-[A-Z0-9]+)*")
 SKILL_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 KINDS = {"single", "near-miss", "composition"}
 LOCALES = {"en", "zh-CN"}
-EXPLICIT_ONLY = {"govern-epoch", "integrate-batch", "replan-roadmap", "roast"}
 MINIMUM_POSITIVE = {"en": 2, "zh-CN": 1}
 MINIMUM_NEAR_MISS = {"en": 1, "zh-CN": 1}
 MINIMUM_COMPOSITIONS = 12
@@ -74,20 +73,21 @@ def read_json(path: Path) -> tuple[Any | None, DiagnosticList]:
         return None, errors
 
 
-def policy_rosters(root: Path) -> tuple[set[str], set[str], DiagnosticList]:
+def policy_rosters(root: Path) -> tuple[set[str], set[str], set[str], DiagnosticList]:
     path = root / "tools" / "check-agent-state.py"
     errors = DiagnosticList()
     try:
         namespace = runpy.run_path(str(path))
     except (OSError, RuntimeError, SyntaxError) as error:
         errors.append(f"{path}: cannot load routing policy: {error}")
-        return set(), set(), errors
+        return set(), set(), set(), errors
     domains = namespace.get("DOMAIN_SKILL_SLUGS")
     workflows = namespace.get("WORKFLOW_SKILL_SLUGS")
-    if not isinstance(domains, set) or not isinstance(workflows, set):
+    explicit = namespace.get("EXPLICIT_ONLY_SKILLS")
+    if not all(isinstance(value, set) for value in (domains, workflows, explicit)):
         errors.append(f"{path}: routed-skill rosters must be sets")
-        return set(), set(), errors
-    return set(domains), set(workflows), errors
+        return set(), set(), set(), errors
+    return set(domains), set(workflows), set(explicit), errors
 
 
 def string_list(value: Any, where: str, errors: DiagnosticList) -> list[str]:
@@ -101,7 +101,7 @@ def string_list(value: Any, where: str, errors: DiagnosticList) -> list[str]:
 
 def validate_corpus(root: Path, corpus: Any) -> DiagnosticList:
     errors = DiagnosticList()
-    domains, workflows, policy_errors = policy_rosters(root)
+    domains, workflows, explicit_only, policy_errors = policy_rosters(root)
     errors.extend(policy_errors)
     if not isinstance(corpus, dict):
         errors.append("routing corpus must be an object")
@@ -185,7 +185,7 @@ def validate_corpus(root: Path, corpus: Any) -> DiagnosticList:
 
         for skill in expected:
             positives[(skill, str(locale))] += 1
-            if skill in EXPLICIT_ONLY and f"${skill}" not in prompt:
+            if skill in explicit_only and f"${skill}" not in prompt:
                 errors.append(f"{where} must explicitly invoke ${skill}")
             if kind == "composition" and skill in workflows:
                 workflow_compositions[(skill, str(locale))] += 1

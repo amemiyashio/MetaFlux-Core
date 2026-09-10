@@ -70,26 +70,17 @@ DOMAIN_SKILL_SLUGS = {
     "vulkan-spirv-compute",
 }
 WORKFLOW_SKILL_SLUGS = {
-    "accept-and-advance",
-    "detect-agent-tool",
-    "implementation-readiness",
-    "integrate-batch",
-    "govern-epoch",
-    "push-repository",
-    "replan-roadmap",
-    "roast",
+    "main", "epoch", "batch", "iteration",
 }
-EXPLICIT_ONLY_SKILLS = {
-    "govern-epoch",
-    "integrate-batch",
-    "replan-roadmap",
-    "roast",
-}
+EXPLICIT_ONLY_SKILLS = {"epoch"}
 OBSOLETE_SKILLS = {
     "record-" + "session",
     "session-" + "guidance",
     "converge-project-" + "changes",
     "govern-semantic-" + "change",
+    "start-" + "work", "detect-agent-" + "tool", "implementation-" + "readiness",
+    "accept-and-" + "advance", "integrate-" + "batch", "govern-" + "epoch",
+    "replan-" + "roadmap", "push-" + "repository", "ro" + "ast",
 }
 
 FORBIDDEN_PATHS = (
@@ -100,12 +91,12 @@ FORBIDDEN_PATHS = (
     Path("tools") / ("check-semantic-" + "change-edits.py"),
     Path("agent")
     / "skills"
-    / "start-work"
+    / "iteration"
     / "scripts"
     / ("commit_as_" + "harness.py"),
     Path("agent")
     / "skills"
-    / "start-work"
+    / "iteration"
     / "scripts"
     / ("test_commit_as_" + "harness.py"),
 )
@@ -249,6 +240,28 @@ class Checker:
         except ValueError:
             return False
         return relative == REFERENCE_SOURCE_ROOT or REFERENCE_SOURCE_ROOT in relative.parents
+
+    def is_agent_temporary(self, path: Path) -> bool:
+        relative = path.relative_to(self.root)
+        return relative.parts[:2] == ("agent", "tmp")
+
+    def validate_temporary_state(self, *, exported: bool) -> None:
+        path = self.root / "agent/tmp"
+        if exported:
+            if path.exists() or path.is_symlink():
+                self.error(path, "agent/tmp must never be tracked in a candidate tree")
+            return
+        if not (self.root / ".git").exists():
+            return
+        environment = dict(os.environ)
+        local = subprocess.run(["git", "rev-parse", "--local-env-vars"], cwd=self.root,
+                               capture_output=True, text=True, check=True)
+        for name in local.stdout.splitlines():
+            environment.pop(name, None)
+        result = subprocess.run(["git", "ls-files", "--", "agent/tmp"], cwd=self.root, env=environment,
+                                capture_output=True, text=True, check=True)
+        if result.stdout.strip():
+            self.error(path, "agent/tmp must never be tracked", extra_evidence=tuple(result.stdout.splitlines()))
 
     @contextmanager
     def diagnostic_policy(
@@ -518,8 +531,8 @@ class Checker:
         }
         if set(goal) != expected:
             self.error(path, f"goal keys must be exactly {sorted(expected)}")
-        if goal.get("schema_version") != 3:
-            self.error(path, "schema_version must be 3")
+        if goal.get("schema_version") != 4:
+            self.error(path, "schema_version must be 4")
         epoch = goal.get("epoch")
         if not isinstance(epoch, str) or EPOCH_ID_RE.fullmatch(epoch) is None:
             self.error(
@@ -629,6 +642,8 @@ class Checker:
                 graph[lane_id] = []
             else:
                 graph[lane_id] = dependencies
+                if len(dependencies) != len(set(dependencies)):
+                    self.error(path, f"{where}.depends_on contains duplicates")
             acceptance = lane.get("acceptance")
             if not isinstance(acceptance, list) or not acceptance or any(
                 not isinstance(item, str) or not item.strip() for item in acceptance
@@ -639,6 +654,10 @@ class Checker:
             for dependency in dependencies:
                 if dependency not in lane_ids:
                     self.error(path, f"lane {lane_id} has unresolved dependency {dependency}")
+        statuses = {lane["id"]: lane["status"] for lane in valid_lanes}
+        for lane in valid_lanes:
+            if lane["status"] == "integrated" and any(statuses.get(d) != "integrated" for d in graph[lane["id"]]):
+                self.error(path, "integrated lane requires integrated dependencies")
 
         references = goal.get("references")
         if not isinstance(references, list):
@@ -713,6 +732,8 @@ class Checker:
             if any(isinstance(lane, dict) and lane.get("status") == "planned" for lane in lanes):
                 self.error(path, "integrated Batch cannot contain planned lanes")
         if isinstance(batch, dict) and batch.get("status") == "open":
+            if not any(lane.get("status") == "planned" for lane in valid_lanes):
+                self.error(path, "open Batch must contain planned lanes")
             statuses = {
                 lane.get("id"): lane.get("status")
                 for lane in valid_lanes
@@ -728,7 +749,7 @@ class Checker:
                 )
             ]
             if ready:
-                selected = min(ready, key=lambda lane: str(lane.get("iteration", "")))
+                selected = ready[0]
                 if selected.get("work_item") != target_work:
                     self.error(
                         path,
@@ -760,7 +781,7 @@ class Checker:
             responsibility="current-agent",
             disposition="fix-and-retry",
             required_action=(
-                "Use the start-work commit helper with the conversation-emitted "
+                "Use main's shared commit helper with the conversation-emitted "
                 "harness name; do not override Author, Committer, or the candidate gate."
             ),
             resume_when="The same candidate commit environment passes this gate.",
@@ -776,7 +797,7 @@ class Checker:
             self.root
             / "agent"
             / "skills"
-            / "detect-agent-tool"
+            / "main"
             / "scripts"
             / "detect_agent_tool.py"
         )
@@ -1001,7 +1022,7 @@ class Checker:
             if not isinstance(description, str) or not description.strip():
                 self.error(skill_path, "skill description must be non-empty")
             yaml_path = root / slug / "agents" / "openai.yaml"
-            if slug in DOMAIN_SKILL_SLUGS | WORKFLOW_SKILL_SLUGS | {"start-work"} and not yaml_path.is_file():
+            if slug in DOMAIN_SKILL_SLUGS | WORKFLOW_SKILL_SLUGS and not yaml_path.is_file():
                 self.error(yaml_path, "routed skill requires agents/openai.yaml")
             if yaml_path.is_file():
                 yaml_text = self.read_text(yaml_path)
@@ -1101,6 +1122,7 @@ class Checker:
             if ".git" not in path.parts
             and not any(part.startswith("build") for part in path.parts)
             and not self.is_reference_source(path)
+            and not self.is_agent_temporary(path)
         ]
 
     def text_files(self) -> list[Path]:
@@ -1112,6 +1134,7 @@ class Checker:
                 or ".git" in path.parts
                 or any(part.startswith("build") for part in path.parts)
                 or self.is_reference_source(path)
+                or self.is_agent_temporary(path)
             ):
                 continue
             if path.suffix.lower() in allowed or path.name in {"AGENTS.md", "CMakeLists.txt", "CLAUDE.md"}:
@@ -1144,6 +1167,7 @@ class Checker:
                 ".git" in path.parts
                 or any(part.startswith("build") for part in path.parts)
                 or self.is_reference_source(path)
+                or self.is_agent_temporary(path)
             ):
                 continue
             relative = path.relative_to(self.root)
@@ -1172,6 +1196,7 @@ class Checker:
         diagnostic_format: str = "human",
     ) -> bool:
         self.validate_forbidden_paths()
+        self.validate_temporary_state(exported=commit_gate and not (self.root / ".git").exists())
         self.validate_plans()
         self.validate_open_decisions()
         self.validate_goal()
