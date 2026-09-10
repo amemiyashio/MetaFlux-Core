@@ -14,7 +14,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_DIR = ROOT / "packaging/dkms/metaflux-vpci"
-KERNEL_MAIN = ROOT / "kernel/pci/metaflux_pci_main.c"
+KERNEL_MAIN = ROOT / "linux-kernel-drivers/pci/metaflux_pci_main.c"
 GENERATOR = ROOT / "tools/generate-pci-guest-profile.py"
 VERSION_FILE = ROOT / "VERSION"
 

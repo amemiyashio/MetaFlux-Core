@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Kbuild Makefile for KUnit tests in kernel/tests/kunit/
+# Kbuild Makefile for KUnit tests in linux-kernel-drivers/tests/kunit/
 #
 # Usage:
-#   make -C /lib/modules/$(uname -r)/build M=$PWD/kernel/tests/kunit
+#   make -C /lib/modules/$(uname -r)/build M=$PWD/linux-kernel-drivers/tests/kunit
 #
 # Note: This target only builds when CONFIG_KUNIT=y is set in the
 # running kernel configuration. On hosts without KUnit support,
@@ -16,7 +16,7 @@
 obj-m += mf_cdev_generation_kunit.o
 mf_cdev_generation_kunit-y := mf_cdev_generation_test.o
 
-# Include path to kernel/core so the test can include mf_cdev_generation.h
+# Include path to linux-kernel-drivers/core so the test can include mf_cdev_generation.h
 ccflags-y += -I$(src)/../../core
 
 all:

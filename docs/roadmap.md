@@ -38,7 +38,7 @@ an existing owner.
 
 ## Kernel Compatibility Shims
 
-`kernel/compat/` is a future source home, created when a supported target kernel
+`linux-kernel-drivers/compat/` is a future source home, created when a supported target kernel
 requires a real API shim. Until then, keep the requirement in the owning
 [static guest work item](../agent/plan/milestone-0.1.1.0-kernel-guest-transport/work/work-item-0.1.1.3-static-vfio-user.md#dma-lifetime)
 without a placeholder directory or a claim of implemented shim coverage.

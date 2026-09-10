@@ -5,7 +5,7 @@ broker. Setup, registration, teardown, and blocking waits are cold operations;
 active queues use shared descriptors and timelines directly.
 
 The userspace halves are split per the transport halves convention (decision-0010). The
-kernel counterpart under `kernel/core/` maps one submission and one completion
+kernel counterpart under `linux-kernel-drivers/core/` maps one submission and one completion
 ring back-to-back from the generated UAPI queue record. It advertises queue mmap,
 eventfd association, registered-memory, and the worker-broker bits.
 `MEMORY_ALLOC` provisions one

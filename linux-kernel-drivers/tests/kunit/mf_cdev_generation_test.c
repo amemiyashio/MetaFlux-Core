@@ -3,7 +3,7 @@
 // mf_cdev_generation_test.c — KUnit tests for mf_cdev_generation.h helpers.
 //
 // These tests exercise the generation-match, lease-exclusivity, and
-// tombstone invariants extracted from kernel/core/metaflux_core_main.c.
+// tombstone invariants extracted from linux-kernel-drivers/core/metaflux_core_main.c.
 // They require linux/kunit.h and thus only compile when CONFIG_KUNIT=y.
 // On hosts without KUnit the CTest gate metaflux.kernel.kunit-generation
 // exits 77 (skipped) via probe-debug-kernel.py --require-config CONFIG_KUNIT.

@@ -4,6 +4,11 @@ The compiler owns MetaFlux Kernel IR and Graph IR, common optimization passes,
 cache-key construction, diagnostics, and backend-independent compilation
 orchestration.
 
+Kernel IR describes compute kernels: their parameters, per-thread operations,
+memory accesses, and synchronization. It is processed by userspace compilers and
+execution backends. Linux operating-system drivers live separately under
+[`linux-kernel-drivers/`](../linux-kernel-drivers/README.md).
+
 LLVM/MLIR lives in compiler services or workers, never in an application-side
 provider. Ecosystem inputs such as PTX belong to their compatibility-layer
 plugin, while target lowering belongs to the corresponding execution backend.

@@ -9,8 +9,8 @@
  *
  * To build manually:
  *   gcc -std=c17 -Wall -Wextra -o mf_cdev_generation_userspace_test \
- *       -Ikernel/core \
- *       kernel/tests/kunit/mf_cdev_generation_userspace_test.c
+ *       -Ilinux-kernel-drivers/core \
+ *       linux-kernel-drivers/tests/kunit/mf_cdev_generation_userspace_test.c
  */
 
 #include <stdio.h>

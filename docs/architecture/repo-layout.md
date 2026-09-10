@@ -13,7 +13,7 @@ document pays down. Do not flatten the axes into one.
 - **By function**: what the code is. `contracts/`, `runtime/`, `compiler/`,
   `transports/` are functional layers with one directory per boundary.
 - **By deployment image**: what process or package the code ships in.
-  `services/` (daemon and workers), `kernel/` (out-of-CMake Kbuild modules),
+  `services/` (daemon and workers), `linux-kernel-drivers/` (Linux Kbuild modules),
   and the halves of each transport (`client/` into the application closure,
   `worker/` into the daemon) follow the load image, not the function.
 - **By artifact**: `tests/` (cross-component qualification), `cmake/` `nix/`
@@ -51,12 +51,12 @@ qualification remain under `tests/`; Nix only provides their fixed tools.
 | Wire protocol, shared-memory layout, kernel UAPI, plugin ABI | `contracts/<zone>/...` |
 | Application-side fast path | `runtime/client/` (C17 enforced) |
 | Neutral registry/runtime mechanisms | `runtime/core/` |
-| Neutral IR, passes, cache keys | `compiler/` |
+| Neutral compute-kernel IR, passes, cache keys | `compiler/` |
 | Ecosystem ABI presentation (CUDA, NVML, PTX input) | `plugins/compat/<ecosystem>/...` |
 | Execution target | `plugins/backend/<target>/...` |
 | Transport implementation | `transports/<name>/client/` and `transports/<name>/worker/` |
 | Long-lived process | `services/<name>/` |
-| Kernel module | `kernel/<name>/` (Kbuild, not CMake) |
+| Linux kernel driver | `linux-kernel-drivers/<name>/` (Kbuild; companion userspace models/tests may use CMake) |
 | Component-owned unit tests | `<component>/tests/` |
 | Cross-component qualification | `tests/` |
 | Performance and device probe executables | `tests/performance/` (one source per probe; SPIR-V and device fixtures stay component-owned under the backend's `tests/fixtures/`) |

@@ -98,7 +98,7 @@ if(
 endif()
 
 if(METAFLUX_BUILD_VROOT_MODEL)
-  add_subdirectory(kernel)
+  add_subdirectory(linux-kernel-drivers)
 endif()
 
 if(METAFLUX_BUILD_DAEMON)

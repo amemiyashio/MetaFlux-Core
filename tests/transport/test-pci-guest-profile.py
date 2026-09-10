@@ -14,7 +14,7 @@ SCRIPT = ROOT / "tools/generate-pci-guest-profile.py"
 
 # Consumers that previously hardcoded CI Type-0 identity / BAR sizes.
 HANDWRITTEN_TARGETS = (
-    ROOT / "kernel/pci/metaflux_pci_main.c",
+    ROOT / "linux-kernel-drivers/pci/metaflux_pci_main.c",
     ROOT / "transports/vfio-user/live/src/metaflux_vfu_live_server.c",
 )
 

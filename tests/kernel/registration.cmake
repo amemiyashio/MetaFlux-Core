@@ -4,7 +4,7 @@ if(TARGET metaflux_transport_cdev_client)
   find_package(ZLIB REQUIRED)
   add_executable(
     metaflux_transport_cdev_live_qualification
-    ../kernel/tests/kselftest/cdev_qualification.c
+    ../linux-kernel-drivers/tests/kselftest/cdev_qualification.c
   )
   target_link_libraries(
     metaflux_transport_cdev_live_qualification
@@ -85,11 +85,11 @@ set_tests_properties(
 # does NOT require a debug kernel and CAN pass on any host.
 add_executable(
   metaflux_cdev_generation_helper_test
-  "${CMAKE_CURRENT_SOURCE_DIR}/../kernel/tests/kunit/mf_cdev_generation_userspace_test.c"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../linux-kernel-drivers/tests/kunit/mf_cdev_generation_userspace_test.c"
 )
 target_include_directories(
   metaflux_cdev_generation_helper_test
-  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../kernel/core"
+  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../linux-kernel-drivers/core"
 )
 metaflux_configure_target(metaflux_cdev_generation_helper_test C)
 add_test(
@@ -142,7 +142,7 @@ set_tests_properties(
 # Debug-kernel supply-path self-test: exercises the runner's .config reader,
 # guest-console parsers, initramfs packer, and vermagic helpers plus the
 # missing-bzImage skip path. It never boots a guest; the real guest run stays
-# a manual batch gate (see kernel/tests/README.md "Batch-0002 debug kernel
+# a manual batch gate (see linux-kernel-drivers/tests/README.md "Batch-0002 debug kernel
 # supply path").
 add_test(
   NAME metaflux.kernel.debug-kernel-selftest

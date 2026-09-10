@@ -7,8 +7,8 @@ tombstones, and failure cleanup.
 ## Current Suite: mf_cdev_generation
 
 The `mf_cdev_generation` KUnit suite (see
-`kernel/tests/kunit/mf_cdev_generation_test.c`) exercises the
-generation/stale-handle helpers extracted from `kernel/core/metaflux_core_main.c`:
+`linux-kernel-drivers/tests/kunit/mf_cdev_generation_test.c`) exercises the
+generation/stale-handle helpers extracted from `linux-kernel-drivers/core/metaflux_core_main.c`:
 
 - **Stale generation rejected** — a request carrying a mismatched generation
   is rejected.

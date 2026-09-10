@@ -36,5 +36,6 @@ Do not revive `build/`, `.cache/`, `outputs/`, `.metaflux-build`,
 scratch homes. The root [`.gitignore`](../.gitignore) ignores `tmp/**`
 except this README, and keeps those obsolete names ignored so leftover
 host trees cannot re-enter Git. Kernel Kbuild outputs stay ignored by
-[`kernel/.gitignore`](../kernel/.gitignore); `kernel/core/` is source,
+[`linux-kernel-drivers/.gitignore`](../linux-kernel-drivers/.gitignore);
+`linux-kernel-drivers/core/` is source,
 not scratch.

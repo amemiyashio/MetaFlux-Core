@@ -36,8 +36,10 @@ detection. Vulkan configuration uses `nix develop .#vulkan --command cmake
 [`tools/build-generic-release.sh`](tools/build-generic-release.sh), which selects
 the target SDK and the `generic-release` preset.
 
-The Linux kernel modules introduced by milestone-0.1.1.0 / `v0.1.1` are built separately by
-the target kernel's Kbuild environment.
+The [Linux kernel drivers](linux-kernel-drivers/README.md) introduced by
+milestone-0.1.1.0 / `v0.1.1` are built separately by the target kernel's Kbuild
+environment. Compute-kernel intermediate representation (Kernel IR) belongs to
+the [userspace compiler](compiler/README.md).
 
 MetaFlux project Agent context starts at [`agent/README.md`](agent/README.md):
 project memory, milestone plans, and validated experience. Architecture records

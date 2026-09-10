@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-08-28
+updated: 2026-09-10
 ---
 
 # Glossary
@@ -10,6 +10,8 @@ updated: 2026-08-28
 | Compatibility provider | Application-facing implementation of an existing ecosystem ABI or management API | [plugins](../../plugins/README.md) |
 | Execution backend | Compiler/runtime implementation for a concrete compute target behind `mf_backend_api_v1` | [backend contract](../../contracts/plugin/backend/v1/README.md) |
 | Client fast path | Small C17 application-side code used by providers for negotiated mappings and steady-state operations | [runtime](../../runtime/README.md) |
+| Kernel IR (compute-kernel intermediate representation) | A compute program's parameters, operations, memory accesses, and synchronization, processed by userspace compilers and execution backends | [compiler](../../compiler/README.md) |
+| Linux kernel drivers | Operating-system-side device, mapping, queue, and PCI support, with companion models and tests | [Linux drivers](../../linux-kernel-drivers/README.md) |
 | Client protocol | Ecosystem-neutral provider/runtime negotiation version and encoded control records | [client protocol](../../contracts/protocol/client/v1/README.md) |
 | Backend plugin ABI | Versioned in-process C function table used by daemon/workers to call a backend | [backend contract](../../contracts/plugin/backend/v1/README.md) |
 | Logical device | Stable MetaFlux-visible compute identity presented consistently through enabled interfaces | [work-item-0.1.0.2](../plan/milestone-0.1.0.0-core-foundation/work/work-item-0.1.0.2-contracts-runtime.md) |

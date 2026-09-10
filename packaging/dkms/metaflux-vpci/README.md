@@ -21,7 +21,7 @@ nix develop . --command python3 packaging/dkms/stage-vpci-dkms.py \
 
 The stager composes the guest profile from the frozen transport base and vroot
 identity lock, freezes `generated_guest_profile.h`, copies
-`kernel/pci/metaflux_pci_main.c`, and writes `package-metadata.json`. Target
+`linux-kernel-drivers/pci/metaflux_pci_main.c`, and writes `package-metadata.json`. Target
 hosts build through the kernel Kbuild tree without repository Python.
 
 ## Install posture

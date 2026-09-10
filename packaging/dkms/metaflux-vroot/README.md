@@ -18,7 +18,7 @@ nix develop . --command python3 packaging/dkms/stage-vroot-dkms.py \
 ```
 
 The stager validates the vroot extension import closure, freezes
-`generated_profile.h`, copies `kernel/vroot/metaflux_vroot_main.c`, and writes
+`generated_profile.h`, copies `linux-kernel-drivers/vroot/metaflux_vroot_main.c`, and writes
 `package-metadata.json` with content hashes. Target hosts build through the
 kernel Kbuild tree; they do not need repository Python or contracts.
 

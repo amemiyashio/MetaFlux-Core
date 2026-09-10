@@ -15,7 +15,7 @@ implement NVIDIA RM/UVM behavior.
 Build against the exact target kernel tree with:
 
 ```sh
-make -C /lib/modules/$(uname -r)/build M=$PWD/kernel/pci modules
+make -C /lib/modules/$(uname -r)/build M=$PWD/linux-kernel-drivers/pci modules
 ```
 
 The ring, DMA, ioeventfd, interrupt-arm state machine, and lifecycle paths remain

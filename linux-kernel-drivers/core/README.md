@@ -36,10 +36,10 @@ eventfd owner for the same generation.
 Build against the exact target kernel tree with:
 
 ```sh
-make -C /lib/modules/$(uname -r)/build M=$PWD/kernel/core modules
+make -C /lib/modules/$(uname -r)/build M=$PWD/linux-kernel-drivers/core modules
 ```
 
-The Kbuild rule regenerates the ignored header under `kernel/core/generated/`
+The Kbuild rule regenerates the ignored header under `linux-kernel-drivers/core/generated/`
 from the repository manifest before compiling. Queue and payload mapping lifetime
 is held by VMA callbacks. The queue backing has a root, owner, lease, VMA, and
 active wait/poll reference graph; the payload backing has root, owner, VMA, and

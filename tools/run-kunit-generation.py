@@ -132,11 +132,11 @@ def _prepare_overlay(src_root: Path, overlay: Path, repo_root: Path) -> None:
         makefile += "\nobj-$(CONFIG_KUNIT) += mf_cdev_generation_test.o\n"
     (kunit_dest / "Makefile").write_text(makefile, encoding="utf-8")
     shutil.copy2(
-        repo_root / "kernel" / "tests" / "kunit" / "mf_cdev_generation_test.c",
+        repo_root / "linux-kernel-drivers" / "tests" / "kunit" / "mf_cdev_generation_test.c",
         kunit_dest / "mf_cdev_generation_test.c",
     )
     shutil.copy2(
-        repo_root / "kernel" / "core" / "mf_cdev_generation.h",
+        repo_root / "linux-kernel-drivers" / "core" / "mf_cdev_generation.h",
         kunit_dest / "mf_cdev_generation.h",
     )
 
@@ -162,11 +162,11 @@ def main() -> int:
         return _skip("METAFLUX_LINUX_SRC is not set or missing Makefile/kunit.py")
 
     repo_root = Path(__file__).resolve().parent.parent
-    kunitconfig = repo_root / "kernel" / "tests" / "kunit" / "kunitconfig"
+    kunitconfig = repo_root / "linux-kernel-drivers" / "tests" / "kunit" / "kunitconfig"
     if not kunitconfig.exists():
         return _skip(f"repo kunitconfig not found at {kunitconfig}")
-    test_c = repo_root / "kernel" / "tests" / "kunit" / "mf_cdev_generation_test.c"
-    test_h = repo_root / "kernel" / "core" / "mf_cdev_generation.h"
+    test_c = repo_root / "linux-kernel-drivers" / "tests" / "kunit" / "mf_cdev_generation_test.c"
+    test_h = repo_root / "linux-kernel-drivers" / "core" / "mf_cdev_generation.h"
     if not test_c.exists() or not test_h.exists():
         return _skip("generation KUnit sources are missing from the repository")
 

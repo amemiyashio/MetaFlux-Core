@@ -25,3 +25,6 @@ __pycache__/
 /.metaflux-build/
 /.metaflux-evidence/
 /linux-*/
+
+# Product drivers are tracked; their local Kbuild outputs are ignored inside.
+!/linux-kernel-drivers/

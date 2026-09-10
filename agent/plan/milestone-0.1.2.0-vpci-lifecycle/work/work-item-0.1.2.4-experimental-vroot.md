@@ -59,10 +59,10 @@ node, or changes a vendor-owned node.
 
 - [x] Implement bridge/config/present/allocation state with unwind-safe
   load/unload and one static plus dynamic add/remove function.
-  Host-independent `metaflux_vroot_model` (`kernel/vroot/src/config_model.c`)
+  Host-independent `metaflux_vroot_model` (`linux-kernel-drivers/vroot/src/config_model.c`)
   owns present/matching/bound/online/quarantined boundaries with fixed storage.
   Kbuild `metaflux_vroot.ko` allocates one software `pci_host_bridge` and tears
-  it down on unload (`kernel/vroot/metaflux_vroot_main.c`).
+  it down on unload (`linux-kernel-drivers/vroot/metaflux_vroot_main.c`).
 - [x] Generate config images, writable masks, and fixtures from the independent
   vroot extension manifest; verify both imported manifest hashes remain frozen.
   `tools/validate-vroot-profile.py` projects the profile; CTest

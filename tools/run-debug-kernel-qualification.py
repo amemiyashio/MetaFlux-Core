@@ -23,7 +23,7 @@ Exit codes: 0 pass, 1 fail, 77 skip (missing prerequisite such as the bzImage,
 cmake, qemu, or STATIC_BUSYBOX; CTest SKIP_RETURN_CODE convention). An
 explicit --skip-* does not produce 77 by itself.
 
-Tool environments (see kernel/tests/README.md):
+Tool environments (see linux-kernel-drivers/tests/README.md):
   nix develop .#linux-debug --command python3 -B tools/run-debug-kernel-qualification.py ...
   nix develop .#vfio-user  --command env STATIC_BUSYBOX=$(command -v busybox) python3 -B tools/run-debug-kernel-qualification.py ...
 """
@@ -617,12 +617,12 @@ def build_modules(
         "-C",
         str(overlay),
         f"O={build_dir}",
-        f"M={repository / 'kernel' / 'core'}",
+        f"M={repository / 'linux-kernel-drivers' / 'core'}",
         "ARCH=x86_64",
         "modules",
     ]
     result = run_command(command, MODULE_BUILD_TIMEOUT, env=make_environment())
-    core_module = repository / "kernel" / "core" / "metaflux_core.ko"
+    core_module = repository / "linux-kernel-drivers" / "core" / "metaflux_core.ko"
     if result.returncode != 0 or not core_module.is_file():
         raise RuntimeError(f"metaflux_core.ko module build failed:\n{result.stdout[-2000:]}\n{result.stderr[-2000:]}")
 
@@ -633,12 +633,12 @@ def build_modules(
             "-C",
             str(overlay),
             f"O={build_dir}",
-            f"M={repository / 'kernel' / 'tests' / 'kunit'}",
+            f"M={repository / 'linux-kernel-drivers' / 'tests' / 'kunit'}",
             "ARCH=x86_64",
             "modules",
         ]
         kunit_result = run_command(kunit_command, MODULE_BUILD_TIMEOUT, env=make_environment())
-        candidate = repository / "kernel" / "tests" / "kunit" / "mf_cdev_generation_kunit.ko"
+        candidate = repository / "linux-kernel-drivers" / "tests" / "kunit" / "mf_cdev_generation_kunit.ko"
         if kunit_result.returncode == 0 and candidate.is_file():
             kunit_module = candidate
         else:
@@ -866,7 +866,7 @@ def main(argv: list[str] | None = None) -> int:
     if qemu is None:
         return skip("qemu-system-x86_64 not found; run inside 'nix develop .#vfio-user'")
 
-    core_module = repository / "kernel" / "core" / "metaflux_core.ko"
+    core_module = repository / "linux-kernel-drivers" / "core" / "metaflux_core.ko"
     if not core_module.is_file():
         summary["result"] = "fail"
         emit_summary()
@@ -887,7 +887,7 @@ def main(argv: list[str] | None = None) -> int:
 
     kunit_shipped = False
     if kunit_enabled:
-        candidate = repository / "kernel" / "tests" / "kunit" / "mf_cdev_generation_kunit.ko"
+        candidate = repository / "linux-kernel-drivers" / "tests" / "kunit" / "mf_cdev_generation_kunit.ko"
         if candidate.is_file():
             kunit_match = module_release_matches(candidate, release)
             if kunit_match is False:
@@ -927,7 +927,7 @@ def main(argv: list[str] | None = None) -> int:
             busybox_path,
             core_module,
             qualification_binary,
-            repository / "kernel" / "tests" / "kunit" / "mf_cdev_generation_kunit.ko"
+            repository / "linux-kernel-drivers" / "tests" / "kunit" / "mf_cdev_generation_kunit.ko"
             if kunit_shipped
             else None,
             guest_init_script(":".join(library_dirs)),

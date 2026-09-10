@@ -14,7 +14,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_DIR = ROOT / "packaging/dkms/metaflux-vroot"
-KERNEL_MAIN = ROOT / "kernel/vroot/metaflux_vroot_main.c"
+KERNEL_MAIN = ROOT / "linux-kernel-drivers/vroot/metaflux_vroot_main.c"
 VROOT_MANIFEST = (
     ROOT / "contracts/protocol/transport/v1/schema/extensions/vroot/v1/manifest.json"
 )

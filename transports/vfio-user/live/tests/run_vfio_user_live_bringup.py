@@ -244,7 +244,7 @@ def resolve_module(repository: Path, explicit: str | None) -> tuple[Path | None,
         if module.is_file():
             return module, ""
         return None, f"explicit module {explicit} does not exist"
-    module_dir = repository / "kernel" / "pci"
+    module_dir = repository / "linux-kernel-drivers" / "pci"
     module = module_dir / "metaflux_pci.ko"
     if module.is_file():
         return module, ""

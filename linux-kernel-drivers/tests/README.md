@@ -60,7 +60,7 @@ exclusive on 6.12).
 
 `tools/run-debug-kernel-qualification.py` is the guest supply path: it builds
 `metaflux_core.ko` and `mf_cdev_generation_kunit.ko` against that kernel
-(`make -C <overlay> O=<build> M=<repo>/kernel/... ARCH=x86_64 modules`),
+(`make -C <overlay> O=<build> M=<repo>/linux-kernel-drivers/... ARCH=x86_64 modules`),
 cross-builds a statically linked `metaflux_transport_cdev_live_qualification`
 into a dedicated CMake tree, packs a busybox initramfs, boots it under
 `qemu-system-x86_64 -kernel/-initrd` with `console=ttyS0 oops=panic panic=-1

@@ -1,4 +1,4 @@
-# Kernel
+# Linux Kernel Drivers
 
 Linux kernel components provide character devices, shared mappings, waits, PCI
 transport binding, and the later experimental software PCI presentation. They
