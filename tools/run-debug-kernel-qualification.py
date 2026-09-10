@@ -42,6 +42,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from build_directory import validate_build_directory
+
 PASS = 0
 FAIL = 1
 SKIP = 77
@@ -668,8 +670,17 @@ def main(argv: list[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
 
     repository = arguments.repository.resolve()
-    cache_dir = resolve_cache_dir(arguments)
-    qualification_dir = resolve_qualification_dir(arguments, cache_dir)
+    if shutil.which("cmake") is None:
+        return skip("cmake is missing; use a Nix tool environment with CMake")
+    try:
+        cache_dir = validate_build_directory(repository, resolve_cache_dir(arguments))
+        validate_build_directory(repository, cache_dir / "src")
+        validate_build_directory(repository, cache_dir / "build")
+        qualification_dir = validate_build_directory(
+            repository, resolve_qualification_dir(arguments, cache_dir)
+        )
+    except ValueError as error:
+        return fail(str(error), [])
 
     summary: dict = {
         "kernel_config": {},

@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 
+include(cmake/MetaFluxBuildDirectory.cmake)
+metaflux_validate_build_directory("${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}")
+
 set(METAFLUX_VERSION_FILE "${CMAKE_CURRENT_LIST_DIR}/VERSION")
 if(NOT EXISTS "${METAFLUX_VERSION_FILE}")
   message(FATAL_ERROR "MetaFlux version file is missing: ${METAFLUX_VERSION_FILE}")

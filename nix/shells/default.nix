@@ -145,6 +145,8 @@ in
     name = "metaflux-linux-debug-tools";
     packages = [
       toolPackages.linux-debug-tools
+      pkgs.cmake
+      pkgs.python3
       pkgs.gcc
       pkgs.gnumake
       pkgs.bc

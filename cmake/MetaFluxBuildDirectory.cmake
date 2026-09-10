@@ -1,0 +1,66 @@
+# Resolve existing symlinks before processing '..', including missing children.
+# This also works on CMake 3.25, before file(REAL_PATH)'s CMP0152 behavior.
+function(_metaflux_resolve_build_path input base depth output)
+  if(depth GREATER 40)
+    message(FATAL_ERROR "Build directory contains a symlink cycle: ${input}")
+  endif()
+  set(path "${input}")
+  cmake_path(ABSOLUTE_PATH path BASE_DIRECTORY "${base}")
+  cmake_path(GET path ROOT_PATH resolved)
+  cmake_path(GET path RELATIVE_PART remainder)
+  # Split as a string: literal ';' is a valid filename character, not a list.
+  while(NOT remainder STREQUAL "")
+    string(FIND "${remainder}" "/" separator)
+    if(separator EQUAL -1)
+      set(component "${remainder}")
+      set(remainder "")
+    else()
+      string(SUBSTRING "${remainder}" 0 ${separator} component)
+      math(EXPR offset "${separator} + 1")
+      string(SUBSTRING "${remainder}" ${offset} -1 remainder)
+    endif()
+    if(component STREQUAL "" OR component STREQUAL ".")
+      continue()
+    elseif(component STREQUAL "..")
+      cmake_path(GET resolved PARENT_PATH resolved)
+    else()
+      set(parent "${resolved}")
+      cmake_path(APPEND resolved "${component}")
+      if(IS_SYMLINK "${resolved}")
+        file(READ_SYMLINK "${resolved}" target)
+        math(EXPR next_depth "${depth} + 1")
+        _metaflux_resolve_build_path("${target}" "${parent}" "${next_depth}" resolved)
+      endif()
+    endif()
+  endwhile()
+  set("${output}" "${resolved}" PARENT_SCOPE)
+endfunction()
+
+# Relative arguments follow CMake's invocation directory, including in -P mode.
+# External build trees remain valid; workspace trees require tmp/build/<name>.
+# Validation itself performs no filesystem writes.
+function(metaflux_validate_build_directory source_dir binary_dir)
+  if(source_dir STREQUAL "" OR binary_dir STREQUAL "")
+    message(FATAL_ERROR "Source and build directories must be nonempty; use tmp/build/<name>.")
+  endif()
+  _metaflux_resolve_build_path("${source_dir}" "${CMAKE_CURRENT_SOURCE_DIR}" 0 source)
+  _metaflux_resolve_build_path("${binary_dir}" "${CMAKE_CURRENT_SOURCE_DIR}" 0 binary)
+  cmake_path(IS_PREFIX source "${binary}" inside_source)
+  if(inside_source)
+    cmake_path(RELATIVE_PATH binary BASE_DIRECTORY "${source}" OUTPUT_VARIABLE relative)
+    if(NOT relative MATCHES "^tmp/build/[^/]+(/.*)?$")
+      message(FATAL_ERROR
+        "Invalid MetaFlux build directory: ${binary_dir}\n"
+        "Resolved build directory: ${binary}\n"
+        "Source directory: ${source}\n"
+        "Use ${source}/tmp/build/<name> (or an external build directory).")
+    endif()
+  endif()
+endfunction()
+
+if(CMAKE_SCRIPT_MODE_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
+  if(NOT DEFINED METAFLUX_SOURCE_DIR OR NOT DEFINED METAFLUX_BINARY_DIR)
+    message(FATAL_ERROR "Set METAFLUX_SOURCE_DIR and METAFLUX_BINARY_DIR; use tmp/build/<name>.")
+  endif()
+  metaflux_validate_build_directory("${METAFLUX_SOURCE_DIR}" "${METAFLUX_BINARY_DIR}")
+endif()

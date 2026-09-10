@@ -20,13 +20,36 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_DIR="${REPO_DIR}/tmp/build/generic-release"
 JOBS=""
 
+usage() {
+  echo "Usage: tools/build-generic-release.sh [--build-dir DIR] [--jobs N]"
+  echo "Build directories inside the repository must use tmp/build/<name>."
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --build-dir) BUILD_DIR="$2"; shift 2 ;;
-    --jobs) JOBS="$2"; shift 2 ;;
+    --help|-h) usage; exit 0 ;;
+    --build-dir|--jobs)
+      if [[ $# -lt 2 || -z "$2" || "$2" == --* ]]; then
+        echo "Missing value for $1" >&2
+        exit 1
+      fi
+      case "$1" in
+        --build-dir) BUILD_DIR="$2" ;;
+        --jobs) JOBS="$2" ;;
+      esac
+      shift 2
+      ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
 done
+
+if [[ -n "$JOBS" && ! "$JOBS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "--jobs must be a positive integer" >&2
+  exit 1
+fi
+cmake "-DMETAFLUX_SOURCE_DIR=${REPO_DIR}" "-DMETAFLUX_BINARY_DIR=${BUILD_DIR}" \
+  -P "${REPO_DIR}/cmake/MetaFluxBuildDirectory.cmake"
+BUILD_DIR="$(realpath -m -- "${BUILD_DIR}")"
 
 # --- Resolve Nix store paths ---
 echo "Resolving Nix materializations..."
@@ -64,16 +87,8 @@ export METAFLUX_RESOURCE_DIR="${RESOURCE_DIR}"
 
 # --- Configure ---
 echo "Configuring generic-release build at ${BUILD_DIR}..."
-cmake -S "${REPO_DIR}" -B "${BUILD_DIR}" -G Ninja \
-  -DCMAKE_TOOLCHAIN_FILE="${REPO_DIR}/cmake/toolchains/ubuntu-20.04-generic.cmake" \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DMETAFLUX_ENABLE_WERROR=ON \
-  -DMETAFLUX_USE_LLD=ON \
-  -DMETAFLUX_ENABLE_LTO=ON \
-  -DMETAFLUX_COMPILER_LINK_SHARED_LLVM=OFF \
+cmake --preset generic-release -S "${REPO_DIR}" -B "${BUILD_DIR}" \
   -DMETAFLUX_RUNTIME_LLD_PATH=/usr/libexec/metaflux/ld.lld \
-  -DMETAFLUX_BUILD_TESTS=OFF \
-  -DBUILD_TESTING=OFF \
   -DMETAFLUX_BUILD_VULKAN_BACKEND=ON \
   -DMETAFLUX_VULKAN_BACKEND_SHARED=ON \
   -DMETAFLUX_VULKAN_SDK_DIR="${VULKAN_PATH}"

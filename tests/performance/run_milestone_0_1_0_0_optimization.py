@@ -19,6 +19,10 @@ import sys
 import tempfile
 import time
 from typing import Any, Iterable, Sequence
+import uuid
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
+from build_directory import validate_build_directory
 
 
 PGO_TRAINING_TESTS = (
@@ -231,11 +235,23 @@ def ensure_fresh_output(path: Path) -> None:
 WORK_DIRECTORY_MARKER = ".metaflux-milestone-0.1.0.0-optimization-work"
 
 
-def prepare_work_directory(requested: Path | None) -> Path:
+def work_directory_candidate(repository: Path, requested: Path | None) -> Path:
+    candidate = requested if requested is not None else (
+        repository / "tmp" / "build" / f"optimization-{uuid.uuid4().hex}"
+    )
+    try:
+        return validate_build_directory(repository, candidate)
+    except ValueError as error:
+        raise QualificationError(str(error)) from error
+
+
+def prepare_work_directory(requested: Path | None, repository: Path) -> Path:
+    candidate = work_directory_candidate(repository, requested)
     if requested is None:
-        path = Path(tempfile.mkdtemp(prefix="metaflux-milestone-0.1.0.0-optimization-"))
+        candidate.parent.mkdir(parents=True, exist_ok=True)
+        path = Path(tempfile.mkdtemp(prefix="optimization-", dir=candidate.parent))
     else:
-        path = requested.resolve()
+        path = candidate
         ensure_fresh_output(path)
     (path / WORK_DIRECTORY_MARKER).write_text("owned by run_milestone_0_1_0_0_optimization.py\n", encoding="utf-8")
     return path
@@ -1689,7 +1705,7 @@ def parse_int(value: str) -> int:
     return int(value, 0)
 
 
-def parse_arguments() -> argparse.Namespace:
+def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build and measure milestone-0.1.0.0 PGO, O2/O3, fuzz, and soak evidence"
     )
@@ -1698,7 +1714,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument(
         "--work-dir",
         type=Path,
-        help="fresh disposable build directory; defaults to a system temporary directory",
+        help="fresh disposable build directory; defaults to repository/tmp/build/optimization-<unique>",
     )
     parser.add_argument(
         "--keep-work",
@@ -1721,15 +1737,19 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--soak-iterations", type=int, default=10)
     parser.add_argument("--training-test", action="append")
     parser.add_argument("--soak-test", action="append")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     args.repository = args.repository.resolve()
     args.output_dir = args.output_dir.resolve()
+    try:
+        work_candidate = work_directory_candidate(args.repository, args.work_dir)
+    except QualificationError as error:
+        parser.error(str(error))
+    if work_candidate == args.output_dir or work_candidate.is_relative_to(args.output_dir):
+        parser.error("--work-dir must be separate from --output-dir")
+    if args.output_dir.is_relative_to(work_candidate):
+        parser.error("--output-dir must be separate from --work-dir")
     if args.work_dir is not None:
-        args.work_dir = args.work_dir.resolve()
-        if args.work_dir == args.output_dir or args.work_dir.is_relative_to(args.output_dir):
-            parser.error("--work-dir must be separate from --output-dir")
-        if args.output_dir.is_relative_to(args.work_dir):
-            parser.error("--output-dir must be separate from --work-dir")
+        args.work_dir = work_candidate
     args.toolchain_prefix = args.toolchain_prefix.resolve()
     if args.nvidia_header_dir is not None:
         args.nvidia_header_dir = args.nvidia_header_dir.resolve()
@@ -1757,7 +1777,7 @@ def main() -> int:
     args = parse_arguments()
     source_start = git_source_identity(args.repository)
     ensure_fresh_output(args.output_dir)
-    args.work_dir = prepare_work_directory(args.work_dir)
+    args.work_dir = prepare_work_directory(args.work_dir, args.repository)
     try:
         recorder = CommandRecorder(args.output_dir)
         tools = {

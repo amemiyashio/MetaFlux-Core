@@ -15,15 +15,43 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 CACHE_DIR="${REPO_DIR}/tmp/build/debug-kernel"
-JOBS="$(nproc)"
+JOBS=""
+
+usage() {
+  echo "Usage: tools/build-debug-kernel.sh [--cache-dir DIR] [--jobs N]"
+  echo "Cache directories inside the repository must use tmp/build/<name>."
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --cache-dir) CACHE_DIR="$2"; shift 2 ;;
-    --jobs) JOBS="$2"; shift 2 ;;
+    --help|-h) usage; exit 0 ;;
+    --cache-dir|--jobs)
+      if [[ $# -lt 2 || -z "$2" || "$2" == --* ]]; then
+        echo "Missing value for $1" >&2
+        exit 1
+      fi
+      case "$1" in
+        --cache-dir) CACHE_DIR="$2" ;;
+        --jobs) JOBS="$2" ;;
+      esac
+      shift 2
+      ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
 done
+
+if [[ -n "$JOBS" && ! "$JOBS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "--jobs must be a positive integer" >&2
+  exit 1
+fi
+cmake "-DMETAFLUX_SOURCE_DIR=${REPO_DIR}" "-DMETAFLUX_BINARY_DIR=${CACHE_DIR}" \
+  -P "${REPO_DIR}/cmake/MetaFluxBuildDirectory.cmake"
+for build_path in "${CACHE_DIR}/src" "${CACHE_DIR}/build"; do
+  cmake "-DMETAFLUX_SOURCE_DIR=${REPO_DIR}" "-DMETAFLUX_BINARY_DIR=${build_path}" \
+    -P "${REPO_DIR}/cmake/MetaFluxBuildDirectory.cmake"
+done
+CACHE_DIR="$(realpath -m -- "${CACHE_DIR}")"
+JOBS="${JOBS:-$(nproc)}"
 
 : "${METAFLUX_LINUX_SRC:?METAFLUX_LINUX_SRC must point at the pinned linux source (nix develop .#linux-debug)}"
 SRC_ROOT="$(realpath "${METAFLUX_LINUX_SRC}")"

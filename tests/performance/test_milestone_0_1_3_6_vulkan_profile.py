@@ -17,17 +17,16 @@ SCRIPT = Path(__file__).resolve().with_name("run_milestone_0_1_3_6_vulkan_profil
 
 def find_benchmark() -> Path:
     env = os.environ.get("METAFLUX_VULKAN_STAGE_BENCHMARK")
-    if env and Path(env).is_file():
-        return Path(env)
-    candidates = list(
-        (ROOT / "tmp" / "build").glob(
-            "**/metaflux_milestone_0_1_3_6_vulkan_stage_profile"
-        )
+    candidate = Path(env) if env else (
+        ROOT / "tmp" / "build" / "vulkan" / "plugins" / "backend" / "vulkan"
+        / "runtime" / "metaflux_milestone_0_1_3_6_vulkan_stage_profile"
     )
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate
-    raise AssertionError("set METAFLUX_VULKAN_STAGE_BENCHMARK to the stage profile binary")
+    if candidate.is_file():
+        return candidate
+    raise AssertionError(
+        f"stage profile binary is missing: {candidate}; build the vulkan preset "
+        "or set METAFLUX_VULKAN_STAGE_BENCHMARK to an explicit build's binary"
+    )
 
 
 def main() -> int:

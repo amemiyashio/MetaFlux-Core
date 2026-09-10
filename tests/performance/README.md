@@ -115,9 +115,10 @@ rows remain in JSONL files, command stdout/stderr remains in hashed logs, and
 `pgo/profile-evidence.json` plus `pgo/milestone-0.1.0.0-measured.profdata` describe the PGO
 measurement. The runner checks the clean Git revision and tree again after all
 selected stages; any concurrent source change fails the complete run even when
-individual commands passed. Build trees and raw profiles live in a system
-temporary work directory and are removed after success or failure. Pass
-`--work-dir tmp/work/milestone-0.1.0.0-optimization-work` together
+individual commands passed. Build trees and raw profiles live in a fresh
+`tmp/build/optimization-<unique>` directory and are removed after success or
+failure. Pass
+`--work-dir tmp/build/milestone-0.1.0.0-optimization-work` together
 with `--keep-work` only for explicit debugging retention. Repeated `--stage`
 arguments run `pgo`, `variants`, or `hardening` independently during harness development.
 PGO and hardening update an atomic `progress.json` after each completed test, so

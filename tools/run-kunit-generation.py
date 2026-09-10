@@ -25,6 +25,9 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+import uuid
+
+from build_directory import validate_build_directory
 
 
 def _skip(message: str) -> int:
@@ -169,7 +172,13 @@ def main() -> int:
 
     cache_value = os.environ.get("METAFLUX_KUNIT_CACHE_DIR", "").strip()
     if cache_value:
-        cache_root = Path(cache_value)
+        try:
+            cache_root = validate_build_directory(repo_root, Path(cache_value))
+            validate_build_directory(repo_root, cache_root / "src")
+            validate_build_directory(repo_root, cache_root / "build")
+        except ValueError as error:
+            print(f"ERROR: {error}", file=sys.stderr)
+            return 1
         overlay = cache_root / "src"
         build_dir = cache_root / "build"
         cache_root.mkdir(parents=True, exist_ok=True)
@@ -177,7 +186,15 @@ def main() -> int:
         overlay.mkdir()
         build_dir.mkdir(exist_ok=True)
         return _run_suite(src_root, overlay, build_dir, kunitconfig, repo_root)
-    with tempfile.TemporaryDirectory(prefix="metaflux-kunit-") as workdir:
+    try:
+        temporary_root = validate_build_directory(
+            repo_root,
+            Path(tempfile.gettempdir()) / f"metaflux-kunit-{uuid.uuid4().hex}",
+        ).parent
+    except ValueError as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        return 1
+    with tempfile.TemporaryDirectory(prefix="metaflux-kunit-", dir=temporary_root) as workdir:
         overlay = Path(workdir) / "src"
         build_dir = Path(workdir) / "build"
         overlay.mkdir()

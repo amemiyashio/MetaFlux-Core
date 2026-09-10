@@ -114,8 +114,8 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
    trees into the Nix store before evaluation.
 7. Run every version probe and owning project command inside the declared
    development shell, for example
-   `nix develop . --command cmake --preset development` or
-   `nix develop . --command ctest --preset development`. Nix supplies the
+   `nix develop . --command cmake --preset dev` or
+   `nix develop . --command ctest --preset dev`. Nix supplies the
    executable closure; CMake, CTest, packaging, and qualification retain command
    semantics and evidence ownership.
    A decision-0032-installed host prerequisite is invoked by exact absolute path from

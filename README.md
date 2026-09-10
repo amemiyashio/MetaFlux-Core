@@ -29,6 +29,13 @@ nix develop . --command cmake --build --preset dev
 nix develop . --command ctest --preset dev
 ```
 
+Each preset writes to `tmp/build/<preset>`. Custom workspace builds must also
+use a named directory below `tmp/build/`; CMake checks this before compiler
+detection. Vulkan configuration uses `nix develop .#vulkan --command cmake
+--preset vulkan`. Generic Linux releases use
+[`tools/build-generic-release.sh`](tools/build-generic-release.sh), which selects
+the target SDK and the `generic-release` preset.
+
 The Linux kernel modules introduced by milestone-0.1.1.0 / `v0.1.1` are built separately by
 the target kernel's Kbuild environment.
 

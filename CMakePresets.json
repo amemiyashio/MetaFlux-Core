@@ -122,6 +122,7 @@
   "buildPresets": [
     { "name": "dev", "configurePreset": "dev" },
     { "name": "release", "configurePreset": "release" },
+    { "name": "generic-release", "configurePreset": "generic-release" },
     { "name": "profile", "configurePreset": "profile" },
     { "name": "asan", "configurePreset": "asan" },
     { "name": "coverage", "configurePreset": "coverage" },

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -64,13 +65,59 @@ class OptimizationQualificationTests(unittest.TestCase):
 
     def test_work_directory_is_removed_unless_explicitly_kept(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary) / "repository"
+            repository.mkdir()
             requested = Path(temporary) / "work"
-            work = optimization.prepare_work_directory(requested)
+            work = optimization.prepare_work_directory(requested, repository)
             (work / "build-artifact").write_bytes(b"fixture")
             self.assertTrue(optimization.finalize_work_directory(work, keep=True))
             self.assertTrue(work.is_dir())
             self.assertFalse(optimization.finalize_work_directory(work, keep=False))
             self.assertFalse(work.exists())
+
+    def test_default_work_directory_uses_repository_build_home(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary) / "repository"
+            repository.mkdir()
+            work = optimization.prepare_work_directory(None, repository)
+            self.assertEqual(work.parent, repository / "tmp" / "build")
+            self.assertTrue(work.name.startswith("optimization-"))
+            self.assertTrue((work / optimization.WORK_DIRECTORY_MARKER).is_file())
+            self.assertFalse(optimization.finalize_work_directory(work, keep=False))
+            self.assertFalse(work.exists())
+
+    def test_invalid_work_directory_fails_before_output_or_build_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = Path(temporary) / "repository"
+            repository.mkdir()
+            (repository / "CMakeLists.txt").write_text("# fixture source root\n")
+            requested = repository / "tmp" / "work" / "optimization"
+            output = Path(temporary) / "evidence"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-B",
+                    str(Path(optimization.__file__).resolve()),
+                    "--repository", str(repository),
+                    "--output-dir", str(output),
+                    "--work-dir", str(requested),
+                    "--toolchain-prefix", str(Path(temporary) / "tools"),
+                    "--stage", "variants",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 2, result.stderr)
+            self.assertIn("Invalid MetaFlux build directory", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertFalse(output.exists())
+            self.assertFalse((repository / "tmp").exists())
+            with self.assertRaisesRegex(
+                optimization.QualificationError, "Invalid MetaFlux build directory"
+            ):
+                optimization.prepare_work_directory(requested, repository)
+            self.assertFalse((repository / "tmp").exists())
 
     def test_work_cleanup_rejects_an_unmarked_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

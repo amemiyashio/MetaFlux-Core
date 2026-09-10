@@ -4,6 +4,21 @@ Repository scripts implement narrow checks owned by their domain. Nix provides
 their executable toolchain; the scripts, CMake, CTest, and Git retain command
 semantics and evidence ownership.
 
+## Build Directories
+
+CMake presets and build entrypoints use `tmp/build/<name>` for workspace
+builds. `build-generic-release.sh` consumes the `generic-release` configure
+preset; `build-debug-kernel.sh`, debug qualification, KUnit, and optimization
+entrypoints validate their build/cache directories before creating or resetting them.
+`build_directory.py` is a Python adapter to the single path policy in
+[`MetaFluxBuildDirectory.cmake`](../cmake/MetaFluxBuildDirectory.cmake).
+External build directories remain supported. Retention and cleanup belong to
+the invoking workflow; see [`tmp/README.md`](../tmp/README.md).
+
+The `metaflux.architecture.build-directory` and
+`metaflux.architecture.build-entrypoints` CTest gates exercise path handling,
+early rejection, and explicit build selection without compiling product code.
+
 `agent_diagnostics.py` provides the shared task-stop error shape used by Agent
 workflow gates. Governed CLIs default to human stderr blocks and accept
 `--diagnostic-format json` for a versioned error envelope. Successful payloads,
