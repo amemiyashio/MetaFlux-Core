@@ -11,6 +11,9 @@
     "BatchMode=yes",
     "StrictHostKeyChecking=yes",
     "ConnectTimeout=10",
-    "LogLevel=ERROR"
+    "LogLevel=ERROR",
+    "HostName=140.82.121.36",
+    "Port=443",
+    "HostKeyAlias=github.com"
   ]
 }
