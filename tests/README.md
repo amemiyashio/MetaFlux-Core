@@ -9,7 +9,7 @@ gate (`tools/check-component-graph.py`), which runs as
 `metaflux.architecture.component-graph`.
 
 `CMakeLists.txt` discovers the shared test interpreter and includes the
-domain-owned `registration.cmake` files under `contract/`, `unit/`, `kernel/`,
+domain-owned `registration.cmake` files under `contract/`, `kernel/`,
 `cmake/`, `architecture/`, `lifecycle/`, `release/`, `compatibility/`, and
 `performance/`. Build-entrypoint policy checks live under `cmake/`; repository
 and Agent governance checks live under `architecture/`. These files use
@@ -18,6 +18,10 @@ relative source paths, evidence paths, and default working directories remain
 stable. Add cross-component registrations to their domain file and retain
 their component-availability guards; component-owned unit tests stay beside
 the component they qualify.
+
+The CPU backend ABI fixture lives under `contract/`, and the PTX-to-CPU launch
+fixture lives under `compatibility/`. PTX frontend bootstrap qualification lives
+with the frontend under `plugins/compat/cuda/compiler/ptx/tests/`.
 
 The suite verifies consistent device identity across visible interfaces,
 provider-only and core-only build boundaries, deterministic AOT/JIT/interpreter

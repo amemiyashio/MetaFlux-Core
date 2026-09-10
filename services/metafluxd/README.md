@@ -7,6 +7,9 @@ an explicitly bound path or systemd socket activation (`LISTEN_PID`, one
 `SO_PEERCRED`. Standalone sockets are mode 0600; activated socket policy remains
 owned by the service manager.
 
+Private daemon implementation and headers live in `src/`; component tests live
+in `tests/`. The private headers are not an installed or public include surface.
+
 ## Boundaries
 
 | Crossing | Canonical owner | Service behavior |

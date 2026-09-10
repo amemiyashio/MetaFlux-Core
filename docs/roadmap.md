@@ -35,3 +35,10 @@ protocol or backend C ABI. A general cubin/SASS compiler, framework-specific
 backend, or separate compiler service is not implied by this route. New
 component homes are added only after a milestone allocates work that cannot fit
 an existing owner.
+
+## Kernel Compatibility Shims
+
+`kernel/compat/` is a future source home, created when a supported target kernel
+requires a real API shim. Until then, keep the requirement in the owning
+[static guest work item](../agent/plan/milestone-0.1.1.0-kernel-guest-transport/work/work-item-0.1.1.3-static-vfio-user.md#dma-lifetime)
+without a placeholder directory or a claim of implemented shim coverage.

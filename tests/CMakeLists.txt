@@ -3,7 +3,6 @@
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 include(contract/registration.cmake)
-include(unit/registration.cmake)
 include(kernel/registration.cmake)
 include(cmake/registration.cmake)
 include(architecture/registration.cmake)

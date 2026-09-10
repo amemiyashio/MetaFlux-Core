@@ -1,5 +1,22 @@
 # Included from tests/CMakeLists.txt; paths retain the tests/ directory scope.
 
+if(TARGET metaflux_cpu_backend_runtime AND TARGET metaflux_cuda_ptx_frontend AND
+   TARGET metaflux_compiler_core)
+  add_executable(metaflux_backend_cpu_launch compatibility/backend_cpu_launch.cpp)
+  target_link_libraries(
+    metaflux_backend_cpu_launch
+    PRIVATE MetaFlux::CpuBackendRuntime MetaFlux::CompilerCore MetaFlux::CudaPtxFrontend
+  )
+  target_compile_definitions(
+    metaflux_backend_cpu_launch
+    PRIVATE
+      METAFLUX_CPU_ADD_PTX="${PROJECT_SOURCE_DIR}/plugins/compat/cuda/compiler/ptx/corpus/fixtures/positive-add-copy.ptx"
+  )
+  metaflux_configure_target(metaflux_backend_cpu_launch CXX)
+  add_test(NAME metaflux.backend.cpu-launch COMMAND metaflux_backend_cpu_launch)
+  set_tests_properties(metaflux.backend.cpu-launch PROPERTIES LABELS "backend;cpu;cuda;unit")
+endif()
+
 if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
     NAME metaflux.compatibility.pytorch-cuda-probe-selftest

@@ -46,8 +46,10 @@ never downgrades to short-term GUP.
 
 SG tables record direction and perform non-coherent synchronization. Unwind uses
 the same direction, dirties device-written pages, and unpins each page exactly
-once through compile-probed `kernel/compat/` shims. Records bind permissions,
-range, IOVA segments, mapping epoch, and generation. Unregister blocks new refs,
+once. Required target-kernel API adaptations use compile-probed compatibility
+shims, with their source home created alongside real implementation as described
+in [Roadmap Homes](../../../../docs/roadmap.md#kernel-compatibility-shims).
+Records bind permissions, range, IOVA segments, mapping epoch, and generation. Unregister blocks new refs,
 drains existing refs to deadline, then unmaps/unpins/acks; timeout publishes
 `LOST` and tombstones backing until final release.
 

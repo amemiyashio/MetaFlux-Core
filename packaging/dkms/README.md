@@ -22,4 +22,5 @@ only, and must never become a dependency of lifecycle-core release rows. The
 packaging-owned launcher lives under `packaging/vroot-launcher/` and depends on
 vroot metadata only—never on `metaflux-vpci-dkms`. Tests own the
 `baremetal-vpci` gate under `tests/release/`. Service packaging notes for
-`metaflux-vfio-userd` live under `packaging/services/metaflux-vfio-userd/`.
+`metaflux-vfio-userd` live in
+[`../docs/metaflux-vfio-userd.md`](../docs/metaflux-vfio-userd.md).

@@ -38,7 +38,7 @@ physical cancellation.
 
 - [x] Record packaging-owned `metaflux-backend-vulkan` ownership and backend ABI
   contract headers before release rows run.
-  `packaging/backend/metaflux-backend-vulkan/README.md` plus
+  `packaging/docs/metaflux-backend-vulkan.md` plus
   `tools/validate-backend-vulkan-packaging.py` / CTest
   `metaflux.packaging.backend-vulkan` bind package id, no-`/nix/store` runtime
   policy, idle-without-ICD coexistence, and the frozen backend header set.

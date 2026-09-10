@@ -22,6 +22,6 @@ Packaging-owned artifact notes for the Vulkan execution backend package.
 ## Staging posture
 
 Complete release packaging continues to flow through `packaging/build.py` once
-the Vulkan backend is enabled in a generic-release build tree. This directory
-records package ownership and coexistence rules before those release rows run.
+the Vulkan backend is enabled in a generic-release build tree. These notes
+record package ownership and coexistence rules before those release rows run.
 Live install/upgrade/coexistence/uninstall remains host qualification.

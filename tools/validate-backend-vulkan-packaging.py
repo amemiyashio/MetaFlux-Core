@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-NOTES = ROOT / "packaging/backend/metaflux-backend-vulkan/README.md"
+NOTES = ROOT / "packaging/docs/metaflux-backend-vulkan.md"
 CONTRACT_HEADERS = (
     ROOT / "contracts/plugin/backend/v1/include/metaflux/backend/vulkan.h",
     ROOT / "contracts/plugin/backend/v1/include/metaflux/backend/vulkan_arguments.h",

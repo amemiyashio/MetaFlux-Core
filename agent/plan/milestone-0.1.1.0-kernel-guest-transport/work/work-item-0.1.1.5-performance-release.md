@@ -42,7 +42,7 @@ empty-to-nonempty distributions independently.
   `packaging/dkms/stage-vpci-dkms.py` freezes the guest profile header and stages
   `packaging/dkms/metaflux-vpci/`; CTest `metaflux.packaging.vpci-dkms` proves
   separation from experimental `metaflux-vroot-dkms`. Service packaging notes
-  live under `packaging/services/metaflux-vfio-userd/`. Live module/service
+  live in `packaging/docs/metaflux-vfio-userd.md`. Live module/service
   install/upgrade/remove and QEMU fixture rows remain host qualification gates.
 - [x] Profile poll/block, interrupt moderation, batching, huge pages, and NUMA.
   Host profile harness `tests/performance/run_milestone_0_1_1_0_transport_profile.py`

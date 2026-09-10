@@ -52,14 +52,14 @@ set_tests_properties(
 
 add_executable(
   metafluxd_execution_mode_test
-  ../compiler_worker_client.cpp
-  ../compiler_worker_protocol.cpp
+  ../src/compiler_worker_client.cpp
+  ../src/compiler_worker_protocol.cpp
   execution_mode_test.cpp
-  ../execution.cpp
+  ../src/execution.cpp
 )
 target_include_directories(
   metafluxd_execution_mode_test
-  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/.."
+  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../src"
 )
 target_compile_definitions(
   metafluxd_execution_mode_test
@@ -88,14 +88,14 @@ set_tests_properties(
 
 add_executable(
   metafluxd_compiler_worker_test
-  ../compiler_worker_client.cpp
-  ../compiler_worker_protocol.cpp
+  ../src/compiler_worker_client.cpp
+  ../src/compiler_worker_protocol.cpp
   compiler_worker_test.cpp
-  ../execution.cpp
+  ../src/execution.cpp
 )
 target_include_directories(
   metafluxd_compiler_worker_test
-  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/.."
+  PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../src"
 )
 target_compile_definitions(
   metafluxd_compiler_worker_test

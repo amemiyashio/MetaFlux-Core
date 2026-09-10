@@ -1,3 +1,9 @@
+add_executable(metaflux_ptx_frontend_smoke ptx_frontend_smoke.cpp)
+target_link_libraries(metaflux_ptx_frontend_smoke PRIVATE MetaFlux::CudaPtxFrontend)
+metaflux_configure_target(metaflux_ptx_frontend_smoke CXX)
+add_test(NAME metaflux.unit.ptx-frontend COMMAND metaflux_ptx_frontend_smoke)
+set_tests_properties(metaflux.unit.ptx-frontend PROPERTIES LABELS "unit")
+
 add_executable(metaflux_cuda_ptx_frontend_test ptx_frontend_test.cpp)
 target_link_libraries(
   metaflux_cuda_ptx_frontend_test

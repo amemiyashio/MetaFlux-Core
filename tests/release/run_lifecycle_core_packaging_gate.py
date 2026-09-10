@@ -21,7 +21,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 VPCI_STAGER = ROOT / "packaging/dkms/stage-vpci-dkms.py"
 VROOT_STAGER = ROOT / "packaging/dkms/stage-vroot-dkms.py"
-VFIO_USERD_NOTES = ROOT / "packaging/services/metaflux-vfio-userd/README.md"
+VFIO_USERD_NOTES = ROOT / "packaging/docs/metaflux-vfio-userd.md"
 
 
 def run(command: list[str]) -> subprocess.CompletedProcess[str]:

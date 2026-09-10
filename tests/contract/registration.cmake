@@ -1,5 +1,13 @@
 # Included from tests/CMakeLists.txt; paths retain the tests/ directory scope.
 
+if(TARGET metaflux_cpu_backend_runtime)
+  add_executable(metaflux_backend_abi_smoke contract/backend_abi_smoke.cpp)
+  target_link_libraries(metaflux_backend_abi_smoke PRIVATE MetaFlux::CpuBackendRuntime)
+  metaflux_configure_target(metaflux_backend_abi_smoke CXX)
+  add_test(NAME metaflux.abi.backend-cpu COMMAND metaflux_backend_abi_smoke)
+  set_tests_properties(metaflux.abi.backend-cpu PROPERTIES LABELS "abi;unit")
+endif()
+
 add_executable(metaflux_abi_c_smoke contract/abi_c_smoke.c)
 target_link_libraries(metaflux_abi_c_smoke PRIVATE MetaFlux::BackendPluginApi)
 metaflux_configure_target(metaflux_abi_c_smoke C)

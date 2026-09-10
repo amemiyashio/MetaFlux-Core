@@ -52,13 +52,13 @@ if(TARGET metaflux_cpu_backend_runtime AND TARGET metaflux_cuda_ptx_frontend AND
   add_executable(
     metaflux_cpu_fma_throughput
     performance/cpu_fma_throughput.cpp
-    ../services/metafluxd/compiler_worker_client.cpp
-    ../services/metafluxd/compiler_worker_protocol.cpp
-    ../services/metafluxd/execution.cpp
+    ../services/metafluxd/src/compiler_worker_client.cpp
+    ../services/metafluxd/src/compiler_worker_protocol.cpp
+    ../services/metafluxd/src/execution.cpp
   )
   target_include_directories(
     metaflux_cpu_fma_throughput
-    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../services/metafluxd"
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../services/metafluxd/src"
   )
   target_compile_definitions(
     metaflux_cpu_fma_throughput

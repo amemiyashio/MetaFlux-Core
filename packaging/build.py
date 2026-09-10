@@ -341,7 +341,7 @@ def stage_backend_vulkan(build_dir: Path, stage: Path) -> None:
             raise ValueError(f"backend contract header is missing: {source}")
         shutil.copyfile(source, header_stage / name)
 
-    notes = PROJECT_ROOT / "packaging/backend/metaflux-backend-vulkan/README.md"
+    notes = PROJECT_ROOT / "packaging/docs/metaflux-backend-vulkan.md"
     if not notes.is_file():
         raise ValueError(f"backend packaging notes are missing: {notes}")
     notes_stage = stage / "usr/share/doc/metaflux-backend-vulkan/README.md"

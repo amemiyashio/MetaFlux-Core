@@ -14,13 +14,13 @@ endif()
 
 add_executable(
   metafluxd
-  compiler_worker_client.cpp
-  compiler_worker_process.cpp
-  compiler_worker_protocol.cpp
-  execution.cpp
-  main.cpp
-  server.cpp
-  vulkan_execution.cpp
+  src/compiler_worker_client.cpp
+  src/compiler_worker_process.cpp
+  src/compiler_worker_protocol.cpp
+  src/execution.cpp
+  src/main.cpp
+  src/server.cpp
+  src/vulkan_execution.cpp
 )
 target_compile_definitions(
   metafluxd

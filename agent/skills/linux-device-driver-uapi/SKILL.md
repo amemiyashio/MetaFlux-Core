@@ -54,7 +54,9 @@ sized records and compile-probed compatibility shims for supported kernels.
 5. Encode ring publication/consumption and doorbell/completion ordering with the
    project atomic and DMA/MMIO barrier contract. Separate polling from armed
    waits and avoid per-command interrupts.
-6. Keep kernel-version differences in compile-probed `kernel/compat/` shims.
+6. Keep kernel-version differences in compile-probed compatibility shims. Create
+   their source home only with real implementation, following
+   [Roadmap Homes](../../../docs/roadmap.md#kernel-compatibility-shims).
    Never weaken ownership or ordering based on a version check alone.
 7. Add fault injection and concurrent teardown tests before performance work.
 

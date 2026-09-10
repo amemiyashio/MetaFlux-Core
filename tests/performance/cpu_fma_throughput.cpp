@@ -1,6 +1,6 @@
 // FP32 FMA kernel throughput benchmark for the CPU backend execution engine.
 //
-// Drives the real daemon-side execution engine (services/metafluxd/execution.cpp)
+// Drives the real daemon-side execution engine (services/metafluxd/src/execution.cpp)
 // through every execution mode (interpreter, cold-jit, warm-jit, administrator
 // AOT) with one FP32 FMA kernel so that kernel execution dominates launch
 // overhead. Measurement follows the frozen performance contract: per-launch
