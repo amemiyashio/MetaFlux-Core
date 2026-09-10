@@ -42,6 +42,12 @@ decision-0034 agent-tool identity boundary:
 - the current skill catalog, explicit workflow policy, links, and decision refs;
 - absence of superseded execution-history paths, markers, and parsers.
 
+The state gate also invokes `check-pytorch-cuda-readiness.py` for the registered
+CPU-profile work item. It derives corpus counts, validates compiled source/subset
+consistency, checks the work item's single summary and rejects completion while
+the corpus is unfrozen or partially compiled. It verifies declarations only;
+actual executor and device evidence remain the real-client gates' responsibility.
+
 ```sh
 nix develop . --command python3 tools/check-agent-state.py .
 nix develop . --command python3 tests/architecture/test-check-agent-state.py

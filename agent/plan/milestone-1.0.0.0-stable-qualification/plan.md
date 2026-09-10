@@ -6,7 +6,7 @@ status: Queued
 budgets: provisional
 depends_on: [milestone-0.1.0.0, milestone-0.1.1.0, milestone-0.1.2.0, milestone-0.1.3.0, milestone-0.2.0.0]
 areas: [release]
-updated: 2026-09-08
+updated: 2026-09-10
 ---
 
 # milestone-1.0.0.0: Stable Compatibility Release Qualification
@@ -17,6 +17,11 @@ Deliver the `v1.0.0` stable-compatibility release: an explicit public
 compatibility surface, a proven upgrade path, reproducible no-Nix packages,
 and regression closure for every accepted `v0.x` release, including the
 milestone-0.2.0.0 client and execution corpus.
+
+The stable commitment covers only declared and measured client/workload
+profiles. A `v1.0.0` label does not imply universal PyTorch, model training,
+mixed precision or framework-compiled execution. The stable-surface decision
+must name any such supported application scope and its end-to-end evidence.
 
 This milestone remains queued until the milestone-0.2.0.0 PyTorch CUDA
 transparent compatibility foundation closes (decisions 0044 and 0046);
@@ -62,8 +67,11 @@ Excluded:
 - Intel x86_64 support qualification and physical NVIDIA binding promotion,
   which are milestone-2.0.0.0 scope (decision-0040).
 - Native NixOS VM/package qualification, which remains `v0.3.0` scope.
-- Intel GPU execution, CUDA Runtime, SASS/cubin execution, private NVIDIA
+- Intel GPU execution, a new MetaFlux CUDA Runtime replacement, unrestricted SASS/cubin execution, private NVIDIA
   RM/UVM compatibility, or a new execution backend.
+
+This exclusion preserves stock PyTorch's own libcudart and its existing Driver
+calls; it does not exclude the accepted PyTorch CUDA route.
 
 ## Workstreams
 
@@ -77,6 +85,10 @@ Excluded:
 - The exact stable public compatibility surface and upgrade/deprecation policy
   are frozen before release. Provider-private implementation details and
   third-party version namespaces are not accidentally promoted to public API.
+- The released manifest names supported PyTorch client versions, application
+  or corpus scope, inference/training modes, dtype/shape/layout and compiler/
+  library dependencies. Its installed activation entry and CPU/GPU selection
+  reproduce those claims; the full corpus alone grants no unnamed model claim.
 - One clean Git revision reproduces the accepted generic artifacts, passes the
   declared release matrices and provenance checks, and upgrades from every
   declared supported prior release without replacing vendor-owned files.

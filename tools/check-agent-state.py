@@ -1188,6 +1188,21 @@ class Checker:
                 if match is not None:
                     self.error(path, f"legacy abbreviated record id is forbidden: {match.group(0)}")
 
+    def validate_pytorch_readiness(self) -> None:
+        if "work-item-0.2.0.2" not in self.records:
+            return
+        path = self.root / "tools/check-pytorch-cuda-readiness.py"
+        try:
+            spec = importlib.util.spec_from_file_location("metaflux_pytorch_readiness", path)
+            if spec is None or spec.loader is None:
+                raise ImportError("readiness checker cannot be loaded")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            module.validate(self.root)
+        except (OSError, ImportError, ValueError, KeyError, TypeError) as error:
+            self.error(path, "PyTorch CPU declarations disagree with their evidence scope",
+                       extra_evidence=(str(error),))
+
     def run(
         self,
         *,
@@ -1200,6 +1215,7 @@ class Checker:
         self.validate_plans()
         self.validate_open_decisions()
         self.validate_goal()
+        self.validate_pytorch_readiness()
         if commit_gate:
             self.validate_commit_environment()
         if integration_revisions is not None:

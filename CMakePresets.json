@@ -105,7 +105,7 @@
     {
       "name": "vulkan",
       "inherits": "cxx-base",
-      "displayName": "MetaFlux Vulkan capability probe",
+      "displayName": "MetaFlux Vulkan backend components",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "METAFLUX_BUILD_VULKAN_BACKEND": "ON",

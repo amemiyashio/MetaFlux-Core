@@ -2,6 +2,19 @@
 
 if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
+    NAME metaflux.architecture.pytorch-readiness
+    COMMAND "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/../tools/check-pytorch-cuda-readiness.py"
+      "${PROJECT_SOURCE_DIR}"
+  )
+  add_test(
+    NAME metaflux.architecture.pytorch-readiness-selftest
+    COMMAND "${Python3_EXECUTABLE}" -B
+      "${CMAKE_CURRENT_SOURCE_DIR}/architecture/test-check-pytorch-cuda-readiness.py"
+  )
+  set_tests_properties(metaflux.architecture.pytorch-readiness
+    metaflux.architecture.pytorch-readiness-selftest PROPERTIES LABELS "architecture;compatibility")
+  add_test(
     NAME metaflux.architecture.main-workflow-selftest
     COMMAND "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/main/scripts/test_workflow_state.py"

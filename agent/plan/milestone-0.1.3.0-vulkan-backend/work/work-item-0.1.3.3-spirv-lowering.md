@@ -50,9 +50,11 @@ fallback inside a Vulkan context.
 - [x] Cover the currently advertised forms' limits, required features, address
   spaces, barriers, malformed modules, and stable negative diagnostics.
 - [x] Build golden SPIR-V semantic fixtures for every currently advertised form
-  with structural validation and a device-present physical pipeline round-trip;
-  independent differential execution against the CPU reference stays with the
-  open matrix extension below.
+  with emission and structural validation. The separate device-present physical
+  pipeline test uses an independent shader fixture; it does not establish a
+  Kernel IR-to-GPU execution round-trip for every advertised form. Framework
+  corpus differential execution belongs to work-item-0.2.0.3; the broader
+  physical hardware matrix belongs to milestone-2.0.0.0.
 - [x] Add SetPredicateGeU32 and SetPredicateEqU32 predicate lowering forms with
   `arith.cmpi uge`/`eq` + `scf.if` emission and SPIR-V binary validation.
 - [x] Add FmaRnF32 as a standalone lowering form with a dedicated validation
@@ -62,8 +64,8 @@ fallback inside a Vulkan context.
   than the equivalent mulf+addf sequence).
 - [x] Add a second synthetic profile fixture (NVIDIA vendor 0x10DE, fixed
   subgroup size 32, distinct UUIDs) and verify the full lowering suite produces
-  valid SPIR-V for both profiles — host-independent dual-driver coverage without
-  physical hardware.
+  valid SPIR-V for both profiles — host-independent synthetic target-profile
+  coverage, with physical driver qualification owned by milestone-2.0.0.0.
 - [x] Extend the lowering and differential matrix to the remaining Kernel IR
   arithmetic, wide-integer, and memory forms.
   Added standalone `MultiplyWideU32` (u32 × immediate → u64) emission with a

@@ -6,7 +6,7 @@ status: Queued
 budgets: provisional
 depends_on: [milestone-0.1.0.0, milestone-0.1.1.0, milestone-0.1.2.0, milestone-0.1.3.0, milestone-1.0.0.0]
 areas: [backend.cpu, compat.cuda, performance, vulkan, release]
-updated: 2026-09-05
+updated: 2026-09-10
 ---
 
 # milestone-2.0.0.0: Physical Hardware Qualification
@@ -58,7 +58,7 @@ Included:
 Excluded:
 
 - Native NixOS VM/package qualification, which remains `v0.3.0` scope.
-- Intel GPU execution, CUDA Runtime, SASS/cubin execution, private NVIDIA
+- Intel GPU execution, a new MetaFlux CUDA Runtime replacement, unrestricted SASS/cubin execution, private NVIDIA
   RM/UVM compatibility, or a new execution backend.
 - Treating a missing physical field or skipped row as a passing result.
 
@@ -69,7 +69,11 @@ Excluded:
 | [work-item-2.0.0.1](work/work-item-2.0.0.1-intel-host-support.md) | Queued | Intel x86_64 host support and qualification |
 | [work-item-2.0.0.2](work/work-item-2.0.0.2-nvidia-binding-performance.md) | Queued | Physical NVIDIA binding evidence and budget promotion |
 | [work-item-2.0.0.3](work/work-item-2.0.0.3-dual-driver-physical-qualification.md) | Queued | Physical dual-driver Vulkan qualification and external-memory freeze |
-| [PyTorch CUDA ops table RE](../milestone-0.2.0.0-pytorch-cuda-compatibility/work/work-item-0.2.0.1-torch-client-bringup.md) | Blocked on physical NVIDIA | Reverse-engineer the a094798c ops table entries (work-item-0.2.0.1, `6bd5fb6c`/`a094798c` boundary) against the real NVIDIA driver behavior |
+
+Optional physical NVIDIA observations of CUDA internal tables belong to the
+reference matrix selected here. They neither reopen the completed PyTorch
+baseline nor block its AMD CPU/Vulkan foundation. Stock PyTorch continues to
+use its own libcudart; a new MetaFlux CUDA Runtime replacement is outside scope.
 
 ## Milestone Acceptance
 

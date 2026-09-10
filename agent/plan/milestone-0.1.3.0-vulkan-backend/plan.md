@@ -20,8 +20,9 @@ milestone-0.1.2.0 owns lifecycle; this milestone consumes both contracts.
 Deliver compute-only discovery/capability reporting, target-constrained Kernel IR
 to MLIR SPIR-V lowering, packed buffer-device-address arguments, queue batching,
 timeline completion, truthful memory/import tiers, portable and device-bound
-caches, two-driver-family differential execution, and deterministic device-loss
-integration.
+caches, a host-independent two-family target matrix, direct AMD/RADV component
+execution and deterministic lifecycle models. Physical dual-driver execution
+and fault soak are retained by work-item-2.0.0.3 under decision-0040.
 
 Development may begin after [milestone-0.1.1.0](../milestone-0.1.1.0-kernel-guest-transport/plan.md)
 stabilizes the backend and transport ABIs. Release requires the
@@ -105,14 +106,17 @@ corrupt/incompatible entries are removed and rebuilt.
 
 Correctness:
 
-- At least two independent Vulkan driver families agree with independent
-  CPU/native results for every advertised semantic form.
-- Guest import or staging preserves generation, permissions, timeline ordering,
-  and unregister/device-loss lifetime without a transport UAPI change.
-- Ecosystem-neutral FIFO/dependency edges, copy visibility, and device loss pass
-  through memfd, cdev, and guest vfio-user. A composed CUDA-provider/runtime test
-  proves default/PTDS semantics are translated into those edges before the Vulkan
-  boundary. Unsupported semantics fail explicitly.
+- The host-independent two-family target/model matrix agrees with independent
+  CPU results for its declared forms; direct AMD/RADV component fixtures prove
+  their named physical execution rows. Physical two-driver agreement remains
+  work-item-2.0.0.3, not a result inferred from synthetic target identities.
+- Model import/staging and lifecycle tests preserve generation, permissions,
+  ordering and unregister rules without a transport UAPI change. Physical guest
+  import and cross-transport GPU qualification remain work-item-2.0.0.3.
+- Neutral graph/visibility/loss models pass their declared fixtures. Actual
+  stock PyTorch default/PTDS translation and daemon GPU lifecycle are
+  work-item-0.2.0.3 acceptance, not inferred from the graph planner. Unsupported
+  semantics continue to require explicit failures.
 - Target environment, actual enabled features/limits, FP behavior, and cache keys
   remain mutually consistent.
 
@@ -125,7 +129,7 @@ Warm path and cache:
   client zero-syscall claim.
 - Driver/device/target/argument/pipeline UUID changes cause a cache miss.
 
-Throughput and memory:
+Throughput and memory (provisional targets, not promoted by model tests):
 
 - Kernels lasting at least 100 microseconds add at most 3% scheduling overhead
   relative to identical SPIR-V, device, queue, memory-tier, and direct-Vulkan
@@ -136,12 +140,15 @@ Throughput and memory:
 - milestone-0.1.2.0 lifecycle core remains inside its 0.5% steady-state budget. Experimental
   vroot is measured only when separately enabled.
 
-Fault and release:
+Fault and release (model and named component scope):
 
-- Device loss reaches public `LOST` within the lifecycle deadline without old
-  resource reuse. The deadline guarantees isolation, not physical cancellation.
-- Cache corruption, import/compiler failure, and driver change recover or fail
-  deterministically.
+- Declared loss/teardown models and named component fixtures enforce `LOST`
+  and resource isolation. Stock client propagation belongs to work-item-0.2.0.3;
+  physical reset/hotplug and cross-driver qualification belong to
+  work-item-2.0.0.3. The deadline promises isolation, not physical cancellation.
+- Cache corruption and compiler rejection have deterministic component tests;
+  simulated import failures and driver identity changes establish model/key
+  behavior. Physical import and driver-change recovery remain v2 qualification.
 - milestone-0.1.0.0, milestone-0.1.1.0, and milestone-0.1.2.0 core remain green with Vulkan installed but idle.
 - Generic packages require no `/nix/store` runtime path.
 
@@ -175,23 +182,22 @@ nor later semantic work.
 
 ## Definition of Done
 
-milestone-0.1.3.0 is complete when the milestone-0.1.2.0 lifecycle core remains green without transport
-or lifecycle ABI changes; both driver families pass the advertised corpus;
-fixed-backend, stream/event, memory-tier, cache, and device-loss contracts pass;
-warm-path/throughput evidence is archived; and portable/generic packages pass
-install, upgrade, coexistence, and removal.
+milestone-0.1.3.0 retains completion for the milestone-0.1.2.0 regression,
+host-independent target/stream/memory/cache/loss contract matrix, named direct
+AMD/RADV component execution and warm-path measurements, and generic packaging
+rows recorded by its work items. Synthetic driver identities are model inputs,
+not two physical driver runs. Physical dual-driver, external-memory promotion
+and driver-loss soak remain work-item-2.0.0.3. Stock PyTorch fixed-backend
+integration and application lifecycle remain work-item-0.2.0.3.
 
 work-item-0.1.3.1 through work-item-0.1.3.5 may proceed after milestone-0.1.1.0. Vulkan-specific release
 integration waits for the milestone-0.1.2.0 core DoD and all gates above. Deferred cubin
 research blocks neither path.
 
-Convergence (2026-09-06): closed on the host-independent dual-family matrix
-plus the live RADV/780M adapter. Capability, memory, lowering, execution,
-cache, and performance/release gates passed; the physical dual-driver rows
-(install/upgrade/coexistence, external-memory freeze, validation soak,
-compute-ceiling on a second family) are owned by milestone-2.0.0.0
-(decision-0040). The measured 780M fused-FMA compute plateau is 7.67-7.68
-TFLOP/s with the VOPD reseat lever closed as a negative result.
+The owning work items retain the bounded component evidence and physical FMA
+measurements. They do not establish a PyTorch GPU route or promote the
+provisional performance budgets. Decision-0040 owns the physical expansion;
+decision-0055 owns the framework qualification boundary.
 
 ## References
 

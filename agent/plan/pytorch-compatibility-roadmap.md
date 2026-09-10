@@ -17,6 +17,12 @@ Both profiles are exact, isolated, on-demand Nix tool outputs. Neither enters a
 default provider, runtime, or release shell. Nix materializes the clients; tests
 own probe and qualification behavior.
 
+The CPU `frontier` corpus measures the boundary of the **baseline** client; its
+name does not mean that the newer `pytorch-frontier` client is qualified. The
+milestone's [application-scope decision](milestone-0.2.0.0-pytorch-cuda-compatibility/plan.md#decisions-to-close)
+owns model, training, dtype, shape and framework-compilation claims. Research
+probes and pinned wheel dependencies do not extend that accepted scope.
+
 ## Promotion Boundary
 
 milestone-0.2.0.0 is Active and is the only promotion vehicle for PyTorch CUDA

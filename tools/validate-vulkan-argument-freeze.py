@@ -105,11 +105,13 @@ def main() -> int:
         },
         "host_pending_non_reopening": [
             "physical dual-driver Add/Copy/barrier with validation layers",
-            "reset/device-loss validation-layer soak before release promotion",
+            "physical reset/device-loss validation-layer soak for v2 qualification",
         ],
         "policy": {
             "dual_driver_does_not_reopen_layout": True,
-            "product_semver_promotion_requires_dual_driver": True,
+            "physical_qualification_owner": "work-item-2.0.0.3",
+            "external_memory_promotion_requires_physical_qualification": True,
+            "amd_pytorch_foundation_requires_dual_driver": False,
         },
     }
     if arguments.output is not None:

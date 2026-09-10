@@ -30,7 +30,7 @@ Dependency points from volatile to stable. Contracts have no dependencies.
 ```text
 contracts (client protocol, backend plugin API)
    ^                      ^
-runtime client fastpath   backend compilers and runtimes (CPU, later Vulkan)
+runtime client fastpath   backend compilers and runtimes (CPU and Vulkan)
 (C, app closure)          (C++20, compiler core or mf_backend_api_v1)
    ^                          ^
 compat providers            services/metafluxd (also <- runtime core,

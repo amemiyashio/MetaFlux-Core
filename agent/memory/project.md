@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-09-08
+updated: 2026-09-10
 ---
 
 # MetaFlux Project
@@ -43,24 +43,25 @@ through the five-stage daemon/CPU baseline, a complete CPU execution profile,
 then Vulkan/SPIR-V and lifecycle qualification (decisions 0044 and 0046).
 milestone-1.0.0.0 / `v1.0.0` remains queued until this foundation closes.
 
-Current v0.2 maturity includes a checked-in real five-stage baseline for pinned
-stock PyTorch `2.11.0+cu126`: import, driver enumeration, runtime copy,
-artifact intake, and `torch.add` execute through the normal `torch.cuda` API
-against the daemon CPU interpreter. The same operation also passes through the
-backend-owned MLIR/LLVM cold-JIT, warm-JIT, and administrator-prewarmed AOT
-paths with one stable cache identity; an unseeded AOT load returns the declared
-unsupported error before execution. Eager add negotiates the v1 neutral kernel
-request, loads daemon-owned canonical Kernel IR, records a daemon launch, and
-has no provider-local semantic execution (decision-0048). This is one verified
-profile operation across four CPU execution modes, not a qualified CPU operator
-corpus or a claim of general PyTorch usability. The baseline
-Driver/internal-table, neutral request, and CPU interpreter/cache-non-use
-decisions are closed by decisions 0048-0050;
-The active Goal retains this baseline and targets the dependent CPU
-profile. Qualified future deliveries are checked, accepted, and advanced by the
+Current v0.2 maturity retains the integrated five-stage stock-client baseline
+and expands its versioned CPU frontier. The
+[CPU work item](../plan/milestone-0.2.0.0-pytorch-cuda-compatibility/work/work-item-0.2.0.2-torch-kernel-intake.md)
+owns current counts, compiled coverage, daemon-native paths and remaining work.
+The surface/handle matrix and bounded library interface exist; the full CPU
+corpus is not frozen. Interpreter non-use and compiled cache identity are
+distinct mode requirements under decision-0050, refined by decision-0055.
+
+Standalone Vulkan components have physical AMD evidence, while the optional
+daemon adapter remains unqualified for stock PyTorch. The
+[Vulkan work item](../plan/milestone-0.2.0.0-pytorch-cuda-compatibility/work/work-item-0.2.0.3-framework-qualification.md)
+owns fixed-backend integration, actual GPU completion, lifecycle and process
+activation. Finite corpus coverage does not imply general model, training or
+mixed-precision usability; broader claims require explicit application scope.
+The active Goal keeps CPU profile before AMD Vulkan qualification. Qualified
+future deliveries are checked, accepted, and advanced by the
 decisions 0052/0054 controller without a second user instruction; empty or stale
 candidates do not move route state. Its research-only
-prerequisite remains the exact PyTorch v2.11.0 gitlink and catalog entry under
+reference remains the exact PyTorch v2.11.0 gitlink and catalog entry under
 `references/`; it is not product, build, qualification, or release evidence
 (decision-0047). MLIR remains internal to backend compilation; Vulkan
 qualification then reuses the same Kernel IR corpus (decision-0046).

@@ -1,165 +1,89 @@
 # Vulkan Backend
 
-The initial milestone-0.1.3.0 capability stage is the probe boundary. The C ABI record in
-`contracts/plugin/backend/v1/include/metaflux/backend/vulkan.h` contains fixed-width
-API, queue, subgroup, memory-tier, UUID, and target-environment fields; Vulkan
-handles and C++ objects remain private to the implementation.
+The backend implements a bounded compute target behind the neutral backend C
+ABI. Its capability, compiler, memory, queue and cache components have model
+tests and direct physical AMD/RADV evidence from
+[milestone-0.1.3.0](../../../agent/plan/milestone-0.1.3.0-vulkan-backend/plan.md).
+Those completed component results are distinct from the unqualified stock
+PyTorch daemon route owned by
+[work-item-0.2.0.3](../../../agent/plan/milestone-0.2.0.0-pytorch-cuda-compatibility/work/work-item-0.2.0.3-framework-qualification.md).
 
-`metaflux_vulkan_backend` creates a Vulkan 1.3 instance, selects the first
-physical device with a compute queue and the required timeline semaphore,
-Synchronization2, and buffer-device-address features, then serializes the
-queried profile into a deterministic target environment and SHA-256 digest.
-Only a device with both device-local and host-visible heaps advertises the
-baseline staging tier. The probe destroys all Vulkan handles before returning.
+## Build and activation
 
-Build this optional component with the pinned tool shell and an explicit SDK
-output:
+Use the pinned tools; the Vulkan preset exports the SDK through the Nix shell
+and builds backend components:
 
 ```sh
-vulkan_sdk="$(nix build --no-link --print-out-paths \
-  '.#packages.x86_64-linux.vulkan-tools')"
-nix develop .#vulkan --command cmake -S . \
-  -B tmp/build/vulkan \
-  -G Ninja -DMETAFLUX_BUILD_VULKAN_BACKEND=ON \
-  -DMETAFLUX_VULKAN_SDK_DIR="$vulkan_sdk" \
-  -DMETAFLUX_BUILD_TESTS=ON
-nix develop .#vulkan --command cmake --build \
-  tmp/build/vulkan
+nix develop .#vulkan --command cmake --preset vulkan
+nix develop .#vulkan --command cmake --build --preset vulkan
+nix develop .#vulkan --command ctest --preset vulkan
 ```
 
-The `#vulkan` shell exports `VULKAN_SDK` from the pinned Nix Vulkan tools, so the
-equivalent preset invocation is `nix develop .#vulkan --command cmake --preset
-vulkan -DMETAFLUX_BUILD_TESTS=ON` followed by `ctest --preset vulkan`. Do not
-point `METAFLUX_VULKAN_SDK_DIR` at host `/usr`: mixing the host loader with the
-Nix toolchain fails on glibc private-symbol conflicts. The full local suite,
-including SPIR-V lowering with independent `spirv-val`, pipeline, cache-model,
-and queue-executor host-smoke tests, passes on the pinned Mesa software ICD;
-that remains single-driver provisioning evidence only.
+The preset does not enable daemon GPU execution. The
+[daemon adapter documentation](../../../services/metafluxd/README.md#optional-vulkan-adapter)
+owns its separate build/runtime opt-ins and current fallback behavior.
+Current adapter behavior has not satisfied the fixed-context backend contract;
+it is not a supported policy for substituting CPU results in a Vulkan context.
 
-The capability CTest accepts an unavailable or incompatible host as a skipped
-local probe. A successful AMD-host probe is provisioning and single-driver
-evidence only; it does not close the work-item-0.1.3.1 dual-driver or milestone-0.1.3.0 release gates.
-No Vulkan execution, SPIR-V lowering, external-memory import, cache, or device
-loss behavior is claimed by this stage.
+For physical AMD access use the pinned RADV ICD in the
+[`vulkan-runtime` shell](../../../toolchains/README.md), not a host `/usr`
+loader mixed with Nix libraries. Model tests and a Mesa software ICD remain
+useful separate rows. The capability test may print unavailable/unqualified
+and return zero; inspect its actual result. A green generic CTest status alone
+does not prove that a physical GPU was exercised.
 
-The backend contract also includes a target-digest-bound packed argument block
-(`vulkan_arguments.h`) and an external-memory 0.x profile
-(`vulkan_memory.h`). The argument validator accepts only known scalar or
-generation-bound device-address entries. Tier 3 staging is the baseline; direct
-OPAQUE_FD or DMA-BUF import is advertised only when a future device probe proves
-the matching handle and synchronization capabilities.
+## Component boundaries
 
-Before a SPIR-V module is created, the runtime target preflight checks
-the queried profile, required feature bits, target digest, workgroup limits,
-address-space flags, and subgroup assumptions. It produces stable diagnostics
-for mismatches and unsupported semantics. The compiler now lowers the currently
-advertised u32 Add/Sub/Multiply/MadLo, f32 Add/Sub/Multiply/Mad/Fma, u32<->f32
-conversions, f32 predicates, u32 Copy, and static shared-barrier forms through
-MLIR GPU-to-SPIR-V conversion and emits target-constrained SPIR-V. Other Kernel
-IR forms fail before emission with an explicit unsupported-semantics diagnostic.
+| Boundary | Current implementation | Evidence limit |
+| --- | --- | --- |
+| Capability/target | Vulkan 1.3 compute queue selection, queried features/limits, UUIDs and deterministic target digest | Physical querying is distinct from logical-device enablement and client execution |
+| Kernel IR to SPIR-V | Target preflight, bounded MLIR conversion, emission and reflection | Only accepted forms in compiler tests; not the entire PyTorch CPU corpus |
+| Memory | Generation-bound host-visible staging and device-local copy, normalized flush/invalidate | Direct import requires its exact device/handle/synchronization matrix |
+| Execution | Device context, compute pipeline, queue submission and timeline completion | Direct component fixtures do not prove stock PyTorch routing |
+| Stream/resource models | Neutral FIFO/dependency graph, finite command pool and completion ledger | CUDA default/PTDS translation belongs to provider/runtime qualification |
+| Cache | Portable/device keys, integrity envelopes, atomic persistence, pinning, eviction and single-key locking | The qualified component warm trace is not automatically a daemon adapter warm trace |
+| Lifecycle | Generation validation, stale-resource rejection and model fault tests | Physical driver-change/loss soak and framework lifecycle remain separately owned |
 
-work-item-0.1.3.3 also defines a host-independent `SpirvReflection` contract for the
-post-conversion boundary. Its verifier requires a compute entry point, exact
-target digest, workgroup and feature/address-space parity with preflight,
-`LocalInvocationId` coverage, Workgroup storage parity, and a packed argument
-block whose size follows the versioned 64-byte header plus 48-byte entry layout.
-Malformed or mismatched observations are rejected before shader-module creation.
-The lowering test and pinned Vulkan tool shell run
-`spirv-val --target-env vulkan1.3` against the generated compute fixtures before
-the physical pipeline test. The reflection producer and binary emission are
-implemented for the current advertised subset; complete Kernel IR coverage and
-the dual-driver matrix remain separate qualification gates.
+The C ABI records under `contracts/plugin/backend/v1/` carry fixed-width
+capability and target data; Vulkan handles and C++ objects remain private.
+`VulkanDeviceContext` rechecks the device identity, properties, limits and
+required timeline/Synchronization2/buffer-device-address features before
+enabling the logical device.
 
-The runtime also contains a host-independent stream graph planner. It assigns
-monotonic timeline values, preserves same-stream FIFO, requires cross-stream
-waits to be explicit, and validates transfer/compute stage-access masks before
-`vkQueueSubmit2` submission. The source-local queue executor binds accepted
-submissions to `vkQueueSubmit2`, timeline completion, and recycled command
-resources; cross-transport and dual-driver qualification remain open.
+The packed argument ABI in `vulkan_arguments.h` uses a 64-byte header and
+48-byte entries, with target digest, scalar/device-address kinds and generation
+checks. Reflection, emitted SPIR-V and runtime bindings must agree before a
+shader module is created. The bounded compiler's generated fixtures pass
+`spirv-val --target-env vulkan1.3`; unsupported forms fail before emission.
+An opcode name or model mapping alone does not prove binary emission.
 
-work-item-0.1.3.2 also includes a host-independent memory visibility ledger for the staging
-baseline. It binds each allocation to a generation and submission timeline,
-tracks host/device dirty ranges, requires explicit flush before non-coherent
-device access and invalidate before host access, rounds ranges to the queried
-non-coherent atom size, and rejects in-flight or stale teardown. The runtime now
-adds a source-local host-visible `VkBuffer`/`VkDeviceMemory` staging adapter. It
-selects a compatible host-visible memory type, prefers host-coherent memory,
-maps the allocation, and normalizes non-coherent flush/invalidate ranges. This
-is physical allocation and mapping evidence on the current AMD/RADV host only;
-the source-local runtime now also records an explicit host-to-device and
-device-to-host copy through a device-local buffer and the generation-bound
-timeline context. This is a single-device Tier 3 round-trip, not external-handle
-import, backend admission, device-loss drain, or driver qualification.
+The external-memory profile in `vulkan_memory.h` remains ABI 0.x. Tier 3
+staging is the baseline. OPAQUE_FD, DMA-BUF and external host memory are separate
+capability-gated tiers; a memfd or host pointer is not automatically zero-copy.
+Model FD/ownership tests do not establish physical import or cross-process
+semaphore behavior.
 
-work-item-0.1.3.4 also provides a host-independent command-resource pool. A finite pool
-assigns each acquired resource a monotonic identity, generation, stream, and
-sequence. Submission records a strictly increasing completion timeline; a
-resource remains in flight until an observed completion reaches that value.
-Recycling never releases an incomplete resource, and generation reconfiguration
-is rejected while any resource is acquired or submitted. Handles from a retired
-generation are stale and are not reused by identity. The pool remains the
-host-independent ownership authority; the source-local queue executor supplies
-the physical command buffer and timeline bridge.
+`QueueSubmissionLedger` combines the graph and finite command-resource pool;
+the physical executor submits through `vkQueueSubmit2` and recycles resources
+only after observed completion. The cache repository binds canonical Kernel IR,
+compiler/pipeline/target and argument ABI identities; device entries additionally
+bind device/driver identities and pipeline cache UUID. A live pin prevents
+eviction, and atomic file publication plus per-key locking prevents incomplete
+or duplicate cache publication.
 
-The `QueueSubmissionLedger` composes that pool with the stream graph behind one
-mutex-protected admission boundary. It acquires a finite resource before graph
-validation, cancels the resource when validation rejects the plan, assigns a
-monotonic generation-bound completion value only after both admissions succeed,
-and recycles only through an observed completion. Reconfiguration resets the
-graph and resource generation together and rejects in-flight work. The source-
-local queue executor now binds each accepted tuple to `vkQueueSubmit2`, applies
-the dependency wait timeline, and recycles completed resources through the
-device timeline. Its sequence-to-completion ledger is allocated once with the
-finite resource capacity, and completion records are retired after observation,
-so steady-state and warm submissions do not allocate map nodes.
+The component pipeline test loads a device-cache payload, reuses its resident
+pipeline, submits and observes completion while checking the warm trace and
+host allocations. FMA measurements use a directly compiled shader fixture;
+their throughput is not PyTorch model performance.
 
-work-item-0.1.3.2 now adds a private `VulkanDeviceContext` that binds a successful capability
-profile to a new Vulkan 1.3 instance, an exact physical-device identity, one
-compute queue, and a timeline semaphore. It rechecks the profile's API/driver
-versions, UUID, queue family, workgroup limits, memory totals, and required
-timeline/Synchronization2/buffer-device-address features before enabling the
-logical device. Empty `vkQueueSubmit2` timeline signals, bounded waits, and
-counter polling are generation-checked and map device loss or timeout to stable
-runtime statuses. Vulkan handles remain source-local C++ state and never cross
-the stable backend C ABI. The optional `.#vulkan-runtime` shell can exercise
-this boundary on AMD RADV; that smoke is provisioning/single-driver evidence,
-not dual-driver, physical NVIDIA, allocation, or release qualification.
+## Qualification ownership
 
-The cache model defines deterministic portable and device-bound identities from
-Kernel IR, compiler/lowering/tool epochs, target and specialization digests,
-argument/backend ABI, and physical device/driver UUIDs. Its bounded catalog
-removes corrupt unpinned entries for rebuild and protects live references from
-eviction. `CacheFileStore` persists either key class with a complete envelope,
-payload digest, process-unique temporary file, `fsync`, and atomic rename;
-truncated or mismatched entries are removed before returning `corrupt`, and a
-device-bound key can be explicitly invalidated. Cross-process stampede control
-and warm-launch tracing remain bounded by the source-local qualification. The runtime now owns a source-local
-`VkPipelineCache` boundary: a cold pipeline build can import a device-bound
-opaque payload, export the updated payload after build, and hand the bytes back
-to `PersistentCacheRepository`. The cache object is destroyed with its
-generation-bound device and never crosses the stable C ABI; the repository
-still owns identity, pinning, atomic persistence, and invalidation.
-
-`PersistentCacheRepository` is the current host-independent integration
-boundary. It admits a publish against the resident catalog before writing the
-durable envelope, so pinned entries and a fully pinned quota never overwrite
-their existing file. Reads check the resident entry first; a validated file hit
-hydrates the bounded catalog and participates in its LRU policy. Pin/unpin and
-device invalidation are serialized with these transitions. Cross-process
-single-key misses use `lookup_or_publish`: a stable per-key advisory lock is
-held across the second lookup, producer, and publication, and waiters recheck
-after release. A resident device-bound hit can now be acquired as one
-generation-scoped pipeline binding; duplicate generations report `pinned`,
-stale generations report `stale_generation`, and release is required before
-device invalidation can remove the entry. This is a lifecycle contract for the
-cache repository, not creation or qualification of a `VkPipeline`. The cache
-tests mutate every portable and device-bound identity field and require a miss
-for each changed key. A host-independent warm-launch trace validator accepts
-only cache lookup, pipeline binding, argument binding, and submit in order; it
-rejects compiler, validator, module/pipeline creation, and allocation events.
-The physical pipeline qualification now exports a device pipeline cache,
-hydrates a device-bound repository hit, reuses the already-created pipeline,
-submits through the real queue, waits for completion, validates the exact
-four-event trace, and observes zero host allocations during warm submission.
-The remaining release evidence is driver-family and fault/soak qualification,
-not the warm-path object-creation boundary itself.
+- The completed v0.1.3 work items own the model matrix and named single-device
+  component results. Preserve the exact source, invocation and environment
+  limitations of those results.
+- The PyTorch Vulkan work item owns fixed-backend daemon integration, actual
+  physical AMD submit/completion, the shared CPU corpus, stream/event/allocator
+  behavior, daemon loss and process-level activation.
+- [work-item-2.0.0.3](../../../agent/plan/milestone-2.0.0.0-physical-hardware-qualification/work/work-item-2.0.0.3-dual-driver-physical-qualification.md)
+  owns the physical AMD+NVIDIA matrix, driver-change/validation soak and
+  external-memory promotion. It does not block the first AMD PyTorch slice.

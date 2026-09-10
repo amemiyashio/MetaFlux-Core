@@ -7,7 +7,10 @@ top-level component directory is currently reserved here.
 ## Active v0.2 Route
 
 milestone-0.2.0.0 reuses the established component boundaries while making the
-stock client, rather than an internal compiler mechanism, the observable goal:
+stock client the observable goal. This diagram is the target qualification
+path; the [CPU work item](../agent/plan/milestone-0.2.0.0-pytorch-cuda-compatibility/work/work-item-0.2.0.2-torch-kernel-intake.md)
+and [Vulkan work item](../agent/plan/milestone-0.2.0.0-pytorch-cuda-compatibility/work/work-item-0.2.0.3-framework-qualification.md)
+own current implementation and remaining qualification:
 
 ```text
 references/catalog/pytorch/pytorch-v2.11.0.json
@@ -26,7 +29,7 @@ stock PyTorch 2.11.0+cu126 normal torch.cuda path
 
 The first lane must correlate eager add with daemon submission and CPU-backend
 completion; provider-local tensor arithmetic is not acceptance evidence. The
-reference entry is an main prerequisite only and is not
+reference entry is an on-demand research prerequisite only and is not
 a product, build, qualification, or release input. The
 two target branches are independent after canonical Kernel IR, and Vulkan never
 routes through LLVM IR. MLIR remains inside compiler-worker and backend compiler

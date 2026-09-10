@@ -1,5 +1,14 @@
 # Included from tests/CMakeLists.txt; paths retain the tests/ directory scope.
 
+add_test(
+  NAME metaflux.performance.vulkan-evidence-selftest
+  COMMAND "${Python3_EXECUTABLE}" -B
+    "${CMAKE_CURRENT_SOURCE_DIR}/performance/test_milestone_0_1_3_6_vulkan_profile.py"
+    --unit-only
+)
+set_tests_properties(metaflux.performance.vulkan-evidence-selftest
+  PROPERTIES LABELS "architecture;performance-smoke;vulkan")
+
 if(METAFLUX_BUILD_CLIENT_FASTPATH)
   add_executable(metaflux_fastpath_performance_smoke performance/fastpath_smoke.c)
   target_link_libraries(metaflux_fastpath_performance_smoke PRIVATE MetaFlux::ClientFastpath)

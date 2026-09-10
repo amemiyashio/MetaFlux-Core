@@ -268,22 +268,33 @@ def runner(parsed: argparse.Namespace) -> dict[str, Any]:
     provider_dir = parsed.provider_dir.resolve()
     if not daemon_path.is_file() or not (provider_dir / "libcuda.so.1").is_file():
         raise ValueError("daemon or provider artifact is missing")
-    return {
-        "schema_version": 1,
-        "gate": "metaflux-pytorch-cuda-concat",
-        "result": "complete",
-        "source": source_provenance(),
-        "cases": {
-            case: run_case(case, daemon_path, provider_dir, parsed.client_manifest.resolve())
-            for case in (
-                "positive",
-                "unsupported-dimension",
-                "unsupported-layout",
-                "unsupported-dtype",
-                "source-capacity",
-            )
-        },
-    }
+    # Match the stock baseline/frontier's controlled placement before importing
+    # the client in any child. Preserve import failures rather than retrying them.
+    original_affinity = os.sched_getaffinity(0)
+    if not original_affinity:
+        raise RuntimeError("stock PyTorch concat has no effective CPU affinity")
+    selected_cpu = min(original_affinity)
+    os.sched_setaffinity(0, {selected_cpu})
+    try:
+        return {
+            "schema_version": 1,
+            "gate": "metaflux-pytorch-cuda-concat",
+            "result": "complete",
+            "source": source_provenance(),
+            "affinity": {"original_cpu_count": len(original_affinity), "selected_cpu": selected_cpu},
+            "cases": {
+                case: run_case(case, daemon_path, provider_dir, parsed.client_manifest.resolve())
+                for case in (
+                    "positive",
+                    "unsupported-dimension",
+                    "unsupported-layout",
+                    "unsupported-dtype",
+                    "source-capacity",
+                )
+            },
+        }
+    finally:
+        os.sched_setaffinity(0, original_affinity)
 
 
 def main() -> int:

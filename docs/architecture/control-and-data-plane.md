@@ -11,6 +11,14 @@ consumes its queues. The local worker may be embedded in `metafluxd`; the guest
 worker is `metaflux-vfio-userd`. This deployment difference does not change the
 ownership contract.
 
+The fixed-context CPU/Vulkan selection policy is owned by
+[the Vulkan milestone](../../agent/plan/milestone-0.1.3.0-vulkan-backend/plan.md):
+backend and transport are selected before visible resource success. The
+[current daemon adapter](../../services/metafluxd/README.md#optional-vulkan-adapter)
+is an unqualified implementation input, not evidence that this policy already
+holds for stock PyTorch. Its reconciliation and framework acceptance belong to
+work-item-0.2.0.3.
+
 For local cdev, `/dev/metafluxctl` brokers privileged worker registration,
 exclusive lease binding, queue attachment, drain, revocation, and worker-death
 publication. The guest worker receives the equivalent lease over the private

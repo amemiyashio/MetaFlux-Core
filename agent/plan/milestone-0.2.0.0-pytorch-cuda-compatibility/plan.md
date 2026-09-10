@@ -6,7 +6,7 @@ status: Active
 budgets: provisional
 depends_on: [milestone-0.1.0.0, milestone-0.1.1.0, milestone-0.1.2.0, milestone-0.1.3.0]
 areas: [compat.cuda, compiler, compiler.cpu, compiler.spirv, backend.cpu, backend.vulkan, compatibility]
-updated: 2026-09-09
+updated: 2026-09-10
 ---
 
 # milestone-0.2.0.0: PyTorch CUDA Transparent Compatibility Foundation
@@ -20,7 +20,12 @@ gate whose eager add becomes a daemon submission and CPU-backend completion.
 The route then broadens that foundation into a versioned CPU operator profile
 and qualifies the same canonical Kernel IR corpus through Vulkan/SPIR-V.
 
+Transparent use means stock source, wheel and application `torch.cuda` calls
+remain unchanged after MetaFlux installation and process-level activation.
 MetaFlux packaging, a launcher, and loader-environment activation are permitted.
+The client retains its stock CUDA runtime; MetaFlux implements the reached
+Driver/library compatibility surfaces and routes execution to its own backends.
+CPU execution and physical AMD RADV/Vulkan execution require separate evidence.
 MLIR remains an internal compiler-worker mechanism behind the neutral request
 and Kernel IR boundaries; it is not the user-facing product objective.
 
@@ -34,14 +39,14 @@ reserved for `v0.3.0`.
 | Dimension | Current evidence | Route consequence |
 | --- | --- | --- |
 | Architecture | Provider, neutral protocol, daemon/compiler worker, canonical Kernel IR, CPU backend, and Vulkan backend owners exist. | Keep component boundaries and make stock PyTorch behavior the outer success signal. |
-| Activation | The checked-in gate provisions pinned stock PyTorch `2.11.0+cu126` and reaches all five stages against the stock daemon. | Preserve this exact profile as the CPU-profile and Vulkan qualification input. |
-| Implementation maturity | The eager int32 add crosses a capability-gated neutral request into daemon-owned Kernel IR and passes through interpreter, MLIR/LLVM cold JIT, warm JIT, and administrator-prewarmed AOT. Deferred profile operations return classified unsupported errors rather than bypassing the daemon. | Broaden only through the versioned corpus and its daemon-owned routes. |
-| Release evidence | One real-client operation has passed all four CPU execution modes with exact compiler/cache counters, stable cache identity, and an explicit AOT-miss error, but no versioned CPU corpus, complete surface/handle matrix, Vulkan differential gate, or current gap manifests qualify `v0.2.0`. | Treat this as the first CPU-profile slice, not a release. |
+| Activation | Real-client runners provision the pinned wheel and activate the provider/daemon through test-owned loader and socket setup. | Preserve the stock profile; qualify a user-facing process entry in the Vulkan work item. |
+| Implementation maturity | The baseline and a compiled CPU subset pass four execution modes. The versioned frontier corpus and surface/handle matrices exist; remaining positive rows use daemon-native CPU branches. | Finish the canonical Kernel IR/compiled CPU corpus before the dependent Vulkan lane; counts and remaining families live in work-item-0.2.0.2. |
+| Release evidence | The CPU corpus is not frozen. The optional daemon Vulkan adapter has no qualified stock-client GPU path; standalone physical Vulkan fixtures do not supply that evidence. | Require physical AMD completion and lifecycle evidence for the same corpus, then qualify only explicitly declared application and release claims. |
 
-The readiness result is `not ready` for release and `ready for the CPU-profile
-lane`: its three baseline decisions have real evidence and the baseline is
-integrated, while the broad corpus and Vulkan work remain in the following
-lanes.
+The CPU-profile lane is active and ready for bounded semantic/compiled slices;
+the stock baseline remains complete. GPU route architecture must close before
+the qualifying adapter is implemented. Foundation completion and a stable
+release remain pending their own gates; governance does not promote either.
 
 ## Current Evidence
 
@@ -56,11 +61,17 @@ first proves an unseeded stable unsupported result before the same PTX/KIR is
 prewarmed and loaded without a runtime compiler request. The accepted path has
 no provider-local tensor arithmetic or fabricated-success event.
 
-The same gate deliberately rejects an unexpected internal-table surface,
+The baseline gate deliberately rejects an unexpected internal-table surface,
 unclassified reached slot, mismatched neutral request, or local semantic event.
-It is limited to the named profile and one operation: no common-operator corpus,
-complete surface/handle profile, or Vulkan route is yet qualified. That
-distinction keeps the accepted slice from overstating milestone completion.
+The separate [CPU profile work item](work/work-item-0.2.0.2-torch-kernel-intake.md)
+owns the current corpus summary and remaining execution work. Its versioned
+surface matrix classifies implemented entries separately from typed stubs;
+classification of the full pinned surface is not implementation of all CUDA.
+The library boundary is closed by decision-0053, while corpus freeze is pending.
+The [Vulkan work item](work/work-item-0.2.0.3-framework-qualification.md)
+owns the unqualified adapter gaps and required real-device evidence. Standalone
+GPU FMA, capability enumeration and green CPU tests do not qualify PyTorch GPU
+execution. Recorded results apply only to their exact revision and tested tree.
 
 ## Evidence and Execution Boundary (decision-0044)
 
@@ -86,9 +97,10 @@ distinction keeps the accepted slice from overstating milestone completion.
 6. Operator coverage is the exact checked-in corpus manifest, never an
    unqualified percentage or a claim of general PyTorch usability.
 
-The provider-local semantic router remains implementation evidence to migrate,
-not a release contract or a qualified backend. Git retains discarded debugging
-chronology and unbound benchmark notes.
+The accepted client routes have no provider-local tensor execution. Remaining
+operation-specific daemon CPU branches are implementation evidence to converge
+into canonical Kernel IR, not proof of generalized compiled or GPU execution.
+Git retains discarded debugging chronology and unbound benchmark notes.
 
 ## Stock-PyTorch-First Sequencing (decision-0046)
 
@@ -107,7 +119,7 @@ contracts with less speculative breadth.
 The dependency DAG and critical path are:
 
 ```text
-pytorch-v2.11.0 exact reference gitlink readiness
+pytorch-v2.11.0 research readiness (satisfied for the completed baseline)
   -> baseline-required provider surface
   + minimal neutral request schema and lifetime
   + daemon CPU execution mode and cache identity
@@ -115,23 +127,24 @@ pytorch-v2.11.0 exact reference gitlink readiness
           -> work-item-0.2.0.2 CPU profile and corpus
                + library-backed matmul boundary before corpus freeze
               -> work-item-0.2.0.3 Vulkan qualification
-                   + Vulkan route decision before implementation
+                   + Vulkan route decision before qualifying-route implementation
+                       -> physical AMD add slice -> same corpus/lifecycle/activation
 ```
 
 All three lanes are serial on this critical path. Bounded tests and contract
 research inside a lane may run in parallel only when their outputs do not bypass
 the lane's listed decisions or evidence prerequisites.
 
-Node disposition from epoch-0011 is:
+Current node dispositions are:
 
 | Node | Disposition | Reason |
 | --- | --- | --- |
 | milestone-0.2.0.0 and three work-item IDs | Keep | Delivery coordinates and observable output are unchanged. |
 | Pinned client surface, neutral request, Kernel IR, CPU, and Vulkan boundaries | Keep | decision-0044 remains the execution ownership authority. |
-| Full surface matrix and handle-negative expansion | Reorder | Move after the minimal stock-client vertical baseline. |
-| Eager add and minimal CPU execution | Reorder | Pull into the first lane as the earliest user-visible success. |
-| Compiler-first headline and narrative | Rewrite | MLIR is internal mechanism, not the product objective. |
-| Provider-local tensor results as qualifying evidence | Delete | They do not prove daemon submission or backend completion. |
+| Completed baseline and qualified surface/handle/library results | Keep | Reuse their bounded evidence; do not reopen completed deliveries. |
+| Active CPU profile followed by queued Vulkan qualification | Keep | Canonical semantics precede reuse on the second backend. |
+| Readiness, activation and GPU acceptance descriptions | Rewrite | Separate declared coverage, measured execution and broader application claims. |
+| Duplicate counts and obsolete cross-milestone blocked state | Delete | The corpus/work-item and Goal own those facts. |
 
 Verification state: this decision is retained by the active route.
 decision-0047 adds only a research-readiness prerequisite before the first
@@ -161,6 +174,8 @@ Included:
   CPU/Vulkan differential evidence for the same corpus.
 - Stream, event, allocator, synchronization, teardown, and daemon-loss behavior
   required by the pinned profile.
+- Physical AMD RADV execution and a user-facing process activation path for the
+  declared corpus. No per-kernel CPU fallback inside a Vulkan context.
 - Release-facing baseline and frontier gap manifests.
 
 Excluded:
@@ -174,6 +189,13 @@ Excluded:
   (decision-0040).
 - Any relaxation of the frozen PTX 9.0/`sm_70` oracle without a compiler-epoch
   review.
+
+Not yet declared or qualified: complete models, autograd/backward, optimizers,
+mixed precision, general shape/broadcast/layout behavior, and
+`torch.compile`/Triton execution. Their absence from the finite corpus is not a
+test result for every possible call. The application-scope decision below must
+close before adding such a claim. Pinned wheel dependencies do not themselves
+establish support for their execution paths.
 
 ## Workstreams
 
@@ -190,7 +212,13 @@ Excluded:
 - Eager add and every accepted corpus operation produce daemon submissions and
   backend completions; the provider never computes or fabricates the result.
 - The versioned corpus is bit-exact against the torch CPU reference through CPU
-  and Vulkan daemon routes.
+  and physical AMD Vulkan daemon routes; GPU records identify the actual device,
+  enabled target, submissions and completions. CPU execution, software Vulkan
+  or skipped hardware probes do not substitute for that GPU row.
+- Backend selection is fixed before visible context resources succeed;
+  unsupported GPU forms fail explicitly without per-kernel CPU substitution.
+- The corpus passes through process-level activation and sustained execution;
+  application claims outside it require separate declared scope and evidence.
 - Provider surface, profile manifest, neutral request schema, Kernel IR schema,
   compiler pipeline, target environment, and cache identities advance together.
 - Unsupported profile operations fail with stable classified errors and no
@@ -201,9 +229,20 @@ Excluded:
 ## Decisions to Close
 
 1. Vulkan daemon routing shape and its qualification matrix.
+2. Exact application scope and acceptance for PyTorch CUDA claims beyond the finite corpus.
 
-This decision may wait until work-item-0.2.0.3 but must close before Vulkan
-route implementation.
+The routing decision closes before work-item-0.2.0.3 implements the qualifying
+route, including reconciliation of the existing optional adapter. Its closure
+must specify context/device selection, neutral lifetime, cache identity,
+unsupported/loss behavior and a checked-in physical AMD qualification plan.
+An opt-in prototype is evidence to evaluate, not an already closed decision.
+
+Application scope closes before the first implementation or acceptance that
+claims an application beyond the corpus; it does not block current bounded
+CPU work or the first GPU slice. Pin the program/model and input/weight
+identities, inference/backward/optimizer scope, dtype/shape/layout/batch,
+framework compilation and library dependencies, correctness oracle, resource
+limits and measured performance criteria. Do not invent a model selection.
 
 ## Resolved Decisions
 
@@ -212,8 +251,12 @@ route implementation.
 The first stock-PyTorch baseline uses protocol capability bit 11 and control
 opcode 17, `KERNEL_REQUEST_REGISTER`, rather than the generic raw-artifact
 registration path. The wire payload is a sealed, 64-byte v1 header followed by
-source bytes. Its only accepted baseline profile is `ELEMENTWISE_ADD_I32` with
-operation ABI v1, Kernel IR schema v2, and `MODULE_LOAD` lifetime. No CUDA,
+source bytes. The completed baseline uses `ELEMENTWISE_ADD_I32` with
+operation ABI v1, Kernel IR schema v2, and `MODULE_LOAD` lifetime. The current
+closed operation set is owned by
+[`protocol.h`](../../../contracts/protocol/client/v1/include/metaflux/client/protocol.h)
+and its protocol tests; subsequent corpus rows do not create a private copy of
+that enum in this plan. No CUDA,
 PyTorch, MLIR, LLVM, Vulkan, target, or native-layout type crosses this wire
 boundary.
 
@@ -255,9 +298,10 @@ manifest rather than these observations.
 
 ### CPU interpreter baseline and cache boundary (decision-0050)
 
-The stock five-stage baseline selects `METAFLUX_CPU_EXECUTION_MODE=interpreter`.
+The interpreter row of the stock five-stage baseline selects
+`METAFLUX_CPU_EXECUTION_MODE=interpreter`.
 `MODULE_LOAD` retains canonical Kernel IR and executes it in the daemon's CPU
-interpreter. This profile never invokes the compiler worker, opens no mutable
+interpreter. This mode never invokes the compiler worker, opens no mutable
 or AOT compiled-artifact cache, and therefore has no compiled-artifact cache
 identity. Its evidence reports those fields explicitly as
 `not-applicable-in-interpreter-mode`, with zero compiler requests, cache hits,
@@ -266,9 +310,11 @@ source revision and clean/dirty tree state.
 
 This is a bounded baseline decision, not a cache-policy relaxation. Cold JIT,
 warm JIT, and AOT retain their existing deterministic cache identities and
-qualification rules. Any future stock-PyTorch compiled path must promote its
-compiler inputs, target/cache identity, and cache hit/miss evidence in
-work-item-0.2.0.2 before it joins the versioned CPU corpus.
+qualification rules. The checked-in baseline also qualifies eager add in these
+compiled modes, and work-item-0.2.0.2 extends that evidence to its declared
+compiled subset. Each additional row must bind compiler inputs, target/cache
+identity and actual hit/miss evidence before joining that subset. Interpreter
+non-use is never a substitute for compiled-mode cache identity.
 
 ### Automatic acceptance and advancement (decision-0052)
 
@@ -295,7 +341,7 @@ linear case.
 Both paths wrap the accepted call in the versioned neutral `MATMUL_F32`
 request and invoke the Driver provider. The Driver validates device pointers,
 matrix spans, launch geometry, and descriptor values before daemon submission;
-the daemon CPU backend alone reads inputs and materializes results. The library
+the daemon-owned CPU matmul implementation alone reads inputs and materializes results. The library
 provider performs no tensor arithmetic and does not load or execute an NVIDIA
 cuBLAS implementation.
 
@@ -312,10 +358,45 @@ Evidence is the provider semantic suite, including handle and negative-status
 coverage, plus the checked-in interpreter corpus. Its five library-backed rows
 produce bit-exact results for matmul, rectangular matmul, bias-free linear,
 addmm, and biased linear; they record `sgemm-f32` or
-`lt-matmul-bias-f32`, one daemon `matmul-f32` request, backend completion, and
+`lt-matmul-bias-f32`, one daemon `matmul-f32` request, daemon CPU completion, and
 zero provider-local execution. This closes the library boundary only; corpus
 freeze, generalized lowering, compiled cache identity, and full CPU-profile
 acceptance remain open in work-item-0.2.0.2.
+
+### Evidence-bound transparent compatibility (decision-0055)
+
+This governance decision refines decisions 0044/0046 without changing delivery
+IDs, lane order or completed results. It narrows decision-0050's non-use claim
+to interpreter mode and makes physical backend identity and process activation
+explicit in the existing qualification deliverable.
+
+Rationale: a finite client corpus, compilation counters, a standalone GPU
+fixture and a working application establish different facts. A daemon can
+compile a module and still execute an operation-specific CPU branch; a matching
+tensor alone does not identify its executor.
+
+Consequences:
+
+- Manifest rows own declared coverage; the CPU work item owns the checked
+  prose summary. Other indexes link to that owner instead of repeating counts.
+- Full CPU acceptance requires per-request/module actual executor identity,
+  canonical semantics and no daemon-native shortcut in generic interpreter or
+  compiled modes. Existing
+  result/cache counters remain useful bounded evidence, not this missing trace.
+- Vulkan qualification requires physical AMD device identity and correlated
+  submission/completion with fixed context backend and no CPU substitution.
+  Optional adapters, model-only reports and skips never promote GPU maturity.
+- Broader application scope remains an open decision until a program/model,
+  execution modes and acceptance inputs are selected. The finite foundation
+  does not promise universal PyTorch or joint CPU/GPU scheduling.
+- Process activation for the declared corpus belongs to work-item-0.2.0.3;
+  installed packages, upgrade/removal and released aliases belong to
+  work-item-1.0.0.3. Physical Intel/NVIDIA/dual-driver gates remain v2 scope.
+
+Verification state: this is an acceptance-policy cutover, not a product
+implementation or a GPU qualification result. The readiness checker validates
+declared counts and blocks completion inconsistent with an unfrozen corpus;
+actual executor tracing and physical client gates remain product work.
 
 ## Definition of Done
 

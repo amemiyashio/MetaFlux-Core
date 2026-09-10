@@ -5,7 +5,7 @@ milestone: milestone-0.2.0.0
 status: Complete
 area: compat.cuda
 depends_on: [work-item-0.1.0.4]
-updated: 2026-09-08
+updated: 2026-09-10
 ---
 
 # Stock PyTorch CUDA Baseline
@@ -37,9 +37,10 @@ The gate records the exact baseline request/profile versions, direct provider
 and internal-table surface, daemon launch, CPU mode, and result bytes. It is a
 single-operation baseline, not the CPU profile or a general PyTorch CUDA claim.
 The exact Driver/internal-table, neutral request/lifetime, and CPU interpreter
-cache-non-use decisions are closed by decisions 0048-0050. The epoch-0015
-governance regression accepts this evidence as the integrated baseline; the
-next work is the dependent CPU profile, not another provider-local shortcut.
+cache-non-use decisions are closed by decisions 0048-0050. The baseline remains
+integrated. The gate additionally covers eager add through cold JIT, warm JIT
+and AOT with exact cache identity; the CPU work item owns expansion of that
+compiled coverage. Decision-0055 clarifies the mode-specific evidence boundary.
 
 ## Decisions Before Integration
 
@@ -72,9 +73,9 @@ routing remain in their dependent work items.
   Kernel IR boundary instead of bypassing daemon module ownership.
 - [x] Lower and execute eager add through the daemon CPU path, recording a
   daemon submission, backend completion, result bytes, source revision, client
-  profile, request/Kernel IR versions, and interpreter cache non-use. The
-  future compiled-cache identity remains outside this baseline under
-  decision-0050.
+  profile, request/Kernel IR versions, and interpreter cache non-use. Compiled
+  modes require their own exact cache identity under decision-0050; expansion
+  belongs to work-item-0.2.0.2.
 - [x] Remove the provider-local eager-add arithmetic and success shortcut from
   the accepted path. Unsupported inputs fail with a stable classified error and
   no output mutation.

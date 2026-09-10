@@ -47,7 +47,8 @@ where available; other platforms use traces and a separate p99 creation budget.
 - [x] Add a host-independent pipeline binding boundary. A validated resident
   device-bound hit is pinned under one generation-scoped binding; duplicate or
   stale generations are rejected and release is required before device
-  invalidation can remove the entry. Actual `VkPipeline` creation remains open.
+  invalidation can remove the entry. The separate physical pipeline test below
+  owns actual `VkPipeline` creation and warm reuse evidence.
 - [x] Verify every portable and device-bound identity field causes a miss for
   its changed key while unchanged key partitions remain hits. Provisional
   extension revisions still require their producer and release evidence.

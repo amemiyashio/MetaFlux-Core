@@ -70,16 +70,16 @@ memory or host heap object.
 - [x] Expose the context through the backend admission path without changing
   the stable C ABI. The current path provides generation-bound staging,
   non-coherent visibility, and timeline synchronization.
-- [x] Add optional direct tiers and complete the physical allocation/import
-  ownership matrix after the exact device capabilities are qualified.
+- [x] Model optional direct-tier admission and allocation/import ownership;
+  keep physical capability/import qualification with its later owner.
   Host-independent `ExternalMemoryLedger` now admits both OPAQUE_FD and DMA_BUF
   direct tiers with handle/sync bit matrices, non-overlap across tiers,
   dedicated-only rejection, and generation-loss reconfigure after ref drain
   (`external_memory_dma_buf_and_generation_loss` in
   `metaflux.backend.vulkan-memory`). Physical VkDevice import/export still
   requires a qualified host device; live dual-driver proof is deferred to [work-item-2.0.0.3](../../milestone-2.0.0.0-physical-hardware-qualification/work/work-item-2.0.0.3-dual-driver-physical-qualification.md) (decision-0040).
-- [x] Test fd ownership on success/failure, `memoryTypeBits`, overlapping imports,
-  cross-process semaphore visibility, teardown, reset, and device loss.
+- [x] Test host-side fd ownership, `memoryTypeBits`, overlapping import records,
+  teardown and generation-loss/reset models.
   Covered host-side: FD dup/CLOEXEC ownership and EBADF after final release
   (`external_memory_fd_ownership`); `memoryTypeBits` accept/reject matrix;
   overlap across concurrent imports; generation-loss analogue of device reset
@@ -94,6 +94,7 @@ memory or host heap object.
 
 ## Exit Gate
 
-Buffer allocate/copy/fill and lifecycle tests pass without compute shader
-execution; each advertised tier passes its ownership, coherence, permissions,
-generation, and teardown matrix.
+The staging allocation/copy and host-independent ownership, coherence,
+permission, generation and teardown matrices pass. Direct-tier ledger tests
+are model evidence; physical imports, cross-process semaphore behavior and
+dual-driver ownership/coherence qualification remain work-item-2.0.0.3.

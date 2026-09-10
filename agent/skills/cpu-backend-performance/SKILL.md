@@ -92,10 +92,16 @@ Return or implement:
 - Differentially compare the semantic reference, CPU-owned interpreter, JIT, and
   AOT over the entire advertised corpus and edge cases before accepting
   performance changes.
-- Test Intel and AMD x86_64 targets, feature mismatch, restricted affinity and
-  cpuset CPU/memory-node masks, invalid requested pins, offline/hotplug changes,
-  NUMA placement variants, tails, divergent masks, barriers, atomics, and
-  deterministic shutdown.
+- Test the active milestone's x86_64 host matrix, feature mismatch, restricted
+  affinity and cpuset CPU/memory-node masks, invalid requested pins,
+  offline/hotplug changes, NUMA placement variants, tails, divergent masks,
+  barriers, atomics and deterministic shutdown. Under decision-0040, current
+  AMD qualification does not wait for Intel host rows owned by milestone-2.0.0.0.
+- For the PyTorch CPU profile, distinguish a compiled artifact from its actual
+  execution. Full acceptance correlates each request/module with its generic
+  interpreter or compiled executor; daemon-native tensor branches do not
+  establish compiled coverage merely because cache counters and results match.
+  The active work item's Exit Gate owns the acceptance scope.
 - Confirm cache keys change for target triple, CPU/features, compiler epoch,
   pass pipeline, FP policy, helper ABI, PGO ID, or kernel content changes.
 - Inspect vectorization remarks and machine code; do not infer SIMD from source

@@ -8,11 +8,11 @@ depends_on: [milestone-0.1.1.0]
 updated: 2026-09-06
 ---
 
-# Vulkan Capability and ABI 0.x
+# Vulkan Capability and Extension Boundaries
 
 ## Outcome
 
-Define a reproducible Vulkan 1.3 compute target, packed-argument ABI 0.x,
+Define a reproducible Vulkan 1.3 compute target, packed-argument contract,
 external-memory extension 0.x, benchmark contract, and semantic capability matrix
 before freezing a public backend extension.
 
@@ -46,8 +46,9 @@ Implemented stage:
 - [x] Add the separate on-demand `vulkan-runtime` tool output and
   `.#vulkan-runtime` shell with pinned Mesa ICD and Khronos validation layers
   for host smoke/probe execution; keep it out of the lean tool-only shell.
-- [x] Add C ABI layout and host capability regression tests; an unavailable or
-  incompatible host is reported as a skipped local probe.
+- [x] Add C ABI layout and host capability regression tests. An unavailable or
+  incompatible host produces an unqualified-probe message and zero exit status;
+  that generic CTest pass is not a physical-device qualification result.
 - [x] Draft the target-digest-bound packed scalar/device-address argument block
   and external-memory 0.x profile, with generation, range, ownership, and
   staging/direct-import negative fixtures.
@@ -74,11 +75,13 @@ Implemented stage:
   `mf_vulkan_execution_timestamps_v1` freezes the four ordered host-side anchors
   (enqueue → submit → start → completion) with
   `mf_vulkan_execution_timestamps_ordered_v1`. Live GPU sampling still runs under
-  work-item-0.1.3.4 dual-driver execution evidence.
+  the direct component fixtures; physical dual-driver evidence belongs to
+  work-item-2.0.0.3.
 
 ## Exit Gate
 
 Positive/negative target fixtures, packed layouts, cache keys, capability reports,
 and benchmark contracts reproduce on the host-independent dual-family fixtures;
 the physical dual-family matrix is owned by milestone-2.0.0.0 (decision-0040).
-No Vulkan-specific public extension is frozen yet.
+Packed arguments are ABI v1 under work-item-0.1.3.4's layout freeze;
+external memory remains ABI 0.x until its physical qualification and promotion.

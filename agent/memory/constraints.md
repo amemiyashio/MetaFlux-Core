@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-09-09
+updated: 2026-09-10
 ---
 
 # Durable Constraints
@@ -162,10 +162,16 @@ identity and provisioning boundaries live in
   observations, never CUDA Driver guarantees. Any reached but unclassified slot
   returns `CUDA_ERROR_NOT_SUPPORTED`; it may not synthesize a successful result
   or leave output undefined (decision-0049).
-- The stock PyTorch baseline is CPU-interpreter-only. It records source
-  provenance and compiler/cache non-use, while compiled-artifact cache identity
-  remains mandatory only for future JIT/AOT CPU-profile operations
-  (decision-0050).
+- The stock PyTorch interpreter row records source provenance and explicit
+  compiler/cache non-use. Its JIT/AOT rows and the CPU compiled subset require
+  actual compiled-artifact/cache identity; decision-0050 is mode-specific,
+  refined by decision-0055. Declared counts and compilation counters do not
+  replace per-request actual executor evidence for full CPU-profile acceptance.
+- The PyTorch CUDA qualification boundary follows decision-0055: preserve
+  stock source/wheel/API, require actual physical AMD GPU submission/completion
+  for a Vulkan claim, and fix the backend before visible context resources
+  succeed. A daemon-native CPU result or per-kernel CPU fallback is not GPU
+  success. Broader applications require declared scope and separate evidence.
 - Library-backed PyTorch operations use only qualified MetaFlux ABI shims that
   translate accepted calls into versioned neutral requests for daemon-owned
   execution. No compatibility provider vendors or executes an upstream GPU

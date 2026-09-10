@@ -49,8 +49,8 @@ a capability diagnostic and never switch an established context to CPU.
 - [x] Implement and test the host-independent Graph IR FIFO/cross-stream
   dependency, copy-visibility, concurrent-submission, and bounded-error
   behavior; provider/runtime default-stream translation remains separate.
-- [x] Run Add/Copy/static-shared-barrier differential tests on both driver
-  families through memfd, cdev, and guest vfio-user.
+- [x] Compare Add/Copy/static-shared-barrier plans on synthetic AMD/NVIDIA
+  target identities, without claiming physical cross-transport execution.
   Host-independent dual-family planner differential
   `dual_family_add_copy_barrier_differential` in
   `metaflux.backend.vulkan-stream-graph` proves identical Add/Copy/barrier
@@ -61,15 +61,15 @@ a capability diagnostic and never switch an established context to CPU.
 - [x] Verify device-loss injection: after `context.reset()`, the device is not
   ready, `submit_signal` returns `not_ready`, and re-initialization either
   succeeds with a usable queue or gracefully declines.
-- [x] Run Vulkan validation and synchronization validation with reset/device
-  loss injection.
+- [x] Verify reset/loss state transitions in the device/stream model tests;
+  retain physical validation-layer and synchronization soak with its v2 owner.
   Host-independent device-loss injection after `context.reset()` is already
   covered in stream/device tests. The physical Vulkan validation-layer and
   synchronization soaks with reset/device-loss on dual-driver hosts are
   deferred to work-item-2.0.0.3 (decision-0040) and do **not** reopen the
   packed-argument freeze.
-- [x] Freeze packed arguments and the lowering epoch only after the dual-driver
-  matrix passes.
+- [x] Freeze packed-argument layout after its contract/lowering/model matrix
+  passes; keep the later physical qualification separate.
   Host-independent layout freeze is closed by
   `contracts/plugin/backend/v1/include/metaflux/backend/vulkan_arguments.h`
   (ABI v1, 64-byte header / 48-byte entry, target-digest + generation-bound BDA)
@@ -79,7 +79,8 @@ a capability diagnostic and never switch an established context to CPU.
   `tools/validate-vulkan-argument-freeze.py` /
   CTest `metaflux.contract.vulkan-argument-freeze`. Physical dual-driver
   validation-layer execution is deferred to work-item-2.0.0.3 (decision-0040)
-  before product SemVer promotion and does **not** reopen the packed layout.
+  for the physical v2 qualification and does **not** reopen the packed layout
+  or block the first AMD PyTorch route.
 - [x] Bring the physical execution path up on the reference AMD iGPU. The
   Nix-provided RADV ICD (mesa 26.1.8, selected through `VK_DRIVER_FILES`)
   enumerates the real device inside the Nix environment without glibc mixing
@@ -96,7 +97,8 @@ a capability diagnostic and never switch an established context to CPU.
   on the profile's physical device and observes enqueue, vkQueueSubmit2, the
   device timestamp window, and timeline completion. The stage profile consumes
   it when the pipeline fixture and a live device are present; the runner reports
-  the stages under `physical_queue_stages` instead of leaving them host-pending.
+  the stages once under `stages`, distinguishing complete queue samples from
+  missing/partial runs without inferring physical-device or framework qualification.
   Measured result (2026-09-06, 780M, 200 samples): submit side ~0.29 ms p50
   (command recording through vkQueueSubmit2), device dispatch window ~1.6 us
   p50, submit-to-timeline-completion ~78 us p50. The host-independent stages and
@@ -104,9 +106,10 @@ a capability diagnostic and never switch an established context to CPU.
 
 ## Exit Gate
 
-Every advertised kernel agrees with independent CPU/native results on the
-host-independent dual-family identity fixtures; the backend executes the exact
-neutral stream/event dependency graph, the composed provider/runtime suite
-matches CUDA observables, and host-independent validation reports no error.
+The declared kernel and neutral dependency-graph fixtures pass their independent
+CPU/model checks, synthetic two-family plan comparison and named direct AMD
+component execution. These results do not prove stock PyTorch stream/event
+translation, cross-transport GPU execution or physical two-driver agreement;
+those remain work-item-0.2.0.3 and work-item-2.0.0.3 respectively.
 The physical dual-driver execution and validation rows are owned by
 milestone-2.0.0.0 (decision-0040).

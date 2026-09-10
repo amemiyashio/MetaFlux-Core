@@ -8,6 +8,13 @@ through interpreter, cold-JIT, warm-JIT, and AOT paths, and the Vulkan backend
 executes SPIR-V compute on physical adapters. Measured evidence lives beside
 each owning work item.
 
+Stock PyTorch CUDA support is a bounded profile under
+[milestone-0.2.0.0](agent/plan/milestone-0.2.0.0-pytorch-cuda-compatibility/plan.md).
+The five-stage baseline is integrated and the CPU corpus is expanding; its
+[current coverage](agent/plan/milestone-0.2.0.0-pytorch-cuda-compatibility/work/work-item-0.2.0.2-torch-kernel-intake.md)
+is not a general model or training guarantee. Physical Vulkan component
+execution is separate from the still-unqualified PyTorch daemon GPU route.
+
 Agents start at [`AGENTS.md`](AGENTS.md) before making any change.
 
 ## Bootstrap

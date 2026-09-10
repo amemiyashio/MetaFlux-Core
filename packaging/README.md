@@ -46,6 +46,12 @@ dynamic-dependency checks. Distribution install, real upgrade, removal,
 vendor-coexistence, and packaged CUDA Add/Copy runs are owned by the offline
 release matrix harnesses under `tests/release/`, not by flake checks.
 
+Packaged Add/Copy and socket-activation fixtures do not qualify ordinary
+PyTorch applications. The declared corpus's process entry belongs to
+work-item-0.2.0.3; the installed launcher, backend selection, render-node/socket
+permissions, upgrade, environment restoration and removal journey belong to
+[work-item-1.0.0.3](../agent/plan/milestone-1.0.0.0-stable-qualification/work/work-item-1.0.0.3-stable-release.md).
+
 Complete DEB and RPM packages apply `metaflux` sysusers and tmpfiles metadata,
 with `useradd`/`groupadd` and explicit directory creation as the minimal-image
 fallback. On a running systemd host their lifecycle hooks stop units for an

@@ -111,6 +111,11 @@ sequence. Repeating an already-effective value is idempotent.
 
 ## CPU execution modes
 
+The mode table below describes the generic Kernel IR CPU engine. The current
+PyTorch frontier also has operation-specific daemon CPU branches, recorded in
+[its owning work item](../../agent/plan/milestone-0.2.0.0-pytorch-cuda-compatibility/work/work-item-0.2.0.2-torch-kernel-intake.md).
+Their successful results are not generic compiled-executor qualification.
+
 `METAFLUX_CPU_EXECUTION_MODE` is parsed once before the listener opens. It is
 unset by default (`interpreter`) and otherwise accepts exactly these values:
 
@@ -180,3 +185,18 @@ metadata or ELF is `MF_SHARED_MALFORMED`, quota exhaustion is
 `MF_SHARED_RESOURCE_EXHAUSTED`, and I/O or loader infrastructure failures are
 `MF_SHARED_SYSTEM_ERROR`. On clean shutdown the daemon prints mode, compiler
 request, cache hit/miss, and loaded-module counters for qualification evidence.
+
+## Optional Vulkan adapter
+
+The daemon contains an experimental adapter in `src/vulkan_execution.cpp`.
+It requires `METAFLUX_DAEMON_VULKAN_EXECUTION=ON` at build time and
+`METAFLUX_VULKAN_EXECUTION=1` at runtime. Enabling the Vulkan backend component
+or using the Vulkan preset alone does not enable this daemon route.
+
+The current adapter prepares CPU modules first, retains CPU execution when no
+dispatchable Vulkan module exists, and leaves native framework operations on
+their daemon CPU paths. Once a GPU launch is attempted, a failed launch returns
+device loss rather than retrying on CPU. This is not a qualified fixed-backend
+PyTorch route. The [Vulkan work item](../../agent/plan/milestone-0.2.0.0-pytorch-cuda-compatibility/work/work-item-0.2.0.3-framework-qualification.md)
+owns its reconciliation, actual-device evidence, lifetime and activation gates.
+The existing fixed-context backend policy remains the target contract.

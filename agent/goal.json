@@ -1,6 +1,6 @@
 {
   "schema_version": 4,
-  "epoch": "epoch-0016",
+  "epoch": "epoch-0017",
   "batch": {
     "id": "batch-0001",
     "status": "open"
@@ -9,7 +9,7 @@
     "milestone": "milestone-0.2.0.0",
     "work_item": "work-item-0.2.0.2"
   },
-  "objective": "Broaden the verified pinned stock PyTorch 2.11.0+cu126 torch.cuda baseline into a versioned CPU execution profile, then qualify the same Kernel IR corpus on Vulkan without PyTorch source, wheel, or API changes.",
+  "objective": "Converge the pinned stock PyTorch 2.11.0+cu126 torch.cuda CPU profile, then qualify the same canonical Kernel IR corpus on the AMD RADV/Vulkan backend with explicit backend completion and process-level activation, without PyTorch source, wheel, or API changes; broader application claims require their own declared acceptance scope.",
   "references": [],
   "lanes": [
     {
@@ -35,20 +35,23 @@
       "acceptance": [
         "The Driver and profile-specific internal-table matrix classifies the full pinned surface, and invalid, stale, destroyed, cross-module, reuse, and teardown handle cases pass.",
         "The versioned neutral framework-kernel request and canonical Kernel IR boundary carry no CUDA, PyTorch, MLIR, LLVM, Vulkan, or target-specific wire types.",
-        "The versioned operator corpus, cache identity, and stable error classes pass through daemon CPU execution; the library-backed matmul boundary closes before corpus freeze."
+        "Every accepted row in the frozen CPU corpus has canonical Kernel IR semantics and passes interpreter, cold JIT, warm JIT, and AOT with per-request executor evidence, mode-appropriate provenance and cache identity, and stable errors; operation-specific daemon CPU branches do not establish generic interpreter or compiled coverage.",
+        "The closed library-backed matmul boundary is retained; broader dtype, shape, layout, batching, and library configurations require explicit corpus and negative-test coverage before acceptance."
       ]
     },
     {
       "id": "lane-pytorch-cuda-vulkan-qualification",
       "work_item": "work-item-0.2.0.3",
       "iteration": "iteration-0003",
-      "outcome": "Route the same versioned PyTorch CUDA Kernel IR corpus through Vulkan/SPIR-V and qualify lifecycle behavior with CPU/Vulkan differential evidence.",
+      "outcome": "Qualify the same versioned PyTorch CUDA Kernel IR corpus on an explicitly selected AMD RADV/Vulkan context, with real device submission/completion, CPU differential evidence, lifecycle behavior, and process-level activation.",
       "status": "planned",
       "depends_on": ["lane-pytorch-cuda-cpu-profile"],
       "acceptance": [
-        "The Vulkan route decision is closed before implementation and the accepted Kernel IR corpus lowers directly through target-constrained MLIR/SPIR-V without an LLVM detour.",
+        "The Vulkan route decision is closed before implementing the qualifying route; the existing optional adapter is unqualified. Each context fixes its backend before resource success, with no per-kernel CPU fallback or CPU-native shortcut in Vulkan qualification.",
+        "The first GPU slice proves unchanged stock PyTorch eager add, copy and readback on the named physical AMD RADV device, including device identity and correlated GPU submission/completion; the full accepted Kernel IR corpus then lowers directly through target-constrained MLIR/SPIR-V without an LLVM detour.",
         "Stream, event, allocator, multi-stream, synchronization, teardown, and daemon-loss rows pass for the pinned client on the Vulkan daemon route.",
-        "CPU and Vulkan execute the same corpus manifest with bit-exact differential evidence, current baseline/frontier gap manifests, and green cumulative v0.1.x regression."
+        "CPU and Vulkan execute the same corpus manifest with bit-exact differential evidence, current baseline/frontier gap manifests, and green cumulative v0.1.x regression; missing physical GPU execution is not a qualification pass.",
+        "The declared corpus runs through one process-level activation entry without PyTorch changes or test-only orchestration. Any additional model, training, mixed-precision, or compiled-framework claim first closes its exact application scope and acceptance evidence; Intel and physical NVIDIA/dual-driver gates remain v2 scope."
       ]
     }
   ]

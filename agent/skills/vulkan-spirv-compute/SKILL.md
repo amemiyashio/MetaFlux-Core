@@ -7,7 +7,7 @@ description: Design or review Vulkan 1.3 compute device and queue selection, cap
 
 ## Inputs
 
-- The active milestone-0.1.3.0 work item, exact Vulkan loader/ICD/driver-family matrix,
+- The active Vulkan-owning work item, exact Vulkan loader/ICD/driver-family matrix,
   physical-device properties/features/limits, and serialized target environment.
 - Kernel IR semantic requirements, SPIR-V module/reflection, packed argument ABI,
   memory tier, queue/timeline plan, cache keys, and lifecycle generation.
@@ -89,8 +89,17 @@ Return or implement:
   and cache-key capabilities; any disagreement is a hard pre-pipeline failure.
 - Run `spirv-val` for the exact Vulkan environment and negative tests for missing
   features, limits, storage classes, scopes, memory semantics, layouts, and BDA.
-- Differentially compare every advertised form on at least two independent
-  Vulkan driver families with CPU/interpreter/native references as applicable.
+- Differentially compare every advertised form on the active milestone's exact
+  device/driver matrix with CPU/interpreter/native references as applicable.
+  PyTorch's first physical AMD route belongs to work-item-0.2.0.3; physical
+  AMD+NVIDIA dual-driver qualification belongs to work-item-2.0.0.3 under
+  decision-0040 and does not block that first AMD route.
+- Separate model tests, software ICD runs, physical component fixtures and
+  real-client GPU qualification. The latter requires actual device identity
+  and correlated GPU submission/completion; successful enumeration, optional
+  adapter code, compilation counters, CPU results or a skipped probe do not
+  supply it. Read the current daemon adapter boundary before claiming it
+  satisfies the fixed-backend policy.
 - Test neutral FIFO/dependency graphs, copies, barriers, atomics, imports,
   handle-type ownership transfer, temporary/permanent payloads, external/foreign
   queue families, unregister, cache corruption/change, and device loss over

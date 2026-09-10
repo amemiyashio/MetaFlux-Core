@@ -42,11 +42,10 @@ physical cancellation.
   `tools/validate-backend-vulkan-packaging.py` / CTest
   `metaflux.packaging.backend-vulkan` bind package id, no-`/nix/store` runtime
   policy, idle-without-ICD coexistence, and the frozen backend header set.
-  Live packaging/upgrade/coexistence/uninstall and external-memory freeze remain
-  dual-driver rows are deferred to [work-item-2.0.0.3](../../milestone-2.0.0.0-physical-hardware-qualification/work/work-item-2.0.0.3-dual-driver-physical-qualification.md) (decision-0040).
-- [x] Profile provider enqueue, worker dequeue, Vulkan submit, kernel start, and
-  completion separately; report Vulkan ICD syscalls outside the client
-  zero-syscall claim.
+  Physical dual-driver packaging/coexistence and external-memory promotion are
+  deferred to [work-item-2.0.0.3](../../milestone-2.0.0.0-physical-hardware-qualification/work/work-item-2.0.0.3-dual-driver-physical-qualification.md) (decision-0040).
+- [x] Separate measured model stages from optional Vulkan queue samples;
+  report submit work outside the client zero-syscall claim.
   Host-independent stage profile:
   `tests/performance/milestone_0_1_3_6_vulkan_stage_profile.cpp` times
   provider-enqueue (dual-family stream-graph plan) and worker-dequeue (queue
@@ -54,25 +53,27 @@ physical cancellation.
   warmup + 10000 samples via
   `tests/performance/run_milestone_0_1_3_6_vulkan_profile.py`. Evidence:
   `tmp/outputs/milestone-0.1.3.6-vulkan-profile/`.
-  Vulkan ICD submit/kernel-start/completion remain host-pending and are
-  recorded outside the client zero-syscall claim.
-- [x] Compare polling/blocking, batching, queue count, memory tier, NUMA, and
-  memfd/cdev/guest transport variants against matching direct Vulkan baselines.
+  Submit/kernel-window/completion rows are measured only when the benchmark
+  completes the required queue samples; missing or partial samples remain
+  explicitly unmeasured/incomplete. The report does not carry verified physical
+  device identity or a PyTorch execution claim.
+- [x] Measure planner/ledger polling and synthetic target-plan identity;
+  enumerate the physical baseline comparisons still owned by v2.
   Host-independent differential proves AMD/NVIDIA plan identity each sample and
   records poll-mode stream/ledger timings plus NUMA/affinity fingerprints.
   Explicit remaining host rows: physical block mode, multi-queue batching,
   memory-tier/transport variants, and matching direct `vkQueueSubmit2`
   baselines; the dual-driver reference-host rows are deferred to
   work-item-2.0.0.3 (decision-0040).
-- [x] Inject device loss/reset, corrupt cache, allocation/import/compiler-worker
-  failure, driver change, and non-completing submission.
+- [x] Exercise model reset/loss, cache corruption and allocation failures;
+  distinguish them from the deferred physical driver-change/loss soak.
   Host-independent device-loss/reset and non-ready submit paths are covered by
   Vulkan device/stream tests; cache invalidation and allocation negative paths
   exist in pipeline/memory unit suites. Explicit non-reopening host blocker:
   physical driver-change and non-completing submission soaks on dual-driver
   hosts are deferred to work-item-2.0.0.3 (decision-0040).
-- [x] Run sanitizers, validation layers, soak, packaging, upgrade, coexistence,
-  and uninstall suites, then freeze the external-memory extension.
+- [x] Qualify packaging ownership and the recorded generic container rows;
+  retain external-memory ABI 0.x and explicitly defer physical soak/promotion.
   Packaging ownership and idle-without-ICD coexistence are bound by
   `metaflux.packaging.backend-vulkan`; external-memory 0.x profile remains the
   staged baseline with OPAQUE_FD/DMA_BUF ledger tests on the host-independent
@@ -128,9 +129,10 @@ hardware/driver ceiling for fused FP32 FMA, not a scheduling or ILP deficit.
 
 ## Exit Gate
 
-milestone-0.1.1.0 warm enqueue remains in bounds. Kernels at least 100 microseconds add at
-most 3% scheduling overhead against the same SPIR-V/device/queue/memory-tier
-direct baseline. Advertised direct transfers at least 16 MiB reach at least 90%
-of the same native path without a whole-buffer extra copy; staging reports extra
-copies separately. milestone-0.1.2.0 lifecycle remains within 0.5%, faults are deterministic,
-and all earlier milestones remain green when Vulkan is installed but idle.
+The model timing/fault matrices, named direct AMD component measurements,
+packaging gates and recorded generic container rows pass with Vulkan installed
+but idle in cumulative regression. The milestone's throughput/copy/lifecycle
+budgets remain provisional targets; model timing does not prove a physical
+direct-baseline ratio. Physical dual-driver comparisons, driver-change/loss
+soak and external-memory promotion remain work-item-2.0.0.3. These component
+measurements establish no PyTorch model throughput or GPU-route qualification.

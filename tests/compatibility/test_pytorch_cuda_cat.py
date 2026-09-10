@@ -6,6 +6,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 import subprocess
+import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 
@@ -60,6 +62,86 @@ class CatEvidenceTests(unittest.TestCase):
                 cat.source_provenance(),
                 {"revision": revision, "tree_state": "dirty"},
             )
+
+
+class CatAffinityTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        (root / "daemon").touch()
+        (root / "libcuda.so.1").touch()
+        self.arguments = SimpleNamespace(daemon=root / "daemon", provider_dir=root,
+                                        client_manifest=cat.MANIFEST)
+        self.original = {4, 9, 12}
+        self.affinity = set(self.original)
+        for name, callback in (("sched_getaffinity", lambda _: set(self.affinity)),
+                               ("sched_setaffinity", self.set_affinity)):
+            patcher = mock.patch.object(cat.os, name, side_effect=callback)
+            setattr(self, name, patcher.start())
+            self.addCleanup(patcher.stop)
+        patcher = mock.patch.object(cat, "source_provenance", return_value={"revision": "fixture"})
+        self.provenance = patcher.start()
+        self.addCleanup(patcher.stop)
+        patcher = mock.patch.object(cat, "run_case", side_effect=self.observe_case)
+        self.run_case = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def set_affinity(self, pid, cpus):
+        self.assertEqual(pid, 0)
+        self.affinity = set(cpus)
+
+    def observe_case(self, case, *_):
+        self.assertEqual(self.affinity, {4})
+        return {"case": case}
+
+    def test_every_case_runs_pinned_and_success_restores_affinity(self):
+        result = cat.runner(self.arguments)
+        self.assertEqual(list(result["cases"]), ["positive", "unsupported-dimension",
+                         "unsupported-layout", "unsupported-dtype", "source-capacity"])
+        self.assertEqual(self.run_case.call_count, 5)
+        self.assertEqual(result["affinity"], {"original_cpu_count": 3, "selected_cpu": 4})
+        self.assertEqual(self.affinity, self.original)
+
+    def test_case_failure_is_preserved_without_retry_and_restores_affinity(self):
+        failure = RuntimeError("case failed")
+
+        def fail_third(case, *args):
+            result = self.observe_case(case, *args)
+            if case == "unsupported-layout":
+                raise failure
+            return result
+
+        self.run_case.side_effect = fail_third
+        with self.assertRaises(RuntimeError) as caught:
+            cat.runner(self.arguments)
+        self.assertIs(caught.exception, failure)
+        self.assertEqual(self.run_case.call_count, 3)
+        self.assertEqual(self.affinity, self.original)
+
+    def test_provenance_failure_also_restores_affinity(self):
+        self.provenance.side_effect = RuntimeError("provenance failed")
+        with self.assertRaisesRegex(RuntimeError, "provenance failed"):
+            cat.runner(self.arguments)
+        self.run_case.assert_not_called()
+        self.assertEqual(self.affinity, self.original)
+
+    def test_empty_affinity_stops_before_starting_cases(self):
+        self.affinity = set()
+        with self.assertRaisesRegex(RuntimeError, "no effective CPU affinity"):
+            cat.runner(self.arguments)
+        self.run_case.assert_not_called()
+        self.provenance.assert_not_called()
+        self.sched_setaffinity.assert_not_called()
+
+    def test_pin_failure_stops_before_starting_cases_without_retry(self):
+        self.sched_setaffinity.side_effect = OSError("affinity unavailable")
+        with self.assertRaisesRegex(OSError, "affinity unavailable"):
+            cat.runner(self.arguments)
+        self.run_case.assert_not_called()
+        self.provenance.assert_not_called()
+        self.sched_setaffinity.assert_called_once_with(0, {4})
+        self.assertEqual(self.affinity, self.original)
 
 
 if __name__ == "__main__":

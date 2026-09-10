@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run milestone-0.1.3.6 Vulkan stage profile and dual-family differential archive."""
+"""Report model timings and optional Vulkan queue samples with explicit scope."""
 
 from __future__ import annotations
 
@@ -18,6 +18,31 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def queue_stage_evidence(metrics: dict, metadata: dict, samples: int) -> dict:
+    definitions = {
+        "vulkan_submit": ("vulkan_submit_ns", "host wall from enqueue to vkQueueSubmit2 return"),
+        "kernel_start": ("vulkan_kernel_start_ns", "device dispatch window mapped to host anchors"),
+        "completion": ("vulkan_completion_ns", "host wall from submit to timeline completion"),
+    }
+    complete = samples > 0 and metadata.get("mode_block") == "measured_physical_queue" and all(
+        metrics.get(metric, {}).get("count") == samples
+        and metrics.get(metric, {}).get("non_positive_count") == 0
+        and metrics.get(metric, {}).get("samples_valid") is True
+        for metric, _ in definitions.values()
+    )
+    result = {}
+    for stage, (metric, meaning) in definitions.items():
+        present = metric in metrics
+        result[stage] = {
+            "status": "measured_vulkan_queue" if complete else "incomplete_queue_run" if present else "not_measured",
+            "metric": metric, "meaning": meaning,
+            "samples": metrics.get(metric, {}).get("count", 0),
+            "p50_ns": metrics.get(metric, {}).get("p50"),
+            "outside_client_zero_syscall_claim": True,
+        }
+    return result
 
 
 def sha256_file(path: Path) -> str:
@@ -76,6 +101,22 @@ def parse_output(stdout: str) -> tuple[list[dict[str, Any]], dict[str, str]]:
     return rows, metadata
 
 
+def summarize_rows(rows: list[dict], samples: int) -> dict:
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        grouped.setdefault(row["metric"], []).append(row)
+    result = {}
+    for name, entries in sorted(grouped.items()):
+        statistics_row = summarize([int(row["value"]) for row in entries])
+        statistics_row["samples_valid"] = (
+            samples > 0
+            and sorted(row["sample_index"] for row in entries) == list(range(samples))
+            and all(row["unit"] == "ns" for row in entries)
+        )
+        result[name] = statistics_row
+    return result
+
+
 def collect_host() -> dict[str, Any]:
     affinity = sorted(os.sched_getaffinity(0))
     return {
@@ -128,10 +169,10 @@ def main() -> int:
     if process.returncode != 0:
         raise SystemExit(process.stderr or process.stdout or f"rc={process.returncode}")
     rows, metadata = parse_output(process.stdout)
-    by_metric: dict[str, list[int]] = {}
-    for row in rows:
-        by_metric.setdefault(row["metric"], []).append(int(row["value"]))
-    metrics = {name: summarize(values) for name, values in sorted(by_metric.items())}
+    metrics = summarize_rows(rows, arguments.samples)
+    for name in ("vulkan_provider_enqueue_plan_ns", "vulkan_worker_dequeue_ledger_ns"):
+        if not metrics.get(name, {}).get("samples_valid"):
+            raise SystemExit(f"incomplete or malformed model samples: {name}")
 
     output_dir = arguments.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -142,28 +183,16 @@ def main() -> int:
         for row in rows:
             writer.writerow(row)
 
-    physical_stage_metrics = {
-        "vulkan_submit": "vulkan_submit_ns",
-        "kernel_start": "vulkan_kernel_start_ns",
-        "completion": "vulkan_completion_ns",
-    }
-    physical_stage_meanings = {
-        "vulkan_submit": "host wall from command enqueue to vkQueueSubmit2 return",
-        "kernel_start": "device timestamp window of the dispatch (start to completion)",
-        "completion": "host wall from vkQueueSubmit2 to timeline wait completion",
-    }
-    physical_stages: dict[str, dict[str, Any]] = {}
-    for stage, metric in physical_stage_metrics.items():
-        if metric in metrics:
-            physical_stages[stage] = {
-                "status": "measured_physical_queue",
-                "metric": metric,
-                "meaning": physical_stage_meanings[stage],
-                "p50_ns": metrics[metric]["p50"],
-            }
+    queue_stages = queue_stage_evidence(metrics, metadata, arguments.samples)
+    queue_measured = all(row["status"] == "measured_vulkan_queue" for row in queue_stages.values())
     report = {
-        "id": "vulkan.profile.milestone-0.1.3.6.v0",
-        "status": "measured-host-independent",
+        "id": "vulkan.profile.milestone-0.1.3.6.v1",
+        "status": "measured-models-and-vulkan-queue" if queue_measured else "measured-models",
+        "qualification": {
+            "framework_execution_verified": False,
+            "physical_device_identity_verified": False,
+            "reason": "This harness reports model and queue samples, not a device-identified PyTorch client route.",
+        },
         "host": host,
         "execution": {
             "returncode": process.returncode,
@@ -178,7 +207,6 @@ def main() -> int:
         },
         "metadata": metadata,
         "metrics": metrics,
-        "physical_queue_stages": physical_stages,
         "stages": {
             "provider_enqueue": {
                 "metric": "vulkan_provider_enqueue_plan_ns",
@@ -190,24 +218,12 @@ def main() -> int:
                 "meaning": "queue submission ledger enqueue of planned launch",
                 "icd_syscalls": 0,
             },
-            "vulkan_submit": {
-                "status": "host_pending",
-                "reason": "physical_vkQueueSubmit2_on_dual_driver",
-                "outside_client_zero_syscall_claim": True,
-            },
-            "kernel_start": {
-                "status": "host_pending",
-                "reason": "physical_compute_dispatch_timestamp",
-            },
-            "completion": {
-                "status": "host_pending",
-                "reason": "physical_timeline_wait_completion",
-            },
+            **queue_stages,
         },
         "comparisons": {
             "poll_vs_block": {
                 "poll": "measured_stream_graph_and_ledger",
-                "block": "host_pending_physical_queue",
+                "block": "measured_vulkan_queue" if queue_measured else "not_measured_complete_queue",
             },
             "batching": {"status": "host_pending"},
             "queue_count": {"status": "measured_single_stream_ledger", "streams": 1},
@@ -225,10 +241,15 @@ def main() -> int:
                 "status": "host_pending",
                 "reason": "requires_matching_direct_vk_queue_submit_baseline",
             },
-            "dual_family_differential": {
-                "status": "pass",
-                "families": ["AMD 0x1002", "NVIDIA 0x10DE"],
+            "dual_family_model_differential": {
+                "status": "pass" if metadata.get("dual_family") == "amd_nvidia_plan_identity" else "not_reported",
+                "evidence_kind": "synthetic-target-plan",
+                "target_identities": ["AMD 0x1002", "NVIDIA 0x10DE"],
                 "evidence": "identical Add/Copy/barrier plans timed each sample",
+            },
+            "physical_dual_driver": {
+                "status": "deferred",
+                "owner": "work-item-2.0.0.3",
             },
         },
     }
