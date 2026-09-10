@@ -36,6 +36,16 @@ assertion; it neither retries a failed import nor qualifies unrestricted
 multi-CPU placement. The observed assertion alone does not identify its
 hardware cause.
 
+Compatibility harness daemons bind their Unix sockets inside the harness
+scratch directory. `sun_path` holds only 108 bytes, and nested `nix develop`
+TMPDIR hierarchies push TMPDIR-scoped socket paths past that limit: at three
+levels of nesting the stock-baseline and concat daemons failed listener setup
+and exited 1 before socket creation (a proven 131-byte socket path reproduces
+the failure) while the frontier suite, whose socket directory was already
+`/tmp`-anchored, passed. Every compatibility harness therefore anchors its
+scratch directory at `/tmp`, which keeps socket paths short at any nesting
+depth.
+
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |
