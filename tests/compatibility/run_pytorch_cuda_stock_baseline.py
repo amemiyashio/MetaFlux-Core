@@ -473,7 +473,10 @@ def run_pinned_baseline(
     execution_mode: str,
     baseline_ptx: Path,
 ) -> dict[str, Any]:
-    with tempfile.TemporaryDirectory(prefix="metaflux-pytorch-stock-") as temporary:
+    # The daemon binds its socket inside this directory; AF_UNIX sun_path holds
+    # only 108 bytes, so the directory is anchored at /tmp to stay short at any
+    # nix-develop TMPDIR nesting depth.
+    with tempfile.TemporaryDirectory(prefix="metaflux-pytorch-stock-", dir="/tmp") as temporary:
         root = Path(temporary)
         cache_root = root / "compiler-cache"
         environment = os.environ.copy()

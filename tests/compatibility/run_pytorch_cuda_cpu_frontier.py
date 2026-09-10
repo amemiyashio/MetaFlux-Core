@@ -546,13 +546,11 @@ def run_corpus(
     expect_success: bool,
     label: str,
 ) -> tuple[dict[str, Any], dict[str, int | str]]:
-    with tempfile.TemporaryDirectory(prefix=f"mf-pytorch-frontier-{label}-") as temporary:
-        # Unix sockets bind only within 108-byte sun_path; deep temporary
-        # hierarchies (nested nix-shell TMPDIRs) overflow it, so the daemon
-        # socket uses a short /tmp path cleaned up with the scratch directory.
-        socket_path = Path(
-            tempfile.mkdtemp(prefix=f"mf-frontier-{label}-", dir="/tmp")
-        ) / "daemon.sock"
+    with tempfile.TemporaryDirectory(prefix=f"mf-pytorch-frontier-{label}-", dir="/tmp") as temporary:
+        # The daemon binds its socket inside this directory; AF_UNIX sun_path
+        # holds only 108 bytes, so the directory is anchored at /tmp to stay
+        # short at any nix-develop TMPDIR nesting depth.
+        socket_path = Path(temporary) / "daemon.sock"
         environment = os.environ.copy()
         environment.update(
             {

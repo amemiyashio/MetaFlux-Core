@@ -188,7 +188,10 @@ def parse_daemon_statistics(output: str) -> dict[str, int | str]:
 
 
 def run_case(case: str, daemon_path: Path, provider_dir: Path, profile_path: Path) -> dict[str, Any]:
-    with tempfile.TemporaryDirectory(prefix=f"metaflux-pytorch-cat-{case}-") as temporary:
+    # The daemon binds its socket inside this directory; AF_UNIX sun_path holds
+    # only 108 bytes, so the directory is anchored at /tmp to stay short at any
+    # nix-develop TMPDIR nesting depth.
+    with tempfile.TemporaryDirectory(prefix=f"metaflux-pytorch-cat-{case}-", dir="/tmp") as temporary:
         socket_path = Path(temporary) / "metafluxd.sock"
         environment = os.environ.copy()
         environment.update(

@@ -191,7 +191,10 @@ def main() -> int:
     parser.add_argument("--ptx", type=Path)
     args = parser.parse_args()
 
-    with tempfile.TemporaryDirectory(prefix="metaflux-cuda-acceptance-") as temporary:
+    # The daemon binds its socket inside this directory; AF_UNIX sun_path holds
+    # only 108 bytes, so the directory is anchored at /tmp to stay short at any
+    # nix-develop TMPDIR nesting depth.
+    with tempfile.TemporaryDirectory(prefix="metaflux-cuda-acceptance-", dir="/tmp") as temporary:
         root = Path(temporary)
         environment = os.environ.copy()
         cache_root = root / "compiler-cache"
