@@ -1,60 +1,802 @@
 {
-  "schema_version": 1,
-  "id": "pytorch-cuda-cpu-frontier-corpus-v1",
-  "status": "frontier-not-frozen",
-  "client": {
-    "python": "3.13.15",
-    "torch": "2.11.0+cu126",
-    "cuda": "12.6"
-  },
-  "execution_modes": ["interpreter", "cold-jit", "warm-jit", "aot"],
-  "scope": {
-    "claim": "Observed stock-client CPU frontier only",
-    "exit_gate_complete": false,
-    "library_boundary_closed": true,
-    "compiled_subset": ["add-i32","sub-i32","mul-i32","add-f32","sub-f32","mul-f32","div-f32","neg-i32","fill-i32","scalar-add-i32","scalar-mul-i32","alpha-add-i32","abs-i32","abs-f32","sqrt-f32","eq-i32","gt-i32","lt-f32","cast-i32-f32","relu-f32","clamp-min-nonzero-f32","clamp-min-negative-f32"]
-  },
-  "cases": [
-    {"id":"add-i32","oracle":{"kind":"i32-exact","expected":[15,-3,94,1,-997,2]},"expected_requests":["baseline:elementwise-add-i32:1:2:module-load"],"repetitions":2,"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/add-i32.ptx"}},
-    {"id":"sub-i32","oracle":{"kind":"i32-exact","expected":[9,-11,106,-1,-1001,8]},"expected_requests":["baseline:elementwise-sub-i32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/sub-i32.ptx"}},
-    {"id":"mul-i32","oracle":{"kind":"i32-exact","expected":[36,-28,-600,0,-1998,-15]},"expected_requests":["baseline:elementwise-mul-i32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/mul-i32.ptx"}},
-    {"id":"add-f32","oracle":{"kind":"f32-bits","expected":["0x40000000","0xbe800000","0x40080000","0x40600000"]},"expected_requests":["baseline:elementwise-add-f32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/add-f32.ptx"}},
-    {"id":"sub-f32","oracle":{"kind":"f32-bits","expected":["0x3f800000","0xc0880000","0x40840000","0xc0900000"]},"expected_requests":["baseline:elementwise-sub-f32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/sub-f32.ptx"}},
-    {"id":"mul-f32","oracle":{"kind":"f32-bits","expected":["0x3f400000","0xc0900000","0xc0480000","0xc0000000"]},"expected_requests":["baseline:elementwise-mul-f32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/mul-f32.ptx"}},
-    {"id":"div-f32","oracle":{"kind":"f32-bits","expected":["0x40400000","0xbf900000","0xc0480000","0xbe000000"]},"expected_requests":["baseline:elementwise-div-f32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/div-f32.ptx"}},
-    {"id":"neg-i32","oracle":{"kind":"i32-exact","expected":[-12,7,-100,0,999,-5]},"expected_requests":["baseline:elementwise-neg-i32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/neg-i32.ptx"}},
-    {"id":"fill-i32","oracle":{"kind":"i32-exact","expected":[7,7,7,7,7,7]},"expected_requests":["baseline:fill-i32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/fill-i32.ptx"}},
-    {"id":"scalar-add-i32","oracle":{"kind":"i32-exact","expected":[112,93,200,100,-899,105]},"expected_requests":["baseline:scalar-add-i32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/scalar-add-i32.ptx"}},
-    {"id":"scalar-mul-i32","oracle":{"kind":"i32-exact","expected":[24,-14,200,0,-1998,10]},"expected_requests":["baseline:scalar-mul-i32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/scalar-mul-i32.ptx"}},
-    {"id":"alpha-add-i32","oracle":{"kind":"i32-exact","expected":[21,5,82,3,-993,-4]},"expected_requests":["baseline:elementwise-alpha-add-i32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/alpha-add-i32.ptx"}},
-    {"id":"abs-i32","oracle":{"kind":"i32-exact","expected":[12,7,100,0,999,5]},"expected_requests":["baseline:elementwise-abs-i32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/abs-i32.ptx"}},
-    {"id":"abs-f32","oracle":{"kind":"f32-bits","expected":["0x3fc00000","0x40100000","0x40480000","0x3f000000"]},"expected_requests":["baseline:elementwise-abs-f32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/abs-f32.ptx"}},
-    {"id":"sqrt-f32","oracle":{"kind":"f32-bits","expected":["0x00000000","0x3f800000","0x40000000","0x40400000"]},"expected_requests":["baseline:elementwise-sqrt-f32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/sqrt-f32.ptx"}},
-    {"id":"eq-i32","oracle":{"kind":"bool-exact","expected":[false,false,false,false,false,false]},"expected_requests":["baseline:compare-eq-i32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/eq-i32.ptx"}},
-    {"id":"gt-i32","oracle":{"kind":"bool-exact","expected":[true,false,true,false,false,true]},"expected_requests":["baseline:compare-gt-i32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/gt-i32.ptx"}},
-    {"id":"lt-f32","oracle":{"kind":"bool-exact","expected":[false,true,false,true]},"expected_requests":["baseline:compare-lt-f32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/lt-f32.ptx"}},
-    {"id":"sum-i32","oracle":{"kind":"i32-exact","expected":-889},"expected_requests":["baseline:reduce-sum-i32:1:2:module-load"]},
-    {"id":"sum-i64","oracle":{"kind":"i64-exact","expected":-889},"expected_requests":["baseline:cast-copy-i64:1:2:module-load","baseline:reduce-sum-i64:1:2:module-load"]},
-    {"id":"sum-f32","oracle":{"kind":"f32-bits","expected":["0x3ff00000"]},"expected_requests":["baseline:reduce-sum-f32:1:2:module-load"]},
-    {"id":"mean-f32","oracle":{"kind":"f32-bits","expected":["0x3ef00000"]},"expected_requests":["baseline:reduce-mean-f32:1:2:module-load"]},
-    {"id":"max-i32","oracle":{"kind":"i32-exact","expected":100},"expected_requests":["baseline:reduce-max-i32:1:2:module-load"]},
-    {"id":"min-i32","oracle":{"kind":"i32-exact","expected":-999},"expected_requests":["baseline:reduce-min-i32:1:2:module-load"]},
-    {"id":"cast-i32-f32","oracle":{"kind":"f32-bits","expected":["0x41400000","0xc0e00000","0x42c80000","0x00000000","0xc479c000","0x40a00000"]},"expected_requests":["baseline:cast-to-f32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/cast-i32-f32.ptx"}},
-    {"id":"strided-contiguous-copy-u32","oracle":{"kind":"i32-exact","expected":[0,6,12,18,1,7,13,19,2,8,14,20,3,9,15,21,4,10,16,22,5,11,17,23]},"expected_requests":["baseline:strided-copy-u32:1:2:module-load"]},
-    {"id":"concat-u32","oracle":{"kind":"i32-exact","expected":[12,-7,100,0,-999,5,3,4,-6,1,2,-3]},"expected_requests":["baseline:concat-u32:1:2:module-load"]},
-    {"id":"relu-f32","oracle":{"kind":"f32-bits","expected":["0x80000000","0x00000000","0x7fc00000","0x00000000","0x40400000"]},"expected_requests":["baseline:elementwise-relu-f32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/relu-f32.ptx"}},
-    {"id":"clamp-min-nonzero-f32","oracle":{"kind":"f32-bits","expected":["0x3f800000","0x3f800000","0x3f800000","0x40400000","0x3f800000","0x7fc00000"]},"expected_requests":["baseline:elementwise-clamp-min-f32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/clamp-min-f32.ptx"}},
-    {"id":"clamp-min-negative-f32","oracle":{"kind":"f32-bits","expected":["0xc0200000","0xc0200000","0x00000000","0x7fc00000"]},"expected_requests":["baseline:elementwise-clamp-min-f32:1:2:module-load"],"compiled":{"ptx":"plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/clamp-min-f32.ptx"}},
-    {"id":"matmul-f32","oracle":{"kind":"f32-bits","expected":["0x41980000","0x41b00000","0x422c0000","0x42480000"]},"expected_requests":["baseline:matmul-f32:1:2:module-load"],"expected_library_calls":["sgemm-f32"]},
-    {"id":"matmul-rect-f32","oracle":{"kind":"f32-bits","expected":["0x42940000","0x42a00000","0x42ac0000","0x42b80000","0x432d0000","0x433c0000","0x434b0000","0x435a0000"]},"expected_requests":["baseline:matmul-f32:1:2:module-load"],"expected_library_calls":["sgemm-f32"]},
-    {"id":"linear-no-bias-f32","oracle":{"kind":"f32-bits","expected":["0x41600000","0x42000000","0x42000000","0x429a0000"]},"expected_requests":["baseline:matmul-f32:1:2:module-load"],"expected_library_calls":["sgemm-f32"]},
-    {"id":"addmm-f32","oracle":{"kind":"f32-bits","expected":["0x41a00000","0x41c00000","0x42380000","0x42580000"]},"expected_requests":["baseline:matmul-f32:1:2:module-load"],"expected_library_calls":["sgemm-f32"]},
-    {"id":"linear-bias-f32","oracle":{"kind":"f32-bits","expected":["0x41680000","0x41fc0000","0x42020000","0x42990000"]},"expected_requests":["baseline:matmul-f32:1:2:module-load"],"expected_library_calls":["lt-matmul-bias-f32"]},
-    {"id":"softmax-f32","oracle":{"kind":"f32-bits","expected":["0x3db861f3","0x3e7a9a1a","0x3f2a4d3b","0x3f2a4d3b","0x3e7a9a1a","0x3db861f3"]},"expected_requests":["baseline:softmax-f32:1:2:module-load"]},
-    {"id":"softmax-f32-nonlast","oracle":{"kind":"f32-bits","expected":["0x3c820ee4","0x3c820ee4","0x3df04073","0x3df04073","0x3f5de77b","0x3f5de77b","0x3c820ee4","0x3c820ee4","0x3df04073","0x3df04073","0x3f5de77b","0x3f5de77b"]},"expected_requests":["baseline:softmax-dim-f32:1:2:module-load"]},
-    {"id":"sigmoid-f32","oracle":{"kind":"f32-bits","expected":["0x3c9357d1","0x3df420a9","0x3e89b2b1","0x3f000000","0x3f3b26a8","0x3f617bea","0x3f7b6541"]},"expected_requests":["baseline:elementwise-sigmoid-f32:1:2:module-load"]}
-  ],
-  "gaps": [
-    {"id":"sigmoid-f64","status":"frontier-gap","expected_error":"operation not supported"}
+ "schema_version": 1,
+ "id": "pytorch-cuda-cpu-frontier-corpus-v1",
+ "status": "frontier-not-frozen",
+ "client": {
+  "python": "3.13.15",
+  "torch": "2.11.0+cu126",
+  "cuda": "12.6"
+ },
+ "execution_modes": [
+  "interpreter",
+  "cold-jit",
+  "warm-jit",
+  "aot"
+ ],
+ "scope": {
+  "claim": "Observed stock-client CPU frontier only",
+  "exit_gate_complete": false,
+  "library_boundary_closed": true,
+  "compiled_subset": [
+   "add-i32",
+   "sub-i32",
+   "mul-i32",
+   "add-f32",
+   "sub-f32",
+   "mul-f32",
+   "div-f32",
+   "neg-i32",
+   "fill-i32",
+   "scalar-add-i32",
+   "scalar-mul-i32",
+   "alpha-add-i32",
+   "abs-i32",
+   "abs-f32",
+   "sqrt-f32",
+   "eq-i32",
+   "gt-i32",
+   "lt-f32",
+   "cast-i32-f32",
+   "relu-f32",
+   "clamp-min-nonzero-f32",
+   "clamp-min-negative-f32"
   ]
+ },
+ "cases": [
+  {
+   "id": "add-i32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": [
+     15,
+     -3,
+     94,
+     1,
+     -997,
+     2
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-add-i32:1:2:module-load"
+   ],
+   "repetitions": 2,
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/add-i32.ptx"
+   }
+  },
+  {
+   "id": "sub-i32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": [
+     9,
+     -11,
+     106,
+     -1,
+     -1001,
+     8
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-sub-i32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/sub-i32.ptx"
+   }
+  },
+  {
+   "id": "mul-i32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": [
+     36,
+     -28,
+     -600,
+     0,
+     -1998,
+     -15
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-mul-i32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/mul-i32.ptx"
+   }
+  },
+  {
+   "id": "add-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x40000000",
+     "0xbe800000",
+     "0x40080000",
+     "0x40600000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-add-f32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/add-f32.ptx"
+   }
+  },
+  {
+   "id": "sub-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x3f800000",
+     "0xc0880000",
+     "0x40840000",
+     "0xc0900000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-sub-f32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/sub-f32.ptx"
+   }
+  },
+  {
+   "id": "mul-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x3f400000",
+     "0xc0900000",
+     "0xc0480000",
+     "0xc0000000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-mul-f32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/mul-f32.ptx"
+   }
+  },
+  {
+   "id": "div-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x40400000",
+     "0xbf900000",
+     "0xc0480000",
+     "0xbe000000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-div-f32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/div-f32.ptx"
+   }
+  },
+  {
+   "id": "neg-i32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": [
+     -12,
+     7,
+     -100,
+     0,
+     999,
+     -5
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-neg-i32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/neg-i32.ptx"
+   }
+  },
+  {
+   "id": "fill-i32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": [
+     7,
+     7,
+     7,
+     7,
+     7,
+     7
+    ]
+   },
+   "expected_requests": [
+    "baseline:fill-i32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/fill-i32.ptx"
+   }
+  },
+  {
+   "id": "scalar-add-i32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": [
+     112,
+     93,
+     200,
+     100,
+     -899,
+     105
+    ]
+   },
+   "expected_requests": [
+    "baseline:scalar-add-i32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/scalar-add-i32.ptx"
+   }
+  },
+  {
+   "id": "scalar-mul-i32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": [
+     24,
+     -14,
+     200,
+     0,
+     -1998,
+     10
+    ]
+   },
+   "expected_requests": [
+    "baseline:scalar-mul-i32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/scalar-mul-i32.ptx"
+   }
+  },
+  {
+   "id": "alpha-add-i32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": [
+     21,
+     5,
+     82,
+     3,
+     -993,
+     -4
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-alpha-add-i32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/alpha-add-i32.ptx"
+   }
+  },
+  {
+   "id": "abs-i32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": [
+     12,
+     7,
+     100,
+     0,
+     999,
+     5
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-abs-i32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/abs-i32.ptx"
+   }
+  },
+  {
+   "id": "abs-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x3fc00000",
+     "0x40100000",
+     "0x40480000",
+     "0x3f000000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-abs-f32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/abs-f32.ptx"
+   }
+  },
+  {
+   "id": "sqrt-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x00000000",
+     "0x3f800000",
+     "0x40000000",
+     "0x40400000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-sqrt-f32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/sqrt-f32.ptx"
+   }
+  },
+  {
+   "id": "eq-i32",
+   "oracle": {
+    "kind": "bool-exact",
+    "expected": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "expected_requests": [
+    "baseline:compare-eq-i32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/eq-i32.ptx"
+   }
+  },
+  {
+   "id": "gt-i32",
+   "oracle": {
+    "kind": "bool-exact",
+    "expected": [
+     true,
+     false,
+     true,
+     false,
+     false,
+     true
+    ]
+   },
+   "expected_requests": [
+    "baseline:compare-gt-i32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/gt-i32.ptx"
+   }
+  },
+  {
+   "id": "lt-f32",
+   "oracle": {
+    "kind": "bool-exact",
+    "expected": [
+     false,
+     true,
+     false,
+     true
+    ]
+   },
+   "expected_requests": [
+    "baseline:compare-lt-f32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/lt-f32.ptx"
+   }
+  },
+  {
+   "id": "sum-i32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": -889
+   },
+   "expected_requests": [
+    "baseline:reduce-sum-i32:1:2:module-load"
+   ]
+  },
+  {
+   "id": "sum-i64",
+   "oracle": {
+    "kind": "i64-exact",
+    "expected": -889
+   },
+   "expected_requests": [
+    "baseline:cast-copy-i64:1:2:module-load",
+    "baseline:reduce-sum-i64:1:2:module-load"
+   ]
+  },
+  {
+   "id": "sum-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x3ff00000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:reduce-sum-f32:1:2:module-load"
+   ]
+  },
+  {
+   "id": "mean-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x3ef00000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:reduce-mean-f32:1:2:module-load"
+   ]
+  },
+  {
+   "id": "max-i32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": 100
+   },
+   "expected_requests": [
+    "baseline:reduce-max-i32:1:2:module-load"
+   ]
+  },
+  {
+   "id": "min-i32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": -999
+   },
+   "expected_requests": [
+    "baseline:reduce-min-i32:1:2:module-load"
+   ]
+  },
+  {
+   "id": "cast-i32-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x41400000",
+     "0xc0e00000",
+     "0x42c80000",
+     "0x00000000",
+     "0xc479c000",
+     "0x40a00000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:cast-to-f32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/cast-i32-f32.ptx"
+   }
+  },
+  {
+   "id": "strided-contiguous-copy-u32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": [
+     0,
+     6,
+     12,
+     18,
+     1,
+     7,
+     13,
+     19,
+     2,
+     8,
+     14,
+     20,
+     3,
+     9,
+     15,
+     21,
+     4,
+     10,
+     16,
+     22,
+     5,
+     11,
+     17,
+     23
+    ]
+   },
+   "expected_requests": [
+    "baseline:strided-copy-u32:1:2:module-load"
+   ]
+  },
+  {
+   "id": "concat-u32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": [
+     12,
+     -7,
+     100,
+     0,
+     -999,
+     5,
+     3,
+     4,
+     -6,
+     1,
+     2,
+     -3
+    ]
+   },
+   "expected_requests": [
+    "baseline:concat-u32:1:2:module-load"
+   ]
+  },
+  {
+   "id": "relu-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x80000000",
+     "0x00000000",
+     "0x7fc00000",
+     "0x00000000",
+     "0x40400000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-relu-f32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/relu-f32.ptx"
+   }
+  },
+  {
+   "id": "clamp-min-nonzero-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x3f800000",
+     "0x3f800000",
+     "0x3f800000",
+     "0x40400000",
+     "0x3f800000",
+     "0x7fc00000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-clamp-min-f32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/clamp-min-f32.ptx"
+   }
+  },
+  {
+   "id": "clamp-min-negative-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0xc0200000",
+     "0xc0200000",
+     "0x00000000",
+     "0x7fc00000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-clamp-min-f32:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/clamp-min-f32.ptx"
+   }
+  },
+  {
+   "id": "matmul-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x41980000",
+     "0x41b00000",
+     "0x422c0000",
+     "0x42480000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:matmul-f32:1:2:module-load"
+   ],
+   "expected_library_calls": [
+    "sgemm-f32"
+   ]
+  },
+  {
+   "id": "matmul-rect-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x42940000",
+     "0x42a00000",
+     "0x42ac0000",
+     "0x42b80000",
+     "0x432d0000",
+     "0x433c0000",
+     "0x434b0000",
+     "0x435a0000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:matmul-f32:1:2:module-load"
+   ],
+   "expected_library_calls": [
+    "sgemm-f32"
+   ]
+  },
+  {
+   "id": "linear-no-bias-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x41600000",
+     "0x42000000",
+     "0x42000000",
+     "0x429a0000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:matmul-f32:1:2:module-load"
+   ],
+   "expected_library_calls": [
+    "sgemm-f32"
+   ]
+  },
+  {
+   "id": "addmm-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x41a00000",
+     "0x41c00000",
+     "0x42380000",
+     "0x42580000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:matmul-f32:1:2:module-load"
+   ],
+   "expected_library_calls": [
+    "sgemm-f32"
+   ]
+  },
+  {
+   "id": "linear-bias-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x41680000",
+     "0x41fc0000",
+     "0x42020000",
+     "0x42990000"
+    ]
+   },
+   "expected_requests": [
+    "baseline:matmul-f32:1:2:module-load"
+   ],
+   "expected_library_calls": [
+    "lt-matmul-bias-f32"
+   ]
+  },
+  {
+   "id": "softmax-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x3db861f3",
+     "0x3e7a9a1a",
+     "0x3f2a4d3b",
+     "0x3f2a4d3b",
+     "0x3e7a9a1a",
+     "0x3db861f3"
+    ]
+   },
+   "expected_requests": [
+    "baseline:softmax-f32:1:2:module-load"
+   ]
+  },
+  {
+   "id": "softmax-f32-nonlast",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x3c820ee4",
+     "0x3c820ee4",
+     "0x3df04073",
+     "0x3df04073",
+     "0x3f5de77b",
+     "0x3f5de77b",
+     "0x3c820ee4",
+     "0x3c820ee4",
+     "0x3df04073",
+     "0x3df04073",
+     "0x3f5de77b",
+     "0x3f5de77b"
+    ]
+   },
+   "expected_requests": [
+    "baseline:softmax-dim-f32:1:2:module-load"
+   ]
+  },
+  {
+   "id": "sigmoid-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x3c9357d1",
+     "0x3df420a9",
+     "0x3e89b2b1",
+     "0x3f000000",
+     "0x3f3b26a8",
+     "0x3f617bea",
+     "0x3f7b6541"
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-sigmoid-f32:1:2:module-load"
+   ]
+  },
+  {
+   "id": "arange-i64",
+   "oracle": {
+    "kind": "i64-exact",
+    "expected": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ]
+   },
+   "expected_requests": [
+    "baseline:arange-i64:1:2:module-load"
+   ]
+  },
+  {
+   "id": "exp-f32",
+   "oracle": {
+    "kind": "f32-bits",
+    "expected": [
+     "0x3fd3094c",
+     "0x40ec7326",
+     "0x3ebc5ab2",
+     "0x425a6481"
+    ]
+   },
+   "expected_requests": [
+    "baseline:elementwise-exp-f32:1:2:module-load"
+   ]
+  },
+  {
+   "id": "clamp-min-i32",
+   "oracle": {
+    "kind": "i32-exact",
+    "expected": [
+     12,
+     0,
+     100,
+     0,
+     0,
+     5
+    ]
+   },
+   "expected_requests": [
+    "baseline:clamp-min-i32:1:2:module-load"
+   ]
+  }
+ ],
+ "gaps": [
+  {
+   "id": "sigmoid-f64",
+   "status": "frontier-gap",
+   "expected_error": "operation not supported"
+  }
+ ]
 }

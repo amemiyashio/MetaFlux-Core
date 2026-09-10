@@ -250,6 +250,9 @@ def operation_cases(torch: Any) -> dict[str, Callable[[], Any]]:
         "sigmoid-f32": lambda: torch.sigmoid(
             f32([-4.0, -2.0, -1.0, 0.0, 1.0, 2.0, 4.0])
         ),
+        "arange-i64": lambda: torch.arange(6, device="cuda"),
+        "exp-f32": lambda: torch.exp(f32([0.5, 2.0, -1.0, 4.0])),
+        "clamp-min-i32": lambda: torch.relu(i32(left_i32)),
         "sigmoid-f64": lambda: torch.sigmoid(
             f64([-4.0, -2.0, -1.0, 0.0, 1.0, 2.0, 4.0])
         ),
@@ -544,7 +547,12 @@ def run_corpus(
     label: str,
 ) -> tuple[dict[str, Any], dict[str, int | str]]:
     with tempfile.TemporaryDirectory(prefix=f"mf-pytorch-frontier-{label}-") as temporary:
-        socket_path = Path(temporary) / "daemon.sock"
+        # Unix sockets bind only within 108-byte sun_path; deep temporary
+        # hierarchies (nested nix-shell TMPDIRs) overflow it, so the daemon
+        # socket uses a short /tmp path cleaned up with the scratch directory.
+        socket_path = Path(
+            tempfile.mkdtemp(prefix=f"mf-frontier-{label}-", dir="/tmp")
+        ) / "daemon.sock"
         environment = os.environ.copy()
         environment.update(
             {

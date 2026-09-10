@@ -5,7 +5,7 @@ milestone: milestone-0.2.0.0
 status: Active
 area: compiler-cpu
 depends_on: [work-item-0.2.0.1]
-updated: 2026-09-10
+updated: 2026-09-11
 ---
 
 # PyTorch CUDA CPU Profile
@@ -38,10 +38,10 @@ hardware cause.
 
 | Corpus metric | Count |
 | --- | --- |
-| Supported cases | 38 |
+| Supported cases | 41 |
 | Compiled cases | 22 |
 | Unique compiled PTX sources | 21 |
-| Cases outside compiled subset | 16 |
+| Cases outside compiled subset | 19 |
 | Classified gaps | 1 |
 
 Every supported interpreter-mode case records its neutral request, daemon
@@ -102,7 +102,8 @@ and decision-0053 remains the closed library boundary.
 ## Remaining Work
 
 Rows outside the manifest's compiled subset cover reductions, strided copy,
-concat, library-backed matrix/linear, softmax and sigmoid. They cross the
+concat, arange, exponential, int32 minimum clamping, library-backed
+matrix/linear, softmax and sigmoid. They cross the
 neutral daemon boundary but use operation-specific daemon CPU branches.
 Promote their actual semantics into canonical Kernel IR and the compiled
 pipeline; a copy-shaped placeholder associated with a native operation is not
