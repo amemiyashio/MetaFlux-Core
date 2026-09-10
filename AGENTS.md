@@ -20,7 +20,19 @@ the repository gates.
    memory, [`agent/goal.json`](agent/goal.json), the target milestone/work item
    and its Exit Gate, then the matching domain skill. Product work uses the assigned
    `epoch-NNNN / batch-NNNN / iteration-NNNN` identity and lane. Agent identity and execution
-   ownership are not repository records.
+   ownership are not repository records. Before a mutating operation, begin its
+   bounded request and use main `load-rules` to emit the current rule bodies into
+   the executing context, then enter `prepared`. Main checks the request/base,
+   HEAD, required workflow/domain skills, and exact rule file modes and blobs;
+   a claimed reading or copied receipt is insufficient. Existing edits are
+   captured at begin; edits made after begin and before preparation invalidate
+   that preparation. The receipt records body emission, not comprehension or
+   user authorization. Reload changed rules before review and verification,
+   and reload at the committed HEAD before publication. The
+   [controller interface](agent/skills/main/references/controller.md) owns this
+   protocol. The [tool hooks](agent/skills/main/references/tool-hooks.md) apply it to
+   covered tool calls when the user/application trusts the exact hook definition;
+   repository files do not activate that host trust or provide a shell sandbox.
 3. **Deliver the bounded scope.** Main handles read-only work and maintenance;
    maintenance leaves Goal unchanged and has no product Iteration identity.
    Product Iterations use the exact application-supplied context and base.
@@ -77,7 +89,10 @@ the repository gates.
 8. **Verify and identify commits.** Run
    `nix develop . --command python3 tools/check-agent-state.py .` plus relevant
    CTest/domain gates. Agent commits use main's shared commit helper, requiring
-   expected HEAD, exact staged tree, and an actual content-bound receipt. The
+   full expected HEAD, exact staged tree, operation kind, and an actual
+   content-bound receipt with its rule-loading certificate. Pre-commit invokes
+   the same commit guard before and after candidate-tree checks; direct Git
+   invocation does not replace those inputs. The
    helper accepts the conversation-emitted harness name, derives
    `SUBJECT <SUBJECT@localhost>`, and passes that name to the
    candidate-tree commit gate. Epoch exists only in `agent/goal.json`; it is not
@@ -131,9 +146,10 @@ the repository gates.
 
 13. **Keep recovery state separate from product authority.** Goal schema v4 is
     the sole product route and accepted progress authority. Git-ignored
-    `agent/tmp/main/` holds current operation state, receipts, and pending
-    transactions only; none may be tracked or used as authorization. Build and
-    product-test outputs remain under root `tmp/`. Use main's common Git lock,
+    `agent/tmp/main/` holds current operation state, rule/context evidence,
+    verification receipts, and pending transactions only; none may be tracked
+    or used as authorization. Build and product-test outputs remain under root
+    `tmp/`. Use main's common Git lock,
     exact before/after blobs and modes, and validated commit records for recovery.
     Lost pre-commit state requires new review and evaluation. Existing matching
     contexts continue automatically; otherwise emit an exact application

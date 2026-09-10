@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import workflow_state as ws
+import rule_loading as rules
 
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / "tools"))
@@ -76,6 +77,8 @@ def begin(root: Path, request: dict[str, Any]) -> dict[str, Any]:
                all(isinstance(p, str) and p and not p.startswith(("/", "agent/tmp")) and ".." not in p.split("/")
                    for p in request["allowed_paths"]), "Explicit repository-relative scope paths are required")
     ws.validate_plan(request.get("checks"))
+    ws.require(isinstance(request.get("skills", []), list), "Additional skills must be a list")
+    rules.required(root, request["kind"], request["allowed_paths"], request.get("skills", []))
     ws.exact_commit(root, request.get("base_revision", ""))
     ws.require(ws.oid(root) == request["base_revision"], "Execution baseline changed; obtain the exact current context")
     ws.require(request.get("publication", "auto") in {"auto", "local"}, "Publication must be auto or local")
@@ -99,6 +102,30 @@ def begin(root: Path, request: dict[str, Any]) -> dict[str, Any]:
              "stage": "preparation", "input": ws.snapshot(root)}
     ws.atomic_json(path, state)
     return inspect(root)
+
+
+def load_rules(root: Path, skills: list[str] | None = None) -> dict[str, Any]:
+    path = ws.local_path(root, "state.json")
+    ws.require(path.exists(), "Begin the bounded request before loading operation rules")
+    state = ws.read_json(path)
+    validate_state(root, state)
+    request = state["request"]
+    committed = bool(state.get("commit"))
+    rules.load(root, request["kind"], ws.oid(root) if committed else request["base_revision"],
+               skills=[*request.get("skills", []), *(skills or [])],
+               paths=[] if committed else request["allowed_paths"])
+    return inspect(root)
+
+
+def require_rules(root: Path, state: dict[str, Any]) -> None:
+    request = state["request"]
+    committed = bool(state.get("commit"))
+    loaded = rules.current(root, kind=request["kind"])
+    expected = rules.required(root, request["kind"], [] if committed else request["allowed_paths"], request.get("skills", []))
+    ws.require(set(expected) <= set(loaded["skills"]), "Required scope rules were not loaded; use main load-rules")
+    ws.require(loaded["request"] == (None if committed else state["run"]), "Rules belong to another operation; use main load-rules")
+    ws.require(loaded["base_revision"] == (ws.oid(root) if committed else request["base_revision"]),
+               "Rules have a different operation baseline; use main load-rules")
 
 
 def commit_record(root: Path, revision: str, run: str | None = None) -> dict[str, Any]:
@@ -147,6 +174,9 @@ def recover(root: Path, revision: str | None = None) -> dict[str, Any]:
         return inspect(root)
     ws.require(ws.oid(root) == state["request"]["base_revision"], "Unrelated HEAD change invalidated the execution baseline; obtain a fresh context")
     ws.recover_transaction(root)
+    rules_path = ws.local_path(root, "rules.json")
+    if rules_path.exists():
+        rules_path.unlink()
     if state.get("input") != ws.snapshot(root) or state["stage"] in {"evaluation", "delivery"}:
         state["stage"] = "review"
         state.pop("receipt", None)
@@ -188,9 +218,13 @@ def step(root: Path, event: str, payload: dict[str, Any]) -> dict[str, Any]:
     state = ws.read_json(path)
     validate_state(root, state)
     stage, request = state["stage"], state["request"]
+    if event not in {"repair", "handoff"}:
+        require_rules(root, state)
     if event == "prepared":
         ws.require(stage == "preparation", "prepared requires preparation")
         scope(root, request)
+        ws.require(state["input"] == ws.snapshot(root),
+                   "Files changed after begin but before preparation; preserve changes and re-review with main resume")
         state["stage"] = "implementation"
     elif event == "review":
         ws.require(stage in {"implementation", "review", "evaluation", "delivery"}, "Review is only a pre-commit operation")
@@ -281,10 +315,15 @@ def main() -> int:
     sub = parser.add_subparsers(dest="action", required=True)
     sub.add_parser("inspect")
     start = sub.add_parser("begin")
-    start.add_argument("request", type=Path)
+    start.add_argument("request", type=Path, nargs="?")
+    start.add_argument("--request-json")
+    loading = sub.add_parser("load-rules")
+    loading.add_argument("--skill", action="append", default=[])
     event = sub.add_parser("step")
     event.add_argument("event", choices=("prepared", "review", "evaluate", "deliver", "publish", "handoff", "repair"))
-    event.add_argument("--payload", type=Path)
+    payload = event.add_mutually_exclusive_group()
+    payload.add_argument("--payload", type=Path)
+    payload.add_argument("--payload-json")
     resume = sub.add_parser("resume")
     resume.add_argument("--revision")
     args = parser.parse_args()
@@ -295,11 +334,14 @@ def main() -> int:
         else:
             with ws.lock(root):
                 if args.action == "begin":
-                    result = begin(root, ws.read_json(args.request))
+                    ws.require(bool(args.request) != bool(args.request_json), "Supply one request file or --request-json")
+                    result = begin(root, ws.read_json(args.request) if args.request else json.loads(args.request_json))
+                elif args.action == "load-rules":
+                    result = load_rules(root, args.skill)
                 elif args.action == "resume":
                     result = recover(root, args.revision)
                 else:
-                    result = step(root, args.event, ws.read_json(args.payload) if args.payload else {})
+                    result = step(root, args.event, ws.read_json(args.payload) if args.payload else json.loads(args.payload_json) if args.payload_json else {})
     except (ws.WorkflowError, OSError, ValueError, KeyError, TypeError) as error:
         emit_diagnostics((task_stop_error(code="workflow.transition-invalid", source="main",
             summary="The next workflow transition needs corrected evidence.", evidence=(str(error),),

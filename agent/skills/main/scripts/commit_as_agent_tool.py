@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -28,6 +29,13 @@ from agent_diagnostics import (  # noqa: E402
 
 
 TOOL_NAME_DECLARATION = "METAFLUX_AGENT_TOOL"
+COMMIT_GATE_ENVIRONMENT = {
+    "expected_head": "METAFLUX_EXPECTED_HEAD",
+    "expected_tree": "METAFLUX_EXPECTED_TREE",
+    "receipt": "METAFLUX_VERIFICATION_RECEIPT",
+    "kind": "METAFLUX_COMMIT_KIND",
+}
+COMMIT_KINDS = ("maintenance", "iteration", "batch", "epoch")
 SCRIPT = Path(__file__).resolve()
 DETECTOR_SCRIPT = (
     SCRIPT.parents[2]
@@ -231,18 +239,61 @@ def parser() -> argparse.ArgumentParser:
         "--agent-tool", help="harness name already emitted in this conversation"
     )
     result.add_argument("--print-identity", action="store_true")
+    result.add_argument("--check-commit-gate", action="store_true",
+                        help="validate the exact helper inputs inherited by the Git hook")
     result.add_argument("--expected-head")
     result.add_argument("--expected-tree")
     result.add_argument("--receipt", type=Path)
-    result.add_argument("--kind", choices=("maintenance", "iteration", "batch", "epoch"))
+    result.add_argument("--kind", choices=COMMIT_KINDS)
     add_diagnostic_format_argument(result)
     result.add_argument("git_arguments", nargs=argparse.REMAINDER)
     return result
 
 
+def check_commit_gate(root: Path, environment: dict[str, str]) -> None:
+    inputs = {key: environment.get(name, "") for key, name in COMMIT_GATE_ENVIRONMENT.items()}
+    missing = [name for key, name in COMMIT_GATE_ENVIRONMENT.items() if not inputs[key]]
+    if missing:
+        raise helper_error(
+            code="commit-gate.evidence-required",
+            summary="The Git commit gate requires the governed helper's exact verification inputs.",
+            evidence=("missing: " + ", ".join(missing),),
+            required_action="Use $main to review, evaluate, and deliver through the commit helper.",
+            resume_when="Exact HEAD, staged tree, verification receipt, and operation kind are supplied.",
+        )
+    try:
+        ws.exact_commit(root, inputs["expected_head"])
+        ws.require(bool(re.fullmatch(r"[0-9a-f]{40}", inputs["expected_tree"])),
+                   "The expected tree must be a full object ID")
+        ws.require(inputs["kind"] in COMMIT_KINDS, "Unknown commit operation kind")
+        receipt_path = Path(inputs["receipt"])
+        ws.require(receipt_path.is_absolute(), "The verification receipt path must be absolute")
+        receipt = ws.read_json(receipt_path)
+        ws.commit_guard(root, inputs["expected_head"], inputs["expected_tree"], receipt, kind=inputs["kind"])
+    except (ws.WorkflowError, OSError, ValueError, KeyError, TypeError) as error:
+        raise helper_error(
+            code="commit-gate.input-changed",
+            summary="The Git commit gate's verification inputs need revalidation.",
+            evidence=(str(error),),
+            required_action="Preserve current state and use $main resume before another commit.",
+            resume_when="Expected HEAD/tree, operation kind, and the current receipt agree.",
+        ) from error
+
+
 def main() -> int:
     arguments = parser().parse_args()
     try:
+        if arguments.check_commit_gate:
+            if arguments.print_identity or arguments.git_arguments:
+                raise helper_error(
+                    code="commit-gate.output-mode-conflict",
+                    summary="Commit-gate inspection requires its own operating mode.",
+                    evidence=("identity output or commit arguments were supplied",),
+                    required_action="Run the hook's evidence inspection without another helper mode.",
+                    resume_when="Only --check-commit-gate and diagnostic formatting are requested.",
+                )
+            check_commit_gate(Path.cwd(), dict(os.environ))
+            return 0
         if MODULE_LOAD_ERROR is not None or TOPOLOGY_CHECKER is None:
             raise MODULE_LOAD_ERROR or helper_error(
                 code="commit-helper.topology-checker-unavailable",
@@ -298,6 +349,8 @@ def main() -> int:
     )
     environment["METAFLUX_EXPECTED_HEAD"] = arguments.expected_head
     environment["METAFLUX_EXPECTED_TREE"] = arguments.expected_tree
+    environment["METAFLUX_VERIFICATION_RECEIPT"] = str(arguments.receipt.resolve())
+    environment["METAFLUX_COMMIT_KIND"] = arguments.kind
     try:
         with ws.lock(Path.cwd()):
             receipt = ws.read_json(arguments.receipt)

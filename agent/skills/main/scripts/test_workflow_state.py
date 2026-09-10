@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import copy
+import io
 import json
 import os
 import shutil
@@ -16,7 +17,10 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import main as controller
+import rule_loading as rules
 import workflow_state as ws
+
+SOURCE_ROOT = Path(__file__).resolve().parents[4]
 
 
 def fixture(root: Path) -> str:
@@ -26,6 +30,12 @@ def fixture(root: Path) -> str:
     ws.git(root, "config", "user.email", "fixture@example.invalid")
     (root / ".gitignore").write_text("/agent/tmp/\n")
     (root / "product.txt").write_text("baseline\n")
+    shutil.copy2(SOURCE_ROOT / "AGENTS.md", root / "AGENTS.md")
+    for name in ("main", "epoch", "batch", "iteration"):
+        for source in (SOURCE_ROOT / "agent/skills" / name).rglob("*.md"):
+            destination = root / source.relative_to(SOURCE_ROOT)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
     lanes = [{"id": "lane-one", "work_item": "work-item-0.2.0.1", "iteration": "iteration-0002",
               "status": "planned", "depends_on": [], "outcome": "First result", "acceptance": ["Pass gate"]},
              {"id": "lane-two", "work_item": "work-item-0.2.0.2", "iteration": "iteration-0003",
@@ -33,7 +43,7 @@ def fixture(root: Path) -> str:
     goal = {"schema_version": 4, "epoch": "epoch-0001", "batch": {"id": "batch-0001", "status": "open"},
             "target": {"milestone": "milestone-0.2.0.0", "work_item": "work-item-0.2.0.1"},
             "objective": "Fixture delivery", "references": [], "lanes": lanes}
-    (root / "agent").mkdir()
+    (root / "agent").mkdir(exist_ok=True)
     (root / "agent/goal.json").write_text(json.dumps(goal, indent=2) + "\n")
     work = root / "agent/plan/milestone-0.2.0.0-fixture/work"
     work.mkdir(parents=True)
@@ -51,6 +61,7 @@ def checks() -> list[dict]:
 
 
 def receipt(root: Path, kind: str, base: str) -> dict:
+    rules.load(root, kind, base, output=io.StringIO())
     plan = checks()
     return ws.evaluate(root, kind, base, plan, ws.review(root, "Reviewed fixture behavior and gate coverage", plan))
 
@@ -67,8 +78,23 @@ def request(root: Path, kind: str = "maintenance") -> dict:
     return value
 
 
+def load_operation_rules(root: Path) -> None:
+    state = ws.read_json(ws.local_path(root, "state.json"))
+    task = state["request"]
+    committed = bool(state.get("commit"))
+    rules.load(root, task["kind"], ws.oid(root) if committed else task["base_revision"],
+               skills=task.get("skills", []), paths=[] if committed else task["allowed_paths"],
+               output=io.StringIO())
+
+
+def prepare(root: Path) -> dict:
+    load_operation_rules(root)
+    return controller.step(root, "prepared", {})
+
+
 def commit_operation(root: Path, kind: str = "maintenance") -> str:
     with ws.lock(root):
+        load_operation_rules(root)
         controller.step(root, "review", {"summary": "Fixture reviewed against bounded behavior"})
         controller.step(root, "evaluate", {})
         ws.git(root, "add", "product.txt", "agent/goal.json", "agent/plan")
@@ -116,7 +142,7 @@ class WorkflowScenarios(unittest.TestCase):
         task = request(self.root)
         task["checks"] = [{"id": "fail", "argv": [sys.executable, "-B", "-c", "raise SystemExit(3)"]}]
         controller.begin(self.root, task)
-        controller.step(self.root, "prepared", {})
+        prepare(self.root)
         controller.step(self.root, "review", {"summary": "Reviewed failure fixture"})
         with self.assertRaises(ws.WorkflowError):
             controller.step(self.root, "evaluate", {})
@@ -126,7 +152,7 @@ class WorkflowScenarios(unittest.TestCase):
     def test_maintenance_commit_auto_publication_and_postcommit_recovery(self):
         goal = (self.root / "agent/goal.json").read_bytes()
         controller.begin(self.root, request(self.root))
-        controller.step(self.root, "prepared", {})
+        prepare(self.root)
         (self.root / "product.txt").write_text("maintained\n")
         revision = commit_operation(self.root)
         self.assertNotEqual(revision, self.base)
@@ -140,6 +166,7 @@ class WorkflowScenarios(unittest.TestCase):
         self.assertEqual(controller.recover(self.root)["stage"], "publication")
         shutil.rmtree(self.root / "agent/tmp")
         self.assertEqual(controller.recover(self.root, revision)["stage"], "publication")
+        load_operation_rules(self.root)
         real_run = subprocess.run
         calls = []
         def publication(command, **kwargs):
@@ -159,10 +186,11 @@ class WorkflowScenarios(unittest.TestCase):
         task = request(self.root)
         task["publication"] = "local"
         controller.begin(self.root, task)
-        controller.step(self.root, "prepared", {})
+        prepare(self.root)
         (self.root / "product.txt").write_text("local result\n")
         commit_operation(self.root)
         self.assertEqual(controller.inspect(self.root)["stage"], "handoff")
+        load_operation_rules(self.root)
         with self.assertRaises(ws.WorkflowError):
             controller.step(self.root, "publish", {})
 
@@ -206,6 +234,7 @@ class WorkflowScenarios(unittest.TestCase):
 
     def test_invalid_transition_and_precommit_cache_loss(self):
         controller.begin(self.root, request(self.root))
+        load_operation_rules(self.root)
         with self.assertRaises(ws.WorkflowError):
             controller.step(self.root, "deliver", {})
         shutil.rmtree(self.root / "agent/tmp")

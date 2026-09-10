@@ -198,9 +198,10 @@ def validate_plan(checks: Any) -> None:
 
 
 def review(root: Path, summary: str, checks: list[dict[str, Any]]) -> dict[str, Any]:
+    import rule_loading
     validate_plan(checks)
     require(bool(summary.strip()), "The parent review must state its semantic conclusion")
-    return {"content": content(root), "summary": summary, "plan": digest(checks)}
+    return {"content": content(root), "summary": summary, "plan": digest(checks), "rules": rule_loading.current(root)}
 
 
 def evaluate(root: Path, kind: str, base: str, checks: list[dict[str, Any]],
@@ -208,6 +209,10 @@ def evaluate(root: Path, kind: str, base: str, checks: list[dict[str, Any]],
     validate_plan(checks)
     exact_commit(root, base)
     before = snapshot(root)
+    import rule_loading
+    rule_loading.validate(root, reviewed.get("rules"), kind=kind)
+    require(reviewed["rules"]["head"] == before["head"] and reviewed["rules"]["base_revision"] == base,
+            "Review used rules from another verification baseline")
     require(ancestor(root, base, before["head"]), "Verification baseline is outside current history")
     require(reviewed.get("content") == before["content"] and reviewed.get("plan") == digest(checks)
             and bool(reviewed.get("summary")), "Review or check plan is stale")
@@ -264,6 +269,10 @@ def validate_receipt(root: Path, receipt: Any, *, kind: str,
     reviewed = receipt.get("review", {})
     require(reviewed.get("content") == inputs.get("content") and
             reviewed.get("plan") == digest(receipt["checks"]) and bool(reviewed.get("summary")), "Missing bound parent review")
+    import rule_loading
+    rule_loading.validate(root, reviewed.get("rules"), kind=kind, entries=values)
+    require(reviewed["rules"]["head"] == inputs["head"] and reviewed["rules"]["base_revision"] == receipt["base_revision"],
+            "Verification rules disagree with the tested baseline")
     results = receipt.get("results", [])
     require(len(results) == len(receipt["checks"]), "Incomplete executed check results")
     for check, result in zip(receipt["checks"], results):
@@ -394,6 +403,23 @@ def commit_guard(root: Path, expected_head: str, expected_tree: str, receipt: di
     require(oid(root, ":") == expected_tree, "Expected staged tree changed")
     require(content(root, expected_tree) == content(root), "Staged tree differs from the reviewed working tree")
     validate_receipt(root, receipt, kind=kind)
+    import main as controller
+    state_path = local_path(root, "state.json")
+    require(state_path.is_file(), "A guarded commit requires an active main delivery")
+    state = read_json(state_path)
+    require(isinstance(state, dict) and state.get("schema_version") == 1 and
+            state.get("stage") == "delivery" and not state.get("commit"),
+            "A guarded commit requires the current main delivery stage")
+    controller.validate_state(root, state)
+    request = state["request"]
+    require(request["kind"] == kind and request["base_revision"] == expected_head and
+            receipt["base_revision"] == request["base_revision"], "Commit belongs to another operation or baseline")
+    require(isinstance(state.get("receipt"), dict) and state["receipt"].get("digest") == receipt["digest"] and
+            state.get("review") == receipt["review"] and request["checks"] == receipt["checks"],
+            "Current operation receipt or reviewed check plan differs from the supplied commit evidence")
+    controller.require_rules(root, state)
+    require(read_json(local_path(root, "rules.json")) == receipt["review"]["rules"],
+            "Current loaded rules differ from the reviewed commit evidence")
     if kind == "batch":
         import importlib.util
         path = Path(__file__).resolve().parents[2] / "batch/scripts/batch.py"

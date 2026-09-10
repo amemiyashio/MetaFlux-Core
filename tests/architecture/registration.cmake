@@ -7,6 +7,15 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
       "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/main/scripts/test_workflow_state.py"
   )
   set_tests_properties(metaflux.architecture.main-workflow-selftest PROPERTIES LABELS "architecture")
+  foreach(guard IN ITEMS rule_loading tool_gate commit_gate)
+    string(REPLACE "_" "-" guard_name "${guard}")
+    add_test(
+      NAME "metaflux.architecture.${guard_name}-selftest"
+      COMMAND "${Python3_EXECUTABLE}" -B
+        "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/main/scripts/test_${guard}.py"
+    )
+    set_tests_properties("metaflux.architecture.${guard_name}-selftest" PROPERTIES LABELS "architecture")
+  endforeach()
   if(NOT EXISTS "${CMAKE_BINARY_DIR}/metaflux-component-graph.json")
     message(FATAL_ERROR "MetaFlux component graph is missing from the build tree")
   endif()

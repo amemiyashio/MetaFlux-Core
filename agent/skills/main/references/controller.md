@@ -2,8 +2,10 @@
 
 Run each command through the Git-aware Nix shell. The executable is
 `agent/skills/main/scripts/main.py --root .`; its operations are `inspect`,
-`begin REQUEST.json`, `step EVENT --payload PAYLOAD.json`, and
-`resume [--revision FULL_COMMIT]`. JSON input lives under ignored
+`begin REQUEST.json` or `begin --request-json JSON`, `load-rules [--skill NAME]`,
+`step EVENT [--payload PAYLOAD.json | --payload-json JSON]`, and
+`resume [--revision FULL_COMMIT]`. Inline JSON lets bootstrap proceed before
+repository writes are permitted. If input files are used, they live under ignored
 `agent/tmp/main/`. Inspect reads without creating state. A read-only request
 never replaces an active operation. The Agent interprets natural language;
 the script validates the selected workflow, rather than guessing user intent.
@@ -19,39 +21,82 @@ paths match exactly. Epoch requests additionally quote the already received
 `batch`, `iteration`, and `lane`. Temporary fields record the conversation;
 they never replace actual user authorization or application context.
 
+Optional `skills` names additional required skills. Main always requires its
+own rules, the selected workflow, and the domain skills derived from the
+declared paths. Additional skills supplement those owners. A wider scope may
+require several domain skills; no new workflow entry or product identity is
+created by this selection.
+
 Checks are objects with unique `id`, non-empty `argv` arrays, and optionally
 `optional_skip_reason` for an environment-dependent exit 77. The parent selects
 checks before evaluation. Required checks must return zero. Receipt creation
 executes the commands and retains their raw output and digest.
 
+## Rule Loading Before Mutation
+
+Begin the bounded request first, then run `load-rules` and read its output in the
+executing context before `step prepared`. The loader emits the complete bodies
+of `AGENTS.md`, main's `SKILL.md`, this controller reference, and the required
+workflow/domain `SKILL.md` files. Follow each skill's routing instructions for
+additional references; the loader does not replace that reading.
+
+The current certificate under `agent/tmp/main/rules.json` binds the actual file
+modes and blob IDs, required skills, workflow, full HEAD, request/run identity,
+and operation base. It is issued after body emission and a version recheck.
+This is evidence of emitted instructions, not proof of comprehension or user
+authorization. Editing a receipt or declaring that rules were read supplies
+neither current bodies nor matching verification evidence.
+
+Begin captures the existing worktree content. Preparation rejects any changes
+made after that snapshot and before `prepared`; preserve those changes and use
+the controller's recovery diagnostics to obtain a fresh review. Existing edits
+remain subject to the bounded scope and parent review. Rule files changed
+during authorized implementation must be loaded again before review and
+evaluation. Review, evaluate, deliver, and publish each require current rules.
+After a successful commit, reload at the committed HEAD before publication;
+the pre-commit certificate belongs to the prior HEAD.
+
+The project `.codex/hooks.json` PreToolUse entry enforces this preparation
+boundary for covered tool calls. When rules are missing or stale, it supplies
+their actual bodies to the current context and denies that attempted write;
+loading the bodies does not execute or approve the write. The user/application
+must activate trust for the exact hook definition. This host trust is separate
+from repository workflow evidence. Coverage and activation belong to
+[Tool Hooks](tool-hooks.md); the hook is not an
+arbitrary-shell sandbox.
+
 ## Events
 
 | Event | Required stage | Effect |
 | --- | --- | --- |
-| `prepared` | preparation | Confirms bounded scope and enters implementation |
-| `review` | implementation/review/evaluation/delivery | Payload `summary` binds parent review and the check plan to current content; enters evaluation |
+| `prepared` | preparation | Requires current loaded rules and unchanged begin snapshot; confirms bounded scope and enters implementation |
+| `review` | implementation/review/evaluation/delivery | Payload `summary` binds parent review, current rules, and the check plan to current content; enters evaluation |
 | `evaluate` | evaluation | Executes checks; passing receipts enter delivery; failure returns to current implementation |
 | `deliver` | delivery | Payload `agent_tool` and `message`; requires exact staged reviewed content; guarded commit then publication or handoff |
 | `publish` | publication | Calls governed exact-commit transport; failure preserves this stage and commit |
 | `handoff` | handoff | Payload `assignment_request` records the current handoff text; completes this operation |
 | `repair` | any pre-commit working stage | Invalidates evidence and returns to bounded implementation |
 
-Every response contains only the stage, evidence, next operation, and delivery
-target. The parent provides its user-facing explanation and invokes the next
+The state response contains stage, evidence, next operation, and delivery
+target; `load-rules` also emits the required bodies before that response.
+The parent provides its user-facing explanation and invokes the next
 skill. Handoff is not permission to create a task or source context: emit the
 exact Epoch/Batch/Iteration/lane, full base, objective, Exit Gate, and required
 checks, then reuse a matching context if the application supplied one.
 
 ## Verification And Acceptance
 
-`workflow_state.review()` binds the semantic review to content and check plan.
+`workflow_state.review()` binds the semantic review to content, check plan,
+and the current rule-loading certificate.
 `evaluate()` executes a reviewed plan and produces schema-1 receipts under
 `agent/tmp/main/receipts/`. Candidate receipts use kind `iteration`, integration
 receipts use `integration`, and final acceptance receipts use `batch`.
 Maintenance and governance use `maintenance` and `epoch` respectively. Receipts
-bind actual content, toolchain input identity, HEAD, exact base, reviewed plan,
-executed commands, return codes, and log hashes. Staging unchanged content does
-not invalidate evidence; changing mode, content, HEAD, or toolchain does.
+bind actual content, toolchain input identity, HEAD, exact base, reviewed plan
+and rule versions, executed commands, return codes, and log hashes. Staging
+unchanged content does not invalidate evidence; changing mode, content, HEAD,
+or toolchain does. Validation of a committed candidate checks its rule files
+against that candidate tree, not the integrator's current working files.
 
 An Iteration delivery has exactly these schema-v2 fields:
 
@@ -82,8 +127,10 @@ using `workflow_state.digest()`. The mapped checks must pass in both candidate
 and integration phases. The parent reviews their full semantic coverage.
 
 Batch first runs `batch.py check DELIVERY`. After an exact prepared merge or
-in-place candidate and knowledge promotion, generate a fresh `integration`
-receipt against the delivery's base and actual integration content. Pass it to
+in-place candidate and knowledge promotion, load the integration's current
+rules, perform a fresh parent review, and generate an `integration` receipt
+against the delivery's base and actual integration content. Candidate review
+and rule evidence do not substitute for this integration review. Pass it to
 `batch.py advance DELIVERY --receipt RECEIPT`. This writes only the recoverable
 Goal/work-item transition. Then main review/evaluate with kind `batch` covers
 the final acceptance tree before deliver. The acceptance trailer includes the
@@ -102,4 +149,13 @@ Temporary JSON is not an authorization store. If user scope changed, re-read it
 before any transition. The shared lock and expected HEAD/tree guard concurrent
 workflow actors. The helper accepts only `-m MESSAGE` or `-F FILE`, expected
 HEAD/tree, `--kind`, `--receipt`, and the conversation-emitted `--agent-tool`.
-It preserves candidate-hook diagnostics and verifies the committed tree.
+Pre-commit requires the helper's full expected HEAD/tree, receipt, and kind,
+and invokes the same `commit_guard` before and after candidate-tree checks.
+The guard also requires the current main operation in delivery, its exact
+request and verification receipt, and the matching currently loaded rules.
+Resuming or replacing an operation invalidates an old helper invocation even
+when HEAD and content have not changed. Lost pre-commit state requires a new
+main request, rule loading, review, and evaluation. Historical candidate receipt
+validation remains independent of the integrator's current operation.
+Missing input and stale content or rules fail the guard. It preserves
+candidate-hook diagnostics and verifies the committed tree.

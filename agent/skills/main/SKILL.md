@@ -28,6 +28,21 @@ Ninja, Kbuild, CTest, and packaging keep their existing ownership. Provision
 missing tools through `manage-toolchain`; confirmed host gaps and every
 privileged action additionally compose `manage-host-privilege`.
 
+For a mutating request, use `begin --request-json` to declare the bounded scope
+without first writing a request file. Run `load-rules` and read its emitted
+AGENTS, main, controller, workflow, and scope-owning skill bodies before
+`step prepared`. A receipt binds their exact file modes/blobs, current HEAD,
+request and base; it records body emission, not comprehension or authorization.
+Begin records existing edits, and preparation rejects further edits made before
+`prepared`. Read additional references required by the loaded skills yourself.
+The [controller interface](references/controller.md) owns the exact protocol.
+
+The project [tool hooks](references/tool-hooks.md) inject missing
+rules and deny the current covered write until preparation succeeds. Their
+enforcement depends on user/application trust in the exact hook definition;
+the repository does not activate that trust. They guard supported tool calls,
+not arbitrary shell execution.
+
 ## Dispatch
 
 - Inspection, status, readiness, and identity requests stay read-only. Use
@@ -47,7 +62,7 @@ privileged action additionally compose `manage-host-privilege`.
 Read [the executable interface](references/controller.md) before mutating
 controller state. `$main status` maps to `inspect`; `$main resume` revalidates
 Git and evidence before selecting another operation. The script exposes
-`inspect`, `begin`, `step`, and `resume`.
+`inspect`, `begin`, `load-rules`, `step`, and `resume`.
 
 The controller reports stage, evidence, next operation, and delivery target.
 Preparation, implementation, review, evaluation, delivery, publication, and
@@ -65,8 +80,18 @@ thread, or chat to satisfy a gate.
 
 Commit only through `scripts/commit_as_agent_tool.py`, with the conversation
 subject and exact expected HEAD/tree. The helper checks the active verification
-receipt and transaction before invoking the candidate-tree commit gate. It
-never modifies Git identity configuration.
+receipt, its rule certificate, and transaction before invoking the candidate-tree
+commit gate. Pre-commit repeats the same input guard before and after candidate
+checks, requiring full expected HEAD/tree, receipt, and operation kind. It never
+modifies Git identity configuration. Both paths require the active main delivery
+state and its current loaded rules; an old receipt does not revive a resumed or
+replaced operation.
+
+Review, evaluation, delivery, and publication require current loaded rules.
+When rule content or mode changes, load the new bodies before reviewing and
+verifying the candidate. After commit, load them again at the new HEAD before
+publication. Candidate validation checks the rule versions in that candidate;
+integration needs its own current rules, fresh parent review, and verification.
 
 Maintenance, Batch acceptance, and Epoch activation publish their exact guarded
 commit automatically unless the current user request limits publication. An
@@ -79,9 +104,10 @@ matching application-supplied context.
 ## State And Recovery
 
 `agent/goal.json` owns product route and accepted progress. Ignored
-`agent/tmp/main/` owns only the current worktree's running state, verification
-receipts, and pending transaction. Build and product-test artifacts stay under
-root `tmp/`. No temporary state is authorization or product completion proof.
+`agent/tmp/main/` owns only the current worktree's running state, rule/context
+evidence, verification receipts, and pending transaction. Build and product-test
+artifacts stay under root `tmp/`. No temporary state is authorization or product
+completion proof.
 
 Use the common Git lock and expected HEAD/tree checks for shared mutations.
 Recheck the received scope and Git facts after interruption. If pre-commit

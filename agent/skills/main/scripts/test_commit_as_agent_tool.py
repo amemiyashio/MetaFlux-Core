@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -15,6 +17,7 @@ from pathlib import Path
 SCRIPT = Path(__file__).with_name("commit_as_agent_tool.py").resolve()
 TOPOLOGY_SCRIPT = SCRIPT.with_name("check_git_topology.py")
 SKILL = SCRIPT.parents[1] / "SKILL.md"
+SOURCE_ROOT = SCRIPT.parents[4]
 
 
 def load_module():
@@ -82,13 +85,39 @@ def initialize_repository(repository: Path) -> None:
         "git email",
     )
     (repository / ".gitignore").write_text("/agent/tmp/\n")
-    require(run(repository, "git", "add", ".gitignore"), "stage baseline")
+    shutil.copy2(SOURCE_ROOT / "AGENTS.md", repository / "AGENTS.md")
+    for name in ("main", "epoch", "batch", "iteration"):
+        for source in (SOURCE_ROOT / "agent/skills" / name).rglob("*.md"):
+            destination = repository / source.relative_to(SOURCE_ROOT)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+    require(run(repository, "git", "add", "."), "stage baseline")
     require(run(repository, "git", "commit", "-qm", "fixture baseline"), "baseline")
 
 
 def evidence_arguments(root: Path) -> list[str]:
+    import main as controller
+    import rule_loading
+
     checks = [{"id": "fixture", "argv": [sys.executable, "-B", "-c", "assert 2 + 2 == 4"]}]
-    receipt = WS.evaluate(root, "maintenance", WS.oid(root), checks, WS.review(root, "Fixture content reviewed", checks))
+    state_path = WS.local_path(root, "state.json")
+    if not state_path.exists():
+        controller.begin(root, {
+            "schema_version": 1, "kind": "maintenance", "objective": "Review the bounded fixture change",
+            "base_revision": WS.oid(root), "allowed_paths": sorted(controller.changed_paths(root, WS.oid(root))) or ["value.txt"],
+            "checks": checks, "publication": "local",
+        })
+    state = WS.read_json(state_path)
+    task = state["request"]
+    assert task["kind"] == "maintenance" and not state.get("commit")
+    assert task["base_revision"] == WS.oid(root)
+    rule_loading.load(root, task["kind"], task["base_revision"], paths=task["allowed_paths"],
+                      skills=task.get("skills", []), output=io.StringIO())
+    if state["stage"] == "preparation":
+        controller.step(root, "prepared", {})
+    controller.step(root, "review", {"summary": "Fixture content reviewed"})
+    controller.step(root, "evaluate", {})
+    receipt = WS.read_json(state_path)["receipt"]
     return ["--expected-head", WS.oid(root), "--expected-tree", WS.oid(root, ":"),
             "--receipt", str(WS.local_path(root, "receipts/" + receipt["digest"] + ".json")), "--kind", "maintenance"]
 

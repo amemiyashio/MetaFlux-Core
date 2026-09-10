@@ -44,6 +44,27 @@ commit and publication behavioral tests; authority/temporary-state checks;
 component graph; complete dev build and CTest. Failure leaves the candidate
 Epoch unpublished.
 
+## Rule Loading Boundary
+
+The mandatory-read rule is enforced inside the existing main stages. Main
+binds actual rule-body emission to the request, scope, base, HEAD, and current
+file versions before preparation allows implementation. Review and verification
+carry that certificate with the candidate content and check plan. Candidate
+validation uses its own tree; integration requires fresh rule loading and
+parent review. Publication reloads at the committed HEAD. The certificate is
+evidence of body emission, not comprehension or user authorization. Required
+references inside skills still need to be read by the Agent. The exact
+preparation and reloading protocol is owned by
+[main's controller](../../agent/skills/main/references/controller.md).
+
+The project PreToolUse hook supplies missing rule bodies to the current context
+and denies the current covered write until preparation succeeds. The
+user/application activates trust in its exact definition; a tracked hook file
+does not establish host trust. This tool boundary does not sandbox arbitrary
+shell execution. [Tool Hooks](../../agent/skills/main/references/tool-hooks.md) owns coverage and activation.
+These checks implement mandatory reading without adding workflow entries,
+changing Goal/Epoch, or treating temporary receipts as product authority.
+
 ## State Model
 
 Goal schema v4 in `agent/goal.json` is the sole active product-route and accepted
@@ -52,9 +73,10 @@ prerequisites, and lanes; no process stage or history arrays. Lane states are
 `planned`, `integrated`, and `deferred`; Batch states are `open` and `integrated`.
 
 Ignored `agent/tmp/main/` contains only the current worktree's operation state,
-verification receipts, delivery envelopes, and pending transaction. It supplies
-neither authorization nor product-completion evidence. Authority scanning skips
-this directory, and staged contents are rejected even when force-added.
+rule/context evidence, verification receipts, delivery envelopes, and pending
+transaction. It supplies neither authorization nor product-completion evidence.
+Authority scanning skips this directory, and staged contents are rejected even
+when force-added.
 Build and product-test artifacts remain under root `tmp/`. Git preserves prior
 committed facts; no process archive or duplicate route database exists.
 
@@ -83,10 +105,11 @@ a divergent candidate needs its exact prepared merge and fresh integration
 verification. A stale non-HEAD ancestor is not a new candidate.
 
 Candidate and integration receipts independently bind the baseline, tested
-content, toolchain inputs, reviewed check plan, actual results, and output
-digests. Changed inputs invalidate affected evidence. Optional skips are not
-passes for required Exit Gates. Knowledge promotion happens before final
-evaluation so its changes also receive review and verification.
+content, loaded rule versions, toolchain inputs, reviewed check plan, actual
+results, and output digests. Changed inputs invalidate affected evidence.
+Optional skips are not passes for required Exit Gates. Knowledge promotion
+happens before final evaluation so its changes also receive review and
+verification.
 
 A slice retains its planned lane, Active work item, and target, and assigns that
 lane the Batch's maximum existing Iteration plus one. Exhaustion never wraps.
@@ -102,10 +125,14 @@ evaluation covers the advanced tree before one acceptance commit.
 ## Commit Boundary
 
 Main's shared helper requires expected HEAD, exact staged tree, operation kind,
-and a current verification receipt. Candidate-tree hooks load helpers from that
-same tree and remain side-effect-free in the invoking repository. Linked
-worktree fixtures clear Git local environment variables. Unexpected changes are
-attributed to exact reflog/hook/test evidence before another actor is blamed.
+and a current verification receipt with its reviewed rule certificate.
+Pre-commit calls the same `commit_guard` before and after candidate-tree checks
+and requires all four inputs, including full expected HEAD/tree IDs. Direct
+Git invocation does not substitute for those inputs. Candidate-tree hooks load
+helpers from that same tree and remain side-effect-free in the invoking
+repository. Linked worktree fixtures clear Git local environment variables.
+Unexpected changes are attributed to exact reflog/hook/test evidence before
+another actor is blamed.
 
 Workflow commit trailers bind the operation, tree, verification digest, and
 publication policy. Acceptance additionally binds delivery identity, candidate,

@@ -4,23 +4,11 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-check_expected_input() {
-  if [[ -n "${METAFLUX_EXPECTED_HEAD:-}" ]]; then
-    [[ "$(git rev-parse HEAD)" == "$METAFLUX_EXPECTED_HEAD" ]]
-    [[ "$(git write-tree)" == "$METAFLUX_EXPECTED_TREE" ]]
-  fi
-}
-check_expected_input
-
 diagnostic_format="${METAFLUX_DIAGNOSTIC_FORMAT:-human}"
 case "$diagnostic_format" in
   human|json) ;;
   *) diagnostic_format=human ;;
 esac
-
-if git diff --cached --quiet; then
-  exit 0
-fi
 
 run_without_git_local_environment() (
   local variable
@@ -33,6 +21,17 @@ run_without_git_local_environment() (
 
   "$@"
 )
+
+check_commit_input() {
+  run_without_git_local_environment nix develop . --command python3 -B \
+    agent/skills/main/scripts/commit_as_agent_tool.py \
+    --check-commit-gate --diagnostic-format "$diagnostic_format"
+}
+check_commit_input
+
+if git diff --cached --quiet; then
+  exit 0
+fi
 
 candidate_root="$(
   run_without_git_local_environment nix develop . --command mktemp -d
@@ -65,10 +64,12 @@ run_without_git_local_environment nix develop . --command python3 -B \
 run_without_git_local_environment nix develop . --command python3 -B \
   "$candidate_root/agent/skills/main/scripts/test_commit_as_agent_tool.py"
 run_without_git_local_environment nix develop . --command python3 -B \
+  "$candidate_root/agent/skills/main/scripts/test_commit_gate.py"
+run_without_git_local_environment nix develop . --command python3 -B \
   "$candidate_root/agent/skills/main/scripts/test_push_repository.py"
 
 git diff --cached --check
-for controller_test in main/scripts/test_workflow_state.py batch/scripts/test_batch.py epoch/scripts/test_check_route_proposal.py; do
+for controller_test in main/scripts/test_workflow_state.py main/scripts/test_rule_loading.py main/scripts/test_tool_gate.py batch/scripts/test_batch.py epoch/scripts/test_check_route_proposal.py; do
   run_without_git_local_environment nix develop . --command python3 -B "$candidate_root/agent/skills/$controller_test"
 done
-check_expected_input
+check_commit_input
