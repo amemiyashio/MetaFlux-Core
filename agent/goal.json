@@ -28,10 +28,12 @@
     {
       "id": "lane-pytorch-cuda-cpu-profile",
       "work_item": "work-item-0.2.0.2",
-      "iteration": "iteration-0002",
+      "iteration": "iteration-0004",
       "outcome": "Broaden the baseline into a versioned PyTorch CUDA CPU profile with a complete provider-surface matrix, handle-negative coverage, canonical neutral request and Kernel IR boundaries, and a backend-executed operator corpus.",
       "status": "planned",
-      "depends_on": ["lane-stock-pytorch-cuda-baseline"],
+      "depends_on": [
+        "lane-stock-pytorch-cuda-baseline"
+      ],
       "acceptance": [
         "The Driver and profile-specific internal-table matrix classifies the full pinned surface, and invalid, stale, destroyed, cross-module, reuse, and teardown handle cases pass.",
         "The versioned neutral framework-kernel request and canonical Kernel IR boundary carry no CUDA, PyTorch, MLIR, LLVM, Vulkan, or target-specific wire types.",
@@ -45,7 +47,9 @@
       "iteration": "iteration-0003",
       "outcome": "Qualify the same versioned PyTorch CUDA Kernel IR corpus on an explicitly selected AMD RADV/Vulkan context, with real device submission/completion, CPU differential evidence, lifecycle behavior, and process-level activation.",
       "status": "planned",
-      "depends_on": ["lane-pytorch-cuda-cpu-profile"],
+      "depends_on": [
+        "lane-pytorch-cuda-cpu-profile"
+      ],
       "acceptance": [
         "The Vulkan route decision is closed before implementing the qualifying route; the existing optional adapter is unqualified. Each context fixes its backend before resource success, with no per-kernel CPU fallback or CPU-native shortcut in Vulkan qualification.",
         "The first GPU slice proves unchanged stock PyTorch eager add, copy and readback on the named physical AMD RADV device, including device identity and correlated GPU submission/completion; the full accepted Kernel IR corpus then lowers directly through target-constrained MLIR/SPIR-V without an LLVM detour.",
