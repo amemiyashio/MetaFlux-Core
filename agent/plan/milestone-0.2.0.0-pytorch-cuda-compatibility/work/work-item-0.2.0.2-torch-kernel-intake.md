@@ -46,6 +46,31 @@ the failure) while the frontier suite, whose socket directory was already
 scratch directory at `/tmp`, which keeps socket paths short at any nesting
 depth.
 
+The sum-i64 case (torch int32 sum promoted to its int64 accumulator output)
+now executes canonically: the provider normalizes the ReduceOpIl config
+(int64-accumulator functor reads `num_inputs` at byte 20), binds the
+`reduce-sum-i64.ptx` profile artifact, and the daemon runs it through the
+generic executor in interpreter mode. The daemon silently returns
+`MF_SHARED_MALFORMED` from the module-load path when profile PTX violates the
+Kernel IR v2 dialect: unsupported forms such as `mov.u64`, `add.u64` with a
+32-bit operand, and register reuse (the IR is single-assignment) all fail
+`compiler::ptx::parse` before module preparation, with no diagnostic. The
+sum-i64 artifact sums the six 8-byte source elements from their low words:
+a wrapping u32 sum plus a wrap-carry count minus a negative-element count
+yields the exact high word for any sign mix.
+
+sum-i64 remains outside the compiled subset. The compiled frontier runner
+currently requires each compiled case to map to exactly one neutral request
+(`load_corpus`), counts one cache identity per declared compiled source, and
+expects the AOT-miss provider evidence to carry every expected request. The
+sum-i64 application issues two baseline requests (the int32-to-int64
+cast-copy companion, currently executed by the daemon-native branch from a
+stub module with no executor evidence) plus the reduction. Qualifying it in
+cold-jit/warm-jit/AOT therefore needs a bounded contract extension: a real
+`cast-copy-i64` profile artifact with the daemon-native cast-copy branch
+excluded, a multi-source compiled declaration in the corpus schema, and a
+prefix rule for AOT-miss request evidence.
+
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |

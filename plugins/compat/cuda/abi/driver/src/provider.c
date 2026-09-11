@@ -7320,6 +7320,13 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         mf_cuda_queue_unlock();
         return CUDA_ERROR_NOT_SUPPORTED;
       }
+      if (reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I64_V1 &&
+          config_count != UINT32_C(6)) {
+        /* The int64-accumulator reduction artifact is likewise pinned to the
+         * six-element acceptance extent. */
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
       if (reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I32_V1 &&
           config_count != UINT32_C(6)) {
         /* The first integer reduction artifact is a pinned six-element slice.
@@ -7340,7 +7347,8 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
           reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MAX_I32_V1 ||
           reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MIN_I32_V1 ||
           reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1 ||
-          reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1) {
+          reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1 ||
+          reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I64_V1) {
         normalized_buffer_element_counts[0] = UINT32_C(1);
         normalized_buffer_element_counts[1] = config_count;
         if (reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1) {
@@ -7389,6 +7397,9 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       } else if (reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MIN_I32_V1) {
         reduce_ptx = mf_pytorch_baseline_reduce_mini32_ptx;
         reduce_ptx_size = sizeof(mf_pytorch_baseline_reduce_mini32_ptx) - 1U;
+      } else if (reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I64_V1) {
+        reduce_ptx = mf_pytorch_baseline_reduce_sumi64_ptx;
+        reduce_ptx_size = sizeof(mf_pytorch_baseline_reduce_sumi64_ptx) - 1U;
       }
       result = mf_cuda_materialize_pytorch_baseline_locked(
           module_record, reduce_operation, reduce_ptx, reduce_ptx_size, reduce_operation_name);
