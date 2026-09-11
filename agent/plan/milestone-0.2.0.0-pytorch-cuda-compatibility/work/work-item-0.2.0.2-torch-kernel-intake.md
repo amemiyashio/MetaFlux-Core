@@ -49,9 +49,9 @@ depth.
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |
-| Compiled cases | 23 |
-| Unique compiled PTX sources | 22 |
-| Cases outside compiled subset | 18 |
+| Compiled cases | 24 |
+| Unique compiled PTX sources | 23 |
+| Cases outside compiled subset | 17 |
 | Classified gaps | 2 |
 
 Every supported interpreter-mode case records its neutral request, daemon
@@ -61,9 +61,10 @@ it does not prove that every row has generic Kernel IR interpreter semantics.
 The corpus remains `frontier-not-frozen`, with `exit_gate_complete: false`.
 
 The compiled subset includes arithmetic, fill, scalar/alpha operations,
-absolute value, square root, exponential, comparisons, int32-to-float32 cast, ReLU and clamp.
-The two clamp inputs share one kernel. Profile-owned PTX lives beside the
-PyTorch CPU profile and is generated into the C17 provider at configure time.
+absolute value, square root, exponential, sigmoid, comparisons, int32-to-float32
+cast, ReLU and clamp. The two clamp inputs share one kernel. Profile-owned PTX
+lives beside the PyTorch CPU profile and is generated into the C17 provider at
+configure time.
 
 The exponential slice carries actual `ExpF32` semantics through canonical
 Kernel IR, the compiler-worker protocol and the generic CPU executors. Its
@@ -73,6 +74,16 @@ independent references covering signed zero, subnormals, overflow, underflow,
 infinities and NaN. Interpreter, cold JIT, warm JIT and AOT agree bit-for-bit
 under one bound CPU math-helper identity. The helper is scalar; this slice
 establishes no SIMD or throughput improvement.
+
+The sigmoid-f32 slice carries the pinned stock client's `torch.sigmoid` result
+through a dedicated canonical Kernel IR operation and profile-owned PTX. Its
+independent bit oracle agrees across interpreter, cold JIT, warm JIT and AOT;
+the provider only normalizes the two buffer arguments and typed zero/one
+scalars, submits the request, and records no provider-local tensor execution.
+Cold JIT has one compiler miss, warm JIT has one cache hit with no compiler
+request, and AOT prewarms the same cache identity while a separate unsupported
+probe remains a stable miss. This is a CPU-profile slice and does not qualify
+physical AMD GPU execution or the complete corpus.
 
 Compiled entry helper ABI v3 passes a runtime-bound math function pointer.
 The actual implementation identity participates in both the cache fingerprint
@@ -133,7 +144,7 @@ and decision-0053 remains the closed library boundary.
 
 Rows outside the manifest's compiled subset cover reductions, strided copy,
 concat, arange, int32 minimum clamping, library-backed
-matrix/linear, softmax and sigmoid. They cross the
+matrix/linear and softmax. They cross the
 neutral daemon boundary but use operation-specific daemon CPU branches.
 Promote their actual semantics into canonical Kernel IR and the compiled
 pipeline; a copy-shaped placeholder associated with a native operation is not

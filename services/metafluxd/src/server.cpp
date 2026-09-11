@@ -3380,29 +3380,6 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
           std::memcpy(&destination.words[destination_index], &accumulator, sizeof(accumulator));
         }
       }
-    } else if (operation ==
-               MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SIGMOID_F32_V1) {
-      if (arguments.size() != 4U || arguments[0].index() != 2U ||
-          arguments[1].index() != 2U || arguments[2].index() != 2U ||
-          !std::holds_alternative<std::uint32_t>(arguments[3])) {
-        return MF_SHARED_INVALID_ARGUMENT;
-      }
-      auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
-      const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1]);
-      const auto& duplicate_source = std::get<backend::cpu::BufferArgument>(arguments[2]);
-      const auto element_count = std::get<std::uint32_t>(arguments[3]);
-      if (element_count == 0U || element_count > destination.words.size() ||
-          element_count > source.words.size() ||
-          duplicate_source.words.data() != source.words.data() ||
-          duplicate_source.words.size() != source.words.size()) {
-        return MF_SHARED_INVALID_ARGUMENT;
-      }
-      for (std::uint32_t index = 0U; index < element_count; ++index) {
-        float value = 0.0F;
-        std::memcpy(&value, &source.words[index], sizeof(value));
-        const float output = 1.0F / (1.0F + std::exp(-value));
-        std::memcpy(&destination.words[index], &output, sizeof(output));
-      }
     } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_F32_V1 ||
                operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_DIM_F32_V1) {
       const bool dimensioned = operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_DIM_F32_V1;

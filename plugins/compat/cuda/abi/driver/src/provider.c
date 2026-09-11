@@ -6997,13 +6997,23 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         strstr(kernel_name, "sigmoid_kernel_cuda") != (char*)0 &&
         strstr(kernel_name, "EUlfE_") != (char*)0 && kernel_parameters[0] != (void*)0 &&
         kernel_parameters[1] != (void*)0 && kernel_parameters[2] != (void*)0) {
-      /* Pinned torch.sigmoid(float32) uses the same stateless two-pointer
-         unary closure as sqrt: {destination, source} plus element count. */
+      /* Pinned torch.sigmoid(float32) uses a two-pointer unary closure. Keep
+         zero and one as typed scalar entries so the neutral PTX boundary does
+         not manufacture -input through an aliasing buffer operation. */
       void** sigmoid_data_array = (void**)kernel_parameters[2];
       normalized_element_count = *(const uint32_t*)kernel_parameters[0];
       normalized_pointers[0] = (CUdeviceptr)(uintptr_t)sigmoid_data_array[0];
       normalized_pointers[1] = (CUdeviceptr)(uintptr_t)sigmoid_data_array[1];
-      normalized_pointers[2] = normalized_pointers[1];
+      normalized_buffer_count = UINT32_C(2);
+      normalized_element_count_index = UINT32_C(4);
+      normalized_entry_total = UINT32_C(5);
+      normalized_kinds[2] = MF_CUDA_NORMALIZED_KIND_F32;
+      normalized_scalars[2] = UINT32_C(0x00000000);
+      normalized_parameters[2] = &normalized_scalars[2];
+      normalized_kinds[3] = MF_CUDA_NORMALIZED_KIND_F32;
+      normalized_scalars[3] = UINT32_C(0x3f800000);
+      normalized_parameters[3] = &normalized_scalars[3];
+      normalized_parameters[4] = &normalized_element_count;
       if (normalized_element_count == UINT32_C(0) ||
           normalized_pointers[0] == (CUdeviceptr)0 ||
           normalized_pointers[1] == (CUdeviceptr)0) {
@@ -7013,7 +7023,8 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       module_record = &mf_cuda_global.modules[function_record->aux];
       result = mf_cuda_materialize_pytorch_baseline_locked(
           module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_SIGMOID_F32_V1,
-          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          mf_pytorch_baseline_sigmoidf32_ptx,
+          sizeof(mf_pytorch_baseline_sigmoidf32_ptx) - 1U,
           "elementwise-sigmoid-f32");
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();

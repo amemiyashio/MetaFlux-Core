@@ -40,6 +40,7 @@
    "relu-f32",
    "clamp-min-nonzero-f32",
    "clamp-min-negative-f32",
+   "sigmoid-f32",
    "exp-f32"
   ]
  },
@@ -741,7 +742,10 @@
    },
    "expected_requests": [
     "baseline:elementwise-sigmoid-f32:1:2:module-load"
-   ]
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/sigmoid-f32.ptx"
+   }
   },
   {
    "id": "arange-i64",
