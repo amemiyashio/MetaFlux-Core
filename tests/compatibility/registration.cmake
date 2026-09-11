@@ -63,7 +63,8 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     add_test(
       NAME metaflux.compatibility.pytorch-cuda-stock-baseline
       COMMAND
-        "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline" --command
+        "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline"
+        --ignore-environment --keep HOME --keep USER --command
         python3 -B
         "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_pytorch_cuda_stock_baseline.py"
         --daemon $<TARGET_FILE:metafluxd>
@@ -79,7 +80,8 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     add_test(
       NAME metaflux.compatibility.pytorch-cuda-concat
       COMMAND
-        "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline" --command
+        "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline"
+        --ignore-environment --keep HOME --keep USER --command
         python3 -B
         "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_pytorch_cuda_cat.py"
         --daemon $<TARGET_FILE:metafluxd>
@@ -96,7 +98,8 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
       add_test(
         NAME metaflux.compatibility.pytorch-cuda-cpu-frontier
         COMMAND
-          "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline" --command
+          "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline"
+          --ignore-environment --keep HOME --keep USER --command
           python3 -B
           "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_pytorch_cuda_cpu_frontier.py"
           --daemon $<TARGET_FILE:metafluxd>
@@ -115,7 +118,8 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
           NAME
             "metaflux.compatibility.pytorch-cuda-cpu-frontier.compiled-subset.${metaflux_pytorch_frontier_mode}"
           COMMAND
-            "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline" --command
+            "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline"
+            --ignore-environment --keep HOME --keep USER --command
             python3 -B
             "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_pytorch_cuda_cpu_frontier.py"
             --daemon $<TARGET_FILE:metafluxd>
@@ -137,7 +141,8 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
       add_test(
         NAME "metaflux.compatibility.pytorch-cuda-stock-baseline.${metaflux_pytorch_execution_mode}"
         COMMAND
-          "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline" --command
+          "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline"
+          --ignore-environment --keep HOME --keep USER --command
           python3 -B
           "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_pytorch_cuda_stock_baseline.py"
           --daemon $<TARGET_FILE:metafluxd>
