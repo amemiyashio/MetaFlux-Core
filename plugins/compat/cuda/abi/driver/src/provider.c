@@ -7808,6 +7808,13 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       {
         const uint64_t start = *(const uint64_t*)kernel_parameters[1];
         const uint64_t step = *(const uint64_t*)((const uint8_t*)kernel_parameters[1] + UINT32_C(8));
+        if (start != UINT64_C(0) || step != UINT64_C(1)) {
+          /* The arange artifact pins the zero-start unit-step progression:
+             the Kernel IR dialect has no 64-bit multiply form to evaluate a
+             general start/step pair. */
+          mf_cuda_queue_unlock();
+          return CUDA_ERROR_NOT_SUPPORTED;
+        }
         normalized_extra[0] = (uint32_t)start;
         normalized_extra[1] = (uint32_t)(start >> 32U);
         normalized_extra[2] = (uint32_t)step;
@@ -7822,7 +7829,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       module_record = &mf_cuda_global.modules[function_record->aux];
       result = mf_cuda_materialize_pytorch_baseline_locked(
           module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_ARANGE_I64_V1,
-          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          mf_pytorch_baseline_arangei64_ptx, sizeof(mf_pytorch_baseline_arangei64_ptx) - 1U,
           "arange-i64");
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();

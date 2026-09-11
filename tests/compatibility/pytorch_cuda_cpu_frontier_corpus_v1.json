@@ -48,6 +48,7 @@
    "clamp-min-nonzero-f32",
    "clamp-min-negative-f32",
    "sigmoid-f32",
+   "arange-i64",
    "exp-f32",
    "clamp-min-i32"
   ]
@@ -794,7 +795,10 @@
    },
    "expected_requests": [
     "baseline:arange-i64:1:2:module-load"
-   ]
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/arange-i64.ptx"
+   }
   },
   {
    "id": "exp-f32",

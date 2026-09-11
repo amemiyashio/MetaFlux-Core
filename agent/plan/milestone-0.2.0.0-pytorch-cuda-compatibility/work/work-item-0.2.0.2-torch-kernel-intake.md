@@ -73,12 +73,21 @@ request and library-call sequences because a multi-request application aborts
 at its first failed module load; the miss-run cache-miss expectation is the
 attempted module-load count derived from that observed prefix evidence.
 
+The arange-i64 case is likewise a compiled-subset row. torch emits one
+`elementwise_kernel_with_index` request carrying the element count and an
+int64 {start, step} functor, and the artifact evaluates the progression for
+the pinned zero-start unit-step shape: each thread stores its global index
+sign-extended into the destination int64 element. The Kernel IR dialect has
+no 64-bit multiply form, so the provider rejects other start or step values
+for the pinned artifact, mirroring the reduction extent gates; generalizing
+the progression needs a dialect extension slice.
+
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |
-| Compiled cases | 32 |
-| Unique compiled PTX sources | 32 |
-| Cases outside compiled subset | 9 |
+| Compiled cases | 33 |
+| Unique compiled PTX sources | 33 |
+| Cases outside compiled subset | 8 |
 | Classified gaps | 2 |
 
 Every supported interpreter-mode case records its neutral request, daemon
