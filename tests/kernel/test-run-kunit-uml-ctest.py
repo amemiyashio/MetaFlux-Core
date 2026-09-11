@@ -63,6 +63,9 @@ def test_stub_nix_receives_runner_invocation() -> None:
         argv = stub_out.read_text().splitlines()
         assert ".#linux-debug" in argv, f"missing flake shell in {argv}"
         assert "develop" in argv, f"missing develop in {argv}"
+        assert "--ignore-environment" in argv, f"missing clean Nix isolation in {argv}"
+        assert argv.count("--keep") == 2, f"expected HOME/USER retention in {argv}"
+        assert "HOME" in argv and "USER" in argv, f"missing retained identity vars in {argv}"
         assert str(RUNNER) in argv, f"missing runner path in {argv}"
     print("PASS: stub_nix_receives_runner_invocation")
 

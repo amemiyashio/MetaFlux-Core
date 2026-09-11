@@ -52,7 +52,8 @@ def routing_diagnostic(message: str) -> TaskStopDiagnostic:
         ),
         resume_when="The same skill-routing checker passes.",
         retry_command=(
-            "nix develop . --command python3 -B tools/check-skill-routing.py ."
+            "nix develop . --ignore-environment --keep HOME --keep USER --command "
+            "python3 -B tools/check-skill-routing.py ."
         ),
     ).diagnostic
 
