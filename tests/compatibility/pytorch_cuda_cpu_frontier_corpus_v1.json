@@ -39,7 +39,8 @@
    "cast-i32-f32",
    "relu-f32",
    "clamp-min-nonzero-f32",
-   "clamp-min-negative-f32"
+   "clamp-min-negative-f32",
+   "exp-f32"
   ]
  },
  "cases": [
@@ -772,7 +773,10 @@
    },
    "expected_requests": [
     "baseline:elementwise-exp-f32:1:2:module-load"
-   ]
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/exp-f32.ptx"
+   }
   },
   {
    "id": "clamp-min-i32",
@@ -795,6 +799,11 @@
  "gaps": [
   {
    "id": "sigmoid-f64",
+   "status": "frontier-gap",
+   "expected_error": "operation not supported"
+  },
+  {
+   "id": "exp-f64",
    "status": "frontier-gap",
    "expected_error": "operation not supported"
   }

@@ -17,7 +17,7 @@
 namespace metaflux::compiler::ptx {
 namespace {
 
-constexpr std::array<SupportedForm, 40> kSupportedForms{{
+constexpr std::array<SupportedForm, 41> kSupportedForms{{
     {"ld-param-u64", "ld.param.u64", "b64,param.u64", "param,register", "", 70,
      "load_parameter_address", "bounded global buffer handle"},
     {"ld-param-u32", "ld.param.u32", "b32,param.u32", "param,register", "", 70,
@@ -60,6 +60,8 @@ constexpr std::array<SupportedForm, 40> kSupportedForms{{
      "exact sign-bit clear"},
     {"sqrt-rn-f32", "sqrt.rn.f32", "f32,f32", "register", "rn", 70, "sqrt_rn_f32",
      "binary32 correctly-rounded square root"},
+    {"extern-call-expf-f32", "call", "(fD),expf,(fS)", "call", "", 70, "exp_f32",
+     "natural exponential; binary32 RNE/no-FTZ, 2 ULP finite-result bound; classified special values"},
     {"mul-rn-f32", "mul.rn.f32", "f32,f32,f32", "register", "rn", 70, "multiply_rn_f32",
      "binary32 round-nearest-even"},
     {"mad-rn-f32", "mad.rn.f32", "f32,f32,f32,f32", "register", "rn,fused", 70, "mad_rn_f32",
@@ -446,6 +448,9 @@ private:
       fail(DiagnosticCode::PtxTypeMismatch, address_size,
            "the milestone-0.1.0.0 manifest requires 64-bit global addresses", std::string(address_size.text));
     }
+    while (!failed_ && current().kind == TokenKind::Word && current().text == ".extern") {
+      parse_extern_func();
+    }
   }
 
   void parse_entry() {
@@ -656,6 +661,49 @@ private:
     }
   }
 
+  void parse_extern_func() {
+    take_word(".extern");
+    take_word(".func");
+    take(TokenKind::LeftParenthesis, "'('");
+    take_word(".param");
+    const auto param_type = take(TokenKind::Word, "parameter type");
+    if (param_type.text != ".f32") {
+      fail(DiagnosticCode::PtxUnsupportedInstruction, param_type,
+           "extern .func only advertises (param .f32) parameter declarations");
+      return;
+    }
+    if (current().kind == TokenKind::Word) {
+      advance();
+    }
+    take(TokenKind::RightParenthesis, "')'");
+    const auto func_name = take(TokenKind::Word, "function name");
+    if (func_name.text != "expf") {
+      fail(DiagnosticCode::PtxUnsupportedInstruction, func_name,
+           "only expf is whitelisted as an extern .func target");
+      return;
+    }
+    take(TokenKind::LeftParenthesis, "'('");
+    take_word(".param");
+    const auto argument_type = take(TokenKind::Word, "parameter type");
+    if (argument_type.text != ".f32") {
+      fail(DiagnosticCode::PtxUnsupportedInstruction, argument_type,
+           "extern .func expf must accept .f32");
+      return;
+    }
+    if (current().kind == TokenKind::Word) {
+      advance();
+    }
+    take(TokenKind::RightParenthesis, "')'");
+    semicolon();
+    if (!failed_) {
+      if (has_expf_declaration_) {
+        fail(DiagnosticCode::PtxDuplicateSymbol, func_name,
+             "extern expf is declared more than once");
+      }
+      has_expf_declaration_ = true;
+    }
+  }
+
   std::optional<RegisterReference> take_register(DeclaredRegisterKind expected) {
     const auto token = take(TokenKind::Register, "register operand");
     if (failed_) {
@@ -827,6 +875,8 @@ private:
       parse_unary_f32(opcode, Opcode::AbsF32);
     } else if (opcode.text == "sqrt.rn.f32") {
       parse_unary_f32(opcode, Opcode::SqrtRnF32);
+    } else if (opcode.text == "call") {
+      parse_call_expf(opcode);
     } else if (opcode.text == "abs.s32") {
       parse_unary_u32(opcode, Opcode::AbsS32);
     } else if (opcode.text == "mul.rn.f32") {
@@ -1114,6 +1164,34 @@ private:
     }
   }
 
+  void parse_call_expf(const Token& opcode) {
+    if (!has_expf_declaration_) {
+      fail(DiagnosticCode::PtxUnsupportedInstruction, opcode,
+           "call to expf requires an extern .func expf declaration");
+      return;
+    }
+    take(TokenKind::LeftParenthesis, "'('");
+    const auto result = take_result(DeclaredRegisterKind::F32, ValueKind::F32);
+    take(TokenKind::RightParenthesis, "')'");
+    comma();
+    const auto callee = take(TokenKind::Word, "call target");
+    if (!failed_) {
+      if (callee.text != "expf") {
+        fail(DiagnosticCode::PtxUnsupportedInstruction, callee,
+             "only call to expf is whitelisted");
+        return;
+      }
+    }
+    comma();
+    take(TokenKind::LeftParenthesis, "'('");
+    const auto input = take_source(DeclaredRegisterKind::F32, ValueKind::F32);
+    take(TokenKind::RightParenthesis, "')'");
+    semicolon();
+    if (!failed_ && result.has_value() && input.has_value()) {
+      add_operation(Opcode::ExpF32, result->index, {input->index}, 0, false, opcode.location);
+    }
+  }
+
   void parse_unary_u32(const Token& opcode, Opcode kernel_opcode) {
     const auto result = take_result(DeclaredRegisterKind::B32, ValueKind::U32);
     comma();
@@ -1252,6 +1330,7 @@ private:
   std::vector<bool> register_defined_;
   std::unordered_map<std::string, std::size_t> labels_;
   std::vector<PendingBranch> pending_branches_;
+  bool has_expf_declaration_ = false;
 };
 
 } // namespace

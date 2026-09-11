@@ -1,4 +1,5 @@
 #include "metaflux/backend/cpu/compiler.hpp"
+#include "metaflux/backend/cpu/compiled_kernel.hpp"
 
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -13,6 +14,8 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
@@ -178,6 +181,9 @@ bool uses_floating_point(const Kernel& kernel) {
   return std::any_of(kernel.operations.begin(), kernel.operations.end(), [](const Operation& op) {
     switch (op.opcode) {
     case Opcode::LoadParameterF32:
+    case Opcode::AbsF32:
+    case Opcode::SqrtRnF32:
+    case Opcode::ExpF32:
     case Opcode::AddRnF32:
     case Opcode::SubRnF32:
     case Opcode::DivRnF32:
@@ -339,7 +345,7 @@ public:
     output_ << "  llvm.func @" << kCpuCompiledEntrySymbol
             << "(%buffers: !llvm.ptr, %sizes: !llvm.ptr, %writable: !llvm.ptr, "
                "%scalars: !llvm.ptr, %argc: i32, %cta_linear: i32, %grid_x: i32, %block_x: i32, "
-               "%grid_y: i32, %block_y: i32) -> i32 {\n";
+               "%grid_y: i32, %block_y: i32, %exp_f32_helper: !llvm.ptr) -> i32 {\n";
 
     const auto entry = emit_entry_and_allocations();
     emit_cta_pipeline(entry);
@@ -468,6 +474,14 @@ private:
     const auto result = value();
     line(result + " = llvm.intr.sqrt(" + std::string(operand) + ") : (" + std::string(type) +
          ") -> " + std::string(type) +
+         (operation == nullptr ? std::string{} : source_location(*operation)));
+    return result;
+  }
+
+  [[nodiscard]] std::string call_expf(std::string_view operand, const Operation* operation = nullptr) {
+    const auto result = value();
+    line(result + " = llvm.call %exp_f32_helper(" + std::string(operand) +
+         ") : !llvm.ptr, (f32) -> f32" +
          (operation == nullptr ? std::string{} : source_location(*operation)));
     return result;
   }
@@ -1805,6 +1819,10 @@ private:
       result = intrinsic_sqrt(input(0U), "f32", &operation);
       break;
     }
+    case Opcode::ExpF32: {
+      result = call_expf(input(0U), &operation);
+      break;
+    }
     case Opcode::AddGlobalAddress: {
       const auto base = input(0U);
       result = binary("add", base, input(1U), "i64", &operation);
@@ -2296,7 +2314,14 @@ bool validate_compiled_elf(std::span<const std::byte> bytes) noexcept {
       }
     }
   }
-  return dynamic && executable;
+  if (!dynamic || !executable) {
+    return false;
+  }
+  try {
+    return backend::cpu::validate_x86_64_pic_elf(bytes).valid;
+  } catch (...) {
+    return false;
+  }
 }
 
 std::string_view compile_error_name(CompileError error) noexcept {
@@ -2357,6 +2382,10 @@ CompileResult compile_kernel(const Kernel& kernel, const CompileOptions& options
     return failure(CompileError::UnsupportedTarget,
                    "compiler epoch 1 CPU artifacts require x86_64 Linux");
   }
+  const auto& math = backend::cpu::host_math_helper();
+  if (math.exp_f32 == nullptr) {
+    return failure(CompileError::UnsupportedTarget, math.diagnostic);
+  }
   if (register_storage_bound(kernel) > options.limits.maximum_register_storage_bytes) {
     return failure(CompileError::ResourceLimit,
                    "per-CTA register storage exceeds the configured compiler limit");
@@ -2392,6 +2421,10 @@ CompileResult compile_kernel(const Kernel& kernel, const CompileOptions& options
   const llvm::Triple target_triple(options.target_triple);
   llvm_module->setTargetTriple(target_triple);
   llvm_module->setSourceFileName("metaflux-kernel-v2");
+  auto* math_identity = llvm::ConstantDataArray::getString(llvm_context, math.digest, true);
+  new llvm::GlobalVariable(*llvm_module, math_identity->getType(), true,
+                           llvm::GlobalValue::ExternalLinkage, math_identity,
+                           backend::cpu::kCompiledMathIdentitySymbol);
   if (auto* entry = llvm_module->getFunction(kCpuCompiledEntrySymbol); entry != nullptr) {
     entry->addFnAttr("no-builtins");
   }
@@ -2528,6 +2561,7 @@ CompileOptions host_compile_options() {
 
 metaflux::compiler::CacheIdentity make_cpu_cache_identity(const CompileOptions& options) {
   auto toolchain_fingerprint = std::string(kCpuToolchainFingerprint);
+  toolchain_fingerprint += ";host-math=" + backend::cpu::host_math_helper().digest;
   if (!options.linker_path.empty()) {
     toolchain_fingerprint += ";explicit-lld=" + options.linker_path.string();
   }
@@ -2540,7 +2574,7 @@ metaflux::compiler::CacheIdentity make_cpu_cache_identity(const CompileOptions& 
       .cpu_name = options.cpu_name,
       .canonical_features = options.canonical_features,
       .optimization_level = options.optimization == OptimizationLevel::O0 ? "O0" : "O2",
-      .fp_semantics = "ptx-9.0-rn-no-ftz",
+      .fp_semantics = "ptx-9.0-rn-no-ftz;exp-f32-natural-2ulp-v1",
       .backend_abi = kCpuBackendAbiVersion,
       .helper_abi = kCpuHelperAbiVersion,
       .pgo_id = std::string(kCpuPgoIdentity),

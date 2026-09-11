@@ -21,14 +21,14 @@
 namespace metaflux::backend::cpu::compiler {
 
 inline constexpr std::string_view kCpuPipelineIdentity =
-    "kir-v2-to-llvm-dialect,cpu-single-cta-v2,cpu-loop-simd-v1,"
+    "kir-v2-to-llvm-dialect,cpu-single-cta-v3,cpu-loop-simd-v1,"
     "f32-fma-ro-v2,llvm-o2,pic-et-dyn-v1,ssa-reg-promote-v1,simd-region-unroll-v3,"
-    "region-1d-guard-v1";
+    "region-1d-guard-v1,host-exp-f32-v1";
 inline constexpr std::string_view kCpuToolchainFingerprint = METAFLUX_CPU_TOOLCHAIN_FINGERPRINT;
 inline constexpr std::string_view kCpuPgoIdentity = METAFLUX_CPU_PGO_ID;
 inline constexpr std::uint32_t kCpuBackendAbiVersion = 1;
-inline constexpr std::uint32_t kCpuHelperAbiVersion = 2;
-inline constexpr std::string_view kCpuCompiledEntrySymbol = "metaflux_cpu_cta_v2";
+inline constexpr std::uint32_t kCpuHelperAbiVersion = 3;
+inline constexpr std::string_view kCpuCompiledEntrySymbol = "metaflux_cpu_cta_v3";
 
 enum class OptimizationLevel : std::uint32_t {
   O0,

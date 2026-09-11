@@ -1,0 +1,12 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.entry unsupported(
+  .param .f32 input
+)
+{
+  .reg .f32 %f<4>;
+  ld.param.f32 %f1, [input];
+  call (%f2), expf, (%f1);
+  ret;
+}

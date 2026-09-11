@@ -81,6 +81,9 @@ public:
   launch(std::span<const backend::cpu::Argument> arguments,
          backend::cpu::LaunchDimensions dimensions, std::stop_token cancellation) const;
   [[nodiscard]] bool accesses_global_memory() const noexcept { return accesses_global_memory_; }
+  [[nodiscard]] const char* executor_name() const noexcept {
+    return artifact_.has_value() ? "cpu-compiled" : "cpu-interpreter";
+  }
   [[nodiscard]] std::string_view canonical_kernel_ir() const noexcept {
     return canonical_kernel_ir_;
   }

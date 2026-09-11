@@ -1,0 +1,13 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.extern .func  (.param .f32) expf (.param .f32);
+.entry malformed(
+  .param .f32 input
+)
+{
+  .reg .f32 %f<4>;
+  ld.param.f32 %f1, [input];
+  call (%f2), expf, (%f1)
+  ret;
+}

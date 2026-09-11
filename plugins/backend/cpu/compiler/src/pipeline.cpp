@@ -15,7 +15,7 @@ namespace metaflux::backend::cpu::compiler {
 namespace {
 
 std::string signature_payload(const CompiledArtifact& artifact) {
-  std::string payload = "cpu-single-cta-v2;fp=";
+  std::string payload = "cpu-single-cta-v3;fp=";
   payload.push_back(artifact.uses_floating_point ? '1' : '0');
   payload += ";params=";
   for (std::size_t index = 0; index < artifact.parameters.size(); ++index) {
@@ -29,7 +29,7 @@ std::string signature_payload(const CompiledArtifact& artifact) {
 
 std::optional<std::pair<std::vector<metaflux::compiler::ParameterKind>, bool>>
 parse_signature(std::string_view payload) {
-  constexpr std::string_view kPrefix = "cpu-single-cta-v2;fp=";
+  constexpr std::string_view kPrefix = "cpu-single-cta-v3;fp=";
   constexpr std::string_view kParameters = ";params=";
   if (!payload.starts_with(kPrefix) || payload.size() < kPrefix.size() + 1U ||
       (payload[kPrefix.size()] != '0' && payload[kPrefix.size()] != '1') ||
@@ -65,6 +65,7 @@ bool kernel_uses_floating_point(const metaflux::compiler::Kernel& kernel) {
     case Opcode::LoadParameterF32:
     case Opcode::AbsF32:
     case Opcode::SqrtRnF32:
+    case Opcode::ExpF32:
     case Opcode::AddRnF32:
     case Opcode::SubRnF32:
     case Opcode::DivRnF32:

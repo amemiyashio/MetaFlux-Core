@@ -90,6 +90,8 @@ OperationContract operation_contract(Opcode opcode) {
   case ConvertRnF32U32:
   case ConvertRnF32S32:
     return {true, F32, {U32, U32, U32}, 1};
+  case ExpF32:
+    return {true, F32, {F32, U32, U32}, 1};
   case ConvertRziU32F32:
     return {true, U32, {F32, U32, U32}, 1};
   case SetPredicateGeU32:
@@ -137,17 +139,16 @@ bool valid_value_kind(ValueKind kind) {
          kind == ValueKind::SharedAddress;
 }
 
-bool valid_opcode(Opcode opcode) {
-  return static_cast<std::uint32_t>(opcode) <=
-         static_cast<std::uint32_t>(Opcode::ConvertRnF32S32);
-}
-
 bool may_be_predicated(Opcode opcode) {
   return opcode == Opcode::StoreGlobalU32 || opcode == Opcode::StoreGlobalU64 ||
          opcode == Opcode::StoreSharedU32;
 }
 
 } // namespace
+
+bool is_valid_opcode(Opcode opcode) noexcept {
+  return static_cast<std::uint32_t>(opcode) <= static_cast<std::uint32_t>(Opcode::ExpF32);
+}
 
 std::string_view diagnostic_code_name(DiagnosticCode code) noexcept {
   using enum DiagnosticCode;
@@ -275,6 +276,8 @@ std::string_view opcode_name(Opcode opcode) noexcept {
     return "convert_rn_f32_u32";
   case ConvertRnF32S32:
     return "convert_rn_f32_s32";
+  case ExpF32:
+    return "exp_f32";
   case ConvertRziU32F32:
     return "convert_rzi_u32_f32";
   case SetPredicateGeU32:
@@ -386,7 +389,7 @@ std::vector<Diagnostic> verify_kernel(const Kernel& kernel) {
     const auto& operation = kernel.operations[operation_index];
     const auto contract = operation_contract(operation.opcode);
 
-    if (!valid_opcode(operation.opcode)) {
+    if (!is_valid_opcode(operation.opcode)) {
       append_diagnostic(diagnostics, DiagnosticCode::KernelIrInvalidOperation, operation.location,
                         "operation opcode is invalid");
     }

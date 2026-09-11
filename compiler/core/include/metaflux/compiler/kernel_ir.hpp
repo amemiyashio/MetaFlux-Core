@@ -119,8 +119,17 @@ enum class Opcode : std::uint32_t {
   BarrierSync,
   Return,
   ConvertRnF32S32,
+  // Unary natural exponential, binary32 RNE/no-FTZ. Finite nonzero results
+  // have at most 2 ULP error against a correctly rounded reference. +/-0 map
+  // to 1, +infinity to +infinity, -infinity to +0, and NaN to NaN (payload free).
+  // Overflow/underflow classifications follow binary32 RNE. Unlike *RnF32,
+  // this does not promise correctly rounded finite results. CPU modes sharing
+  // one math-helper identity additionally agree bit-for-bit on the corpus.
+  ExpF32,
 };
 
+// Encoded consumers use the same operation vocabulary as the core verifier.
+[[nodiscard]] bool is_valid_opcode(Opcode opcode) noexcept;
 [[nodiscard]] std::string_view parameter_kind_name(ParameterKind kind) noexcept;
 [[nodiscard]] std::string_view value_kind_name(ValueKind kind) noexcept;
 [[nodiscard]] std::string_view opcode_name(Opcode opcode) noexcept;

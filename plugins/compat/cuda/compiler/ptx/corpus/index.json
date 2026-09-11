@@ -4,8 +4,8 @@
  "target": "sm_70",
  "digest_algorithm": "sha256",
  "aggregate_definition": "sha256 of UTF-8 id, NUL, fixture sha256, LF in lexical id order",
- "corpus_sha256": "029b99b85fbe95b772b5551f083716737e87352590e3bfd205c2a01b4dfb3b8f",
- "forms_sha256": "0ef849a7d558eafd9aea0a7c4a3afd7df0d1246c16d2cf68891a8777a67aa556",
+ "corpus_sha256": "3c1e2f0b35d586778b14cb7334a118a625df8319a5a48008b8d40bf42ec271ed",
+ "forms_sha256": "0152274db2f4c5b9dfed6afa1f61ddf38f5c6d675148bd0b3be3fb4ff41d6b65",
  "fixtures": [
   {
    "id": "edge-2d-specials",
@@ -324,6 +324,66 @@
    ],
    "rejected_spelling": "mov.u32 %tid.z",
    "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION"
+  },
+  {
+   "id": "exp-f32",
+   "path": "fixtures/exp-f32.ptx",
+   "classes": [
+    "positive"
+   ],
+   "forms": [
+    "extern-call-expf-f32"
+   ],
+   "oracle": "independent exponential golden values; bit-exact across CPU execution modes",
+   "sha256": "450c80c88bd8bf23339733fddb256e6769bbb38e70202dec2aac4321bb3217aa"
+  },
+  {
+   "id": "malformed-expf-missing-semicolon",
+   "path": "fixtures/malformed-expf-missing-semicolon.ptx",
+   "classes": [
+    "malformed"
+   ],
+   "forms": [
+    "extern-call-expf-f32"
+   ],
+   "stable_diagnostic": "MF_PTX_SYNTAX",
+   "sha256": "a12700cc4a5442774a4b1bb43f63d4c3161d2021ab594040d41dd6dbc581d865"
+  },
+  {
+   "id": "unsupported-expf-missing-extern",
+   "path": "fixtures/unsupported-expf-missing-extern.ptx",
+   "classes": [
+    "unsupported"
+   ],
+   "forms": [
+    "extern-call-expf-f32"
+   ],
+   "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION",
+   "sha256": "204eca2cbca49a808fe3a3d6cc9a0956dd4c18ccb22392e463fc850a4aad3c62"
+  },
+  {
+   "id": "unsupported-expf-wrong-target",
+   "path": "fixtures/unsupported-expf-wrong-target.ptx",
+   "classes": [
+    "unsupported"
+   ],
+   "forms": [
+    "extern-call-expf-f32"
+   ],
+   "stable_diagnostic": "MF_PTX_UNSUPPORTED_INSTRUCTION",
+   "sha256": "42b11a93e9a44d1786261387ccfdbd33c5ded11cde53ce4e5b4ef658001f4d49"
+  },
+  {
+   "id": "edge-expf-rounding",
+   "path": "fixtures/edge-expf-rounding.ptx",
+   "classes": [
+    "edge"
+   ],
+   "forms": [
+    "extern-call-expf-f32"
+   ],
+   "oracle": "23 independently rounded 150-digit decimal exponential references embedded in the fixture; finite 2 ULP accuracy and explicit zero/infinity/NaN classification; bit-exact CPU mode agreement",
+   "sha256": "384d76dfd3d787c9bb66ca9d3eb59276ff9ca566a40b6d09ead6cf89b1eec417"
   }
  ]
 }

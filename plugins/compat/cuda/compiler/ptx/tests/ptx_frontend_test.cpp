@@ -160,7 +160,7 @@ bool test_manifest() {
       return false;
     }
   }
-  return expect(forms.size() == 40U && ids.size() == forms.size(),
+  return expect(forms.size() == 41U && ids.size() == forms.size(),
                 "the supported PTX form manifest must be complete and unique");
 }
 
@@ -201,12 +201,13 @@ bool test_positive_and_canonical() {
 }
 
 bool test_corpus_form_coverage() {
-  constexpr std::array<std::string_view, 10> positive_fixtures{
+  constexpr std::array<std::string_view, 12> positive_fixtures{
       "positive-add-copy.ptx", "positive-integer-forms.ptx",
       "positive-fp-forms.ptx", "positive-convert-predicate.ptx",
       "edge-convert-s32.ptx",  "edge-2d-specials.ptx",
       "positive-shared-barrier.ptx", "edge-u32-wrap.ptx",
       "edge-fp-rn.ptx",        "edge-ordered-nan.ptx",
+      "exp-f32.ptx", "edge-expf-rounding.ptx",
   };
   std::string canonical_corpus;
   for (const auto fixture : positive_fixtures) {
@@ -236,7 +237,7 @@ bool test_corpus_form_coverage() {
   }
 
   using Code = metaflux::compiler::DiagnosticCode;
-  const std::array<std::pair<std::string_view, Code>, 8> negative_fixtures{{
+  const std::array<std::pair<std::string_view, Code>, 11> negative_fixtures{{
       {"malformed-missing-semicolon.ptx", Code::PtxSyntax},
       {"malformed-register-type.ptx", Code::PtxTypeMismatch},
       {"malformed-barrier-id.ptx", Code::PtxUnsupportedInstruction},
@@ -245,6 +246,9 @@ bool test_corpus_form_coverage() {
       {"unsupported-special-z.ptx", Code::PtxUnsupportedInstruction},
       {"unsupported-predicated-arithmetic.ptx", Code::PtxUnsupportedInstruction},
       {"unsupported-predicated-barrier.ptx", Code::PtxUnsupportedInstruction},
+      {"malformed-expf-missing-semicolon.ptx", Code::PtxSyntax},
+      {"unsupported-expf-missing-extern.ptx", Code::PtxUnsupportedInstruction},
+      {"unsupported-expf-wrong-target.ptx", Code::PtxUnsupportedInstruction},
   }};
   for (const auto& [fixture, code] : negative_fixtures) {
     if (!expect_diagnostic(read_fixture(fixture), code)) {
@@ -253,6 +257,45 @@ bool test_corpus_form_coverage() {
     }
   }
   return true;
+}
+
+bool test_exp_declaration_and_call() {
+  using Code = metaflux::compiler::DiagnosticCode;
+  const auto source = read_fixture("exp-f32.ptx");
+  struct Mutation {
+    std::string_view before, after, location;
+    Code code;
+  };
+  const std::array<Mutation, 8> mutations{{
+      {"(.param .f32) expf", "(.param .f64) expf", ".f64", Code::PtxUnsupportedInstruction},
+      {"expf (.param .f32)", "expf (.param .f64)", ".f64", Code::PtxUnsupportedInstruction},
+      {"call (%f2), expf", "call (%f2), sqrtf", "sqrtf", Code::PtxUnsupportedInstruction},
+      {"call (%f2)", "call (%r7)", "%r7", Code::PtxTypeMismatch},
+      {"expf, (%f1)", "expf, (%r4)", "%r4);", Code::PtxTypeMismatch},
+      {"expf, (%f1)", "expf, (%f1, %f1)", ", %f1);", Code::PtxSyntax},
+      {"call (%f2)", "call.uni (%f2)", "call.uni", Code::PtxUnsupportedInstruction},
+      {"call (%f2)", "@%p call (%f2)", "call (%f2)", Code::PtxUnsupportedInstruction},
+  }};
+  for (const auto& mutation : mutations) {
+    const auto changed = replace_once(source, mutation.before, mutation.after);
+    if (!expect_diagnostic(changed, mutation.code, location_of(changed, mutation.location))) {
+      return false;
+    }
+  }
+  constexpr std::string_view declaration = ".extern .func  (.param .f32) expf (.param .f32);";
+  const auto duplicate = replace_once(source, declaration,
+                                      std::string(declaration) + "\n" + std::string(declaration));
+  if (!expect_diagnostic(duplicate, Code::PtxDuplicateSymbol)) {
+    return false;
+  }
+  const auto named = replace_once(source, declaration,
+      ".extern .func (.param .f32 result) expf (.param .f32 input);");
+  const auto original = metaflux::compiler::ptx::parse(source);
+  const auto renamed = metaflux::compiler::ptx::parse(named);
+  return expect(original.ok() && renamed.ok(), "named expf declaration must parse") &&
+         expect(metaflux::compiler::serialize_kernel(*original.kernel).text ==
+                    metaflux::compiler::serialize_kernel(*renamed.kernel).text,
+                "PTX declaration names must not enter canonical Kernel IR identity");
 }
 
 bool test_negative_diagnostics() {
@@ -305,7 +348,7 @@ bool test_negative_diagnostics() {
 
 int main() {
   return test_manifest() && test_positive_and_canonical() && test_corpus_form_coverage() &&
-                 test_negative_diagnostics()
+                 test_negative_diagnostics() && test_exp_declaration_and_call()
              ? 0
              : 1;
 }

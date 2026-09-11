@@ -1,19 +1,24 @@
+#include "compiler_worker_protocol.hpp"
 #include "execution.hpp"
 
 #include "metaflux/compiler/kernel_ir.hpp"
 #include "metaflux/compiler/ptx_frontend.hpp"
 
 #include <algorithm>
+#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <optional>
+#include <span>
 #include <stop_token>
 #include <string>
 #include <string_view>
@@ -124,6 +129,52 @@ configuration(std::string_view mode, const std::filesystem::path& cache_root,
     result.configuration->compiler_worker.deadline = deadline;
   }
   return result;
+}
+
+[[nodiscard]] bool test_exp_request_protocol(const KernelFixture& fixture) {
+  namespace protocol = metaflux::service::compiler_worker_protocol;
+  const auto has_exp = [](const metaflux::compiler::Operation& operation) {
+    return operation.opcode == metaflux::compiler::Opcode::ExpF32;
+  };
+  if (!expect(std::any_of(fixture.kernel.operations.begin(), fixture.kernel.operations.end(),
+                          has_exp),
+              "exponential fixture must carry the canonical exponential opcode")) {
+    return false;
+  }
+
+  const auto encoded = protocol::encode_request(fixture.kernel);
+  if (!expect(encoded.has_value(), "exponential request must encode")) {
+    return false;
+  }
+  const auto decoded = protocol::decode_request(*encoded);
+  if (!expect(decoded.has_value(), "exponential request must cross the worker IPC boundary")) {
+    return false;
+  }
+  const auto canonical = metaflux::compiler::serialize_kernel(*decoded);
+  const auto reencoded = protocol::encode_request(*decoded);
+  if (!expect(canonical.ok() && canonical.text == fixture.canonical,
+              "worker request round trip must preserve canonical exponential semantics") ||
+      !expect(reencoded.has_value() && *reencoded == *encoded,
+              "worker request round trip must preserve every encoded field")) {
+    return false;
+  }
+
+  for (std::size_t size = 0; size < encoded->size(); ++size) {
+    if (!expect(!protocol::decode_request(std::span<const std::byte>(*encoded).first(size))
+                     .has_value(),
+                "every truncated exponential request must be rejected")) {
+      return false;
+    }
+  }
+
+  auto unknown = fixture.kernel;
+  const auto operation = std::find_if(unknown.operations.begin(), unknown.operations.end(), has_exp);
+  operation->opcode =
+      static_cast<metaflux::compiler::Opcode>(std::numeric_limits<std::uint32_t>::max());
+  const auto invalid = protocol::encode_request(unknown);
+  return expect(invalid.has_value(), "unknown opcode fixture must have a complete wire encoding") &&
+         expect(!protocol::decode_request(*invalid).has_value(),
+                "unknown opcode must be rejected at the worker IPC boundary");
 }
 
 [[nodiscard]] bool test_real_worker_and_warm_bypass(const TemporaryDirectory& temporary,
@@ -270,13 +321,17 @@ int main() {
   TemporaryDirectory temporary;
   const auto fixture = load_kernel(METAFLUX_DAEMON_ADD_PTX);
   const auto cast_fixture = load_kernel(METAFLUX_DAEMON_CAST_PTX);
+  const auto exp_fixture = load_kernel(METAFLUX_DAEMON_EXP_PTX);
   if (!expect(!temporary.path().empty(), "temporary directory must be available") ||
       !expect(fixture.has_value(), "canonical Add Kernel IR must load") ||
-      !expect(cast_fixture.has_value(), "canonical signed-conversion Kernel IR must load")) {
+      !expect(cast_fixture.has_value(), "canonical signed-conversion Kernel IR must load") ||
+      !expect(exp_fixture.has_value(), "canonical exponential Kernel IR must load")) {
     return 1;
   }
+  const bool protocol = test_exp_request_protocol(*exp_fixture);
   const bool real = test_real_worker_and_warm_bypass(temporary, *fixture) &&
-                    test_real_worker_and_warm_bypass(temporary, *cast_fixture);
+                    test_real_worker_and_warm_bypass(temporary, *cast_fixture) &&
+                    test_real_worker_and_warm_bypass(temporary, *exp_fixture);
   const bool crash = test_worker_fault(temporary, *fixture, "crash", "kill -SEGV $$",
                                        "terminated by signal", std::chrono::seconds(5));
   const bool timeout = test_worker_fault(temporary, *fixture, "timeout", "sleep 30",
@@ -284,5 +339,5 @@ int main() {
   const bool truncated = test_worker_fault(temporary, *fixture, "truncated", "printf x",
                                            "truncated or malformed", std::chrono::seconds(5));
   const bool cancelled = test_worker_cancellation(temporary, *fixture);
-  return real && crash && timeout && truncated && cancelled ? 0 : 1;
+  return protocol && real && crash && timeout && truncated && cancelled ? 0 : 1;
 }

@@ -192,7 +192,7 @@ bool fp_environment_supported() {
 using KernelEntry = std::uint32_t (*)(const std::uint64_t*, const std::uint64_t*,
                                       const std::uint32_t*, const std::uint32_t*, std::uint32_t,
                                       std::uint32_t, std::uint32_t, std::uint32_t, std::uint32_t,
-                                      std::uint32_t);
+                                      std::uint32_t, ExpF32Helper);
 
 } // namespace
 
@@ -200,6 +200,7 @@ struct LoadedCompiledKernel::State {
   void* library = nullptr;
   KernelEntry entry = nullptr;
   CompiledKernelSignature signature;
+  ExpF32Helper exp_f32 = nullptr;
 };
 
 ElfValidationResult validate_x86_64_pic_elf(std::span<const std::byte> bytes) {
@@ -232,6 +233,8 @@ ElfValidationResult validate_x86_64_pic_elf(std::span<const std::byte> bytes) {
 
   bool has_dynamic = false;
   bool has_executable_load = false;
+  std::uint64_t dynamic_offset = 0U;
+  std::uint64_t dynamic_size = 0U;
   for (std::uint16_t index = 0; index < program_count; ++index) {
     const auto offset = static_cast<std::size_t>(program_offset) +
                         static_cast<std::size_t>(index) * kProgramHeaderSize;
@@ -245,7 +248,12 @@ ElfValidationResult validate_x86_64_pic_elf(std::span<const std::byte> bytes) {
       return {.diagnostic = "ELF segment range is malformed"};
     }
     if (type == 2U) {
+      if (has_dynamic || file_size == 0U || file_size % 16U != 0U) {
+        return {.diagnostic = "ELF dynamic segment is malformed"};
+      }
       has_dynamic = true;
+      dynamic_offset = file_offset;
+      dynamic_size = file_size;
     }
     if (type == 1U && (flags & 1U) != 0U) {
       has_executable_load = true;
@@ -257,12 +265,223 @@ ElfValidationResult validate_x86_64_pic_elf(std::span<const std::byte> bytes) {
   if (!has_dynamic || !has_executable_load) {
     return {.diagnostic = "ELF lacks its dynamic or executable load segment"};
   }
+  // Read dependencies from the loader's actual program segment, rather than
+  // trusting a section table that could describe different bytes.
+  std::uint64_t dynamic_symbols = 0U;
+  std::uint64_t dynamic_strings = 0U;
+  std::uint64_t dynamic_strings_size = 0U;
+  std::uint64_t dynamic_hash = 0U;
+  std::uint64_t dynamic_symbol_size = 0U;
+  for (std::uint64_t offset = dynamic_offset; offset < dynamic_offset + dynamic_size; offset += 16U) {
+    const auto tag = read_u64(bytes, static_cast<std::size_t>(offset));
+    const auto value = read_u64(bytes, static_cast<std::size_t>(offset + 8U));
+    if (tag == 0U) {
+      break;
+    }
+    if (tag == 1U) {
+      return {.diagnostic = "compiled ELF has an undeclared dynamic dependency"};
+    }
+    switch (tag) {
+    case 4U:
+      dynamic_hash = value;
+      break;
+    case 5U:
+      dynamic_strings = value;
+      break;
+    case 6U:
+      dynamic_symbols = value;
+      break;
+    case 10U:
+      dynamic_strings_size = value;
+      break;
+    case 11U:
+      dynamic_symbol_size = value;
+      break;
+    default:
+      break;
+    }
+  }
+  const auto mapped_offset = [&](std::uint64_t address, std::uint64_t size)
+      -> std::optional<std::uint64_t> {
+    for (std::uint16_t index = 0U; index < program_count; ++index) {
+      const auto header = static_cast<std::size_t>(program_offset) +
+                          static_cast<std::size_t>(index) * kProgramHeaderSize;
+      if (read_u32(bytes, header) != 1U) {
+        continue;
+      }
+      const auto base = read_u64(bytes, header + 16U);
+      const auto file_size = read_u64(bytes, header + 32U);
+      if (address >= base && address - base <= file_size && size <= file_size - (address - base)) {
+        return read_u64(bytes, header + 8U) + address - base;
+      }
+    }
+    return std::nullopt;
+  };
+  const auto hash_offset = mapped_offset(dynamic_hash, 8U);
+  if (dynamic_hash == 0U || dynamic_symbols == 0U || dynamic_strings == 0U ||
+      dynamic_symbol_size != 24U || !hash_offset.has_value()) {
+    return {.diagnostic = "compiled ELF has an invalid dynamic symbol contract"};
+  }
+  const auto symbol_bytes =
+      static_cast<std::uint64_t>(read_u32(bytes, static_cast<std::size_t>(*hash_offset + 4U))) * 24U;
+  const auto symbols_offset = mapped_offset(dynamic_symbols, symbol_bytes);
+  const auto strings_file_offset = mapped_offset(dynamic_strings, dynamic_strings_size);
+  if (symbol_bytes == 0U || dynamic_strings_size == 0U || !symbols_offset.has_value() ||
+      !strings_file_offset.has_value()) {
+    return {.diagnostic = "compiled ELF dynamic symbol ranges are malformed"};
+  }
+  // ABI 3 artifacts are closed objects. Math is supplied through the entry's
+  // explicit helper pointer, never through ambient dynamic-symbol resolution.
+  constexpr std::uint64_t kSectionHeaderSize = 64U;
+  const auto section_offset = read_u64(bytes, 40U);
+  const auto section_size = read_u16(bytes, 58U);
+  const auto section_count = read_u16(bytes, 60U);
+  if (section_size != kSectionHeaderSize || section_count == 0U ||
+      section_offset > bytes.size() ||
+      section_count > (bytes.size() - section_offset) / kSectionHeaderSize) {
+    return {.diagnostic = "compiled ELF section table is malformed"};
+  }
+  const auto section_at = [&](std::uint16_t index) {
+    return static_cast<std::size_t>(section_offset + index * kSectionHeaderSize);
+  };
+  const auto valid_range = [&](std::uint64_t offset, std::uint64_t size) {
+    return offset <= bytes.size() && size <= bytes.size() - offset;
+  };
+  bool has_math_identity = false;
+  bool has_dynamic_symbols = false;
+  for (std::uint16_t index = 0U; index < section_count; ++index) {
+    const auto section = section_at(index);
+    const auto type = read_u32(bytes, section + 4U);
+    if (type != 6U && type != 11U) { // SHT_DYNAMIC, SHT_DYNSYM
+      continue;
+    }
+    const auto offset = read_u64(bytes, section + 24U);
+    const auto size = read_u64(bytes, section + 32U);
+    const auto entry_size = read_u64(bytes, section + 56U);
+    const auto required_size = type == 6U ? 16U : 24U;
+    if (!valid_range(offset, size) || entry_size != required_size || size % entry_size != 0U) {
+      return {.diagnostic = "compiled ELF dynamic table is malformed"};
+    }
+    if (type == 6U) {
+      for (std::uint64_t entry = offset; entry < offset + size; entry += entry_size) {
+        if (read_u64(bytes, static_cast<std::size_t>(entry)) == 1U) { // DT_NEEDED
+          return {.diagnostic = "compiled ELF has an undeclared dynamic dependency"};
+        }
+      }
+      continue;
+    }
+    has_dynamic_symbols = true;
+    if (read_u64(bytes, section + 16U) != dynamic_symbols || offset != *symbols_offset ||
+        size != symbol_bytes) {
+      return {.diagnostic = "compiled ELF symbol section differs from its loaded table"};
+    }
+    const auto string_index = read_u32(bytes, section + 40U);
+    if (string_index >= section_count) {
+      return {.diagnostic = "compiled ELF dynamic string table is malformed"};
+    }
+    const auto strings = section_at(static_cast<std::uint16_t>(string_index));
+    const auto strings_offset = read_u64(bytes, strings + 24U);
+    const auto strings_size = read_u64(bytes, strings + 32U);
+    if (read_u32(bytes, strings + 4U) != 3U || !valid_range(strings_offset, strings_size) ||
+        read_u64(bytes, strings + 16U) != dynamic_strings ||
+        strings_offset != *strings_file_offset || strings_size != dynamic_strings_size) {
+      return {.diagnostic = "compiled ELF dynamic string table is malformed"};
+    }
+    for (std::uint64_t entry = offset; entry < offset + size; entry += entry_size) {
+      const auto symbol = static_cast<std::size_t>(entry);
+      const auto name_offset = read_u32(bytes, symbol);
+      const auto symbol_section = read_u16(bytes, symbol + 6U);
+      if (name_offset != 0U && symbol_section == 0U) {
+        return {.diagnostic = "compiled ELF contains an undeclared undefined symbol"};
+      }
+      if (name_offset >= strings_size) {
+        return {.diagnostic = "compiled ELF dynamic symbol name is malformed"};
+      }
+      const auto* name = reinterpret_cast<const char*>(bytes.data() + strings_offset + name_offset);
+      const auto remaining = static_cast<std::size_t>(strings_size - name_offset);
+      const auto* end = static_cast<const char*>(std::memchr(name, '\0', remaining));
+      if (end == nullptr) {
+        return {.diagnostic = "compiled ELF dynamic symbol name is unterminated"};
+      }
+      if (std::string_view(name, static_cast<std::size_t>(end - name)) == kCompiledMathIdentitySymbol) {
+        if (symbol_section == 0U || symbol_section >= section_count ||
+            read_u64(bytes, symbol + 16U) != 65U ||
+            (std::to_integer<std::uint8_t>(bytes[symbol + 4U]) & 0xfU) != 1U) {
+          return {.diagnostic = "compiled ELF host-math identity symbol has an invalid layout"};
+        }
+        const auto identity_section = section_at(symbol_section);
+        const auto flags = read_u64(bytes, identity_section + 8U);
+        const auto virtual_address = read_u64(bytes, identity_section + 16U);
+        const auto symbol_address = read_u64(bytes, symbol + 8U);
+        const auto identity_size = read_u64(bytes, identity_section + 32U);
+        const auto identity_file_offset = mapped_offset(symbol_address, 65U);
+        if ((flags & 3U) != 2U || symbol_address < virtual_address ||
+            symbol_address - virtual_address > identity_size ||
+            65U > identity_size - (symbol_address - virtual_address) ||
+            !valid_range(read_u64(bytes, identity_section + 24U), identity_size) ||
+            !identity_file_offset.has_value() ||
+            *identity_file_offset !=
+                read_u64(bytes, identity_section + 24U) + symbol_address - virtual_address) {
+          return {.diagnostic = "compiled ELF host-math identity is not bounded read-only data"};
+        }
+        has_math_identity = true;
+      }
+    }
+  }
+  if (!has_dynamic_symbols || !has_math_identity) {
+    return {.diagnostic = "compiled ELF lacks its ABI 3 host-math identity"};
+  }
   return {.valid = true, .diagnostic = {}};
 }
 
 std::string sha256_file(const std::filesystem::path& path) {
   const auto bytes = read_file(path);
   return bytes.has_value() ? sha256(*bytes) : std::string{};
+}
+
+const HostMathHelper& host_math_helper() {
+  struct Binding {
+    void* library = nullptr;
+    HostMathHelper helper;
+
+    Binding() {
+      library = dlopen("libm.so.6", RTLD_NOW | RTLD_LOCAL);
+      if (library == nullptr) {
+        const char* error = dlerror();
+        helper.diagnostic = error == nullptr ? "host libm load failed" : error;
+        return;
+      }
+      static_cast<void>(dlerror());
+      void* symbol = dlsym(library, "expf");
+      const char* error = dlerror();
+      Dl_info info{};
+      if (symbol == nullptr || error != nullptr || dladdr(symbol, &info) == 0 ||
+          info.dli_fname == nullptr || info.dli_fbase == nullptr) {
+        helper.diagnostic = "host expf symbol has no verifiable DSO identity";
+        return;
+      }
+      const auto library_digest = sha256_file(info.dli_fname);
+      if (library_digest.size() != 64U) {
+        helper.diagnostic = "host expf DSO content digest is unavailable";
+        return;
+      }
+      const auto offset = reinterpret_cast<std::uintptr_t>(symbol) -
+                          reinterpret_cast<std::uintptr_t>(info.dli_fbase);
+      helper.identity = "exp-f32-natural-rne-no-ftz-2ulp-v1;libm-sha256=" + library_digest +
+                        ";symbol=expf;resolved-offset=" + std::to_string(offset);
+      helper.digest = sha256(std::as_bytes(std::span(helper.identity.data(), helper.identity.size())));
+      static_assert(sizeof(helper.exp_f32) == sizeof(symbol));
+      std::memcpy(&helper.exp_f32, &symbol, sizeof(symbol));
+    }
+
+    ~Binding() {
+      if (library != nullptr) {
+        static_cast<void>(dlclose(library));
+      }
+    }
+  };
+  static const Binding binding;
+  return binding.helper;
 }
 
 LoadedCompiledKernel::LoadedCompiledKernel() noexcept = default;
@@ -367,7 +586,7 @@ ExecutionResult LoadedCompiledKernel::launch(CpuExecutor& executor,
         const auto status = static_cast<CompiledStatus>(state_->entry(
             addresses.data(), sizes.data(), writable.data(), scalars.data(),
             static_cast<std::uint32_t>(arguments_size), static_cast<std::uint32_t>(cta_index),
-            launch.grid_x, launch.block_x, launch.grid_y, launch.block_y));
+            launch.grid_x, launch.block_x, launch.grid_y, launch.block_y, state_->exp_f32));
         switch (status) {
         case CompiledStatus::Success:
           return ExecutionResult{};
@@ -404,10 +623,23 @@ LoadCompiledKernelResult load_compiled_kernel(const std::filesystem::path& path,
     return {.kernel = {}, .diagnostic = "compiled ELF digest mismatch"};
   }
 
+  const auto& math = host_math_helper();
+  if (math.exp_f32 == nullptr) {
+    return {.kernel = {}, .diagnostic = math.diagnostic};
+  }
+
   void* library = dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
   if (library == nullptr) {
     const char* error = dlerror();
     return {.kernel = {}, .diagnostic = error == nullptr ? "dlopen failed" : error};
+  }
+  static_cast<void>(dlerror());
+  const auto* math_identity = static_cast<const char*>(dlsym(library, kCompiledMathIdentitySymbol));
+  const char* math_error = dlerror();
+  if (math_identity == nullptr || math_error != nullptr ||
+      std::memcmp(math_identity, math.digest.c_str(), 65U) != 0) {
+    static_cast<void>(dlclose(library));
+    return {.kernel = {}, .diagnostic = "compiled host-math helper identity mismatch"};
   }
   static_cast<void>(dlerror());
   void* symbol = dlsym(library, kCompiledKernelEntrySymbol);
@@ -426,6 +658,7 @@ LoadCompiledKernelResult load_compiled_kernel(const std::filesystem::path& path,
   state->library = library;
   state->entry = entry;
   state->signature = std::move(signature);
+  state->exp_f32 = math.exp_f32;
   return {.kernel = LoadedCompiledKernel(std::move(state)), .diagnostic = {}};
 }
 

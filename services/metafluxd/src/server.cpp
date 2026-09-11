@@ -1460,6 +1460,8 @@ public:
         session_lease_(std::move(session_lease)), observer_(observer) {
     submission_.owned_fd = -1;
     completion_.owned_fd = -1;
+    const char* trace = std::getenv("METAFLUX_TRACE_EXECUTION");
+    trace_execution_ = trace != nullptr && std::string_view(trace) == "1";
   }
   ~Session();
 
@@ -1598,6 +1600,7 @@ private:
   SessionLease session_lease_;
   bool process_registered_ = false;
   bool observer_ = false;
+  bool trace_execution_ = false;
   bool terminate_after_response_ = false;
   std::uint64_t negotiated_capabilities_ = 0;
   UniqueFd host_address_space_;
@@ -3454,22 +3457,6 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
           }
         }
       }
-    } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_ELEMENTWISE_EXP_F32_V1) {
-      if (arguments.size() < 3U || arguments[0].index() != 2U || arguments[1].index() != 2U) {
-        return MF_SHARED_INVALID_ARGUMENT;
-      }
-      const auto& destination = std::get<backend::cpu::BufferArgument>(arguments[0]);
-      const auto& source = std::get<backend::cpu::BufferArgument>(arguments[1]);
-      const auto element_count = std::get<uint32_t>(arguments.back());
-      for (uint32_t index = 0;
-           index < element_count && index < source.words.size() &&
-           index < destination.words.size();
-           ++index) {
-        float value = 0.0F;
-        std::memcpy(&value, &source.words[index], sizeof(value));
-        const float exponential = std::exp(value);
-        std::memcpy(&destination.words[index], &exponential, sizeof(exponential));
-      }
     } else if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_CLAMP_MIN_I32_V1) {
       if (arguments.size() < 5U || arguments[0].index() != 2U || arguments[1].index() != 2U) {
         return MF_SHARED_INVALID_ARGUMENT;
@@ -3560,6 +3547,20 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
       module->prepared_module->launch(arguments, dimensions, process_stop_token());
   if (result.ok()) {
     memory_active = module->prepared_module->accesses_global_memory();
+    // Emit only after the generic executor actually completes. Native tensor
+    // branches return earlier and therefore cannot supply this evidence.
+    // Qualification opts in once per session; normal launches do no log I/O.
+    if (trace_execution_) {
+      std::fprintf(stderr,
+                   "MF_CPU_EXECUTION pid=%ld session=%llu request=%llu module=%llu "
+                   "generation=%llu operation=%u executor=%s status=complete\n",
+                   static_cast<long>(credentials_.pid),
+                   static_cast<unsigned long long>(process_session_id_),
+                   static_cast<unsigned long long>(command.request_id),
+                   static_cast<unsigned long long>(command.target_id),
+                   static_cast<unsigned long long>(command.arguments[0]),
+                   module->kernel_operation, module->prepared_module->executor_name());
+    }
     return MF_SHARED_SUCCESS;
   }
   if (result.diagnostic->error == backend::cpu::ExecutionError::UnsupportedOperation) {

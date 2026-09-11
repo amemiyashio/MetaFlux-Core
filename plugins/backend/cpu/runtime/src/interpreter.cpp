@@ -1,4 +1,5 @@
 #include "metaflux/backend/cpu/interpreter.hpp"
+#include "metaflux/backend/cpu/compiled_kernel.hpp"
 
 #include "metaflux/backend/cpu/executor.hpp"
 
@@ -69,6 +70,7 @@ enum class Opcode : std::uint32_t {
   AbsS32,
   AbsF32,
   SqrtRnF32,
+  ExpF32,
   AddU32,
   SubU32,
   MultiplyLoU32,
@@ -119,6 +121,7 @@ struct Kernel {
   std::vector<std::uint32_t> shared_words;
   std::vector<ValueKind> registers;
   std::vector<Operation> operations;
+  ExpF32Helper exp_f32 = nullptr;
 };
 
 struct ParseResult {
@@ -202,7 +205,7 @@ std::optional<ValueKind> parse_value_kind(std::string_view text) {
 
 std::optional<Opcode> parse_opcode(std::string_view text) {
   using Pair = std::pair<std::string_view, Opcode>;
-  constexpr std::array<Pair, 41> entries{{
+  constexpr std::array<Pair, 42> entries{{
       {"load_parameter_address", Opcode::LoadParameterAddress},
       {"load_parameter_u32", Opcode::LoadParameterU32},
       {"load_parameter_f32", Opcode::LoadParameterF32},
@@ -212,6 +215,7 @@ std::optional<Opcode> parse_opcode(std::string_view text) {
       {"abs_s32", Opcode::AbsS32},
       {"abs_f32", Opcode::AbsF32},
       {"sqrt_rn_f32", Opcode::SqrtRnF32},
+      {"exp_f32", Opcode::ExpF32},
       {"add_u32", Opcode::AddU32},
       {"sub_u32", Opcode::SubU32},
       {"multiply_lo_u32", Opcode::MultiplyLoU32},
@@ -290,6 +294,7 @@ OperationContract operation_contract(Opcode opcode) {
     return {true, U32, {U32, U32, U32}, 1};
   case AbsF32:
   case SqrtRnF32:
+  case ExpF32:
     return {true, F32, {F32, U32, U32}, 1};
   case AddU32:
   case SubU32:
@@ -978,6 +983,10 @@ std::optional<ExecutionResult> execute_one(const Kernel& kernel,
     values[operation.result] = sqrt_rn(std::get<float>(values[operation.inputs[0]]));
     ++thread.pc;
     break;
+  case Opcode::ExpF32:
+    values[operation.result] = kernel.exp_f32(std::get<float>(values[operation.inputs[0]]));
+    ++thread.pc;
+    break;
   case Opcode::AddU32:
     values[operation.result] = std::get<std::uint32_t>(values[operation.inputs[0]]) +
                                std::get<std::uint32_t>(values[operation.inputs[1]]);
@@ -1321,6 +1330,14 @@ ExecutionResult execute_kernel_ir(CpuExecutor& executor, std::string_view canoni
   auto parsed = parse_kernel(canonical_kernel_ir);
   if (!parsed.kernel.has_value()) {
     return ExecutionResult{.diagnostic = parsed.diagnostic};
+  }
+  if (std::any_of(parsed.kernel->operations.begin(), parsed.kernel->operations.end(),
+                  [](const auto& operation) { return operation.opcode == Opcode::ExpF32; })) {
+    const auto& math = host_math_helper();
+    if (math.exp_f32 == nullptr) {
+      return ExecutionResult{.diagnostic = base_diagnostic(ExecutionError::UnsupportedOperation)};
+    }
+    parsed.kernel->exp_f32 = math.exp_f32;
   }
   const auto& kernel = *parsed.kernel;
   if (launch.grid_x == 0U || launch.grid_y == 0U || launch.block_x == 0U || launch.block_y == 0U) {

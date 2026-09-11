@@ -249,6 +249,56 @@ bool test_edge_oracles() {
                 "ordered setp.lt.f32 must be false for a quiet NaN operand");
 }
 
+bool test_exp_form() {
+  std::vector<std::uint32_t> exponential(1U), source(1U, 0x3f000000U), unused(1U);
+  const std::array<Argument, 4> arguments{buffer(exponential, true), buffer(source, false),
+                                          buffer(unused, true), 1U};
+  if (!execute("exp-f32.ptx", arguments) ||
+      !expect(exponential[0] == 0x3fd3094cU,
+              "extern expf must match the independent golden bits for 0.5")) {
+    return false;
+  }
+  const auto matches_oracle = [](std::uint32_t actual, std::uint32_t expected) {
+    const auto distance = actual > expected ? actual - expected : expected - actual;
+    return expected > 0x7f800000U
+               ? (actual & 0x7fffffffU) > 0x7f800000U
+               : expected == 0U || expected == 0x7f800000U
+                     ? actual == expected
+                     : actual != 0U && actual < 0x7f800000U && distance <= 2U;
+  };
+  if (!expect(!matches_oracle(0U, 1U) && !matches_oracle(1U, 0U),
+              "exponential oracle must reject zero/nonzero classification drift")) {
+    return false;
+  }
+  std::istringstream rows(read_fixture("edge-expf-rounding.ptx"));
+  std::string line;
+  std::size_t count = 0;
+  while (std::getline(rows, line)) {
+    if (!line.starts_with("// oracle ")) {
+      continue;
+    }
+    std::uint32_t input = 0, expected = 0;
+    std::istringstream values(line.substr(10));
+    if (!expect(static_cast<bool>(values >> std::hex >> input >> expected),
+                "exponential oracle row must contain input and result bits")) {
+      return false;
+    }
+    const std::array<Argument, 2> edge{buffer(exponential, true), f32(input)};
+    if (!execute("edge-expf-rounding.ptx", edge)) {
+      return false;
+    }
+    const auto actual = exponential[0];
+    const bool correct = matches_oracle(actual, expected);
+    if (!expect(correct, "exponential edge must satisfy its independent accuracy/class oracle")) {
+      std::cerr << std::hex << "input=" << input << " actual=" << actual
+                << " expected=" << expected << std::dec << '\n';
+      return false;
+    }
+    ++count;
+  }
+  return expect(count == 23U, "all exponential boundary oracle rows must execute");
+}
+
 bool test_executed_form_coverage() {
   for (const auto& form : metaflux::compiler::ptx::supported_forms()) {
     if (!expect(executed_kernel_ir.find("OP " + std::string(form.kernel_ir_op)) !=
@@ -267,7 +317,7 @@ int main() {
   return test_add_and_control() && test_integer_forms() && test_abs_int_min() && test_fp_forms() &&
                  test_fp_environment_rejection() && test_conversion_and_predication() &&
                  test_signed_conversion() && test_2d_special_registers() &&
-                 test_shared_barrier() && test_edge_oracles() &&
+                 test_shared_barrier() && test_edge_oracles() && test_exp_form() &&
                  test_executed_form_coverage()
              ? 0
              : 1;

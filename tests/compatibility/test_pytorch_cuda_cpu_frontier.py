@@ -41,14 +41,51 @@ EXPECTED_COMPILED_SUBSET = [
     "relu-f32",
     "clamp-min-nonzero-f32",
     "clamp-min-negative-f32",
+    "exp-f32",
 ]
 
 
 class CpuFrontierEvidenceTests(unittest.TestCase):
+    def test_executor_evidence_binds_client_request_and_actual_mode(self) -> None:
+        entries = [{"id": "exp-f32", "compiled": {},
+                    "expected_requests": ["baseline:elementwise-exp-f32:1:2:module-load"]}]
+        cases = {"exp-f32": {"application": {"pid": 123}, "provider": {"launches": 1}}}
+        trace = (
+            "MF_CPU_EXECUTION pid=123 session=2 request=9 module=4 generation=1 "
+            "operation=37 executor=cpu-compiled status=complete\n"
+        )
+        frontier.qualify_executors(trace, entries, cases, "cold-jit")
+        self.assertEqual(cases["exp-f32"]["daemon_executions"][0]["request"], "9")
+        for broken in (
+            "", trace.replace("pid=123", "pid=124"),
+            trace.replace("cpu-compiled", "cpu-interpreter"),
+            trace.replace("status=complete", "status=failed"),
+            trace.replace("operation=37", "operation=0"),
+            trace.replace("operation=37", "operation=30"),
+            trace.replace("module=4", "module=0"), trace + trace,
+        ):
+            with self.subTest(trace=broken), self.assertRaisesRegex(RuntimeError, "executor evidence"):
+                frontier.qualify_executors(broken, entries, cases, "cold-jit")
+        frontier.qualify_executors(
+            trace.replace("cpu-compiled", "cpu-interpreter"), entries, cases, "interpreter"
+        )
+
+    def test_existing_alpha_trace_resolves_to_protocol_identity(self) -> None:
+        entries = [{"id": "alpha-add-i32", "compiled": {},
+                    "expected_requests": ["baseline:elementwise-alpha-add-i32:1:2:module-load"]}]
+        cases = {"alpha-add-i32": {"application": {"pid": 123}, "provider": {"launches": 1}}}
+        trace = (
+            "MF_CPU_EXECUTION pid=123 session=2 request=9 module=4 generation=1 "
+            "operation=11 executor=cpu-compiled status=complete\n"
+        )
+        frontier.qualify_executors(trace, entries, cases, "cold-jit")
+        with self.assertRaisesRegex(RuntimeError, "executor evidence"):
+            frontier.qualify_executors(trace.replace("operation=11", "operation=1"), entries, cases, "cold-jit")
+
     def test_repository_corpus_matches_pinned_profile(self) -> None:
         corpus = frontier.load_corpus(frontier.CORPUS, frontier.CLIENT_MANIFEST)
         self.assertEqual(len(corpus["cases"]), 41)
-        self.assertEqual(len(corpus["gaps"]), 1)
+        self.assertEqual(len(corpus["gaps"]), 2)
         self.assertEqual(corpus["execution_modes"], list(frontier.EXECUTION_MODES))
         self.assertTrue(corpus["scope"]["library_boundary_closed"])
         self.assertFalse(corpus["scope"]["exit_gate_complete"])
@@ -69,12 +106,14 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
         self.assertEqual(corpus["cases"][-11]["id"], "matmul-f32")
         self.assertEqual(corpus["cases"][-12]["id"], "clamp-min-negative-f32")
         self.assertEqual(corpus["gaps"][0]["id"], "sigmoid-f64")
+        self.assertEqual(corpus["gaps"][1]["id"], "exp-f64")
+        self.assertEqual(corpus["gaps"][1]["expected_error"], "operation not supported")
         self.assertEqual(corpus["gaps"][0]["status"], "frontier-gap")
         self.assertEqual(corpus["gaps"][0]["expected_error"], "operation not supported")
         compiled_entries = [entry for entry in corpus["cases"] if "compiled" in entry]
         compiled_sources = [frontier.compiled_ptx(entry) for entry in compiled_entries]
-        self.assertEqual(len(compiled_entries), 22)
-        self.assertEqual(len(set(compiled_sources)), 21)
+        self.assertEqual(len(compiled_entries), 23)
+        self.assertEqual(len(set(compiled_sources)), 22)
         sqrt = next(entry for entry in compiled_entries if entry["id"] == "sqrt-f32")
         self.assertEqual(
             frontier.compiled_ptx(sqrt),

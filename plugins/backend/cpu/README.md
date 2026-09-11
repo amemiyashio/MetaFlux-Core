@@ -26,7 +26,19 @@ one explicitly indexed CTA while retaining the complete 2D grid/block shape for
 special registers and validation. Logical threads map to inner loops and
 barrier-separated regions remain distinct CTA phases. Fused binary32 forms use
 a target-independent exact-rounding sequence, so the baseline artifact has no
-FMA ISA or libm requirement.
+FMA ISA requirement or imported libm symbol.
+
+Helper ABI v3 (`metaflux_cpu_cta_v3`) additionally takes a fixed scalar
+exponential function pointer. The runtime binds `expf` once per process and
+retains its library; the identity includes the actual DSO content SHA-256,
+resolved function offset and numerical policy. The compiler includes that
+identity in cache compatibility and embeds its digest in each closed ELF
+object. The loader checks it before exposing the entry. Generated objects have
+no undefined symbols or dynamic dependencies; ordinary launches neither resolve
+symbols nor hash libraries. `ExpF32` uses the same bound implementation in the
+interpreter and compiled paths, with independent accuracy/classification
+oracles and bit-exact agreement across CPU modes. It currently uses a scalar
+call and has no SIMD performance claim.
 
 The runtime independently validates the ELF class, machine, segment bounds,
 non-WX policy, SHA-256 digest, fixed helper ABI, parameter signature, and entry

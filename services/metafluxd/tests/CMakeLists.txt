@@ -102,6 +102,7 @@ target_compile_definitions(
   PRIVATE
     METAFLUX_DAEMON_ADD_PTX="${CMAKE_CURRENT_SOURCE_DIR}/../../../plugins/compat/cuda/compiler/ptx/corpus/fixtures/positive-add-copy.ptx"
     METAFLUX_DAEMON_CAST_PTX="${CMAKE_CURRENT_SOURCE_DIR}/../../../plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/cast-i32-f32.ptx"
+    METAFLUX_DAEMON_EXP_PTX="${CMAKE_CURRENT_SOURCE_DIR}/../../../plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/exp-f32.ptx"
     METAFLUX_DAEMON_EXECUTABLE="$<TARGET_FILE:metafluxd>"
 )
 target_link_libraries(

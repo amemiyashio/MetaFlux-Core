@@ -14,8 +14,23 @@
 
 namespace metaflux::backend::cpu {
 
-inline constexpr std::uint32_t kCompiledKernelHelperAbiVersion = 2;
-inline constexpr const char* kCompiledKernelEntrySymbol = "metaflux_cpu_cta_v2";
+inline constexpr std::uint32_t kCompiledKernelHelperAbiVersion = 3;
+inline constexpr const char* kCompiledKernelEntrySymbol = "metaflux_cpu_cta_v3";
+inline constexpr const char* kCompiledMathIdentitySymbol = "metaflux_cpu_math_identity_v1";
+
+using ExpF32Helper = float (*)(float);
+
+struct HostMathHelper {
+  ExpF32Helper exp_f32 = nullptr;
+  std::string identity;
+  std::string digest;
+  std::string diagnostic;
+};
+
+// Resolved and hashed once per process, before execution. The implementation
+// retains its DSO for the process lifetime; callers never resolve a launch-time
+// symbol or substitute an implementation whose identity was not checked.
+[[nodiscard]] const HostMathHelper& host_math_helper();
 
 enum class CompiledStatus : std::uint32_t {
   Success = 0,

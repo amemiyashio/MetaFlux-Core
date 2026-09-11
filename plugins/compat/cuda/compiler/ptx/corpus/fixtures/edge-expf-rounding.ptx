@@ -1,0 +1,43 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.extern .func  (.param .f32) expf (.param .f32);
+.entry edge(.param .u64 output, .param .f32 input)
+{
+  .reg .f32 %f<2>;
+  .reg .b64 %rd<2>;
+  ld.param.u64 %rd0, [output];
+  ld.param.f32 %f0, [input];
+  call (%f1), expf, (%f0);
+  st.global.f32 [%rd0], %f1;
+  ret;
+}
+// Independent oracle: exact binary32 inputs, decimal exp at 150 digits, then
+// nearest binary32 with ties to even. These are mathematical reference bits,
+// not outputs copied from either CPU execution path. Finite nonzero results
+// allow 2 ULP; zero/infinity classifications are exact; NaN payload is free.
+// Both differential suites execute every row; compiled modes also compare
+// bit-for-bit with the interpreter under the same bound helper identity.
+// oracle 00000000 3f800000
+// oracle 80000000 3f800000
+// oracle 3f000000 3fd3094c
+// oracle 3f800000 402df854
+// oracle bf800000 3ebc5ab2
+// oracle 40000000 40ec7326
+// oracle 40800000 425a6481
+// oracle 3eaaaaab 3fb2a36e
+// oracle beaaaaab 3f376e98
+// oracle 00000001 3f800000
+// oracle 80000001 3f800000
+// oracle 42b17217 7f7fff84
+// oracle 42b17218 7f800000
+// oracle c2aeac50 007fffe6
+// oracle c2aeac51 007fffa6
+// oracle c2ce8ed0 00000001
+// oracle c2cff1b4 00000001
+// oracle c2cff1b5 00000000
+// oracle 7f7fffff 7f800000
+// oracle ff7fffff 00000000
+// oracle 7f800000 7f800000
+// oracle ff800000 00000000
+// oracle 7fc00000 7fc00000

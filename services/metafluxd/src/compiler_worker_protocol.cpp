@@ -137,10 +137,6 @@ private:
   return value <= static_cast<std::uint32_t>(compiler::ValueKind::SharedAddress);
 }
 
-[[nodiscard]] bool valid_opcode(std::uint32_t value) {
-  return value <= static_cast<std::uint32_t>(compiler::Opcode::ConvertRnF32S32);
-}
-
 [[nodiscard]] bool valid_compile_error(std::uint32_t value) {
   return value <= static_cast<std::uint32_t>(backend::cpu::compiler::CompileError::Io);
 }
@@ -301,7 +297,9 @@ std::optional<compiler::Kernel> decode_request(std::span<const std::byte> bytes)
     const auto opcode = decoder.read_u32();
     const auto result = decoder.read_u32();
     std::array<std::uint32_t, 3> inputs{};
-    bool valid = opcode.has_value() && valid_opcode(*opcode) && result.has_value();
+    bool valid = opcode.has_value() &&
+                 compiler::is_valid_opcode(static_cast<compiler::Opcode>(*opcode)) &&
+                 result.has_value();
     for (auto& input : inputs) {
       const auto value = decoder.read_u32();
       valid = valid && value.has_value();

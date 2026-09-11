@@ -49,10 +49,10 @@ depth.
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |
-| Compiled cases | 22 |
-| Unique compiled PTX sources | 21 |
-| Cases outside compiled subset | 19 |
-| Classified gaps | 1 |
+| Compiled cases | 23 |
+| Unique compiled PTX sources | 22 |
+| Cases outside compiled subset | 18 |
+| Classified gaps | 2 |
 
 Every supported interpreter-mode case records its neutral request, daemon
 module intake and CPU completion, and rejects provider-local execution.
@@ -61,9 +61,29 @@ it does not prove that every row has generic Kernel IR interpreter semantics.
 The corpus remains `frontier-not-frozen`, with `exit_gate_complete: false`.
 
 The compiled subset includes arithmetic, fill, scalar/alpha operations,
-absolute value, square root, comparisons, int32-to-float32 cast, ReLU and clamp.
+absolute value, square root, exponential, comparisons, int32-to-float32 cast, ReLU and clamp.
 The two clamp inputs share one kernel. Profile-owned PTX lives beside the
 PyTorch CPU profile and is generated into the C17 provider at configure time.
+
+The exponential slice carries actual `ExpF32` semantics through canonical
+Kernel IR, the compiler-worker protocol and the generic CPU executors. Its
+finite-result accuracy bound is 2 ULP against an independent mathematical
+reference; it makes no correctly-rounded claim. The edge fixture supplies 23
+independent references covering signed zero, subnormals, overflow, underflow,
+infinities and NaN. Interpreter, cold JIT, warm JIT and AOT agree bit-for-bit
+under one bound CPU math-helper identity. The helper is scalar; this slice
+establishes no SIMD or throughput improvement.
+
+Compiled entry helper ABI v3 passes a runtime-bound math function pointer.
+The actual implementation identity participates in both the cache fingerprint
+and the checked object identity, while generated objects retain strict
+undefined-symbol and dependency rejection. Helper binding and identity hashing
+occur during preparation/loading, with no added warm-launch lookup or hashing.
+The real-client gate enables `METAFLUX_TRACE_EXECUTION=1` and correlates client
+PID, session, request, module generation, protocol operation and actual executor
+after successful generic CPU execution. Compiled rows reject missing, duplicate,
+wrong-operation or wrong-mode completion records. This optional qualification trace is disabled normally;
+daemon-native branches supply no generic-executor completion evidence.
 
 The compiled `abs.s32` exposed an incorrect signed-mask formula in both the
 scalar and SIMD LLVM emitters. The lowering now implements
@@ -112,7 +132,7 @@ and decision-0053 remains the closed library boundary.
 ## Remaining Work
 
 Rows outside the manifest's compiled subset cover reductions, strided copy,
-concat, arange, exponential, int32 minimum clamping, library-backed
+concat, arange, int32 minimum clamping, library-backed
 matrix/linear, softmax and sigmoid. They cross the
 neutral daemon boundary but use operation-specific daemon CPU branches.
 Promote their actual semantics into canonical Kernel IR and the compiled
@@ -127,7 +147,9 @@ Keep the library boundary in decision-0053; close each broader configuration
 with positive and negative evidence before including it. Freeze only when all
 accepted rows satisfy the same semantic and cache-identity contracts.
 
-`sigmoid-f64` is the current classified gap inside this finite corpus. It is
+`sigmoid-f64` and `exp-f64` are the classified gaps inside this finite corpus.
+The exponential adapter recognizes only the pinned float32 unary signature;
+float64 is rejected before a daemon module or request is materialized. This is
 not an inventory of every unsupported PyTorch operation. FP16/BF16, broader
 shapes/layouts, autograd/backward, optimizers, complete models and
 `torch.compile`/Triton have no qualification claim here. Application selection

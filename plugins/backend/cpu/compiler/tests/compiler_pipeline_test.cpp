@@ -4,6 +4,7 @@
 #include "metaflux/compiler/kernel_ir.hpp"
 #include "metaflux/compiler/ptx_frontend.hpp"
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <condition_variable>
@@ -146,11 +147,14 @@ bool write_thread_checking_linker(const std::filesystem::path& path,
   std::ofstream output(path, std::ios::trunc);
   output << "#!/bin/sh\n"
          << "thread_arguments=0\n"
+         << "closed_symbols=0\n"
          << "for argument in \"$@\"; do\n"
          << "  test \"$argument\" = --threads=1 && "
             "thread_arguments=$((thread_arguments + 1))\n"
+         << "  test \"$argument\" = --no-undefined && closed_symbols=1\n"
          << "done\n"
          << "test \"$thread_arguments\" -eq 1 || exit 65\n"
+         << "test \"$closed_symbols\" -eq 1 || exit 66\n"
          << ": > '" << checked_marker.string() << "'\n"
          << "exec '" << METAFLUX_TEST_LLD_PATH << "' \"$@\"\n";
   output.close();
@@ -217,6 +221,110 @@ metaflux::compiler::PersistentCacheConfig cache_config(const TemporaryDirectory&
   };
 }
 
+bool test_helper_boundary(const metaflux::backend::cpu::compiler::CompiledArtifact& artifact,
+                          const metaflux::backend::cpu::CompiledKernelSignature& signature) {
+  namespace cpu = metaflux::backend::cpu;
+  const auto& helper = cpu::host_math_helper();
+  if (!expect(helper.exp_f32 != nullptr && helper.digest.size() == 64U &&
+                  helper.identity.find("libm-sha256=") != std::string::npos &&
+                  &helper == &cpu::host_math_helper(),
+              "host math binding must retain one content-identified implementation") ||
+      !expect(cpu::compiler::make_cpu_cache_identity().toolchain_fingerprint.find(helper.digest) !=
+                  std::string::npos,
+              "cache identity must include the actual runtime math helper")) {
+    return false;
+  }
+  TemporaryDirectory temporary;
+  if (!expect(temporary.valid(), "helper-boundary fixture directory must exist")) {
+    return false;
+  }
+  auto mismatched = artifact.elf;
+  const auto digest_bytes = std::as_bytes(std::span(helper.digest.data(), helper.digest.size()));
+  const auto digest = std::search(mismatched.begin(), mismatched.end(), digest_bytes.begin(),
+                                  digest_bytes.end());
+  if (!expect(digest != mismatched.end(), "ELF must embed the helper digest")) {
+    return false;
+  }
+  *digest = *digest == std::byte{'0'} ? std::byte{'1'} : std::byte{'0'};
+  const auto path = temporary.path() / "wrong-math.so";
+  if (!expect(write_elf(path, mismatched), "mismatched helper ELF must be written")) {
+    return false;
+  }
+  const auto rejected = cpu::load_compiled_kernel(path, cpu::sha256_file(path), signature);
+  if (!expect(!rejected.ok() && rejected.diagnostic == "compiled host-math helper identity mismatch",
+              "a valid ELF digest must not excuse a different runtime math implementation")) {
+    return false;
+  }
+
+  auto old_abi = artifact.elf;
+  constexpr std::string_view entry_name = "metaflux_cpu_cta_v3";
+  const auto entry_bytes = std::as_bytes(std::span(entry_name.data(), entry_name.size()));
+  const auto entry = std::search(old_abi.begin(), old_abi.end(), entry_bytes.begin(), entry_bytes.end());
+  if (!expect(entry != old_abi.end(), "ELF must export its ABI 3 entry")) {
+    return false;
+  }
+  entry[static_cast<std::ptrdiff_t>(entry_name.size() - 1U)] = std::byte{'2'};
+  const auto old_path = temporary.path() / "old-abi.so";
+  if (!expect(write_elf(old_path, old_abi), "old ABI fixture must be written") ||
+      !expect(!cpu::load_compiled_kernel(old_path, cpu::sha256_file(old_path), signature).ok(),
+              "loader must reject an old entry ABI before invocation")) {
+    return false;
+  }
+
+  // Turn an actual exported symbol into an undefined symbol without corrupting
+  // ELF framing: both validators must reject it before ambient dlopen lookup.
+  auto undefined = artifact.elf;
+  const auto read_le = [&](std::size_t offset, std::size_t count) {
+    std::uint64_t result = 0U;
+    for (std::size_t byte = 0U; byte < count; ++byte) {
+      result |= static_cast<std::uint64_t>(std::to_integer<std::uint8_t>(undefined[offset + byte]))
+                << (8U * byte);
+    }
+    return result;
+  };
+  const auto sections = read_le(40U, 8U);
+  const auto section_count = read_le(60U, 2U);
+  bool changed = false;
+  for (std::uint64_t index = 0U; index < section_count && !changed; ++index) {
+    const auto section = static_cast<std::size_t>(sections + 64U * index);
+    if (read_le(section + 4U, 4U) != 11U) {
+      continue;
+    }
+    const auto symbols = read_le(section + 24U, 8U);
+    const auto size = read_le(section + 32U, 8U);
+    for (std::uint64_t offset = symbols; offset < symbols + size; offset += 24U) {
+      const auto symbol = static_cast<std::size_t>(offset);
+      if (read_le(symbol, 4U) != 0U) {
+        undefined[symbol + 6U] = std::byte{0};
+        undefined[symbol + 7U] = std::byte{0};
+        changed = true;
+        break;
+      }
+    }
+  }
+  if (!expect(changed && !cpu::validate_x86_64_pic_elf(undefined).valid &&
+                  !cpu::compiler::validate_compiled_elf(undefined),
+              "both artifact boundaries must reject an undeclared undefined symbol")) {
+    return false;
+  }
+  undefined = artifact.elf;
+  changed = false;
+  for (std::uint64_t index = 0U; index < section_count && !changed; ++index) {
+    const auto section = static_cast<std::size_t>(sections + 64U * index);
+    if (read_le(section + 4U, 4U) == 6U) { // SHT_DYNAMIC
+      const auto dynamic = static_cast<std::size_t>(read_le(section + 24U, 8U));
+      for (std::size_t byte = 0U; byte < 8U; ++byte) {
+        undefined[dynamic + byte] = std::byte{0};
+      }
+      undefined[dynamic] = std::byte{1}; // DT_NEEDED
+      changed = true;
+    }
+  }
+  return expect(changed && !cpu::validate_x86_64_pic_elf(undefined).valid &&
+                    !cpu::compiler::validate_compiled_elf(undefined),
+                "both artifact boundaries must reject an undeclared dynamic dependency");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -252,9 +360,9 @@ int main(int argc, char** argv) {
                   metaflux::backend::cpu::compiler::kCpuCompiledEntrySymbol ==
                       metaflux::backend::cpu::kCompiledKernelEntrySymbol,
               "compiler and runtime must agree on the helper ABI and symbol") ||
-      !expect(artifact.mlir_text.find("llvm.func @metaflux_cpu_cta_v2") != std::string_view::npos,
+      !expect(artifact.mlir_text.find("llvm.func @metaflux_cpu_cta_v3") != std::string_view::npos,
               "MLIR must contain the CPU entry") ||
-      !expect(artifact.llvm_ir_text.find("@metaflux_cpu_cta_v2") != std::string_view::npos,
+      !expect(artifact.llvm_ir_text.find("@metaflux_cpu_cta_v3") != std::string_view::npos,
               "LLVM IR must contain the translated CPU entry") ||
       !expect(artifact.llvm_ir_text.find("vector.body") != std::string_view::npos &&
                   artifact.llvm_ir_text.find("<4 x i32>") != std::string_view::npos,
@@ -366,6 +474,9 @@ int main(int argc, char** argv) {
   if (!expect(loaded.ok(), loaded.diagnostic)) {
     return 1;
   }
+  if (!test_helper_boundary(artifact, signature)) {
+    return 1;
+  }
 
   std::vector<std::uint32_t> left{0U, 1U, 0xffffffffU, 8U, 13U};
   std::vector<std::uint32_t> right{4U, 7U, 1U, 9U, 29U};
@@ -450,14 +561,14 @@ int main(int argc, char** argv) {
     legacy_identity.pass_pipeline =
         "kir-v2-to-llvm-dialect,cpu-scalar-cta-phases,f32-fma-twosum-v1,"
         "llvm-o2,pic-et-dyn-v1";
-    legacy_identity.helper_abi = 1U;
+    legacy_identity.helper_abi = 2U;
     const auto legacy_key = metaflux::compiler::make_cache_key(legacy_identity, serialized.text);
     const auto current_key = metaflux::compiler::make_cache_key(
         metaflux::backend::cpu::compiler::make_cpu_cache_identity(), serialized.text);
     const metaflux::compiler::ArtifactDescriptor legacy_descriptor{
         .kernel_ir_schema = metaflux::compiler::kKernelIrSchemaVersion,
-        .helper_abi = 1U,
-        .payload = "cpu-v1;fp=0;params=0,0,0,1",
+        .helper_abi = 2U,
+        .payload = "cpu-single-cta-v2;fp=0;params=0,0,0,1",
     };
     if (!expect(legacy_key != current_key,
                 "single-CTA helper and SIMD pipeline must change cache identity") ||
@@ -467,7 +578,7 @@ int main(int argc, char** argv) {
         !expect(metaflux::backend::cpu::compiler::lookup_cached_artifact(legacy_cache, kPeerUid,
                                                                          *parsed.kernel)
                         .cache_error == metaflux::compiler::PersistentCacheError::Miss,
-                "legacy whole-grid artifact must deterministically miss the v2 lookup")) {
+                "legacy helper ABI 2 artifact must deterministically miss the ABI 3 lookup")) {
       return 1;
     }
   }
@@ -676,7 +787,7 @@ int main(int argc, char** argv) {
       return 1;
     }
     metadata.replace(payload_begin, payload_end - payload_begin,
-                     "payload=cpu-single-cta-v2;fp=0;params=2");
+                     "payload=cpu-single-cta-v3;fp=0;params=2");
     std::ofstream metadata_output(metadata_path, std::ios::trunc);
     metadata_output << metadata;
     metadata_output.close();

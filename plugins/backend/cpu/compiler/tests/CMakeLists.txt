@@ -64,7 +64,7 @@ if(TARGET metaflux_cuda_ptx_frontend AND TARGET metaflux_cpu_backend_runtime)
     PROPERTIES
       DEPENDS metaflux.integration.cpu-compiler-pipeline
       LABELS "qualification;compiler;backend;cpu"
-      PASS_REGULAR_EXPRESSION "metaflux_cpu_cta_v2"
+      PASS_REGULAR_EXPRESSION "metaflux_cpu_cta_v3"
   )
 
   add_test(

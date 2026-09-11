@@ -252,6 +252,7 @@ def operation_cases(torch: Any) -> dict[str, Callable[[], Any]]:
         ),
         "arange-i64": lambda: torch.arange(6, device="cuda"),
         "exp-f32": lambda: torch.exp(f32([0.5, 2.0, -1.0, 4.0])),
+        "exp-f64": lambda: torch.exp(f64([0.5, 2.0, -1.0, 4.0])),
         "clamp-min-i32": lambda: torch.relu(i32(left_i32)),
         "sigmoid-f64": lambda: torch.sigmoid(
             f64([-4.0, -2.0, -1.0, 0.0, 1.0, 2.0, 4.0])
@@ -327,6 +328,7 @@ def application(case_id: str, corpus_path: Path, profile_path: Path) -> dict[str
     return {
         "case": case_id,
         "result": "complete",
+        "pid": os.getpid(),
         "observed": observed_runs,
         "profile": observed_profile,
     }
@@ -346,6 +348,56 @@ def parse_provider_evidence(trace: str) -> dict[str, Any]:
         "module_loads": len(re.findall(r"^MF_PYTORCH_BASELINE_MODULE ", trace, re.MULTILINE)),
         "local_execution": len(re.findall(r"^MF_SEMANTIC ", trace, re.MULTILINE)),
     }
+
+
+def qualify_executors(
+    output: str, entries: list[dict[str, Any]], cases: dict[str, Any], mode: str
+) -> None:
+    # Read operation identities from their protocol owner, not a second enum.
+    protocol = (ROOT / "contracts/protocol/client/v1/include/metaflux/client/protocol.h").read_text(
+        encoding="utf-8"
+    )
+    operations = {
+        name.lower().replace("_", "-"): int(value)
+        for name, value in re.findall(
+            r"^#define MF_CLIENT_KERNEL_REQUEST_OPERATION_([A-Z0-9_]+)_V1 UINT32_C\((\d+)\)$",
+            protocol, re.MULTILINE,
+        )
+    }
+    # The existing provider trace includes an elementwise prefix for alpha-add.
+    # Its numeric identity still comes exclusively from the protocol header.
+    operations["elementwise-alpha-add-i32"] = operations["alpha-add-i32"]
+    pattern = re.compile(
+        r"^MF_CPU_EXECUTION pid=(?P<pid>\d+) session=(?P<session>\d+) "
+        r"request=(?P<request>\d+) module=(?P<module>\d+) generation=(?P<generation>\d+) "
+        r"operation=(?P<operation>\d+) executor=(?P<executor>[a-z-]+) status=complete$",
+        re.MULTILINE,
+    )
+    records = [match.groupdict() for match in pattern.finditer(output)]
+    expected_executor = "cpu-interpreter" if mode == "interpreter" else "cpu-compiled"
+    for entry in entries:
+        if "compiled" not in entry:
+            continue
+        case = cases[entry["id"]]
+        pid = case["application"].get("pid")
+        if not isinstance(pid, int) or pid <= 0:
+            raise RuntimeError(f"missing client process identity for {entry['id']}")
+        observed = [record for record in records if int(record["pid"]) == pid]
+        identities = {(row["session"], row["request"]) for row in observed}
+        expected_operations = {operations[request.split(":")[1]] for request in entry["expected_requests"]}
+        if (
+            len(observed) != case["provider"]["launches"]
+            or len(observed) < entry.get("repetitions", 1)
+            or len(identities) != len(observed)
+            or {int(row["operation"]) for row in observed} != expected_operations
+            or any(
+                row["executor"] != expected_executor
+                or any(int(row[key]) <= 0 for key in ("session", "request", "module", "generation"))
+                for row in observed
+            )
+        ):
+            raise RuntimeError(f"actual CPU executor evidence drifted for {entry['id']}: {observed!r}")
+        case["daemon_executions"] = observed
 
 
 def parse_daemon_statistics(output: str) -> dict[str, int | str]:
@@ -558,6 +610,7 @@ def run_corpus(
                 "METAFLUX_SOCKET": str(socket_path),
                 "METAFLUX_CPU_EXECUTION_MODE": execution_mode,
                 "METAFLUX_TRACE_STUBS": "1",
+                "METAFLUX_TRACE_EXECUTION": "1",
                 "LD_LIBRARY_PATH": str(provider_dir)
                 + (
                     os.pathsep + environment["LD_LIBRARY_PATH"]
@@ -624,6 +677,8 @@ def run_corpus(
                 f"daemon result completion drifted: expected at least {expected_destinations}, "
                 f"observed {statistics!r}"
             )
+        if expect_success:
+            qualify_executors(daemon_output, entries, cases, execution_mode)
         return cases, statistics
 
 

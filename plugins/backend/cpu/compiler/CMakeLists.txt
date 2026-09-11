@@ -63,7 +63,11 @@ target_compile_definitions(
   metaflux_cpu_backend_compiler
   PRIVATE METAFLUX_DEFAULT_LLD_PATH="${METAFLUX_RUNTIME_LLD_PATH}"
 )
-target_link_libraries(metaflux_cpu_backend_compiler PUBLIC MetaFlux::CompilerCore)
+target_link_libraries(
+  metaflux_cpu_backend_compiler
+  PUBLIC MetaFlux::CompilerCore
+  PRIVATE MetaFlux::CpuBackendRuntime
+)
 if(METAFLUX_COMPILER_LINK_SHARED_LLVM)
   target_link_libraries(metaflux_cpu_backend_compiler PRIVATE MLIR LLVM)
 else()
