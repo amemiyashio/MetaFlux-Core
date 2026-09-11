@@ -38,6 +38,7 @@ EXPECTED_COMPILED_SUBSET = [
     "gt-i32",
     "lt-f32",
     "sum-i32",
+    "sum-i64",
     "sum-f32",
     "mean-f32",
     "max-i32",
@@ -119,9 +120,13 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
         self.assertEqual(corpus["gaps"][0]["status"], "frontier-gap")
         self.assertEqual(corpus["gaps"][0]["expected_error"], "operation not supported")
         compiled_entries = [entry for entry in corpus["cases"] if "compiled" in entry]
-        compiled_sources = [frontier.compiled_ptx(entry) for entry in compiled_entries]
-        self.assertEqual(len(compiled_entries), 31)
-        self.assertEqual(len(set(compiled_sources)), 30)
+        compiled_sources = [
+            source
+            for entry in compiled_entries
+            for source in frontier.compiled_ptx_sources(entry)
+        ]
+        self.assertEqual(len(compiled_entries), 32)
+        self.assertEqual(len(set(compiled_sources)), 32)
         sqrt = next(entry for entry in compiled_entries if entry["id"] == "sqrt-f32")
         self.assertEqual(
             frontier.compiled_ptx(sqrt),

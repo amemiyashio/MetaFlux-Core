@@ -56,15 +56,19 @@ def coverage(root: Path, corpus: dict) -> tuple[dict[str, int], list[str]]:
     for row in marked:
         compiled = row["compiled"]
         require(isinstance(compiled, dict), "compiled source must be an object")
-        source = compiled.get("ptx")
-        require(isinstance(source, str) and bool(source), "compiled row needs a PTX source")
-        path = Path(source)
-        require(not path.is_absolute() and ".." not in path.parts,
-                f"compiled source must be repository-relative: {source}")
-        resolved = (root / path).resolve()
-        require(resolved.is_relative_to(root.resolve()) and resolved.is_file(),
-                f"missing or external compiled source: {source}")
-        sources.add(resolved.relative_to(root.resolve()).as_posix())
+        declared = compiled.get("ptx")
+        declared_list = [declared] if isinstance(declared, str) else declared
+        require(isinstance(declared_list, list) and bool(declared_list) and
+                all(isinstance(item, str) and bool(item) for item in declared_list),
+                "compiled row needs at least one PTX source")
+        for source in declared_list:
+            path = Path(source)
+            require(not path.is_absolute() and ".." not in path.parts,
+                    f"compiled source must be repository-relative: {source}")
+            resolved = (root / path).resolve()
+            require(resolved.is_relative_to(root.resolve()) and resolved.is_file(),
+                    f"missing or external compiled source: {source}")
+            sources.add(resolved.relative_to(root.resolve()).as_posix())
     remaining = [identifier for identifier in case_ids if identifier not in set(subset)]
     return {
         "Supported cases": len(case_ids),

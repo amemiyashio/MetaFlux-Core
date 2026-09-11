@@ -37,6 +37,7 @@
    "gt-i32",
    "lt-f32",
    "sum-i32",
+   "sum-i64",
    "sum-f32",
    "mean-f32",
    "max-i32",
@@ -421,7 +422,13 @@
    "expected_requests": [
     "baseline:cast-copy-i64:1:2:module-load",
     "baseline:reduce-sum-i64:1:2:module-load"
-   ]
+   ],
+   "compiled": {
+    "ptx": [
+     "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/cast-copy-i64.ptx",
+     "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/reduce-sum-i64.ptx"
+    ]
+   }
   },
   {
    "id": "sum-f32",

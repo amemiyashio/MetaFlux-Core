@@ -59,24 +59,26 @@ sum-i64 artifact sums the six 8-byte source elements from their low words:
 a wrapping u32 sum plus a wrap-carry count minus a negative-element count
 yields the exact high word for any sign mix.
 
-sum-i64 remains outside the compiled subset. The compiled frontier runner
-currently requires each compiled case to map to exactly one neutral request
-(`load_corpus`), counts one cache identity per declared compiled source, and
-expects the AOT-miss provider evidence to carry every expected request. The
-sum-i64 application issues two baseline requests (the int32-to-int64
-cast-copy companion, currently executed by the daemon-native branch from a
-stub module with no executor evidence) plus the reduction. Qualifying it in
-cold-jit/warm-jit/AOT therefore needs a bounded contract extension: a real
-`cast-copy-i64` profile artifact with the daemon-native cast-copy branch
-excluded, a multi-source compiled declaration in the corpus schema, and a
-prefix rule for AOT-miss request evidence.
+sum-i64 is now a compiled-subset row. Its application issues two baseline
+requests — the int32-to-int64 cast-copy companion and the reduction — and the
+corpus compiled declaration therefore carries a source list: one source per
+baseline request. The `cast-copy-i64.ptx` artifact widens each loaded int32
+word to a sign-extended int64 pair with dialect-legal forms (`sub.u32`
+produces the 0xFFFFFFFF high half), and the daemon excludes the cast-copy
+operation from its native branch so both requests execute canonically with
+per-request executor evidence in every mode. The compiled runner resolves a
+case's sources from either a string or a list, requires no more sources than
+requests, and the AOT-miss check accepts a non-empty prefix of the expected
+request and library-call sequences because a multi-request application aborts
+at its first failed module load; the miss-run cache-miss expectation is the
+attempted module-load count derived from that observed prefix evidence.
 
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |
-| Compiled cases | 31 |
-| Unique compiled PTX sources | 30 |
-| Cases outside compiled subset | 10 |
+| Compiled cases | 32 |
+| Unique compiled PTX sources | 32 |
+| Cases outside compiled subset | 9 |
 | Classified gaps | 2 |
 
 Every supported interpreter-mode case records its neutral request, daemon

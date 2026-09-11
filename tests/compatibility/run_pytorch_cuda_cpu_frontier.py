@@ -66,23 +66,43 @@ def pinned_profile(path: Path) -> dict[str, str]:
     }
 
 
-def compiled_ptx(entry: dict[str, Any]) -> Path:
+def compiled_ptx_sources(entry: dict[str, Any]) -> list[Path]:
+    """Resolve a case's declared compiled sources; a multi-request case
+    declares one source per baseline request in request order."""
+
     compiled = entry.get("compiled")
     if not isinstance(compiled, dict) or set(compiled) != {"ptx"}:
         raise ValueError(f"CPU frontier case {entry.get('id')!r} has no compiled PTX identity")
-    relative = compiled["ptx"]
-    if not isinstance(relative, str) or not relative or Path(relative).is_absolute():
+    declared = compiled["ptx"]
+    relatives = [declared] if isinstance(declared, str) else declared
+    if (
+        not isinstance(relatives, list)
+        or not relatives
+        or any(not isinstance(item, str) or not item or Path(item).is_absolute() for item in relatives)
+    ):
         raise ValueError(f"CPU frontier case {entry.get('id')!r} has invalid compiled PTX path")
-    path = (ROOT / relative).resolve()
-    try:
-        path.relative_to(ROOT)
-    except ValueError as error:
+    sources: list[Path] = []
+    for relative in relatives:
+        path = (ROOT / relative).resolve()
+        try:
+            path.relative_to(ROOT)
+        except ValueError as error:
+            raise ValueError(
+                f"CPU frontier case {entry.get('id')!r} compiled PTX escapes the repository"
+            ) from error
+        if not path.is_file():
+            raise ValueError(f"CPU frontier compiled PTX is not a file: {path}")
+        sources.append(path)
+    return sources
+
+
+def compiled_ptx(entry: dict[str, Any]) -> Path:
+    sources = compiled_ptx_sources(entry)
+    if len(sources) != 1:
         raise ValueError(
-            f"CPU frontier case {entry.get('id')!r} compiled PTX escapes the repository"
-        ) from error
-    if not path.is_file():
-        raise ValueError(f"CPU frontier compiled PTX is not a file: {path}")
-    return path
+            f"CPU frontier case {entry.get('id')!r} does not declare exactly one compiled PTX"
+        )
+    return sources[0]
 
 
 def load_corpus(path: Path, profile_path: Path) -> dict[str, Any]:
@@ -117,10 +137,10 @@ def load_corpus(path: Path, profile_path: Path) -> dict[str, Any]:
         ):
             raise ValueError(f"supported case {entry['id']} has invalid library-call evidence")
         if "compiled" in entry:
-            compiled_ptx(entry)
-            if len(requests) != 1:
+            if len(compiled_ptx_sources(entry)) > len(requests):
                 raise ValueError(
-                    f"compiled case {entry['id']} must map to exactly one neutral request"
+                    f"compiled case {entry['id']} declares more compiled sources than "
+                    "neutral requests"
                 )
     for entry in gaps:
         if entry.get("status") != "frontier-gap" or not entry.get("expected_error"):
@@ -530,9 +550,18 @@ def run_case(
         if process.returncode == 0:
             raise RuntimeError(f"application {case_id} unexpectedly succeeded")
         require_stable_gap(payload, STABLE_AOT_MISS)
+        expected_requests = entry["expected_requests"]
+        expected_library_calls = entry.get("expected_library_calls", [])
+        observed_requests = provider["requests"]
+        observed_calls = provider["library_calls"]
+        # A multi-request application aborts at its first failed module load,
+        # so miss-run request evidence is a non-empty prefix of the expected
+        # request and library-call sequences.
         if (
-            provider["requests"] != entry["expected_requests"]
-            or provider["library_calls"] != entry.get("expected_library_calls", [])
+            not observed_requests
+            or len(observed_requests) > len(expected_requests)
+            or observed_requests != expected_requests[: len(observed_requests)]
+            or observed_calls != expected_library_calls[: len(observed_calls)]
             or provider["module_loads"] != 0
         ):
             raise RuntimeError(f"compiled miss evidence drifted for {case_id}: {provider!r}")
@@ -712,7 +741,11 @@ def runner(parsed: argparse.Namespace) -> dict[str, Any]:
     if execution_mode != "interpreter":
         if not parsed.case and not parsed.compiled_subset:
             raise ValueError("compiled CPU frontier qualification requires --case or --compiled-subset")
-        compiled_sources = list(dict.fromkeys(compiled_ptx(entry) for entry in entries))
+        compiled_sources = list(
+            dict.fromkeys(
+                source for entry in entries for source in compiled_ptx_sources(entry)
+            )
+        )
     expected_cache_identities = len(compiled_sources)
     expected_modules = sum(len(entry.get("expected_requests", [])) for entry in entries)
     original_affinity, affinity = pin_client_cpu()
@@ -773,8 +806,13 @@ def runner(parsed: argparse.Namespace) -> dict[str, Any]:
                     raise RuntimeError("warm JIT did not reuse the cold JIT cache identities")
             else:
                 miss_cases, miss_statistics = run_once("aot", "aot-miss", False)
+                # Each supported case attempts module loads only for the
+                # request prefix it issues before aborting on the first miss.
+                attempted_modules = sum(
+                    len(case["provider"]["requests"]) for case in miss_cases.values()
+                )
                 require_execution_statistics(
-                    miss_statistics, "aot", 0, 0, expected_modules, 0
+                    miss_statistics, "aot", 0, 0, attempted_modules, 0
                 )
                 miss_evidence = {
                     "classification": "stable-not-supported",
