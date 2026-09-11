@@ -49,9 +49,9 @@ depth.
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |
-| Compiled cases | 24 |
-| Unique compiled PTX sources | 23 |
-| Cases outside compiled subset | 17 |
+| Compiled cases | 26 |
+| Unique compiled PTX sources | 25 |
+| Cases outside compiled subset | 15 |
 | Classified gaps | 2 |
 
 Every supported interpreter-mode case records its neutral request, daemon
@@ -62,7 +62,8 @@ The corpus remains `frontier-not-frozen`, with `exit_gate_complete: false`.
 
 The compiled subset includes arithmetic, fill, scalar/alpha operations,
 absolute value, square root, exponential, sigmoid, comparisons, int32-to-float32
-cast, ReLU and clamp. The two clamp inputs share one kernel. Profile-owned PTX
+cast, ReLU, clamp, and the four-element float32 sum/mean reductions. The two
+clamp inputs share one kernel. Profile-owned PTX
 lives beside the PyTorch CPU profile and is generated into the C17 provider at
 configure time.
 
@@ -85,6 +86,16 @@ Cold JIT has one compiler miss, warm JIT has one cache hit with no compiler
 request, and AOT prewarms the same cache identity while a separate unsupported
 probe remains a stable miss. This is a CPU-profile slice and does not qualify
 physical AMD GPU execution or the complete corpus.
+
+The float32 reduction slice adds the pinned four-element `torch.sum` and
+`torch.mean` rows to the compiled subset. The provider keeps the neutral
+destination/source/count request and rejects other reduction extents until
+Kernel IR v2 has a bounded loop form. The daemon bypasses its operation-specific
+float32 reduction branch for these two operation IDs, so the checked-in
+unrolled PTX is parsed, verified, and executed by the generic CPU interpreter
+or compiled CPU artifact. The store is predicated to one logical lane and the
+mean divisor is carried as a neutral u32 scalar. This slice establishes no
+general reduction-shape or Vulkan qualification claim.
 
 Compiled entry helper ABI v3 passes a runtime-bound math function pointer.
 The actual implementation identity participates in both the cache fingerprint
@@ -143,7 +154,7 @@ and decision-0053 remains the closed library boundary.
 
 ## Remaining Work
 
-Rows outside the manifest's compiled subset cover reductions, strided copy,
+Rows outside the manifest's compiled subset cover integer reductions, strided copy,
 concat, arange, int32 minimum clamping, library-backed
 matrix/linear and softmax. They cross the
 neutral daemon boundary but use operation-specific daemon CPU branches.

@@ -7311,6 +7311,23 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       normalized_pointers[2] = (CUdeviceptr)0;
       normalized_kinds[2] = UINT32_C(1);
       normalized_scalars[2] = UINT32_C(0);
+      if ((reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1 ||
+           reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1) &&
+          config_count != UINT32_C(4)) {
+        /* The v1 finite corpus is intentionally four-wide until Kernel IR
+         * gains a bounded loop form. Never run the unrolled artifact against
+         * a different source extent. */
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
+      if (reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1 ||
+          reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1) {
+        normalized_buffer_element_counts[0] = UINT32_C(1);
+        normalized_buffer_element_counts[1] = config_count;
+        if (reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1) {
+          normalized_scalars[2] = config_count;
+        }
+      }
       module_record = &mf_cuda_global.modules[function_record->aux];
       const char* reduce_operation_name = (const char*)0;
       switch (reduce_operation) {
@@ -7336,9 +7353,17 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         mf_cuda_queue_unlock();
         return CUDA_ERROR_NOT_SUPPORTED;
       }
+      const char* reduce_ptx = mf_pytorch_baseline_reduce_stub_ptx;
+      size_t reduce_ptx_size = sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U;
+      if (reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1) {
+        reduce_ptx = mf_pytorch_baseline_reduce_sumf32_ptx;
+        reduce_ptx_size = sizeof(mf_pytorch_baseline_reduce_sumf32_ptx) - 1U;
+      } else if (reduce_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1) {
+        reduce_ptx = mf_pytorch_baseline_reduce_meanf32_ptx;
+        reduce_ptx_size = sizeof(mf_pytorch_baseline_reduce_meanf32_ptx) - 1U;
+      }
       result = mf_cuda_materialize_pytorch_baseline_locked(
-          module_record, reduce_operation, mf_pytorch_baseline_reduce_stub_ptx,
-          sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U, reduce_operation_name);
+          module_record, reduce_operation, reduce_ptx, reduce_ptx_size, reduce_operation_name);
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();
         return result;
