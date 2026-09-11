@@ -49,9 +49,9 @@ depth.
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |
-| Compiled cases | 30 |
-| Unique compiled PTX sources | 29 |
-| Cases outside compiled subset | 11 |
+| Compiled cases | 31 |
+| Unique compiled PTX sources | 30 |
+| Cases outside compiled subset | 10 |
 | Classified gaps | 2 |
 
 Every supported interpreter-mode case records its neutral request, daemon
@@ -67,6 +67,14 @@ signed int32 max/min reductions, and the four-element float32 sum/mean reduction
 share one kernel. Profile-owned PTX
 lives beside the PyTorch CPU profile and is generated into the C17 provider at
 configure time.
+
+The concat-u32 slice adds the pinned two-source contiguous `torch.cat` row.
+The provider decodes the source metadata and submits destination, two source
+buffers, lengths, and total count as a neutral six-parameter request. The
+daemon's operation-specific concat branch is bypassed; a dedicated unrolled
+PTX artifact copies the twelve words through the generic CPU interpreter or
+compiled executor. This is a fixed two-input, six-element CPU claim and does
+not generalize variable arity, non-contiguous inputs, or Vulkan execution.
 
 The exponential slice carries actual `ExpF32` semantics through canonical
 Kernel IR, the compiler-worker protocol and the generic CPU executors. Its
@@ -182,7 +190,7 @@ and decision-0053 remains the closed library boundary.
 ## Remaining Work
 
 Rows outside the manifest's compiled subset cover the int64 accumulator reduction, strided copy,
-concat, arange, library-backed
+arange, library-backed
 matrix/linear and softmax. They cross the
 neutral daemon boundary but use operation-specific daemon CPU branches.
 Promote their actual semantics into canonical Kernel IR and the compiled

@@ -1,0 +1,136 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.visible .entry concat_u32(
+  .param .u64 destination,
+  .param .u64 input0,
+  .param .u64 input1,
+  .param .u32 length0,
+  .param .u32 length1,
+  .param .u32 total
+)
+{
+  .reg .pred %p;
+  .reg .b32 %r<42>;
+  .reg .b64 %rd<51>;
+  ld.param.u64 %rd0, [destination];
+  ld.param.u64 %rd1, [input0];
+  ld.param.u64 %rd2, [input1];
+  mov.u32 %r0, %tid.x;
+  mov.u32 %r1, %ctaid.x;
+  mov.u32 %r2, %ntid.x;
+  mad.lo.u32 %r3, %r1, %r2, %r0;
+  mov.u32 %r4, 0;
+  setp.eq.u32 %p, %r3, %r4;
+  @!%p bra done;
+
+  mov.u32 %r5, 0;
+  mul.wide.u32 %rd3, %r5, 4;
+  add.u64 %rd4, %rd1, %rd3;
+  ld.global.u32 %r6, [%rd4];
+  mov.u32 %r7, 0;
+  mul.wide.u32 %rd5, %r7, 4;
+  add.u64 %rd6, %rd0, %rd5;
+  st.global.u32 [%rd6], %r6;
+
+  mov.u32 %r8, 1;
+  mul.wide.u32 %rd7, %r8, 4;
+  add.u64 %rd8, %rd1, %rd7;
+  ld.global.u32 %r9, [%rd8];
+  mov.u32 %r10, 1;
+  mul.wide.u32 %rd9, %r10, 4;
+  add.u64 %rd10, %rd0, %rd9;
+  st.global.u32 [%rd10], %r9;
+
+  mov.u32 %r11, 2;
+  mul.wide.u32 %rd11, %r11, 4;
+  add.u64 %rd12, %rd1, %rd11;
+  ld.global.u32 %r12, [%rd12];
+  mov.u32 %r13, 2;
+  mul.wide.u32 %rd13, %r13, 4;
+  add.u64 %rd14, %rd0, %rd13;
+  st.global.u32 [%rd14], %r12;
+
+  mov.u32 %r14, 3;
+  mul.wide.u32 %rd15, %r14, 4;
+  add.u64 %rd16, %rd1, %rd15;
+  ld.global.u32 %r15, [%rd16];
+  mov.u32 %r16, 3;
+  mul.wide.u32 %rd17, %r16, 4;
+  add.u64 %rd18, %rd0, %rd17;
+  st.global.u32 [%rd18], %r15;
+
+  mov.u32 %r17, 4;
+  mul.wide.u32 %rd19, %r17, 4;
+  add.u64 %rd20, %rd1, %rd19;
+  ld.global.u32 %r18, [%rd20];
+  mov.u32 %r19, 4;
+  mul.wide.u32 %rd21, %r19, 4;
+  add.u64 %rd22, %rd0, %rd21;
+  st.global.u32 [%rd22], %r18;
+
+  mov.u32 %r20, 5;
+  mul.wide.u32 %rd23, %r20, 4;
+  add.u64 %rd24, %rd1, %rd23;
+  ld.global.u32 %r21, [%rd24];
+  mov.u32 %r22, 5;
+  mul.wide.u32 %rd25, %r22, 4;
+  add.u64 %rd26, %rd0, %rd25;
+  st.global.u32 [%rd26], %r21;
+
+  mov.u32 %r23, 0;
+  mul.wide.u32 %rd27, %r23, 4;
+  add.u64 %rd28, %rd2, %rd27;
+  ld.global.u32 %r24, [%rd28];
+  mov.u32 %r25, 6;
+  mul.wide.u32 %rd29, %r25, 4;
+  add.u64 %rd30, %rd0, %rd29;
+  st.global.u32 [%rd30], %r24;
+
+  mov.u32 %r26, 1;
+  mul.wide.u32 %rd31, %r26, 4;
+  add.u64 %rd32, %rd2, %rd31;
+  ld.global.u32 %r27, [%rd32];
+  mov.u32 %r28, 7;
+  mul.wide.u32 %rd33, %r28, 4;
+  add.u64 %rd34, %rd0, %rd33;
+  st.global.u32 [%rd34], %r27;
+
+  mov.u32 %r29, 2;
+  mul.wide.u32 %rd35, %r29, 4;
+  add.u64 %rd36, %rd2, %rd35;
+  ld.global.u32 %r30, [%rd36];
+  mov.u32 %r31, 8;
+  mul.wide.u32 %rd37, %r31, 4;
+  add.u64 %rd38, %rd0, %rd37;
+  st.global.u32 [%rd38], %r30;
+
+  mov.u32 %r32, 3;
+  mul.wide.u32 %rd39, %r32, 4;
+  add.u64 %rd40, %rd2, %rd39;
+  ld.global.u32 %r33, [%rd40];
+  mov.u32 %r34, 9;
+  mul.wide.u32 %rd41, %r34, 4;
+  add.u64 %rd42, %rd0, %rd41;
+  st.global.u32 [%rd42], %r33;
+
+  mov.u32 %r35, 4;
+  mul.wide.u32 %rd43, %r35, 4;
+  add.u64 %rd44, %rd2, %rd43;
+  ld.global.u32 %r36, [%rd44];
+  mov.u32 %r37, 10;
+  mul.wide.u32 %rd45, %r37, 4;
+  add.u64 %rd46, %rd0, %rd45;
+  st.global.u32 [%rd46], %r36;
+
+  mov.u32 %r38, 5;
+  mul.wide.u32 %rd47, %r38, 4;
+  add.u64 %rd48, %rd2, %rd47;
+  ld.global.u32 %r39, [%rd48];
+  mov.u32 %r40, 11;
+  mul.wide.u32 %rd49, %r40, 4;
+  add.u64 %rd50, %rd0, %rd49;
+  st.global.u32 [%rd50], %r39;
+done:
+  ret;
+}

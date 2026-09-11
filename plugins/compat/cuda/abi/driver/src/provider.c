@@ -7608,7 +7608,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       module_record = &mf_cuda_global.modules[function_record->aux];
       result = mf_cuda_materialize_pytorch_baseline_locked(
           module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_CONCAT_U32_V1,
-          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          mf_pytorch_baseline_concat_u32_ptx, sizeof(mf_pytorch_baseline_concat_u32_ptx) - 1U,
           "concat-u32");
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();
