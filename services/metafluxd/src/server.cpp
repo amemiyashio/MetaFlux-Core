@@ -3101,6 +3101,8 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
   const uint32_t operation = module->kernel_operation;
   if (operation != 0U &&
       operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I32_V1 &&
+      operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MAX_I32_V1 &&
+      operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MIN_I32_V1 &&
       operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1 &&
       operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1 &&
       operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_CLAMP_MIN_I32_V1) {

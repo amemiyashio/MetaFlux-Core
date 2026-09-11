@@ -39,6 +39,8 @@
    "sum-i32",
    "sum-f32",
    "mean-f32",
+   "max-i32",
+   "min-i32",
    "cast-i32-f32",
    "relu-f32",
    "clamp-min-nonzero-f32",
@@ -458,7 +460,10 @@
    },
    "expected_requests": [
     "baseline:reduce-max-i32:1:2:module-load"
-   ]
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/reduce-max-i32.ptx"
+   }
   },
   {
    "id": "min-i32",
@@ -468,7 +473,10 @@
    },
    "expected_requests": [
     "baseline:reduce-min-i32:1:2:module-load"
-   ]
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/reduce-min-i32.ptx"
+   }
   },
   {
    "id": "cast-i32-f32",
