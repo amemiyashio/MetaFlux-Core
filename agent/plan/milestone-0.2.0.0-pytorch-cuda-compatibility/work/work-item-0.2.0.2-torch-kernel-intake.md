@@ -49,9 +49,9 @@ depth.
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |
-| Compiled cases | 27 |
-| Unique compiled PTX sources | 26 |
-| Cases outside compiled subset | 14 |
+| Compiled cases | 28 |
+| Unique compiled PTX sources | 27 |
+| Cases outside compiled subset | 13 |
 | Classified gaps | 2 |
 
 Every supported interpreter-mode case records its neutral request, daemon
@@ -62,8 +62,9 @@ The corpus remains `frontier-not-frozen`, with `exit_gate_complete: false`.
 
 The compiled subset includes arithmetic, fill, scalar/alpha operations,
 absolute value, square root, exponential, sigmoid, comparisons, int32-to-float32
-cast, ReLU, clamp, the pinned six-element int32 sum, and the four-element
-float32 sum/mean reductions. The two clamp inputs share one kernel. Profile-owned PTX
+cast, ReLU, clamp, the pinned six-element int32 sum, signed int32 clamp-min,
+and the four-element float32 sum/mean reductions. The two float32 clamp inputs
+share one kernel. Profile-owned PTX
 lives beside the PyTorch CPU profile and is generated into the C17 provider at
 configure time.
 
@@ -105,6 +106,14 @@ now bypasses the daemon-native reduction branch; its unrolled `u32` bit-sum is
 parsed, verified, and executed through the generic CPU interpreter, JIT, or AOT
 artifact. Other integer reductions remain outside this compiled claim, and this
 slice does not freeze a general reduction corpus or qualify Vulkan execution.
+
+The signed int32 clamp-min slice adds the pinned `torch.relu` row. The provider
+normalizes its destination, source, neutral scalar, element count, and signed
+floor into a versioned request, and operation 35 bypasses the daemon's native
+clamp branch. Its dedicated PTX uses a signed compare and select, is parsed and
+verified as canonical Kernel IR, and executes through the generic CPU
+interpreter, JIT, or AOT artifact. This remains a six-element pinned shape
+claim and does not generalize clamp coverage or qualify Vulkan execution.
 
 Compiled entry helper ABI v3 passes a runtime-bound math function pointer.
 The actual implementation identity participates in both the cache fingerprint
@@ -164,7 +173,7 @@ and decision-0053 remains the closed library boundary.
 ## Remaining Work
 
 Rows outside the manifest's compiled subset cover other integer reductions, strided copy,
-concat, arange, int32 minimum clamping, library-backed
+concat, arange, library-backed
 matrix/linear and softmax. They cross the
 neutral daemon boundary but use operation-specific daemon CPU branches.
 Promote their actual semantics into canonical Kernel IR and the compiled

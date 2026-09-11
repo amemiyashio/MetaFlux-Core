@@ -3102,7 +3102,8 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
   if (operation != 0U &&
       operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I32_V1 &&
       operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_F32_V1 &&
-      operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1) {
+      operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MEAN_F32_V1 &&
+      operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_CLAMP_MIN_I32_V1) {
     bool native = true;
     if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_CAST_COPY_I64_V1) {
       if (arguments.size() < 3U || arguments[0].index() != 2U || arguments[1].index() != 2U) {

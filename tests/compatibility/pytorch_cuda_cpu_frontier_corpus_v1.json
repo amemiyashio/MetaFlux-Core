@@ -44,7 +44,8 @@
    "clamp-min-nonzero-f32",
    "clamp-min-negative-f32",
    "sigmoid-f32",
-   "exp-f32"
+   "exp-f32",
+   "clamp-min-i32"
   ]
  },
  "cases": [
@@ -809,7 +810,10 @@
    },
    "expected_requests": [
     "baseline:clamp-min-i32:1:2:module-load"
-   ]
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/clamp-min-i32.ptx"
+   }
   }
  ],
  "gaps": [
