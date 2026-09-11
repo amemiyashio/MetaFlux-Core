@@ -95,7 +95,7 @@ not arbitrary shell execution.
 Read [the executable interface](references/controller.md) before mutating
 controller state. `$main status` maps to `inspect`; `$main resume` revalidates
 Git and evidence before selecting another operation. The script exposes
-`inspect`, `begin`, `load-rules`, `step`, and `resume`.
+`inspect`, `begin`, `load-rules`, `step`, `resume`, `rescope`, and `supersede`.
 
 The controller reports stage, evidence, next operation, and delivery target.
 Preparation, implementation, review, evaluation, delivery, publication, and
@@ -148,6 +148,22 @@ state is lost, review and evaluate again; do not guess an accepted transition.
 If a validated acceptance commit exists, recover it from Git before attempting
 another acceptance. Preserve external edits detected during recovery.
 
+Treat user intent, application assignment, and Agent-declared file paths as
+distinct inputs. Before begin, trace tests, manifests, generated consumers and
+their canonical summaries to include necessary companion files. If that impact
+analysis missed a same-task file, use `rescope` with the current inspection
+token and explain the dependency. Existing authorization covers necessary work
+within that intent; do not request a new assignment just to correct your path
+declaration. Reload rules, prepare, review and verify the revised candidate.
+Goal ownership, objective, assignment, baseline and publication limits stay fixed.
+
+An explicit confirmed governance request may use `supersede` to replace an
+unfinished pre-commit operation with an Epoch operation. Preserve unrelated
+candidate edits in Git before constructing the governance tree, and restore
+their exact contents after publication. Never delete state to simulate cache
+loss or edit a receipt to unlock work. The [controller interface](references/controller.md#scope-amendment-and-governance-replacement)
+owns recovery inputs and failure boundaries.
+
 ## Task-Stop Diagnostics
 
 The shared `tools/agent_diagnostics.py` contract is the sole diagnostic shape:
@@ -160,4 +176,11 @@ Responsibility is `current-agent`, `user-or-application`, `batch-integrator`,
 Preserve child diagnostics and raw product output. A current-agent repair
 retries only after evidence or prerequisites change. External responsibility
 does not authorize scheduling, privilege, cleanup, or an unchanged retry.
+An Agent's omitted path is a current-agent repair, not evidence that the user
+withheld permission. A delivery gate failure blocks that delivery; continue
+independent in-scope diagnosis and tests when they still produce useful evidence.
+Report the exact failed phase and remaining useful work instead of treating
+repeated messages as proof that the entire task is blocked. Bind each success
+claim to the behavior and inputs its test actually exercised; old regression,
+harness self-tests and builds do not qualify a newly added product path.
 Diagnostics are output and current-operation recovery data, never a ledger.

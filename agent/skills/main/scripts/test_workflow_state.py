@@ -228,6 +228,217 @@ class WorkflowScenarios(unittest.TestCase):
         with self.assertRaises(ws.WorkflowError):
             controller.step(self.root, "publish", {})
 
+    def revise(self, *, paths=None, request=None, token=None):
+        token = token or controller.inspect(self.root)["evidence"]["recovery_token"]
+        with ws.lock(self.root):
+            return controller.replace_precommit(self.root, token, "Necessary companion or confirmed governance",
+                                                paths=paths, request=request)
+
+    def test_omitted_summary_recovers_through_real_gate_and_candidate_commit(self):
+        companion = "agent/plan/milestone-0.2.0.0-fixture/work/work-item-0.2.0.1-fixture.md"
+        doc = self.root / companion
+        doc.write_text(doc.read_text() + "\nCoverage: baseline\n")
+        ws.git(self.root, "add", companion)
+        ws.git(self.root, "commit", "-qm", "fixture summary authority")
+        task = request(self.root, "iteration")
+        task["allowed_paths"] = ["product.txt"]
+        task["checks"] = [{"id": "coverage", "argv": [sys.executable, "-B", "-c",
+            "from pathlib import Path; assert 'Coverage: ' + Path('product.txt').read_text().strip() in Path(" + repr(companion) + ").read_text()"]}]
+        goal = (self.root / "agent/goal.json").read_bytes()
+        controller.begin(self.root, task)
+        prepare(self.root)
+        (self.root / "product.txt").write_text("expanded\n")
+        controller.step(self.root, "review", {"summary": "Review product and coverage consistency"})
+        with self.assertRaisesRegex(ws.WorkflowError, "Required verification failed"):
+            controller.step(self.root, "evaluate", {})
+        self.assertEqual(self.revise(paths=["product.txt", companion])["stage"], "preparation")
+        current = ws.read_json(ws.local_path(self.root, "state.json"))
+        self.assertEqual(current["request"], {**task, "allowed_paths": ["product.txt", companion]})
+        self.assertNotIn("review", current)
+        self.assertNotIn("receipt", current)
+        with self.assertRaises(ws.WorkflowError):
+            controller.step(self.root, "prepared", {})
+        prepare(self.root)
+        doc.write_text(doc.read_text().replace("Coverage: baseline", "Coverage: expanded"))
+        revision = commit_operation(self.root, "iteration")
+        self.assertEqual(controller.inspect(self.root)["stage"], "handoff")
+        self.assertEqual((self.root / "agent/goal.json").read_bytes(), goal)
+        self.assertEqual(ws.read_json(ws.local_path(self.root, "state.json"))["request"]["assignment"], task["assignment"])
+        self.assertIn(companion, ws.git(self.root, "diff-tree", "--no-commit-id", "--name-only", "-r", revision).decode())
+
+    def test_scope_amendment_preserves_existing_outside_edits_and_modes(self):
+        task = request(self.root)
+        task["allowed_paths"] = ["product.txt"]
+        controller.begin(self.root, task)
+        prepare(self.root)
+        outside = self.root / "summary.txt"
+        outside.write_text("companion\n")
+        outside.chmod(0o755)
+        before = ws.snapshot(self.root)
+        index = ws.git(self.root, "ls-files", "--stage", "-z")
+        with self.assertRaisesRegex(ws.WorkflowError, "declared file scope"):
+            self.revise(paths=["product.txt", "different.txt"])
+        self.revise(paths=["product.txt", "summary.txt"])
+        self.assertEqual(before, ws.snapshot(self.root))
+        self.assertEqual(index, ws.git(self.root, "ls-files", "--stage", "-z"))
+        prepare(self.root)
+
+    def test_scope_amendment_discards_receipts_and_loads_new_domain_rules(self):
+        # A real new ownership boundary requires its skill, even without edits there yet.
+        src = SOURCE_ROOT / "agent/skills/runtime-contracts-registry/SKILL.md"
+        dst = self.root / src.relative_to(SOURCE_ROOT)
+        dst.parent.mkdir(parents=True)
+        shutil.copy2(src, dst)
+        ws.git(self.root, "add", str(dst.relative_to(self.root)))
+        ws.git(self.root, "commit", "-qm", "fixture domain rules")
+        task = request(self.root)
+        controller.begin(self.root, task)
+        prepare(self.root)
+        controller.step(self.root, "review", {"summary": "Original candidate"})
+        controller.step(self.root, "evaluate", {})
+        old = ws.read_json(ws.local_path(self.root, "state.json"))
+        self.revise(paths=[*task["allowed_paths"], "runtime/companion.txt"])
+        for name in ("rules.json", "hook-context.json"):
+            self.assertFalse(ws.local_path(self.root, name).exists())
+        with self.assertRaises(ws.WorkflowError):
+            ws.commit_guard(self.root, ws.oid(self.root), ws.oid(self.root, ":"), old["receipt"], kind="maintenance")
+        prepare(self.root)
+        self.assertIn("runtime-contracts-registry", ws.read_json(ws.local_path(self.root, "rules.json"))["skills"])
+        with self.assertRaises(ws.WorkflowError):
+            controller.step(self.root, "evaluate", {})
+
+    def test_recovery_token_rejects_stale_index_content_state_and_replay(self):
+        task = request(self.root)
+        controller.begin(self.root, task)
+        prepare(self.root)
+        paths = [*task["allowed_paths"], "summary.txt"]
+        token = controller.inspect(self.root)["evidence"]["recovery_token"]
+        (self.root / "product.txt").write_text("changed\n")
+        with self.assertRaisesRegex(ws.WorkflowError, "Recovery input changed"):
+            self.revise(paths=paths, token=token)
+        token = controller.inspect(self.root)["evidence"]["recovery_token"]
+        before = ws.snapshot(self.root)
+        ws.git(self.root, "add", "product.txt")
+        self.assertEqual(before, ws.snapshot(self.root))
+        with self.assertRaisesRegex(ws.WorkflowError, "Recovery input changed"):
+            self.revise(paths=paths, token=token)
+        token = controller.inspect(self.root)["evidence"]["recovery_token"]
+        self.revise(paths=paths, token=token)
+        saved = ws.local_path(self.root, "state.json").read_bytes()
+        with self.assertRaisesRegex(ws.WorkflowError, "Recovery input changed"):
+            self.revise(paths=[*paths, "second.txt"], token=token)
+        self.assertEqual(saved, ws.local_path(self.root, "state.json").read_bytes())
+
+    def test_scope_amendment_rejects_goal_escape_and_dropped_paths(self):
+        task = request(self.root, "iteration")
+        task["allowed_paths"] = ["product.txt"]
+        controller.begin(self.root, task)
+        (self.root / "external").symlink_to(self.root.parent, target_is_directory=True)
+        saved = ws.local_path(self.root, "state.json").read_bytes()
+        for paths in (["replacement.txt"], ["product.txt"], ["product.txt", "agent/goal.json"],
+                      ["product.txt", "agent/"], ["product.txt", "../escape"], ["product.txt", "external/escape"],
+                      ["product.txt", ".git/config"], ["product.txt", "agent/tmp/main/state.json"], ["product.txt", "./"]):
+            with self.subTest(paths=paths), self.assertRaises(ws.WorkflowError):
+                self.revise(paths=paths)
+            self.assertEqual(saved, ws.local_path(self.root, "state.json").read_bytes())
+
+    def test_recovery_rejects_tampered_request_and_changes_during_validation(self):
+        task = request(self.root)
+        controller.begin(self.root, task)
+        state_path = ws.local_path(self.root, "state.json")
+        original = ws.read_json(state_path)
+        altered = copy.deepcopy(original)
+        altered["request"]["objective"] = "Unrelated objective"
+        ws.atomic_json(state_path, altered)
+        with self.assertRaisesRegex(ws.WorkflowError, "Current request changed"):
+            self.revise(paths=[*task["allowed_paths"], "summary.txt"])
+        ws.atomic_json(state_path, original)
+        validate = controller.validate_request
+        def race(root, value):
+            validate(root, value)
+            (root / "product.txt").write_text("concurrent change\n")
+        with patch.object(controller, "validate_request", race), self.assertRaisesRegex(ws.WorkflowError, "during validation"):
+            self.revise(paths=[*task["allowed_paths"], "summary.txt"])
+        self.assertEqual(ws.read_json(state_path), original)
+        self.assertEqual((self.root / "product.txt").read_text(), "concurrent change\n")
+
+    def test_explicit_epoch_replacement_preserves_git_candidate_and_resets_evidence(self):
+        task = request(self.root, "iteration")
+        controller.begin(self.root, task)
+        prepare(self.root)
+        product = self.root / "product.txt"
+        product.write_text("staged portion\n")
+        ws.git(self.root, "add", "product.txt")
+        product.write_text("staged and unstaged portions\n")
+        product.chmod(0o755)
+        (self.root / "new-product.txt").write_text("untracked candidate\n")
+        before = ws.entries(self.root)
+        index = ws.git(self.root, "ls-files", "--stage", "-z")
+        governance = {**request(self.root, "epoch"), "allowed_paths": ["AGENTS.md", "agent/goal.json"],
+                      "confirmation": "User explicitly requested governance"}
+        with self.assertRaisesRegex(ws.WorkflowError, "declared file scope"):
+            self.revise(request=governance)
+        ws.git(self.root, "stash", "push", "--include-untracked", "--", "product.txt", "new-product.txt")
+        preserved = ws.oid(self.root, "refs/stash")
+        self.revise(request=governance)
+        self.assertEqual(controller.inspect(self.root)["stage"], "preparation")
+        current = ws.read_json(ws.local_path(self.root, "state.json"))
+        self.assertEqual(current["request"], governance)
+        self.assertNotIn("assignment", current["request"])
+        prepare(self.root)
+        ws.git(self.root, "stash", "apply", "--index", preserved)
+        self.assertEqual(before, ws.entries(self.root))
+        self.assertEqual(index, ws.git(self.root, "ls-files", "--stage", "-z"))
+
+    def test_replacement_rejects_unconfirmed_governance_and_pending_acceptance(self):
+        controller.begin(self.root, request(self.root))
+        prepare(self.root)
+        saved = ws.local_path(self.root, "state.json").read_bytes()
+        for value in (request(self.root), request(self.root, "epoch")):
+            with self.assertRaises(ws.WorkflowError):
+                self.revise(request=value)
+            self.assertEqual(saved, ws.local_path(self.root, "state.json").read_bytes())
+        goal = (self.root / "agent/goal.json").read_text()
+        ws.begin_transaction(self.root, {"agent/goal.json": goal + "\n"}, {"fixture": True})
+        with self.assertRaisesRegex(ws.WorkflowError, "Pending acceptance"):
+            self.revise(paths=[*request(self.root)["allowed_paths"], "summary.txt"])
+        self.assertEqual(saved, ws.local_path(self.root, "state.json").read_bytes())
+
+    def test_replacement_interruption_never_revives_old_rule_certificate(self):
+        task = request(self.root)
+        controller.begin(self.root, task)
+        prepare(self.root)
+        old = ws.read_json(ws.local_path(self.root, "rules.json"))
+        original_unlink = Path.unlink
+        def interrupted(path, *args, **kwargs):
+            if path == ws.local_path(self.root, "rules.json"):
+                raise OSError("fixture interruption after state replacement")
+            return original_unlink(path, *args, **kwargs)
+        with patch.object(Path, "unlink", interrupted), self.assertRaises(OSError):
+            self.revise(paths=[*task["allowed_paths"], "summary.txt"])
+        self.assertEqual(ws.read_json(ws.local_path(self.root, "rules.json")), old)
+        self.assertEqual(controller.inspect(self.root)["stage"], "preparation")
+        with self.assertRaises(ws.WorkflowError):
+            controller.step(self.root, "prepared", {})
+        prepare(self.root)
+
+    def test_replacement_rejects_committed_and_interrupted_commit_before_resume(self):
+        controller.begin(self.root, request(self.root))
+        prepare(self.root)
+        (self.root / "product.txt").write_text("delivered\n")
+        revision = commit_operation(self.root)
+        with self.assertRaisesRegex(ws.WorkflowError, "Committed operations"):
+            self.revise(request={**request(self.root, "epoch"), "confirmation": "Govern"})
+        path = ws.local_path(self.root, "state.json")
+        state = ws.read_json(path)
+        state.pop("commit")
+        state["stage"] = "delivery"
+        ws.atomic_json(path, state)
+        with self.assertRaisesRegex(ws.WorkflowError, "interrupted committed delivery"):
+            self.revise(request={**request(self.root, "epoch"), "confirmation": "Govern"})
+        self.assertEqual(controller.recover(self.root)["stage"], "publication")
+        self.assertEqual(ws.read_json(path)["commit"], revision)
+
     def test_stale_head_and_staging_reject_delivery(self):
         (self.root / "product.txt").write_text("reviewed\n")
         evidence = receipt(self.root, "maintenance", self.base)

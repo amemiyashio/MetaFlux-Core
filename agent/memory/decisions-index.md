@@ -69,6 +69,7 @@ an index row does not promote `Proposed` material to `Verified`.
 
 | decision-0056 | Specific skill references use explicit invocation names and linked instruction owners, distinct from execution concepts and Git branches | [Skill reference governance](../../docs/architecture/agent-execution.md#rule-loading-boundary) | Governance of communication; execution hierarchy and product maturity unchanged |
 | decision-0057 | Repository commands initialize tools and environment through clean Nix entry, excluding inherited preloads and ambient search paths | [Clean tool environment](../../toolchains/README.md#clean-tool-environment-decision-0057) | Tool initialization boundary; inherited-preload startup failure reproduced |
+| decision-0058 | Necessary same-task file scope amendments and explicitly confirmed pre-commit Epoch replacement preserve exact inputs and invalidate prior rules, review and verification | [Scope recovery](../../docs/architecture/agent-execution.md#scope-recovery-decision-0058) | Agent recovery governance; product targets and accepted results unchanged |
 
 New decisions receive the next `decision-NNNN` identifier and point to a plan or
 architecture record containing rationale, consequences, and verification state.

@@ -45,6 +45,12 @@ Classify observed code by behavior, not directory presence:
 Do not promote a state based on planned files, placeholder APIs, or tests that
 only prove process startup.
 
+Inspect the exact fixture/source list and selected execution path before using
+a passing test as evidence for a new feature. A manifest self-test proves its
+declarations; embedding source text in a successful build does not prove that
+the product parser or executor consumed it. Separate a failed delivery gate
+from independent checks that can still measure the in-scope implementation.
+
 ### Release and operations
 
 Inspect deployment artifacts, supported environments, upgrade/rollback,

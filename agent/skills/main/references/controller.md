@@ -5,7 +5,7 @@ Run each application command through the clean Git-aware Nix entry in
 `agent/skills/main/scripts/main.py --root .`; its operations are `inspect`,
 `begin REQUEST.json` or `begin --request-json JSON`, `load-rules [--skill NAME]`,
 `step EVENT [--payload PAYLOAD.json | --payload-json JSON]`, and
-`resume [--revision FULL_COMMIT]`. Inline JSON lets bootstrap proceed before
+`resume [--revision FULL_COMMIT]`, `rescope`, and `supersede`. Inline JSON lets bootstrap proceed before
 repository writes are permitted. If input files are used, they live under ignored
 `agent/tmp/main/`. Inspect reads without creating state. A read-only request
 never replaces an active operation. The Agent interprets natural language;
@@ -90,6 +90,46 @@ The parent provides its user-facing explanation and invokes the next
 skill. Handoff is not permission to create a task or source context: emit the
 exact Epoch/Batch/Iteration/lane, full base, objective, Exit Gate, and required
 checks, then reuse a matching context if the application supplied one.
+
+## Scope Amendment And Governance Replacement
+
+`inspect` emits `evidence.recovery_token`, binding the whole current operation,
+HEAD, worktree file blobs/modes, toolchain inputs, and staged entries. Inspect
+does not write a Git tree or change the operation. Under the common Git lock:
+
+```sh
+python3 -B agent/skills/main/scripts/main.py rescope --expected-state TOKEN --paths-json '["existing/path", "necessary/companion.md"]' --reason 'Explain its dependency on the existing task'
+python3 -B agent/skills/main/scripts/main.py supersede --expected-state TOKEN --request-json EPOCH_REQUEST_JSON --reason 'Quote the explicit governance request and explain preservation of unfinished work'
+```
+
+Run these through the clean Nix entry. `rescope` adds paths while retaining
+every declared path and all other request fields: objective, kind, assignment,
+base, checks, extra skills, confirmation and publication. The parent determines
+whether the added files implement existing user intent. An omission in that
+declaration alone needs no new application context. Reject path traversal,
+Git/temporary-state targets, escaped symlinks, and transferred Goal ownership.
+Already present out-of-scope edits remain visible: the revised scope must cover
+all candidate changes, and preparation/review still assess them.
+
+`supersede` accepts only a confirmed Epoch request at the current base. It does
+not infer confirmation from its reason or token. Preserve unrelated product
+edits with Git before replacement, keep them outside the governance request and
+tested tree, and retain their exact stash object until restoration is verified
+by file mode/blob and staged/unstaged disposition. The controller changes no
+product files, index, branches, execution context or acceptance state. After the
+cutover, preserved older-Epoch work needs a current assignment and fresh review
+and execution evidence before acceptance.
+
+Both commands require an intact original request, an unchanged exact inspection
+token, no committed delivery, and no pending acceptance transaction. Recover a
+pending transaction first; recover a committed delivery through `resume`.
+They validate the new request and recheck the token before atomically replacing
+current state. Success returns to preparation with a new request identity and
+current snapshot, removes rule/context bindings, and discards review/receipt
+references. Reload all newly required skill bodies, prepare, review and execute
+the checks again. Interruption after state replacement still leaves old evidence
+bound to another request. Replaying a stale token fails without replacing state.
+There is no history array or retained authority for the superseded operation.
 
 ## Verification And Acceptance
 

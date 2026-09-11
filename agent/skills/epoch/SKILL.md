@@ -35,6 +35,14 @@ The governing parent is the sole current-authority and Goal writer for the
 cutover. Read-only subagents may independently inventory semantics and review
 regression. No worker dispatch or execution-context creation is implied.
 
+When a pre-commit operation is already active, use the `supersede` command in
+[$main](../main/SKILL.md) skill for this explicitly confirmed governance request.
+First preserve unrelated product changes in Git and exclude them from the
+governance tree. Check exact recovery inputs, reload rules and prepare again;
+do not mark the old operation complete or delete its state to unlock governance.
+Restore preserved candidate contents after publication without claiming their
+acceptance or reusing older-Epoch verification.
+
 1. Promote useful knowledge to one canonical owner using [$main](../main/SKILL.md) skill's reference;
    discard duplicate process material. Record the governing decision.
 2. Rewrite every affected current authority, skill, checker, caller, test,

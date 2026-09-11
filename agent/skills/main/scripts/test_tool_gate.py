@@ -244,6 +244,31 @@ class ToolGateScenarios(unittest.TestCase):
         self.assertIn("additionalContext", self.denied(patch_event))
         self.assertEqual(self.invoke(patch_event), {})
 
+    def test_recovery_parser_exception_does_not_enable_writes_or_compounds(self) -> None:
+        state = self.activate()
+        (self.root / "outside.txt").write_text("necessary companion discovered\n")
+        token = gate.controller.inspect(self.root)["evidence"]["recovery_token"]
+        args = ["rescope", "--expected-state", token, "--reason", "Same-task companion",
+                "--paths-json", json.dumps([*state["request"]["allowed_paths"], "outside.txt"])]
+        self.assertEqual(self.invoke(self.controller(*args)), {})
+        self.assertEqual(self.invoke(self.controller("supersede", "--expected-state", token,
+            "--reason", "Explicit governance", "--request-json", "{}")), {})
+        self.denied(self.event())
+        compound = "python3 -B " + gate.MAIN_SCRIPT + " " + shlex.join(args) + "; touch product.txt"
+        self.denied(self.shell(["bash", "-c", compound]))
+        with ws.lock(self.root):
+            gate.controller.replace_precommit(self.root, token, "Same-task companion",
+                paths=[*state["request"]["allowed_paths"], "outside.txt"])
+        self.denied(self.event())
+        self.denied(self.controller("step", "evaluate"))
+        self.denied(self.controller("step", "deliver", "--payload-json", "{}"))
+        with contextlib.redirect_stdout(io.StringIO()):
+            gate.controller.load_rules(self.root)
+        self.assertIn("additionalContext", self.denied(self.controller("step", "prepared")))
+        self.assertEqual(self.invoke(self.controller("step", "prepared")), {})
+        gate.controller.step(self.root, "prepared", {})
+        self.assertEqual(self.invoke(self.event()), {})
+
     def test_exact_check_plan_and_delivery_commands_remain_available(self) -> None:
         self.activate()
         self.prime()

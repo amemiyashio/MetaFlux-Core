@@ -180,6 +180,29 @@ only publication/handoff. Temporary flags never create authorization.
 context. Otherwise it emits the precise tuple, lane, full base, objective, and
 checks required for allocation; scripts do not allocate that context.
 
+## Scope Recovery (decision-0058)
+
+User intent, application execution assignment, and Agent-declared file scope
+are distinct. Necessary companion-file discovery inside an existing task is
+handled by scope amendment, preserving objective, exact base, assignment,
+checks and publication policy. An explicit confirmed Epoch request may replace
+an uncommitted operation; unrelated product edits are preserved in Git and kept
+outside the governance candidate and verification tree.
+
+Rationale: freezing the declared paths without a revision transition turns an
+ordinary impact-analysis omission into a stalled workflow. Scope consistency
+checks remain required, and temporary declarations never create a permission
+requirement of their own. Recovery invalidates evidence instead of weakening
+delivery checks. The [controller interface](../../agent/skills/main/references/controller.md#scope-amendment-and-governance-replacement)
+owns the exact commands and invariant checks; tool hooks admit only those
+parsers before the previous scope guard.
+
+Verification covers omitted-summary repair through a fresh guarded delivery,
+new domain rule loading, preserved blobs/modes/index, stale and replayed tokens,
+HEAD/index/content races, interrupted replacement, pending acceptance,
+post-commit recovery and exact hook exceptions. Governance changes no product
+qualification or accepted route state beyond its Epoch coordinate.
+
 ## Task-Stop Contract
 
 [$main](../../agent/skills/main/SKILL.md#task-stop-diagnostics) skill owns the diagnostic

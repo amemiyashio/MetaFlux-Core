@@ -40,6 +40,38 @@
   },
   "cases": [
     {
+      "id": "MAIN-RESCOPE-EN",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $main to add the omitted companion summary to this same task's declared file scope, preserve the assignment and revalidate the candidate.",
+      "expected_skills": ["main"],
+      "forbidden_skills": ["epoch", "batch"]
+    },
+    {
+      "id": "MAIN-RESCOPE-ZH",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "用 $main 修订本次漏报的配套文档范围，目标和执行基准保持原样，重新加载规则并验证。",
+      "expected_skills": ["main"],
+      "forbidden_skills": ["epoch", "batch"]
+    },
+    {
+      "id": "EPOCH-SUPERSEDE-EN",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Use $main and $epoch to implement the confirmed recovery governance, preserving the unfinished product candidate and replacing its uncommitted operation.",
+      "expected_skills": ["main", "epoch"],
+      "forbidden_skills": ["iteration", "batch"]
+    },
+    {
+      "id": "EPOCH-SUPERSEDE-ZH",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "用 $main 和 $epoch 执行已确认的恢复流程治理，保留未完成的产品修改，替换当前尚未提交的操作。",
+      "expected_skills": ["main", "epoch"],
+      "forbidden_skills": ["iteration", "batch"]
+    },
+    {
       "id": "RUNTIME-P1",
       "kind": "single",
       "locale": "en",

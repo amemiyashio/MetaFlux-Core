@@ -48,8 +48,27 @@ def inspect(root: Path) -> dict[str, Any]:
                       "lane": lane["id"], "work_item": lane["work_item"], "base_revision": ws.oid(root),
                       "objective": lane["outcome"], "acceptance": lane["acceptance"]}
     return {"stage": stage, "evidence": {"head": ws.oid(root), "epoch": goal.get("epoch"),
-                                           "commit": state.get("commit") if state else None},
+                                           "commit": state.get("commit") if state else None,
+                                           "recovery_token": recovery_token(root, state) if state else None},
             "next_operation": next_operation, "delivery_target": target}
+
+
+def recovery_token(root: Path, state: dict[str, Any]) -> str:
+    # Reading the staged entries avoids write-tree side effects in inspect.
+    return ws.digest({"state": state, "input": ws.snapshot(root),
+                      "index": ws.git(root, "ls-files", "--stage", "-z").hex()})
+
+
+def validate_paths(root: Path, paths: Any) -> None:
+    ws.require(isinstance(paths, list) and bool(paths) and
+               all(isinstance(p, str) and p for p in paths), "Explicit repository-relative scope paths are required")
+    ws.require(len(set(paths)) == len(paths), "Scope paths must be unique")
+    for name in paths:
+        parts = name.removesuffix("/").split("/")
+        ws.require(all(p not in {"", ".", "..", ".git"} for p in parts) and
+                   not name.startswith("/") and name != "agent/tmp" and not name.startswith("agent/tmp/"),
+                   "Scope must name repository paths outside Git and temporary state: " + name)
+        ws.require((root / name).resolve().is_relative_to(root.resolve()), "Scope path escapes repository: " + name)
 
 
 def changed_paths(root: Path, base: str) -> set[str]:
@@ -62,20 +81,18 @@ def scope(root: Path, request: dict[str, Any]) -> None:
     changed = changed_paths(root, request["base_revision"])
     allowed = request["allowed_paths"]
     outside = [p for p in changed if not any(p == a or (a.endswith("/") and p.startswith(a)) for a in allowed)]
-    ws.require(not outside, "Changes outside the approved scope: " + ", ".join(sorted(outside)))
+    ws.require(not outside, "Changes outside the declared file scope: " + ", ".join(sorted(outside)) +
+               "; inspect and use $main skill rescope for necessary same-task paths, then reload rules and prepare")
     if request["kind"] in {"maintenance", "iteration"}:
         ws.require("agent/goal.json" not in changed, "Only batch or epoch may change Goal")
 
 
-def begin(root: Path, request: dict[str, Any]) -> dict[str, Any]:
-    if request.get("kind") == "read-only":
-        return inspect(root)
+def validate_request(root: Path, request: dict[str, Any]) -> None:
+    ws.require(isinstance(request, dict), "Request must be an object")
     ws.require(request.get("schema_version") == 1, "Request schema must be 1")
     ws.require(request.get("kind") in {"maintenance", "iteration", "batch", "epoch"}, "Unknown workflow kind")
     ws.require(isinstance(request.get("objective"), str) and bool(request["objective"].strip()), "A bounded objective is required")
-    ws.require(isinstance(request.get("allowed_paths"), list) and bool(request["allowed_paths"]) and
-               all(isinstance(p, str) and p and not p.startswith(("/", "agent/tmp")) and ".." not in p.split("/")
-                   for p in request["allowed_paths"]), "Explicit repository-relative scope paths are required")
+    validate_paths(root, request.get("allowed_paths"))
     ws.validate_plan(request.get("checks"))
     ws.require(isinstance(request.get("skills", []), list), "Additional skills must be a list")
     rules.required(root, request["kind"], request["allowed_paths"], request.get("skills", []))
@@ -94,13 +111,69 @@ def begin(root: Path, request: dict[str, Any]) -> dict[str, Any]:
         ws.require(assignment == {"epoch": goal["epoch"], "batch": goal["batch"]["id"],
                                  "lane": lane["id"], "iteration": lane["iteration"]}, "Assignment is stale")
         ws.require(lane["status"] == "planned" and lane["work_item"] == goal["target"]["work_item"], "Assignment is not the current target")
+    scope(root, request)
+
+
+def begin(root: Path, request: dict[str, Any]) -> dict[str, Any]:
+    if request.get("kind") == "read-only":
+        return inspect(root)
+    validate_request(root, request)
     path = ws.local_path(root, "state.json")
     if path.exists():
-        ws.require(ws.read_json(path)["stage"] == "complete", "An active operation exists; use inspect or resume")
-    scope(root, request)
+        ws.require(ws.read_json(path)["stage"] == "complete",
+                   "An active operation exists; inspect, rescope same-task paths, resume delivery, or supersede for explicit Epoch governance")
     state = {"schema_version": 1, "request": request, "run": ws.digest(request),
              "stage": "preparation", "input": ws.snapshot(root)}
     ws.atomic_json(path, state)
+    return inspect(root)
+
+
+def replace_precommit(root: Path, expected_state: str, reason: str, *,
+                      paths: list[str] | None = None, request: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Amend declared paths or honor explicit Epoch governance, without accepting work.
+
+    The CLI holds the common lock. The token also rejects stale sequential
+    requests and index-only changes. It is evidence, never user authorization.
+    """
+    path = ws.local_path(root, "state.json")
+    ws.require(path.is_file(), "No operation to revise; read the request and begin")
+    state = ws.read_json(path)
+    ws.require(expected_state == recovery_token(root, state), "Recovery input changed; inspect the current operation before retrying")
+    ws.require(not state.get("commit") and state.get("stage") in
+               {"preparation", "implementation", "review", "evaluation", "delivery"},
+               "Committed operations resume their exact delivery/publication; do not replace them")
+    old = state["request"]
+    ws.require(ws.digest(old) == state["run"], "Current request changed; re-read the user scope")
+    ws.require(ws.oid(root) == old["base_revision"],
+               "Execution baseline changed; use $main skill resume to check for an interrupted committed delivery before requesting a new context")
+    ws.require(not ws.local_path(root, "acceptance.json").exists(),
+               "Pending acceptance must be recovered before revising an operation")
+    ws.require(isinstance(reason, str) and bool(reason.strip()), "Explain the same-task dependency or explicit governance request")
+    ws.require((paths is None) != (request is None), "Choose scope amendment or explicit Epoch replacement")
+    if paths is not None:
+        validate_paths(root, paths)
+        ws.require(set(old["allowed_paths"]) < set(paths), "Scope amendment adds necessary paths and retains every existing path")
+        if old["kind"] in {"maintenance", "iteration"}:
+            additions = set(paths) - set(old["allowed_paths"])
+            ws.require(not any(p == "agent/goal.json" or (p.endswith("/") and "agent/goal.json".startswith(p)) for p in additions),
+                       "Scope amendment does not transfer Goal ownership")
+        request = {**old, "allowed_paths": paths}
+    else:
+        ws.require(isinstance(request, dict) and request.get("kind") == "epoch",
+                   "Supersede requires an explicitly confirmed Epoch governance request")
+    assert request is not None
+    validate_request(root, request)
+    ws.require(ws.digest(request) != state["run"], "Unchanged request uses resume; no replacement is needed")
+    updated = {"schema_version": 1, "request": request, "run": ws.digest(request),
+               "stage": "preparation", "input": ws.snapshot(root),
+               "revision_reason": reason}
+    ws.require(expected_state == recovery_token(root, ws.read_json(path)),
+               "Recovery input changed during validation; inspect before retrying")
+    # Publish the new request first. An interruption leaves old certificates
+    # bound to a different run, so no old review/receipt can enable a commit.
+    ws.atomic_json(path, updated)
+    for name in ("rules.json", "hook-context.json"):
+        ws.local_path(root, name).unlink(missing_ok=True)
     return inspect(root)
 
 
@@ -337,6 +410,11 @@ def main() -> int:
     payload.add_argument("--payload-json")
     resume = sub.add_parser("resume")
     resume.add_argument("--revision")
+    for action in ("rescope", "supersede"):
+        revision = sub.add_parser(action)
+        revision.add_argument("--expected-state", required=True)
+        revision.add_argument("--reason", required=True)
+        revision.add_argument("--paths-json" if action == "rescope" else "--request-json", required=True)
     args = parser.parse_args()
     root = args.root.resolve()
     try:
@@ -351,13 +429,16 @@ def main() -> int:
                     result = load_rules(root, args.skill)
                 elif args.action == "resume":
                     result = recover(root, args.revision)
+                elif args.action in {"rescope", "supersede"}:
+                    values = {"paths": json.loads(args.paths_json)} if args.action == "rescope" else {"request": json.loads(args.request_json)}
+                    result = replace_precommit(root, args.expected_state, args.reason, **values)
                 else:
                     result = step(root, args.event, ws.read_json(args.payload) if args.payload else json.loads(args.payload_json) if args.payload_json else {})
     except (ws.WorkflowError, OSError, ValueError, KeyError, TypeError) as error:
         emit_diagnostics((task_stop_error(code="workflow.transition-invalid", source="main",
             summary="The next workflow transition needs corrected evidence.", evidence=(str(error),),
             responsibility="current-agent", disposition="preserve-and-report",
-            required_action="Inspect current Git state and use $main skill with resume within the original task scope.",
+            required_action="Inspect with $main skill and correct the reported prerequisite: rescope necessary same-task paths, supersede only for explicit Epoch governance, or resume exact delivery/publication. Do not repeat unchanged evidence.",
             resume_when="The exact context and required review, verification, or publication evidence match.").diagnostic,))
         return 1
     print(json.dumps(result, sort_keys=True))

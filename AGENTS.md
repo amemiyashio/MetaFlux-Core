@@ -159,6 +159,12 @@ the repository gates.
     Lost pre-commit state requires new review and evaluation. Existing matching
     contexts continue automatically; otherwise emit an exact application
     assignment request without manufacturing a context.
+    Distinguish Agent-declared paths from user intent and application assignment:
+    a necessary omitted companion file uses the controller's `rescope`, with
+    renewed rules, preparation, review and verification. An explicitly confirmed
+    Epoch request may `supersede` an uncommitted operation after preserving
+    unrelated edits. Neither operation grants authority, accepts product work,
+    replaces a committed delivery, or permits editing temporary receipts.
 
 Product boundaries live in `contracts/README.md` and
 `docs/architecture/repo-layout.md`; the language wall and dependency whitelist

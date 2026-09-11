@@ -224,7 +224,7 @@ def argv_operation(root: Path, cwd: Path, argv: list[str], *, nix: bool) -> Oper
             else:
                 ws.require(cwd == root, "$main skill controller commands from a subdirectory need --root")
             action = args[0] if args else ""
-            if action in {"inspect", "begin", "load-rules", "resume"}:
+            if action in {"inspect", "begin", "load-rules", "resume", "rescope", "supersede"}:
                 return Operation("controller", argv=argv, action=action, nix=nix)
             if action == "step" and len(args) > 1 and args[1] in EVENT_STAGES:
                 return Operation("controller", argv=argv, action=args[1], nix=nix)
@@ -238,7 +238,7 @@ def argv_operation(root: Path, cwd: Path, argv: list[str], *, nix: bool) -> Oper
         args = argv[2:]
         while args and args[0] in {"-A", "--all", "--"}:
             args = args[1:]
-        ws.require(bool(args) and all(not a.startswith("-") for a in args), "Stage concrete approved paths")
+        ws.require(bool(args) and all(not a.startswith("-") for a in args), "Stage concrete declared paths")
         return Operation("stage", argv=argv, paths=args, nix=nix)
     if argv[:2] in (["git", "commit"], ["git", "push"]):
         return Operation("ungoverned-git", argv=argv, nix=nix)
@@ -284,7 +284,8 @@ def check_paths(root: Path, cwd: Path, paths: list[str], request: dict[str, Any]
         ws.require(name != "agent/tmp" and not name.startswith("agent/tmp/"), "Controller temporary state is written only by its commands")
         ws.require(any(name == p or (p.endswith("/") and
                        (name.startswith(p) or (staging and name == p[:-1]))) for p in allowed),
-                   "Write target is outside the approved scope: " + name)
+                   "Write target is outside the declared file scope: " + name +
+                   "; inspect and use $main skill rescope for a necessary same-task companion, then reload rules and prepare")
         if request["kind"] in {"maintenance", "iteration"}:
             ws.require(name != "agent/goal.json", "Goal mutations belong to $batch skill or $epoch skill")
 
@@ -376,7 +377,7 @@ def pre_tool(root: Path, event: dict[str, Any]) -> dict[str, Any]:
         return {}
     if op.kind in {"bootstrap", "controller", "shell", "stage", "commit", "publish", "ungoverned-git"}:
         ws.require(op.nix, "Run repository executables through nix develop at the Git root")
-    if op.kind == "bootstrap" or (op.kind == "controller" and op.action in {"inspect", "begin", "load-rules", "resume"}):
+    if op.kind == "bootstrap" or (op.kind == "controller" and op.action in {"inspect", "begin", "load-rules", "resume", "rescope", "supersede"}):
         # These exact parsers own bootstrap/recovery validation; no general
         # shell compound receives this exception.
         return {}

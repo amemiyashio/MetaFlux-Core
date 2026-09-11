@@ -14,6 +14,10 @@ Do not create an execution context or select a sibling lane.
    Use [$main](../main/SKILL.md) skill's readiness reference to separate implementation prerequisites
    from later qualification requirements. Choose one independently verifiable
    slice within the assigned lane; its objective and checks precede edits.
+   Trace affected manifests, summaries and test consumers into the declared
+   scope. Use the controller's `rescope` through [$main](../main/SKILL.md) skill
+   for necessary omitted companion files, with fresh rules, preparation,
+   review and verification; this alone does not change the assignment.
 2. For declared reference prerequisites, run `references/tools/reference.py`
    materialize and verify through Nix. Treat that exact detached source as
    research only. No undeclared reference operation is implied.
@@ -34,7 +38,8 @@ Do not create an execution context or select a sibling lane.
 6. The controlling parent invokes [$batch](../batch/SKILL.md) skill immediately. The worker does not push
    its candidate or manufacture the next assignment.
 
-Use [$main](../main/SKILL.md) skill's diagnostic contract. Preserve supplied dirty or mismatched contexts
-and report the exact required application action rather than making a copy.
+Use [$main](../main/SKILL.md) skill's diagnostic contract. Preserve supplied edits
+and distinguish an omitted file declaration from a changed execution baseline
+or assignment. Only the latter needs an exact updated application context.
 Linked-worktree and fixture Git commands clear Git local environment variables;
 an unexpected HEAD/index change is traced to its invoking hook/test and reflog.
