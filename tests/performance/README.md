@@ -99,7 +99,7 @@ directory. `TOOLCHAIN_PREFIX` and `NVIDIA_HEADER_DIR` are absolute paths to the
 materialized tool and header inputs:
 
 ```sh
-nix develop . --command python3 -B tests/performance/run_milestone_0_1_0_0_optimization.py \
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 -B tests/performance/run_milestone_0_1_0_0_optimization.py \
   --repository . \
   --output-dir tmp/outputs/milestone-0.1.0.0-optimization \
   --toolchain-prefix TOOLCHAIN_PREFIX \
@@ -132,7 +132,7 @@ promotes a budget even when an observation is below a provisional limit. The
 CTest case uses this mode with a short workload:
 
 ```sh
-nix develop . --command ctest \
+nix develop . --ignore-environment --keep HOME --keep USER --command ctest \
   --test-dir tmp/build/milestone-0.1.0.0-integration \
   -R 'metaflux.performance.milestone-0.1.0.0-(ring|managed)-smoke' \
   --output-on-failure
@@ -152,7 +152,7 @@ than claiming success.
 For a controlled AMD reference run after the plan promotes its budgets:
 
 ```sh
-nix develop . --command python3 -B tests/performance/run_milestone_0_1_0_0_performance.py \
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 -B tests/performance/run_milestone_0_1_0_0_performance.py \
   --mode binding-reference \
   --budget-status binding \
   --reference-host-role amd \

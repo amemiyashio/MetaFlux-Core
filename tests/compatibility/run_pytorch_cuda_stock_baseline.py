@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Run the pinned stock PyTorch CUDA baseline through the MetaFlux daemon.
 
-Invoke this script from ``nix develop .#pytorch-baseline``. It is intentionally
+Invoke this script from the clean ``nix develop .#pytorch-baseline
+--ignore-environment --keep HOME --keep USER`` shell. It is intentionally
 outside the default development shell so ordinary CTest runs neither download
 nor activate the stock PyTorch wheel.
 """

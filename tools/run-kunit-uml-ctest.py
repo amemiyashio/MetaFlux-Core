@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """CTest entry for the UML KUnit gate via the named linux-debug shell.
 
-Re-enters ``nix develop .#linux-debug`` so CTest exercises the real
+Re-enters the clean ``nix develop .#linux-debug --ignore-environment
+--keep HOME --keep USER`` shell so CTest exercises the real
 in-kernel KUnit qualification on the pinned linux_6_12 source without
 requiring the ambient environment to already carry METAFLUX_LINUX_SRC.
 Exit codes: 0 pass, 77 skip (nix unavailable), else the child's failure.

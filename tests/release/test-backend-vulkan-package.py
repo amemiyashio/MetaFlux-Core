@@ -83,7 +83,8 @@ def main() -> int:
         if nix is None:
             return skip("rpmbuild and nix are unavailable; cannot build rpm")
         result = subprocess.run(
-            [nix, "develop", ".#release", "--command", "python3", "-B",
+            [nix, "develop", ".#release", "--ignore-environment",
+             "--keep", "HOME", "--keep", "USER", "--command", "python3", "-B",
              str(Path(__file__).resolve()), *sys.argv[1:]],
             cwd=str(REPOSITORY),
         )

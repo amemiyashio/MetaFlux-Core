@@ -46,7 +46,7 @@ resolution. Only a confirmed Nix provision/materialization gap permits the
 package helper. The agent maps the required executable to one exact repository
 package name, installs it without an operator interruption, and invokes the
 intended absolute host executable from inside
-`nix develop . --command ...`.
+`nix develop . --ignore-environment --keep HOME --keep USER --command ...`.
 
 The installed host copy is an explicit local prerequisite. It does not become a
 Nix declaration, a reproducibly fixed tool identity, a generic ambient fallback,

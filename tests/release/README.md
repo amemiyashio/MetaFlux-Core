@@ -36,7 +36,7 @@ hashes, harness/Python fingerprints, commands, stdout, and stderr are written to
 Example:
 
 ```sh
-nix develop .#release --command python3 tests/release/run_provider_package_matrix.py \
+nix develop .#release --ignore-environment --keep HOME --keep USER --command python3 tests/release/run_provider_package_matrix.py \
   --deb /path/to/metaflux-provider_0.1.0_amd64.deb \
   --rpm /path/to/metaflux-provider-0.1.0-1.x86_64.rpm \
   --tar /path/to/metaflux-provider-0.1.0-x86_64.tar.gz \
@@ -94,7 +94,7 @@ match the digest returned by the local image inspection before any container is
 started.
 
 ```sh
-nix develop .#release --command python3 tests/release/run_release_package_matrix.py \
+nix develop .#release --ignore-environment --keep HOME --keep USER --command python3 tests/release/run_release_package_matrix.py \
   --deb /path/to/metaflux_0.1.0_amd64.deb \
   --rpm /path/to/metaflux-0.1.0-1.x86_64.rpm \
   --tar /path/to/metaflux-0.1.0-x86_64.tar.gz \
@@ -128,7 +128,7 @@ Build the packages first from a generic release tree
 `METAFLUX_VULKAN_BACKEND_SHARED=ON`), then:
 
 ```sh
-nix develop .#release --command python3 tests/release/run_backend_vulkan_package_rows.py \
+nix develop .#release --ignore-environment --keep HOME --keep USER --command python3 tests/release/run_backend_vulkan_package_rows.py \
   --deb /path/to/metaflux-backend-vulkan_<ver>_amd64.deb \
   --rpm /path/to/metaflux-backend-vulkan-<ver>-1.x86_64.rpm \
   --tar /path/to/metaflux-backend-vulkan-<ver>-x86_64.tar.gz \

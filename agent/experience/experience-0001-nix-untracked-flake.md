@@ -21,7 +21,7 @@ commit. That workaround also caused Nix to act as a source snapshot and product
 build orchestrator, so it is no longer a repository practice. Git owns source
 identity and history; Nix only materializes pinned tools. Current commands use
 the committed flake and invoke the owning build or test command directly, for
-example `nix develop . --command ctest --preset dev`.
+example `nix develop . --ignore-environment --keep HOME --keep USER --command ctest --preset dev`.
 
 This record is superseded by the
 [tool-provider boundary](../../toolchains/README.md#tool-provider-boundary-decision-0022).

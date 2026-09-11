@@ -31,15 +31,15 @@ userspace code. Invoke each owning command directly through the development
 shell:
 
 ```sh
-nix develop . --command cmake --preset dev
-nix develop . --command cmake --build --preset dev
-nix develop . --command ctest --preset dev
+nix develop . --ignore-environment --keep HOME --keep USER --command cmake --preset dev
+nix develop . --ignore-environment --keep HOME --keep USER --command cmake --build --preset dev
+nix develop . --ignore-environment --keep HOME --keep USER --command ctest --preset dev
 ```
 
 Each preset writes to `tmp/build/<preset>`. Custom workspace builds must also
 use a named directory below `tmp/build/`; CMake checks this before compiler
-detection. Vulkan configuration uses `nix develop .#vulkan --command cmake
---preset vulkan`. Generic Linux releases use
+detection. Vulkan configuration uses `nix develop .#vulkan --ignore-environment
+--keep HOME --keep USER --command cmake --preset vulkan`. Generic Linux releases use
 [`tools/build-generic-release.sh`](tools/build-generic-release.sh), which selects
 the target SDK and the `generic-release` preset.
 
@@ -58,9 +58,10 @@ Research-only upstream source pointers live under [`references/`](references/REA
 as exact, on-demand submodule gitlinks; ordinary builds and qualification do
 not materialize them.
 
-Containers for release qualification run under podman through
-`nix develop .#release`; `docker/` is the approved home for their build
-contexts. Workspace scratch — CMake trees, debug-kernel overlays, measurement
+Containers for release qualification run under podman from the clean
+`nix develop .#release --ignore-environment --keep HOME --keep USER` shell;
+`docker/` is the approved home for their build contexts. Workspace scratch —
+CMake trees, debug-kernel overlays, measurement
 dumps, and retained work directories — lives under [`tmp/`](tmp/README.md)
 (decision-0042). Installed compiler and AOT caches stay at
 `/var/cache/metaflux/compiler` and `/var/lib/metaflux/aot`. The numbers and

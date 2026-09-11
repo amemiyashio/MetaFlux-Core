@@ -9,7 +9,8 @@
 #
 # Requirements:
 #   - Nix with the MetaFlux flake available
-#   - cmake, ninja on PATH (or inside nix develop)
+#   - cmake and ninja from the clean Nix entry:
+#       nix develop . --ignore-environment --keep HOME --keep USER --command bash
 #   - Clean Git worktree (the build embeds the HEAD revision)
 
 set -euo pipefail

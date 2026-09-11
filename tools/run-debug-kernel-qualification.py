@@ -24,8 +24,8 @@ cmake, qemu, or STATIC_BUSYBOX; CTest SKIP_RETURN_CODE convention). An
 explicit --skip-* does not produce 77 by itself.
 
 Tool environments (see linux-kernel-drivers/tests/README.md):
-  nix develop .#linux-debug --command python3 -B tools/run-debug-kernel-qualification.py ...
-  nix develop .#vfio-user  --command env STATIC_BUSYBOX=$(command -v busybox) python3 -B tools/run-debug-kernel-qualification.py ...
+  nix develop .#linux-debug --ignore-environment --keep HOME --keep USER --command python3 -B tools/run-debug-kernel-qualification.py ...
+  nix develop .#vfio-user --ignore-environment --keep HOME --keep USER --command env STATIC_BUSYBOX=$(command -v busybox) python3 -B tools/run-debug-kernel-qualification.py ...
 """
 
 from __future__ import annotations
@@ -706,7 +706,7 @@ def main(argv: list[str] | None = None) -> int:
         if not bz_image.is_file():
             return skip(
                 f"no bzImage at {bz_image}; run tools/build-debug-kernel.sh "
-                "inside 'nix develop .#linux-debug' first"
+                "inside 'nix develop .#linux-debug --ignore-environment --keep HOME --keep USER' first"
             )
         config_path = cache_dir / "build" / ".config"
         if not config_path.is_file():
@@ -780,7 +780,7 @@ def main(argv: list[str] | None = None) -> int:
         if cmake is None or ninja is None:
             return skip(
                 "cmake/ninja not found on PATH; run the qualification-binary phase "
-                "from a shell that provides them (e.g. 'nix develop .')"
+                "from a clean shell that provides them (e.g. 'nix develop . --ignore-environment --keep HOME --keep USER')"
             )
         # glibc-only (constraint): build the qualification binary normally
         # (dynamically linked) and ship the glibc runtime it needs inside the
@@ -844,7 +844,7 @@ def main(argv: list[str] | None = None) -> int:
     if not busybox:
         return skip(
             "STATIC_BUSYBOX is unset; provide a static busybox path "
-            "(the 'nix develop .#vfio-user' shell packages one via 'command -v busybox')"
+            "(the clean 'nix develop .#vfio-user --ignore-environment --keep HOME --keep USER' shell packages one via 'command -v busybox')"
         )
     busybox_path = Path(busybox)
     if not busybox_path.is_file():
@@ -864,7 +864,7 @@ def main(argv: list[str] | None = None) -> int:
 
     qemu = arguments.qemu or shutil.which("qemu-system-x86_64")
     if qemu is None:
-        return skip("qemu-system-x86_64 not found; run inside 'nix develop .#vfio-user'")
+        return skip("qemu-system-x86_64 not found; run inside 'nix develop .#vfio-user --ignore-environment --keep HOME --keep USER'")
 
     core_module = repository / "linux-kernel-drivers" / "core" / "metaflux_core.ko"
     if not core_module.is_file():
