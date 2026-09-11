@@ -76,6 +76,7 @@ metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_clamp_min_f32_ptx clamp-mi
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_cast_i32_f32_ptx cast-i32-f32.ptx)
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_sigmoidf32_ptx sigmoid-f32.ptx)
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_reduce_stub_ptx native-stub.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_reduce_sumi32_ptx reduce-sum-i32.ptx)
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_reduce_sumf32_ptx reduce-sum-f32.ptx)
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_reduce_meanf32_ptx reduce-mean-f32.ptx)
 string(APPEND cuda_pytorch_cpu_kernels_content "#endif\n")
