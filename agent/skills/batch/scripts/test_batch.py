@@ -8,6 +8,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "main/scripts"))
@@ -174,6 +175,65 @@ class BatchScenarios(unittest.TestCase):
         with self.assertRaisesRegex(ws.WorkflowError, "candidate merge identity changed"):
             fixture.commit_operation(self.root, "batch")
         self.assertEqual(ws.oid(self.root), self.base)
+
+    def test_integration_cli_derives_delivery_base_and_rejects_wrong_rules_before_execution(self):
+        controller.begin(self.root, fixture.request(self.root, "batch"))
+        fixture.prepare(self.root)
+        marker = ws.local_path(self.root, "executed")
+        checks = [{"id": "gate", "argv": [sys.executable, "-B", "-c",
+                   f"from pathlib import Path; Path({str(marker)!r}).write_text('executed once')"]}]
+        with self.assertRaisesRegex(ws.WorkflowError, "another baseline"):
+            batch.verify_delivery(self.root, self.delivery, checks, "Review integration")
+        self.assertFalse(marker.exists())
+        batch.load_integration_rules(self.root, self.delivery)
+        result = batch.verify_delivery(self.root, self.delivery, checks, "Review integration")
+        self.assertEqual(result["base_revision"], self.base)
+        self.assertEqual(result["head"], self.tip)
+        evidence = ws.read_json(Path(result["receipt"]))
+        batch.advance_delivery(self.delivery, self.root, integration_receipt=evidence, state_validator=lambda root: None)
+        before = marker.stat().st_mtime_ns
+        checked = batch.check_metadata(self.root)
+        self.assertEqual(checked["changed_paths"], ["agent/goal.json"])
+        self.assertEqual(checked["integration_receipt"], evidence["digest"])
+        self.assertEqual(before, marker.stat().st_mtime_ns)
+
+    def test_bad_candidate_and_missing_transaction_fail_before_checks(self):
+        controller.begin(self.root, fixture.request(self.root, "batch"))
+        fixture.prepare(self.root)
+        broken = copy.deepcopy(self.delivery)
+        broken["base_revision"] = self.tip
+        with patch.object(ws, "evaluate", side_effect=AssertionError("long check started")):
+            with self.assertRaisesRegex(ws.WorkflowError, "Empty or invalid"):
+                batch.verify_delivery(self.root, broken, fixture.checks(), "Review")
+            controller.step(self.root, "review", {"summary": "Review final transaction"})
+            with self.assertRaisesRegex(ws.WorkflowError, "Missing acceptance transaction"):
+                controller.step(self.root, "evaluate", {})
+
+    def test_metadata_gate_rejects_source_mode_and_exit_gate_changes(self):
+        self.advance()
+        work = batch.find_work_item(self.root, "work-item-0.2.0.1")
+        product = self.root / "product.txt"
+        for path in (product, work):
+            before = path.read_bytes()
+            path.write_bytes(before + b"\nChanged semantic input.\n")
+            with self.assertRaises(ws.WorkflowError):
+                batch.check_metadata(self.root)
+            path.write_bytes(before)
+        mode = product.stat().st_mode
+        product.chmod(0o755)
+        with self.assertRaises(ws.WorkflowError):
+            batch.check_metadata(self.root)
+        product.chmod(mode)
+        batch.check_metadata(self.root)
+
+    def test_skipped_ctest_is_not_whole_exit_gate_evidence(self):
+        work = batch.find_work_item(self.root, "work-item-0.2.0.1")
+        delivery = copy.deepcopy(self.delivery)
+        delivery["acceptance_kind"] = "work-item"
+        delivery["exit_gate"] = {"digest": ws.digest(batch.exit_gate(work.read_text())), "checks": ["whole"]}
+        with self.assertRaisesRegex(ws.WorkflowError, "actually pass"):
+            batch.require_exit_gate(self.root, delivery, {"work_item": "work-item-0.2.0.1"},
+                                    {"results": [{"id": "whole", "returncode": 0, "ctest": {"skipped": ["required-device"]}}]})
 
 
 if __name__ == "__main__":

@@ -49,27 +49,11 @@ run_without_git_local_environment nix develop . --command python3 \
   "$candidate_root" \
   --commit-gate \
   --diagnostic-format "$diagnostic_format"
-run_without_git_local_environment nix develop . --command python3 \
-  "$candidate_root/tests/architecture/test-check-agent-state.py"
-run_without_git_local_environment nix develop . --command python3 -B \
-  "$candidate_root/tests/architecture/test-agent-diagnostics.py"
 run_without_git_local_environment nix develop . --command python3 -B \
   "$candidate_root/tools/check-skill-routing.py" \
   "$candidate_root" \
   --diagnostic-format "$diagnostic_format"
-run_without_git_local_environment nix develop . --command python3 -B \
-  "$candidate_root/tests/architecture/test-check-skill-routing.py"
-run_without_git_local_environment nix develop . --command python3 -B \
-  "$candidate_root/agent/skills/main/scripts/test_detect_agent_tool.py"
-run_without_git_local_environment nix develop . --command python3 -B \
-  "$candidate_root/agent/skills/main/scripts/test_commit_as_agent_tool.py"
-run_without_git_local_environment nix develop . --command python3 -B \
-  "$candidate_root/agent/skills/main/scripts/test_commit_gate.py"
-run_without_git_local_environment nix develop . --command python3 -B \
-  "$candidate_root/agent/skills/main/scripts/test_push_repository.py"
-
 git diff --cached --check
-for controller_test in main/scripts/test_workflow_state.py main/scripts/test_rule_loading.py main/scripts/test_tool_gate.py batch/scripts/test_batch.py epoch/scripts/test_check_route_proposal.py; do
-  run_without_git_local_environment nix develop . --command python3 -B "$candidate_root/agent/skills/$controller_test"
-done
+# Behavioral regression belongs to the reviewed verification plan. The hook
+# retains exact input guards and cheap checks of the actual staged authority.
 check_commit_input

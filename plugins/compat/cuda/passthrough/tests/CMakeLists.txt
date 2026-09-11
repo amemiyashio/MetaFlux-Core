@@ -1,3 +1,4 @@
+include(MetaFluxGeneratedFile)
 function(metaflux_add_passthrough_fixture target source output_name version soversion directory map)
   if(IS_ABSOLUTE "${map}")
     set(map_path "${map}")
@@ -42,8 +43,14 @@ endfunction()
 
 set(cuda_fixture_map "${CMAKE_CURRENT_BINARY_DIR}/cuda-full.map")
 set(nvml_fixture_map "${CMAKE_CURRENT_BINARY_DIR}/nvml-full.map")
-file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../../abi/driver/symbols.def" cuda_fixture_rows)
-file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../../management/nvml/symbols.def" nvml_fixture_rows)
+get_filename_component(cuda_fixture_manifest
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../abi/driver/symbols.def" ABSOLUTE)
+get_filename_component(nvml_fixture_manifest
+  "${CMAKE_CURRENT_SOURCE_DIR}/../../management/nvml/symbols.def" ABSOLUTE)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  "${cuda_fixture_manifest}" "${nvml_fixture_manifest}")
+file(STRINGS "${cuda_fixture_manifest}" cuda_fixture_rows)
+file(STRINGS "${nvml_fixture_manifest}" nvml_fixture_rows)
 set(cuda_fixture_exports "    mf_fixture_cuda_call_count;\n")
 set(nvml_fixture_exports "    mf_fixture_nvml_call_count;\n")
 foreach(symbol_row IN LISTS cuda_fixture_rows)
@@ -56,12 +63,12 @@ foreach(symbol_row IN LISTS nvml_fixture_rows)
     string(APPEND nvml_fixture_exports "    ${CMAKE_MATCH_1};\n")
   endif()
 endforeach()
-file(
-  WRITE "${cuda_fixture_map}"
+metaflux_write_if_different(
+  "${cuda_fixture_map}"
   "libcuda.so.1 {\n  global:\n${cuda_fixture_exports}  local:\n    *;\n};\n"
 )
-file(
-  WRITE "${nvml_fixture_map}"
+metaflux_write_if_different(
+  "${nvml_fixture_map}"
   "libnvidia-ml.so.1 {\n  global:\n${nvml_fixture_exports}  local:\n    *;\n};\n"
 )
 

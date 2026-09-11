@@ -2,6 +2,11 @@
 
 if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   add_test(
+    NAME metaflux.architecture.generated-files
+    COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_generated_files.py"
+  )
+  set_tests_properties(metaflux.architecture.generated-files PROPERTIES LABELS "architecture;unit")
+  add_test(
     NAME metaflux.architecture.build-directory
     COMMAND "${Python3_EXECUTABLE}" -B
       "${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_build_directory.py"

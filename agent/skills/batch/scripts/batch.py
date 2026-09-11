@@ -130,7 +130,7 @@ def require_exit_gate(root: Path, delivery: dict[str, Any], lane: dict[str, Any]
     claim = delivery["exit_gate"]
     ws.require(isinstance(claim, dict) and set(claim) == {"digest", "checks"}, "Whole work-item acceptance needs an Exit Gate mapping")
     ws.require(claim["digest"] == ws.digest(exit_gate(path.read_text())), "Exit Gate changed since review")
-    passed = {r["id"] for r in receipt["results"] if r["returncode"] == 0}
+    passed = {r["id"] for r in receipt["results"] if r["returncode"] == 0 and not r.get("ctest", {}).get("skipped")}
     ws.require(isinstance(claim["checks"], list) and bool(claim["checks"]) and set(claim["checks"]) <= passed,
                "Whole Exit Gate checks must actually pass in this verification phase")
 
@@ -317,17 +317,92 @@ def advance_delivery(document: Any, root: Path, *, integration_receipt: dict[str
                 "changed_paths": sorted(replacements), "transaction": str(ws.local_path(root, "acceptance.json"))}
 
 
+def integration_context(root: Path, document: Any) -> tuple[dict, dict]:
+    import main as controller
+    checked = check_delivery(document, root, prepared=True)
+    if checked["action"] == "no-op":
+        return checked, {}
+    ws.require(checked["action"] in {"in-place", "prepared-merge"}, "Prepare the exact candidate before integration verification")
+    ws.require(not ws.local_path(root, "acceptance.json").exists(), "Recover pending acceptance before another integration")
+    state = ws.read_json(ws.local_path(root, "state.json"))
+    controller.validate_state(root, state)
+    ws.require(state["request"]["kind"] == "batch" and state["stage"] == "implementation" and not state.get("commit"),
+               "Integration verification requires the prepared Batch implementation stage")
+    controller.scope(root, state["request"])
+    expected = {key: document[key] for key in ("epoch", "batch", "iteration", "lane")}
+    ws.require(state["request"]["assignment"] == expected, "Batch context differs from the candidate assignment")
+    return checked, state
+
+
+def load_integration_rules(root: Path, document: Any) -> dict:
+    import main as controller
+    import rule_loading
+    checked, state = integration_context(root, document)
+    if checked["action"] == "no-op":
+        return checked
+    # The operation base is current HEAD; the receipt base is the delivery base.
+    base = document["base_revision"]
+    rule_loading.load(root, "integration", base, paths=controller.changed_paths(root, base),
+                      skills=state["request"].get("skills", []))
+    return {"action": "integration-rules-loaded", "base_revision": base, "head": ws.oid(root)}
+
+
+def verify_delivery(root: Path, document: Any, checks: list[dict], summary: str) -> dict:
+    import rule_loading
+    checked, state = integration_context(root, document)
+    if checked["action"] == "no-op":
+        return checked
+    base = document["base_revision"]
+    rules = rule_loading.current(root, kind="integration")
+    ws.require(rules["base_revision"] == base and rules["head"] == ws.oid(root) and rules["request"] == state["run"],
+               "Integration rules use another baseline; run $batch skill load-rules DELIVERY before verification")
+    ws.validate_plan(checks)
+    if document["acceptance_kind"] == "work-item":
+        ws.require(set(document["exit_gate"]["checks"]) <= {x["id"] for x in checks}, "Integration plan omits Exit Gate checks")
+    reviewed = ws.review(root, summary, checks)
+    receipt = ws.evaluate(root, "integration", base, checks, reviewed)
+    require_exit_gate(root, document, lane_for(ws.read_json(root / "agent/goal.json"), document["lane"]), receipt)
+    return {"action": "verified", "base_revision": base, "head": ws.oid(root), "digest": receipt["digest"],
+            "receipt": str(ws.local_path(root, "receipts/" + receipt["digest"] + ".json"))}
+
+
+def check_metadata(root: Path) -> dict:
+    validate_pending(root)
+    transaction = ws.read_json(ws.local_path(root, "acceptance.json"))
+    return {"action": "metadata-verified", "changed_paths": sorted(transaction["files"]),
+            "candidate": transaction["identity"]["candidate"],
+            "integration_receipt": transaction["integration_receipt"]["digest"]}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("check", "advance"))
-    parser.add_argument("delivery", type=Path)
+    parser.add_argument("action", choices=("check", "load-rules", "verify", "advance", "check-metadata"))
+    parser.add_argument("delivery", type=Path, nargs="?")
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--receipt", type=Path)
+    parser.add_argument("--checks", type=Path)
+    parser.add_argument("--summary")
     args = parser.parse_args()
     try:
-        root, document = args.root.resolve(), ws.read_json(args.delivery)
-        result = check_delivery(document, root) if args.action == "check" else advance_delivery(
-            document, root, integration_receipt=ws.read_json(args.receipt) if args.receipt else None)
+        root = args.root.resolve()
+        if args.action == "check-metadata":
+            ws.require(args.delivery is None and args.receipt is None and args.checks is None and args.summary is None,
+                       "check-metadata uses only the exact pending transaction")
+            result = check_metadata(root)
+        else:
+            ws.require(args.delivery is not None, "Supply the exact delivery")
+            document = ws.read_json(args.delivery)
+            if args.action == "check":
+                result = check_delivery(document, root)
+            elif args.action in {"load-rules", "verify"}:
+                with ws.lock(root):
+                    if args.action == "load-rules":
+                        result = load_integration_rules(root, document)
+                    else:
+                        ws.require(args.checks is not None and bool(args.summary), "verify requires a check plan and parent review summary")
+                        result = verify_delivery(root, document, ws.read_json(args.checks), args.summary)
+            else:
+                result = advance_delivery(document, root, integration_receipt=ws.read_json(args.receipt) if args.receipt else None)
     except (ws.WorkflowError, OSError, ValueError, KeyError) as error:
         emit_diagnostics((task_stop_error(code="acceptance.candidate-invalid", source="batch",
             summary="The delivery has not satisfied the acceptance boundary.", evidence=(str(error),),

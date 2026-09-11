@@ -104,6 +104,7 @@ class ToolGateScenarios(unittest.TestCase):
 
     def test_bootstrap_does_not_need_a_request_file_write(self) -> None:
         for event in (self.controller("inspect"), self.controller("begin", "--request-json", "{}"),
+                      self.controller("preflight"), self.controller("preflight", "--checks", "agent/tmp/main/checks.json"),
                       self.controller("load-rules"), self.controller("resume"),
                       self.shell(["python3", "-B", "agent/skills/main/scripts/detect_agent_tool.py", "--agent-tool", "codex", "--json"])):
             self.assertEqual(self.invoke(event), {})

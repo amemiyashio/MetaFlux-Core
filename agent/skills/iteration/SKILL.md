@@ -14,6 +14,9 @@ Do not create an execution context or select a sibling lane.
    Use [$main](../main/SKILL.md) skill's readiness reference to separate implementation prerequisites
    from later qualification requirements. Choose one independently verifiable
    slice within the assigned lane; its objective and checks precede edits.
+   Group related operations sharing one implementation boundary and oracle
+   when they form a reviewable behavior family. Do not split deliveries merely
+   by line count or number of files; keep distinct semantic risks separate.
    Trace affected manifests, summaries and test consumers into the declared
    scope. Use the controller's `rescope` through [$main](../main/SKILL.md) skill
    for necessary omitted companion files, with fresh rules, preparation,
@@ -26,7 +29,10 @@ Do not create an execution context or select a sibling lane.
    The parent reviews the returned diff in conversation before another
    dispatch, evaluation, or commit. Subagents do not change Goal, integrate,
    govern, commit, push, or create contexts.
-4. Run [$main](../main/SKILL.md) skill's evaluation against the actual candidate tree and commit through
+4. During implementation, use affected target builds and focused checks to
+   answer concrete questions. Finish the coherent slice and parent review,
+   preflight the covering check plan, then run [$main](../main/SKILL.md) skill's
+   evaluation against the actual candidate tree and commit through
    the shared guarded helper. Changed code invalidates corresponding review
    and verification evidence. Failed checks stay in the current unaccepted
    Iteration and produce a repaired exact tip.

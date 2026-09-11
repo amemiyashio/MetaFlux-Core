@@ -37,7 +37,11 @@ the repository gates.
    protocol. The [tool hooks](agent/skills/main/references/tool-hooks.md) apply it to
    covered tool calls when the user/application trusts the exact hook definition;
    repository files do not activate that host trust or provide a shell sandbox.
-3. **Deliver the bounded scope.** [$main](agent/skills/main/SKILL.md) skill handles read-only work and maintenance;
+3. **Deliver the bounded scope.** Choose coherent, independently reviewable
+   behavior slices with required tests and summaries; line count does not set
+   the delivery boundary. Use affected targets and focused checks during
+   implementation, then consolidate before formal review and evaluation.
+   [$main](agent/skills/main/SKILL.md) skill handles read-only work and maintenance;
    maintenance leaves Goal unchanged and has no product Iteration identity.
    Product Iterations use the exact application-supplied context and base.
    Workers do not edit `agent/goal.json` or allocate execution contexts.
@@ -93,10 +97,17 @@ the repository gates.
    proceed after exhausting both provisioning paths (decision-0036).
 8. **Verify and identify commits.** Run
    `python3 tools/check-agent-state.py .` inside the clean Nix entry plus relevant
-   CTest/domain gates. Agent commits use the [$main](agent/skills/main/SKILL.md) skill's shared commit helper, requiring
+   CTest/domain gates. Preflight the reviewed plan before long checks; within
+   each phase select covering CTest sets once, preserving distinct modes and
+   prerequisites. A full suite covers its registered focused gates/self-tests.
+   Candidate and integration still require fresh independent execution.
+   Exact acceptance metadata proof is owned by the controller; no general
+   source-hash test cache or arbitrary documentation exemption exists.
+   Agent commits use the [$main](agent/skills/main/SKILL.md) skill's shared commit helper, requiring
    full expected HEAD, exact staged tree, operation kind, and an actual
    content-bound receipt with its rule-loading certificate. Pre-commit invokes
-   the same commit guard before and after candidate-tree checks; direct Git
+   the same commit guard before and after candidate state/routing checks;
+   behavioral self-tests run in the formal plan, not again in the hook. Direct Git
    invocation does not replace those inputs. The
    helper accepts the conversation-emitted harness name, derives
    `SUBJECT <SUBJECT@localhost>`, and passes that name to the

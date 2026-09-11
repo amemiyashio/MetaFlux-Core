@@ -224,7 +224,7 @@ def argv_operation(root: Path, cwd: Path, argv: list[str], *, nix: bool) -> Oper
             else:
                 ws.require(cwd == root, "$main skill controller commands from a subdirectory need --root")
             action = args[0] if args else ""
-            if action in {"inspect", "begin", "load-rules", "resume", "rescope", "supersede"}:
+            if action in {"inspect", "preflight", "begin", "load-rules", "resume", "rescope", "supersede"}:
                 return Operation("controller", argv=argv, action=action, nix=nix)
             if action == "step" and len(args) > 1 and args[1] in EVENT_STAGES:
                 return Operation("controller", argv=argv, action=args[1], nix=nix)
@@ -377,7 +377,7 @@ def pre_tool(root: Path, event: dict[str, Any]) -> dict[str, Any]:
         return {}
     if op.kind in {"bootstrap", "controller", "shell", "stage", "commit", "publish", "ungoverned-git"}:
         ws.require(op.nix, "Run repository executables through nix develop at the Git root")
-    if op.kind == "bootstrap" or (op.kind == "controller" and op.action in {"inspect", "begin", "load-rules", "resume", "rescope", "supersede"}):
+    if op.kind == "bootstrap" or (op.kind == "controller" and op.action in {"inspect", "preflight", "begin", "load-rules", "resume", "rescope", "supersede"}):
         # These exact parsers own bootstrap/recovery validation; no general
         # shell compound receives this exception.
         return {}

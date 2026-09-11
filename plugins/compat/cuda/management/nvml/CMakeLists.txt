@@ -1,3 +1,4 @@
+include(MetaFluxGeneratedFile)
 set(nvml_symbol_manifest "${CMAKE_CURRENT_SOURCE_DIR}/symbols.def")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${nvml_symbol_manifest}")
 set(
@@ -32,8 +33,8 @@ set(
   nvml_managed_renames
   "${CMAKE_CURRENT_BINARY_DIR}/managed-renames.h"
 )
-file(
-  WRITE "${nvml_managed_renames}"
+set(
+  nvml_managed_renames_content
   "#ifndef METAFLUX_NVML_MANAGED_RENAMES_H\n#define METAFLUX_NVML_MANAGED_RENAMES_H\n"
 )
 foreach(symbol_row IN LISTS nvml_symbol_rows)
@@ -41,20 +42,22 @@ foreach(symbol_row IN LISTS nvml_symbol_rows)
     string(APPEND nvml_internal_exports "    ${CMAKE_MATCH_1};\n")
   elseif(symbol_row MATCHES "^MF_NVML_SYMBOL\\(([A-Za-z0-9_]+),")
     string(APPEND nvml_abi_exports "    ${CMAKE_MATCH_1};\n")
-    file(
-      APPEND "${nvml_managed_renames}"
+    string(
+      APPEND nvml_managed_renames_content
       "#define ${CMAKE_MATCH_1} mf_nvml_managed_${CMAKE_MATCH_1}\n"
     )
   endif()
 endforeach()
-file(APPEND "${nvml_managed_renames}" "#endif\n")
+string(APPEND nvml_managed_renames_content "#endif\n")
+metaflux_write_if_different("${nvml_managed_renames}" "${nvml_managed_renames_content}")
 
 set(nvml_exports_map "${CMAKE_CURRENT_BINARY_DIR}/exports.map")
-file(
-  WRITE "${nvml_exports_map}"
+string(
+  CONCAT nvml_exports_content
   "METAFLUX_NVML_PROVIDER_1 {\n  global:\n${nvml_internal_exports}};\n"
   "libnvidia-ml.so.1 {\n  global:\n${nvml_abi_exports}  local:\n    *;\n} METAFLUX_NVML_PROVIDER_1;\n"
 )
+metaflux_write_if_different("${nvml_exports_map}" "${nvml_exports_content}")
 
 find_package(Threads REQUIRED)
 

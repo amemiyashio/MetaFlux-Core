@@ -20,7 +20,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
       "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/main/scripts/test_workflow_state.py"
   )
   set_tests_properties(metaflux.architecture.main-workflow-selftest PROPERTIES LABELS "architecture")
-  foreach(guard IN ITEMS rule_loading tool_gate commit_gate)
+  foreach(guard IN ITEMS rule_loading tool_gate commit_gate verification)
     string(REPLACE "_" "-" guard_name "${guard}")
     add_test(
       NAME "metaflux.architecture.${guard_name}-selftest"

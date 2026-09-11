@@ -1,6 +1,7 @@
+include(MetaFluxGeneratedFile)
 set(cublas_exports_map "${CMAKE_CURRENT_BINARY_DIR}/exports.map")
-file(
-  WRITE "${cublas_exports_map}"
+string(
+  CONCAT cublas_exports_content
   "METAFLUX_CUBLAS_PROVIDER_1 {\n  global:\n    mf_cublas_provider_bootstrap_abi_version;\n};\n"
   "libcublas.so.12 {\n  global:\n"
   "    cublasCreate_v2;\n    cublasDestroy_v2;\n"
@@ -20,6 +21,7 @@ file(
   "    cublasLtMatmulAlgoGetHeuristic;\n    cublasLtMatmul;\n"
   "} METAFLUX_CUBLAS_PROVIDER_1;\n"
 )
+metaflux_write_if_different("${cublas_exports_map}" "${cublas_exports_content}")
 
 find_package(Threads REQUIRED)
 

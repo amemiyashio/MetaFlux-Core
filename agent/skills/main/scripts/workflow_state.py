@@ -188,13 +188,18 @@ def validate_plan(checks: Any) -> None:
     require(isinstance(checks, list) and bool(checks), "An explicit non-empty check plan is required")
     names: set[str] = set()
     for check in checks:
-        require(isinstance(check, dict) and set(check) <= {"id", "argv", "optional_skip_reason"}, "Invalid check fields")
+        require(isinstance(check, dict) and set(check) <= {"id", "argv", "optional_skip_reason", "allowed_ctest_skips"}, "Invalid check fields")
         require(isinstance(check.get("id"), str) and bool(check["id"]) and check["id"] not in names, "Check IDs must be unique")
         names.add(check["id"])
         require(isinstance(check.get("argv"), list) and bool(check["argv"]) and
                 all(isinstance(x, str) and x for x in check["argv"]), "Checks require an argv array")
         if "optional_skip_reason" in check:
             require(isinstance(check["optional_skip_reason"], str) and bool(check["optional_skip_reason"].strip()), "Optional skip needs a reason")
+        if "allowed_ctest_skips" in check:
+            skips = check["allowed_ctest_skips"]
+            require(Path(check["argv"][0]).name == "ctest" and isinstance(skips, list) and
+                    all(isinstance(x, str) and x for x in skips) and len(skips) == len(set(skips)),
+                    "CTest skips must be explicit unique test names")
 
 
 def review(root: Path, summary: str, checks: list[dict[str, Any]]) -> dict[str, Any]:
@@ -216,39 +221,14 @@ def evaluate(root: Path, kind: str, base: str, checks: list[dict[str, Any]],
     require(ancestor(root, base, before["head"]), "Verification baseline is outside current history")
     require(reviewed.get("content") == before["content"] and reviewed.get("plan") == digest(checks)
             and bool(reviewed.get("summary")), "Review or check plan is stale")
-    results = []
-    # Raw output is streamed so failures retain the original tool diagnostics.
-    for check in checks:
-        log = local_path(root, "logs/" + digest([before, kind, check]) + ".log")
-        log.parent.mkdir(parents=True, exist_ok=True)
-        with log.open("wb") as output:
-            process = subprocess.Popen(check["argv"], cwd=root, env=environment(root),
-                                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            assert process.stdout is not None
-            for block in iter(lambda: process.stdout.read1(65536), b""):
-                output.write(block)
-                print(block.decode(errors="replace"), end="", flush=True)
-            code = process.wait()
-            process.stdout.close()
-        result = {"id": check["id"], "argv": check["argv"], "returncode": code,
-                  "log": str(log.resolve()), "log_digest": hashlib.sha256(log.read_bytes()).hexdigest()}
-        if code == 77 and check.get("optional_skip_reason"):
-            result["optional_skip_reason"] = check["optional_skip_reason"]
-        results.append(result)
-        require(code == 0 or (code == 77 and bool(check.get("optional_skip_reason"))),
-                "Required verification failed: " + check["id"] + "; inspect " + str(log))
-        require(snapshot(root) == before, "Verification changed its tested inputs; review and evaluate again")
-    receipt = {"schema_version": 1, "kind": kind, "base_revision": base,
-               "input": before, "review": reviewed, "checks": checks, "results": results}
-    receipt["digest"] = digest(receipt)
-    atomic_json(local_path(root, "receipts/" + receipt["digest"] + ".json"), receipt)
-    return receipt
+    import verification
+    return verification.execute(root, kind, base, checks, reviewed, before)
 
 
 def validate_receipt(root: Path, receipt: Any, *, kind: str,
                      revision: str | None = None, base: str | None = None,
                      logs: bool = True, tested_entries: dict[str, tuple[str, str]] | None = None) -> None:
-    require(isinstance(receipt, dict) and receipt.get("schema_version") == 1, "Missing actual verification receipt")
+    require(isinstance(receipt, dict) and receipt.get("schema_version") == 2, "Missing current actual verification receipt")
     require(receipt.get("digest") == digest({k: v for k, v in receipt.items() if k != "digest"}), "Receipt digest mismatch")
     require(receipt.get("kind") == kind, "Wrong verification phase")
     validate_plan(receipt.get("checks"))
@@ -275,6 +255,8 @@ def validate_receipt(root: Path, receipt: Any, *, kind: str,
             "Verification rules disagree with the tested baseline")
     results = receipt.get("results", [])
     require(len(results) == len(receipt["checks"]), "Incomplete executed check results")
+    import verification
+    verification.validate_execution(root, receipt, logs=logs)
     for check, result in zip(receipt["checks"], results):
         require(result.get("id") == check["id"] and result.get("argv") == check["argv"], "Executed check differs from plan")
         require(result.get("returncode") == 0 or
@@ -398,6 +380,16 @@ def recover_transaction(root: Path) -> str:
     return "rolled-back; review and evaluate before retry"
 
 
+def validate_acceptance(root: Path) -> None:
+    import importlib.util
+    path = Path(__file__).resolve().parents[2] / "batch/scripts/batch.py"
+    spec = importlib.util.spec_from_file_location("metaflux_batch_commit_guard", path)
+    require(spec is not None and spec.loader is not None, "Batch guard is missing")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.validate_pending(root)
+
+
 def commit_guard(root: Path, expected_head: str, expected_tree: str, receipt: dict[str, Any], *, kind: str) -> None:
     require(oid(root) == expected_head, "Expected HEAD changed")
     require(oid(root, ":") == expected_tree, "Expected staged tree changed")
@@ -421,13 +413,7 @@ def commit_guard(root: Path, expected_head: str, expected_tree: str, receipt: di
     require(read_json(local_path(root, "rules.json")) == receipt["review"]["rules"],
             "Current loaded rules differ from the reviewed commit evidence")
     if kind == "batch":
-        import importlib.util
-        path = Path(__file__).resolve().parents[2] / "batch/scripts/batch.py"
-        spec = importlib.util.spec_from_file_location("metaflux_batch_commit_guard", path)
-        require(spec is not None and spec.loader is not None, "Batch guard is missing")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        module.validate_pending(root)
+        validate_acceptance(root)
     elif kind in {"maintenance", "iteration"}:
         require(git(root, "show", expected_head + ":agent/goal.json", check=False) ==
                 ((root / "agent/goal.json").read_bytes() if (root / "agent/goal.json").exists() else b""),

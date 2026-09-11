@@ -228,3 +228,8 @@ identity and provisioning boundaries live in
 
 When a task would relax one of these constraints, create or update a canonical
 architecture decision before implementation.
+
+Verification scheduling follows [decision-0059](../../docs/architecture/agent-execution.md#verification-scheduling-decision-0059):
+coherent slices, preflighted per-phase coverage, independent integration,
+exact acceptance transactions and recoverable current attempts. It adds no
+product progress authority or cross-phase test cache.

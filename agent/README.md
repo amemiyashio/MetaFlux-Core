@@ -43,6 +43,11 @@ identify deliveries, not scheduling priority. The current values live in Goal.
 Git retains committed prior states. There is no duplicate roadmap, process
 archive, progress diary, or numbered review record.
 
+Choose coherent behavior slices and preflight verification coverage before
+long runs. The [verification scheduling decision](../docs/architecture/agent-execution.md#verification-scheduling-decision-0059)
+and [controller protocol](skills/main/references/controller.md#verification-and-acceptance)
+own this boundary; current attempts and logs stay in ignored `tmp/main/`.
+
 ## Delivery Loop
 
 [$iteration](skills/iteration/SKILL.md) skill delivers an exact candidate in the context

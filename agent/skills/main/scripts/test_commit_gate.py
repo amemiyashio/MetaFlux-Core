@@ -40,19 +40,7 @@ class CommitGateTests(unittest.TestCase):
         # workflow guard are the actual repository implementations.
         checks = (
             "tools/check-agent-state.py",
-            "tests/architecture/test-check-agent-state.py",
-            "tests/architecture/test-agent-diagnostics.py",
             "tools/check-skill-routing.py",
-            "tests/architecture/test-check-skill-routing.py",
-            "agent/skills/main/scripts/test_detect_agent_tool.py",
-            "agent/skills/main/scripts/test_commit_as_agent_tool.py",
-            "agent/skills/main/scripts/test_commit_gate.py",
-            "agent/skills/main/scripts/test_push_repository.py",
-            "agent/skills/main/scripts/test_workflow_state.py",
-            "agent/skills/main/scripts/test_rule_loading.py",
-            "agent/skills/main/scripts/test_tool_gate.py",
-            "agent/skills/batch/scripts/test_batch.py",
-            "agent/skills/epoch/scripts/test_check_route_proposal.py",
         )
         for name in checks:
             path = self.root / name

@@ -76,8 +76,9 @@ under one bound CPU math-helper identity. The helper is scalar; this slice
 establishes no SIMD or throughput improvement.
 
 The sigmoid-f32 slice carries the pinned stock client's `torch.sigmoid` result
-through a dedicated canonical Kernel IR operation and profile-owned PTX. Its
-independent bit oracle agrees across interpreter, cold JIT, warm JIT and AOT;
+through profile-owned PTX composing the existing subtraction, exponential,
+addition and division Kernel IR operations. Checked-in expected bit outputs
+for the pinned finite cases agree across interpreter, cold JIT, warm JIT and AOT;
 the provider only normalizes the two buffer arguments and typed zero/one
 scalars, submits the request, and records no provider-local tensor execution.
 Cold JIT has one compiler miss, warm JIT has one cache hit with no compiler

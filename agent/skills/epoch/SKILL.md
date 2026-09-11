@@ -51,9 +51,14 @@ acceptance or reusing older-Epoch verification.
 3. Advance the Epoch monotonically and restart Batch/Iteration numbering.
    Retain verified completed work, stable delivery IDs, and dependency-valid
    targets. Planning never closes an evidence-bound technical decision.
-4. Run state/self-tests, skill validation/routing, reference verification,
-   commit gates, component graph, relevant domain checks, complete dev build,
-   full CTest, and exact residual scans. Repair a failure in this same unit.
+4. Preflight one complete regression plan after the coherent governance diff
+   and parent review. Run the complete dev build and full CTest once in that
+   evaluation. Registered state/self-tests, routing, reference, commit and
+   component/domain gates are covered by that suite; add required unregistered
+   skill validation and residual scans separately. Preserve distinct execution
+   modes and explicit environment skips. A skipped environment is not product
+   qualification. Repair a failure in this same unit and invalidate changed
+   content's evidence; never reuse another phase's receipt as a test cache.
 5. Commit the fully verified activation with [$main](../main/SKILL.md) skill's guarded helper and publish
    its exact revision. A push failure preserves the activation for publication
    recovery. Older-base work is revalidated against the active Epoch before

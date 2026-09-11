@@ -1,3 +1,4 @@
+include(MetaFluxGeneratedFile)
 set(cuda_symbol_manifest "${CMAKE_CURRENT_SOURCE_DIR}/symbols.def")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${cuda_symbol_manifest}")
 file(STRINGS "${cuda_symbol_manifest}" cuda_symbol_rows)
@@ -7,8 +8,8 @@ set(
   cuda_managed_renames
   "${CMAKE_CURRENT_BINARY_DIR}/managed-renames.h"
 )
-file(
-  WRITE "${cuda_managed_renames}"
+set(
+  cuda_managed_renames_content
   "#ifndef METAFLUX_CUDA_MANAGED_RENAMES_H\n#define METAFLUX_CUDA_MANAGED_RENAMES_H\n"
 )
 foreach(symbol_row IN LISTS cuda_symbol_rows)
@@ -16,26 +17,28 @@ foreach(symbol_row IN LISTS cuda_symbol_rows)
     string(APPEND cuda_internal_exports "    ${CMAKE_MATCH_1};\n")
   elseif(symbol_row MATCHES "^MF_CUDA_SYMBOL\\(([A-Za-z0-9_]+),")
     string(APPEND cuda_abi_exports "    ${CMAKE_MATCH_1};\n")
-    file(
-      APPEND "${cuda_managed_renames}"
+    string(
+      APPEND cuda_managed_renames_content
       "#define ${CMAKE_MATCH_1} mf_cuda_managed_${CMAKE_MATCH_1}\n"
     )
   endif()
 endforeach()
-file(APPEND "${cuda_managed_renames}" "#endif\n")
+string(APPEND cuda_managed_renames_content "#endif\n")
+metaflux_write_if_different("${cuda_managed_renames}" "${cuda_managed_renames_content}")
 
 set(cuda_exports_map "${CMAKE_CURRENT_BINARY_DIR}/exports.map")
-file(
-  WRITE "${cuda_exports_map}"
+string(
+  CONCAT cuda_exports_content
   "METAFLUX_CUDA_PROVIDER_1 {\n  global:\n${cuda_internal_exports}};\n"
   "libcuda.so.1 {\n  global:\n${cuda_abi_exports}  local:\n    *;\n} METAFLUX_CUDA_PROVIDER_1;\n"
 )
+metaflux_write_if_different("${cuda_exports_map}" "${cuda_exports_content}")
 
 find_package(Threads REQUIRED)
 
 set(cuda_pytorch_cpu_kernels "${CMAKE_CURRENT_BINARY_DIR}/pytorch-cuda-cpu-kernels.h")
-file(
-  WRITE "${cuda_pytorch_cpu_kernels}"
+set(
+  cuda_pytorch_cpu_kernels_content
   "#ifndef METAFLUX_PYTORCH_CUDA_CPU_KERNELS_H\n#define METAFLUX_PYTORCH_CUDA_CPU_KERNELS_H\n\n"
 )
 function(metaflux_embed_pytorch_cpu_kernel symbol filename)
@@ -45,7 +48,8 @@ function(metaflux_embed_pytorch_cpu_kernel symbol filename)
   string(REPLACE "\\" "\\\\" ptx "${ptx}")
   string(REPLACE "\"" "\\\"" ptx "${ptx}")
   string(REPLACE "\n" "\\n\"\n    \"" ptx "${ptx}")
-  file(APPEND "${cuda_pytorch_cpu_kernels}" "static const char ${symbol}[] =\n    \"${ptx}\";\n\n")
+  string(APPEND cuda_pytorch_cpu_kernels_content "static const char ${symbol}[] =\n    \"${ptx}\";\n\n")
+  set(cuda_pytorch_cpu_kernels_content "${cuda_pytorch_cpu_kernels_content}" PARENT_SCOPE)
 endfunction()
 
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_add_ptx add-i32.ptx)
@@ -72,7 +76,8 @@ metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_clamp_min_f32_ptx clamp-mi
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_cast_i32_f32_ptx cast-i32-f32.ptx)
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_sigmoidf32_ptx sigmoid-f32.ptx)
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_reduce_stub_ptx native-stub.ptx)
-file(APPEND "${cuda_pytorch_cpu_kernels}" "#endif\n")
+string(APPEND cuda_pytorch_cpu_kernels_content "#endif\n")
+metaflux_write_if_different("${cuda_pytorch_cpu_kernels}" "${cuda_pytorch_cpu_kernels_content}")
 
 add_library(
   metaflux_cuda_provider

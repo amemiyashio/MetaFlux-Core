@@ -70,10 +70,12 @@ nix develop . --ignore-environment --keep HOME --keep USER --command python3 too
 ```
 
 The pre-commit hook materializes the exact Git index into a temporary tree and
-runs its candidate state checker, checker self-test, routing gates, detector and
-identity-helper tests, and `git diff --cached --check`. Agent commits are made
-through `agent/skills/main/scripts/commit_as_agent_tool.py`. Before any
-candidate self-test can create a foreign temporary repository, the hook clears
+runs its candidate state checker, routing gate and `git diff --cached --check`,
+between exact commit-input guards. Behavioral self-tests remain registered in
+CTest and run in the reviewed verification plan, rather than again inside the
+hook. Agent commits are made through
+`agent/skills/main/scripts/commit_as_agent_tool.py`. Before candidate checks,
+the hook clears
 the invoking repository variables reported by `git rev-parse --local-env-vars`.
 The individual Git-fixture tests repeat that isolation defensively so a linked
 worktree's absolute `GIT_DIR`, index, common directory, refs, and configuration

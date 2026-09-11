@@ -95,7 +95,7 @@ not arbitrary shell execution.
 Read [the executable interface](references/controller.md) before mutating
 controller state. `$main status` maps to `inspect`; `$main resume` revalidates
 Git and evidence before selecting another operation. The script exposes
-`inspect`, `begin`, `load-rules`, `step`, `resume`, `rescope`, and `supersede`.
+`inspect`, `preflight`, `begin`, `load-rules`, `step`, `resume`, `rescope`, and `supersede`.
 
 The controller reports stage, evidence, next operation, and delivery target.
 Preparation, implementation, review, evaluation, delivery, publication, and
@@ -104,6 +104,20 @@ fails returns to bounded repair. A declared optional environment skip is not
 evidence for a product requirement that needed that environment.
 
 ## Shared Delivery Boundary
+
+Choose a coherent, independently reviewable behavior slice, including its
+necessary source, tests and canonical summaries. Line count is not a delivery
+boundary. During implementation, use fast affected targets and focused tests
+when they resolve an actual uncertainty. Consolidate the slice before formal
+review and evaluation; do not start a complete build after each small edit.
+
+Use `preflight` to inspect the formal plan before a long run. Select CTest
+coverage once per execution context in each phase: a full suite already covers
+its registered focused gates and behavioral self-tests. Keep distinct modes,
+devices, fixtures and prerequisite order. Candidate and integration phases each
+execute fresh checks; no receipt or source hash is a cross-phase test cache.
+The [controller interface](references/controller.md#verification-and-acceptance)
+owns selection, exact execution evidence, metadata checks and recovery.
 
 The parent reviews returned diffs against its briefing before verification or
 another coding dispatch. Coding subagents never change Goal, accept, govern,
@@ -119,6 +133,10 @@ checks, requiring full expected HEAD/tree, receipt, and operation kind. It never
 modifies Git identity configuration. Both paths require this controller's active delivery
 state and its current loaded rules; an old receipt does not revive a resumed or
 replaced operation.
+
+The hook checks candidate state, routing and whitespace between those guards.
+Behavioral self-tests belong in the reviewed verification plan and remain CTest
+gates; commit and publication do not silently rerun the suite.
 
 Review, evaluation, delivery, and publication require current loaded rules.
 When rule content or mode changes, load the new bodies before reviewing and
@@ -143,6 +161,11 @@ artifacts stay under root `tmp/`. No temporary state is authorization or product
 completion proof.
 
 Use the common Git lock and expected HEAD/tree checks for shared mutations.
+Before starting or retrying a long run, inspect its current attempt, check and
+log. Reuse the live tool session for output; a quiet test is not a failed test.
+The separate shared verification lock rejects concurrent runs. Interrupted
+attempts retain unique logs and provide no successful receipt or automatic
+retry. Preserve raw failure output and repair its cause before reevaluation.
 Recheck the received scope and Git facts after interruption. If pre-commit
 state is lost, review and evaluate again; do not guess an accepted transition.
 If a validated acceptance commit exists, recover it from Git before attempting

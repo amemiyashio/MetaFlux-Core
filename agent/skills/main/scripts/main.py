@@ -13,6 +13,7 @@ from typing import Any
 
 import workflow_state as ws
 import rule_loading as rules
+import verification
 
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / "tools"))
@@ -47,9 +48,13 @@ def inspect(root: Path) -> dict[str, Any]:
             target = {"epoch": goal["epoch"], "batch": goal["batch"]["id"], "iteration": lane["iteration"],
                       "lane": lane["id"], "work_item": lane["work_item"], "base_revision": ws.oid(root),
                       "objective": lane["outcome"], "acceptance": lane["acceptance"]}
-    return {"stage": stage, "evidence": {"head": ws.oid(root), "epoch": goal.get("epoch"),
+    evidence = {"head": ws.oid(root), "epoch": goal.get("epoch"),
                                            "commit": state.get("commit") if state else None,
-                                           "recovery_token": recovery_token(root, state) if state else None},
+                                           "recovery_token": recovery_token(root, state) if state else None}
+    running = verification.status(root)
+    if running:
+        evidence["verification"] = running
+    return {"stage": stage, "evidence": evidence,
             "next_operation": next_operation, "delivery_target": target}
 
 
@@ -310,6 +315,8 @@ def step(root: Path, event: str, payload: dict[str, Any]) -> dict[str, Any]:
         ws.require(stage == "evaluation", "evaluate requires a current parent review")
         scope(root, request)
         try:
+            if request["kind"] == "batch":
+                ws.validate_acceptance(root)
             state["receipt"] = ws.evaluate(root, request["kind"], request["base_revision"], request["checks"], state["review"])
         except BaseException:
             state["stage"] = "implementation"
@@ -379,9 +386,13 @@ def step(root: Path, event: str, payload: dict[str, Any]) -> dict[str, Any]:
             ws.validate_plan(checks)
             replacements = {check["id"]: check for check in checks}
             for check in request["checks"]:
-                ws.require(check["id"] in replacements, "Repair must retain every declared check")
+                if check["id"] not in replacements:
+                    verification.require_covered_removal(root, check, checks)
+                    continue
                 ws.require(replacements[check["id"]].get("optional_skip_reason") == check.get("optional_skip_reason"),
                            "Repair must preserve each check's required/optional boundary")
+                ws.require(set(replacements[check["id"]].get("allowed_ctest_skips", [])) <= set(check.get("allowed_ctest_skips", [])),
+                           "Repair must not allow additional CTest skips")
             state["request"] = {**request, "checks": checks}
             state["run"] = ws.digest(state["request"])
         state["stage"] = "implementation"
@@ -398,6 +409,8 @@ def main() -> int:
     parser.add_argument("--root", type=Path, default=Path("."))
     sub = parser.add_subparsers(dest="action", required=True)
     sub.add_parser("inspect")
+    preflight = sub.add_parser("preflight")
+    preflight.add_argument("--checks", type=Path)
     start = sub.add_parser("begin")
     start.add_argument("request", type=Path, nargs="?")
     start.add_argument("--request-json")
@@ -418,7 +431,10 @@ def main() -> int:
     args = parser.parse_args()
     root = args.root.resolve()
     try:
-        if args.action == "inspect":
+        if args.action == "preflight":
+            checks = ws.read_json(args.checks) if args.checks else ws.read_json(ws.local_path(root, "state.json"))["request"]["checks"]
+            result = {"checks": verification.preflight(root, checks, defer_unconfigured=True)}
+        elif args.action == "inspect":
             result = inspect(root)
         else:
             with ws.lock(root):

@@ -47,6 +47,42 @@ commit and publication behavioral tests; authority/temporary-state checks;
 component graph; complete dev build and CTest. Failure leaves the candidate
 Epoch unpublished.
 
+## Verification Scheduling (decision-0059)
+
+The unit of formal verification is a coherent reviewed behavior slice, not an
+edit count. During implementation, affected target builds and focused checks
+resolve concrete uncertainties. A phase's final plan selects covering CTest
+sets once, preserving fixtures, dependencies, configurations and execution
+modes. Candidate and integration phases still execute independently. Epoch
+governance still requires a complete dev build and full regression.
+
+Rationale: repeated full-plus-focused qualification, replayed hook self-tests,
+late integration-baseline failures and configure-time rewrites consumed time
+without adding evidence. Moving coverage and baseline checks before execution
+and preserving unchanged generated inputs addresses those causes directly.
+
+The [controller protocol](../../agent/skills/main/references/controller.md#verification-and-acceptance)
+owns preflight, delivery-derived integration verification, schema-2 receipts,
+actual CTest/JUnit evidence, unique attempts, shared locking and exact final
+acceptance metadata proof. It introduces no cross-phase test cache: source
+identity alone does not prove binary, environment or device identity. The
+commit hook retains both exact input guards and candidate state/routing checks;
+behavioral self-tests remain formal CTest gates. Publication validates the
+exact commit without rerunning the product suite.
+
+Configure-generated provider headers and export maps use content-stable writes
+and declared source/link dependencies. An unchanged configure preserves their
+bytes and timestamps; source changes still trigger required compile/link work.
+Nix continues to initialize tools, while CMake/Ninja own product construction.
+
+Verification covers real CTest inventories and reports, empty/overlapping sets,
+prerequisites, declared skips, repaired coverage, wrong integration bases,
+transaction content/modes, concurrent/interrupted attempts and non-overwritten
+logs. Real CMake fixtures check literal bytes, source-triggered rebuilds and
+unchanged compile/link outputs; full dev qualification verifies the repository
+consumers. This decision changes workflow/build scheduling only, preserving
+product targets, accepted results and the zero-overhead design objective.
+
 ## Rule Loading Boundary
 
 The [skill-reference convention](../../agent/skills/main/SKILL.md#skill-references)

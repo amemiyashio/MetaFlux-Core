@@ -3,7 +3,7 @@
 Run each application command through the clean Git-aware Nix entry in
 [$main](../SKILL.md#bootstrap) skill. The executable is
 `agent/skills/main/scripts/main.py --root .`; its operations are `inspect`,
-`begin REQUEST.json` or `begin --request-json JSON`, `load-rules [--skill NAME]`,
+`preflight [--checks PLAN.json]`, `begin REQUEST.json` or `begin --request-json JSON`, `load-rules [--skill NAME]`,
 `step EVENT [--payload PAYLOAD.json | --payload-json JSON]`, and
 `resume [--revision FULL_COMMIT]`, `rescope`, and `supersede`. Inline JSON lets bootstrap proceed before
 repository writes are permitted. If input files are used, they live under ignored
@@ -32,6 +32,10 @@ Checks are objects with unique `id`, non-empty `argv` arrays, and optionally
 `optional_skip_reason` for an environment-dependent exit 77. The parent selects
 checks before evaluation. Required checks must return zero. Receipt creation
 executes the commands and retains their raw output and digest.
+Direct CTest checks may declare `allowed_ctest_skips`, a unique list of selected
+test names whose environment-dependent skip is expected. An exit-zero CTest
+command alone does not prove that its tests executed. Skips remain explicit
+receipt results and never satisfy a whole-work-item Exit Gate.
 
 ## Rule Loading Before Mutation
 
@@ -81,7 +85,10 @@ arbitrary-shell sandbox.
 The state response contains stage, evidence, next operation, and delivery
 target; `load-rules` also emits the required bodies before that response.
 When a failed check needs a different execution plan, `repair` may replace
-`checks` while retaining every check ID and its required/optional boundary.
+`checks` while retaining each required/optional boundary. A redundant CTest
+check ID may be removed only when actual enumeration proves its entire test
+definition set is covered by replacement checks in the same execution context,
+without allowing additional skips. Other check IDs remain required.
 It preserves the objective, paths, baseline, confirmation, and publication.
 The new request identity invalidates the old rule certificate; load rules,
 review the revised coverage, and execute all checks before delivery. A repair
@@ -135,7 +142,7 @@ There is no history array or retained authority for the superseded operation.
 
 `workflow_state.review()` binds the semantic review to content, check plan,
 and the current rule-loading certificate.
-`evaluate()` executes a reviewed plan and produces schema-1 receipts under
+`evaluate()` executes a reviewed plan and produces schema-2 receipts under
 `agent/tmp/main/receipts/`. Candidate receipts use kind `iteration`, integration
 receipts use `integration`, and final acceptance receipts use `batch`.
 Maintenance and governance use `maintenance` and `epoch` respectively. Receipts
@@ -144,6 +151,37 @@ and rule versions, executed commands, return codes, and log hashes. Staging
 unchanged content does not invalidate evidence; changing mode, content, HEAD,
 or toolchain does. Validation of a committed candidate checks its rule files
 against that candidate tree, not the integrator's current working files.
+
+`preflight` reads the request's plan, or an explicit plan file, without writing
+operation state. Direct CTest commands are enumerated with `--show-only=json-v1`;
+empty selections, repeated commands, overlapping test definitions in the same
+execution context, and missing fixture/dependency tests fail before execution.
+Declare CTest directly in `argv`; opaque shell wrappers are not CTest plans.
+Distinct configurations and qualification modes remain distinct checks. A
+repeated sampling mode belongs inside its test harness, not retry-until-success
+qualification. Full CTest already includes its registered focused gates and
+self-tests. Required unregistered checks remain separate.
+
+A plan may configure/build before CTest. Initial enumeration may be deferred
+when that preparation is needed; strict enumeration runs again after
+preparation and before the first test. Each CTest result binds the resolved
+test definitions and an actual JUnit report, requiring exact executed names,
+success states and declared skips. This is coverage validation within one
+phase, not a cross-phase cache. Git/toolchain input hashes alone do not identify
+every built binary, runtime environment or physical device; the parent still
+reviews the check plan's build, execution and semantic obligations.
+
+Each evaluation owns a unique attempt directory under `agent/tmp/main/logs/`.
+Logs and JUnit reports are created exclusively and never overwritten by a
+same-input retry. `verification.json` records only the current attempt, check,
+start times and log location. A separate common-Git verification lock prevents
+overlapping evaluations, including across linked worktrees. Inspect reports
+the existing run without launching tests or creating state. Continue reading
+the original tool session during long checks; do not infer failure from quiet
+output. If the lock is free while state says running, inspect reports an
+interruption. There is no automatic retry or resume-from-passed-check cache.
+An owned interrupted child is terminated; a surviving child retains the lock.
+Repair the cause and execute a fresh reviewed plan before claiming success.
 
 An Iteration delivery has exactly these schema-v2 fields:
 
@@ -174,13 +212,22 @@ using `workflow_state.digest()`. The mapped checks must pass in both candidate
 and integration phases. The parent reviews their full semantic coverage.
 
 [$batch](../../batch/SKILL.md) skill first runs `batch.py check DELIVERY`. After an exact prepared merge or
-in-place candidate and knowledge promotion, load the integration's current
-rules, perform a fresh parent review, and generate an `integration` receipt
-against the delivery's base and actual integration content. Candidate review
+in-place candidate and knowledge promotion, run `batch.py load-rules DELIVERY`
+and read its actual bodies. Run `batch.py verify DELIVERY --checks PLAN.json
+--summary 'Actual parent review'` to generate an `integration` receipt. Both
+commands derive the baseline from the validated delivery and check the active
+integration context and prepared tree before verification. Candidate review
 and rule evidence do not substitute for this integration review. Pass it to
 `batch.py advance DELIVERY --receipt RECEIPT`. This writes only the recoverable
-Goal/work-item transition. Then controller review/evaluate with kind `batch` covers
-the final acceptance tree before deliver. The acceptance trailer includes the
+Goal/work-item transition. `batch.py check-metadata` proves that the exact
+post-integration delta is solely that pending acceptance transaction, using
+recorded before/after blobs and modes and the validated integration receipt.
+The main controller repeats this proof before any final Batch check. Reload
+rules through the main controller, review and evaluate metadata/state/routing
+with kind `batch`, then deliver. The exact proof avoids a third product run;
+arbitrary Markdown, Goal or work-item edits receive no exemption. A changed
+product input or non-transaction semantic edit requires fresh integration
+verification before acceptance. The acceptance trailer includes the
 transaction's exact before/after authority blobs and delivery identity.
 
 ## Recovery

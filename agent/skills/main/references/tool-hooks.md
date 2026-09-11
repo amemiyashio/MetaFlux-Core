@@ -51,7 +51,7 @@ and startup variables are rejected. The hook command uses that same entry.
 Already initialized repository commands retain their own nested tool calls;
 the parser does not inspect arbitrary child programs. Keep controller
 commands as one explicit invocation, including when wrapped in Nix bash.
-`inspect`, `begin`, `load-rules`, `resume`, `rescope`, `supersede`, and the two bootstrap helpers retain
+`inspect`, `preflight`, `begin`, `load-rules`, `resume`, `rescope`, `supersede`, and the two bootstrap helpers retain
 their own parsers and validation. `begin --request-json` and
 `step --payload-json` avoid an ungoverned temporary-input write during bootstrap.
 Other controller transitions follow their exact stage; no broad shell compound
