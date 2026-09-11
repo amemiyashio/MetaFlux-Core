@@ -258,7 +258,7 @@ def check_commit_gate(root: Path, environment: dict[str, str]) -> None:
             code="commit-gate.evidence-required",
             summary="The Git commit gate requires the governed helper's exact verification inputs.",
             evidence=("missing: " + ", ".join(missing),),
-            required_action="Use $main to review, evaluate, and deliver through the commit helper.",
+            required_action="Use $main skill to review, evaluate, and deliver through the commit helper.",
             resume_when="Exact HEAD, staged tree, verification receipt, and operation kind are supplied.",
         )
     try:
@@ -275,7 +275,7 @@ def check_commit_gate(root: Path, environment: dict[str, str]) -> None:
             code="commit-gate.input-changed",
             summary="The Git commit gate's verification inputs need revalidation.",
             evidence=(str(error),),
-            required_action="Preserve current state and use $main resume before another commit.",
+            required_action="Preserve current state and use $main skill with resume before another commit.",
             resume_when="Expected HEAD/tree, operation kind, and the current receipt agree.",
         ) from error
 
@@ -323,7 +323,7 @@ def main() -> int:
         if not all((arguments.expected_head, arguments.expected_tree, arguments.receipt, arguments.kind)):
             raise helper_error(code="commit-helper.evidence-required", summary="A guarded commit requires exact input and executed verification.",
                 evidence=("expected-head, expected-tree, receipt, and kind are required",),
-                required_action="Use $main to review and evaluate the current tree before delivery.",
+                required_action="Use $main skill to review and evaluate the current tree before delivery.",
                 resume_when="The exact staged tree has a current verification receipt.")
     except DiagnosticError as error:
         emit_diagnostics(
@@ -362,7 +362,7 @@ def main() -> int:
                            "Committed tree differs from expected tree; preserve the exact revision for inspection")
     except (ws.WorkflowError, OSError, ValueError, KeyError, TypeError) as error:
         emit_diagnostics((helper_error(code="commit-helper.input-changed", summary="The guarded commit inputs need revalidation.",
-            evidence=(str(error),), required_action="Preserve current state and use $main resume.",
+            evidence=(str(error),), required_action="Preserve current state and use $main skill with resume.",
             resume_when="Expected HEAD/tree and the current verification receipt agree.").diagnostic,),
             diagnostic_format=arguments.diagnostic_format)
         return 2

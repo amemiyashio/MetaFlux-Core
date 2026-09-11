@@ -8,7 +8,7 @@ shell sandbox or a user-authorization service.
 
 ## Loading And Context
 
-`SessionStart` and `SubagentStart` insert the main entrypoint reminder without
+`SessionStart` and `SubagentStart` insert the [$main](../SKILL.md) skill entrypoint reminder without
 creating or replacing an operation. A subagent follows its parent briefing;
 startup never grants it the parent's loaded-rule binding. The first prospective
 write uses that call's session/turn context, additionally distinguishing a
@@ -33,7 +33,7 @@ oversized operation to its actual required scope; do not truncate the rules.
 `PostCompact` invalidates an existing binding for any active mutable operation,
 including committed publication and handoff. It emits the supported
 `systemMessage`; the next write or publication reloads the bodies. It leaves
-main's stage, Goal, commit, receipt, and publication recovery intact.
+the controller's stage, Goal, commit, receipt, and publication recovery intact.
 Ordinary read-only tools never create temporary state or reset an active task.
 
 ## Supported Calls And Stage Exceptions
@@ -44,12 +44,17 @@ passes without an operation. Unknown syntax and tool names are treated as
 potential mutations. An unfamiliar read command can be expressed through a
 recognized simple read or inspected in the current bounded workflow.
 
-Repository executable calls use the Git-aware Nix entry. Keep controller
+Repository executable calls use the clean Git-aware Nix entry from
+[$main](../SKILL.md#bootstrap) skill. The parser requires `--ignore-environment`
+and permits only HOME/USER in `--keep`; ambient PATH, preloads, Python paths
+and startup variables are rejected. The hook command uses that same entry.
+Already initialized repository commands retain their own nested tool calls;
+the parser does not inspect arbitrary child programs. Keep controller
 commands as one explicit invocation, including when wrapped in Nix bash.
 `inspect`, `begin`, `load-rules`, `resume`, and the two bootstrap helpers retain
 their own parsers and validation. `begin --request-json` and
 `step --payload-json` avoid an ungoverned temporary-input write during bootstrap.
-Other main transitions follow their exact stage; no broad shell compound
+Other controller transitions follow their exact stage; no broad shell compound
 receives the controller exception.
 
 Structured patches validate add, update, delete, and both move paths against
@@ -57,7 +62,7 @@ Structured patches validate add, update, delete, and both move paths against
 filesystem writes receive the same target check. Maintenance and Iteration
 calls retain the Goal ownership restriction. Direct writes to `agent/tmp/`
 use controller commands instead. Generic mutations require implementation;
-after review, use `main step repair` before editing again. Exact declared check
+after review, use `main.py step repair` through [$main](../SKILL.md) skill before editing again. Exact declared check
 commands remain available during the working/evaluation stages. Concrete
 `git add` paths and the guarded commit helper require delivery; the publication
 helper requires publication and the operation's exact full commit.

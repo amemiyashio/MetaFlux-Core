@@ -5,10 +5,10 @@ description: Explicitly audit and replan MetaFlux goals or govern a repository-w
 
 # Epoch
 
-Use on an explicit route-replanning or governance request, including when main
+Use on an explicit route-replanning or governance request, including when [$main](../main/SKILL.md) skill
 composes this skill for that request. Ordinary status, maintenance, or an
 automatically completed Batch does not request another Epoch. Bootstrap and
-diagnostics are owned by `main`; the application supplies the execution context.
+diagnostics are owned by [$main](../main/SKILL.md) skill; the application supplies the execution context.
 
 ## Read-Only Proposal
 
@@ -17,7 +17,7 @@ most three evidence-backed candidates and wait for a selection. Non-route
 governance audits need no invented product objective.
 
 Read current source/tests, verified contracts and architecture, plans, then
-memory. Use main's readiness reference. Model the route as a dependency DAG of
+memory. Use [$main](../main/SKILL.md) skill's readiness reference. Model the route as a dependency DAG of
 milestones, work items, decisions, evidence/reference prerequisites, and lanes.
 Report exact baseline/Epoch, one objective and observable success, the four
 readiness axes, critical path, lane order, keep/reorder/rewrite/delete decisions,
@@ -35,7 +35,7 @@ The governing parent is the sole current-authority and Goal writer for the
 cutover. Read-only subagents may independently inventory semantics and review
 regression. No worker dispatch or execution-context creation is implied.
 
-1. Promote useful knowledge to one canonical owner using main's reference;
+1. Promote useful knowledge to one canonical owner using [$main](../main/SKILL.md) skill's reference;
    discard duplicate process material. Record the governing decision.
 2. Rewrite every affected current authority, skill, checker, caller, test,
    link, and term. Remove superseded entrypoints in the same candidate; Git
@@ -46,7 +46,7 @@ regression. No worker dispatch or execution-context creation is implied.
 4. Run state/self-tests, skill validation/routing, reference verification,
    commit gates, component graph, relevant domain checks, complete dev build,
    full CTest, and exact residual scans. Repair a failure in this same unit.
-5. Commit the fully verified activation with main's guarded helper and publish
+5. Commit the fully verified activation with [$main](../main/SKILL.md) skill's guarded helper and publish
    its exact revision. A push failure preserves the activation for publication
    recovery. Older-base work is revalidated against the active Epoch before
    later acceptance; existing branches remain intact.

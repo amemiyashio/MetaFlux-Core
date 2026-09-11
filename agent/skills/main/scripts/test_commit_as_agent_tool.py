@@ -330,7 +330,7 @@ def test_policy_text() -> None:
     text = SKILL.read_text(encoding="utf-8")
     assert "## Bootstrap" in text
     assert "$main" in text
-    assert "nix develop . --command" in text
+    assert "nix develop . --ignore-environment --keep HOME --keep USER --command" in text
     assert "goal.json" in text
     assert "check_git_topology.py" in text
     assert "## Task-Stop Diagnostics" in text

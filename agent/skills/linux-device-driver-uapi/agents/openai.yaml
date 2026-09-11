@@ -1,4 +1,4 @@
 interface:
   display_name: "Linux Device Driver UAPI"
   short_description: "Review Linux cdev, UAPI, DMA, and lifetime rules"
-  default_prompt: "Use $linux-device-driver-uapi to review this Linux character-device UAPI, mapping, DMA, or teardown change."
+  default_prompt: "Use $linux-device-driver-uapi skill to review this Linux character-device UAPI, mapping, DMA, or teardown change."

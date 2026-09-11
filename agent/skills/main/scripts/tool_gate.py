@@ -28,9 +28,11 @@ from agent_diagnostics import emit_diagnostics, task_stop_error  # noqa: E402
 MAX_CONTEXT_BYTES = 128 * 1024
 MAIN_SCRIPT = "agent/skills/main/scripts/main.py"
 MAIN_NOTICE = (
-    "MetaFlux: load main and the scope-owning skills before repository writes. "
-    "Use main inspect for read-only questions; preserve an existing operation. "
-    "Use main begin and load-rules before prepared. Rule receipts record emitted "
+    "MetaFlux: load $main skill and the scope-owning skills before repository writes. "
+    "Use $main skill (main.py inspect) for read-only questions; preserve an existing operation. "
+    "Use its controller begin and load-rules before prepared. Enter commands through "
+    "nix develop . --ignore-environment --keep HOME --keep USER --command; "
+    "do not retain host PATH or LD_PRELOAD. Rule receipts record emitted "
     "bodies, not understanding or authorization. Coding subagents follow their "
     "parent briefing and never govern, commit, publish, or create contexts."
 )
@@ -137,12 +139,19 @@ def nix_inner(root: Path, cwd: Path, argv: list[str]) -> list[str] | None:
     if selector.startswith("path:") or (cwd / selector).resolve() != root:
         return None
     i = 3
+    clean = False
     while i < len(argv):
         if argv[i] == "--command":
+            ws.require(clean, "Use clean Nix initialization: nix develop . --ignore-environment --keep HOME --keep USER --command ...")
             return argv[i + 1:]
-        if argv[i] in {"--ignore-environment", "--offline"}:
+        if argv[i] == "--ignore-environment":
+            clean = True
+            i += 1
+        elif argv[i] == "--offline":
             i += 1
         elif argv[i] == "--keep" and i + 1 < len(argv):
+            ws.require(argv[i + 1] in {"HOME", "USER"},
+                       "Clean Nix entry retains only HOME/USER; initialize tools and environment inside Nix")
             i += 2
         else:
             return None
@@ -210,10 +219,10 @@ def argv_operation(root: Path, cwd: Path, argv: list[str], *, nix: bool) -> Oper
         name, args = script
         if name == MAIN_SCRIPT:
             if args[:1] == ["--root"] and len(args) >= 3:
-                ws.require((cwd / args[1]).resolve() == root, "main command targets another root")
+                ws.require((cwd / args[1]).resolve() == root, "$main skill controller command targets another root")
                 args = args[2:]
             else:
-                ws.require(cwd == root, "main commands from a subdirectory need --root")
+                ws.require(cwd == root, "$main skill controller commands from a subdirectory need --root")
             action = args[0] if args else ""
             if action in {"inspect", "begin", "load-rules", "resume"}:
                 return Operation("controller", argv=argv, action=action, nix=nix)
@@ -277,7 +286,7 @@ def check_paths(root: Path, cwd: Path, paths: list[str], request: dict[str, Any]
                        (name.startswith(p) or (staging and name == p[:-1]))) for p in allowed),
                    "Write target is outside the approved scope: " + name)
         if request["kind"] in {"maintenance", "iteration"}:
-            ws.require(name != "agent/goal.json", "Goal mutations belong to batch or epoch")
+            ws.require(name != "agent/goal.json", "Goal mutations belong to $batch skill or $epoch skill")
 
 
 def context_key(event: dict[str, Any]) -> str:
@@ -304,7 +313,7 @@ def diagnostic(reason: str) -> None:
         code="workflow.tool-precondition", source="main/tool-gate",
         summary="The tool call needs current workflow and loaded-rule evidence.",
         evidence=(reason,), responsibility="current-agent", disposition="fix-and-retry",
-        required_action="Read the injected rules or inspect main, then correct the exact prerequisite before retrying.",
+        required_action="Read the injected rules or inspect through $main skill, then correct the exact prerequisite before retrying.",
         resume_when="The supported call matches the active scope, stage, baseline, and current rule context.",
     ).diagnostic,), stream=sys.stderr)
 
@@ -344,7 +353,8 @@ def lifecycle(root: Path, event: dict[str, Any]) -> dict[str, Any]:
     if name in {"SessionStart", "SubagentStart"}:
         # Do not record a child receipt under the parent session/turn supplied
         # at SubagentStart. Its first write loads in its own PreToolUse context.
-        return {"hookSpecificOutput": {"hookEventName": name, "additionalContext": MAIN_NOTICE}}
+        notice = MAIN_NOTICE.replace("$main skill", f"[$main]({root / 'agent/skills/main/SKILL.md'}) skill")
+        return {"hookSpecificOutput": {"hookEventName": name, "additionalContext": notice}}
     if name == "PostCompact":
         state_path = ws.local_path(root, "state.json")
         if state_path.is_file():
@@ -370,11 +380,11 @@ def pre_tool(root: Path, event: dict[str, Any]) -> dict[str, Any]:
         # These exact parsers own bootstrap/recovery validation; no general
         # shell compound receives this exception.
         return {}
-    ws.require(op.kind != "ungoverned-git", "Use main deliver/publish and the guarded commit/transport helpers")
+    ws.require(op.kind != "ungoverned-git", "Use $main skill with main.py step deliver or main.py step publish and the guarded helpers")
     state_path = ws.local_path(root, "state.json")
-    ws.require(state_path.is_file(), "No active main operation; begin the bounded request before writing")
+    ws.require(state_path.is_file(), "No active $main skill operation; begin the bounded request before writing")
     state = ws.read_json(state_path)
-    ws.require(state.get("schema_version") == 1 and state.get("stage") not in {None, "complete"}, "No active mutable main operation")
+    ws.require(state.get("schema_version") == 1 and state.get("stage") not in {None, "complete"}, "No active mutable $main skill operation")
     request, stage = state["request"], state["stage"]
     ws.require(request.get("kind") in {"maintenance", "iteration", "batch", "epoch"}, "A read-only request does not enable writes")
     controller.validate_state(root, state)
@@ -389,7 +399,7 @@ def pre_tool(root: Path, event: dict[str, Any]) -> dict[str, Any]:
     elif op.kind == "shell" and any(x["argv"] in (op.argv, op.wrapper) for x in request.get("checks", [])):
         ws.require(stage in {"implementation", "review", "evaluation"}, "Planned checks require a pre-delivery working stage")
     else:
-        ws.require(stage == "implementation", "Repository mutation requires implementation; use main repair after review")
+        ws.require(stage == "implementation", "Repository mutation requires implementation; use $main skill (main.py step repair) after review")
     if op.paths:
         check_paths(root, cwd, op.paths, request, staging=op.kind == "stage")
     return ensure_rules(root, event, state) or {}
@@ -405,7 +415,7 @@ def handle(root: Path, event: dict[str, Any]) -> dict[str, Any]:
     except (ws.WorkflowError, OSError, ValueError, KeyError, TypeError, IndexError) as error:
         diagnostic(str(error))
         if isinstance(event, dict) and event.get("hook_event_name") != "PreToolUse":
-            return {"systemMessage": "MetaFlux lifecycle inspection needs repair; use main inspect before the next write."}
+            return {"systemMessage": "MetaFlux lifecycle inspection needs repair; use $main skill (main.py inspect) before the next write."}
         return result(str(error))
 
 

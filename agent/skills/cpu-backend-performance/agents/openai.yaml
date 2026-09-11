@@ -1,4 +1,4 @@
 interface:
   display_name: "CPU Backend Performance"
   short_description: "Review x86 CPU execution, placement, and performance"
-  default_prompt: "Use $cpu-backend-performance to review this x86 CPU interpreter/runtime, target lowering, effective placement, vectorization, or benchmark change."
+  default_prompt: "Use $cpu-backend-performance skill to review this x86 CPU interpreter/runtime, target lowering, effective placement, vectorization, or benchmark change."

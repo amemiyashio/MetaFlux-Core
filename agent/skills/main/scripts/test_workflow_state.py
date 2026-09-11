@@ -182,6 +182,38 @@ class WorkflowScenarios(unittest.TestCase):
         controller.step(self.root, "handoff", {"assignment_request": "Application supplies the next exact context"})
         self.assertEqual(ws.oid(self.root), revision)
 
+    def test_revised_checks_require_new_rules_review_and_execution(self):
+        task = request(self.root)
+        controller.begin(self.root, task)
+        prepare(self.root)
+        controller.step(self.root, "review", {"summary": "Original check coverage reviewed"})
+        controller.step(self.root, "evaluate", {})
+        path = ws.local_path(self.root, "state.json")
+        original = ws.read_json(path)
+        revised = copy.deepcopy(task["checks"])
+        revised[0]["argv"][-1] += "; assert 2 + 2 == 4"
+        controller.step(self.root, "repair", {"checks": revised})
+        current = ws.read_json(path)
+        self.assertEqual(current["request"], {**task, "checks": revised})
+        self.assertNotEqual(current["run"], original["run"])
+        self.assertNotIn("review", current)
+        self.assertNotIn("receipt", current)
+        with self.assertRaises(ws.WorkflowError):
+            controller.step(self.root, "review", {"summary": "Old rules must fail"})
+        load_operation_rules(self.root)
+        with self.assertRaises(ws.WorkflowError):
+            controller.step(self.root, "evaluate", {})
+        controller.step(self.root, "review", {"summary": "Revised coverage reviewed"})
+        controller.step(self.root, "evaluate", {})
+        self.assertNotEqual(ws.read_json(path)["receipt"]["digest"], original["receipt"]["digest"])
+        saved = path.read_bytes()
+        for invalid in ({"checks": []}, {"checks": [{"id": "replacement", "argv": ["true"]}]},
+                        {"checks": [{**revised[0], "optional_skip_reason": "downgraded"}]},
+                        {"checks": revised, "publication": "local"}):
+            with self.assertRaises(ws.WorkflowError):
+                controller.step(self.root, "repair", invalid)
+            self.assertEqual(path.read_bytes(), saved)
+
     def test_local_delivery_skips_publication(self):
         task = request(self.root)
         task["publication"] = "local"
@@ -191,6 +223,8 @@ class WorkflowScenarios(unittest.TestCase):
         commit_operation(self.root)
         self.assertEqual(controller.inspect(self.root)["stage"], "handoff")
         load_operation_rules(self.root)
+        with self.assertRaises(ws.WorkflowError):
+            controller.step(self.root, "repair", {"checks": checks()})
         with self.assertRaises(ws.WorkflowError):
             controller.step(self.root, "publish", {})
 

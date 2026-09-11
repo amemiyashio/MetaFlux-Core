@@ -1049,7 +1049,7 @@
       "id": "COMBO-MAIN-EPOCH",
       "kind": "composition",
       "locale": "en",
-      "prompt": "Use $main with $epoch for the approved route governance, then review, evaluate, commit and publish its exact revision.",
+      "prompt": "Use [$main](main/SKILL.md) skill with [$epoch](epoch/SKILL.md) skill for the approved route governance, then review, evaluate, commit and publish its exact revision.",
       "expected_skills": [
         "main",
         "epoch"
@@ -1060,7 +1060,7 @@
       "id": "COMBO-ZH-MAIN-EPOCH",
       "kind": "composition",
       "locale": "zh-CN",
-      "prompt": "使用 $main 与 $epoch 执行已确认的治理方案，保留产品目标和完成事实。",
+      "prompt": "使用 [$main](main/SKILL.md) skill 与 [$epoch](epoch/SKILL.md) skill 执行已确认的治理方案，保留产品目标和完成事实。",
       "expected_skills": [
         "main",
         "epoch"
@@ -1071,7 +1071,7 @@
       "id": "COMBO-MAIN-DELIVERY",
       "kind": "composition",
       "locale": "en",
-      "prompt": "Use $main to dispatch the assigned iteration, then automatically invoke batch to verify and accept the exact candidate before publication and context handoff.",
+      "prompt": "Use $main skill to dispatch $iteration skill for the assigned Iteration, then automatically invoke $batch skill to verify and accept the exact candidate before publication and context handoff.",
       "expected_skills": [
         "main",
         "iteration",
@@ -1083,13 +1083,29 @@
       "id": "COMBO-ZH-MAIN-DELIVERY",
       "kind": "composition",
       "locale": "zh-CN",
-      "prompt": "由 $main 调用 iteration 完成分配的产品切片，再自动交给 batch 集成验收，发布后核对下一执行上下文。",
+      "prompt": "由 $main skill 调用 $iteration skill 完成分配的产品切片，再自动交给 $batch skill 集成验收，发布后核对下一执行上下文。",
       "expected_skills": [
         "main",
         "iteration",
         "batch"
       ],
       "forbidden_skills": []
+    },
+    {
+      "id": "TERMS-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Explain the Git main branch and the Epoch, Batch and Iteration execution levels; only inspect the current state.",
+      "expected_skills": ["main"],
+      "forbidden_skills": ["epoch", "batch", "iteration"]
+    },
+    {
+      "id": "TERMS-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "只解释 Git 的 main 分支与 Epoch、Batch、Iteration 执行层级的区别，查看当前状态。",
+      "expected_skills": ["main"],
+      "forbidden_skills": ["epoch", "batch", "iteration"]
     }
   ]
 }

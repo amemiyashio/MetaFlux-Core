@@ -5,7 +5,7 @@
       "matcher": "startup|resume|clear|compact",
       "hooks": [{
         "type": "command",
-        "command": "nix develop . --ignore-environment --keep HOME --keep USER --keep PATH --command bash -c 'reference_root=$(git rev-parse --show-toplevel) || exit 2; exec python3 -B \"$reference_root/agent/skills/main/scripts/tool_gate.py\" --root \"$reference_root\"'",
+        "command": "nix develop . --ignore-environment --keep HOME --keep USER --command bash -c 'reference_root=$(git rev-parse --show-toplevel) || exit 2; exec python3 -B \"$reference_root/agent/skills/main/scripts/tool_gate.py\" --root \"$reference_root\"'",
         "additionalContextLimit": 0
       }]
     }],
@@ -13,7 +13,7 @@
       "matcher": ".*",
       "hooks": [{
         "type": "command",
-        "command": "nix develop . --ignore-environment --keep HOME --keep USER --keep PATH --command bash -c 'reference_root=$(git rev-parse --show-toplevel) || exit 2; exec python3 -B \"$reference_root/agent/skills/main/scripts/tool_gate.py\" --root \"$reference_root\"'",
+        "command": "nix develop . --ignore-environment --keep HOME --keep USER --command bash -c 'reference_root=$(git rev-parse --show-toplevel) || exit 2; exec python3 -B \"$reference_root/agent/skills/main/scripts/tool_gate.py\" --root \"$reference_root\"'",
         "additionalContextLimit": 0
       }]
     }],
@@ -21,7 +21,7 @@
       "matcher": ".*",
       "hooks": [{
         "type": "command",
-        "command": "nix develop . --ignore-environment --keep HOME --keep USER --keep PATH --command bash -c 'reference_root=$(git rev-parse --show-toplevel) || exit 2; exec python3 -B \"$reference_root/agent/skills/main/scripts/tool_gate.py\" --root \"$reference_root\"'",
+        "command": "nix develop . --ignore-environment --keep HOME --keep USER --command bash -c 'reference_root=$(git rev-parse --show-toplevel) || exit 2; exec python3 -B \"$reference_root/agent/skills/main/scripts/tool_gate.py\" --root \"$reference_root\"'",
         "additionalContextLimit": 0
       }]
     }],
@@ -29,7 +29,7 @@
       "matcher": "manual|auto",
       "hooks": [{
         "type": "command",
-        "command": "nix develop . --ignore-environment --keep HOME --keep USER --keep PATH --command bash -c 'reference_root=$(git rev-parse --show-toplevel) || exit 2; exec python3 -B \"$reference_root/agent/skills/main/scripts/tool_gate.py\" --root \"$reference_root\"'"
+        "command": "nix develop . --ignore-environment --keep HOME --keep USER --command bash -c 'reference_root=$(git rev-parse --show-toplevel) || exit 2; exec python3 -B \"$reference_root/agent/skills/main/scripts/tool_gate.py\" --root \"$reference_root\"'"
       }]
     }]
   }

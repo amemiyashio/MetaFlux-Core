@@ -300,7 +300,7 @@ def blob(root: Path, path: str) -> dict[str, str] | None:
 
 def begin_transaction(root: Path, replacements: dict[str, str], identity: dict[str, Any]) -> dict[str, Any]:
     path = local_path(root, "acceptance.json")
-    require(not path.exists(), "An unfinished acceptance transaction needs main resume")
+    require(not path.exists(), "An unfinished acceptance transaction needs $main skill (main.py resume)")
     files = {}
     for name, text in replacements.items():
         transaction_path(root, name)
@@ -405,11 +405,11 @@ def commit_guard(root: Path, expected_head: str, expected_tree: str, receipt: di
     validate_receipt(root, receipt, kind=kind)
     import main as controller
     state_path = local_path(root, "state.json")
-    require(state_path.is_file(), "A guarded commit requires an active main delivery")
+    require(state_path.is_file(), "A guarded commit requires an active $main skill delivery")
     state = read_json(state_path)
     require(isinstance(state, dict) and state.get("schema_version") == 1 and
             state.get("stage") == "delivery" and not state.get("commit"),
-            "A guarded commit requires the current main delivery stage")
+            "A guarded commit requires the current $main skill delivery stage")
     controller.validate_state(root, state)
     request = state["request"]
     require(request["kind"] == kind and request["base_revision"] == expected_head and

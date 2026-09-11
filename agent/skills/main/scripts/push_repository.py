@@ -48,7 +48,7 @@ POLICY_FIELDS = {
     "ssh_options",
 }
 CONFIGURE_RETRY = (
-    "nix develop . --command python3 -B "
+    "nix develop . --ignore-environment --keep HOME --keep USER --command python3 -B "
     "agent/skills/main/scripts/push_repository.py configure"
 )
 

@@ -147,7 +147,7 @@ Pass.
         "| ID | Topic | Canonical source | Source status |\n"
         "| --- | --- | --- | --- |\n"
         "| decision-0033 | Current execution | [goal](../goal.json) | Verified |\n"
-        "| decision-0034 | Agent-tool detection | [tool](../skills/main/SKILL.md) | Verified |\n",
+        "| decision-0034 | Agent-tool detection | [$main](../skills/main/SKILL.md) skill | Verified |\n",
     )
     write(
         root / "agent/memory/open-decisions.md",
@@ -164,7 +164,7 @@ Pass.
         "interface:\n"
         "  display_name: \"Start Work\"\n"
         "  short_description: \"Start one current repository work iteration\"\n"
-        "  default_prompt: \"Use $iteration to begin.\"\n",
+        "  default_prompt: \"Use $iteration skill to begin.\"\n",
     )
     write(
         root / "agent/skills/main/SKILL.md",
@@ -179,7 +179,7 @@ Pass.
         "interface:\n"
         "  display_name: \"Detect Agent Tool\"\n"
         "  short_description: \"Detect the current executable agent tool\"\n"
-        "  default_prompt: \"Use $main to report the tool.\"\n",
+        "  default_prompt: \"Use $main skill to report the tool.\"\n",
     )
     write(
         root
@@ -195,8 +195,8 @@ Pass.
         "## Index\n\n"
         "| Skill | Status | Use when |\n"
         "| --- | --- | --- |\n"
-        "| [iteration](iteration/SKILL.md) | Active | Starting |\n"
-        "| [main](main/SKILL.md) | Active | Detecting |\n",
+        "| [$iteration](iteration/SKILL.md) skill | Active | Starting |\n"
+        "| [$main](main/SKILL.md) skill | Active | Detecting |\n",
     )
     write(
         root / "agent/skills/trigger-evals.json",
@@ -548,8 +548,31 @@ def main() -> int:
         test_json_cli(Path(temp) / "json")
         test_foreign_git_environment_isolation(Path(temp) / "isolation")
         test_temporary_state(Path(temp) / "temporary")
-    print("agent state self-tests: 14 groups passed")
+        test_skill_references(Path(temp) / "skill-references")
+    print("agent state self-tests: 15 groups passed")
     return 0
+
+
+def test_skill_references(root: Path) -> None:
+    create_fixture(root)
+    doc = root / "README.md"
+    valid = ("Use [$main](agent/skills/main/SKILL.md) skill.\n"
+             "Git branch `main`; execution Epoch / Batch / Iteration; schema kind `batch`.\n")
+    write(doc, valid)
+    assert not errors(root)
+    for invalid in (
+        valid.replace("[$main]", "[main]"),
+        valid.replace(") skill", ")"),
+        valid.replace("agent/skills/main/SKILL.md", "agent/skills/iteration/SKILL.md"),
+    ):
+        write(doc, invalid)
+        assert has_fragment(errors(root), "skill reference must name")
+    write(doc, valid.replace("agent/skills/main/SKILL.md", str(root / "agent/skills/main/SKILL.md")))
+    assert has_fragment(errors(root), "tracked skill links must be repository-relative")
+    write(doc, valid)
+    metadata = root / "agent/skills/main/agents/openai.yaml"
+    write(metadata, metadata.read_text().replace("$main skill", "$main"))
+    assert has_fragment(errors(root), "default prompt must name $main skill explicitly")
 
 
 def test_temporary_state(root: Path) -> None:

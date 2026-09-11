@@ -24,17 +24,17 @@ inability to proceed after exhausting both provisioning paths.
   any privileged operation or change to the host authorization boundary.
 - Read the active goal, assigned lane, and owning domain skill to identify the
   exact operation that needs privilege.
-- For a missing executable, require `manage-toolchain` evidence that Nix cannot
+- For a missing executable, require [$manage-toolchain](../manage-toolchain/SKILL.md) skill evidence that Nix cannot
   provide or materialize the tool before selecting a host package.
-- For driver work, compose `linux-device-driver-uapi`; that skill owns driver
+- For driver work, compose [$linux-device-driver-uapi](../linux-device-driver-uapi/SKILL.md) skill; that skill owns driver
   behavior and qualification while this skill owns elevation only.
 
 ## Ownership And Routing
 
-- `iteration` resolves the harness, enters Nix, and routes a privilege need
+- [$main](../main/SKILL.md) skill resolves the harness, enters Nix, and routes a privilege need
   here. It does not define sudo commands, package operations, driver actions,
   credential handling, helper installation, or revocation.
-- `manage-toolchain` owns Nix declarations, locks, and the determination that a
+- [$manage-toolchain](../manage-toolchain/SKILL.md) skill owns Nix declarations, locks, and the determination that a
   tool has a real Nix provision/materialization gap. This skill owns the
   subsequent host package mapping and privileged installation. The resulting
   host executable remains a local prerequisite, never Nix-owned tool identity
@@ -55,15 +55,15 @@ inability to proceed after exhausting both provisioning paths.
 2. Verify the installed non-secret authorization before mutation:
 
    ```sh
-   nix develop . --command python3 \
+   nix develop . --ignore-environment --keep HOME --keep USER --command python3 \
      agent/skills/manage-host-privilege/scripts/host_privilege.py check
    ```
 
-3. For a tool that `manage-toolchain` has proved unavailable from Nix, map it
+3. For a tool that [$manage-toolchain](../manage-toolchain/SKILL.md) skill has proved unavailable from Nix, map it
    to exact pacman repository package names and invoke only:
 
    ```sh
-   nix develop . --command python3 \
+   nix develop . --ignore-environment --keep HOME --keep USER --command python3 \
      agent/skills/manage-host-privilege/scripts/host_privilege.py \
      package PACKAGE [PACKAGE ...]
    ```
@@ -71,11 +71,11 @@ inability to proceed after exhausting both provisioning paths.
    The client accepts package names only. It does not accept package-manager
    flags, URLs, local package files, shell syntax, or arbitrary commands. After
    installation, invoke only the intended absolute host executable from inside
-   `nix develop . --command ...` and record it as a host prerequisite.
+   `nix develop . --ignore-environment --keep HOME --keep USER --command ...` and record it as a host prerequisite.
 4. For MetaFlux driver work, invoke one decision-0032 action:
 
    ```sh
-   nix develop . --command python3 \
+   nix develop . --ignore-environment --keep HOME --keep USER --command python3 \
      agent/skills/manage-host-privilege/scripts/host_privilege.py \
      driver ACTION [ARTIFACT]
    ```
@@ -112,7 +112,7 @@ ownership or mode is invalid, an action is unknown, argument arity is wrong, an
 artifact escapes the configured repository root, or a required kernel facility
 is absent. Do not widen the command set to bypass a failure.
 
-Render these failures through the `main` task-stop contract. Invalid
+Render these failures through the [$main](../main/SKILL.md) skill task-stop contract. Invalid
 package names, actions, arity, and canonical in-repository artifact shape are
 `current-agent / fix-and-retry`. An artifact outside the configured repository
 is `host-privilege.artifact-outside-repository` with
@@ -126,11 +126,11 @@ a wider command.
 ## Verification
 
 ```sh
-nix develop . --command python3 \
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 \
   agent/skills/manage-host-privilege/scripts/test_host_privilege.py
-nix develop . --command sh -n \
+nix develop . --ignore-environment --keep HOME --keep USER --command sh -n \
   agent/skills/manage-host-privilege/scripts/metaflux-pacman-install
-nix develop . --command sh -n \
+nix develop . --ignore-environment --keep HOME --keep USER --command sh -n \
   agent/skills/manage-host-privilege/scripts/metaflux-driver-debug
 ```
 

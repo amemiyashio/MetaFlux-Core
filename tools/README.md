@@ -49,8 +49,8 @@ the corpus is unfrozen or partially compiled. It verifies declarations only;
 actual executor and device evidence remain the real-client gates' responsibility.
 
 ```sh
-nix develop . --command python3 tools/check-agent-state.py .
-nix develop . --command python3 tests/architecture/test-check-agent-state.py
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 tools/check-agent-state.py .
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 tests/architecture/test-check-agent-state.py
 ```
 
 The optional commit gate re-runs the candidate-tree agent-tool detector,
@@ -61,11 +61,11 @@ conversation-emitted harness subject. Epoch is read once from the candidate
 materializes only the source entry explicitly needed for research.
 The automatic integration stage additionally submits exact committed revisions; the checker
 proves that the current Epoch activation precedes the base, the base precedes
-the tip, and the base belongs to current main history.
+the tip, and the base belongs to the current Git `main` history.
 
 ```sh
-nix develop . --command python3 tools/check-agent-state.py . --commit-gate
-nix develop . --command python3 tools/check-agent-state.py . \
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 tools/check-agent-state.py . --commit-gate
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 tools/check-agent-state.py . \
   --integration-base BASE_REVISION --integration-tip TIP_REVISION
 ```
 
@@ -84,14 +84,14 @@ cannot become fixture output.
 `check-skill-routing.py` validates the static English/Chinese routing corpus.
 Every routed skill has positive and near-miss coverage, cross-domain work has
 composition coverage, and explicit workflow cases name their exact skill. The
-`epoch` proposal guard separately proves target selection,
+[$epoch](../agent/skills/epoch/SKILL.md) skill's proposal guard separately proves target selection,
 confirmation, baseline invalidation, no-op Epoch retention, and DAG acyclicity
 without writing repository state.
 
 ```sh
-nix develop . --command python3 -B tools/check-skill-routing.py .
-nix develop . --command python3 -B tests/architecture/test-check-skill-routing.py
-nix develop . --command python3 -B \
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 -B tools/check-skill-routing.py .
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 -B tests/architecture/test-check-skill-routing.py
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 -B \
   agent/skills/epoch/scripts/test_check_route_proposal.py
 ```
 
@@ -102,7 +102,7 @@ nix develop . --command python3 -B \
 whitelist, C-to-C++ language-wall violations, and client links into the daemon.
 
 ```sh
-nix develop . --command python3 tools/check-component-graph.py \
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 tools/check-component-graph.py \
   tmp/build/dev/metaflux-component-graph.json
 ```
 
@@ -116,7 +116,7 @@ the bounded generation/epoch model, loss fence, and telemetry race model. Its
 compact result belongs under `tmp/outputs/` (decision-0042).
 
 ```sh
-nix develop . --command python3 tools/check-lifecycle-model.py \
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 tools/check-lifecycle-model.py \
   --base-manifest contracts/protocol/transport/v1/schema/manifest.json \
   --manifest contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/manifest.json \
   --model contracts/protocol/transport/v1/schema/extensions/lifecycle/v1/model.json \

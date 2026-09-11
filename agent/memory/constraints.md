@@ -53,13 +53,13 @@ identity and provisioning boundaries live in
   Fixed means clear and reproducibly stable for the current revision, not
   permanently immutable; governed manifest/lock updates may advance versions.
 - Agent startup is Nix-first (decision-0031) and agent identity follows
-  decision-0034. The Nix shell is the first-choice execution environment for
-  every tool invocation: `nix develop . --command ...` is the full Git-aware
+  decision-0034. The Nix shell is the required execution environment for
+  every tool invocation: `nix develop . --ignore-environment --keep HOME --keep USER --command ...` is the full Git-aware
   repository entry, and `nix shell .#<tool-output> --command ...` is the
   preferred form when a workflow needs one named tool output without the
   whole development shell. Ambient host execution is never preferred; it is
   only a recorded prerequisite after a proved Nix gap (decision-0036).
-  `main` runs inside the Git-aware Nix
+  [$main](../skills/main/SKILL.md) skill runs inside the Git-aware Nix
   environment and derives its ephemeral subject only from the harness name
   already emitted in the current conversation. It does not scan PATH, walk
   processes, or probe an executable or `--version`.
@@ -69,14 +69,16 @@ identity and provisioning boundaries live in
   declaration requires the conversation-emitted harness name instead of
   PATH-order selection. Except for host Git/Nix bootstrap, every
   executable and tool/version/capability probe runs through the Git-aware
-  `nix develop . --command ...` environment before ambient host inspection.
+  `nix develop . --ignore-environment --keep HOME --keep USER --command ...` environment before ambient host inspection.
   Shell grammar for repository work runs under the Nix-provided bash
-  (`nix develop . --command bash -c '...'`); the ambient host shell never
+  (`nix develop . --ignore-environment --keep HOME --keep USER --command bash -c '...'`); the ambient host shell never
   executes repository tools.
+  [Clean initialization](../../toolchains/README.md#clean-tool-environment-decision-0057)
+  owns inherited-environment isolation; single-tool forms run only after that entry.
   The caller harness is not pinned or installed as a repository Nix tool.
   Newly required tools are added to the repository Nix declaration first. Only
   a confirmed Nix materialization gap permits decision-0032 host escalation through
-  `manage-host-privilege` (decision-0036): an exact pacman package is installed
+  [$manage-host-privilege](../skills/manage-host-privilege/SKILL.md) skill (decision-0036): an exact pacman package is installed
   through the
   package-name-only root helper, then
   its exact host executable may run from inside the Nix entry environment. This
@@ -91,8 +93,10 @@ identity and provisioning boundaries live in
   `agent/goal.json` stores only the active Epoch, Batch, product target,
   objective, research-only reference prerequisites, and
   planned/integrated/deferred lanes. Goal schema v4 binds every lane to one work
-  item. Main dispatches epoch, batch, or iteration. Workers deliver schema-v2
-  exact candidates and actual content-bound verification receipts. Batch alone
+  item. [$main](../skills/main/SKILL.md) skill dispatches
+  [$epoch](../skills/epoch/SKILL.md) skill, [$batch](../skills/batch/SKILL.md) skill,
+  or [$iteration](../skills/iteration/SKILL.md) skill. Workers deliver schema-v2
+  exact candidates and actual content-bound verification receipts. The acceptance controller alone
   advances daily accepted state after fresh integration verification. Slice
   acceptance preserves the lane/work item/target and allocates the Batch maximum
   Iteration plus one; complete acceptance requires the full Exit Gate. Selection
@@ -104,14 +108,14 @@ identity and provisioning boundaries live in
   `goal.json`, integrate, govern, commit, or push. Conversation, actor,
   branch, worktree, timeline, activity, and review notes are not repository
   authorities.
-- Breaking repository governance uses an explicitly requested `epoch`
+- Breaking repository governance uses an explicitly requested [$epoch](../skills/epoch/SKILL.md) skill
   cutover. It directly rewrites all affected current authority, promotes useful
   knowledge through knowledge promotion, deletes obsolete surfaces, and publishes the next
   Epoch only after complete regression. There is no dual-write, alias, old-format
   parser, migration ledger, or compatibility route; Git history is the recovery
   boundary. Maintenance, Epoch activation, and Batch acceptance automatically
-  publish their exact guarded commit through main unless the user limits
-  publication (decisions 0038 and 0054). Worker candidates go to Batch without
+  publish their exact guarded commit through [$main](../skills/main/SKILL.md) skill unless the user limits
+  publication (decisions 0038 and 0054). Worker candidates go to [$batch](../skills/batch/SKILL.md) skill without
   pushing. Failed publication recovers the same commit; changed remote ancestry
   requires the application's new exact execution context.
 - Research-only upstream sources live under `references/` as manifest-backed

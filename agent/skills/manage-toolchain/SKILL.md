@@ -22,17 +22,22 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 ## Routing
 
 - Startup resolution is Nix-first. Before any repository executable or
-  tool/version/capability probe, enter the Nix shell: `nix develop . --command ...`
+  tool/version/capability probe, enter the Nix shell: `nix develop . --ignore-environment --keep HOME --keep USER --command ...`
   for repository workflows, or the preferred single-tool form
   `nix shell .#<tool-output> --command TOOL ...` when only one named tool
   output is needed. Do not inspect ambient `PATH`, use
   `which`/`command -v`, or run a host executable to decide whether the Nix
    declaration is needed. Host `git` and `nix` are the only bootstrap
    executables; repository file APIs may read tracked text directly.
+- Follow the [clean tool environment](../../../toolchains/README.md#clean-tool-environment-decision-0057)
+  at each application-to-repository entry. Initialize PATH and tool/library
+  settings from the Nix closure. Use single-tool commands only from inside that
+  initialized environment. A loader failure before the requested command starts
+  needs startup/environment diagnosis before any host-package conclusion.
 - A newly required repeatable tool is added to the narrow repository Nix
   declaration before use. This skill owns proving a Nix
   provision/materialization gap; after that proof it composes
-  `manage-host-privilege`, which alone owns host package mapping, privilege,
+  [$manage-host-privilege](../manage-host-privilege/SKILL.md) skill, which alone owns host package mapping, privilege,
   installation, and authorization. The installed host copy is a local
   prerequisite and does not become Nix-owned declared identity or
   repeatable/release evidence.
@@ -58,7 +63,7 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
   development shell that exposes those tools. It does not wrap or duplicate the
   owners above, encode their commands or policies, archive evidence, snapshot
   project source, govern Agent execution, install host software, or configure
-  host GC. `nix develop . --command TOOL ...` is an environment-entry
+  host GC. `nix develop . --ignore-environment --keep HOME --keep USER --command TOOL ...` is an environment-entry
   boundary; `TOOL` and its owning repository workflow retain all semantics.
 - A fixed tool is not permanently frozen. Its current version, source, patches,
   hashes, and exposure are explicit and reproducibly stable for the repository
@@ -84,7 +89,7 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
   their domain skills. A tool version change does not transfer those decisions
   to this skill.
 - Route every `sudo`, `su`, root-helper, host package, and privileged driver
-  operation to `manage-host-privilege`. This skill neither defines nor executes
+  operation to [$manage-host-privilege](../manage-host-privilege/SKILL.md) skill. This skill neither defines nor executes
   privilege commands and never owns credentials or persistent grants.
 
 ## Workflow
@@ -114,8 +119,8 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
    trees into the Nix store before evaluation.
 7. Run every version probe and owning project command inside the declared
    development shell, for example
-   `nix develop . --command cmake --preset dev` or
-   `nix develop . --command ctest --preset dev`. Nix supplies the
+   `nix develop . --ignore-environment --keep HOME --keep USER --command cmake --preset dev` or
+   `nix develop . --ignore-environment --keep HOME --keep USER --command ctest --preset dev`. Nix supplies the
    executable closure; CMake, CTest, packaging, and qualification retain command
    semantics and evidence ownership.
    A decision-0032-installed host prerequisite is invoked by exact absolute path from
@@ -132,12 +137,12 @@ description: Pin and expose MetaFlux repository tool versions while keeping Nix 
 
 ## Task Stops
 
-Use the `main` task-stop contract. Ambient host probing or `path:.` use is
+Use the [$main](../main/SKILL.md) skill task-stop contract. Ambient host probing or `path:.` use is
 `toolchain.nix-boundary-violated` with `current-agent / fix-and-retry`: discard
 that observation and repeat the exact probe through the Git-aware Nix entry.
 Host package escalation without proved Nix provision/materialization failure is
 `toolchain.nix-gap-unproved` with `current-agent / stop-and-report`; establish
-the Nix result before composing `manage-host-privilege`. A target SDK or glibc
+the Nix result before composing [$manage-host-privilege](../manage-host-privilege/SKILL.md) skill. A target SDK or glibc
 floor failure remains a product/toolchain error and must not be relabeled as a
 missing Nix tool.
 
@@ -155,11 +160,11 @@ missing Nix tool.
 
 ```sh
 nix flake show .
-nix develop . --command clang --version
-nix develop . --command cmake --version
-nix develop . --command ninja --version
-nix develop .#release --command rpmbuild --version
-nix develop . --command python3 tools/check-agent-state.py .
+nix develop . --ignore-environment --keep HOME --keep USER --command clang --version
+nix develop . --ignore-environment --keep HOME --keep USER --command cmake --version
+nix develop . --ignore-environment --keep HOME --keep USER --command ninja --version
+nix develop .#release --ignore-environment --keep HOME --keep USER --command rpmbuild --version
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 tools/check-agent-state.py .
 ```
 
 Then run the narrow CMake/CTest or other owner-specific gate affected by the

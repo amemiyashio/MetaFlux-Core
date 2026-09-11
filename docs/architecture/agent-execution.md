@@ -1,7 +1,7 @@
 ---
 status: Verified
 decision: decision-0033
-updated: 2026-09-10
+updated: 2026-09-11
 ---
 
 # Goal-First Multi-Agent Execution
@@ -15,7 +15,10 @@ and accepted progress; activity and identity never confer repository authority.
 
 ## Four Workflow Skills (decision-0054)
 
-The four entries are `main`, `epoch`, `batch`, and `iteration`. Main bootstraps
+The four entries are [$main](../../agent/skills/main/SKILL.md) skill,
+[$epoch](../../agent/skills/epoch/SKILL.md) skill,
+[$batch](../../agent/skills/batch/SKILL.md) skill, and
+[$iteration](../../agent/skills/iteration/SKILL.md) skill. The entry controller bootstraps
 identity and Nix, interprets the current request, and controls preparation,
 implementation, review, evaluation, delivery, publication, and handoff. These
 stages have no numbers. Its scripts validate events and evidence; the parent
@@ -29,7 +32,7 @@ remain product targets; lanes describe DAG work lines rather than another
 execution level.
 
 The consolidation removes duplicate entrypoints and makes shared identity,
-readiness, knowledge promotion, commit, and publication capabilities main's
+readiness, knowledge promotion, commit, and publication capabilities the entry controller's
 internal operations. Eleven domain skills and four utility skills retain their
 existing product/tool ownership. Packages remain flat and the routing policy
 is owned once by `tools/check-agent-state.py`.
@@ -46,7 +49,18 @@ Epoch unpublished.
 
 ## Rule Loading Boundary
 
-The mandatory-read rule is enforced inside the existing main stages. Main
+The [skill-reference convention](../../agent/skills/main/SKILL.md#skill-references)
+is the current wording authority (decision-0056). Its rationale is to separate
+named workflow tools from execution concepts and Git branch names. It applies
+to entry instructions, cross-skill links, user-facing dispatch and diagnostics;
+machine schema values and command syntax retain their existing identity.
+Keeping it inside the mandatory entry skill makes rule loading carry it into
+each executing context, without a second terminology policy or a new workflow
+level. Index/link validation and routing/diagnostic scenarios verify this
+boundary; prose changes do not promote product maturity.
+
+
+The mandatory-read rule is enforced inside [$main](../../agent/skills/main/SKILL.md) skill. Its controller
 binds actual rule-body emission to the request, scope, base, HEAD, and current
 file versions before preparation allows implementation. Review and verification
 carry that certificate with the candidate content and check plan. Candidate
@@ -55,7 +69,7 @@ parent review. Publication reloads at the committed HEAD. The certificate is
 evidence of body emission, not comprehension or user authorization. Required
 references inside skills still need to be read by the Agent. The exact
 preparation and reloading protocol is owned by
-[main's controller](../../agent/skills/main/references/controller.md).
+[controller interface](../../agent/skills/main/references/controller.md).
 
 The project PreToolUse hook supplies missing rule bodies to the current context
 and denies the current covered write until preparation succeeds. The
@@ -82,9 +96,9 @@ committed facts; no process archive or duplicate route database exists.
 
 ## Worker Contract
 
-Main keeps inspection read-only, including status questions during active work.
+[$main](../../agent/skills/main/SKILL.md) skill keeps inspection read-only, including status questions during active work.
 Maintenance uses its review/evaluation/commit/publication stages without a
-product tuple or Goal change. Product work enters iteration with an exact base
+product tuple or Goal change. Product work enters [$iteration](../../agent/skills/iteration/SKILL.md) skill with an exact base
 and full `epoch-NNNN / batch-NNNN / iteration-NNNN` plus lane assignment from the
 application. The parent briefs bounded coding subagents and reviews returned
 diffs against the briefing and domain boundaries before further dispatch.
@@ -98,7 +112,8 @@ Reported passed strings without executed receipts are rejected.
 
 ## Automatic Acceptance And Advancement (decision-0052)
 
-Main immediately invokes batch after a qualified committed candidate. Batch
+[$main](../../agent/skills/main/SKILL.md) skill immediately invokes
+[$batch](../../agent/skills/batch/SKILL.md) skill after a qualified committed candidate. The acceptance controller
 checks existing validated acceptance history before current Iteration identity
 so a replay cannot advance twice. A current-HEAD candidate is accepted in place;
 a divergent candidate needs its exact prepared merge and fresh integration
@@ -118,13 +133,13 @@ the lane/work item, and selects the first array-ordered planned lane whose
 dependencies are integrated. Iteration numbers carry no priority. Batch closure
 does not complete a milestone or begin an Epoch.
 
-Batch alone makes daily accepted-state changes. Its pending transaction retains
+[$batch](../../agent/skills/batch/SKILL.md) skill alone makes daily accepted-state changes. Its pending transaction retains
 exact before/after blob IDs and modes for each affected authority. Final
 evaluation covers the advanced tree before one acceptance commit.
 
 ## Commit Boundary
 
-Main's shared helper requires expected HEAD, exact staged tree, operation kind,
+The [$main](../../agent/skills/main/SKILL.md) skill's shared helper requires expected HEAD, exact staged tree, operation kind,
 and a current verification receipt with its reviewed rule certificate.
 Pre-commit calls the same `commit_guard` before and after candidate-tree checks
 and requires all four inputs, including full expected HEAD/tree IDs. Direct
@@ -145,7 +160,8 @@ environment declaration.
 
 Maintenance, Batch acceptance, and Epoch activation automatically publish their
 exact guarded commit unless the user limits publication. A worker candidate goes
-to Batch. Main's governed transport validates canonical main, Nix Git/OpenSSH,
+to [$batch](../../agent/skills/batch/SKILL.md) skill. The governed transport in
+[$main](../../agent/skills/main/SKILL.md) skill validates the canonical Git `main` branch, Nix Git/OpenSSH,
 the external public fingerprint, and a narrow exact refspec without force.
 
 Remote revision equality proves publication. A different remote revision must
@@ -160,13 +176,13 @@ and modes, preserving external edits. Lost pre-commit state requires renewed
 review and evaluation. Post-commit recovery validates Git records and restores
 only publication/handoff. Temporary flags never create authorization.
 
-Main continues next work when the application already supplied a matching
+[$main](../../agent/skills/main/SKILL.md) skill continues next work when the application already supplied a matching
 context. Otherwise it emits the precise tuple, lane, full base, objective, and
 checks required for allocation; scripts do not allocate that context.
 
 ## Task-Stop Contract
 
-[main](../../agent/skills/main/SKILL.md#task-stop-diagnostics) owns the diagnostic
+[$main](../../agent/skills/main/SKILL.md#task-stop-diagnostics) skill owns the diagnostic
 shape rendered by `tools/agent_diagnostics.py`. Preserve child causes and raw
 tool output. External responsibility does not authorize scheduling, privilege,
 cleanup, source copies, or unchanged retries. Diagnostics are current-operation
@@ -174,7 +190,7 @@ output, not product authority or historical records.
 
 ## Route Replanning (decision-0045)
 
-Epoch is explicit-only. Stage 1 is read-only and reports the exact revision and
+[$epoch](../../agent/skills/epoch/SKILL.md) skill is explicit-only. Stage 1 is read-only and reports the exact revision and
 Epoch, objective and observable success, architecture/activation/maturity/release
 matrix, DAG/critical path/lane order, node dispositions, decision timing,
 affected owners, residual scans, and regression plan. Without a supplied focus,

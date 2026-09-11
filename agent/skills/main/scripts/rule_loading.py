@@ -105,7 +105,7 @@ def validate(root: Path, certificate: Any, *, kind: str,
              entries: dict[str, tuple[str, str]] | None = None) -> None:
     ws.require(isinstance(certificate, dict) and set(certificate) ==
                {"schema_version", "base_revision", "head", "workflow", "request", "skills", "files", "digest"},
-               "Missing actual rule-loading receipt; use main load-rules")
+               "Missing actual rule-loading receipt; use $main skill (main.py load-rules)")
     ws.require(certificate["schema_version"] == 1 and certificate["digest"] ==
                ws.digest({k: v for k, v in certificate.items() if k != "digest"}), "Rule-loading receipt changed")
     ws.require(certificate["workflow"] == workflow(kind), "Loaded rules belong to another workflow")
@@ -118,17 +118,17 @@ def validate(root: Path, certificate: Any, *, kind: str,
     baseline = ws.entries(root, certificate["base_revision"])
     changed = [name for name in baseline.keys() | values.keys() if baseline.get(name) != values.get(name)]
     ws.require(set(selected_skills(kind, changed)) <= set(selected),
-               "Changed paths require additional skill bodies; use main load-rules --skill NAME")
+               "Changed paths require additional skill bodies; use $main skill (main.py load-rules --skill NAME)")
     for name, value in certificate["files"].items():
         ws.require(isinstance(value, list) and len(value) == 2 and value[0] in {"100644", "100755"}
-                   and values.get(name) == tuple(value), "Loaded rule version changed: " + name + "; use main load-rules")
+                   and values.get(name) == tuple(value), "Loaded rule version changed: " + name + "; use $main skill (main.py load-rules)")
 
 
 def current(root: Path, *, kind: str | None = None) -> dict[str, Any]:
     path = ws.local_path(root, "rules.json")
-    ws.require(path.is_file(), "Load rule bodies with main load-rules before preparation or review")
+    ws.require(path.is_file(), "Load rule bodies with $main skill (main.py load-rules) before preparation or review")
     certificate = ws.read_json(path)
     recorded_kind = {"main": "maintenance"}.get(certificate.get("workflow"), certificate.get("workflow"))
     validate(root, certificate, kind=kind or recorded_kind)
-    ws.require(certificate["head"] == ws.oid(root), "Loaded rules have a stale HEAD; use main load-rules")
+    ws.require(certificate["head"] == ws.oid(root), "Loaded rules have a stale HEAD; use $main skill (main.py load-rules)")
     return certificate

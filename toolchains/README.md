@@ -32,7 +32,7 @@ This boundary is strict: Nix declarations contain tool versions, source
 identities, inputs, patches, hashes, and shell exposure only. They do not encode
 task routing, Git operations, project configure/build/test/package commands,
 qualification meaning, Agent execution governance, evidence, cleanup, or host
-installation. `nix develop . --command TOOL ...` provides the tool closure;
+installation. `nix develop . --ignore-environment --keep HOME --keep USER --command TOOL ...` provides the tool closure;
 the invoked tool and its owning workflow retain command semantics.
 
 "Fixed" does not mean permanently immutable. It means the current repository
@@ -59,8 +59,8 @@ must be promoted into the owning `toolchains/` manifest and validated there;
 the reference catalog is not a second toolchain authority (decision-0047).
 
 Under decision-0031, command resolution is Nix-first and the Nix shell is the
-first-choice execution environment. Development enters the Git-aware
-flake with `nix develop . --command ...` before any repository executable or
+required execution environment. Development enters the Git-aware
+flake through the clean entry below before any repository executable or
 tool/version/capability probe; when a workflow needs a single named tool,
 the preferred form is `nix shell .#<tool-output> --command TOOL ...`. This
 includes shell inspection utilities,
@@ -90,7 +90,45 @@ kernel logs, kmemleak, and the named live cdev qualification binary. Those
 actions are driver-debug privilege, not tool materialization, and remain outside
 Nix ownership. Neither helper accepts arbitrary commands or credentials.
 
+## Clean Tool Environment (decision-0057)
+
+Initialize repository tools and their environment inside Nix. Application tool
+calls enter with `nix develop . --ignore-environment --keep HOME --keep USER
+--command TOOL ...`; shell grammar uses its `bash -c`, without login startup.
+Keep only those two host context variables at this boundary. The declared Nix
+closure supplies PATH, Python, compiler and library settings. Already initialized
+repository processes invoke those tools directly; nested profile selection uses
+the declared Nix executable. Per-command qualification settings belong inside
+that initialized environment. Explicit host prerequisites retain the separate
+proved-gap and privilege boundary above.
+
+The shared development shells expose Bash, Git, Nix and ripgrep from the exact
+`flake.lock` nixpkgs revision. Nix is needed by nested profile and fixture
+commands; ripgrep serves repository searches. Neither is resolved through a
+retained host PATH. The declaration adds tool exposure only, with no build,
+test, Agent-state or publication commands in Nix.
+
+Rationale and observed failure: inherited `LD_PRELOAD` caused the Nix Bash
+startup to fail with `libgio-2.0.so.0` unresolved before the requested Python
+command ran. Clean entry succeeded; retaining only `LD_PRELOAD` reproduced the
+failure, while separately retaining PATH, SHELL, BASH_ENV, LD_LIBRARY_PATH,
+NIX_BUILD_SHELL or NIX_LD_LIBRARY_PATH did not. This establishes an inherited
+preload incompatibility at shell startup, not an absent repository dependency
+or a reason to install host GLib. A shellHook executes after Bash loads and is
+too late to fix that startup boundary.
+
+Consequences: do not forward host search paths, preloads, Python paths or shell
+startup variables. Diagnose launcher, Nix initialization and product-command
+failures separately, retaining the exact error and causal comparison. Missing
+tools in the clean environment are provisioned through Nix before use.
+
+Verification: compare clean/inherited-variable entry, resolve required tools
+under `/nix/store`, exercise nested profiles, and run the tool-gate isolation
+scenarios, full dev build and CTest. Tool-origin checks establish provisioning;
+they do not establish product compatibility or performance.
+
 ## Compiler Epoch 1 (decision-0018)
+
 
 [`compiler-epoch-1.json`](compiler-epoch-1.json) is the machine-readable
 compiler tool declaration. Compiler epoch 1 selects Clang, MLIR, and LLD 22.1.8
@@ -230,8 +268,8 @@ pinned ICD through the loader's driver-files variable:
 
 ```sh
 nix build .#vulkan-runtime --no-link --print-out-paths
-VK_DRIVER_FILES="<printed-path>/share/vulkan/icd.d/radeon_icd.x86_64.json" \
-  nix develop .#vulkan --command <probe or test>
+nix develop .#vulkan --ignore-environment --keep HOME --keep USER --command \
+  env VK_DRIVER_FILES="<printed-path>/share/vulkan/icd.d/radeon_icd.x86_64.json" <probe or test>
 ```
 
 The ICD json inside the pinned output references its own store-path driver

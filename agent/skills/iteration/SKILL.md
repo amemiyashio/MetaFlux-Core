@@ -5,13 +5,13 @@ description: Implement and deliver one bounded MetaFlux product Iteration assign
 
 # Iteration
 
-Enter through `main` Bootstrap. Require an application-supplied registered
+Enter through [$main](../main/SKILL.md) skill Bootstrap. Require an application-supplied registered
 worker context at an exact base and the active Epoch/Batch/Iteration/lane tuple.
-The lane remains planned and its work item Active until `batch` accepts it.
+The lane remains planned and its work item Active until [$batch](../batch/SKILL.md) skill accepts it.
 Do not create an execution context or select a sibling lane.
 
 1. Read the work item's Exit Gate, current source/tests, and domain skills.
-   Use main's readiness reference to separate implementation prerequisites
+   Use [$main](../main/SKILL.md) skill's readiness reference to separate implementation prerequisites
    from later qualification requirements. Choose one independently verifiable
    slice within the assigned lane; its objective and checks precede edits.
 2. For declared reference prerequisites, run `references/tools/reference.py`
@@ -22,19 +22,19 @@ Do not create an execution context or select a sibling lane.
    The parent reviews the returned diff in conversation before another
    dispatch, evaluation, or commit. Subagents do not change Goal, integrate,
    govern, commit, push, or create contexts.
-4. Run main's evaluation against the actual candidate tree and commit through
+4. Run [$main](../main/SKILL.md) skill's evaluation against the actual candidate tree and commit through
    the shared guarded helper. Changed code invalidates corresponding review
    and verification evidence. Failed checks stay in the current unaccepted
    Iteration and produce a repaired exact tip.
-5. Emit delivery schema v2 under `agent/tmp/main/` and return it to `batch`.
+5. Emit delivery schema v2 under `agent/tmp/main/` and return it to [$batch](../batch/SKILL.md) skill.
    It contains exact epoch/batch/iteration/lane and base/tip, `acceptance_kind`
    (`slice` or `work-item`), `slice_objective`, actual test results,
    `verification_receipt`, empty blockers, and material `knowledge_candidates`.
    A work-item claim needs its whole current Exit Gate, not a partial test pass.
-6. The controlling parent invokes `batch` immediately. The worker does not push
+6. The controlling parent invokes [$batch](../batch/SKILL.md) skill immediately. The worker does not push
    its candidate or manufacture the next assignment.
 
-Use main's diagnostic contract. Preserve supplied dirty or mismatched contexts
+Use [$main](../main/SKILL.md) skill's diagnostic contract. Preserve supplied dirty or mismatched contexts
 and report the exact required application action rather than making a copy.
 Linked-worktree and fixture Git commands clear Git local environment variables;
 an unexpected HEAD/index change is traced to its invoking hook/test and reflog.

@@ -42,7 +42,7 @@ PRESERVE_CONTEXT_ACTION = (
     "worktree; the Agent must not create a replacement context."
 )
 PRESERVE_CONTEXT_RESUME = (
-    "Main Bootstrap passes in the user- or application-supplied registered Git context."
+    "$main skill Bootstrap passes in the user- or application-supplied registered Git context."
 )
 
 

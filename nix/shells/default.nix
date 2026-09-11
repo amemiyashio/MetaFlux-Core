@@ -21,6 +21,8 @@ let
           toolPackages.toolchain
           pkgs.bash
           pkgs.git
+          pkgs.nix
+          pkgs.ripgrep
         ]
         ++ packages;
       shellHook = ''
@@ -145,6 +147,10 @@ in
     name = "metaflux-linux-debug-tools";
     packages = [
       toolPackages.linux-debug-tools
+      pkgs.bash
+      pkgs.git
+      pkgs.nix
+      pkgs.ripgrep
       pkgs.cmake
       pkgs.python3
       pkgs.gcc

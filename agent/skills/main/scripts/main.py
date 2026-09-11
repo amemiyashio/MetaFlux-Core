@@ -35,7 +35,7 @@ def inspect(root: Path) -> dict[str, Any]:
     goal = ws.read_json(goal_path) if goal_path.exists() else {}
     stage = state["stage"] if state else "preparation"
     target: Any = state["request"]["kind"] if state else None
-    next_operation = NEXT[stage] if state else "read the request and dispatch main, epoch, batch, or iteration"
+    next_operation = NEXT[stage] if state else "read the request and dispatch $main skill, $epoch skill, $batch skill, or $iteration skill"
     if state and stage == "handoff" and state.get("context_refresh_required"):
         target = {"operation": state["request"]["kind"], "required_base_revision": state["remote_main_revision"]}
         next_operation = "application supplies a context at remote main; reread its Goal before selecting work"
@@ -122,10 +122,10 @@ def require_rules(root: Path, state: dict[str, Any]) -> None:
     committed = bool(state.get("commit"))
     loaded = rules.current(root, kind=request["kind"])
     expected = rules.required(root, request["kind"], [] if committed else request["allowed_paths"], request.get("skills", []))
-    ws.require(set(expected) <= set(loaded["skills"]), "Required scope rules were not loaded; use main load-rules")
-    ws.require(loaded["request"] == (None if committed else state["run"]), "Rules belong to another operation; use main load-rules")
+    ws.require(set(expected) <= set(loaded["skills"]), "Required scope rules were not loaded; use $main skill (main.py load-rules)")
+    ws.require(loaded["request"] == (None if committed else state["run"]), "Rules belong to another operation; use $main skill (main.py load-rules)")
     ws.require(loaded["base_revision"] == (ws.oid(root) if committed else request["base_revision"]),
-               "Rules have a different operation baseline; use main load-rules")
+               "Rules have a different operation baseline; use $main skill (main.py load-rules)")
 
 
 def commit_record(root: Path, revision: str, run: str | None = None) -> dict[str, Any]:
@@ -224,7 +224,7 @@ def step(root: Path, event: str, payload: dict[str, Any]) -> dict[str, Any]:
         ws.require(stage == "preparation", "prepared requires preparation")
         scope(root, request)
         ws.require(state["input"] == ws.snapshot(root),
-                   "Files changed after begin but before preparation; preserve changes and re-review with main resume")
+                   "Files changed after begin but before preparation; preserve changes and re-review with $main skill (main.py resume)")
         state["stage"] = "implementation"
     elif event == "review":
         ws.require(stage in {"implementation", "review", "evaluation", "delivery"}, "Review is only a pre-commit operation")
@@ -300,6 +300,17 @@ def step(root: Path, event: str, payload: dict[str, Any]) -> dict[str, Any]:
         state["handoff"] = payload.get("assignment_request", "Report the completed delivery; application supplies the next exact context")
     elif event == "repair":
         ws.require(stage in {"implementation", "review", "evaluation", "delivery"}, "Committed operations recover publication instead of reimplementation")
+        ws.require(set(payload) <= {"checks"}, "Repair may revise checks only; it preserves scope, baseline, and publication")
+        if "checks" in payload:
+            checks = payload["checks"]
+            ws.validate_plan(checks)
+            replacements = {check["id"]: check for check in checks}
+            for check in request["checks"]:
+                ws.require(check["id"] in replacements, "Repair must retain every declared check")
+                ws.require(replacements[check["id"]].get("optional_skip_reason") == check.get("optional_skip_reason"),
+                           "Repair must preserve each check's required/optional boundary")
+            state["request"] = {**request, "checks": checks}
+            state["run"] = ws.digest(state["request"])
         state["stage"] = "implementation"
         state.pop("receipt", None)
         state.pop("review", None)
@@ -346,7 +357,7 @@ def main() -> int:
         emit_diagnostics((task_stop_error(code="workflow.transition-invalid", source="main",
             summary="The next workflow transition needs corrected evidence.", evidence=(str(error),),
             responsibility="current-agent", disposition="preserve-and-report",
-            required_action="Inspect current Git state and use $main resume within the original task scope.",
+            required_action="Inspect current Git state and use $main skill with resume within the original task scope.",
             resume_when="The exact context and required review, verification, or publication evidence match.").diagnostic,))
         return 1
     print(json.dumps(result, sort_keys=True))

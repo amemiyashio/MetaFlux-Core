@@ -10,27 +10,59 @@ controller scripts validate transitions; they do not run an Agent, allocate an
 execution context, or confer user authorization. Read the current request and
 retain its limits, including a request to keep work local.
 
+## Skill References
+
+When naming a specific skill in explanations, progress updates, handoffs, or
+repository prose, use a clickable `$name` link followed by `skill`, for example
+[$main](SKILL.md) skill. Use repository-relative links in tracked Markdown and
+the current checkout's absolute `SKILL.md` path in user-facing replies. Plain
+text diagnostics and UI prompts use `$name skill`; machine identifiers,
+frontmatter, paths, command arguments, and literal invocation examples retain
+their syntax. Apply this convention to workflow, domain, and utility skills.
+
+Epoch, Batch, and Iteration name execution concepts; Git's `main` names a
+branch. Name the skill explicitly when discussing dispatch, and the concept or
+branch explicitly when discussing execution state or Git. A request to govern
+in the current task enters the governance skill here; it does not request a
+new application task or worktree.
+
 ## Bootstrap
 
 Before repository executables other than host Git/Nix, enter the Git-aware Nix
-environment. Shell grammar runs inside its bash. Consume only the harness name
-already emitted in the conversation; never infer identity from processes,
+environment using the clean entry below. Shell grammar runs inside its bash.
+Consume only the harness name already emitted in the conversation; never infer identity from processes,
 PATH, a model, or repository prose.
 
 ```sh
-nix develop . --command python3 -B agent/skills/main/scripts/detect_agent_tool.py --agent-tool HARNESS_NAME --json
-nix develop . --command python3 -B agent/skills/main/scripts/check_git_topology.py --json
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 -B agent/skills/main/scripts/detect_agent_tool.py --agent-tool HARNESS_NAME --json
+nix develop . --ignore-environment --keep HOME --keep USER --command python3 -B agent/skills/main/scripts/check_git_topology.py --json
 ```
+
+Every repository command submitted from the application uses this clean Nix
+entry, including reads. Do not preserve ambient `PATH`, `LD_PRELOAD`, Python
+paths, or shell startup variables. Nix supplies tools and their environment;
+shell grammar uses `--command bash -c '...'`, without a login shell. Commands
+already running inside that initialized environment may call its tools
+directly, including its declared Nix for a named profile. Add any newly needed
+tool to the Nix declaration instead of restoring the host search path.
+
+For startup failures, distinguish the application launcher, Nix resolution or
+shell initialization, and the invoked repository command. A loader's missing
+library message alone does not prove a missing host package. Preserve its raw
+output and compare clean entry with the relevant inherited variable before
+attributing the cause. The [toolchain boundary](../../../toolchains/README.md#clean-tool-environment-decision-0057)
+owns environment isolation and the verified preload diagnosis.
 
 Read `agent/README.md`, memory, `agent/goal.json`, the relevant product Exit Gate,
 and the domain skills owning the requested change. Nix supplies tools; CMake,
 Ninja, Kbuild, CTest, and packaging keep their existing ownership. Provision
-missing tools through `manage-toolchain`; confirmed host gaps and every
-privileged action additionally compose `manage-host-privilege`.
+missing tools through [$manage-toolchain](../manage-toolchain/SKILL.md) skill;
+confirmed host gaps and every privileged action additionally compose
+[$manage-host-privilege](../manage-host-privilege/SKILL.md) skill.
 
 For a mutating request, use `begin --request-json` to declare the bounded scope
 without first writing a request file. Run `load-rules` and read its emitted
-AGENTS, main, controller, workflow, and scope-owning skill bodies before
+AGENTS, this skill, controller, workflow, and scope-owning skill bodies before
 `step prepared`. A receipt binds their exact file modes/blobs, current HEAD,
 request and base; it records body emission, not comprehension or authorization.
 Begin records existing edits, and preparation rejects further edits made before
@@ -48,12 +80,13 @@ not arbitrary shell execution.
 - Inspection, status, readiness, and identity requests stay read-only. Use
   [readiness](references/evidence-framework.md) for evidence classification.
   A question during active work does not replace its state or trigger a commit.
-- Maintenance uses the main preparation, implementation, parent review,
+- Maintenance uses this controller's preparation, implementation, parent review,
   evaluation, guarded commit, and publication stages. It has no invented
   product Iteration identity and leaves Goal state unchanged.
-- An assigned product candidate uses `iteration`; its exact committed delivery
-  goes automatically to `batch` in the same controlling turn.
-- An explicit route or governance request uses `epoch`. Discovering drift in
+- An assigned product candidate uses [$iteration](../iteration/SKILL.md) skill;
+  its exact committed delivery goes automatically to [$batch](../batch/SKILL.md) skill
+  in the same controlling turn.
+- An explicit route or governance request uses [$epoch](../epoch/SKILL.md) skill. Discovering drift in
   ordinary work is evidence to report, not a new governance authorization.
 - Standalone knowledge promotion uses [knowledge promotion](references/knowledge-promotion.md)
   within the requested scope. Identity and publication diagnostics use the
@@ -83,7 +116,7 @@ subject and exact expected HEAD/tree. The helper checks the active verification
 receipt, its rule certificate, and transaction before invoking the candidate-tree
 commit gate. Pre-commit repeats the same input guard before and after candidate
 checks, requiring full expected HEAD/tree, receipt, and operation kind. It never
-modifies Git identity configuration. Both paths require the active main delivery
+modifies Git identity configuration. Both paths require this controller's active delivery
 state and its current loaded rules; an old receipt does not revive a resumed or
 replaced operation.
 
@@ -95,7 +128,7 @@ integration needs its own current rules, fresh parent review, and verification.
 
 Maintenance, Batch acceptance, and Epoch activation publish their exact guarded
 commit automatically unless the current user request limits publication. An
-ordinary worker candidate goes to its controlling Batch instead of pushing.
+ordinary worker candidate goes to [$batch](../batch/SKILL.md) skill for acceptance.
 Use [publication](references/publication.md); do not force, broaden the refspec,
 or read private-key bytes. A publication failure preserves that commit and
 resumes publication only. Next work starts only after exact publication and a

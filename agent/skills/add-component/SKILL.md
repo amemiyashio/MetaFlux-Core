@@ -34,8 +34,8 @@ is what makes the rules bind.
 ## Verification
 
 ```sh
-nix develop . --command cmake --preset dev
-nix develop . --command ctest --preset dev
+nix develop . --ignore-environment --keep HOME --keep USER --command cmake --preset dev
+nix develop . --ignore-environment --keep HOME --keep USER --command ctest --preset dev
 ```
 
 `metaflux.architecture.component-graph` passing proves the new target's edges

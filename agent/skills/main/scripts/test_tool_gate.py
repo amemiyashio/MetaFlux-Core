@@ -80,7 +80,7 @@ class ToolGateScenarios(unittest.TestCase):
         return response["hookSpecificOutput"]
 
     def shell(self, argv: list[str]) -> dict:
-        return self.event("Bash", "nix develop . --command " + shlex.join(argv))
+        return self.event("Bash", "nix develop . --ignore-environment --keep HOME --keep USER --command " + shlex.join(argv))
 
     def controller(self, *args: str) -> dict:
         return self.shell(["python3", "-B", gate.MAIN_SCRIPT, "--root", ".", *args])
@@ -111,6 +111,22 @@ class ToolGateScenarios(unittest.TestCase):
         self.denied(self.event("Bash", "python3 agent/skills/main/scripts/main.py inspect"))
         self.denied(self.event("Bash", "cat product.txt"))
         self.denied(self.event("Bash", "cat product.txt; git status --short"))
+        self.assertFalse((self.root / "agent/tmp").exists())
+
+    def test_startup_skill_link_uses_the_current_checkout(self) -> None:
+        event = {"hook_event_name": "SessionStart"}
+        notice = self.invoke(event)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn(f"[$main]({self.root / 'agent/skills/main/SKILL.md'}) skill", notice)
+        self.assertNotIn(str(gate.ROOT), notice)
+        self.assertFalse((self.root / "agent/tmp").exists())
+
+    def test_nix_entry_excludes_inherited_tool_and_loader_environment(self) -> None:
+        command = "nix develop . --command python3 -B " + gate.MAIN_SCRIPT + " inspect"
+        self.denied(self.event("Bash", command))
+        clean = command.replace("--command", "--ignore-environment --command")
+        self.assertEqual(self.invoke(self.event("Bash", clean)), {})
+        for variable in ("PATH", "LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH", "PYTHONHOME", "BASH_ENV", "SHELL"):
+            self.denied(self.event("Bash", clean.replace("--command", "--keep " + variable + " --command")))
         self.assertFalse((self.root / "agent/tmp").exists())
 
     def test_full_rules_are_injected_and_first_write_never_runs(self) -> None:
@@ -262,8 +278,8 @@ class ToolGateScenarios(unittest.TestCase):
         self.denied(event)
         event["tool_input"]["workdir"] = str(self.root / "agent")
         self.denied(event)
-        event = self.event("Bash", "nix develop .. --command git add -- skills/main/",
-                           tool_input={"command": "nix develop .. --command git add -- skills/main/", "workdir": str(self.root / "agent")})
+        event = self.event("Bash", "nix develop .. --ignore-environment --command git add -- skills/main/",
+                           tool_input={"command": "nix develop .. --ignore-environment --command git add -- skills/main/", "workdir": str(self.root / "agent")})
         self.assertIn("additionalContext", self.denied(event))
         self.assertEqual(self.invoke(event), {})
 
@@ -274,6 +290,7 @@ class ToolGateScenarios(unittest.TestCase):
             handler = groups[0]["hooks"][0]
             self.assertFalse(handler.get("async", False))
             self.assertTrue(handler["command"].startswith("nix develop . "))
+            self.assertIsNotNone(gate.nix_inner(self.root, self.root, shlex.split(handler["command"])))
             self.assertIn("git rev-parse --show-toplevel", handler["command"])
             if event != "PostCompact":
                 self.assertEqual(handler["additionalContextLimit"], 0)

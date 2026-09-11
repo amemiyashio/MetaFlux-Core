@@ -1,6 +1,7 @@
 # Controller Interface
 
-Run each command through the Git-aware Nix shell. The executable is
+Run each application command through the clean Git-aware Nix entry in
+[$main](../SKILL.md#bootstrap) skill. The executable is
 `agent/skills/main/scripts/main.py --root .`; its operations are `inspect`,
 `begin REQUEST.json` or `begin --request-json JSON`, `load-rules [--skill NAME]`,
 `step EVENT [--payload PAYLOAD.json | --payload-json JSON]`, and
@@ -21,7 +22,7 @@ paths match exactly. Epoch requests additionally quote the already received
 `batch`, `iteration`, and `lane`. Temporary fields record the conversation;
 they never replace actual user authorization or application context.
 
-Optional `skills` names additional required skills. Main always requires its
+Optional `skills` names additional required skills. The controller always requires its
 own rules, the selected workflow, and the domain skills derived from the
 declared paths. Additional skills supplement those owners. A wider scope may
 require several domain skills; no new workflow entry or product identity is
@@ -36,7 +37,7 @@ executes the commands and retains their raw output and digest.
 
 Begin the bounded request first, then run `load-rules` and read its output in the
 executing context before `step prepared`. The loader emits the complete bodies
-of `AGENTS.md`, main's `SKILL.md`, this controller reference, and the required
+of `AGENTS.md`, [$main](../SKILL.md) skill, this controller reference, and the required
 workflow/domain `SKILL.md` files. Follow each skill's routing instructions for
 additional references; the loader does not replace that reading.
 
@@ -75,10 +76,16 @@ arbitrary-shell sandbox.
 | `deliver` | delivery | Payload `agent_tool` and `message`; requires exact staged reviewed content; guarded commit then publication or handoff |
 | `publish` | publication | Calls governed exact-commit transport; failure preserves this stage and commit |
 | `handoff` | handoff | Payload `assignment_request` records the current handoff text; completes this operation |
-| `repair` | any pre-commit working stage | Invalidates evidence and returns to bounded implementation |
+| `repair` | any pre-commit working stage | Invalidates evidence and returns to bounded implementation; optional payload `checks` revises the check plan within the same scope |
 
 The state response contains stage, evidence, next operation, and delivery
 target; `load-rules` also emits the required bodies before that response.
+When a failed check needs a different execution plan, `repair` may replace
+`checks` while retaining every check ID and its required/optional boundary.
+It preserves the objective, paths, baseline, confirmation, and publication.
+The new request identity invalidates the old rule certificate; load rules,
+review the revised coverage, and execute all checks before delivery. A repair
+never converts old logs into passing evidence or revises a committed operation.
 The parent provides its user-facing explanation and invokes the next
 skill. Handoff is not permission to create a task or source context: emit the
 exact Epoch/Batch/Iteration/lane, full base, objective, Exit Gate, and required
@@ -126,13 +133,13 @@ sets `exit_gate` to `{ "digest": "SHA256_OF_EXIT_GATE_JSON_STRING", "checks":
 using `workflow_state.digest()`. The mapped checks must pass in both candidate
 and integration phases. The parent reviews their full semantic coverage.
 
-Batch first runs `batch.py check DELIVERY`. After an exact prepared merge or
+[$batch](../../batch/SKILL.md) skill first runs `batch.py check DELIVERY`. After an exact prepared merge or
 in-place candidate and knowledge promotion, load the integration's current
 rules, perform a fresh parent review, and generate an `integration` receipt
 against the delivery's base and actual integration content. Candidate review
 and rule evidence do not substitute for this integration review. Pass it to
 `batch.py advance DELIVERY --receipt RECEIPT`. This writes only the recoverable
-Goal/work-item transition. Then main review/evaluate with kind `batch` covers
+Goal/work-item transition. Then controller review/evaluate with kind `batch` covers
 the final acceptance tree before deliver. The acceptance trailer includes the
 transaction's exact before/after authority blobs and delivery identity.
 
@@ -151,11 +158,11 @@ workflow actors. The helper accepts only `-m MESSAGE` or `-F FILE`, expected
 HEAD/tree, `--kind`, `--receipt`, and the conversation-emitted `--agent-tool`.
 Pre-commit requires the helper's full expected HEAD/tree, receipt, and kind,
 and invokes the same `commit_guard` before and after candidate-tree checks.
-The guard also requires the current main operation in delivery, its exact
+The guard also requires the current controller operation in delivery, its exact
 request and verification receipt, and the matching currently loaded rules.
 Resuming or replacing an operation invalidates an old helper invocation even
 when HEAD and content have not changed. Lost pre-commit state requires a new
-main request, rule loading, review, and evaluation. Historical candidate receipt
+[$main](../SKILL.md) skill request, rule loading, review, and evaluation. Historical candidate receipt
 validation remains independent of the integrator's current operation.
 Missing input and stale content or rules fail the guard. It preserves
 candidate-hook diagnostics and verifies the committed tree.

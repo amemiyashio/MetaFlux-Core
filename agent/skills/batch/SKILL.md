@@ -5,10 +5,10 @@ description: Check or automatically accept an exact MetaFlux Iteration delivery,
 
 # Batch
 
-Invoke automatically from main after an exact qualified Iteration delivery.
+Invoke automatically from [$main](../main/SKILL.md) skill after an exact qualified Iteration delivery.
 `$batch check` and requests to inspect a delivery are read-only. Uncommitted
 patches, completion language, and a reported passed string do not authorize a
-state transition. Bootstrap and diagnostics are owned by `main`.
+state transition. Bootstrap and diagnostics are owned by [$main](../main/SKILL.md) skill.
 
 ## Acceptance
 
@@ -21,7 +21,7 @@ state transition. Bootstrap and diagnostics are owned by `main`.
    an obscured stale ancestor as a fresh candidate.
 3. Resolve only bounded composition defects. Run fresh focused, affected,
    and combined checks on the actual merged tree. Promote material knowledge
-   using main's shared reference before the final combined evaluation.
+   using [$main](../main/SKILL.md) skill's shared reference before the final combined evaluation.
    A worker receipt is entry evidence, not a replacement for integration checks.
 4. Supply that current integration receipt to `scripts/batch.py advance`.
    This is the sole daily Goal/work-item writer. It prepares a recoverable
@@ -33,11 +33,11 @@ state transition. Bootstrap and diagnostics are owned by `main`.
    array-ordered planned lane whose dependencies are integrated. Exhaustion
    does not wrap. Closing a Batch does not close a milestone or create an Epoch.
 6. Evaluate final state/routing and affected combined gates, then commit the
-   exact staged acceptance tree through main's helper. Its Git trailers bind
+   exact staged acceptance tree through [$main](../main/SKILL.md) skill's helper. Its Git trailers bind
    the candidate, delivery identity, acceptance kind, and receipt digest.
-7. Publish that exact commit through main's shared transport. Resume failed
+7. Publish that exact commit through [$main](../main/SKILL.md) skill's shared transport. Resume failed
    publication without accepting again. Return the next exact tuple and base;
-   main continues only in an already supplied matching execution context.
+   [$main](../main/SKILL.md) skill continues only in an already supplied matching execution context.
 
 The delivery remains transient. Accepted product facts belong in their unique
 source/test/contract/plan/decision owner; Git preserves prior states.

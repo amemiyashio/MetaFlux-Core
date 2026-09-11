@@ -18,6 +18,7 @@ updated: 2026-09-10
 | Registry view | One process-scoped selection policy and `registry_view_id`, with provider-specific generation-bound membership revisions captured at permitted initialization boundaries | [runtime](../../runtime/README.md) |
 | Generation | Monotonic incarnation of a logical device; stale objects retain their old generation and fail deterministically | [milestone-0.1.2.0](../plan/milestone-0.1.2.0-vpci-lifecycle/plan.md) |
 | Workflow Epoch | One effective product objective, route, and governance regime; explicit semantic governance advances it | [Agent execution](../../docs/architecture/agent-execution.md) |
+| Skill invocation | A named workflow, domain or utility instruction package; distinct from execution levels and Git branch names | [Skill-reference convention](../skills/main/SKILL.md#skill-references) |
 | Batch | A bounded collection of dependent work within one workflow Epoch | [Agent execution](../../docs/architecture/agent-execution.md) |
 | Iteration | One bounded, reviewed, verified delivery; it may complete a slice of a work item | [Agent execution](../../docs/architecture/agent-execution.md) |
 | Device epoch | Persistent monotonic retirement counter advanced by checked addition exactly once per committed retirement; exhaustion never wraps | [work-item-0.1.2.1](../plan/milestone-0.1.2.0-vpci-lifecycle/work/work-item-0.1.2.1-lifecycle-model.md) |

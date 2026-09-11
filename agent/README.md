@@ -1,13 +1,13 @@
 # MetaFlux Agent Context
 
-All work enters through [main](skills/main/SKILL.md), which preserves the user
+All work enters through [$main](skills/main/SKILL.md) skill, which preserves the user
 scope, bootstraps Nix and conversation-derived identity, and selects the next
 operation. Read-only questions preserve an active task. Maintenance has no
 invented product Iteration and leaves Goal unchanged.
 
 ## Read Order
 
-1. Read main Bootstrap and [memory](memory/README.md), especially constraints and open decisions.
+1. Read Bootstrap and the [skill-reference convention](skills/main/SKILL.md#skill-references) in [$main](skills/main/SKILL.md) skill, then [memory](memory/README.md), especially constraints and open decisions.
 2. Read [goal.json](goal.json), the target milestone/work item, and its Exit Gate.
 3. Load the workflow and domain skills that own the requested scope.
 
@@ -45,23 +45,23 @@ archive, progress diary, or numbered review record.
 
 ## Delivery Loop
 
-[iteration](skills/iteration/SKILL.md) delivers an exact candidate in the context
+[$iteration](skills/iteration/SKILL.md) skill delivers an exact candidate in the context
 supplied by the application. The parent reviews bounded coding-subagent diffs
 before further dispatch, evaluation, or commit. A qualified delivery immediately
-enters [batch](skills/batch/SKILL.md) for composition and actual integration tests.
+enters [$batch](skills/batch/SKILL.md) skill for composition and actual integration tests.
 
 A slice preserves its lane, Active work item, and target, allocating the Batch's
 maximum Iteration plus one. Whole-work-item acceptance requires the complete
-Exit Gate before closing it. Batch selects the first dependency-ready lane in
+Exit Gate before closing it. The acceptance controller selects the first dependency-ready lane in
 array order. Batch completion does not complete a milestone or create an Epoch.
 
 Maintenance, acceptance, and Epoch activation automatically publish their exact
 guarded commit unless the user limits publication. Worker candidates go to
-Batch. Publication recovery retains the same commit. Next work continues only
-in a matching application-supplied context; otherwise main emits the exact
+[$batch](skills/batch/SKILL.md) skill. Publication recovery retains the same commit. Next work continues only
+in a matching application-supplied context; otherwise [$main](skills/main/SKILL.md) skill emits the exact
 assignment request.
 
-[epoch](skills/epoch/SKILL.md) owns explicit replanning and governance. A complete
+[$epoch](skills/epoch/SKILL.md) skill owns explicit replanning and governance. A complete
 approved implementation plan supplies confirmation for its unchanged baseline.
 A semantic no-op leaves Epoch unchanged. Knowledge promotion is a shared
 internal operation that updates one canonical owner per useful claim.

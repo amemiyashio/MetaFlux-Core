@@ -311,7 +311,7 @@ class Checker:
                 required_action=required_action or policy["required_action"],
                 resume_when=resume_when or policy["resume_when"],
                 retry_command=(
-                    "nix develop . --command python3 -B tools/check-agent-state.py ."
+                    "nix develop . --ignore-environment --keep HOME --keep USER --command python3 -B tools/check-agent-state.py ."
                     if effective_disposition == "fix-and-retry"
                     else None
                 ),
@@ -1031,6 +1031,8 @@ class Checker:
                 token = "$" + slug
                 if yaml_text.count(token) != 1:
                     self.error(yaml_path, f"default prompt must contain {token} exactly once")
+                if token + " skill" not in yaml_text:
+                    self.error(yaml_path, f"default prompt must name {token} skill explicitly")
                 if slug in EXPLICIT_ONLY_SKILLS and "allow_implicit_invocation: false" not in yaml_text:
                     self.error(yaml_path, "explicit-only skill must disable implicit invocation")
         index_path = root / "README.md"
@@ -1039,7 +1041,7 @@ class Checker:
             return
         indexed = set(
             match.group(1)
-            for match in re.finditer(r"^\| \[([a-z0-9-]+)\]\(\1/SKILL\.md\) \|", index_text, re.MULTILINE)
+            for match in re.finditer(r"^\| \[\$([a-z0-9-]+)\]\(\1/SKILL\.md\) skill \|", index_text, re.MULTILINE)
         )
         if indexed != actual:
             self.error(index_path, f"skill index drift: actual={sorted(actual)}, indexed={sorted(indexed)}")
@@ -1096,8 +1098,8 @@ class Checker:
             text = self.read_text(path)
             if text is None:
                 continue
-            for match in re.finditer(r"!?\[[^\]]*\]\(([^)]+)\)", text):
-                raw = match.group(1).strip()
+            for match in re.finditer(r"!?\[([^\]]*)\]\(([^)]+)\)", text):
+                label, raw = match.group(1), match.group(2).strip()
                 if not raw or raw.startswith(("http://", "https://", "mailto:", "#")):
                     continue
                 if raw.startswith("<") and raw.endswith(">"):
@@ -1108,6 +1110,16 @@ class Checker:
                 if not target_text or any(token in target_text for token in ("{", "}", "$")):
                     continue
                 target = (path.parent / unquote(target_text)).resolve()
+                if target.name == "SKILL.md" and target.is_relative_to(self.root / "agent/skills"):
+                    # Section-title links may describe a rule. An entry link or
+                    # explicit invocation must identify the actual owning skill.
+                    if not separator or label.startswith("$"):
+                        expected = "$" + target.parent.name
+                        if (label != expected or
+                                re.match(r" skill\b", text[match.end():]) is None):
+                            self.error(path, f"skill reference must name {expected} skill and match its instruction target: {raw}")
+                    if Path(target_text).is_absolute():
+                        self.error(path, f"tracked skill links must be repository-relative: {raw}")
                 if not target.exists():
                     self.error(path, f"broken local link: {raw}")
                     continue

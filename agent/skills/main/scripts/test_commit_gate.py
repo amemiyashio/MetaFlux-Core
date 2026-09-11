@@ -171,7 +171,7 @@ class CommitGateTests(unittest.TestCase):
         fixture.WS.local_path(self.root, "state.json").unlink()
         result = self.helper(arguments)
         self.assert_rejected(result, "commit-helper.input-changed")
-        self.assertIn("active main delivery", result.stderr)
+        self.assertIn("active $main skill delivery", result.stderr)
 
     def test_helper_rejects_lost_rule_loading_cache(self) -> None:
         arguments = self.evidence()
@@ -188,7 +188,7 @@ class CommitGateTests(unittest.TestCase):
                           paths=task["allowed_paths"], output=io.StringIO())
         result = self.helper(arguments)
         self.assert_rejected(result, "commit-helper.input-changed")
-        self.assertIn("current main delivery stage", result.stderr)
+        self.assertIn("current $main skill delivery stage", result.stderr)
 
     def test_new_request_same_head_rejects_previous_receipt(self) -> None:
         arguments = self.evidence()

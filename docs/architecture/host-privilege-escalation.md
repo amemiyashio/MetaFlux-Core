@@ -27,7 +27,8 @@ driver debugging, and later revocation. Repository agents use its Nix-provided
    configuration.
 
 The canonical client, helper, sudoers-template, and regression sources live in
-`agent/skills/manage-host-privilege/`. `iteration` only routes a privilege need
+[$manage-host-privilege](../../agent/skills/manage-host-privilege/SKILL.md) skill.
+[$main](../../agent/skills/main/SKILL.md) skill only routes a privilege need
 after Nix-first entry; `manage-toolchain` only establishes a Nix gap; the owning
 domain skill retains operation semantics and evidence.
 

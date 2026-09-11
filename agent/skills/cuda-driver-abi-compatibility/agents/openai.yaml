@@ -1,4 +1,4 @@
 interface:
   display_name: "CUDA Driver ABI Compatibility"
   short_description: "Review CUDA Driver ABI and behavior provenance"
-  default_prompt: "Use $cuda-driver-abi-compatibility to review this CUDA Driver provider change against its pinned ABI, object semantics, and normative/observed/MetaFlux-strengthened behavior classifications."
+  default_prompt: "Use $cuda-driver-abi-compatibility skill to review this CUDA Driver provider change against its pinned ABI, object semantics, and normative/observed/MetaFlux-strengthened behavior classifications."

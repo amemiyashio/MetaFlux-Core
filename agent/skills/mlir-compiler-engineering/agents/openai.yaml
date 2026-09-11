@@ -1,4 +1,4 @@
 interface:
   display_name: "MLIR Compiler Engineering"
   short_description: "Review MLIR dialect and conversion mechanics"
-  default_prompt: "Use $mlir-compiler-engineering to design or review these Kernel IR to MLIR conversion and pass-pipeline mechanics, composing the owning target-backend skill for target lowering."
+  default_prompt: "Use $mlir-compiler-engineering skill to design or review these Kernel IR to MLIR conversion and pass-pipeline mechanics, composing the owning target-backend skill for target lowering."
