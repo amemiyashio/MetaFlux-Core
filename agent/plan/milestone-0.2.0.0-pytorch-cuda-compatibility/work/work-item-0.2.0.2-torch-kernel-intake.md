@@ -72,14 +72,18 @@ request and library-call sequences because a multi-request application aborts
 at its first failed module load; the miss-run cache-miss expectation is the
 attempted module-load count derived from that observed prefix evidence.
 
-The arange-i64 case is likewise a compiled-subset row. torch emits one
+The arange family is a compiled-subset row set. torch emits one
 `elementwise_kernel_with_index` request carrying the element count and an
-int64 {start, step} functor, and the artifact evaluates the progression for
-the pinned zero-start unit-step shape: each thread stores its global index
-sign-extended into the destination int64 element. The Kernel IR dialect has
-no 64-bit multiply form, so the provider rejects other start or step values
-for the pinned artifact, mirroring the reduction extent gates; generalizing
-the progression needs a dialect extension slice.
+int64 {start, step} functor, and the shared artifact evaluates the complete
+progression: each guarded thread computes start + index*step in exact
+two's-complement int64 as low and high words (the high word is
+start_hi + index*step_hi + hi(index*step_lo) modulo 2^32 through the dialect's
+`mul.hi.u32` unsigned high-product form), so every int64 start/step pair is
+admitted with stock-functor wrapping semantics. The provider admits the full
+functor domain with a positive element count and a non-null destination; the
+explicit range is therefore the complete int64 {start, step} space with a u32
+element count, exercised by the zero-start, positive-start, positive-step and
+negative-step corpus rows.
 
 The two softmax cases joined the compiled subset together with the dialect
 form they need: the Kernel IR had no float select, so `selp.f32` (f32, f32,
@@ -93,8 +97,8 @@ guarded quotient with the pinned profile's bit-exact arithmetic order.
 
 | Corpus metric | Count |
 | --- | --- |
-| Supported cases | 41 |
-| Compiled cases | 41 |
+| Supported cases | 44 |
+| Compiled cases | 44 |
 | Unique compiled PTX sources | 41 |
 | Cases outside compiled subset | 0 |
 | Classified gaps | 2 |

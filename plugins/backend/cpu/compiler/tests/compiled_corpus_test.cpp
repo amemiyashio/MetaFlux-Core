@@ -615,6 +615,27 @@ bool test_float_select_compiled(Harness& harness) {
                 "compiled selp.f32 must select the greater adjacent binary32 value");
 }
 
+bool test_multiply_hi_compiled(Harness& harness) {
+  std::vector<std::uint32_t> high(1U, 0U);
+  const std::array<Argument, 3> wrap{buffer(high, true), 0xffffffffU, 2U};
+  if (!harness.execute_fixture("positive-multiply-hi.ptx", wrap) ||
+      !expect(high[0] == 1U,
+              "compiled mul.hi.u32 must retain the high product bits of 0xffffffff*2")) {
+    return false;
+  }
+  const std::array<Argument, 3> square{buffer(high, true), 0xffffffffU, 0xffffffffU};
+  if (!harness.execute_fixture("positive-multiply-hi.ptx", square) ||
+      !expect(high[0] == 0xfffffffeU,
+              "compiled mul.hi.u32 must produce the exact high word of the full product")) {
+    return false;
+  }
+  high[0] = 0U;
+  const std::array<Argument, 3> overflow{buffer(high, true), 0x80000000U, 2U};
+  return harness.execute_fixture("positive-multiply-hi.ptx", overflow) &&
+         expect(high[0] == 1U,
+                "compiled mul.hi.u32 must treat its operands as unsigned 32-bit values");
+}
+
 bool test_compiled_form_coverage() {
   for (const auto& form : metaflux::compiler::ptx::supported_forms()) {
     if (!expect(
@@ -634,9 +655,9 @@ int main() {
                  test_abs_int_min(harness) && test_fp_forms(harness) &&
                  harness.stress_fused_rounding() && test_conversion_and_predication(harness) &&
                  test_signed_conversion(harness) && test_2d_special_registers(harness) &&
-                 test_shared_barrier(harness) &&
-                 test_edge_oracles(harness) && test_random_add_copy(harness) &&
-                 test_exp_compiled(harness) && test_float_select_compiled(harness) &&
+                 test_shared_barrier(harness) && test_edge_oracles(harness) &&
+                 test_random_add_copy(harness) && test_exp_compiled(harness) &&
+                 test_float_select_compiled(harness) && test_multiply_hi_compiled(harness) &&
                  test_compiled_form_coverage()
              ? 0
              : 1;

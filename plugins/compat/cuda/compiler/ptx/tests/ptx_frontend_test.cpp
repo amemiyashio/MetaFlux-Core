@@ -160,7 +160,7 @@ bool test_manifest() {
       return false;
     }
   }
-  return expect(forms.size() == 42U && ids.size() == forms.size(),
+  return expect(forms.size() == 43U && ids.size() == forms.size(),
                 "the supported PTX form manifest must be complete and unique");
 }
 
@@ -201,14 +201,14 @@ bool test_positive_and_canonical() {
 }
 
 bool test_corpus_form_coverage() {
-  constexpr std::array<std::string_view, 13> positive_fixtures{
+  constexpr std::array<std::string_view, 14> positive_fixtures{
       "positive-add-copy.ptx", "positive-integer-forms.ptx",
       "positive-fp-forms.ptx", "positive-convert-predicate.ptx",
       "edge-convert-s32.ptx",  "edge-2d-specials.ptx",
       "positive-shared-barrier.ptx", "edge-u32-wrap.ptx",
       "edge-fp-rn.ptx",        "edge-ordered-nan.ptx",
       "exp-f32.ptx", "edge-expf-rounding.ptx",
-      "positive-float-select.ptx",
+      "positive-float-select.ptx", "positive-multiply-hi.ptx",
   };
   std::string canonical_corpus;
   for (const auto fixture : positive_fixtures) {

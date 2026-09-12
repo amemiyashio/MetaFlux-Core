@@ -7908,8 +7908,10 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0 &&
         kernel_parameters[2] != (void*)0) {
       /* torch arange: the with-index kernel takes the element count, the
-         {start, step} int64 functor, and the data array {output}; the daemon
-         evaluates the progression natively. */
+         {start, step} int64 functor, and the data array {output}; the
+         arange artifact evaluates the general progression start + index*step
+         in exact two's-complement int64 through the dialect's unsigned
+         high/low product forms. */
       normalized_element_count = *(const uint32_t*)kernel_parameters[0];
       normalized_pointers[0] = (CUdeviceptr)(uintptr_t)*(void* const*)kernel_parameters[2];
       normalized_pointers[1] = (CUdeviceptr)0;
@@ -7921,13 +7923,6 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       {
         const uint64_t start = *(const uint64_t*)kernel_parameters[1];
         const uint64_t step = *(const uint64_t*)((const uint8_t*)kernel_parameters[1] + UINT32_C(8));
-        if (start != UINT64_C(0) || step != UINT64_C(1)) {
-          /* The arange artifact pins the zero-start unit-step progression:
-             the Kernel IR dialect has no 64-bit multiply form to evaluate a
-             general start/step pair. */
-          mf_cuda_queue_unlock();
-          return CUDA_ERROR_NOT_SUPPORTED;
-        }
         normalized_extra[0] = (uint32_t)start;
         normalized_extra[1] = (uint32_t)(start >> 32U);
         normalized_extra[2] = (uint32_t)step;

@@ -4,8 +4,8 @@
  "target": "sm_70",
  "digest_algorithm": "sha256",
  "aggregate_definition": "sha256 of UTF-8 id, NUL, fixture sha256, LF in lexical id order",
- "corpus_sha256": "9f560500c8ed7bc9875a57fcd58c817c965ad231d96fd7494a3aaf94666be1d9",
- "forms_sha256": "1fda1e1bc691de6cefc72085be9c8d93a71ecd100ecf8f467c5f6a6a34064a88",
+ "corpus_sha256": "96b1faf23b2a7e0f3eb5dd250ab0892002e191f83a096eb803d9ed77078f7c59",
+ "forms_sha256": "cf68d340f49e95261783721a2583890daaf78f8cc5e3913ec1593cce94323f67",
  "fixtures": [
   {
    "id": "edge-2d-specials",
@@ -411,6 +411,23 @@
     "ret"
    ],
    "oracle": "per-thread binary32 maximum of two adjacent loaded values selected with selp.f32"
+  },
+  {
+   "id": "positive-multiply-hi",
+   "path": "fixtures/positive-multiply-hi.ptx",
+   "sha256": "229c1d2080525f3d9b5a63dc0c850da443f178cd452200c01aa804186b5137b0",
+   "classes": [
+    "positive",
+    "edge"
+   ],
+   "forms": [
+    "ld-param-u64",
+    "ld-param-u32",
+    "mul-hi-u32",
+    "st-global-u32",
+    "ret"
+   ],
+   "oracle": "independent high-32 product bits including 0xffffffff*2, 0xffffffff*0xffffffff, and 0x80000000*2"
   }
  ]
 }

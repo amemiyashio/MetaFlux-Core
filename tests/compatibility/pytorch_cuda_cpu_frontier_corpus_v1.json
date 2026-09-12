@@ -57,6 +57,9 @@
    "softmax-f32-nonlast",
    "sigmoid-f32",
    "arange-i64",
+   "arange-start-i64",
+   "arange-step-i64",
+   "arange-negstep-i64",
    "exp-f32",
    "clamp-min-i32"
   ]
@@ -828,6 +831,61 @@
      3,
      4,
      5
+    ]
+   },
+   "expected_requests": [
+    "baseline:arange-i64:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/arange-i64.ptx"
+   }
+  },
+  {
+   "id": "arange-start-i64",
+   "oracle": {
+    "kind": "i64-exact",
+    "expected": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ]
+   },
+   "expected_requests": [
+    "baseline:arange-i64:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/arange-i64.ptx"
+   }
+  },
+  {
+   "id": "arange-step-i64",
+   "oracle": {
+    "kind": "i64-exact",
+    "expected": [
+     0,
+     3,
+     6,
+     9
+    ]
+   },
+   "expected_requests": [
+    "baseline:arange-i64:1:2:module-load"
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/arange-i64.ptx"
+   }
+  },
+  {
+   "id": "arange-negstep-i64",
+   "oracle": {
+    "kind": "i64-exact",
+    "expected": [
+     6,
+     4,
+     2
     ]
    },
    "expected_requests": [

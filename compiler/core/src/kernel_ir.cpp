@@ -70,6 +70,7 @@ OperationContract operation_contract(Opcode opcode) {
   case AddU32:
   case SubU32:
   case MultiplyLoU32:
+  case MultiplyHiU32:
     return {true, U32, {U32, U32, U32}, 2};
   case MadLoU32:
     return {true, U32, {U32, U32, U32}, 3};
@@ -254,6 +255,8 @@ std::string_view opcode_name(Opcode opcode) noexcept {
     return "sub_u32";
   case MultiplyLoU32:
     return "multiply_lo_u32";
+  case MultiplyHiU32:
+    return "multiply_hi_u32";
   case MadLoU32:
     return "mad_lo_u32";
   case MultiplyWideU32:

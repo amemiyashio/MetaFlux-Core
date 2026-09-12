@@ -58,6 +58,9 @@ EXPECTED_COMPILED_SUBSET = [
     "softmax-f32-nonlast",
     "sigmoid-f32",
     "arange-i64",
+    "arange-start-i64",
+    "arange-step-i64",
+    "arange-negstep-i64",
     "exp-f32",
     "clamp-min-i32",
 ]
@@ -102,28 +105,31 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
 
     def test_repository_corpus_matches_pinned_profile(self) -> None:
         corpus = frontier.load_corpus(frontier.CORPUS, frontier.CLIENT_MANIFEST)
-        self.assertEqual(len(corpus["cases"]), 41)
+        self.assertEqual(len(corpus["cases"]), 44)
         self.assertEqual(len(corpus["gaps"]), 2)
         self.assertEqual(corpus["execution_modes"], list(frontier.EXECUTION_MODES))
         self.assertTrue(corpus["scope"]["library_boundary_closed"])
         self.assertFalse(corpus["scope"]["exit_gate_complete"])
         self.assertEqual(corpus["scope"]["compiled_subset"], EXPECTED_COMPILED_SUBSET)
-        self.assertEqual(corpus["cases"][-3]["id"], "arange-i64")
+        self.assertEqual(corpus["cases"][-6]["id"], "arange-i64")
+        self.assertEqual(corpus["cases"][-5]["id"], "arange-start-i64")
+        self.assertEqual(corpus["cases"][-4]["id"], "arange-step-i64")
+        self.assertEqual(corpus["cases"][-3]["id"], "arange-negstep-i64")
         self.assertEqual(corpus["cases"][-2]["id"], "exp-f32")
         self.assertEqual(corpus["cases"][-1]["id"], "clamp-min-i32")
-        self.assertEqual(corpus["cases"][-5]["id"], "softmax-f32-nonlast")
-        self.assertEqual(corpus["cases"][-6]["id"], "softmax-f32")
-        self.assertEqual(corpus["cases"][-7]["id"], "linear-bias-f32")
+        self.assertEqual(corpus["cases"][-8]["id"], "softmax-f32-nonlast")
+        self.assertEqual(corpus["cases"][-9]["id"], "softmax-f32")
+        self.assertEqual(corpus["cases"][-10]["id"], "linear-bias-f32")
         self.assertEqual(
-            corpus["cases"][-7]["expected_library_calls"], ["lt-matmul-bias-f32"]
+            corpus["cases"][-10]["expected_library_calls"], ["lt-matmul-bias-f32"]
         )
-        self.assertEqual(corpus["cases"][-8]["id"], "addmm-f32")
-        self.assertEqual(corpus["cases"][-8]["expected_library_calls"], ["sgemm-f32"])
-        self.assertEqual(corpus["cases"][-9]["id"], "linear-no-bias-f32")
-        self.assertEqual(corpus["cases"][-10]["id"], "matmul-rect-f32")
-        self.assertEqual(corpus["cases"][-11]["id"], "matmul-f32")
+        self.assertEqual(corpus["cases"][-11]["id"], "addmm-f32")
+        self.assertEqual(corpus["cases"][-11]["expected_library_calls"], ["sgemm-f32"])
+        self.assertEqual(corpus["cases"][-12]["id"], "linear-no-bias-f32")
+        self.assertEqual(corpus["cases"][-13]["id"], "matmul-rect-f32")
+        self.assertEqual(corpus["cases"][-14]["id"], "matmul-f32")
         self.assertEqual(
-            corpus["cases"][-11]["aot_miss_error"],
+            corpus["cases"][-14]["aot_miss_error"],
             "CUDA error: CUBLAS_STATUS_NOT_SUPPORTED when calling `cublasSgemm( handle, opa, opb, m, n, k, &alpha, a, lda, b, ldb, &beta, c, ldc)`",
         )
         self.assertEqual(
@@ -161,7 +167,7 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
             frontier.ROOT
             / "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/linear-bias-f32.ptx",
         )
-        self.assertEqual(corpus["cases"][-12]["id"], "clamp-min-negative-f32")
+        self.assertEqual(corpus["cases"][-15]["id"], "clamp-min-negative-f32")
         self.assertEqual(corpus["gaps"][0]["id"], "sigmoid-f64")
         self.assertEqual(corpus["gaps"][1]["id"], "exp-f64")
         self.assertEqual(corpus["gaps"][1]["expected_error"], "operation not supported")
@@ -173,7 +179,7 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
             for entry in compiled_entries
             for source in frontier.compiled_ptx_sources(entry)
         ]
-        self.assertEqual(len(compiled_entries), 41)
+        self.assertEqual(len(compiled_entries), 44)
         self.assertEqual(len(set(compiled_sources)), 41)
         sqrt = next(entry for entry in compiled_entries if entry["id"] == "sqrt-f32")
         self.assertEqual(

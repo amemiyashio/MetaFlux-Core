@@ -271,6 +271,9 @@ def operation_cases(torch: Any) -> dict[str, Callable[[], Any]]:
             f32([-4.0, -2.0, -1.0, 0.0, 1.0, 2.0, 4.0])
         ),
         "arange-i64": lambda: torch.arange(6, device="cuda"),
+        "arange-start-i64": lambda: torch.arange(2, 8, device="cuda"),
+        "arange-step-i64": lambda: torch.arange(0, 12, 3, device="cuda"),
+        "arange-negstep-i64": lambda: torch.arange(6, 0, -2, device="cuda"),
         "exp-f32": lambda: torch.exp(f32([0.5, 2.0, -1.0, 4.0])),
         "exp-f64": lambda: torch.exp(f64([0.5, 2.0, -1.0, 4.0])),
         "clamp-min-i32": lambda: torch.relu(i32(left_i32)),

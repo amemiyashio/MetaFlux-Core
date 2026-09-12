@@ -74,6 +74,7 @@ enum class Opcode : std::uint32_t {
   AddU32,
   SubU32,
   MultiplyLoU32,
+  MultiplyHiU32,
   MadLoU32,
   MultiplyWideU32,
   AddGlobalAddress,
@@ -206,7 +207,7 @@ std::optional<ValueKind> parse_value_kind(std::string_view text) {
 
 std::optional<Opcode> parse_opcode(std::string_view text) {
   using Pair = std::pair<std::string_view, Opcode>;
-  constexpr std::array<Pair, 43> entries{{
+  constexpr std::array<Pair, 44> entries{{
       {"load_parameter_address", Opcode::LoadParameterAddress},
       {"load_parameter_u32", Opcode::LoadParameterU32},
       {"load_parameter_f32", Opcode::LoadParameterF32},
@@ -220,6 +221,7 @@ std::optional<Opcode> parse_opcode(std::string_view text) {
       {"add_u32", Opcode::AddU32},
       {"sub_u32", Opcode::SubU32},
       {"multiply_lo_u32", Opcode::MultiplyLoU32},
+      {"multiply_hi_u32", Opcode::MultiplyHiU32},
       {"mad_lo_u32", Opcode::MadLoU32},
       {"multiply_wide_u32", Opcode::MultiplyWideU32},
       {"add_global_address", Opcode::AddGlobalAddress},
@@ -301,6 +303,7 @@ OperationContract operation_contract(Opcode opcode) {
   case AddU32:
   case SubU32:
   case MultiplyLoU32:
+  case MultiplyHiU32:
     return {true, U32, {U32, U32, U32}, 2};
   case MadLoU32:
     return {true, U32, {U32, U32, U32}, 3};
@@ -1004,6 +1007,13 @@ std::optional<ExecutionResult> execute_one(const Kernel& kernel,
   case Opcode::MultiplyLoU32:
     values[operation.result] = std::get<std::uint32_t>(values[operation.inputs[0]]) *
                                std::get<std::uint32_t>(values[operation.inputs[1]]);
+    ++thread.pc;
+    break;
+  case Opcode::MultiplyHiU32:
+    values[operation.result] = static_cast<std::uint32_t>(
+        static_cast<std::uint64_t>(std::get<std::uint32_t>(values[operation.inputs[0]])) *
+            static_cast<std::uint64_t>(std::get<std::uint32_t>(values[operation.inputs[1]])) >>
+        32U);
     ++thread.pc;
     break;
   case Opcode::MadLoU32:

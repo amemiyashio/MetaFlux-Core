@@ -92,6 +92,7 @@ enum class Opcode : std::uint32_t {
   MultiplyLoU32,
   MadLoU32,
   MultiplyWideU32,
+  MultiplyHiU32,
   AddGlobalAddress,
   AddSharedAddress,
   AddRnF32,

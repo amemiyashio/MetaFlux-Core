@@ -921,6 +921,7 @@ private:
     case Opcode::AddU32:
     case Opcode::SubU32:
     case Opcode::MultiplyLoU32:
+    case Opcode::MultiplyHiU32:
     case Opcode::MadLoU32:
     case Opcode::MultiplyWideU32:
     case Opcode::AddSharedAddress:
@@ -1230,6 +1231,15 @@ private:
       case Opcode::MultiplyLoU32:
         result = binary("mul", vinput(0U), vinput(1U), vtype("i32"), &operation);
         break;
+      case Opcode::MultiplyHiU32: {
+        const auto left = cast("zext", vinput(0U), vtype("i32"), vtype("i64"), &operation);
+        const auto right = cast("zext", vinput(1U), vtype("i32"), vtype("i64"), &operation);
+        const auto product = binary("mul", left, right, vtype("i64"), &operation);
+        const auto shifted =
+            binary("lshr", product, constant_splat_i64(32U), vtype("i64"), &operation);
+        result = cast("trunc", shifted, vtype("i64"), vtype("i32"), &operation);
+        break;
+      }
       case Opcode::MadLoU32: {
         const auto product = binary("mul", vinput(0U), vinput(1U), vtype("i32"), &operation);
         result = binary("add", product, vinput(2U), vtype("i32"), &operation);
@@ -1518,6 +1528,7 @@ private:
     case Opcode::AddU32:
     case Opcode::SubU32:
     case Opcode::MultiplyLoU32:
+    case Opcode::MultiplyHiU32:
     case Opcode::MadLoU32:
     case Opcode::MultiplyWideU32:
     case Opcode::AddSharedAddress:
@@ -1793,6 +1804,14 @@ private:
     case Opcode::MultiplyLoU32:
       result = binary("mul", input(0U), input(1U), "i32", &operation);
       break;
+    case Opcode::MultiplyHiU32: {
+      const auto left = cast("zext", input(0U), "i32", "i64", &operation);
+      const auto right = cast("zext", input(1U), "i32", "i64", &operation);
+      const auto product = binary("mul", left, right, "i64", &operation);
+      const auto shifted = binary("lshr", product, constant_i64(32U), "i64", &operation);
+      result = cast("trunc", shifted, "i64", "i32", &operation);
+      break;
+    }
     case Opcode::MadLoU32: {
       const auto product = binary("mul", input(0U), input(1U), "i32", &operation);
       result = binary("add", product, input(2U), "i32", &operation);

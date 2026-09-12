@@ -17,7 +17,7 @@
 namespace metaflux::compiler::ptx {
 namespace {
 
-constexpr std::array<SupportedForm, 42> kSupportedForms{{
+constexpr std::array<SupportedForm, 43> kSupportedForms{{
     {"ld-param-u64", "ld.param.u64", "b64,param.u64", "param,register", "", 70,
      "load_parameter_address", "bounded global buffer handle"},
     {"ld-param-u32", "ld.param.u32", "b32,param.u32", "param,register", "", 70,
@@ -34,6 +34,8 @@ constexpr std::array<SupportedForm, 42> kSupportedForms{{
     {"sub-u32", "sub.u32", "u32,u32,u32", "register", "", 70, "sub_u32", "modulo 2^32"},
     {"mul-lo-u32", "mul.lo.u32", "u32,u32,u32", "register", "lo", 70, "multiply_lo_u32",
      "low 32 product bits"},
+    {"mul-hi-u32", "mul.hi.u32", "u32,u32,u32", "register", "hi", 70, "multiply_hi_u32",
+     "high 32 product bits"},
     {"mad-lo-u32", "mad.lo.u32", "u32,u32,u32,u32", "register", "lo", 70, "mad_lo_u32",
      "low 32 bits of a*b+c"},
     {"mul-wide-u32", "mul.wide.u32", "u64,u32,u32-immediate", "register", "wide", 70,
@@ -861,6 +863,8 @@ private:
       parse_binary_u32(opcode, Opcode::SubU32);
     } else if (opcode.text == "mul.lo.u32") {
       parse_binary_u32(opcode, Opcode::MultiplyLoU32);
+    } else if (opcode.text == "mul.hi.u32") {
+      parse_binary_u32(opcode, Opcode::MultiplyHiU32);
     } else if (opcode.text == "mad.lo.u32") {
       parse_ternary(opcode, Opcode::MadLoU32, DeclaredRegisterKind::B32, ValueKind::U32);
     } else if (opcode.text == "mul.wide.u32") {

@@ -103,6 +103,44 @@ bool test_copy_execution() {
          expect(destination == source, "all logical lanes must copy exact u32 bits");
 }
 
+bool test_multiply_hi_execution() {
+  constexpr std::string_view kMultiplyHiKernelIr = R"kir(MFKIR 2
+PTX 9 0
+KERNEL multiply_hi_u32
+PARAMETERS 3
+PARAMETER buffer_u32
+PARAMETER scalar_u32
+PARAMETER scalar_u32
+SHARED_ALLOCATIONS 0
+REGISTERS 4
+REGISTER global_address
+REGISTER u32
+REGISTER u32
+REGISTER u32
+OPERATIONS 6
+OP load_parameter_address 0 0 0 0 - 0
+OP load_parameter_u32 1 0 1 0 - 0
+OP load_parameter_u32 2 0 2 0 - 0
+OP multiply_hi_u32 3 2 1 2 0 0 - 0
+OP store_global_u32 - 2 0 3 0 0 - 0
+OP return - 0 0 0 - 0
+END
+)kir";
+  std::vector<std::uint32_t> destination(1U, 0U);
+  std::vector<metaflux::backend::cpu::Argument> arguments;
+  arguments.emplace_back(metaflux::backend::cpu::BufferArgument{
+      .words = std::span<std::uint32_t>(destination),
+      .writable = true,
+  });
+  arguments.emplace_back(0xffffffffU);
+  arguments.emplace_back(0x80000000U);
+  const auto result = metaflux::backend::cpu::execute_kernel_ir(kMultiplyHiKernelIr, arguments,
+                                                                {.grid_x = 1, .block_x = 1});
+  return expect(result.ok(), "canonical MultiplyHi Kernel IR must execute") &&
+         expect(destination[0] == 0x7fffffffU,
+                "multiply_hi_u32 must retain the high 32 bits of the unsigned product");
+}
+
 bool test_execution_failures() {
   std::vector<std::uint32_t> source{1U, 2U, 3U, 4U};
   std::vector<std::uint32_t> destination(4U, 0U);
@@ -222,8 +260,8 @@ bool test_error_names() {
 } // namespace
 
 int main() {
-  return test_copy_execution() && test_execution_failures() && test_pre_cancelled_launch() &&
-                 test_error_names()
+  return test_copy_execution() && test_multiply_hi_execution() && test_execution_failures() &&
+                 test_pre_cancelled_launch() && test_error_names()
              ? 0
              : 1;
 }

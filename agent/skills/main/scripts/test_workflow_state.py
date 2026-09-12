@@ -236,8 +236,12 @@ class WorkflowScenarios(unittest.TestCase):
         skill = self.root / "agent/skills/cpu-backend-performance/SKILL.md"
         skill.parent.mkdir(parents=True)
         skill.write_text("Fixture CPU ownership rule.\n")
+        compiler = self.root / "agent/skills/mlir-compiler-engineering/SKILL.md"
+        compiler.parent.mkdir(parents=True)
+        compiler.write_text("Fixture compiler ownership rule.\n")
         task = request(self.root, "batch")
-        task["allowed_paths"].extend(["plugins/backend/cpu/", "agent/skills/cpu-backend-performance/"])
+        task["allowed_paths"].extend(["plugins/backend/cpu/", "agent/skills/cpu-backend-performance/",
+                                      "agent/skills/mlir-compiler-engineering/"])
         controller.begin(self.root, task)
         prepare(self.root)
         state = ws.read_json(ws.local_path(self.root, "state.json"))
@@ -490,7 +494,7 @@ class WorkflowScenarios(unittest.TestCase):
         controller.step(self.root, "review", {"summary": "Original candidate"})
         controller.step(self.root, "evaluate", {})
         old = ws.read_json(ws.local_path(self.root, "state.json"))
-        self.revise(paths=[*task["allowed_paths"], "runtime/companion.txt"])
+        self.revise(paths=[*task["allowed_paths"], "contracts/protocol/companion.txt"])
         for name in ("rules.json", "hook-context.json"):
             self.assertFalse(ws.local_path(self.root, name).exists())
         with self.assertRaises(ws.WorkflowError):
