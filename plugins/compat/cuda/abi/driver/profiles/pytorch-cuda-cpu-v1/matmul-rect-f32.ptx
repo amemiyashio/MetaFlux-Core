@@ -1,0 +1,130 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.visible .entry matmul_rect_f32(
+  .param .u64 destination,
+  .param .u64 left,
+  .param .u64 right,
+  .param .u32 element_count,
+  .param .u32 transpose_left,
+  .param .u32 transpose_right,
+  .param .u32 rows,
+  .param .u32 columns,
+  .param .u32 inner,
+  .param .u32 leading_left,
+  .param .u32 leading_right,
+  .param .u32 leading_destination,
+  .param .u32 alpha_bits,
+  .param .u32 beta_bits
+)
+{
+  .reg .pred %p;
+  .reg .b32 %r<10>;
+  .reg .b64 %rd<31>;
+  .reg .f32 %f<64>;
+
+  ld.param.u64 %rd0, [destination];
+  ld.param.u64 %rd1, [left];
+  ld.param.u64 %rd2, [right];
+
+  mov.u32 %r0, %tid.x;
+  mov.u32 %r1, %ctaid.x;
+  mov.u32 %r2, %ntid.x;
+  mad.lo.u32 %r3, %r1, %r2, %r0;
+  mov.u32 %r4, 0;
+  setp.eq.u32 %p, %r3, %r4;
+  @!%p bra done;
+
+  mov.u32 %r5, 1;
+  mul.wide.u32 %rd3, %r5, 4;
+  mov.u32 %r6, 2;
+  mul.wide.u32 %rd4, %r6, 4;
+  mov.u32 %r7, 3;
+  mul.wide.u32 %rd5, %r7, 4;
+  mov.u32 %r8, 4;
+  mul.wide.u32 %rd6, %r8, 4;
+  mov.u32 %r9, 8;
+  mul.wide.u32 %rd7, %r9, 4;
+
+  add.u64 %rd8, %rd1, %rd3;
+  add.u64 %rd9, %rd1, %rd4;
+  add.u64 %rd10, %rd1, %rd5;
+  add.u64 %rd11, %rd1, %rd6;
+  add.u64 %rd12, %rd1, %rd7;
+  add.u64 %rd13, %rd8, %rd6;
+  add.u64 %rd14, %rd8, %rd7;
+  add.u64 %rd15, %rd9, %rd6;
+  add.u64 %rd16, %rd9, %rd7;
+  add.u64 %rd17, %rd10, %rd6;
+  add.u64 %rd18, %rd10, %rd7;
+  add.u64 %rd19, %rd2, %rd5;
+  add.u64 %rd20, %rd2, %rd3;
+  add.u64 %rd21, %rd2, %rd4;
+  add.u64 %rd22, %rd19, %rd3;
+  add.u64 %rd23, %rd19, %rd4;
+  add.u64 %rd24, %rd0, %rd6;
+  add.u64 %rd25, %rd0, %rd3;
+  add.u64 %rd26, %rd0, %rd4;
+  add.u64 %rd27, %rd0, %rd5;
+  add.u64 %rd28, %rd24, %rd3;
+  add.u64 %rd29, %rd24, %rd4;
+  add.u64 %rd30, %rd24, %rd5;
+
+  ld.global.f32 %f0, [%rd2];
+  ld.global.f32 %f1, [%rd20];
+  ld.global.f32 %f2, [%rd21];
+  ld.global.f32 %f3, [%rd19];
+  ld.global.f32 %f4, [%rd22];
+  ld.global.f32 %f5, [%rd23];
+
+  ld.global.f32 %f6, [%rd1];
+  ld.global.f32 %f7, [%rd11];
+  ld.global.f32 %f8, [%rd12];
+  mul.rn.f32 %f9, %f6, %f0;
+  fma.rn.f32 %f10, %f7, %f1, %f9;
+  fma.rn.f32 %f11, %f8, %f2, %f10;
+  st.global.f32 [%rd0], %f11;
+  mul.rn.f32 %f12, %f6, %f3;
+  fma.rn.f32 %f13, %f7, %f4, %f12;
+  fma.rn.f32 %f14, %f8, %f5, %f13;
+  st.global.f32 [%rd24], %f14;
+
+  ld.global.f32 %f15, [%rd8];
+  ld.global.f32 %f16, [%rd13];
+  ld.global.f32 %f17, [%rd14];
+  mul.rn.f32 %f18, %f15, %f0;
+  fma.rn.f32 %f19, %f16, %f1, %f18;
+  fma.rn.f32 %f20, %f17, %f2, %f19;
+  st.global.f32 [%rd25], %f20;
+  mul.rn.f32 %f21, %f15, %f3;
+  fma.rn.f32 %f22, %f16, %f4, %f21;
+  fma.rn.f32 %f23, %f17, %f5, %f22;
+  st.global.f32 [%rd28], %f23;
+
+  ld.global.f32 %f24, [%rd9];
+  ld.global.f32 %f25, [%rd15];
+  ld.global.f32 %f26, [%rd16];
+  mul.rn.f32 %f27, %f24, %f0;
+  fma.rn.f32 %f28, %f25, %f1, %f27;
+  fma.rn.f32 %f29, %f26, %f2, %f28;
+  st.global.f32 [%rd26], %f29;
+  mul.rn.f32 %f30, %f24, %f3;
+  fma.rn.f32 %f31, %f25, %f4, %f30;
+  fma.rn.f32 %f32, %f26, %f5, %f31;
+  st.global.f32 [%rd29], %f32;
+
+  ld.global.f32 %f33, [%rd10];
+  ld.global.f32 %f34, [%rd17];
+  ld.global.f32 %f35, [%rd18];
+  mul.rn.f32 %f36, %f33, %f0;
+  fma.rn.f32 %f37, %f34, %f1, %f36;
+  fma.rn.f32 %f38, %f35, %f2, %f37;
+  st.global.f32 [%rd27], %f38;
+  mul.rn.f32 %f39, %f33, %f3;
+  fma.rn.f32 %f40, %f34, %f4, %f39;
+  fma.rn.f32 %f41, %f35, %f5, %f40;
+  st.global.f32 [%rd30], %f41;
+
+done:
+  ret;
+}

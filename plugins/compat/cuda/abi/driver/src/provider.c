@@ -66,6 +66,9 @@ static uint8_t mf_module_deferred[MF_CUDA_MODULE_CAPACITY];
    through cuModuleLoadData. It selects only argument normalization; execution
    remains daemon/backend owned. */
 static uint32_t mf_module_kernel_operation[MF_CUDA_MODULE_CAPACITY];
+/* Materialized profile identity for the zero-work warm launch path. */
+static uint32_t mf_module_materialized_operation[MF_CUDA_MODULE_CAPACITY];
+static uint32_t mf_module_materialized_variant[MF_CUDA_MODULE_CAPACITY];
 /* Per-function registered name used to select an exact daemon-owned adapter. */
 static char mf_function_names[MF_CUDA_OBJECT_CAPACITY][512];
 
@@ -3010,6 +3013,8 @@ void mf_cuda_provider_test_reset_managed_v1(void) {
   (void)memset(mf_cuda_global.functions, 0, sizeof(mf_cuda_global.functions));
   (void)memset(mf_module_deferred, 0, sizeof(mf_module_deferred));
   (void)memset(mf_module_kernel_operation, 0, sizeof(mf_module_kernel_operation));
+  (void)memset(mf_module_materialized_operation, 0, sizeof(mf_module_materialized_operation));
+  (void)memset(mf_module_materialized_variant, 0, sizeof(mf_module_materialized_variant));
   (void)memset(mf_module_blob, 0, sizeof(mf_module_blob));
   (void)memset(mf_module_blob_size, 0, sizeof(mf_module_blob_size));
   (void)memset(mf_kernel_entries, 0, sizeof(mf_kernel_entries));
@@ -4327,6 +4332,8 @@ static void mf_cuda_invalidate_module_functions_locked(uint32_t module_index) {
 static void mf_cuda_clear_deferred_module_locked(uint32_t module_index) {
   mf_module_deferred[module_index] = UINT8_C(0);
   mf_module_kernel_operation[module_index] = UINT32_C(0);
+  mf_module_materialized_operation[module_index] = UINT32_C(0);
+  mf_module_materialized_variant[module_index] = UINT32_C(0);
   mf_module_blob[module_index] = (const unsigned char*)0;
   mf_module_blob_size[module_index] = (size_t)0;
   mf_kernel_entry_parsed[module_index] = UINT32_C(0);
@@ -6276,23 +6283,24 @@ static CUresult mf_cuda_materialize_pytorch_baseline_locked(mf_cuda_object* modu
   uint64_t artifact_id = UINT64_C(0);
   uint64_t artifact_generation = UINT64_C(0);
   CUresult result = CUDA_SUCCESS;
+  uint32_t materialized_variant = UINT32_C(0);
 
   if (module_record == (mf_cuda_object*)0) {
     return CUDA_ERROR_INVALID_HANDLE;
   }
   /* The daemon binds each launch to the most recently materialized kernel
-     request artifact for the module, so an operation switch must
-     re-register: early-return only when the same operation rematerializes. */
-  {
-    static uint32_t materialized_operation[MF_CUDA_MODULE_CAPACITY];
-    if (module_record->aux >= MF_CUDA_MODULE_CAPACITY) {
-      return CUDA_ERROR_INVALID_HANDLE;
-    }
-    if (module_record->remote_id != UINT64_C(0) && module_record->remote_generation != UINT64_C(0) &&
-        materialized_operation[module_record->aux] == operation) {
-      return CUDA_SUCCESS;
-    }
-    materialized_operation[module_record->aux] = operation;
+     request artifact for the module. Warm launches skip registration only
+     when the exact profile variant is already active. */
+  if (module_record->aux >= MF_CUDA_MODULE_CAPACITY) {
+    return CUDA_ERROR_INVALID_HANDLE;
+  }
+  if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1) {
+    materialized_variant = strcmp(operation_name, "matmul-rect-f32") == 0 ? UINT32_C(2) : UINT32_C(1);
+  }
+  if (module_record->remote_id != UINT64_C(0) && module_record->remote_generation != UINT64_C(0) &&
+      mf_module_materialized_operation[module_record->aux] == operation &&
+      mf_module_materialized_variant[module_record->aux] == materialized_variant) {
+    return CUDA_SUCCESS;
   }
   /* An operation switch replaces the module/artifact ids in place; the
      superseded daemon objects leak until the context tears down. */
@@ -6334,6 +6342,8 @@ static CUresult mf_cuda_materialize_pytorch_baseline_locked(mf_cuda_object* modu
     result = CUDA_ERROR_UNKNOWN;
   }
   if (result == CUDA_SUCCESS) {
+    mf_module_materialized_operation[module_record->aux] = operation;
+    mf_module_materialized_variant[module_record->aux] = materialized_variant;
     module_record->remote_id = completion.result_id;
     module_record->remote_generation = completion.result_generation;
     module_record->materialized_id = artifact_id;
@@ -6466,6 +6476,9 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
     uint32_t argument_count = UINT32_C(14);
     uint32_t index = UINT32_C(0);
     int compiled_matmul = 0;
+    const char* compiled_matmul_ptx = (const char*)0;
+    size_t compiled_matmul_ptx_size = (size_t)0;
+    const char* compiled_matmul_name = (const char*)0;
     if (strcmp(kernel_name, "metaflux_cublas_lt_matmul_bias_f32") == 0) {
       with_bias = UINT32_C(1);
       buffer_count = UINT32_C(4);
@@ -6522,6 +6535,21 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         descriptor[5] == UINT32_C(2) && descriptor[6] == UINT32_C(2) &&
         descriptor[7] == UINT32_C(2) && descriptor[8] == UINT32_C(2) &&
         descriptor[9] == UINT32_C(0x3f800000) && descriptor[10] == UINT32_C(0);
+    if (compiled_matmul != 0) {
+      compiled_matmul_ptx = mf_pytorch_baseline_matmulf32_ptx;
+      compiled_matmul_ptx_size = sizeof(mf_pytorch_baseline_matmulf32_ptx) - 1U;
+      compiled_matmul_name = "matmul-f32";
+    } else if (with_bias == UINT32_C(0) && descriptor[1] == UINT32_C(0) &&
+               descriptor[2] == UINT32_C(0) && descriptor[0] == UINT32_C(8) &&
+               descriptor[3] == UINT32_C(4) && descriptor[4] == UINT32_C(2) &&
+               descriptor[5] == UINT32_C(3) && descriptor[6] == UINT32_C(4) &&
+               descriptor[7] == UINT32_C(3) && descriptor[8] == UINT32_C(4) &&
+               descriptor[9] == UINT32_C(0x3f800000) && descriptor[10] == UINT32_C(0)) {
+      compiled_matmul = 2;
+      compiled_matmul_ptx = mf_pytorch_baseline_matmulrectf32_ptx;
+      compiled_matmul_ptx_size = sizeof(mf_pytorch_baseline_matmulrectf32_ptx) - 1U;
+      compiled_matmul_name = "matmul-rect-f32";
+    }
     normalized_buffer_count = buffer_count;
     normalized_element_count_index = buffer_count;
     normalized_entry_total = argument_count;
@@ -6545,8 +6573,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
     if (compiled_matmul != 0) {
       result = mf_cuda_materialize_pytorch_baseline_locked(
           module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1,
-          mf_pytorch_baseline_matmulf32_ptx,
-          sizeof(mf_pytorch_baseline_matmulf32_ptx) - 1U, "matmul-f32");
+          compiled_matmul_ptx, compiled_matmul_ptx_size, compiled_matmul_name);
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();
         return result;
