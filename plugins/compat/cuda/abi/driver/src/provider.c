@@ -6295,7 +6295,13 @@ static CUresult mf_cuda_materialize_pytorch_baseline_locked(mf_cuda_object* modu
     return CUDA_ERROR_INVALID_HANDLE;
   }
   if (operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1) {
-    materialized_variant = strcmp(operation_name, "matmul-rect-f32") == 0 ? UINT32_C(2) : UINT32_C(1);
+    if (strcmp(operation_name, "matmul-rect-f32") == 0) {
+      materialized_variant = UINT32_C(2);
+    } else if (strcmp(operation_name, "linear-f32") == 0) {
+      materialized_variant = UINT32_C(3);
+    } else {
+      materialized_variant = UINT32_C(1);
+    }
   }
   if (module_record->remote_id != UINT64_C(0) && module_record->remote_generation != UINT64_C(0) &&
       mf_module_materialized_operation[module_record->aux] == operation &&
@@ -6539,6 +6545,16 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       compiled_matmul_ptx = mf_pytorch_baseline_matmulf32_ptx;
       compiled_matmul_ptx_size = sizeof(mf_pytorch_baseline_matmulf32_ptx) - 1U;
       compiled_matmul_name = "matmul-f32";
+    } else if (with_bias == UINT32_C(0) && descriptor[1] == UINT32_C(1) &&
+               descriptor[2] == UINT32_C(0) && descriptor[0] == UINT32_C(4) &&
+               descriptor[3] == UINT32_C(2) && descriptor[4] == UINT32_C(2) &&
+               descriptor[5] == UINT32_C(3) && descriptor[6] == UINT32_C(3) &&
+               descriptor[7] == UINT32_C(3) && descriptor[8] == UINT32_C(2) &&
+               descriptor[9] == UINT32_C(0x3f800000) && descriptor[10] == UINT32_C(0)) {
+      compiled_matmul = 3;
+      compiled_matmul_ptx = mf_pytorch_baseline_linearf32_ptx;
+      compiled_matmul_ptx_size = sizeof(mf_pytorch_baseline_linearf32_ptx) - 1U;
+      compiled_matmul_name = "linear-f32";
     } else if (with_bias == UINT32_C(0) && descriptor[1] == UINT32_C(0) &&
                descriptor[2] == UINT32_C(0) && descriptor[0] == UINT32_C(8) &&
                descriptor[3] == UINT32_C(4) && descriptor[4] == UINT32_C(2) &&

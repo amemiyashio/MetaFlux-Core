@@ -95,9 +95,9 @@ guarded quotient, reproducing the daemon-native arithmetic bit for bit.
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |
-| Compiled cases | 38 |
-| Unique compiled PTX sources | 38 |
-| Cases outside compiled subset | 3 |
+| Compiled cases | 39 |
+| Unique compiled PTX sources | 39 |
+| Cases outside compiled subset | 2 |
 | Classified gaps | 2 |
 
 Every supported interpreter-mode case records its neutral request, daemon
@@ -110,23 +110,24 @@ The compiled subset includes arithmetic, fill, scalar/alpha operations,
 absolute value, square root, exponential, sigmoid, comparisons, int32-to-float32
 cast, ReLU, clamp, the pinned six-element int32 sum, signed int32 clamp-min,
 signed int32 max/min reductions, the pinned strided contiguous copy, the
-four-element float32 sum/mean reductions, and the pinned 2x2 and 2x3-by-3x4
-float32 matmul shapes.
+four-element float32 sum/mean reductions, and the pinned 2x2, 2x3-by-3x4
+matmul, and 2x3-by-3x2 transposed-weight linear float32 shapes.
 The two float32 clamp inputs share one kernel. Profile-owned PTX
 lives beside the PyTorch CPU profile and is generated into the C17 provider at
 configure time.
 
 The matmul profile promotes the observed stock cuBLAS SGEMM request for a
-2x2 and a 2x3-by-3x4, non-transposed, alpha-one, beta-zero configuration into
-two fixed unrolled Kernel IR artifacts. The provider keeps the neutral
-fourteen-entry request and materializes the exact shape variant; a warm launch
-does no registration work when its module/operation/variant cache identity
-matches. Other shapes, transposes, beta values and bias epilogues remain on the
-closed library-backed boundary. The artifacts use the same column-major
-request contract as the existing cuBLAS adapter, emit one daemon submission,
-and are exercised by the generic interpreter, cold JIT, warm JIT and AOT
-executors. This is a fixed-shape CPU slice and does not claim general GEMM or
-Vulkan execution.
+2x2, a 2x3-by-3x4 non-transposed shape, and a 2x3-by-3x2 transposed-weight
+linear shape into three fixed unrolled Kernel IR artifacts. The provider keeps
+the neutral fourteen-entry request and materializes the exact shape variant; a
+warm launch does no registration work when its module/operation/variant cache
+identity matches, including a distinct identity for the linear artifact. Other
+shapes, transposes, beta values and bias epilogues remain on the closed
+library-backed boundary. The artifacts use the same column-major request
+contract as the existing cuBLAS adapter, emit one daemon submission, and are
+exercised by the generic interpreter, cold JIT, warm JIT and AOT executors.
+This is a fixed-shape CPU slice and does not claim general GEMM or Vulkan
+execution.
 
 The concat-u32 slice adds the pinned two-source contiguous `torch.cat` row.
 The provider decodes the source metadata and submits destination, two source
