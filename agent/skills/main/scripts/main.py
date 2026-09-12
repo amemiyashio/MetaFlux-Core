@@ -11,9 +11,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/skills/main/scripts"))
 import workflow_state as ws
 import rule_loading as rules
 import verification
+import stage_rules
 
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / "tools"))
@@ -29,51 +32,69 @@ NEXT = {"preparation": "identify the requested behavior, affected owners and sup
         "complete": "report the exact delivery"}
 
 
-def operation_guidance(root: Path, state: dict | None, attempt: dict | None) -> str:
-    """Describe the next action from existing facts; never advance or verify here."""
-    if state is None:
-        default = "read the request and dispatch $main skill, $epoch skill, $batch skill, or $iteration skill"
-    else:
-        default = NEXT[state["stage"]]
+def operation_condition(root: Path, state: dict | None, attempt: dict | None) -> str:
+    """Classify actionable facts once for prose and the stage reading card."""
     precommit = state is None or state["stage"] in {"preparation", "implementation", "review", "evaluation", "delivery"}
     current = bool(state and attempt and attempt.get("request") == state["run"])
     if precommit and attempt and attempt.get("lock_busy"):
-        if current and attempt.get("status") == "running":
-            return ("continue the existing verification tool session; inspect check " + attempt.get("check", "preflight") +
-                    " at " + attempt.get("log", "the current attempt") + "; do not start another evaluation")
-        return "verification is running in the shared repository; inspect its owning session before editing or starting checks"
+        return "own-running" if current and attempt.get("status") == "running" else "shared-running"
     if state is None:
-        return default
-    stage, task = state["stage"], state["request"]
+        return "ordinary"
+    stage = state["stage"]
     failed_evaluation = (stage == "evaluation" and current and
                          attempt.get("input") == ws.snapshot(root) and
                          attempt.get("plan") == state.get("review", {}).get("plan"))
-    if current and (stage == "implementation" or failed_evaluation):
-        if attempt["status"] in {"failed", "interrupted"}:
-            return ("repair " + task["objective"] + ": inspect " + attempt.get("check", "verification") +
-                    " at " + attempt.get("log", "the current attempt") + "; " + attempt.get("error", "attempt interrupted") +
-                    "; change the cause before renewed review and evaluation")
+    if current and (stage == "implementation" or failed_evaluation) and attempt.get("status") in {"failed", "interrupted"}:
+        return "repair"
+    if stage == "implementation" and state["request"]["kind"] == "batch":
+        if ws.local_path(root, "acceptance.json").is_file():
+            return "metadata"
+        if current and attempt.get("kind") == "integration" and attempt.get("status") == "passed":
+            return "integrated" if attempt["input"] == ws.snapshot(root) else "changed-integration"
     if stage == "implementation":
-        if task["kind"] == "batch":
-            if ws.local_path(root, "acceptance.json").is_file():
-                return "check the pending acceptance metadata, reload rules, review and evaluate the fixed metadata plan"
-            if current and attempt["kind"] == "integration" and attempt["status"] == "passed":
-                if attempt["input"] == ws.snapshot(root):
-                    return ("continue $batch skill acceptance with integration receipt " + attempt["receipt"] +
-                            "; advance revalidates the exact delivery and evidence")
-                return "the integrated content changed; finish the repair and review the changed tree before fresh integration checks"
+        try:
+            if require_rules(root, state, action="review")["action"] == "review":
+                return "review-selected"
+        except (ws.WorkflowError, OSError, ValueError, KeyError):
+            pass
+    return "ordinary"
+
+
+def operation_guidance(root: Path, state: dict | None, attempt: dict | None) -> str:
+    """Describe the next action from existing facts; never advance or verify here."""
+    condition = operation_condition(root, state, attempt)
+    if condition == "own-running":
+        return ("continue the existing verification tool session; inspect check " + attempt.get("check", "preflight") +
+                " at " + attempt.get("log", "the current attempt") + "; do not start another evaluation")
+    if condition == "shared-running":
+        return "verification is running in the shared repository; inspect its owning session before editing or starting checks"
+    if state is None:
+        return "read the request and dispatch $main skill, $epoch skill, $batch skill, or $iteration skill"
+    task = state["request"]
+    if condition == "repair":
+        return ("repair " + task["objective"] + ": inspect " + attempt.get("check", "verification") +
+                " at " + attempt.get("log", "the current attempt") + "; " + attempt.get("error", "attempt interrupted") +
+                "; change the cause before renewed review and evaluation")
+    if condition == "review-selected":
+        return "review the actual diff for " + task["objective"] + "; accept its behavior and covering plan before evaluation"
+    if condition == "metadata":
+        return "check the pending acceptance metadata, reload rules, review and evaluate the fixed metadata plan"
+    if condition == "integrated":
+        return ("continue $batch skill acceptance with integration receipt " + attempt["receipt"] +
+                "; advance revalidates the exact delivery and evidence")
+    if condition == "changed-integration":
+        return "the integrated content changed; finish the repair and review the changed tree before fresh integration checks"
+    if state["stage"] == "implementation":
         return ("implement " + task["objective"] +
                 "; complete its observable behavior before parent review; use focused checks only to resolve a specific uncertainty")
-    return default
+    return NEXT[state["stage"]]
 
 
 def batch_metadata_checks() -> list[dict[str, Any]]:
     """Final acceptance has one fixed plan; product checks belong to integration."""
-    return [
-        {"id": "batch-metadata", "argv": ["python3", "-B", "agent/skills/batch/scripts/batch.py", "check-metadata", "--root", "."]},
-        {"id": "agent-state", "argv": ["python3", "-B", "tools/check-agent-state.py", "."]},
-        {"id": "skill-routing", "argv": ["python3", "-B", "tools/check-skill-routing.py", "."]},
-    ]
+    sys.path.insert(0, str(ROOT / "agent/skills/batch/scripts"))
+    import batch
+    return batch.metadata_checks()
 
 
 def require_batch_metadata_checks(request: dict[str, Any]) -> None:
@@ -119,7 +140,45 @@ def inspect(root: Path) -> dict[str, Any]:
     if running:
         evidence["verification"] = running
     return {"stage": stage, "evidence": evidence,
-            "next_operation": next_operation, "delivery_target": target}
+            "next_operation": next_operation, "delivery_target": target,
+            "action_card": action_card(root, state, running, next_operation)}
+
+
+def action_card(root: Path, state: dict | None, attempt: dict | None, next_operation: str) -> dict:
+    """One executable reading set and local action, derived without side effects."""
+    task = (state or {}).get("request", {})
+    kind = task.get("kind", "maintenance")
+    action = stage_rules.action_for(kind, state) if state else "prepare"
+    condition = operation_condition(root, state, attempt)
+    action = {"repair": "recover", "metadata": "review", "review-selected": "review", "integrated": "integration",
+              "changed-integration": "implement"}.get(condition, action)
+    card_kind = "integration" if action == "integration" else kind
+    paths = [] if (state or {}).get("commit") else task.get("allowed_paths", [])
+    if action == "integration":
+        paths = changed_paths(root, attempt["base_revision"])
+    selected = rules.required(root, card_kind, paths, task.get("skills", []), action)
+    reads = rules.rule_paths(root, selected, action, card_kind)
+    loaded = False
+    if state:
+        try:
+            certificate = require_rules(root, state, action=action, kind=card_kind,
+                                        base_revision=attempt["base_revision"] if action == "integration" else None)
+            loaded = set(reads) <= set(certificate["files"])
+        except (ws.WorkflowError, OSError, ValueError, KeyError):
+            pass
+    executable = ["python3", "-B", "agent/skills/main/scripts/main.py"]
+    command = None
+    if state and state["stage"] != "complete":
+        if not loaded and action != "integration":
+            command = [*executable, "load-rules", "--for", action]
+        elif action in {"prepare", "verify", "publish"}:
+            command = [*executable, "step", {"prepare": "prepared", "verify": "evaluate", "publish": "publish"}[action]]
+    if attempt and attempt.get("lock_busy"):
+        command = None
+    return {"action": action, "role": stage_rules.role(kind), "objective": task.get("objective"),
+            "required_reads": reads, "rules_current": loaded, "next_action": next_operation,
+            "next_command": command, "command_environment": "nix develop . --ignore-environment --keep HOME --keep USER --command",
+            "done_when": stage_rules.DONE[action]}
 
 
 def recovery_token(root: Path, state: dict[str, Any]) -> str:
@@ -249,7 +308,7 @@ def replace_precommit(root: Path, expected_state: str, reason: str, *,
     return inspect(root)
 
 
-def load_rules(root: Path, skills: list[str] | None = None) -> dict[str, Any]:
+def load_rules(root: Path, skills: list[str] | None = None, action: str | None = None) -> dict[str, Any]:
     path = ws.local_path(root, "state.json")
     ws.require(path.exists(), "Begin the bounded request before loading operation rules")
     state = ws.read_json(path)
@@ -258,19 +317,28 @@ def load_rules(root: Path, skills: list[str] | None = None) -> dict[str, Any]:
     committed = bool(state.get("commit"))
     rules.load(root, request["kind"], ws.oid(root) if committed else request["base_revision"],
                skills=[*request.get("skills", []), *(skills or [])],
-               paths=[] if committed else request["allowed_paths"])
+               paths=[] if committed else request["allowed_paths"],
+               action=action or stage_rules.action_for(request["kind"], state))
     return inspect(root)
 
 
-def require_rules(root: Path, state: dict[str, Any]) -> None:
+def require_rules(root: Path, state: dict[str, Any], action: str | None = None, *,
+                  kind: str | None = None, base_revision: str | None = None) -> dict:
     request = state["request"]
     committed = bool(state.get("commit"))
-    loaded = rules.current(root, kind=request["kind"])
-    expected = rules.required(root, request["kind"], [] if committed else request["allowed_paths"], request.get("skills", []))
+    action = action or stage_rules.action_for(request["kind"], state)
+    kind = kind or request["kind"]
+    loaded = rules.current(root, kind=kind, action=action)
+    paths = [] if committed else request["allowed_paths"]
+    if kind == "integration":
+        ws.require(base_revision is not None, "Integration needs its exact delivery baseline")
+        paths = changed_paths(root, base_revision)
+    expected = rules.required(root, kind, paths, request.get("skills", []), loaded["action"])
     ws.require(set(expected) <= set(loaded["skills"]), "Required scope rules were not loaded; use $main skill (main.py load-rules)")
     ws.require(loaded["request"] == (None if committed else state["run"]), "Rules belong to another operation; use $main skill (main.py load-rules)")
-    ws.require(loaded["base_revision"] == (ws.oid(root) if committed else request["base_revision"]),
+    ws.require(loaded["base_revision"] == (base_revision or (ws.oid(root) if committed else request["base_revision"])),
                "Rules have a different operation baseline; use $main skill (main.py load-rules)")
+    return loaded
 
 
 def commit_record(root: Path, revision: str, run: str | None = None) -> dict[str, Any]:
@@ -365,7 +433,7 @@ def step(root: Path, event: str, payload: dict[str, Any]) -> dict[str, Any]:
     validate_state(root, state)
     stage, request = state["stage"], state["request"]
     if event not in {"repair", "handoff"}:
-        require_rules(root, state)
+        require_rules(root, state, action=stage_rules.EVENT_ACTION[event])
     if event == "prepared":
         ws.require(stage == "preparation", "prepared requires preparation")
         scope(root, request)
@@ -411,7 +479,7 @@ def step(root: Path, event: str, payload: dict[str, Any]) -> dict[str, Any]:
             message += "\nMetaFlux-Acceptance: " + json.dumps(txn["identity"], sort_keys=True, separators=(",", ":"))
         message_path = ws.local_path(root, "commit-message.txt")
         message_path.write_text(message + "\n", encoding="utf-8")
-        helper = Path(__file__).with_name("commit_as_agent_tool.py")
+        helper = ROOT / "agent/skills/deliver/scripts/commit_as_agent_tool.py"
         environment = ws.environment(root)
         descriptors = ()
         if ws.ACTIVE_LOCK_FD is not None:
@@ -430,7 +498,7 @@ def step(root: Path, event: str, payload: dict[str, Any]) -> dict[str, Any]:
     elif event == "publish":
         ws.require(stage == "publication", "publish requires an exact committed delivery")
         commit_record(root, state["commit"], state["run"])
-        helper = Path(__file__).with_name("push_repository.py")
+        helper = ROOT / "agent/skills/publish/scripts/push_repository.py"
         result = subprocess.run([sys.executable, "-B", str(helper), "--root", str(root), "push", "--revision", state["commit"]],
                                 cwd=root, capture_output=True, text=True)
         print(result.stdout, end="")
@@ -467,6 +535,9 @@ def step(root: Path, event: str, payload: dict[str, Any]) -> dict[str, Any]:
         state["stage"] = "implementation"
         state.pop("receipt", None)
         state.pop("review", None)
+        # A repair selects implementation again, never a prior review action.
+        for name in ("rules.json", "hook-context.json"):
+            ws.local_path(root, name).unlink(missing_ok=True)
     else:
         raise ws.WorkflowError("Unknown workflow event: " + event)
     ws.atomic_json(path, state)
@@ -485,6 +556,7 @@ def main() -> int:
     start.add_argument("--request-json")
     loading = sub.add_parser("load-rules")
     loading.add_argument("--skill", action="append", default=[])
+    loading.add_argument("--for", dest="rule_action", choices=[x for x in stage_rules.ACTIONS if x != "integration"])
     event = sub.add_parser("step")
     event.add_argument("event", choices=("prepared", "review", "evaluate", "deliver", "publish", "handoff", "repair"))
     payload = event.add_mutually_exclusive_group()
@@ -510,7 +582,7 @@ def main() -> int:
                     ws.require(bool(args.request) != bool(args.request_json), "Supply one request file or --request-json")
                     result = begin(root, ws.read_json(args.request) if args.request else json.loads(args.request_json))
                 elif args.action == "load-rules":
-                    result = load_rules(root, args.skill)
+                    result = load_rules(root, args.skill, args.rule_action)
                 elif args.action == "resume":
                     result = recover(root, args.revision)
                 elif args.action in {"rescope", "supersede"}:

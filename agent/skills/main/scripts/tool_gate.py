@@ -17,8 +17,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/skills/main/scripts"))
 import main as controller
 import rule_loading
+import stage_rules
 import workflow_state as ws
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -83,6 +86,7 @@ class Operation:
     action: str | None = None
     nix: bool = False
     wrapper: list[str] | None = None
+    delivery: str | None = None
 
 
 def relative_path(root: Path, cwd: Path, value: str) -> str:
@@ -207,6 +211,21 @@ def shell_operation(root: Path, cwd: Path, command: str, *, nix: bool = False) -
     return argv_operation(root, cwd, argv, nix=nix)
 
 
+def checked_script_root(root: Path, cwd: Path, args: list[str]) -> list[str]:
+    """Validate one explicit parser root without granting a shell exception."""
+    remaining = list(args)
+    ws.require(not any(a.startswith("--root=") for a in remaining) and remaining.count("--root") <= 1,
+               "Use one explicit --root path for the repository controller")
+    if "--root" in remaining:
+        index = remaining.index("--root")
+        ws.require(index + 1 < len(remaining) and (cwd / remaining[index + 1]).resolve() == root,
+                   "Repository controller command targets another root")
+        del remaining[index:index + 2]
+    else:
+        ws.require(cwd == root, "Repository controller commands from a subdirectory need --root")
+    return remaining
+
+
 def argv_operation(root: Path, cwd: Path, argv: list[str], *, nix: bool) -> Operation:
     if argv[:2] == ["bash", "-c"] and len(argv) == 3:
         operation = shell_operation(root, cwd, argv[2], nix=nix)
@@ -228,11 +247,21 @@ def argv_operation(root: Path, cwd: Path, argv: list[str], *, nix: bool) -> Oper
                 return Operation("controller", argv=argv, action=action, nix=nix)
             if action == "step" and len(args) > 1 and args[1] in EVENT_STAGES:
                 return Operation("controller", argv=argv, action=args[1], nix=nix)
-        if name in {"agent/skills/main/scripts/detect_agent_tool.py", "agent/skills/main/scripts/check_git_topology.py"}:
+        if name == "agent/skills/batch/scripts/batch.py":
+            local_args = checked_script_root(root, cwd, args)
+            if local_args[:1] in (["check"], ["check-metadata"]):
+                return Operation("read", argv=argv, nix=nix)
+            if len(local_args) >= 2 and local_args[0] in {"load-rules", "verify", "advance"}:
+                return Operation("integration", argv=argv, action=local_args[0],
+                                 delivery=str((cwd / local_args[1]).resolve()), nix=nix)
+        if name in {"agent/skills/prepare/scripts/detect_agent_tool.py", "agent/skills/prepare/scripts/check_git_topology.py"}:
             return Operation("bootstrap", argv=argv, nix=nix)
-        if name == "agent/skills/main/scripts/commit_as_agent_tool.py":
+        if name == "agent/skills/deliver/scripts/commit_as_agent_tool.py":
             return Operation("commit", argv=argv, nix=nix)
-        if name == "agent/skills/main/scripts/push_repository.py":
+        if name == "agent/skills/publish/scripts/push_repository.py":
+            local_args = checked_script_root(root, cwd, args)
+            if local_args in (["check"], ["check", "--remote-access"]):
+                return Operation("read", argv=argv, nix=nix)
             return Operation("publish", argv=argv, nix=nix)
     if argv[:2] == ["git", "add"]:
         args = argv[2:]
@@ -319,18 +348,25 @@ def diagnostic(reason: str) -> None:
     ).diagnostic,), stream=sys.stderr)
 
 
-def ensure_rules(root: Path, event: dict[str, Any], state: dict[str, Any]) -> dict[str, Any] | None:
+def ensure_rules(root: Path, event: dict[str, Any], state: dict[str, Any], action: str, delivery: str | None = None) -> dict[str, Any] | None:
     request = state["request"]
     kind = request["kind"]
     key = context_key(event)
     expected_base = ws.oid(root) if state.get("commit") else request.get("base_revision")
     expected_request = None if state.get("commit") else state["run"]
     paths = () if state.get("commit") else request.get("allowed_paths", ())
-    needed = rule_loading.required(root, kind, paths, request.get("skills", ()))
+    if action == "integration":
+        sys.path.insert(0, str(ROOT / "agent/skills/batch/scripts"))
+        import batch
+        document = ws.read_json(Path(delivery))
+        batch.integration_context(root, document)
+        kind, expected_base = "integration", document["base_revision"]
+        paths = controller.changed_paths(root, expected_base)
+    needed = rule_loading.required(root, kind, paths, request.get("skills", ()), action)
     valid = False
     certificate: dict[str, Any] = {}
     try:
-        certificate = rule_loading.current(root, kind=kind)
+        certificate = rule_loading.current(root, kind=kind, action=action)
         valid = certificate["base_revision"] == expected_base and certificate["request"] == expected_request and set(needed) <= set(certificate["skills"])
     except (ws.WorkflowError, OSError, ValueError, KeyError, TypeError):
         pass
@@ -344,7 +380,7 @@ def ensure_rules(root: Path, event: dict[str, Any], state: dict[str, Any]) -> di
         return None
     body = ContextBuffer()
     certificate = rule_loading.load(root, kind, expected_base, skills=request.get("skills", ()),
-                                    paths=paths, output=body)
+                                    paths=paths, action=action, output=body)
     ws.atomic_json(binding_path, {"schema_version": 1, "context": key, "run": state["run"], "rules": certificate["digest"]})
     return result("Read the full injected rule bodies before retrying this tool call; this invocation has not run.", body.getvalue())
 
@@ -375,11 +411,14 @@ def pre_tool(root: Path, event: dict[str, Any]) -> dict[str, Any]:
         if op.argv:
             ws.require(op.nix or op.argv[0] == "git", "Run repository read executables through nix develop at the Git root")
         return {}
-    if op.kind in {"bootstrap", "controller", "shell", "stage", "commit", "publish", "ungoverned-git"}:
+    if op.kind in {"bootstrap", "controller", "integration", "shell", "stage", "commit", "publish", "ungoverned-git"}:
         ws.require(op.nix, "Run repository executables through nix develop at the Git root")
     if op.kind == "bootstrap" or (op.kind == "controller" and op.action in {"inspect", "preflight", "begin", "load-rules", "resume", "rescope", "supersede"}):
         # These exact parsers own bootstrap/recovery validation; no general
         # shell compound receives this exception.
+        return {}
+    if op.kind == "integration" and op.action == "load-rules":
+        # This exact parser checks the delivery/context and owns body emission.
         return {}
     ws.require(op.kind != "ungoverned-git", "Use $main skill with main.py step deliver or main.py step publish and the guarded helpers")
     state_path = ws.local_path(root, "state.json")
@@ -403,7 +442,10 @@ def pre_tool(root: Path, event: dict[str, Any]) -> dict[str, Any]:
         ws.require(stage == "implementation", "Repository mutation requires implementation; use $main skill (main.py step repair) after review")
     if op.paths:
         check_paths(root, cwd, op.paths, request, staging=op.kind == "stage")
-    return ensure_rules(root, event, state) or {}
+    action = stage_rules.EVENT_ACTION.get(op.action, "recover") if op.kind == "controller" else (
+        "integration" if op.kind == "integration" else "deliver" if op.kind in {"stage", "commit"} else
+        "publish" if op.kind == "publish" else "implement")
+    return ensure_rules(root, event, state, action, op.delivery) or {}
 
 
 def handle(root: Path, event: dict[str, Any]) -> dict[str, Any]:

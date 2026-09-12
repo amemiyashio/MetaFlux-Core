@@ -14,6 +14,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/skills/main/scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import tool_gate as gate
 import workflow_state as ws
@@ -37,6 +39,10 @@ class ToolGateScenarios(unittest.TestCase):
             "outside.txt": "unrelated\n",
             "agent/goal.json": "{}\n",
         }
+        source_root = Path(__file__).resolve().parents[4]
+        for skill in ("main", "prepare", "review", "verify", "deliver", "publish", "recover"):
+            for source in (source_root / "agent/skills" / skill).rglob("*.md"):
+                files.setdefault(source.relative_to(source_root).as_posix(), source.read_text())
         for name, body in files.items():
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -102,11 +108,27 @@ class ToolGateScenarios(unittest.TestCase):
         self.assertEqual(ws.read_json(ws.local_path(self.root, "state.json")), state)
         self.assertFalse(ws.local_path(self.root, "rules.json").exists())
 
+    def test_first_intake_and_publication_diagnostics_are_read_only(self) -> None:
+        scripts = ("agent/skills/batch/scripts/batch.py", "agent/skills/publish/scripts/push_repository.py")
+        for argv in ([scripts[0], "check", "DELIVERY.json", "--root", "."],
+                     [scripts[0], "check-metadata", "--root", "."],
+                     [scripts[1], "--root", ".", "check"],
+                     [scripts[1], "check", "--remote-access"]):
+            command = ["python3", "-B", *argv]
+            self.assertEqual(self.invoke(self.shell(command)), {})
+            self.denied(self.event("Bash", shlex.join(command)))
+        self.denied(self.shell(["python3", "-B", scripts[0], "check", "DELIVERY.json", "--root", ".."]))
+        self.denied(self.shell(["bash", "-c", "python3 -B " + scripts[0] + " check DELIVERY.json; touch product.txt"]))
+        self.assertFalse((self.root / "agent/tmp").exists())
+        state = self.activate("complete")
+        self.assertEqual(self.invoke(self.shell(["python3", "-B", scripts[0], "check", "DELIVERY.json"])), {})
+        self.assertEqual(ws.read_json(ws.local_path(self.root, "state.json")), state)
+
     def test_bootstrap_does_not_need_a_request_file_write(self) -> None:
         for event in (self.controller("inspect"), self.controller("begin", "--request-json", "{}"),
                       self.controller("preflight"), self.controller("preflight", "--checks", "agent/tmp/main/checks.json"),
                       self.controller("load-rules"), self.controller("resume"),
-                      self.shell(["python3", "-B", "agent/skills/main/scripts/detect_agent_tool.py", "--agent-tool", "codex", "--json"])):
+                      self.shell(["python3", "-B", "agent/skills/prepare/scripts/detect_agent_tool.py", "--agent-tool", "codex", "--json"])):
             self.assertEqual(self.invoke(event), {})
         self.denied(self.event())
         self.denied(self.event("Bash", "python3 agent/skills/main/scripts/main.py inspect"))
@@ -133,7 +155,7 @@ class ToolGateScenarios(unittest.TestCase):
     def test_full_rules_are_injected_and_first_write_never_runs(self) -> None:
         self.activate()
         response = self.denied(self.event())
-        for name in ("AGENTS.md", "agent/skills/main/SKILL.md", "agent/skills/main/references/controller.md"):
+        for name in ("AGENTS.md", "agent/skills/main/SKILL.md", "agent/skills/review/references/implementation-guidance.md"):
             self.assertIn((self.root / name).read_text(), response["additionalContext"])
         self.assertEqual((self.root / "product.txt").read_text(), "baseline\n")
         self.assertEqual(self.invoke(self.event()), {})
@@ -268,6 +290,7 @@ class ToolGateScenarios(unittest.TestCase):
         self.assertIn("additionalContext", self.denied(self.controller("step", "prepared")))
         self.assertEqual(self.invoke(self.controller("step", "prepared")), {})
         gate.controller.step(self.root, "prepared", {})
+        self.assertIn("MetaFlux action: implement", self.denied(self.event())["additionalContext"])
         self.assertEqual(self.invoke(self.event()), {})
 
     def test_exact_check_plan_and_delivery_commands_remain_available(self) -> None:
@@ -276,15 +299,17 @@ class ToolGateScenarios(unittest.TestCase):
         self.activate("evaluation")
         self.assertEqual(self.invoke(self.shell(["python3", "-B", "tests/fixture.py"])), {})
         self.denied(self.shell(["python3", "-B", "tests/another.py"]))
+        self.assertIn("MetaFlux action: verify", self.denied(self.controller("step", "evaluate"))["additionalContext"])
         self.assertEqual(self.invoke(self.controller("step", "evaluate")), {})
         self.denied(self.controller("step", "publish"))
         self.activate("delivery")
+        self.assertIn("MetaFlux action: deliver", self.denied(self.shell(["git", "add", "--", "product.txt"]))["additionalContext"])
         self.assertEqual(self.invoke(self.shell(["git", "add", "--", "product.txt"])), {})
         self.assertEqual(self.invoke(self.shell(["git", "add", "--", "agent/skills/main/"])), {})
         self.denied(self.shell(["git", "add", "--", "outside.txt"]))
         self.denied(self.shell(["git", "add", "-A"]))
         self.assertEqual(self.invoke(self.controller("step", "deliver", "--payload-json", "{}")), {})
-        self.assertEqual(self.invoke(self.shell(["python3", "-B", "agent/skills/main/scripts/commit_as_agent_tool.py", "--help"])), {})
+        self.assertEqual(self.invoke(self.shell(["python3", "-B", "agent/skills/deliver/scripts/commit_as_agent_tool.py", "--help"])), {})
         self.denied(self.shell(["git", "commit", "-m", "bypass"]))
         self.denied(self.shell(["git", "push"]))
 
@@ -330,7 +355,7 @@ class ToolGateScenarios(unittest.TestCase):
         self.commit("Fixture delivery\n\nMetaFlux-Workflow: " + json.dumps(record))
         state.update(commit=ws.oid(self.root), stage="publication", receipt={"fixture": "preserved receipt"})
         ws.atomic_json(ws.local_path(self.root, "state.json"), state)
-        event = self.shell(["python3", "-B", "agent/skills/main/scripts/push_repository.py", "--root", ".", "push", "--revision", state["commit"]])
+        event = self.shell(["python3", "-B", "agent/skills/publish/scripts/push_repository.py", "--root", ".", "push", "--revision", state["commit"]])
         self.assertIn("additionalContext", self.denied(event))
         certificate = ws.read_json(ws.local_path(self.root, "rules.json"))
         self.assertEqual(certificate["base_revision"], state["commit"])
@@ -344,7 +369,7 @@ class ToolGateScenarios(unittest.TestCase):
         self.assertIn("additionalContext", self.denied(event))
         gate.controller.require_rules(self.root, state)
         self.assertEqual(self.invoke(event), {})
-        self.denied(self.shell(["python3", "-B", "agent/skills/main/scripts/push_repository.py", "push", "--revision", self.base]))
+        self.denied(self.shell(["python3", "-B", "agent/skills/publish/scripts/push_repository.py", "push", "--revision", self.base]))
         state["stage"] = "handoff"
         ws.atomic_json(ws.local_path(self.root, "state.json"), state)
         self.invoke({"hook_event_name": "PostCompact"})

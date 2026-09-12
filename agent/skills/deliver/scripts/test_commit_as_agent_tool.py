@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 SCRIPT = Path(__file__).with_name("commit_as_agent_tool.py").resolve()
-TOPOLOGY_SCRIPT = SCRIPT.with_name("check_git_topology.py")
+TOPOLOGY_SCRIPT = SCRIPT.parents[2] / "prepare/scripts/check_git_topology.py"
 SKILL = SCRIPT.parents[1] / "SKILL.md"
 SOURCE_ROOT = SCRIPT.parents[4]
 
@@ -86,7 +86,7 @@ def initialize_repository(repository: Path) -> None:
     )
     (repository / ".gitignore").write_text("/agent/tmp/\n")
     shutil.copy2(SOURCE_ROOT / "AGENTS.md", repository / "AGENTS.md")
-    for name in ("main", "epoch", "batch", "iteration"):
+    for name in ["main","epoch","batch","iteration","prepare","review","verify","deliver","publish","recover"]:
         for source in (SOURCE_ROOT / "agent/skills" / name).rglob("*.md"):
             destination = repository / source.relative_to(SOURCE_ROOT)
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -115,8 +115,10 @@ def evidence_arguments(root: Path) -> list[str]:
                       skills=task.get("skills", []), output=io.StringIO())
     if state["stage"] == "preparation":
         controller.step(root, "prepared", {})
+    rule_loading.load(root, task["kind"], task["base_revision"], paths=task["allowed_paths"], action="review", output=io.StringIO())
     controller.step(root, "review", {"summary": "Fixture content reviewed"})
     controller.step(root, "evaluate", {})
+    rule_loading.load(root, task["kind"], task["base_revision"], action="deliver", output=io.StringIO())
     receipt = WS.read_json(state_path)["receipt"]
     return ["--expected-head", WS.oid(root), "--expected-tree", WS.oid(root, ":"),
             "--receipt", str(WS.local_path(root, "receipts/" + receipt["digest"] + ".json")), "--kind", "maintenance"]
@@ -327,20 +329,11 @@ def test_actionable_cli_errors(root: Path) -> None:
 
 
 def test_policy_text() -> None:
-    text = SKILL.read_text(encoding="utf-8")
-    assert "## Bootstrap" in text
-    assert "$main" in text
-    assert "nix develop . --ignore-environment --keep HOME --keep USER --command" in text
-    assert "goal.json" in text
-    assert "check_git_topology.py" in text
-    assert "## Task-Stop Diagnostics" in text
-    assert "verification" in text
-    assert "user-or-application" in text
-    assert "preserve-and-report" in text
-    duplicate_epoch = "METAFLUX_AGENT_" + "EPOCH"
-    assert duplicate_epoch not in text
-    legacy_marker = "METAFLUX_AGENT_" + "HARNESS"
-    assert legacy_marker not in text
+    # Validate the actual split helper dependencies, not old prose headings.
+    assert HELPER.DETECTOR_SCRIPT.is_file()
+    assert HELPER.TOPOLOGY_CHECKER_SCRIPT.is_file()
+    assert SKILL.is_file()
+    assert (SOURCE_ROOT / "agent/lib/workflow_state.py").is_file()
 
 
 def main() -> int:

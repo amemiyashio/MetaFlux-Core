@@ -7,9 +7,12 @@ invented product Iteration and leaves Goal unchanged.
 
 ## Read Order
 
-1. Read Bootstrap and the [skill-reference convention](skills/main/SKILL.md#skill-references) in [$main](skills/main/SKILL.md) skill, then [memory](memory/README.md), especially constraints and open decisions.
-2. Read [goal.json](goal.json), the target milestone/work item, and its Exit Gate.
-3. Load the workflow and domain skills that own the requested scope.
+1. Read the short [$main](skills/main/SKILL.md) skill entry and [goal.json](goal.json).
+2. Inspect the current action card; read its complete modules and relevant
+   [memory](memory/README.md)/authority owners. Product work also reads the assigned work item and Exit Gate.
+3. Before each action, load its indicated stage. Parent review uses
+   `load-rules --for review`; review includes the immediately following verification contract.
+   Other stages load on demand, not as a global reading checklist.
 
 Source and measured tests outrank verified architecture, approved plans, memory,
 and validated experience. Proposed material describes intent, not capability.
@@ -21,7 +24,7 @@ its missing implementation owner, then deliver that coherent change. Reuse
 established profiles and contracts. Inspection and focused checks resolve
 specific uncertainties; the formal plan validates the completed slice. Passing
 unchanged tests, growing case counts or deleting code does not alone establish
-product progress. The shared [implementation guidance](skills/main/references/implementation-guidance.md)
+product progress. The shared [implementation guidance](skills/review/references/implementation-guidance.md)
 owns selection, source-path review, zero-overhead evidence and verification use.
 It preserves explicit read-only, benchmark and maintenance requests.
 
@@ -50,7 +53,8 @@ identify deliveries, not scheduling priority. The current values live in Goal.
 | `plan/` | Milestone/work-item deliverables, dependencies, and Exit Gates |
 | `memory/` | Stable constraints, decisions, ownership, and terminology |
 | `experience/` | Reusable methods with reproducible evidence |
-| `skills/` | Four workflow, eleven domain, and four utility packages |
+| `skills/` | Control, orchestration, stage, domain and utility packages; each owns its instructions/helpers |
+| `lib/` | Shared state, locks, rule selection and verification mechanisms; no second route authority |
 | `tmp/main/` | Git-ignored current operation, receipts, and pending transaction; no authorization or product proof |
 | `../tmp/` | Build and product-test artifacts |
 | `../references/` | Research-only upstream gitlinks and non-normative notes |
@@ -60,7 +64,7 @@ archive, progress diary, or numbered review record.
 
 Choose coherent behavior slices and preflight verification coverage before
 long runs. The [verification scheduling decision](../docs/architecture/agent-execution.md#verification-scheduling-decision-0059)
-and [controller protocol](skills/main/references/controller.md#verification-and-acceptance)
+and [controller protocol](skills/verify/references/verification.md)
 own this boundary; current attempts and logs stay in ignored `tmp/main/`.
 
 ## Delivery Loop

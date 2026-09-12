@@ -24,7 +24,7 @@ run_without_git_local_environment() (
 
 check_commit_input() {
   run_without_git_local_environment nix develop . --command python3 -B \
-    agent/skills/main/scripts/commit_as_agent_tool.py \
+    agent/skills/deliver/scripts/commit_as_agent_tool.py \
     --check-commit-gate --diagnostic-format "$diagnostic_format"
 }
 check_commit_input

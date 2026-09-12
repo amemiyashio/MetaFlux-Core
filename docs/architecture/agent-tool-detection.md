@@ -9,7 +9,7 @@ updated: 2026-09-08
 ## Decision
 
 MetaFlux derives agent commit identity from the harness name already emitted in
-the current conversation. [$main](../../agent/skills/main/SKILL.md) skill reports only the normalized
+the current conversation. [$prepare](../../agent/skills/prepare/SKILL.md) skill reports only the normalized
 subject, CLI interface, and `declared` source. The result is ephemeral and is
 never stored in repository goal state.
 

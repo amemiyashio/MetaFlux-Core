@@ -23,7 +23,7 @@ REPOSITORY_HINT = SCRIPT.parents[4]
 SKILL_ROOT = SCRIPT.parents[1]
 POLICY_PATH = SKILL_ROOT / "transport.json"
 TOPOLOGY_CHECKER_PATH = (
-    SCRIPT.parents[2] / "main" / "scripts" / "check_git_topology.py"
+    SCRIPT.parents[2] / "prepare" / "scripts" / "check_git_topology.py"
 )
 sys.path.insert(0, str(REPOSITORY_HINT / "tools"))
 
@@ -49,7 +49,7 @@ POLICY_FIELDS = {
 }
 CONFIGURE_RETRY = (
     "nix develop . --ignore-environment --keep HOME --keep USER --command python3 -B "
-    "agent/skills/main/scripts/push_repository.py configure"
+    "agent/skills/publish/scripts/push_repository.py configure"
 )
 
 
@@ -66,7 +66,7 @@ def publish_error(
 ) -> DiagnosticError:
     return task_stop_error(
         code=code,
-        source="main",
+        source="publish",
         summary=summary,
         evidence=evidence,
         responsibility=responsibility,
@@ -219,7 +219,7 @@ def load_topology_checker():
             evidence=(f"checker: {TOPOLOGY_CHECKER_PATH}",),
             responsibility="current-agent",
             disposition="fix-and-retry",
-            required_action="Restore main's shared topology checker.",
+            required_action="Restore the prepare skill's topology checker.",
             resume_when="The checker loads from the same candidate tree.",
         )
     module = importlib.util.module_from_spec(spec)
@@ -238,7 +238,7 @@ def load_topology_checker():
             ),
             responsibility="current-agent",
             disposition="fix-and-retry",
-            required_action="Repair main's shared topology checker.",
+            required_action="Repair the prepare skill's topology checker.",
             resume_when="The checker loads from the same candidate tree.",
         ) from error
     return module
@@ -635,7 +635,7 @@ def push_revision(
 
 def parser() -> argparse.ArgumentParser:
     result = DiagnosticArgumentParser(
-        description=__doc__, diagnostic_source="main"
+        description=__doc__, diagnostic_source="publish"
     )
     result.add_argument("--root", type=Path, default=Path("."))
     add_diagnostic_format_argument(result)

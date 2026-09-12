@@ -1,0 +1,7 @@
+interface:
+  display_name: "MetaFlux Recovery"
+  short_description: "Recover the current operation from exact evidence"
+  default_prompt: "Use $recover skill to inspect the actual failure and recover the same operation without repeating completed acceptance or publication."
+
+policy:
+  allow_implicit_invocation: true

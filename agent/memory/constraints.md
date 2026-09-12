@@ -89,7 +89,7 @@ identity and provisioning boundaries live in
   root. That skill is the sole owner for sudo/su, root-helper, persistent-grant,
   and revocation policy. Neither path permits arbitrary root commands or
   credential persistence.
-- Agent execution follows decision-0033 as amended by decisions 0037 and 0054.
+- Agent execution follows decision-0033 as amended by decisions 0037, 0054 and 0062.
   `agent/goal.json` stores only the active Epoch, Batch, product target,
   objective, research-only reference prerequisites, and
   planned/integrated/deferred lanes. Goal schema v4 binds every lane to one work
@@ -97,7 +97,7 @@ identity and provisioning boundaries live in
   [$epoch](../skills/epoch/SKILL.md) skill, [$batch](../skills/batch/SKILL.md) skill,
   or [$iteration](../skills/iteration/SKILL.md) skill. Workers deliver schema-v2
   exact candidates and actual content-bound verification receipts. The acceptance controller alone
-  advances daily accepted state after fresh integration verification. Slice
+  advances accepted state after fresh integration verification. Slice
   acceptance preserves the lane/work item/target and allocates the Batch maximum
   Iteration plus one; complete acceptance requires the full Exit Gate. Selection
   uses dependencies and lane array order, never Iteration priority. Product
@@ -114,7 +114,7 @@ identity and provisioning boundaries live in
   Epoch only after complete regression. There is no dual-write, alias, old-format
   parser, migration ledger, or compatibility route; Git history is the recovery
   boundary. Maintenance, Epoch activation, and Batch acceptance automatically
-  publish their exact guarded commit through [$main](../skills/main/SKILL.md) skill unless the user limits
+  publish their exact guarded commit through [$publish](../skills/publish/SKILL.md) skill unless the user limits
   publication (decisions 0038 and 0054). Worker candidates go to [$batch](../skills/batch/SKILL.md) skill without
   pushing. Failed publication recovers the same commit; changed remote ancestry
   requires the application's new exact execution context.
@@ -238,3 +238,8 @@ Implementation selection follows [decision-0061](../../docs/architecture/agent-e
 advance an observable requested behavior, reuse established inputs, and use
 verification to resolve uncertainty and qualify the coherent delivery. Keep
 explicit analysis and maintenance scope; activity counts are not capability.
+
+Stage/module ownership follows [decision-0062](../../docs/architecture/agent-execution.md#modular-stage-guidance-decision-0062):
+the entry routes to short stage skills; complete current modules are emitted on
+demand. Review/verification retain immutable rule versions, and delivery checks
+its current action separately. Shared mechanisms live in `agent/lib/`.

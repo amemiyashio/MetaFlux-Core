@@ -1,0 +1,7 @@
+interface:
+  display_name: "MetaFlux Verification"
+  short_description: "Verify the reviewed tree and retain real evidence"
+  default_prompt: "Use $verify skill to execute the required checks for this reviewed tree once and proceed using the resulting evidence."
+
+policy:
+  allow_implicit_invocation: true

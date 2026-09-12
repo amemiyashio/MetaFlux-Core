@@ -69,9 +69,12 @@ DOMAIN_SKILL_SLUGS = {
     "device-lifecycle-resilience",
     "vulkan-spirv-compute",
 }
-WORKFLOW_SKILL_SLUGS = {
-    "main", "epoch", "batch", "iteration",
+WORKFLOW_SKILL_GROUPS = {
+    "control": {"main"},
+    "orchestration": {"epoch", "batch", "iteration"},
+    "stage": {"prepare", "review", "verify", "deliver", "publish", "recover"},
 }
+WORKFLOW_SKILL_SLUGS = set().union(*WORKFLOW_SKILL_GROUPS.values())
 EXPLICIT_ONLY_SKILLS = {"epoch"}
 OBSOLETE_SKILLS = {
     "record-" + "session",
@@ -781,7 +784,7 @@ class Checker:
             responsibility="current-agent",
             disposition="fix-and-retry",
             required_action=(
-                "Use main's shared commit helper with the conversation-emitted "
+                "Use the deliver skill's commit helper with the conversation-emitted "
                 "harness name; do not override Author, Committer, or the candidate gate."
             ),
             resume_when="The same candidate commit environment passes this gate.",
@@ -797,7 +800,7 @@ class Checker:
             self.root
             / "agent"
             / "skills"
-            / "main"
+            / "prepare"
             / "scripts"
             / "detect_agent_tool.py"
         )

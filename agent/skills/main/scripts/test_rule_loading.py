@@ -2,6 +2,7 @@
 """Exercise actual rule emission, version invalidation, and workflow boundaries."""
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import subprocess
@@ -10,6 +11,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/skills/main/scripts"))
 import main as controller
 import rule_loading as rules
 import test_workflow_state as fixture
@@ -25,6 +28,8 @@ class RuleLoadingTests(unittest.TestCase):
 
     def load(self, kind="maintenance", **kwargs):
         self.output = io.StringIO()
+        state = ws.read_json(ws.local_path(self.root, "state.json")) if ws.local_path(self.root, "state.json").exists() else {}
+        kwargs.setdefault("action", "prepare" if state.get("stage") == "preparation" else "review")
         return rules.load(self.root, kind, self.base, output=self.output, **kwargs)
 
     def test_prepared_requires_emitted_current_bodies(self):
@@ -37,6 +42,51 @@ class RuleLoadingTests(unittest.TestCase):
         for name in certificate["files"]:
             self.assertIn((self.root / name).read_text(), self.output.getvalue())
         self.assertEqual(controller.step(self.root, "prepared", {})["stage"], "implementation")
+
+    def test_stage_modules_enforce_reading_without_discarding_passed_evidence(self):
+        controller.begin(self.root, fixture.request(self.root))
+        certificate = self.load()
+        self.assertIn("prepare", certificate["skills"])
+        self.assertNotIn("review", certificate["skills"])
+        controller.step(self.root, "prepared", {})
+        card = controller.inspect(self.root)["action_card"]
+        self.assertEqual(card["action"], "implement")
+        self.assertFalse(card["rules_current"])
+        fixture.load_operation_rules(self.root, action="implement")
+        self.assertTrue(controller.inspect(self.root)["action_card"]["rules_current"])
+        (self.root / "product.txt").write_text("implemented behavior\\n")
+        with self.assertRaisesRegex(ws.WorkflowError, "current action modules"):
+            controller.step(self.root, "review", {"summary": "Must load review first"})
+        with contextlib.redirect_stdout(io.StringIO()):
+            selected = controller.load_rules(self.root, action="review")
+        self.assertEqual(selected["action_card"]["action"], "review")
+        self.assertTrue(selected["action_card"]["rules_current"])
+        self.assertEqual(controller.inspect(self.root)["action_card"]["action"], "review")
+        controller.step(self.root, "review", {"summary": "Review implemented behavior and check plan"})
+        # Explicit verification reload keeps the immutable parent's review.
+        fixture.load_operation_rules(self.root, action="verify")
+        controller.step(self.root, "evaluate", {})
+        state = ws.read_json(ws.local_path(self.root, "state.json"))
+        evidence = state["receipt"]
+        self.assertEqual(evidence["review"]["rules"]["action"], "review")
+        self.assertEqual(evidence["verification_rules"]["action"], "verify")
+        self.assertEqual(evidence["schema_version"], 3)
+        with self.assertRaisesRegex(ws.WorkflowError, "current action modules"):
+            controller.require_rules(self.root, state, action="deliver")
+        fixture.load_operation_rules(self.root, action="deliver")
+        controller.require_rules(self.root, state, action="deliver")
+        ws.validate_receipt(self.root, evidence, kind="maintenance")
+        self.assertEqual(ws.read_json(ws.local_path(self.root, "state.json"))["receipt"], evidence)
+        # A stage switch must not turn a historical certificate into mutable evidence.
+        altered = json.loads(json.dumps(evidence))
+        altered["verification_rules"]["action"] = "deliver"
+        altered["verification_rules"]["digest"] = ws.digest({k: v for k, v in altered["verification_rules"].items() if k != "digest"})
+        altered["digest"] = ws.digest({k: v for k, v in altered.items() if k != "digest"})
+        with self.assertRaises(ws.WorkflowError):
+            ws.validate_receipt(self.root, altered, kind="maintenance")
+        repaired = controller.step(self.root, "repair", {})
+        self.assertEqual(repaired["action_card"]["action"], "implement")
+        self.assertFalse(repaired["action_card"]["rules_current"])
 
     def test_boolean_marker_is_not_rule_evidence(self):
         controller.begin(self.root, fixture.request(self.root))
@@ -133,6 +183,7 @@ class RuleLoadingTests(unittest.TestCase):
             controller.step(self.root, "prepared", {})
         self.load("iteration")
         controller.step(self.root, "prepared", {})
+        self.load("iteration")
         path = self.root / "plugins/compat/cuda/abi/unloaded.cpp"
         path.parent.mkdir(parents=True)
         path.write_text("// changed domain without loading its skill\n")
@@ -158,7 +209,7 @@ class RuleLoadingTests(unittest.TestCase):
         with self.assertRaises(OSError):
             rules.load(self.root, "maintenance", self.base, output=FailedOutput())
         self.assertFalse(ws.local_path(self.root, "rules.json").exists())
-        (self.root / "agent/skills/main/references/controller.md").unlink()
+        (self.root / "agent/skills/review/SKILL.md").unlink()
         with self.assertRaises(ws.WorkflowError):
             self.load()
         self.assertFalse(ws.local_path(self.root, "rules.json").exists())

@@ -1,6 +1,6 @@
 interface:
   display_name: "MetaFlux Main"
   short_description: "Direct useful implementation and exact delivery"
-  default_prompt: "Use $main skill to complete this MetaFlux task through concrete implementation, review, scoped verification and delivery, preserving explicit read-only requests."
+  default_prompt: "Use $main skill to inspect the current task and follow its action card, loading only the relevant stage and domain modules."
 policy:
   allow_implicit_invocation: true

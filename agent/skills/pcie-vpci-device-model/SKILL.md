@@ -8,7 +8,7 @@ description: Implement or review PCI or vPCI Type-0 configuration space, domain 
 ## Implementation Focus
 
 For an implementation request, use the shared
-[implementation guidance](../main/references/implementation-guidance.md).
+[implementation guidance](../review/references/implementation-guidance.md).
 Select the affected inputs and obligations below; broad qualification lists
 do not make every invocation a new inventory or full-suite run.
 

@@ -1,6 +1,7 @@
 # MetaFlux Project Memory
 
-Read these compact indexes before current progress and plans:
+Use these indexes to locate the owners relevant to the current task. Do not load
+all product decisions for a read-only workflow or tool question:
 
 1. [`project.md`](project.md): product direction and present maturity.
 2. [`constraints.md`](constraints.md): durable technical and release limits.

@@ -1,0 +1,7 @@
+interface:
+  display_name: "MetaFlux Parent Review"
+  short_description: "Review implemented behavior and its boundaries"
+  default_prompt: "Use $review skill to review the completed behavior against its briefing and choose the covering checks before delivery."
+
+policy:
+  allow_implicit_invocation: true

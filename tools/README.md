@@ -74,7 +74,7 @@ runs its candidate state checker, routing gate and `git diff --cached --check`,
 between exact commit-input guards. Behavioral self-tests remain registered in
 CTest and run in the reviewed verification plan, rather than again inside the
 hook. Agent commits are made through
-`agent/skills/main/scripts/commit_as_agent_tool.py`. Before candidate checks,
+`agent/skills/deliver/scripts/commit_as_agent_tool.py`. Before candidate checks,
 the hook clears
 the invoking repository variables reported by `git rev-parse --local-env-vars`.
 The individual Git-fixture tests repeat that isolation defensively so a linked

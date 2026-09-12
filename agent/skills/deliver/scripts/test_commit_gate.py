@@ -12,6 +12,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/skills/main/scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import test_commit_as_agent_tool as fixture
 import main as controller
@@ -29,11 +31,13 @@ class CommitGateTests(unittest.TestCase):
         self.environment = fixture.environment()
         for name in (*fixture.HELPER.COMMIT_GATE_ENVIRONMENT.values(), "METAFLUX_MAIN_LOCK_FD"):
             self.environment.pop(name, None)
-        scripts = self.root / "agent/skills/main/scripts"
-        scripts.mkdir(parents=True)
-        for source in fixture.SCRIPT.parent.glob("*.py"):
-            if not source.name.startswith("test_"):
-                shutil.copy2(source, scripts / source.name)
+        for folder in ("agent/lib", "agent/skills/main/scripts", "agent/skills/prepare/scripts",
+                       "agent/skills/deliver/scripts", "agent/skills/publish/scripts"):
+            destination = self.root / folder
+            destination.mkdir(parents=True, exist_ok=True)
+            for source in (SOURCE_ROOT / folder).glob("*.py"):
+                if not source.name.startswith("test_"):
+                    shutil.copy2(source, destination / source.name)
         (self.root / "tools").mkdir()
         shutil.copy2(SOURCE_ROOT / "tools/agent_diagnostics.py", self.root / "tools/agent_diagnostics.py")
         # Candidate checks are small fixture programs. The hook, helper, and
@@ -143,7 +147,7 @@ class CommitGateTests(unittest.TestCase):
         arguments = self.evidence()
         for name in fixture.HELPER.COMMIT_GATE_ENVIRONMENT.values():
             self.environment[name] = "untrusted inherited value"
-        result = self.invoke(sys.executable, "-B", str(self.root / "agent/skills/main/scripts/commit_as_agent_tool.py"),
+        result = self.invoke(sys.executable, "-B", str(self.root / "agent/skills/deliver/scripts/commit_as_agent_tool.py"),
                              *arguments, "--", "-m", "qualified helper commit")
         fixture.require(result, "real hook helper commit")
         self.assertNotEqual(fixture.WS.oid(self.root), self.head)
@@ -151,7 +155,7 @@ class CommitGateTests(unittest.TestCase):
         self.assertEqual(self.run_ok("git", "config", "user.name").stdout.strip(), "Human")
 
     def helper(self, arguments: list[str]):
-        return self.invoke(sys.executable, "-B", str(self.root / "agent/skills/main/scripts/commit_as_agent_tool.py"),
+        return self.invoke(sys.executable, "-B", str(self.root / "agent/skills/deliver/scripts/commit_as_agent_tool.py"),
                            *arguments, "--", "-m", "guarded fixture candidate")
 
     def test_helper_rejects_receipt_without_active_operation(self) -> None:
@@ -194,7 +198,7 @@ class CommitGateTests(unittest.TestCase):
     def check_mutated_during_hook(self, change: str) -> None:
         arguments = self.evidence()
         self.environment["METAFLUX_GATE_FIXTURE_CHANGE"] = change
-        result = self.invoke(sys.executable, "-B", str(self.root / "agent/skills/main/scripts/commit_as_agent_tool.py"),
+        result = self.invoke(sys.executable, "-B", str(self.root / "agent/skills/deliver/scripts/commit_as_agent_tool.py"),
                              *arguments, "--", "-m", "candidate changed during checks")
         self.assert_rejected(result, "commit-gate.input-changed", checked=True)
 

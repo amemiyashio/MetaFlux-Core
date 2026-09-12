@@ -63,6 +63,8 @@ qualification remain under `tests/`; Nix only provides their fixed tools.
 | Physical device (ICD/driver) selection for the Nix toolchain | pinned Nix output ICDs, recipe in [`toolchains/README.md`](../../toolchains/README.md) |
 | Research-only upstream source pointers | `references/` manifests, notes, and on-demand exact submodule gitlinks (decision-0047); never a build or release dependency |
 | Workspace scratch (CMake trees, debug-kernel overlay, measurement dumps, retained work dirs) | `tmp/` under the repository root (decision-0042); gitignored except [`tmp/README.md`](../../tmp/README.md) |
+| Agent workflow/domain/stage instructions and owned tools | Flat `agent/skills/<name>/` packages, grouped by responsibility in the skill index (decision-0062) |
+| Shared Agent state, rule loading and verification mechanics | `agent/lib/`; independent of skill instruction ownership and product runtime |
 | Current Agent operation, receipts, and pending transaction | Git-ignored `agent/tmp/main/` (decision-0054); never product authority or tracked content |
 | Installed compiler/AOT cache | `/var/cache/metaflux/compiler` and `/var/lib/metaflux/aot` (decision-0014); not workspace scratch |
 | Planned-but-unimplemented component | a section in [`docs/roadmap.md`](../roadmap.md), no directory |

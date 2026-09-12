@@ -206,7 +206,7 @@ def review(root: Path, summary: str, checks: list[dict[str, Any]]) -> dict[str, 
     import rule_loading
     validate_plan(checks)
     require(bool(summary.strip()), "The parent review must state its semantic conclusion")
-    return {"content": content(root), "summary": summary, "plan": digest(checks), "rules": rule_loading.current(root)}
+    return {"content": content(root), "summary": summary, "plan": digest(checks), "rules": rule_loading.current(root, action="review")}
 
 
 def evaluate(root: Path, kind: str, base: str, checks: list[dict[str, Any]],
@@ -221,14 +221,18 @@ def evaluate(root: Path, kind: str, base: str, checks: list[dict[str, Any]],
     require(ancestor(root, base, before["head"]), "Verification baseline is outside current history")
     require(reviewed.get("content") == before["content"] and reviewed.get("plan") == digest(checks)
             and bool(reviewed.get("summary")), "Review or check plan is stale")
+    current_rules = rule_loading.current(root, kind=kind, action="verify")
+    require(rule_loading.covers(reviewed["rules"], "review") and
+            all(current_rules[key] == reviewed["rules"][key] for key in ("request", "head", "base_revision")),
+            "Review and verification rules belong to different operations or baselines")
     import verification
-    return verification.execute(root, kind, base, checks, reviewed, before)
+    return verification.execute(root, kind, base, checks, reviewed, before, current_rules)
 
 
 def validate_receipt(root: Path, receipt: Any, *, kind: str,
                      revision: str | None = None, base: str | None = None,
                      logs: bool = True, tested_entries: dict[str, tuple[str, str]] | None = None) -> None:
-    require(isinstance(receipt, dict) and receipt.get("schema_version") == 2, "Missing current actual verification receipt")
+    require(isinstance(receipt, dict) and receipt.get("schema_version") == 3, "Missing current actual verification receipt")
     require(receipt.get("digest") == digest({k: v for k, v in receipt.items() if k != "digest"}), "Receipt digest mismatch")
     require(receipt.get("kind") == kind, "Wrong verification phase")
     validate_plan(receipt.get("checks"))
@@ -253,6 +257,11 @@ def validate_receipt(root: Path, receipt: Any, *, kind: str,
     rule_loading.validate(root, reviewed.get("rules"), kind=kind, entries=values)
     require(reviewed["rules"]["head"] == inputs["head"] and reviewed["rules"]["base_revision"] == receipt["base_revision"],
             "Verification rules disagree with the tested baseline")
+    verified_rules = receipt.get("verification_rules")
+    rule_loading.validate(root, verified_rules, kind=kind, entries=values)
+    require(rule_loading.covers(reviewed["rules"], "review") and rule_loading.covers(verified_rules, "verify") and
+            all(verified_rules[key] == reviewed["rules"][key] for key in ("request", "head", "base_revision")),
+            "Missing matching review and verification action rules")
     results = receipt.get("results", [])
     require(len(results) == len(receipt["checks"]), "Incomplete executed check results")
     import verification
@@ -382,7 +391,7 @@ def recover_transaction(root: Path) -> str:
 
 def validate_acceptance(root: Path) -> None:
     import importlib.util
-    path = Path(__file__).resolve().parents[2] / "batch/scripts/batch.py"
+    path = Path(__file__).resolve().parents[2] / "agent/skills/batch/scripts/batch.py"
     spec = importlib.util.spec_from_file_location("metaflux_batch_commit_guard", path)
     require(spec is not None and spec.loader is not None, "Batch guard is missing")
     module = importlib.util.module_from_spec(spec)
@@ -394,6 +403,8 @@ def commit_guard(root: Path, expected_head: str, expected_tree: str, receipt: di
     require(oid(root) == expected_head, "Expected HEAD changed")
     require(oid(root, ":") == expected_tree, "Expected staged tree changed")
     validate_receipt(root, receipt, kind=kind)
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "agent/skills/main/scripts"))
     import main as controller
     state_path = local_path(root, "state.json")
     require(state_path.is_file(), "A guarded commit requires an active $main skill delivery")
@@ -408,9 +419,11 @@ def commit_guard(root: Path, expected_head: str, expected_tree: str, receipt: di
     require(isinstance(state.get("receipt"), dict) and state["receipt"].get("digest") == receipt["digest"] and
             state.get("review") == receipt["review"] and request["checks"] == receipt["checks"],
             "Current operation receipt or reviewed check plan differs from the supplied commit evidence")
-    controller.require_rules(root, state)
-    require(read_json(local_path(root, "rules.json")) == receipt["review"]["rules"],
-            "Current loaded rules differ from the reviewed commit evidence")
+    controller.require_rules(root, state, action="deliver")
+    current_rules = read_json(local_path(root, "rules.json"))
+    require(all(current_rules[key] == receipt["review"]["rules"][key]
+                for key in ("request", "head", "base_revision")),
+            "Current delivery rules differ from the reviewed operation or baseline")
     staged, reviewed = entries(root, expected_tree), entries(root)
     unstaged = sorted(name for name in staged.keys() | reviewed.keys() if staged.get(name) != reviewed.get(name))
     require(not unstaged,

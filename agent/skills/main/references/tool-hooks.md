@@ -16,7 +16,10 @@ host-supplied child ID when available. Missing session/turn fields stop a write;
 the gate never falls back to a session-only binding.
 
 `PreToolUse` validates the active request, exact baseline, present scope and
-required stage. If rules are missing, changed, or associated with another
+required stage. The action-to-module map in `agent/lib/stage_rules.py` selects
+complete current-stage bodies, including semantic owners during implementation
+and review. Delivery and publication load their own mechanisms; they do not
+reissue passed product checks. If rules are missing, changed, or associated with another
 context, it calls the shared rule loader, returns the full bodies as
 `hookSpecificOutput.additionalContext`, and denies that invocation. The next
 invocation revalidates those facts. `rules.json` records the emitted bodies and
@@ -54,7 +57,10 @@ commands as one explicit invocation, including when wrapped in Nix bash.
 `inspect`, `preflight`, `begin`, `load-rules`, `resume`, `rescope`, `supersede`, and the two bootstrap helpers retain
 their own parsers and validation. `begin --request-json` and
 `step --payload-json` avoid an ungoverned temporary-input write during bootstrap.
-Other controller transitions follow their exact stage; no broad shell compound
+`batch.py load-rules DELIVERY` validates the exact candidate and emits integration
+rules. Its `verify` and `advance` hooks use the delivery base and actual changed
+paths, distinct from the current-main Batch operation base. They keep candidate
+and integration receipts independent. Other controller transitions follow their exact stage; no broad shell compound
 receives the controller exception.
 
 The exact `rescope` and `supersede` commands reach their own token/request

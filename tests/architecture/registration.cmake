@@ -21,11 +21,17 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
   )
   set_tests_properties(metaflux.architecture.main-workflow-selftest PROPERTIES LABELS "architecture")
   foreach(guard IN ITEMS rule_loading tool_gate commit_gate verification)
+    set(owner main)
+    if(guard STREQUAL "commit_gate")
+      set(owner deliver)
+    elseif(guard STREQUAL "verification")
+      set(owner verify)
+    endif()
     string(REPLACE "_" "-" guard_name "${guard}")
     add_test(
       NAME "metaflux.architecture.${guard_name}-selftest"
       COMMAND "${Python3_EXECUTABLE}" -B
-        "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/main/scripts/test_${guard}.py"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/${owner}/scripts/test_${guard}.py"
     )
     set_tests_properties("metaflux.architecture.${guard_name}-selftest" PROPERTIES LABELS "architecture")
   endforeach()
@@ -87,7 +93,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     NAME metaflux.architecture.agent-tool-detection-selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/main/scripts/test_detect_agent_tool.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/prepare/scripts/test_detect_agent_tool.py"
   )
   set_tests_properties(
     metaflux.architecture.agent-tool-detection-selftest
@@ -97,7 +103,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     NAME metaflux.architecture.agent-commit-identity-selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/main/scripts/test_commit_as_agent_tool.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/deliver/scripts/test_commit_as_agent_tool.py"
   )
   set_tests_properties(
     metaflux.architecture.agent-commit-identity-selftest
@@ -107,7 +113,7 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
     NAME metaflux.architecture.repository-push-selftest
     COMMAND
       "${Python3_EXECUTABLE}" -B
-      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/main/scripts/test_push_repository.py"
+      "${CMAKE_CURRENT_SOURCE_DIR}/../agent/skills/publish/scripts/test_push_repository.py"
   )
   set_tests_properties(
     metaflux.architecture.repository-push-selftest

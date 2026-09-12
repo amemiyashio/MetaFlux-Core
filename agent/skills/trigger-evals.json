@@ -17,7 +17,13 @@
     "main",
     "epoch",
     "batch",
-    "iteration"
+    "iteration",
+    "prepare",
+    "review",
+    "verify",
+    "deliver",
+    "publish",
+    "recover"
   ],
   "coverage": {
     "required_locales": [
@@ -44,32 +50,54 @@
       "kind": "single",
       "locale": "en",
       "prompt": "Use $main to add the omitted companion summary to this same task's declared file scope, preserve the assignment and revalidate the candidate.",
-      "expected_skills": ["main"],
-      "forbidden_skills": ["epoch", "batch"]
+      "expected_skills": [
+        "main"
+      ],
+      "forbidden_skills": [
+        "epoch",
+        "batch"
+      ]
     },
     {
       "id": "MAIN-RESCOPE-ZH",
       "kind": "single",
       "locale": "zh-CN",
       "prompt": "用 $main 修订本次漏报的配套文档范围，目标和执行基准保持原样，重新加载规则并验证。",
-      "expected_skills": ["main"],
-      "forbidden_skills": ["epoch", "batch"]
+      "expected_skills": [
+        "main"
+      ],
+      "forbidden_skills": [
+        "epoch",
+        "batch"
+      ]
     },
     {
       "id": "EPOCH-SUPERSEDE-EN",
       "kind": "composition",
       "locale": "en",
       "prompt": "Use $main and $epoch to implement the confirmed recovery governance, preserving the unfinished product candidate and replacing its uncommitted operation.",
-      "expected_skills": ["main", "epoch"],
-      "forbidden_skills": ["iteration", "batch"]
+      "expected_skills": [
+        "main",
+        "epoch"
+      ],
+      "forbidden_skills": [
+        "iteration",
+        "batch"
+      ]
     },
     {
       "id": "EPOCH-SUPERSEDE-ZH",
       "kind": "composition",
       "locale": "zh-CN",
       "prompt": "用 $main 和 $epoch 执行已确认的恢复流程治理，保留未完成的产品修改，替换当前尚未提交的操作。",
-      "expected_skills": ["main", "epoch"],
-      "forbidden_skills": ["iteration", "batch"]
+      "expected_skills": [
+        "main",
+        "epoch"
+      ],
+      "forbidden_skills": [
+        "iteration",
+        "batch"
+      ]
     },
     {
       "id": "RUNTIME-P1",
@@ -1128,16 +1156,484 @@
       "kind": "near-miss",
       "locale": "en",
       "prompt": "Explain the Git main branch and the Epoch, Batch and Iteration execution levels; only inspect the current state.",
-      "expected_skills": ["main"],
-      "forbidden_skills": ["epoch", "batch", "iteration"]
+      "expected_skills": [
+        "main"
+      ],
+      "forbidden_skills": [
+        "epoch",
+        "batch",
+        "iteration"
+      ]
     },
     {
       "id": "TERMS-ZH-N1",
       "kind": "near-miss",
       "locale": "zh-CN",
       "prompt": "只解释 Git 的 main 分支与 Epoch、Batch、Iteration 执行层级的区别，查看当前状态。",
-      "expected_skills": ["main"],
-      "forbidden_skills": ["epoch", "batch", "iteration"]
+      "expected_skills": [
+        "main"
+      ],
+      "forbidden_skills": [
+        "epoch",
+        "batch",
+        "iteration"
+      ]
+    },
+    {
+      "id": "STAGE-PREPARE-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $prepare to prepare the exact bounded request and required implementation prerequisites.",
+      "expected_skills": [
+        "prepare"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-PREPARE-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $prepare to inspect whether this assignment is ready for its first edit without changing the repository.",
+      "expected_skills": [
+        "prepare"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-PREPARE-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "用 $prepare 准备当前任务的准确范围和基准，再进入实现。",
+      "expected_skills": [
+        "prepare"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-PREPARE-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Use $publish to publish the already committed revision without starting another operation.",
+      "expected_skills": [
+        "publish"
+      ],
+      "forbidden_skills": [
+        "prepare"
+      ]
+    },
+    {
+      "id": "STAGE-PREPARE-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "用 $publish 发布已提交的精确版本，准备步骤已经完成。",
+      "expected_skills": [
+        "publish"
+      ],
+      "forbidden_skills": [
+        "prepare"
+      ]
+    },
+    {
+      "id": "STAGE-PREPARE-C1",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Use $main and $prepare to prepare the exact bounded request and required implementation prerequisites within the current task.",
+      "expected_skills": [
+        "main",
+        "prepare"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-PREPARE-ZH-C1",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "用 $main 和 $prepare 在本次任务内准备当前任务的准确范围和基准，再进入实现。",
+      "expected_skills": [
+        "main",
+        "prepare"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-REVIEW-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $review to review the completed source change against its parent briefing.",
+      "expected_skills": [
+        "review"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-REVIEW-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $review to review real callers and reuse boundaries before approving this implementation.",
+      "expected_skills": [
+        "review"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-REVIEW-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "用 $review 审查已完成的行为修改及其真实调用边界。",
+      "expected_skills": [
+        "review"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-REVIEW-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Use $verify to run the already reviewed verification plan without repeating semantic review.",
+      "expected_skills": [
+        "verify"
+      ],
+      "forbidden_skills": [
+        "review"
+      ]
+    },
+    {
+      "id": "STAGE-REVIEW-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "用 $verify 执行已审查的测试计划，审查结论已经确定。",
+      "expected_skills": [
+        "verify"
+      ],
+      "forbidden_skills": [
+        "review"
+      ]
+    },
+    {
+      "id": "STAGE-REVIEW-C1",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Use $main and $review to review the completed source change against its parent briefing within the current task.",
+      "expected_skills": [
+        "main",
+        "review"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-REVIEW-ZH-C1",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "用 $main 和 $review 在本次任务内审查已完成的行为修改及其真实调用边界。",
+      "expected_skills": [
+        "main",
+        "review"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-VERIFY-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $verify to execute this reviewed check plan and retain its actual evidence.",
+      "expected_skills": [
+        "verify"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-VERIFY-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $verify to preflight the selected CTest coverage and follow the current live check.",
+      "expected_skills": [
+        "verify"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-VERIFY-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "用 $verify 执行已审查树的覆盖检查，保留实际结果。",
+      "expected_skills": [
+        "verify"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-VERIFY-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Use $publish to publish this exact passed and committed revision without rerunning tests.",
+      "expected_skills": [
+        "publish"
+      ],
+      "forbidden_skills": [
+        "verify"
+      ]
+    },
+    {
+      "id": "STAGE-VERIFY-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "用 $publish 发布已通过验证并提交的版本，进入远端确认。",
+      "expected_skills": [
+        "publish"
+      ],
+      "forbidden_skills": [
+        "verify"
+      ]
+    },
+    {
+      "id": "STAGE-VERIFY-C1",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Use $main and $verify to execute this reviewed check plan and retain its actual evidence within the current task.",
+      "expected_skills": [
+        "main",
+        "verify"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-VERIFY-ZH-C1",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "用 $main 和 $verify 在本次任务内执行已审查树的覆盖检查，保留实际结果。",
+      "expected_skills": [
+        "main",
+        "verify"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-DELIVER-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $deliver to stage the reviewed files and create their guarded commit.",
+      "expected_skills": [
+        "deliver"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-DELIVER-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $deliver to emit the exact candidate delivery from its passing receipt.",
+      "expected_skills": [
+        "deliver"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-DELIVER-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "用 $deliver 暂存已审查文件并完成受治理提交和候选交付。",
+      "expected_skills": [
+        "deliver"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-DELIVER-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Use $publish to diagnose SSH transport for an existing commit without creating another commit.",
+      "expected_skills": [
+        "publish"
+      ],
+      "forbidden_skills": [
+        "deliver"
+      ]
+    },
+    {
+      "id": "STAGE-DELIVER-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "用 $publish 排查已有提交的推送传输，保留原提交。",
+      "expected_skills": [
+        "publish"
+      ],
+      "forbidden_skills": [
+        "deliver"
+      ]
+    },
+    {
+      "id": "STAGE-DELIVER-C1",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Use $main and $deliver to stage the reviewed files and create their guarded commit within the current task.",
+      "expected_skills": [
+        "main",
+        "deliver"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-DELIVER-ZH-C1",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "用 $main 和 $deliver 在本次任务内暂存已审查文件并完成受治理提交和候选交付。",
+      "expected_skills": [
+        "main",
+        "deliver"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-PUBLISH-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $publish to publish this authorized exact full commit and verify remote main.",
+      "expected_skills": [
+        "publish"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-PUBLISH-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $publish to diagnose the current Git transport read-only.",
+      "expected_skills": [
+        "publish"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-PUBLISH-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "用 $publish 推送已授权的精确完整提交并核对远端主分支。",
+      "expected_skills": [
+        "publish"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-PUBLISH-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Use $review to review uncommitted implementation behavior before testing.",
+      "expected_skills": [
+        "review"
+      ],
+      "forbidden_skills": [
+        "publish"
+      ]
+    },
+    {
+      "id": "STAGE-PUBLISH-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "用 $review 审查尚未提交的实现行为和边界。",
+      "expected_skills": [
+        "review"
+      ],
+      "forbidden_skills": [
+        "publish"
+      ]
+    },
+    {
+      "id": "STAGE-PUBLISH-C1",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Use $main and $publish to publish this authorized exact full commit and verify remote main within the current task.",
+      "expected_skills": [
+        "main",
+        "publish"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-PUBLISH-ZH-C1",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "用 $main 和 $publish 在本次任务内推送已授权的精确完整提交并核对远端主分支。",
+      "expected_skills": [
+        "main",
+        "publish"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-RECOVER-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $recover to recover publication of the same committed revision after interruption.",
+      "expected_skills": [
+        "recover"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-RECOVER-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Use $recover to rescope an omitted companion path within the current authorized task.",
+      "expected_skills": [
+        "recover"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-RECOVER-ZH-P1",
+      "kind": "single",
+      "locale": "zh-CN",
+      "prompt": "用 $recover 定位当前中断原因并恢复原操作的准确阶段。",
+      "expected_skills": [
+        "recover"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-RECOVER-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Use $iteration to implement the new assigned behavior in its already prepared context.",
+      "expected_skills": [
+        "iteration"
+      ],
+      "forbidden_skills": [
+        "recover"
+      ]
+    },
+    {
+      "id": "STAGE-RECOVER-ZH-N1",
+      "kind": "near-miss",
+      "locale": "zh-CN",
+      "prompt": "用 $iteration 在已准备好的上下文中实现新任务行为。",
+      "expected_skills": [
+        "iteration"
+      ],
+      "forbidden_skills": [
+        "recover"
+      ]
+    },
+    {
+      "id": "STAGE-RECOVER-C1",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Use $main and $recover to recover publication of the same committed revision after interruption within the current task.",
+      "expected_skills": [
+        "main",
+        "recover"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "STAGE-RECOVER-ZH-C1",
+      "kind": "composition",
+      "locale": "zh-CN",
+      "prompt": "用 $main 和 $recover 在本次任务内定位当前中断原因并恢复原操作的准确阶段。",
+      "expected_skills": [
+        "main",
+        "recover"
+      ],
+      "forbidden_skills": []
     }
   ]
 }

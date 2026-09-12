@@ -1,187 +1,86 @@
 # AGENTS.md - MetaFlux-Core Agent Rules
 
-These rules apply to every agent changing this repository and are enforced by
-the repository gates.
+These repository-wide invariants apply in every phase. Stage procedures belong
+to their owning skills; the controller returns the exact current reading set.
 
-1. **Enter the repository workflow before work.** Follow Bootstrap in
-   [$main](agent/skills/main/SKILL.md) skill inside the
-   Git-aware Nix environment. Consume only the harness name already emitted in
-   this conversation (`zcode`, `codex`, `claude`, or another tool-shaped name)
-   after it normalizes to a subject. Do not search PATH, processes, `/proc`,
-   executables, Git configuration, or repository prose for identity, and do not
-   probe `--version`. Model/provider/template/backend/build/prompt/session/
-   thread data is never an identity input or output. Before any other
-   executable except host `git` or `nix`, use
-   `nix develop . --ignore-environment --keep HOME --keep USER --command ...`;
-   never preserve ambient PATH/preload/startup variables, probe the host first or use
-   `path:`. Shell grammar for repository work runs under the Nix-provided
-   bash via the same clean entry with `--command bash -c '...'`; the ambient
-   host shell never executes repository tools. Follow the
-   [skill-reference convention](agent/skills/main/SKILL.md#skill-references)
-   when naming a skill, including in replies and handoffs.
-2. **Read the current goal.** Read [`agent/README.md`](agent/README.md), durable
-   memory, [`agent/goal.json`](agent/goal.json), the target milestone/work item
-   and its Exit Gate, then the matching domain skill. Product work uses the assigned
-   `epoch-NNNN / batch-NNNN / iteration-NNNN` identity and lane. Agent identity and execution
-   ownership are not repository records. Before a mutating operation, begin its
-   bounded request and use the [$main](agent/skills/main/SKILL.md) skill
-   controller's `load-rules` to emit the current rule bodies into
-   the executing context, then enter `prepared`. Its controller checks the request/base,
-   HEAD, required workflow/domain skills, and exact rule file modes and blobs;
-   a claimed reading or copied receipt is insufficient. Existing edits are
-   captured at begin; edits made after begin and before preparation invalidate
-   that preparation. The receipt records body emission, not comprehension or
-   user authorization. Reload changed rules before review and verification,
-   and reload at the committed HEAD before publication. The
-   [controller interface](agent/skills/main/references/controller.md) owns this
-   protocol. The [tool hooks](agent/skills/main/references/tool-hooks.md) apply it to
-   covered tool calls when the user/application trusts the exact hook definition;
-   repository files do not activate that host trust or provide a shell sandbox.
-3. **Deliver the bounded scope.** Choose coherent, independently reviewable
-   behavior slices with required tests and summaries; line count does not set
-   the delivery boundary. Use affected targets and focused checks during
-   implementation, then consolidate before formal review and evaluation.
-   [$main](agent/skills/main/SKILL.md) skill handles read-only work and maintenance;
-   maintenance leaves Goal unchanged and has no product Iteration identity.
-   Product Iterations use the exact application-supplied context and base.
-   Workers do not edit `agent/goal.json` or allocate execution contexts.
-   Prefer bounded coding subagents for product source and test lookup, add,
-   delete, and modify: the parent writes a self-contained briefing from loaded
-   authority, then reviews returned diffs in conversation against that briefing
-   and product boundaries before tests or commit. Do not start the next
-   coding-subagent dispatch or Iteration cycle until that review accepts the
-   dispatched briefing goal without drift. Coding subagents must not
-   edit `goal.json`, integrate, govern, commit, push, or create execution contexts.
-   Review is conversation output only; there is no review archive. Report the
-   full Epoch/Batch/Iteration identity, base and tip revisions, tests,
-   blockers, and knowledge candidates. Uncommitted or ambient worktree state is
-   never an integration input. Linked worktrees share common Git state;
-   temporary-repository tests must clear Git local environment variables before
-   nested Git commands. Attribute an unexpected HEAD/index/config change to the
-   exact reflog and invoking hook/test before claiming another agent changed it,
-   and do not multiply worktrees as an unattributed retry.
-4. **Accept and advance qualified deliveries automatically.** After a worker
-   emits an exact committed delivery with passing focused tests and no blockers,
-   the controlling parent invokes
-   [$batch](agent/skills/batch/SKILL.md) skill in the same
-   turn without another user instruction. Its controller rejects empty or stale
-   candidates, performs merge and fresh combined verification, then alone
-   advances accepted state. A slice keeps the lane/work item/target and assigns
-   the Batch maximum Iteration plus one. Whole-work-item acceptance requires
-   its full Exit Gate. Next work follows DAG dependencies and lane array order.
-   Batch completion does not complete a milestone or create an Epoch.
-   It pushes the exact acceptance commit and exposes the next
-   dependency-ready lane; execution-context creation remains application-owned.
-5. **Govern Epochs directly.** Invoke
-   [$epoch](agent/skills/epoch/SKILL.md) skill only when the user
-   explicitly requests destructive governance. Rewrite every affected current
-   authority, remove obsolete semantics, and publish the next Epoch only after
-   immediate full regression. There is no compatibility, historical record
-   migration, or grandfather path. Work based before the active Epoch must be
-   rebased and reverified before integration.
-6. **Promote knowledge, not process.** At automatic acceptance and Epoch
-   governance, use the shared [knowledge promotion](agent/skills/main/references/knowledge-promotion.md). Material claims
-   update exactly one canonical source, test, plan, decision, constraint, or
-   experience owner. There is no knowledge archive, session ledger, checkpoint, or
-   progress diary; Git preserves prior states.
-7. **Keep tool and privilege ownership narrow.** Nix pins, materializes, and
-   exposes clear, reproducibly stable tool versions; it does not own builds,
-   tests, packaging, product semantics, or host cleanup. Add required tools to
-   Nix first. After a confirmed Nix gap, compose
-   [$manage-host-privilege](agent/skills/manage-host-privilege/SKILL.md) skill for
-   bounded pacman/root operations. Route every sudo/su, persistent grant, and
-   privileged driver action through that skill. Never persist or print a
-   credential. When a required tool or dependency is absent from the current
-   environment, treat it as a provisioning task (Nix first, then
-   the host-privilege skill), not as a task blocker. Only declare inability to
-   proceed after exhausting both provisioning paths (decision-0036).
-8. **Verify and identify commits.** Run
-   `python3 tools/check-agent-state.py .` inside the clean Nix entry plus relevant
-   CTest/domain gates. Preflight the reviewed plan before long checks; within
-   each phase select covering CTest sets once, preserving distinct modes and
-   prerequisites. A full suite covers its registered focused gates/self-tests.
-   Candidate and integration still require fresh independent execution.
-   Exact acceptance metadata proof is owned by the controller; no general
-   source-hash test cache or arbitrary documentation exemption exists.
-   Batch requests omit `checks` to receive the controller's fixed final
-   metadata/state/routing plan; product checks belong to integration verification.
-   Agent commits use the [$main](agent/skills/main/SKILL.md) skill's shared commit helper, requiring
-   full expected HEAD, exact staged tree, operation kind, and an actual
-   content-bound receipt with its rule-loading certificate. Pre-commit invokes
-   the same commit guard before and after candidate state/routing checks;
-   behavioral self-tests run in the formal plan, not again in the hook. Direct Git
-   invocation does not replace those inputs. The
-   helper accepts the conversation-emitted harness name, derives
-   `SUBJECT <SUBJECT@localhost>`, and passes that name to the
-   candidate-tree commit gate. Epoch exists only in `agent/goal.json`; it is not
-   part of Git identity or a command environment declaration. The helper never
-   stores tool facts or changes Git configuration. Candidate checks and their
-   self-tests are side-effect-free with respect to the invoking repository,
-   including from linked worktrees.
-   Stage the exact reviewed paths before delivery. A staging-only rejection
-   keeps the passing receipt: stage the reported paths and retry delivery;
-   do not rerun tests or roll back acceptance to correct a missing `git add`.
-9. **Report actionable task stops.** Follow the sole diagnostic contract in
-   [$main](agent/skills/main/SKILL.md#task-stop-diagnostics) skill whenever
-   a gate, required verification, or loaded Skill prohibition blocks the next
-   phase. Preserve child diagnostics and raw product-tool output; do not replace
-   them with a generic rejection, retry unchanged evidence, or turn an external
-   responsibility into implicit scheduling, source-copy creation, privilege,
-   cleanup, or repository state.
-10. **Publish exact deliveries through the governed transport.** Maintenance,
-    Epoch activation, and Batch acceptance automatically publish unless the user
-    limits publication. Worker candidates go to [$batch](agent/skills/batch/SKILL.md) skill without pushing.
-    After the guarded commit is on disk, the controlling parent invokes
-    [$main](agent/skills/main/SKILL.md) skill with that
-    commit's full object ID. Standalone pushes require an explicit user or
-    application request and one full commit object ID. The skill alone
-    configures and validates the canonical GitHub remote, Nix Git/OpenSSH,
-    external SSH-key path and public fingerprint, and fixed `refs/heads/main`
-    destination. Never read or copy private-key bytes, infer a revision from a
-    dirty tree or conversation, allocate another branch, broaden a refspec, or
-    force a push. Only an explicit first push may initialize the canonical Git `main` branch.
-    Verify remote revision equality or actual ancestry. Publication recovery
-    retains the same commit; remote advancement needs a new application base.
-    Coding subagents never push.
-
-11. **Replan routes only on explicit request.** Invoke
-    [$epoch](agent/skills/epoch/SKILL.md) skill only when the user
-    explicitly requests a primary-objective or route replan. Stage 1 is
-    read-only and models milestones, work items, decisions, evidence
-    prerequisites, and Iteration lanes as a dependency DAG. Stage 2 requires
-    confirmation of the unchanged proposal baseline; an already approved full
-    implementation plan supplies confirmation. That skill remains the sole destructive
-    writer and publisher. Never reopen a completed milestone or work item. Active and
-    Queued nodes may move in the new Epoch, and existing IDs remain when their
-    delivery coordinates and observable outputs remain unchanged. A no-op does
-    not advance the Epoch.
-12. **Materialize reference sources only on demand.** `references/` owns
-    research-only catalog manifests, notes, and exact upstream submodule
-    gitlinks. A normal clone, build, test, package, or release must not recurse
-    into them. When the assigned lane names a reference prerequisite in
-    `agent/goal.json`, use `references/tools/reference.py` to materialize and
-    verify that entry before implementation. Treat the detached checkout as
-    read-only. A relied-upon product claim must be promoted to one canonical
-    source, test, contract, decision, constraint, or plan; a build or
-    qualification input must instead be pinned by `toolchains/`.
-
-13. **Keep recovery state separate from product authority.** Goal schema v4 is
-    the sole product route and accepted progress authority. Git-ignored
-    `agent/tmp/main/` holds current operation state, rule/context evidence,
-    verification receipts, and pending transactions only; none may be tracked
-    or used as authorization. Build and product-test outputs remain under root
-    `tmp/`. Use the [$main](agent/skills/main/SKILL.md) skill's common Git lock,
-    exact before/after blobs and modes, and validated commit records for recovery.
-    Lost pre-commit state requires new review and evaluation. Existing matching
-    contexts continue automatically; otherwise emit an exact application
-    assignment request without manufacturing a context.
-    Distinguish Agent-declared paths from user intent and application assignment:
-    a necessary omitted companion file uses the controller's `rescope`, with
-    renewed rules, preparation, review and verification. An explicitly confirmed
-    Epoch request may `supersede` an uncommitted operation after preserving
-    unrelated edits. Neither operation grants authority, accepts product work,
-    replaces a committed delivery, or permits editing temporary receipts.
+1. Enter through [$main](agent/skills/main/SKILL.md) skill. Before repository
+   executables other than host Git/Nix, use
+   `nix develop . --ignore-environment --keep HOME --keep USER --command ...`.
+   Shell grammar runs inside its `--command bash -c '...'`, never the ambient
+   shell. Keep only HOME/USER; do not preserve PATH, preload or startup variables.
+   Consume only the conversation-emitted harness name for identity. Never infer
+   it from processes, executable probes, Git configuration, model or session data.
+2. Preserve the user's task and publication limits. Read `agent/README.md` and
+   Goal, then the relevant memory/authority owners. Product implementation also
+   reads its assigned work item and Exit Gate. Read-only questions preserve an
+   active operation and create no state. Start a mutation with a bounded request,
+   load its preparation rules, and enter prepared before editing. Existing edits
+   belong to the user; edits between begin and preparation invalidate that step.
+3. Follow the controller's action card. Load the complete current stage modules
+   and required domain rules before its action; later stages load their own
+   modules. Certificates bind actual emitted bodies, modes/blobs, request, base
+   and HEAD, not comprehension or authorization. Changed rules require reloading;
+   review and verification stay bound to the versions they actually used.
+   [Tool hooks](agent/skills/main/references/tool-hooks.md) require application
+   trust in their exact definition and cover supported calls, not arbitrary shell.
+4. Deliver coherent requested behavior. Use focused checks to resolve specific
+   uncertainty, then parent review and one covering formal plan per required
+   phase. Keep required modes and prerequisites. Passing unchanged tests or
+   counting deleted lines is not product progress. Preserve the zero-overhead
+   design boundary and distinguish structural hot-path evidence from measurement.
+5. Product work uses the application-supplied exact Epoch/Batch/Iteration/lane
+   and base. Coding subagents receive a self-contained parent briefing and may
+   change only its scope; they never edit Goal, accept, govern, commit, push or
+   create contexts. Parent conversational review precedes further coding dispatch
+   or evaluation. Uncommitted work is never an integration input. Context creation
+   stays application-owned; reuse a matching context or report the exact request.
+6. [$batch](agent/skills/batch/SKILL.md) skill automatically accepts qualified exact
+   candidates with fresh integration evidence. It alone advances accepted
+   Goal/work-item state. Slice acceptance preserves lane/target and allocates the
+   Batch maximum Iteration plus one; full acceptance requires the whole Exit Gate.
+   Follow DAG dependencies and lane order. Batch completion never closes a
+   milestone or starts an Epoch. Repeated delivery first checks existing acceptance.
+7. [$epoch](agent/skills/epoch/SKILL.md) skill alone performs explicitly requested
+   governance/replanning. Confirmed unchanged proposals proceed; an approved full
+   plan supplies confirmation. Rewrite affected current authority and remove
+   obsolete semantics, then full regression and exact publication. No aliases,
+   migrations or history ledgers. A semantic no-op leaves Epoch unchanged.
+   Completed product work stays completed; older-base work needs current evidence.
+8. Promote material facts to one canonical owner through
+   [knowledge promotion](agent/skills/review/references/knowledge-promotion.md).
+   Goal schema v4 is the sole product route and accepted-progress authority.
+   Ignored `agent/tmp/main/` holds only current operation/evidence/transactions;
+   it is forbidden from tracking and never grants authority. Root `tmp/` owns
+   build/test outputs. Git preserves prior states; no progress diary or archive.
+9. Nix owns tool provisioning only. Add required tools there first; confirmed
+   host gaps and every sudo/su or privileged driver action use
+   [$manage-host-privilege](agent/skills/manage-host-privilege/SKILL.md) skill.
+   Exhaust both provisioning paths before treating a missing tool as a blocker.
+   Never persist or print credentials. Research `references/` materializes only
+   declared lane prerequisites on demand and remains read-only/non-product;
+   build or qualification inputs belong to `toolchains/`.
+10. Guarded delivery requires exact expected HEAD/tree and actual content-bound
+    review/verification receipts. Stage reviewed paths before delivery. Staging
+    unchanged bytes needs no new tests. Run Agent state/routing and relevant
+    checks; full CTest covers registered focused checks/self-tests. Candidate and
+    integration still execute independently. Batch metadata proof permits only
+    its exact acceptance transaction. Use the shared Git lock, and clear Git
+    local variables in nested-repository tests; attribute unexpected changes
+    using the exact hook/test and reflog before retrying.
+11. Maintenance, Epoch activation and Batch acceptance automatically publish the
+    exact guarded commit unless limited by the user. Worker candidates go to
+    Batch. [$publish](agent/skills/publish/SKILL.md) skill alone owns canonical
+    GitHub/Nix Git/OpenSSH transport and full remote revision/ancestry verification.
+    Never force, broaden refspecs, read private-key bytes, or change fetch origin.
+    Failed publication preserves the same commit; remote advancement needs the
+    application's new exact base. Standalone pushes require an explicit request
+    and one full commit. Only an explicit first push initializes canonical main.
+12. Use [$recover](agent/skills/recover/SKILL.md) skill for concrete failed causes,
+    same-task rescope, interruptions and exact committed recovery. Preserve raw
+    child diagnostics. Lost pre-commit state needs fresh review/verification;
+    committed state recovers from Git. Never edit receipts to unlock work.
+    No implicit external coordination, cleanup, privilege or unchanged retries.
 
 Product boundaries live in `contracts/README.md` and
-`docs/architecture/repo-layout.md`; the language wall and dependency whitelist
-remain machine-checked by `metaflux.architecture.component-graph`.
+`docs/architecture/repo-layout.md`; the language/dependency wall remains checked
+by `metaflux.architecture.component-graph`.

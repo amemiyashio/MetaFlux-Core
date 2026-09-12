@@ -13,6 +13,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/skills/main/scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import workflow_state as ws
 
@@ -45,11 +47,11 @@ INPUT_REPAIR_ACTION = (
 SCRIPT = Path(__file__).resolve()
 DETECTOR_SCRIPT = (
     SCRIPT.parents[2]
-    / "main"
+    / "prepare"
     / "scripts"
     / "detect_agent_tool.py"
 )
-TOPOLOGY_CHECKER_SCRIPT = SCRIPT.with_name("check_git_topology.py")
+TOPOLOGY_CHECKER_SCRIPT = SCRIPT.parents[2] / "prepare/scripts/check_git_topology.py"
 
 
 def helper_error(

@@ -63,7 +63,7 @@ def detection_error(
 ) -> DetectionError:
     diagnostic = task_stop_error(
         code=code,
-        source="main",
+        source="prepare",
         summary=summary,
         evidence=evidence,
         responsibility=responsibility,
@@ -159,7 +159,7 @@ def detect_agent_tool(
 def parser() -> argparse.ArgumentParser:
     result = DiagnosticArgumentParser(
         description="Report the conversation-emitted agent harness name.",
-        diagnostic_source="main",
+        diagnostic_source="prepare",
     )
     result.add_argument(
         "--agent-tool",

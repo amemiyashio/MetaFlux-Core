@@ -1,0 +1,7 @@
+interface:
+  display_name: "MetaFlux Preparation"
+  short_description: "Prepare an exact bounded repository request"
+  default_prompt: "Use $prepare skill to check this task's actual prerequisites and prepare its exact scope and baseline, or answer the requested readiness question read-only."
+
+policy:
+  allow_implicit_invocation: true

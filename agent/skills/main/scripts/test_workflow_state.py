@@ -15,8 +15,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/skills/main/scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import main as controller
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "deliver/scripts"))
 import commit_as_agent_tool as commit_helper
 import rule_loading as rules
 import workflow_state as ws
@@ -32,15 +35,15 @@ def fixture(root: Path) -> str:
     (root / ".gitignore").write_text("/agent/tmp/\n")
     (root / "product.txt").write_text("baseline\n")
     shutil.copy2(SOURCE_ROOT / "AGENTS.md", root / "AGENTS.md")
-    for name in ("main", "epoch", "batch", "iteration"):
+    for name in ["main","epoch","batch","iteration","prepare","review","verify","deliver","publish","recover"]:
         for source in (SOURCE_ROOT / "agent/skills" / name).rglob("*.md"):
             destination = root / source.relative_to(SOURCE_ROOT)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
     # Exercise the actual metadata/transaction command in the fixture repo.
     # The fixture's small state/routing owners check its own reduced schema.
-    for relative in ("agent/skills/main/scripts/main.py", "agent/skills/main/scripts/workflow_state.py",
-                     "agent/skills/main/scripts/rule_loading.py", "agent/skills/main/scripts/verification.py",
+    for relative in ("agent/skills/main/scripts/main.py", "agent/lib/workflow_state.py",
+                     "agent/lib/rule_loading.py", "agent/lib/verification.py", "agent/lib/stage_rules.py",
                      "agent/skills/batch/scripts/batch.py"):
         destination = root / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -80,7 +83,7 @@ def checks() -> list[dict]:
 
 
 def receipt(root: Path, kind: str, base: str) -> dict:
-    rules.load(root, kind, base, output=io.StringIO())
+    rules.load(root, kind, base, action="integration" if kind == "integration" else "review", output=io.StringIO())
     plan = checks()
     return ws.evaluate(root, kind, base, plan, ws.review(root, "Reviewed fixture behavior and gate coverage", plan))
 
@@ -99,18 +102,22 @@ def request(root: Path, kind: str = "maintenance") -> dict:
     return value
 
 
-def load_operation_rules(root: Path) -> None:
+def load_operation_rules(root: Path, action: str | None = None) -> None:
     state = ws.read_json(ws.local_path(root, "state.json"))
     task = state["request"]
     committed = bool(state.get("commit"))
     rules.load(root, task["kind"], ws.oid(root) if committed else task["base_revision"],
                skills=task.get("skills", []), paths=[] if committed else task["allowed_paths"],
+               action=action or ("review" if state["stage"] in {"implementation", "review", "evaluation"} else None),
                output=io.StringIO())
 
 
 def prepare(root: Path) -> dict:
     load_operation_rules(root)
-    return controller.step(root, "prepared", {})
+    result = controller.step(root, "prepared", {})
+    # Most fixtures directly edit their source before calling parent review.
+    load_operation_rules(root, action="review")
+    return result
 
 
 def commit_operation(root: Path, kind: str = "maintenance") -> str:
@@ -118,6 +125,7 @@ def commit_operation(root: Path, kind: str = "maintenance") -> str:
         load_operation_rules(root)
         controller.step(root, "review", {"summary": "Fixture reviewed against bounded behavior"})
         controller.step(root, "evaluate", {})
+        load_operation_rules(root, action="deliver")
         ws.git(root, "add", "product.txt", "agent/goal.json", "agent/plan")
         controller.step(root, "deliver", {"agent_tool": "fixture-agent", "message": "Verified fixture delivery"})
     return ws.oid(root)
@@ -176,6 +184,38 @@ class WorkflowScenarios(unittest.TestCase):
         self.assertIn("Required verification failed: fail", observed["next_operation"])
         self.assertEqual(ws.oid(self.root), self.base)
 
+    def test_interrupted_evaluation_card_never_suggests_unchanged_rerun(self):
+        controller.begin(self.root, request(self.root))
+        prepare(self.root)
+        controller.step(self.root, "review", {"summary": "Reviewed interrupted fixture"})
+        state_path = ws.local_path(self.root, "state.json")
+        state = ws.read_json(state_path)
+        ws.atomic_json(ws.local_path(self.root, "verification.json"), {
+            "request": state["run"], "kind": "maintenance", "status": "running",
+            "input": ws.snapshot(self.root), "plan": state["review"]["plan"],
+            "check": "interrupted-command", "log": "original-live-log",
+        })
+        before = state_path.read_bytes()
+        card = controller.inspect(self.root)["action_card"]
+        self.assertEqual(card["action"], "recover")
+        self.assertIn("original-live-log", card["next_action"])
+        self.assertNotIn("evaluate", card["next_command"])
+        load_operation_rules(self.root, action="recover")
+        self.assertIsNone(controller.inspect(self.root)["action_card"]["next_command"])
+        self.assertEqual(state_path.read_bytes(), before)
+
+    def test_card_and_transition_reject_the_same_wrong_baseline(self):
+        ws.git(self.root, "commit", "--allow-empty", "-qm", "new application base")
+        controller.begin(self.root, request(self.root))
+        prepare(self.root)
+        controller.step(self.root, "review", {"summary": "Reviewed current base"})
+        rules.load(self.root, "maintenance", self.base, action="verify", output=io.StringIO())
+        observed = controller.inspect(self.root)
+        self.assertFalse(observed["action_card"]["rules_current"])
+        self.assertIn("load-rules", observed["action_card"]["next_command"])
+        with self.assertRaisesRegex(ws.WorkflowError, "different operation baseline"):
+            controller.step(self.root, "evaluate", {})
+
     def test_old_attempt_does_not_redirect_new_objective(self):
         task = request(self.root)
         controller.begin(self.root, task)
@@ -192,7 +232,12 @@ class WorkflowScenarios(unittest.TestCase):
             self.assertEqual(path.read_bytes(), before)
 
     def test_integration_guidance_uses_current_input_without_advancing(self):
+        # A permitted companion domain is not an actual integrated change.
+        skill = self.root / "agent/skills/cpu-backend-performance/SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("Fixture CPU ownership rule.\n")
         task = request(self.root, "batch")
+        task["allowed_paths"].extend(["plugins/backend/cpu/", "agent/skills/cpu-backend-performance/"])
         controller.begin(self.root, task)
         prepare(self.root)
         state = ws.read_json(ws.local_path(self.root, "state.json"))
@@ -204,6 +249,8 @@ class WorkflowScenarios(unittest.TestCase):
         observed = controller.inspect(self.root)
         self.assertEqual(observed["stage"], "implementation")
         self.assertIn(evidence["digest"], observed["next_operation"])
+        self.assertEqual(observed["action_card"]["action"], "integration")
+        self.assertTrue(observed["action_card"]["rules_current"])
         self.assertEqual(ws.local_path(self.root, "state.json").read_bytes(), before)
         self.assertFalse(ws.local_path(self.root, "acceptance.json").exists())
         self.assertEqual(ws.read_json(self.root / "agent/goal.json")["lanes"][0]["iteration"], "iteration-0002")
@@ -211,10 +258,12 @@ class WorkflowScenarios(unittest.TestCase):
         changed = controller.inspect(self.root)
         self.assertNotIn(evidence["digest"], changed["next_operation"])
         self.assertIn("changed", changed["next_operation"])
+        self.assertEqual(changed["action_card"]["action"], "implement")
         self.assertEqual(state["run"], ws.read_json(ws.local_path(self.root, "state.json"))["run"])
         # A pending file directs transaction checking, never assumes acceptance.
         ws.atomic_json(ws.local_path(self.root, "acceptance.json"), {})
         self.assertIn("check the pending acceptance metadata", controller.inspect(self.root)["next_operation"])
+        self.assertEqual(controller.inspect(self.root)["action_card"]["action"], "review")
         self.assertEqual(ws.local_path(self.root, "state.json").read_bytes(), before)
 
     def test_staging_only_failure_preserves_receipt_and_delivers_without_retesting(self):
@@ -223,6 +272,7 @@ class WorkflowScenarios(unittest.TestCase):
         (self.root / "product.txt").write_text("reviewed update\n")
         controller.step(self.root, "review", {"summary": "Review staging recovery behavior"})
         controller.step(self.root, "evaluate", {})
+        load_operation_rules(self.root, action="deliver")
         state_path = ws.local_path(self.root, "state.json")
         self.assertIn("guarded commit", controller.inspect(self.root)["next_operation"])
         before_state = state_path.read_bytes()
@@ -243,7 +293,7 @@ class WorkflowScenarios(unittest.TestCase):
             self.assertIn("not fully staged", str(failed_gate.exception.diagnostic.evidence))
             self.assertNotIn("resume", failed_gate.exception.diagnostic.required_action)
             helper_result = subprocess.run([
-                sys.executable, "-B", str(SOURCE_ROOT / "agent/skills/main/scripts/commit_as_agent_tool.py"),
+                sys.executable, "-B", str(SOURCE_ROOT / "agent/skills/deliver/scripts/commit_as_agent_tool.py"),
                 "--agent-tool", "fixture-agent", "--expected-head", self.base,
                 "--expected-tree", ws.oid(self.root, ":"), "--kind", "maintenance",
                 "--receipt", str(ws.local_path(self.root, "receipts/" + evidence["digest"] + ".json")),
@@ -268,6 +318,7 @@ class WorkflowScenarios(unittest.TestCase):
         (self.root / "product.txt").write_text("reviewed update\n")
         controller.step(self.root, "review", {"summary": "Review index isolation"})
         controller.step(self.root, "evaluate", {})
+        load_operation_rules(self.root, action="deliver")
         bad_blob = ws.git(self.root, "hash-object", "-w", "--stdin", data=b"unreviewed staged content\n").decode().strip()
         ws.git(self.root, "update-index", "--cacheinfo", "100644", bad_blob, "product.txt")
         index = ws.git(self.root, "ls-files", "--stage", "-z")
@@ -283,6 +334,7 @@ class WorkflowScenarios(unittest.TestCase):
         product.write_text("reviewed update\n")
         controller.step(self.root, "review", {"summary": "Review stale content rejection"})
         controller.step(self.root, "evaluate", {})
+        load_operation_rules(self.root, action="deliver")
         for mutation in (lambda: product.write_text("unreviewed update\n"), lambda: product.chmod(0o755)):
             mutation()
             with self.assertRaisesRegex(ws.WorkflowError, "Tested content or toolchain has changed"):

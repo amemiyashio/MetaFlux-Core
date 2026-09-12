@@ -1,13 +1,15 @@
 # Skill Routing Regression
 
 [`trigger-evals.json`](trigger-evals.json) is the static English/Chinese routing
-contract for eleven domain skills and the four workflow entries
-[$main](main/SKILL.md) skill, [$epoch](epoch/SKILL.md) skill,
-[$batch](batch/SKILL.md) skill, and [$iteration](iteration/SKILL.md) skill.
-The entry controller retains identity, readiness, delivery inspection,
-publication diagnostics, and knowledge promotion as internal dispatches. Each skill
-has positive and near-miss coverage; cross-domain work is represented by
-composition cases.
+contract for eleven domain skills and ten workflow skills. Workflow ownership
+has three groups: the main controller, Epoch/Batch/Iteration orchestration,
+and preparation/review/verification/delivery/publication/recovery stages.
+The [skill index](README.md) names each entry and its responsibility.
+
+Identity and readiness route to preparation, exact commit inspection to
+delivery, transport diagnostics to publication, and knowledge promotion to
+review. Each workflow skill has positive and near-miss coverage; linked
+orchestration/stage and cross-domain work use composition cases.
 
 Only [$epoch](epoch/SKILL.md) skill is explicit-only. Qualified delivery language
 routes [$batch](batch/SKILL.md) skill automatically; explanation requests remain

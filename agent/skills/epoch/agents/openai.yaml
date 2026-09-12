@@ -1,6 +1,6 @@
 interface:
   display_name: "MetaFlux Epoch"
   short_description: "Audit and apply an explicitly confirmed Epoch cutover"
-  default_prompt: "Use $epoch skill to audit this explicitly requested governance change, apply the confirmed cutover, and publish it after the required consolidated regression."
+  default_prompt: "Use $epoch skill to implement the explicitly confirmed governance or route proposal at its exact baseline, then verify and publish the cutover."
 policy:
   allow_implicit_invocation: false

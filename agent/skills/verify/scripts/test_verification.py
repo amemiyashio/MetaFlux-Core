@@ -12,6 +12,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/skills/main/scripts"))
 import main as controller
 import rule_loading
 import test_workflow_state as fixture
@@ -50,7 +52,7 @@ set_tests_properties(consumer PROPERTIES DEPENDS producer)
         return {"id": name, "argv": ["ctest", "--test-dir", str(self.build), "--output-on-failure", *selection]}
 
     def evaluate(self, checks):
-        rule_loading.load(self.root, "maintenance", self.base, output=io.StringIO())
+        rule_loading.load(self.root, "maintenance", self.base, action="review", output=io.StringIO())
         return ws.evaluate(self.root, "maintenance", self.base, checks,
                            ws.review(self.root, "Review actual fixture coverage", checks))
 

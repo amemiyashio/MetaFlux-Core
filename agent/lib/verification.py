@@ -279,7 +279,7 @@ def junit_result(path: Path, selected: dict, allowed: list[str]) -> dict:
             "passed": sorted(set(names) - set(skipped)), "skipped": sorted(skipped)}
 
 
-def execute(root: Path, kind: str, base: str, checks: list[dict], reviewed: dict, before: dict) -> dict:
+def execute(root: Path, kind: str, base: str, checks: list[dict], reviewed: dict, before: dict, verification_rules: dict) -> dict:
     with execution_lock(root) as guard:
         ws.require(ws.snapshot(root) == before, "Verification inputs changed before acquiring its lock")
         attempt = uuid.uuid4().hex
@@ -350,8 +350,9 @@ def execute(root: Path, kind: str, base: str, checks: list[dict], reviewed: dict
                 ws.require(ws.snapshot(root) == before, "Verification changed its tested inputs; review and evaluate again")
                 state["completed_checks"] = len(results)
                 ws.atomic_json(state_path, state)
-            receipt = {"schema_version": 2, "attempt": attempt, "kind": kind, "base_revision": base,
-                       "input": before, "review": reviewed, "checks": checks, "results": results}
+            receipt = {"schema_version": 3, "attempt": attempt, "kind": kind, "base_revision": base,
+                       "input": before, "review": reviewed, "verification_rules": verification_rules,
+                       "checks": checks, "results": results}
             receipt["digest"] = ws.digest(receipt)
             ws.atomic_json(ws.local_path(root, "receipts/" + receipt["digest"] + ".json"), receipt)
             state.update(status="passed", receipt=receipt["digest"])

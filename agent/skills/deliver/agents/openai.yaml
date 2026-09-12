@@ -1,0 +1,7 @@
+interface:
+  display_name: "MetaFlux Delivery"
+  short_description: "Commit the exact reviewed and verified tree"
+  default_prompt: "Use $deliver skill to stage the reviewed paths, create the guarded commit and emit its exact delivery."
+
+policy:
+  allow_implicit_invocation: true

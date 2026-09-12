@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parents[4]
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/skills/main/scripts"))
 sys.path.insert(0, str(ROOT / "agent/skills/main/scripts"))
 sys.path.insert(0, str(ROOT / "tools"))
 import workflow_state as ws  # noqa: E402
@@ -21,6 +23,15 @@ from agent_diagnostics import emit_diagnostics, task_stop_error  # noqa: E402
 FIELDS = {"schema_version", "epoch", "batch", "iteration", "lane", "base_revision", "tip_revision",
           "tests", "blockers", "knowledge_candidates", "acceptance_kind", "slice_objective",
           "verification_receipt", "exit_gate"}
+
+
+def metadata_checks() -> list[dict[str, Any]]:
+    """Own the fixed final plan; product checks run in fresh integration."""
+    return [
+        {"id": "batch-metadata", "argv": ["python3", "-B", "agent/skills/batch/scripts/batch.py", "check-metadata", "--root", "."]},
+        {"id": "agent-state", "argv": ["python3", "-B", "tools/check-agent-state.py", "."]},
+        {"id": "skill-routing", "argv": ["python3", "-B", "tools/check-skill-routing.py", "."]},
+    ]
 
 
 def validate_manifest(document: Any) -> dict[str, Any]:
@@ -353,7 +364,7 @@ def verify_delivery(root: Path, document: Any, checks: list[dict], summary: str)
     if checked["action"] == "no-op":
         return checked
     base = document["base_revision"]
-    rules = rule_loading.current(root, kind="integration")
+    rules = rule_loading.current(root, kind="integration", action="integration")
     ws.require(rules["base_revision"] == base and rules["head"] == ws.oid(root) and rules["request"] == state["run"],
                "Integration rules use another baseline; run $batch skill load-rules DELIVERY before verification")
     ws.validate_plan(checks)

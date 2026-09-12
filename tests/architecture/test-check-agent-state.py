@@ -19,7 +19,7 @@ DETECTOR_SCRIPT = (
     SCRIPT.parents[1]
     / "agent"
     / "skills"
-    / "main"
+    / "prepare"
     / "scripts"
     / "detect_agent_tool.py"
 )
@@ -181,9 +181,15 @@ Pass.
         "  short_description: \"Detect the current executable agent tool\"\n"
         "  default_prompt: \"Use $main skill to report the tool.\"\n",
     )
+    write(root / "agent/skills/prepare/SKILL.md",
+          "---\nname: prepare\ndescription: Prepare a bounded operation.\n---\n")
+    write(root / "agent/skills/prepare/agents/openai.yaml",
+          'interface:\n  display_name: "Prepare"\n'
+          '  short_description: "Prepare current repository work"\n'
+          '  default_prompt: "Use $prepare skill to prepare."\n')
     write(
         root
-        / "agent/skills/main/scripts/detect_agent_tool.py",
+        / "agent/skills/prepare/scripts/detect_agent_tool.py",
         DETECTOR_SCRIPT.read_text(encoding="utf-8"),
     )
     write(
@@ -196,7 +202,8 @@ Pass.
         "| Skill | Status | Use when |\n"
         "| --- | --- | --- |\n"
         "| [$iteration](iteration/SKILL.md) skill | Active | Starting |\n"
-        "| [$main](main/SKILL.md) skill | Active | Detecting |\n",
+        "| [$main](main/SKILL.md) skill | Active | Dispatching |\n"
+        "| [$prepare](prepare/SKILL.md) skill | Active | Detecting |\n",
     )
     write(
         root / "agent/skills/trigger-evals.json",

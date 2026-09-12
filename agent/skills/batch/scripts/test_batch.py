@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import copy
+import contextlib
+import io
+import shlex
 import json
 import shutil
 import sys
@@ -11,11 +14,14 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/lib"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "agent/skills/main/scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "main/scripts"))
 import test_workflow_state as fixture
 import main as controller
 import workflow_state as ws
 import batch
+import tool_gate as gate
 
 
 class BatchScenarios(unittest.TestCase):
@@ -36,6 +42,38 @@ class BatchScenarios(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def test_first_batch_intake_and_hook_keep_the_delivery_baseline(self):
+        delivery_path = ws.local_path(self.root, "delivery.json")
+        ws.atomic_json(delivery_path, self.delivery)
+        def event(action):
+            argv = ["python3", "-B", "agent/skills/batch/scripts/batch.py",
+                    action, str(delivery_path), "--root", str(self.root)]
+            return {"hook_event_name": "PreToolUse", "tool_name": "Bash",
+                    "tool_input": {"command": "nix develop . --ignore-environment --keep HOME --keep USER --command " + shlex.join(argv)},
+                    "cwd": str(self.root), "session_id": "fixture-session", "turn_id": "first-intake"}
+        self.assertEqual(gate.handle(self.root, event("check")), {})
+        self.assertFalse(ws.local_path(self.root, "state.json").exists())
+        self.assertEqual(batch.check_delivery(self.delivery, self.root)["action"], "in-place")
+        controller.begin(self.root, fixture.request(self.root, "batch"))
+        fixture.prepare(self.root)
+        self.assertEqual(gate.handle(self.root, event("load-rules")), {})
+        with contextlib.redirect_stdout(io.StringIO()):
+            batch.load_integration_rules(self.root, self.delivery)
+        injected = gate.handle(self.root, event("verify"))["hookSpecificOutput"]
+        self.assertEqual(injected["permissionDecision"], "deny")
+        self.assertIn("MetaFlux action: integration", injected["additionalContext"])
+        self.assertEqual(ws.read_json(ws.local_path(self.root, "rules.json"))["base_revision"], self.base)
+        self.assertNotEqual(self.base, self.tip)
+        self.assertEqual(gate.handle(self.root, event("verify")), {})
+        result = batch.verify_delivery(self.root, self.delivery, fixture.checks(), "Review exact combined behavior")
+        evidence = ws.read_json(Path(result["receipt"]))
+        self.assertEqual(evidence["base_revision"], self.base)
+        self.assertEqual(evidence["input"]["head"], self.tip)
+        self.assertEqual(gate.handle(self.root, event("advance")), {})
+        self.assertEqual(ws.read_json(ws.local_path(self.root, "rules.json"))["digest"], evidence["verification_rules"]["digest"])
+        batch.advance_delivery(self.delivery, self.root, integration_receipt=evidence, state_validator=lambda root: None)
+        self.assertEqual(controller.inspect(self.root)["action_card"]["action"], "review")
 
     def test_final_plan_is_generated_and_product_plan_rejected_before_execution(self):
         task = fixture.request(self.root, "batch")
@@ -209,7 +247,7 @@ class BatchScenarios(unittest.TestCase):
         marker = ws.local_path(self.root, "executed")
         checks = [{"id": "gate", "argv": [sys.executable, "-B", "-c",
                    f"from pathlib import Path; Path({str(marker)!r}).write_text('executed once')"]}]
-        with self.assertRaisesRegex(ws.WorkflowError, "another baseline"):
+        with self.assertRaisesRegex(ws.WorkflowError, "another baseline|Rule action|current action"):
             batch.verify_delivery(self.root, self.delivery, checks, "Review integration")
         self.assertFalse(marker.exists())
         batch.load_integration_rules(self.root, self.delivery)
@@ -233,6 +271,7 @@ class BatchScenarios(unittest.TestCase):
         self.assertEqual(len(final["results"]), 3)
         self.assertTrue(all(result["returncode"] == 0 for result in final["results"]))
         self.assertEqual(before, marker.stat().st_mtime_ns)
+        fixture.load_operation_rules(self.root, action="deliver")
         ws.git(self.root, "add", "--", "agent/goal.json")
         with ws.lock(self.root):
             controller.step(self.root, "deliver", {"agent_tool": "fixture-agent", "message": "Accept metadata only"})

@@ -13,39 +13,60 @@ consolidates the operational interface while retaining product delivery IDs and
 the application ownership of execution contexts. Goal records product intent
 and accepted progress; activity and identity never confer repository authority.
 
-## Four Workflow Skills (decision-0054)
+## Execution Scale And Ownership (decision-0054)
 
-The four entries are [$main](../../agent/skills/main/SKILL.md) skill,
-[$epoch](../../agent/skills/epoch/SKILL.md) skill,
-[$batch](../../agent/skills/batch/SKILL.md) skill, and
-[$iteration](../../agent/skills/iteration/SKILL.md) skill. The entry controller bootstraps
-identity and Nix, interprets the current request, and controls preparation,
-implementation, review, evaluation, delivery, publication, and handoff. These
-stages have no numbers. Its scripts validate events and evidence; the parent
-Agent calls the appropriate skill. Scripts create no agent, branch, worktree,
-clone, task, or thread.
+Epoch is one effective objective, route and governance regime. Batch is a
+bounded set of dependent work. Iteration is one reviewed, verified delivery
+that may cover part of a work item. Milestones/work items remain delivery
+coordinates; lanes are DAG work lines. Stages name actions without extra numbers.
 
-Epoch is one effective objective, route, and governance regime. Batch is a
-bounded set of dependent work in that Epoch. Iteration is one bounded, reviewed,
-verified delivery and may cover part of a work item. Milestones and work items
-remain product targets; lanes describe DAG work lines rather than another
-execution level.
+One controller validates events and exact evidence; the parent invokes the
+owning skills. Scripts create no agent, branch, worktree, clone or application
+context. Decision-0062 replaces the four-package consolidation while retaining
+these execution identities, acceptance rules and application context ownership.
 
-The consolidation removes duplicate entrypoints and makes shared identity,
-readiness, knowledge promotion, commit, and publication capabilities the entry controller's
-internal operations. Eleven domain skills and four utility skills retain their
-existing product/tool ownership. Packages remain flat and the routing policy
-is owned once by `tools/check-agent-state.py`.
+## Modular Stage Guidance (decision-0062)
 
-Rationale: separate overlapping entrypoints allowed contradictory dispatch and
-progress rules. One controller makes the next required action explicit, while
-four operation owners preserve meaningful write boundaries. This governance
-changes workflow capability only and does not promote product maturity.
+The entry skill routes tasks and presents the next concrete action. Three
+orchestration skills own governance, candidate delivery and accepted-state
+integration. Six stage skills own preparation, review, verification, delivery,
+publication and recovery. Eleven domain and four tool skills retain their
+technical ownership. Skill count follows responsibility; packages stay flat
+for discovery, with explicit control/orchestration/stage/domain/utility groups.
 
-Verification: four-entry discovery/routing; controller, proposal, acceptance,
-commit and publication behavioral tests; authority/temporary-state checks;
-component graph; complete dev build and CTest. Failure leaves the candidate
-Epoch unpublished.
+Stage procedures and helpers live with their owner. Common state, locks,
+transactions, rule certificates and execution evidence live under `agent/lib/`.
+The main package retains the controller and host-hook adapter. Its short entry
+does not own Batch-specific acceptance instructions or transport/commit helpers.
+The roster and explicit-only policy remain owned by the Agent state checker;
+the shared action-to-module map owns runtime reading selection.
+
+Rationale: whole-operation loading bundled entry, controller, workflow and
+domain text before any action. Batch's local steps also omitted the initial
+preparation sequence, and roles required cross-file reconstruction. More prose
+did not ensure the first attempted action used the rule.
+
+The read-only action card supplies current role/objective, exact required
+modules, next operation/available command and completion condition. Rule loading
+emits complete current modules, including their declared immediate references.
+Prepare and implement are distinct; parent review explicitly selects review
+while the operation is still implementation. Review includes the imminent
+verification contract; integration loads both under the candidate's exact base.
+Later delivery, publication and recovery procedures load when needed.
+
+Schema-2 rule certificates bind action and exact modules in addition to request,
+workflow, base, HEAD and file modes/blobs. Schema-3 verification receipts retain
+both immutable review and verification certificates. Current delivery rules are
+checked separately; changing only which unchanged modules are loaded does not
+invalidate actual tests. Historical validation uses candidate file versions.
+An action card or emitted text proves neither comprehension nor authorization.
+
+Validation exercises complete delivery, stale/missing action rules, scope
+owners, candidate/integration baselines, exact acceptance metadata, real hooks,
+post-commit publication and read-only recovery. Independent first-attempt tasks
+check whether the normal entry leads to the right action without coaching.
+Epoch activation requires the full dev regression and preserves product goals,
+route dependencies, IDs and accepted outcomes.
 
 ## Verification Scheduling (decision-0059)
 
@@ -61,8 +82,8 @@ late integration-baseline failures and configure-time rewrites consumed time
 without adding evidence. Moving coverage and baseline checks before execution
 and preserving unchanged generated inputs addresses those causes directly.
 
-The [controller protocol](../../agent/skills/main/references/controller.md#verification-and-acceptance)
-owns preflight, delivery-derived integration verification, schema-2 receipts,
+The [controller protocol](../../agent/skills/verify/references/verification.md)
+owns preflight, delivery-derived integration verification, schema-3 receipts,
 actual CTest/JUnit evidence, unique attempts, shared locking and exact final
 acceptance metadata proof. It introduces no cross-phase test cache: source
 identity alone does not prove binary, environment or device identity. The
@@ -85,7 +106,7 @@ product targets, accepted results and the zero-overhead design objective.
 
 ## Final Acceptance And Staging Recovery (decision-0060)
 
-Final Batch verification uses one controller-generated metadata/state/routing
+Final Batch verification uses one Batch-owned metadata/state/routing
 plan. The integration wrapper owns fresh product checks; candidates retain
 their own independent execution evidence. The exact pending transaction must
 prove all post-integration changes before any final command executes. Product,
@@ -96,8 +117,8 @@ third and later product-suite runs despite the existing metadata-only policy.
 An omitted staging step was then misdiagnosed as stale review evidence. The
 index and worktree actually differed; repeating tests did not repair that.
 
-The [controller protocol](../../agent/skills/main/references/controller.md)
-owns the generated plan and its early validation. The commit guard continues
+The [$batch](../../agent/skills/batch/SKILL.md) skill owns the generated plan;
+the controller enforces it before verification. The commit guard continues
 to require exact staged content, current review, receipt and rule versions.
 After those facts validate, an index-only mismatch names the affected paths
 and directs staging followed by the same delivery retry. No receipt, review,
@@ -121,7 +142,7 @@ behavior and the first missing source owner. The parent implements or briefs
 that coherent unit, then reviews its actual callers, admitted inputs, lifetime
 and execution path. Existing profiles and matrices are reusable inputs.
 
-The shared [implementation guidance](../../agent/skills/main/references/implementation-guidance.md)
+The shared [implementation guidance](../../agent/skills/review/references/implementation-guidance.md)
 owns task selection and review criteria. Flow skills apply it at dispatch,
 candidate review, integration and governance; domain skills identify concrete
 implementation paths before their broad qualification menus. Analysis,
@@ -167,11 +188,11 @@ boundary; prose changes do not promote product maturity.
 The mandatory-read rule is enforced inside [$main](../../agent/skills/main/SKILL.md) skill. Its controller
 binds actual rule-body emission to the request, scope, base, HEAD, and current
 file versions before preparation allows implementation. Review and verification
-carry that certificate with the candidate content and check plan. Candidate
+retain their own complete action certificates with the tested content and plan. Candidate
 validation uses its own tree; integration requires fresh rule loading and
 parent review. Publication reloads at the committed HEAD. The certificate is
-evidence of body emission, not comprehension or user authorization. Required
-references inside skills still need to be read by the Agent. The exact
+evidence of body emission, not comprehension or user authorization. Immediate stage references are emitted in full with the skill. Conditional
+references are read only when the named condition applies. The exact
 preparation and reloading protocol is owned by
 [controller interface](../../agent/skills/main/references/controller.md).
 
@@ -180,8 +201,8 @@ and denies the current covered write until preparation succeeds. The
 user/application activates trust in its exact definition; a tracked hook file
 does not establish host trust. This tool boundary does not sandbox arbitrary
 shell execution. [Tool Hooks](../../agent/skills/main/references/tool-hooks.md) owns coverage and activation.
-These checks implement mandatory reading without adding workflow entries,
-changing Goal/Epoch, or treating temporary receipts as product authority.
+These checks enforce emitted current rules without treating temporary receipts
+as product authority or proof of attention.
 
 ## State Model
 
@@ -237,13 +258,13 @@ the lane/work item, and selects the first array-ordered planned lane whose
 dependencies are integrated. Iteration numbers carry no priority. Batch closure
 does not complete a milestone or begin an Epoch.
 
-[$batch](../../agent/skills/batch/SKILL.md) skill alone makes daily accepted-state changes. Its pending transaction retains
+[$batch](../../agent/skills/batch/SKILL.md) skill alone makes accepted-state changes. Its pending transaction retains
 exact before/after blob IDs and modes for each affected authority. Final
 evaluation covers the advanced tree before one acceptance commit.
 
 ## Commit Boundary
 
-The [$main](../../agent/skills/main/SKILL.md) skill's shared helper requires expected HEAD, exact staged tree, operation kind,
+The [$deliver](../../agent/skills/deliver/SKILL.md) skill's helper requires expected HEAD, exact staged tree, operation kind,
 and a current verification receipt with its reviewed rule certificate.
 Pre-commit calls the same `commit_guard` before and after candidate-tree checks
 and requires all four inputs, including full expected HEAD/tree IDs. Direct
@@ -265,7 +286,7 @@ environment declaration.
 Maintenance, Batch acceptance, and Epoch activation automatically publish their
 exact guarded commit unless the user limits publication. A worker candidate goes
 to [$batch](../../agent/skills/batch/SKILL.md) skill. The governed transport in
-[$main](../../agent/skills/main/SKILL.md) skill validates the canonical Git `main` branch, Nix Git/OpenSSH,
+[$publish](../../agent/skills/publish/SKILL.md) skill validates the canonical Git `main` branch, Nix Git/OpenSSH,
 the external public fingerprint, and a narrow exact refspec without force.
 
 Remote revision equality proves publication. A different remote revision must
@@ -297,7 +318,7 @@ Rationale: freezing the declared paths without a revision transition turns an
 ordinary impact-analysis omission into a stalled workflow. Scope consistency
 checks remain required, and temporary declarations never create a permission
 requirement of their own. Recovery invalidates evidence instead of weakening
-delivery checks. The [controller interface](../../agent/skills/main/references/controller.md#scope-amendment-and-governance-replacement)
+delivery checks. The [controller interface](../../agent/skills/recover/references/recovery.md)
 owns the exact commands and invariant checks; tool hooks admit only those
 parsers before the previous scope guard.
 
@@ -309,7 +330,7 @@ qualification or accepted route state beyond its Epoch coordinate.
 
 ## Task-Stop Contract
 
-[$main](../../agent/skills/main/SKILL.md#task-stop-diagnostics) skill owns the diagnostic
+[$recover](../../agent/skills/recover/SKILL.md) skill owns the diagnostic
 shape rendered by `tools/agent_diagnostics.py`. Preserve child causes and raw
 tool output. External responsibility does not authorize scheduling, privilege,
 cleanup, source copies, or unchanged retries. Diagnostics are current-operation

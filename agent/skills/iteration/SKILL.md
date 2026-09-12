@@ -1,59 +1,35 @@
 ---
 name: iteration
-description: Implement and deliver one bounded MetaFlux product Iteration assigned by the application, with a parent briefing, domain skills, parent review, actual checks, and an exact committed candidate for batch acceptance.
+description: Implement one application-assigned MetaFlux product slice and deliver its exact reviewed and verified candidate to the controlling Batch integrator.
 ---
 
 # Iteration
 
-Enter through [$main](../main/SKILL.md) skill Bootstrap. Require an application-supplied registered
-worker context at an exact base and the active Epoch/Batch/Iteration/lane tuple.
-The lane remains planned and its work item Active until [$batch](../batch/SKILL.md) skill accepts it.
-Do not create an execution context or select a sibling lane.
+Role: candidate-delivery parent. Your bounded coding subagents implement source;
+the controlling parent holding an integration context owns subsequent acceptance.
+Input: exact application-supplied Epoch/Batch/Iteration/lane and base, active work
+item, Exit Gate and user objective. Never allocate a context or sibling lane.
 
-1. Read the work item's Exit Gate, current source/tests, and domain skills.
-   Use [$main](../main/SKILL.md) skill's readiness reference to separate implementation prerequisites
-   from later qualification requirements. Choose one independently verifiable
-   slice within the assigned lane; its objective and checks precede edits.
-   Group related operations sharing one implementation boundary and oracle
-   when they form a reviewable behavior family. Do not split deliveries merely
-   by line count or number of files; keep distinct semantic risks separate.
-   Apply [implementation guidance](../main/references/implementation-guidance.md):
-   name the observable before/after change and limiting source owner, then
-   implement it. Reuse established profile and manifest facts. A cleanup slice
-   for a product-advancement request must explain the dependency it removes;
-   include the enabled behavior when it fits this assignment.
-   Trace affected manifests, summaries and test consumers into the declared
-   scope. Use the controller's `rescope` through [$main](../main/SKILL.md) skill
-   for necessary omitted companion files, with fresh rules, preparation,
-   review and verification; this alone does not change the assignment.
-2. For declared reference prerequisites, run `references/tools/reference.py`
-   materialize and verify through Nix. Treat that exact detached source as
-   research only. No undeclared reference operation is implied.
-3. Brief bounded coding subagents with exact identity/base, allowed and
-   forbidden paths, domain constraints, objective, checks, and drift surfaces.
-   The parent reviews the returned diff in conversation before another
-   dispatch, evaluation, or commit. Subagents do not change Goal, integrate,
-   govern, commit, push, or create contexts.
-   Brief a source-and-test behavior change, not an open-ended request to keep
-   testing. Require the returned implementation and its boundary analysis;
-   advice alone does not complete an implementation briefing.
-4. During implementation, use affected target builds and focused checks to
-   answer concrete questions. Finish the coherent slice and parent review,
-   preflight the covering check plan, then run [$main](../main/SKILL.md) skill's
-   evaluation against the actual candidate tree and commit through
-   the shared guarded helper. Changed code invalidates corresponding review
-   and verification evidence. Failed checks stay in the current unaccepted
-   Iteration and produce a repaired exact tip.
-5. Emit delivery schema v2 under `agent/tmp/main/` and return it to [$batch](../batch/SKILL.md) skill.
-   It contains exact epoch/batch/iteration/lane and base/tip, `acceptance_kind`
-   (`slice` or `work-item`), `slice_objective`, actual test results,
-   `verification_receipt`, empty blockers, and material `knowledge_candidates`.
-   A work-item claim needs its whole current Exit Gate, not a partial test pass.
-6. The controlling parent invokes [$batch](../batch/SKILL.md) skill immediately. The worker does not push
-   its candidate or manufacture the next assignment.
+First action: read the assigned Exit Gate and relevant source/owners, then use
+[$prepare](../prepare/SKILL.md) skill: begin → load preparation rules → prepared
+→ load implementation rules. A declared reference prerequisite is materialized
+and verified through `references/tools/reference.py` only on demand.
 
-Use [$main](../main/SKILL.md) skill's diagnostic contract. Preserve supplied edits
-and distinguish an omitted file declaration from a changed execution baseline
-or assignment. Only the latter needs an exact updated application context.
-Linked-worktree and fixture Git commands clear Git local environment variables;
-an unexpected HEAD/index change is traced to its invoking hook/test and reflog.
+Implement a coherent observable behavior family under the owning domain skills
+and [implementation guidance](../review/references/implementation-guidance.md).
+Use a self-contained coding briefing with objective, identity/base, scope,
+boundaries, checks and drift surfaces. Parent review accepts the returned diff
+before another coding dispatch; subagents never edit Goal, accept, govern,
+commit, push or create contexts.
+
+Focused checks resolve implementation uncertainty. After the coherent behavior
+is ready, load [$review](../review/SKILL.md) skill, obtain parent approval, then
+[$verify](../verify/SKILL.md) skill executes the actual candidate plan.
+[$deliver](../deliver/SKILL.md) skill commits and emits
+[delivery schema v2](references/delivery.md) from the actual receipt.
+
+The controlling parent immediately passes the exact candidate to
+[$batch](../batch/SKILL.md) skill using its matching integration context.
+If that context is absent, emit the exact application request; do not fabricate
+one. The candidate stays unaccepted and the worker never pushes. Failed checks
+stay in this bounded Iteration for repair.

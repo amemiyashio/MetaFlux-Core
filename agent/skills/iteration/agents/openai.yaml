@@ -1,6 +1,6 @@
 interface:
   display_name: "MetaFlux Iteration"
   short_description: "Implement and verify one assigned product delivery"
-  default_prompt: "Use $iteration skill to implement this assigned observable behavior, review its real execution boundaries, and deliver the qualified candidate."
+  default_prompt: "Use $iteration skill to implement the assigned observable behavior and deliver its exact reviewed candidate to the controlling integrator."
 policy:
   allow_implicit_invocation: true

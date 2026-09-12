@@ -1,21 +1,37 @@
 # MetaFlux Skills
 
 Enter through [$main](main/SKILL.md) skill, then read only the workflows and domain
-skills that own the task. The 19 skill packages remain in this single directory;
-`.agents/skills` links here. Shared scripts and references belong inside the
-[$main](main/SKILL.md) skill package; it owns the
+skills that own the task. The 25 packages remain in this single directory;
+`.agents/skills` links here. Shared mechanisms live in `agent/lib/`; stage
+helpers and references live with their owning skill. The main entry owns the
 [skill-reference convention](main/SKILL.md#skill-references).
 The roster and explicit-only policy have one owner in
 [`tools/check-agent-state.py`](../../tools/check-agent-state.py).
 
-## Workflow
+## Control
 
 | Skill | Status | Use when |
 | --- | --- | --- |
-| [$main](main/SKILL.md) skill | Active | Entry, status/resume, maintenance, readiness, identity, knowledge promotion, guarded commit, and publication |
+| [$main](main/SKILL.md) skill | Active | Read-only entry, task routing and current action card |
+
+## Orchestration
+
+| Skill | Status | Use when |
+| --- | --- | --- |
 | [$epoch](epoch/SKILL.md) skill | Active | Explicit route proposal or confirmed semantic governance |
 | [$batch](batch/SKILL.md) skill | Active | Read-only delivery inspection or automatic integration, acceptance, and progress advancement |
 | [$iteration](iteration/SKILL.md) skill | Active | One application-assigned product implementation and candidate delivery |
+
+## Stage
+
+| Skill | Status | Use when |
+| --- | --- | --- |
+| [$prepare](prepare/SKILL.md) skill | Active | Exact request, initial preparation, identity or scoped readiness |
+| [$review](review/SKILL.md) skill | Active | Parent semantic review and material knowledge promotion |
+| [$verify](verify/SKILL.md) skill | Active | Covering plan, actual verification and live evidence |
+| [$deliver](deliver/SKILL.md) skill | Active | Exact guarded commit and candidate/activation delivery |
+| [$publish](publish/SKILL.md) skill | Active | Canonical exact-commit publication and transport diagnosis |
+| [$recover](recover/SKILL.md) skill | Active | Failed-cause repair, rescope and interrupted-state recovery |
 
 ## Domain
 
@@ -49,11 +65,11 @@ then [$batch](batch/SKILL.md) skill for product delivery; it dispatches
 [$epoch](epoch/SKILL.md) skill only for an explicit request. That is the sole
 explicit-only workflow entry.
 Read-only readiness, delivery checks, identity, publication diagnostics, and
-knowledge promotion remain independently accessible through [$main](main/SKILL.md) skill.
+knowledge promotion remain independently accessible through its current stage skill.
 
 The parent reviews coding-subagent work before another dispatch. Maintenance,
 Batch acceptance, and Epoch activation publish automatically unless the user
 limits publication. No script creates agents, source copies, or application
-contexts. Every stop uses the diagnostic contract of [$main](main/SKILL.md#task-stop-diagnostics) skill.
+contexts. Every stop uses the diagnostic contract of [$recover](recover/SKILL.md) skill.
 The bilingual [routing corpus](trigger-evals.json) checks entry boundaries;
 behavioral tests separately check executable transitions.

@@ -1,0 +1,7 @@
+interface:
+  display_name: "MetaFlux Publication"
+  short_description: "Publish and confirm one exact committed revision"
+  default_prompt: "Use $publish skill to publish the exact authorized commit and verify the remote main revision, or diagnose transport read-only when requested."
+
+policy:
+  allow_implicit_invocation: true
