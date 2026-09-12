@@ -6,8 +6,17 @@ Translate one grid into CTAs and one CTA into a scheduling unit with explicit
 thread/lane identity, shared storage, barrier phases, active masks, and completion
 state. The mapping may use scalar loops, host threads, SIMD vectors, or a hybrid;
 none may change PTX-observable semantics. This skill owns the CPU interpreter and
-runtime implementation of that mapping; `$ptx-simt-semantics` supplies the
+runtime implementation of that mapping; [$ptx-simt-semantics](../../ptx-simt-semantics/SKILL.md) skill supplies the
 semantic oracle and expected outcomes.
+
+Start interpreter changes at `execute_kernel_ir`/`execute_cta` in
+[`interpreter.cpp`](../../../../plugins/backend/cpu/runtime/src/interpreter.cpp).
+Start compiled mappings at `MlirEmitter::operation_phases`, `segment_phase` and
+`emit_vector_region` in
+[`compiler.cpp`](../../../../plugins/backend/cpu/compiler/src/compiler.cpp).
+The current emitter already partitions scalar and vector regions around barrier
+phases; it is not a missing generic GPU-to-loop pass. Preserve the same full
+block dimensions, CTA-local state and completion semantics in both paths.
 
 ## Mapping checklist
 
@@ -36,3 +45,9 @@ the epoch supports them. Report legality, generated instructions, register
 pressure/spills, mask cost, memory behavior, and performance distribution. A
 faster result on one uniform Add kernel does not justify the strategy for
 divergent or barrier-heavy forms.
+
+Choose checks for the changed phase/mask/storage behavior, including scalar
+fallback and irregular tails. A performance acceptance still needs the whole
+advertised-corpus interpreter/JIT/AOT differential coverage once in its formal
+phase. [LLVM vectorization](llvm-vectorization.md) owns codegen proof and exact-FP
+tuning; [execution path](execution-path.md) owns the service-to-executor route.

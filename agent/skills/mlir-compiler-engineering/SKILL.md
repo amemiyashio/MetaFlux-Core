@@ -1,97 +1,62 @@
 ---
 name: mlir-compiler-engineering
-description: Implement or review Kernel IR to MLIR boundaries, ODS operations, verifiers, Dialect Conversion, TypeConverter use, pass pipelines, target-lowering conversion mechanics, compiler epochs, caches, diagnostics, and reproducers. Use for CPU/Vulkan compiler engineering and PyTorch CUDA corpus lowering. Do not use to redefine PTX semantics or own target-backend lowering policy, implementation, validation, or runtime behavior.
+description: Implement or review the actual Kernel IR emitter, MLIR conversion, target pipeline mechanics, legality, diagnostics and compiler-epoch behavior. Use for CPU or Vulkan compiler changes; worker processes, artifact persistence, source meaning and backend policy/runtime have separate owners.
 ---
 
 # MLIR Compiler Engineering
 
-## Implementation Focus
+For an implementation request, carry the semantic family through the first
+missing compiler step to the owning backend's executor. For analysis, review or
+benchmarking, report evidence within that requested mode; do not infer a new pass
+architecture or implementation request.
 
-For an implementation request, use the shared
-[implementation guidance](../review/references/implementation-guidance.md).
-Select the affected inputs and obligations below; broad qualification lists
-do not make every invocation a new inventory or full-suite run.
+Start with the selected target's current source. CPU `compile_kernel` and
+`MlirEmitter` are in
+[`compiler.cpp`](../../../plugins/backend/cpu/compiler/src/compiler.cpp);
+Vulkan `lower_kernel` and `emit_actual_spirv` are in
+[`lowering.cpp`](../../../plugins/backend/vulkan/compiler/src/lowering.cpp).
+Find the first rejected or divergent representation; implementation changes that owner.
+Do not infer an implemented dialect/pass from an architectural diagram.
 
-Choose the first unsupported conversion on the requested execution path, then
-carry that semantic family through verifier, conversion legality, lowering and
-the owning backend's actual executor. Inspect the first divergent IR instead
-of repeatedly running the entire pipeline. A new pass, artifact or compilation
-counter alone is not the delivered client behavior.
+| Task | Read only the relevant guide |
+| --- | --- |
+| CPU emitter or Vulkan emission/pipeline change | [Actual target paths](references/target-lowering.md) |
+| New Kernel IR representation or verifier/type invariant | [Kernel IR boundary](references/kernel-ir-boundary.md) |
+| An actual dialect conversion, TypeConverter or materialization | [Dialect conversion](references/dialect-conversion.md) |
+| First failing IR, compiler crash/nondeterminism or pipeline identity | [Debugging and versioning](references/debugging-and-versioning.md) |
+| Worker spawn/IPC/deadline/cleanup | [$compiler-worker-isolation](../compiler-worker-isolation/SKILL.md) skill |
+| Artifact keys, persistent publication, quotas or pins | [$compiler-artifact-cache](../compiler-artifact-cache/SKILL.md) skill |
 
-## Inputs
+The pinned epoch descriptor owns LLVM/MLIR API behavior. Check those installed
+headers/source before relying on an API; latest online documentation is guidance,
+not proof of the pinned LLVM/MLIR 22.1.8 contract.
 
-- The active milestone/work item, compiler epoch descriptor, Kernel IR schema,
-  and the exact source and target semantic contracts.
-- A minimal input module/reproducer, current pass pipeline, target triple or
-  SPIR-V target environment, helper/backend ABI, and cache-key definition.
-- Existing verifier, conversion legality, diagnostics, and differential evidence
-  for the affected operation family.
+Kernel IR is the neutral boundary. Put source syntax in the frontend, structural
+and cross-operation meaning in its verifier, and target feature/limit rejection
+at target lowering. ODS and conversion patterns apply where the chosen path
+actually uses them; they are not prerequisites for fixing the current emitter.
+Preserve legality, type/region/successor consistency and precise diagnostics.
 
-Do not persist an MLIR API assumption without checking the pinned epoch. Online
-latest documentation is design guidance, not proof of LLVM/MLIR 22.1.8 behavior.
+Keep CPU and Vulkan branches separate after any genuinely shared semantics.
+The CPU artifact path ends in validated PIC ELF; Vulkan goes through SPIR-V
+without an LLVM-IR detour. MLIR, LLVM IR and bytecode remain compiler-epoch-local
+implementation details, outside providers, transports and backend C ABIs.
 
-## Routing
+Compose [$ptx-simt-semantics](../ptx-simt-semantics/SKILL.md) skill for semantic/oracle
+changes. Compose [$cpu-backend-performance](../cpu-backend-performance/SKILL.md) skill
+or [$vulkan-spirv-compute](../vulkan-spirv-compute/SKILL.md) skill for target policy,
+lowering implementation/source placement, target validation and runtime behavior.
+Conversion mechanics do not transfer those backend responsibilities here.
 
-- Use [Kernel IR boundary](references/kernel-ir-boundary.md) for ownership,
-  operation invariants, ODS, and verifier placement.
-- Use [dialect conversion](references/dialect-conversion.md) for legality,
-  `TypeConverter`, materialization, and conversion patterns.
-- Use [target lowering](references/target-lowering.md) for CPU/LLVM and
-  Vulkan/SPIR-V conversion mechanics and pipeline separation.
-- Use [debugging and versioning](references/debugging-and-versioning.md) for pass
-  diagnostics, crash reproducers, epochs, artifacts, and cache identity.
-- Route source meaning to `$ptx-simt-semantics`. Compose CPU target policy,
-  target-lowering implementation/source placement, validation, and runtime work
-  with `$cpu-backend-performance`; compose the corresponding Vulkan/SPIR-V work
-  with `$vulkan-spirv-compute`.
+Use the first divergent IR and a minimized reproducer during implementation.
+Select verifier/pass/conversion/end-to-end checks for the actual changed layers,
+including illegal inputs; preserve advertised differential and target gates.
+Warm cache loading invokes no compiler framework. Supply changed epoch/pipeline
+semantics to the artifact-cache owner; target/helper ABI inputs remain backend
+owned. Artifact persistence and worker lifecycle are independent of MLIR mechanics.
 
-## Workflow
-
-1. State the semantic contract at the Kernel IR boundary and identify which
-   invariants are structural, locally verifiable, region-wide, or target-specific.
-2. Define operations/types/attributes declaratively where practical; add custom
-   verification only for relationships ODS cannot express clearly.
-3. Write the conversion target first: legal, dynamically legal, and illegal
-   dialects/operations. Define type conversion and all source/target
-   materializations before patterns.
-4. Decompose lowering into named passes with one responsibility, explicit
-   prerequisites, preserved analyses, stable diagnostics, and deterministic
-   ordering.
-5. Keep CPU and Vulkan target branches separate after shared canonicalization.
-   Own conversion legality, type conversion, materialization, and pass mechanics
-   here. Compose with the CPU backend owner for LLVM/PIC target-lowering policy
-   and implementation, or with the Vulkan backend owner for SPIR-V target
-   environment, lowering, validation, and runtime integration; the Vulkan branch
-   never detours through LLVM IR.
-6. Add verifier, pass, conversion, and end-to-end tests including deliberately
-   illegal IR. Capture a minimal reproducer for crashes or nondeterminism.
-7. Namespace every artifact/cache entry by compiler epoch, schema, pipeline,
-   target, helper/backend ABI, semantic policy, and content. Treat MLIR bytecode
-   and LLVM IR as epoch-local intermediates, not durable cross-version formats.
-
-## Output
-
-Select the applicable outputs for the requested task:
-
-- A boundary/invariant table and affected operation/type definitions.
-- An ordered pass pipeline with legality and type-conversion contracts.
-- Shared and target-specific conversion-mechanics changes, plus an explicit
-  handoff to the owning backend for target-lowering policy, implementation/source
-  placement, validation, runtime integration, and unsupported diagnostics.
-- Minimal reproducers plus verifier, conversion, differential, and artifact
-  evidence tied to the pinned compiler epoch.
-
-## Verification
-
-- Run operation/verifier tests, pass-unit tests, conversion tests, and full
-  pipeline tests for both valid and invalid modules in scope.
-- Enable verifier-after-pass and diagnostic/reproducer facilities in debug or CI
-  qualification; inspect IR at the first divergent pass, not only final output.
-- When composed with the CPU backend owner, verify LLVM translation, target data
-  layout, PIC relocation policy, helper ABI, object loading, and
-  interpreter/JIT/AOT agreement.
-- When composed with the Vulkan backend owner, verify `spirv.target_env`, SPIR-V
-  serialization, `spirv-val`, reflection, enabled features/limits, and no LLVM-IR
-  detour.
-- Confirm warm cache loading invokes no compiler framework and that an epoch,
-  pipeline, target, or ABI change causes a cache miss.
+An implementation delivers executed client/backend behavior with its changed representation,
+legality and cache boundaries. A new pass, artifact or compilation counter alone
+is not that result. Hand the coherent diff and exact checks to
+[$review](../review/SKILL.md) skill; [$verify](../verify/SKILL.md) skill owns formal
+per-phase execution and avoids duplicate covering runs.

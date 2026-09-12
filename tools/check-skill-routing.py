@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate MetaFlux's static bilingual expert-skill routing contract."""
+"""Validate MetaFlux's static English expert-skill routing contract."""
 
 from __future__ import annotations
 
@@ -23,11 +23,15 @@ from agent_diagnostics import (
 CASE_ID_RE = re.compile(r"[A-Z0-9]+(?:-[A-Z0-9]+)*")
 SKILL_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 KINDS = {"single", "near-miss", "composition"}
-LOCALES = {"en", "zh-CN"}
-MINIMUM_POSITIVE = {"en": 2, "zh-CN": 1}
-MINIMUM_NEAR_MISS = {"en": 1, "zh-CN": 1}
+LOCALES = {"en"}
+HAN_RE = re.compile(
+    r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff"
+    r"\U00020000-\U0002ffff\U00030000-\U000323af]"
+)
+MINIMUM_POSITIVE = {"en": 3}
+MINIMUM_NEAR_MISS = {"en": 2}
 MINIMUM_COMPOSITIONS = 12
-MINIMUM_WORKFLOW_COMPOSITION = {"en": 1, "zh-CN": 1}
+MINIMUM_WORKFLOW_COMPOSITION = {"en": 2}
 CASE_FIELDS = {
     "id",
     "kind",
@@ -121,7 +125,7 @@ def validate_corpus(root: Path, corpus: Any) -> DiagnosticList:
     known = domains | workflows
 
     expected_coverage = {
-        "required_locales": ["en", "zh-CN"],
+        "required_locales": ["en"],
         "minimum_positive_per_skill": MINIMUM_POSITIVE,
         "minimum_near_miss_per_skill": MINIMUM_NEAR_MISS,
         "minimum_composition_cases": MINIMUM_COMPOSITIONS,
@@ -164,6 +168,8 @@ def validate_corpus(root: Path, corpus: Any) -> DiagnosticList:
         if not isinstance(prompt, str) or not prompt.strip():
             errors.append(f"{where}.prompt must be non-empty")
             prompt = ""
+        elif HAN_RE.search(prompt):
+            errors.append(f"{where}.prompt must be English; Han text is not permitted")
         prompt_key = (str(locale), prompt)
         if prompt_key in prompts:
             errors.append(f"{where} duplicates a locale/prompt pair")
@@ -239,7 +245,7 @@ def main() -> int:
         emit_diagnostics(errors, diagnostic_format=arguments.diagnostic_format)
         return 1
     count = len(corpus["cases"])
-    print(f"skill routing: ok ({count} bilingual cases)")
+    print(f"skill routing: ok ({count} English cases)")
     return 0
 
 

@@ -12,14 +12,18 @@ mathematical/reference implementation.
 
 ## Test layers
 
+Use the layers crossed by the requested form or fix. Existing manifest/corpus
+coverage is the baseline, and full backend/profile acceptance follows the active
+Exit Gate. An unchanged layer is not an automatic new test run during each edit.
+
 1. Parser fixtures preserve source locations and reject malformed tokens,
    declarations, types, spaces, modifiers, and control-flow targets.
 2. Verifier fixtures construct invalid Kernel IR directly so parser validation
    cannot mask missing IR invariants.
 3. Instruction-form tests cover every manifest row, including edge values,
    signedness, width, FP classifications, predicates, and address boundaries.
-4. Interaction tests combine divergence, memory, barriers, and atomics under
-   randomized legal schedules.
+4. Interaction tests combine admitted divergence, memory, barriers and atomics
+   under randomized legal schedules. Excluded forms remain rejection fixtures.
 5. Differential tests compare scalar reference, interpreter, CPU JIT/AOT,
    available native CUDA, and Vulkan only for forms each path advertises.
 6. Metamorphic tests vary dead code, register names, block shape, scheduling,
@@ -42,3 +46,10 @@ mathematical/reference implementation.
 Record random seeds, PTX and Kernel IR digests, compiler epoch, target features,
 FP policy, backend version, outcome classification, and the smallest reproducer.
 Snapshot diagnostic code and salient fields rather than unstable prose alone.
+
+For a new dtype or operation, first write mathematical/bit-pattern answers and
+exceptional-value cases independent of both implementations. Mode agreement
+alone can preserve a shared defect. Then compare parser, direct KIR, interpreter
+and each actual advertising target over the same inputs; include warm-JIT/AOT
+when artifact serialization, helper semantics or execution mode is affected.
+Preserve existing independent golden checks when adding differential cases.

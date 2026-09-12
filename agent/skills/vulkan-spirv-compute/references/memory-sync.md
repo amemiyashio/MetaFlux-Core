@@ -17,7 +17,8 @@ generation, in-flight use, and destruction order.
 
 ## External handle contract
 
-Build a matrix for every advertised memory and semaphore handle type. Record:
+Reuse the exact matrix for every advertised memory and semaphore handle type;
+add or refresh a row when that handle or device contract changes. Record:
 
 - queried import/export, compatible-handle, dedicated-only, timeline, and
   temporary-import capabilities for the exact physical device;
@@ -62,6 +63,26 @@ queue-family ownership transfer.
 Unregister and device loss reject new use, remove address lookup, wait or isolate
 in-flight references, then destroy Vulkan and external resources in reverse
 ownership order.
+
+A generation-bound context keeps its own generation across reset and
+resubmission; a foreign generation returns `stale_generation` rather than
+re-arming that context. Reset releases only its own generation-bound resources.
+Preserve context isolation, registration/use/unregister races, failed-import fd
+ownership, timeline waits, non-coherent visibility and reset/loss negatives for
+the changed resource path. Cross-transport completion tests cover memfd, cdev and
+guest vfio-user where the milestone requires them; an arithmetic-only change
+does not require a new external-handle matrix.
+
+The neutral contracts live in
+[`vulkan_arguments.h`](../../../../contracts/plugin/backend/v1/include/metaflux/backend/vulkan_arguments.h)
+and [`vulkan_memory.h`](../../../../contracts/plugin/backend/v1/include/metaflux/backend/vulkan_memory.h).
+Preserve their versioned packed layout, target digest, generation and handle
+ownership without leaking Vulkan types. CUDA stream/default/PTDS semantics stay
+in provider/runtime translation; compose
+[$cuda-driver-abi-compatibility](../../cuda-driver-abi-compatibility/SKILL.md) skill
+and [$runtime-contracts-registry](../../runtime-contracts-registry/SKILL.md) skill
+when changing that translation. Neutral ABI fields remain owned by the latter;
+external transport import mechanics belong to the matching transport skill.
 
 Primary sources:
 

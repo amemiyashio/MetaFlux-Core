@@ -10,6 +10,14 @@ device loss to guest userspace.
 
 ## Bare-metal vroot profile
 
+Distinguish the required binding design below from the current minimal kernel
+implementation. In `linux-kernel-drivers/vroot/metaflux_vroot_main.c`,
+`mf_vroot_init` registers a local `metaflux_vroot` PCI driver and calls
+`pci_host_probe`; `mf_vroot_probe` checks the no-BAR profile. That path does
+not by itself establish the exclusive `metaflux_pci` override and lifecycle
+commit sequence below. Inspect those actual callers before choosing a binding
+repair; present a missing step as work to implement, never as existing evidence.
+
 `metaflux_vroot.ko` is a default-off software `pci_host_bridge` for presentation,
 not a physical endpoint and not a data-plane transport. It owns an isolated
 domain/bus allocation, preallocated config images, presence bits, writable masks,

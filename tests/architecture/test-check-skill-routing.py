@@ -14,6 +14,14 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools"))
 SCRIPT = ROOT / "tools/check-skill-routing.py"
 CORPUS = ROOT / "agent" / "skills" / "trigger-evals.json"
+EXPANDED_EXPERTS = {
+    "pytorch-cuda-profile",
+    "cublas-compatibility",
+    "compiler-worker-isolation",
+    "compiler-artifact-cache",
+    "daemon-execution-runtime",
+    "process-activation",
+}
 
 
 def load_module():
@@ -99,7 +107,63 @@ def main() -> int:
     changed["workflow_skills"] = ["main"]
     expect(changed, "workflow_skills do not match")
 
-    print("skill routing self-tests: 8 groups passed")
+    changed = copy.deepcopy(corpus)
+    changed["cases"][0]["locale"] = "fr"
+    expect(changed, ".locale is invalid")
+
+    changed = copy.deepcopy(corpus)
+    changed["cases"][0]["prompt"] = chr(0x4E2D) + chr(0x6587)
+    expect(changed, ".prompt must be English")
+
+    changed = copy.deepcopy(corpus)
+    changed["cases"][1]["prompt"] = changed["cases"][0]["prompt"]
+    expect(changed, "duplicates a locale/prompt pair")
+
+    assert EXPANDED_EXPERTS <= set(corpus["domain_skills"])
+    for skill in sorted(EXPANDED_EXPERTS):
+        changed = copy.deepcopy(corpus)
+        positive_ids = [
+            case["id"] for case in changed["cases"]
+            if skill in case["expected_skills"]
+        ]
+        removed = set(positive_ids[2:])
+        changed["cases"] = [
+            case for case in changed["cases"]
+            if case["id"] not in removed
+        ]
+        expect(changed, f"{skill} has too few en positive cases")
+
+    for skill in sorted(EXPANDED_EXPERTS):
+        changed = copy.deepcopy(corpus)
+        near_miss_ids = [
+            case["id"] for case in changed["cases"]
+            if case["kind"] == "near-miss" and skill in case["forbidden_skills"]
+        ]
+        removed = set(near_miss_ids[1:])
+        changed["cases"] = [
+            case for case in changed["cases"]
+            if case["id"] not in removed
+        ]
+        expect(changed, f"{skill} has too few en near-miss cases")
+
+    for skill in corpus["workflow_skills"]:
+        changed = copy.deepcopy(corpus)
+        composition_ids = [
+            case["id"] for case in changed["cases"]
+            if case["kind"] == "composition" and skill in case["expected_skills"]
+        ]
+        removed = set(composition_ids[1:])
+        changed["cases"] = [
+            case for case in changed["cases"]
+            if case["id"] not in removed
+        ]
+        expect(changed, f"{skill} has too few en composition cases")
+
+    changed = copy.deepcopy(corpus)
+    changed["coverage"]["minimum_positive_per_skill"]["en"] = 2
+    expect(changed, "coverage policy must match the fixed routing gate")
+
+    print("skill routing self-tests: 15 groups passed")
     return 0
 
 

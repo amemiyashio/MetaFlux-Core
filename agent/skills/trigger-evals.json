@@ -11,7 +11,13 @@
     "gpu-virtualization-vfio-user",
     "pcie-vpci-device-model",
     "device-lifecycle-resilience",
-    "vulkan-spirv-compute"
+    "vulkan-spirv-compute",
+    "pytorch-cuda-profile",
+    "cublas-compatibility",
+    "compiler-worker-isolation",
+    "compiler-artifact-cache",
+    "daemon-execution-runtime",
+    "process-activation"
   ],
   "workflow_skills": [
     "main",
@@ -27,21 +33,17 @@
   ],
   "coverage": {
     "required_locales": [
-      "en",
-      "zh-CN"
+      "en"
     ],
     "minimum_positive_per_skill": {
-      "en": 2,
-      "zh-CN": 1
+      "en": 3
     },
     "minimum_near_miss_per_skill": {
-      "en": 1,
-      "zh-CN": 1
+      "en": 2
     },
     "minimum_composition_cases": 12,
     "minimum_composition_per_workflow_skill": {
-      "en": 1,
-      "zh-CN": 1
+      "en": 2
     }
   },
   "cases": [
@@ -59,10 +61,10 @@
       ]
     },
     {
-      "id": "MAIN-RESCOPE-ZH",
+      "id": "MAIN-RESCOPE-EN-ALT",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "用 $main 修订本次漏报的配套文档范围，目标和执行基准保持原样，重新加载规则并验证。",
+      "locale": "en",
+      "prompt": "Use $main to correct the companion-document paths omitted from this task, retain its objective and execution baseline, then reload rules and verify.",
       "expected_skills": [
         "main"
       ],
@@ -86,10 +88,10 @@
       ]
     },
     {
-      "id": "EPOCH-SUPERSEDE-ZH",
+      "id": "EPOCH-SUPERSEDE-EN-ALT",
       "kind": "composition",
-      "locale": "zh-CN",
-      "prompt": "用 $main 和 $epoch 执行已确认的恢复流程治理，保留未完成的产品修改，替换当前尚未提交的操作。",
+      "locale": "en",
+      "prompt": "Use $main and $epoch to carry out the confirmed recovery governance, preserve unfinished product edits, and replace the operation that has not yet been committed.",
       "expected_skills": [
         "main",
         "epoch"
@@ -132,20 +134,20 @@
       ]
     },
     {
-      "id": "RUNTIME-ZH-P1",
+      "id": "RUNTIME-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "审查共享设备注册表、客户端协议版本协商和 backend C ABI 的中立契约。",
+      "locale": "en",
+      "prompt": "Review the neutral contracts for the shared device registry, client protocol version negotiation, and backend C ABI.",
       "expected_skills": [
         "runtime-contracts-registry"
       ],
       "forbidden_skills": []
     },
     {
-      "id": "RUNTIME-ZH-N1",
+      "id": "RUNTIME-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "只分析 PTX 分歧分支的语义，不修改注册表、共享布局或客户端协议。",
+      "locale": "en",
+      "prompt": "Analyze only the meaning of divergent PTX branches; leave the registry, shared layouts, and client protocol unchanged.",
       "expected_skills": [
         "ptx-simt-semantics"
       ],
@@ -186,20 +188,20 @@
       ]
     },
     {
-      "id": "CUDA-ZH-P1",
+      "id": "CUDA-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "检查 CUDA Driver 导出符号、上下文句柄和 cuGetProcAddress 的兼容行为。",
+      "locale": "en",
+      "prompt": "Check compatibility of CUDA Driver exports, context handles, and cuGetProcAddress behavior.",
       "expected_skills": [
         "cuda-driver-abi-compatibility"
       ],
       "forbidden_skills": []
     },
     {
-      "id": "CUDA-ZH-N1",
+      "id": "CUDA-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "只修改 NVML 的 count/fill 查询和 nvidia-smi 输出，不涉及 CUDA 执行对象。",
+      "locale": "en",
+      "prompt": "Change only NVML count/fill queries and nvidia-smi output, with no changes to CUDA execution objects.",
       "expected_skills": [
         "nvml-telemetry-compatibility"
       ],
@@ -240,20 +242,20 @@
       ]
     },
     {
-      "id": "NVML-ZH-P1",
+      "id": "NVML-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "验证 NVML 初始化、遥测快照和原版 nvidia-smi 的查询兼容性。",
+      "locale": "en",
+      "prompt": "Verify NVML initialization, telemetry snapshots, and query compatibility with an unmodified nvidia-smi binary.",
       "expected_skills": [
         "nvml-telemetry-compatibility"
       ],
       "forbidden_skills": []
     },
     {
-      "id": "NVML-ZH-N1",
+      "id": "NVML-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "只优化 CPU worker 的 NUMA 放置，不改变 NVML API 或遥测字段。",
+      "locale": "en",
+      "prompt": "Optimize only NUMA placement of the CPU worker; preserve the NVML API and telemetry fields.",
       "expected_skills": [
         "cpu-backend-performance"
       ],
@@ -294,20 +296,20 @@
       ]
     },
     {
-      "id": "PTX-ZH-P1",
+      "id": "PTX-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "定义 PTX 原子、内存序、分歧控制和 CTA barrier 的规范语义与 oracle。",
+      "locale": "en",
+      "prompt": "Specify normative semantics and oracles for PTX atomics, memory ordering, divergent control, and CTA barriers.",
       "expected_skills": [
         "ptx-simt-semantics"
       ],
       "forbidden_skills": []
     },
     {
-      "id": "PTX-ZH-N1",
+      "id": "PTX-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "为已经定义好的 Kernel IR 类型补一个 MLIR TypeConverter，不重新定义 PTX 语义。",
+      "locale": "en",
+      "prompt": "Add an MLIR TypeConverter for a Kernel IR type whose meaning is already defined, without redefining PTX semantics.",
       "expected_skills": [
         "mlir-compiler-engineering"
       ],
@@ -327,11 +329,12 @@
     },
     {
       "id": "MLIR-P2",
-      "kind": "single",
+      "kind": "composition",
       "locale": "en",
       "prompt": "Minimize a pass-manager crash reproducer and fix compiler-epoch cache invalidation.",
       "expected_skills": [
-        "mlir-compiler-engineering"
+        "mlir-compiler-engineering",
+        "compiler-artifact-cache"
       ],
       "forbidden_skills": []
     },
@@ -348,20 +351,20 @@
       ]
     },
     {
-      "id": "MLIR-ZH-P1",
+      "id": "MLIR-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "设计 Kernel IR 到 MLIR 的 ODS、验证器、动态合法性和 conversion pattern。",
+      "locale": "en",
+      "prompt": "Design the ODS definitions, verifiers, dynamic legality, and conversion patterns for the Kernel IR to MLIR boundary.",
       "expected_skills": [
         "mlir-compiler-engineering"
       ],
       "forbidden_skills": []
     },
     {
-      "id": "MLIR-ZH-N1",
+      "id": "MLIR-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "先确定分歧 PTX 原子序列允许哪些结果，不讨论任何 MLIR pass。",
+      "locale": "en",
+      "prompt": "Determine the allowed outcomes of a divergent PTX atomic sequence before considering any MLIR pass.",
       "expected_skills": [
         "ptx-simt-semantics"
       ],
@@ -400,20 +403,20 @@
       ]
     },
     {
-      "id": "CPU-ZH-P1",
+      "id": "CPU-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "审查 x86 CPU backend 的 SIMD 映射、cpuset、NUMA 放置和可复现性能数据。",
+      "locale": "en",
+      "prompt": "Review SIMD mapping, cpuset constraints, NUMA placement, and reproducible performance evidence for the x86 CPU backend.",
       "expected_skills": [
         "cpu-backend-performance"
       ],
       "forbidden_skills": []
     },
     {
-      "id": "CPU-ZH-N1",
+      "id": "CPU-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "设计一个与 MetaFlux 无关的 FPGA 晶体管级 Harvard 存储接口。",
+      "locale": "en",
+      "prompt": "Design a transistor-level Harvard memory interface for an FPGA unrelated to MetaFlux.",
       "expected_skills": [],
       "forbidden_skills": [
         "cpu-backend-performance"
@@ -452,20 +455,20 @@
       ]
     },
     {
-      "id": "LINUX-ZH-P1",
+      "id": "LINUX-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "审查 Linux cdev ioctl、mmap、VMA kref、长期页固定和 teardown。",
+      "locale": "en",
+      "prompt": "Review Linux cdev ioctl and mmap behavior, VMA krefs, long-term page pinning, and teardown.",
       "expected_skills": [
         "linux-device-driver-uapi"
       ],
       "forbidden_skills": []
     },
     {
-      "id": "LINUX-ZH-N1",
+      "id": "LINUX-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "只定义 QEMU 与用户态服务之间的 vfio-user 协议能力回复。",
+      "locale": "en",
+      "prompt": "Define only the vfio-user protocol capability response exchanged by QEMU and a userspace service.",
       "expected_skills": [
         "gpu-virtualization-vfio-user"
       ],
@@ -504,20 +507,20 @@
       ]
     },
     {
-      "id": "VFIO-ZH-P1",
+      "id": "VFIO-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "检查 vfio-user 协商、guest DMA map/unmap、IOVA epoch 和断连处理。",
+      "locale": "en",
+      "prompt": "Check vfio-user negotiation, guest DMA map/unmap, IOVA epochs, and disconnect handling.",
       "expected_skills": [
         "gpu-virtualization-vfio-user"
       ],
       "forbidden_skills": []
     },
     {
-      "id": "VFIO-ZH-N1",
+      "id": "VFIO-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "配置物理 GPU 的 VFIO passthrough，不使用任何 vfio-user 服务。",
+      "locale": "en",
+      "prompt": "Set up physical GPU VFIO passthrough without introducing a vfio-user service.",
       "expected_skills": [],
       "forbidden_skills": [
         "gpu-virtualization-vfio-user"
@@ -554,20 +557,20 @@
       ]
     },
     {
-      "id": "PCIE-ZH-P1",
+      "id": "PCIE-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "审查 vPCI Type-0 配置空间、BAR、MSI-X、枚举和驱动绑定。",
+      "locale": "en",
+      "prompt": "Review vPCI Type-0 configuration space, BARs, MSI-X, enumeration, and driver binding.",
       "expected_skills": [
         "pcie-vpci-device-model"
       ],
       "forbidden_skills": []
     },
     {
-      "id": "PCIE-ZH-N1",
+      "id": "PCIE-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "诊断物理 PCIe 链路的均衡和信号完整性，不涉及虚拟设备模型。",
+      "locale": "en",
+      "prompt": "Diagnose equalization and signal integrity on a physical PCIe link, without changing a virtual device model.",
       "expected_skills": [],
       "forbidden_skills": [
         "pcie-vpci-device-model"
@@ -606,20 +609,20 @@
       ]
     },
     {
-      "id": "LIFE-ZH-P1",
+      "id": "LIFE-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "建模 reset/remove/re-add 的 generation、epoch、幂等、deadline 和 tombstone。",
+      "locale": "en",
+      "prompt": "Model generation, epoch, idempotence, deadlines, and tombstones across reset, remove, and re-add.",
       "expected_skills": [
         "device-lifecycle-resilience"
       ],
       "forbidden_skills": []
     },
     {
-      "id": "LIFE-ZH-N1",
+      "id": "LIFE-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "只修改静态 guest BAR2 doorbell 的字节偏移，不改变生命周期状态。",
+      "locale": "en",
+      "prompt": "Change only the byte offset of the static guest BAR2 doorbell, preserving lifecycle state behavior.",
       "expected_skills": [
         "pcie-vpci-device-model"
       ],
@@ -660,20 +663,20 @@
       ]
     },
     {
-      "id": "VK-ZH-P1",
+      "id": "VK-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "审查 Vulkan compute 队列、SPIR-V target environment、外部内存同步和 device loss。",
+      "locale": "en",
+      "prompt": "Review Vulkan compute queues, the SPIR-V target environment, external-memory synchronization, and device loss.",
       "expected_skills": [
         "vulkan-spirv-compute"
       ],
       "forbidden_skills": []
     },
     {
-      "id": "VK-ZH-N1",
+      "id": "VK-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "只修复通用 MLIR dialect conversion rollback，不涉及 Vulkan 或 SPIR-V target。",
+      "locale": "en",
+      "prompt": "Repair only generic MLIR dialect-conversion rollback, with no Vulkan or SPIR-V target involved.",
       "expected_skills": [
         "mlir-compiler-engineering"
       ],
@@ -794,10 +797,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "COMBO-ZH-PTX-VK",
+      "id": "COMBO-EN-ALT-PTX-VK",
       "kind": "composition",
-      "locale": "zh-CN",
-      "prompt": "把 PTX 原子内核经过 Kernel IR 和 MLIR 降到受约束的 SPIR-V，并在 Vulkan 上验证允许结果。",
+      "locale": "en",
+      "prompt": "Lower a PTX atomic kernel through Kernel IR and MLIR into constrained SPIR-V, then verify its allowed outcomes on Vulkan.",
       "expected_skills": [
         "ptx-simt-semantics",
         "mlir-compiler-engineering",
@@ -806,10 +809,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "COMBO-ZH-RUNTIME",
+      "id": "COMBO-EN-ALT-RUNTIME",
       "kind": "composition",
-      "locale": "zh-CN",
-      "prompt": "排查 CUDA_VISIBLE_DEVICES 重排后 CUDA 与 NVML 的 UUID、BDF 和默认注册表顺序关系。",
+      "locale": "en",
+      "prompt": "Investigate the CUDA/NVML UUID, BDF, and default registry-order relationships after CUDA_VISIBLE_DEVICES reorders the CUDA view.",
       "expected_skills": [
         "runtime-contracts-registry",
         "cuda-driver-abi-compatibility",
@@ -831,10 +834,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "COMBO-ZH-VFIO",
+      "id": "COMBO-EN-ALT-VFIO",
       "kind": "composition",
-      "locale": "zh-CN",
-      "prompt": "处理 vfio-user reset 与 BAR2、MSI-X、页解除固定和 generation replacement 的竞态。",
+      "locale": "en",
+      "prompt": "Handle races between vfio-user reset, BAR2, MSI-X, page unpinning, and generation replacement.",
       "expected_skills": [
         "linux-device-driver-uapi",
         "gpu-virtualization-vfio-user",
@@ -864,10 +867,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "MAIN-ZH-P1",
+      "id": "MAIN-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "使用 $main resume 核对当前 Git 和验证证据，恢复这次操作的准确阶段。",
+      "locale": "en",
+      "prompt": "Use $main resume to check current Git state and verification evidence and restore this operation's exact stage.",
       "expected_skills": [
         "main"
       ],
@@ -914,10 +917,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "MAIN-CHECK",
+      "id": "MAIN-CHECK-EN",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "只读检查这份交付清单的证据是否齐全，保留正在执行的任务。",
+      "locale": "en",
+      "prompt": "Inspect this delivery manifest for complete evidence without writing, and preserve the running task.",
       "expected_skills": [
         "main"
       ],
@@ -934,10 +937,10 @@
       ]
     },
     {
-      "id": "MAIN-ZH-N1",
+      "id": "MAIN-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "解释烘焙配方，不涉及仓库操作。",
+      "locale": "en",
+      "prompt": "Explain a baking recipe without performing repository operations.",
       "expected_skills": [],
       "forbidden_skills": [
         "main"
@@ -964,10 +967,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "EPOCH-ZH-P1",
+      "id": "EPOCH-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "使用 $epoch 重编排目标和路线，先给出只读提案，再依据明确确认实施治理。",
+      "locale": "en",
+      "prompt": "Use $epoch to rearrange the objective and route, first presenting a read-only proposal and then governing after explicit confirmation.",
       "expected_skills": [
         "epoch"
       ],
@@ -986,10 +989,10 @@
       ]
     },
     {
-      "id": "EPOCH-ZH-N1",
+      "id": "EPOCH-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "看看当前路线怎样，解释即可。",
+      "locale": "en",
+      "prompt": "Look at the current route and explain it without making changes.",
       "expected_skills": [
         "main"
       ],
@@ -1018,10 +1021,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "BATCH-ZH-P1",
+      "id": "BATCH-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "精确候选提交已有通过的验证回执，自动集成并验收；完整 Exit Gate 通过才关闭工作项。",
+      "locale": "en",
+      "prompt": "The exact candidate commit has a passing verification receipt; integrate and accept it automatically, closing the work item only after its complete Exit Gate passes.",
       "expected_skills": [
         "batch"
       ],
@@ -1040,10 +1043,10 @@
       ]
     },
     {
-      "id": "BATCH-ZH-N1",
+      "id": "BATCH-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "当前只有未提交改动，解释进度即可。",
+      "locale": "en",
+      "prompt": "There are only uncommitted changes at present; explain progress without taking further action.",
       "expected_skills": [
         "main"
       ],
@@ -1072,10 +1075,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "ITERATION-ZH-P1",
+      "id": "ITERATION-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "在应用提供的准确工作线上实现这一产品切片，父级审查和实际验证后交付候选提交。",
+      "locale": "en",
+      "prompt": "Implement this product slice on the exact application-supplied lane, then deliver the candidate commit after parent review and actual verification.",
       "expected_skills": [
         "iteration"
       ],
@@ -1094,10 +1097,10 @@
       ]
     },
     {
-      "id": "ITERATION-ZH-N1",
+      "id": "ITERATION-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "只检查治理文档，不进行产品实现。",
+      "locale": "en",
+      "prompt": "Inspect the governance documentation only, without implementing product behavior.",
       "expected_skills": [
         "main"
       ],
@@ -1117,10 +1120,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "COMBO-ZH-MAIN-EPOCH",
+      "id": "COMBO-EN-ALT-MAIN-EPOCH",
       "kind": "composition",
-      "locale": "zh-CN",
-      "prompt": "使用 [$main](main/SKILL.md) skill 与 [$epoch](epoch/SKILL.md) skill 执行已确认的治理方案，保留产品目标和完成事实。",
+      "locale": "en",
+      "prompt": "Use [$main](main/SKILL.md) skill and [$epoch](epoch/SKILL.md) skill to execute the confirmed governance proposal while retaining the product objective and completed facts.",
       "expected_skills": [
         "main",
         "epoch"
@@ -1140,10 +1143,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "COMBO-ZH-MAIN-DELIVERY",
+      "id": "COMBO-EN-ALT-MAIN-DELIVERY",
       "kind": "composition",
-      "locale": "zh-CN",
-      "prompt": "由 $main skill 调用 $iteration skill 完成分配的产品切片，再自动交给 $batch skill 集成验收，发布后核对下一执行上下文。",
+      "locale": "en",
+      "prompt": "Have $main skill invoke $iteration skill for the assigned product slice, automatically hand it to $batch skill for integration and acceptance, and check the next execution context after publication.",
       "expected_skills": [
         "main",
         "iteration",
@@ -1166,10 +1169,10 @@
       ]
     },
     {
-      "id": "TERMS-ZH-N1",
+      "id": "TERMS-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "只解释 Git 的 main 分支与 Epoch、Batch、Iteration 执行层级的区别，查看当前状态。",
+      "locale": "en",
+      "prompt": "Explain how the Git main branch differs from the Epoch, Batch, and Iteration execution concepts, and inspect the current status only.",
       "expected_skills": [
         "main"
       ],
@@ -1200,10 +1203,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "STAGE-PREPARE-ZH-P1",
+      "id": "STAGE-PREPARE-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "用 $prepare 准备当前任务的准确范围和基准，再进入实现。",
+      "locale": "en",
+      "prompt": "Use $prepare to establish the current task's exact scope and baseline before implementation.",
       "expected_skills": [
         "prepare"
       ],
@@ -1222,10 +1225,10 @@
       ]
     },
     {
-      "id": "STAGE-PREPARE-ZH-N1",
+      "id": "STAGE-PREPARE-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "用 $publish 发布已提交的精确版本，准备步骤已经完成。",
+      "locale": "en",
+      "prompt": "Use $publish for the exact revision already committed; preparation has been completed.",
       "expected_skills": [
         "publish"
       ],
@@ -1245,10 +1248,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "STAGE-PREPARE-ZH-C1",
+      "id": "STAGE-PREPARE-EN-ALT-C1",
       "kind": "composition",
-      "locale": "zh-CN",
-      "prompt": "用 $main 和 $prepare 在本次任务内准备当前任务的准确范围和基准，再进入实现。",
+      "locale": "en",
+      "prompt": "Use $main and $prepare within this task to establish its exact scope and baseline before starting implementation.",
       "expected_skills": [
         "main",
         "prepare"
@@ -1276,10 +1279,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "STAGE-REVIEW-ZH-P1",
+      "id": "STAGE-REVIEW-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "用 $review 审查已完成的行为修改及其真实调用边界。",
+      "locale": "en",
+      "prompt": "Use $review to examine the completed behavior change and its actual caller boundaries.",
       "expected_skills": [
         "review"
       ],
@@ -1298,10 +1301,10 @@
       ]
     },
     {
-      "id": "STAGE-REVIEW-ZH-N1",
+      "id": "STAGE-REVIEW-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "用 $verify 执行已审查的测试计划，审查结论已经确定。",
+      "locale": "en",
+      "prompt": "Use $verify to run the reviewed test plan; the review conclusions are already settled.",
       "expected_skills": [
         "verify"
       ],
@@ -1321,10 +1324,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "STAGE-REVIEW-ZH-C1",
+      "id": "STAGE-REVIEW-EN-ALT-C1",
       "kind": "composition",
-      "locale": "zh-CN",
-      "prompt": "用 $main 和 $review 在本次任务内审查已完成的行为修改及其真实调用边界。",
+      "locale": "en",
+      "prompt": "Use $main and $review within this task to examine the completed behavior change and its actual caller boundaries.",
       "expected_skills": [
         "main",
         "review"
@@ -1352,10 +1355,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "STAGE-VERIFY-ZH-P1",
+      "id": "STAGE-VERIFY-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "用 $verify 执行已审查树的覆盖检查，保留实际结果。",
+      "locale": "en",
+      "prompt": "Use $verify to run covering checks on the reviewed tree and retain the actual results.",
       "expected_skills": [
         "verify"
       ],
@@ -1374,10 +1377,10 @@
       ]
     },
     {
-      "id": "STAGE-VERIFY-ZH-N1",
+      "id": "STAGE-VERIFY-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "用 $publish 发布已通过验证并提交的版本，进入远端确认。",
+      "locale": "en",
+      "prompt": "Use $publish for the revision that has passed verification and been committed, then confirm the remote state.",
       "expected_skills": [
         "publish"
       ],
@@ -1397,10 +1400,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "STAGE-VERIFY-ZH-C1",
+      "id": "STAGE-VERIFY-EN-ALT-C1",
       "kind": "composition",
-      "locale": "zh-CN",
-      "prompt": "用 $main 和 $verify 在本次任务内执行已审查树的覆盖检查，保留实际结果。",
+      "locale": "en",
+      "prompt": "Use $main and $verify within this task to run covering checks on the reviewed tree and retain the actual results.",
       "expected_skills": [
         "main",
         "verify"
@@ -1428,10 +1431,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "STAGE-DELIVER-ZH-P1",
+      "id": "STAGE-DELIVER-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "用 $deliver 暂存已审查文件并完成受治理提交和候选交付。",
+      "locale": "en",
+      "prompt": "Use $deliver to stage reviewed files, create the guarded commit, and complete the candidate delivery.",
       "expected_skills": [
         "deliver"
       ],
@@ -1450,10 +1453,10 @@
       ]
     },
     {
-      "id": "STAGE-DELIVER-ZH-N1",
+      "id": "STAGE-DELIVER-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "用 $publish 排查已有提交的推送传输，保留原提交。",
+      "locale": "en",
+      "prompt": "Use $publish to diagnose transport for an existing commit while preserving that commit.",
       "expected_skills": [
         "publish"
       ],
@@ -1473,10 +1476,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "STAGE-DELIVER-ZH-C1",
+      "id": "STAGE-DELIVER-EN-ALT-C1",
       "kind": "composition",
-      "locale": "zh-CN",
-      "prompt": "用 $main 和 $deliver 在本次任务内暂存已审查文件并完成受治理提交和候选交付。",
+      "locale": "en",
+      "prompt": "Use $main and $deliver within this task to stage reviewed files, create the guarded commit, and complete the candidate delivery.",
       "expected_skills": [
         "main",
         "deliver"
@@ -1504,10 +1507,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "STAGE-PUBLISH-ZH-P1",
+      "id": "STAGE-PUBLISH-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "用 $publish 推送已授权的精确完整提交并核对远端主分支。",
+      "locale": "en",
+      "prompt": "Use $publish to push the authorized exact full commit and check the remote main branch.",
       "expected_skills": [
         "publish"
       ],
@@ -1526,10 +1529,10 @@
       ]
     },
     {
-      "id": "STAGE-PUBLISH-ZH-N1",
+      "id": "STAGE-PUBLISH-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "用 $review 审查尚未提交的实现行为和边界。",
+      "locale": "en",
+      "prompt": "Use $review to examine the behavior and boundaries of the uncommitted implementation.",
       "expected_skills": [
         "review"
       ],
@@ -1549,10 +1552,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "STAGE-PUBLISH-ZH-C1",
+      "id": "STAGE-PUBLISH-EN-ALT-C1",
       "kind": "composition",
-      "locale": "zh-CN",
-      "prompt": "用 $main 和 $publish 在本次任务内推送已授权的精确完整提交并核对远端主分支。",
+      "locale": "en",
+      "prompt": "Use $main and $publish within this task to push the authorized exact full commit and check the remote main branch.",
       "expected_skills": [
         "main",
         "publish"
@@ -1580,10 +1583,10 @@
       "forbidden_skills": []
     },
     {
-      "id": "STAGE-RECOVER-ZH-P1",
+      "id": "STAGE-RECOVER-EN-ALT-P1",
       "kind": "single",
-      "locale": "zh-CN",
-      "prompt": "用 $recover 定位当前中断原因并恢复原操作的准确阶段。",
+      "locale": "en",
+      "prompt": "Use $recover to identify the current interruption's cause and restore the original operation's exact stage.",
       "expected_skills": [
         "recover"
       ],
@@ -1602,10 +1605,10 @@
       ]
     },
     {
-      "id": "STAGE-RECOVER-ZH-N1",
+      "id": "STAGE-RECOVER-EN-ALT-N1",
       "kind": "near-miss",
-      "locale": "zh-CN",
-      "prompt": "用 $iteration 在已准备好的上下文中实现新任务行为。",
+      "locale": "en",
+      "prompt": "Use $iteration to implement the newly assigned behavior in the prepared context.",
       "expected_skills": [
         "iteration"
       ],
@@ -1625,13 +1628,787 @@
       "forbidden_skills": []
     },
     {
-      "id": "STAGE-RECOVER-ZH-C1",
+      "id": "STAGE-RECOVER-EN-ALT-C1",
       "kind": "composition",
-      "locale": "zh-CN",
-      "prompt": "用 $main 和 $recover 在本次任务内定位当前中断原因并恢复原操作的准确阶段。",
+      "locale": "en",
+      "prompt": "Use $main and $recover within this task to identify the interruption's cause and restore the original operation's exact stage.",
       "expected_skills": [
         "main",
         "recover"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "CUDA-LIBRARY-ADMISSION-EN",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Implement a stock cuBLASLt profile admission repair: valid but unsupported descriptors must not select a cached executable variant, and the stock client's unfused retry must retain its declared error.",
+      "expected_skills": [
+        "cublas-compatibility",
+        "pytorch-cuda-profile",
+        "cuda-driver-abi-compatibility"
+      ],
+      "forbidden_skills": [
+        "cpu-backend-performance"
+      ]
+    },
+    {
+      "id": "CUDA-LIBRARY-ADMISSION-EN-ALT",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Repair stock cuBLASLt profile admission so valid unsupported descriptors never select a cached executable variant, and trace the actual error after the client's unfused retry.",
+      "expected_skills": [
+        "cublas-compatibility",
+        "pytorch-cuda-profile",
+        "cuda-driver-abi-compatibility"
+      ],
+      "forbidden_skills": [
+        "cpu-backend-performance"
+      ]
+    },
+    {
+      "id": "RUNTIME-KERNEL-LIFETIME-EN",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Extend the CUDA client's neutral kernel request field and lifetime through registration, module load and unload; keep the wire free of framework and target types.",
+      "expected_skills": [
+        "runtime-contracts-registry",
+        "cuda-driver-abi-compatibility",
+        "daemon-execution-runtime"
+      ],
+      "forbidden_skills": [
+        "vulkan-spirv-compute"
+      ]
+    },
+    {
+      "id": "RUNTIME-KERNEL-LIFETIME-EN-ALT",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Extend the CUDA client's neutral kernel-request fields and lifetime across registration, module loading, and unloading, keeping framework and target-backend types off the protocol.",
+      "expected_skills": [
+        "runtime-contracts-registry",
+        "cuda-driver-abi-compatibility",
+        "daemon-execution-runtime"
+      ],
+      "forbidden_skills": [
+        "vulkan-spirv-compute"
+      ]
+    },
+    {
+      "id": "NVML-PRODUCER-PATH-EN",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Implement one NVML getter from an existing real daemon metric and immutable snapshot, preserving freshness and lost-device errors without changing the shared layout.",
+      "expected_skills": [
+        "nvml-telemetry-compatibility"
+      ],
+      "forbidden_skills": [
+        "cuda-driver-abi-compatibility"
+      ]
+    },
+    {
+      "id": "NVML-PRODUCER-PATH-EN-ALT",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Implement an NVML getter from an existing real daemon metric and immutable snapshot, retain freshness and device-loss errors, and leave the shared layout unchanged.",
+      "expected_skills": [
+        "nvml-telemetry-compatibility"
+      ],
+      "forbidden_skills": [
+        "cuda-driver-abi-compatibility"
+      ]
+    },
+    {
+      "id": "PTX-REUSABLE-FORM-EN",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Implement the reusable Kernel IR index form needed by a broader stock-client shape family, including canonical semantics, verifier, CPU execution and an independent oracle.",
+      "expected_skills": [
+        "pytorch-cuda-profile",
+        "ptx-simt-semantics",
+        "mlir-compiler-engineering",
+        "cpu-backend-performance"
+      ],
+      "forbidden_skills": [
+        "nvml-telemetry-compatibility"
+      ]
+    },
+    {
+      "id": "PTX-REUSABLE-FORM-EN-ALT",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Implement the Kernel IR indexing form required by a more general stock-client shape family, carrying its canonical meaning, verifier, CPU execution, and independent expected answers together.",
+      "expected_skills": [
+        "pytorch-cuda-profile",
+        "ptx-simt-semantics",
+        "mlir-compiler-engineering",
+        "cpu-backend-performance"
+      ],
+      "forbidden_skills": [
+        "nvml-telemetry-compatibility"
+      ]
+    },
+    {
+      "id": "MLIR-ACTUAL-EMITTER-EN",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Fix the first divergent CPU compiler IR in the actual MlirEmitter path and its target lowering; inspect the current emitter before proposing a new dialect-conversion stack.",
+      "expected_skills": [
+        "mlir-compiler-engineering",
+        "cpu-backend-performance"
+      ],
+      "forbidden_skills": [
+        "pcie-vpci-device-model"
+      ]
+    },
+    {
+      "id": "MLIR-ACTUAL-EMITTER-EN-ALT",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Repair the first semantically divergent CPU IR and target lowering in the actual MlirEmitter path; inspect the current emitter before deciding whether a new conversion mechanism is needed.",
+      "expected_skills": [
+        "mlir-compiler-engineering",
+        "cpu-backend-performance"
+      ],
+      "forbidden_skills": [
+        "pcie-vpci-device-model"
+      ]
+    },
+    {
+      "id": "CPU-SAME-PATH-MEASURE-EN",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Only benchmark the current stock PyTorch CUDA call on the CPU executor against the same workload and path; report dispatch, execution, copies and synchronization without changing implementation.",
+      "expected_skills": [
+        "main",
+        "cpu-backend-performance",
+        "pytorch-cuda-profile"
+      ],
+      "forbidden_skills": [
+        "epoch",
+        "batch"
+      ]
+    },
+    {
+      "id": "CPU-SAME-PATH-MEASURE-EN-ALT",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Measure only the current stock PyTorch CUDA call on the CPU executor, comparing the same workload and path and separating dispatch, execution, copying, and synchronization.",
+      "expected_skills": [
+        "main",
+        "cpu-backend-performance",
+        "pytorch-cuda-profile"
+      ],
+      "forbidden_skills": [
+        "epoch",
+        "batch"
+      ]
+    },
+    {
+      "id": "VULKAN-STOCK-ROUTE-EN",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Implement stock torch.cuda eager add through the fixed AMD Vulkan context and neutral request to real GPU completion and readback, without per-kernel CPU fallback.",
+      "expected_skills": [
+        "cuda-driver-abi-compatibility",
+        "runtime-contracts-registry",
+        "vulkan-spirv-compute",
+        "pytorch-cuda-profile",
+        "daemon-execution-runtime"
+      ],
+      "forbidden_skills": [
+        "gpu-virtualization-vfio-user"
+      ]
+    },
+    {
+      "id": "VULKAN-STOCK-ROUTE-EN-ALT",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Implement stock torch.cuda eager add through a fixed AMD Vulkan context and neutral request to actual GPU completion and readback, with no per-kernel CPU fallback.",
+      "expected_skills": [
+        "cuda-driver-abi-compatibility",
+        "runtime-contracts-registry",
+        "vulkan-spirv-compute",
+        "pytorch-cuda-profile",
+        "daemon-execution-runtime"
+      ],
+      "forbidden_skills": [
+        "gpu-virtualization-vfio-user"
+      ]
+    },
+    {
+      "id": "KERNEL-VMA-UNWIND-EN",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Fix a cdev mapping lifetime through fd close, forked VMA and late worker completion; preserve the existing generation contract and implement exactly-once unwind.",
+      "expected_skills": [
+        "linux-device-driver-uapi"
+      ],
+      "forbidden_skills": [
+        "ptx-simt-semantics"
+      ]
+    },
+    {
+      "id": "KERNEL-VMA-UNWIND-EN-ALT",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Repair cdev mapping lifetime across fd closure, forked VMAs, and late worker completion, preserving the existing generation contract and exactly-once release.",
+      "expected_skills": [
+        "linux-device-driver-uapi"
+      ],
+      "forbidden_skills": [
+        "ptx-simt-semantics"
+      ]
+    },
+    {
+      "id": "VFIO-LIVE-CONSUMER-EN",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Implement a DMA-unmap repair in the live vfio-user adapter after locating its actual guest consumer; a passing C++ server fixture alone does not exercise that route.",
+      "expected_skills": [
+        "gpu-virtualization-vfio-user"
+      ],
+      "forbidden_skills": [
+        "pcie-vpci-device-model"
+      ]
+    },
+    {
+      "id": "VFIO-LIVE-CONSUMER-EN-ALT",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Locate the real guest consumer and repair DMA unmap in the live vfio-user adapter; a passing C++ server fixture alone does not show that this path executed.",
+      "expected_skills": [
+        "gpu-virtualization-vfio-user"
+      ],
+      "forbidden_skills": [
+        "pcie-vpci-device-model"
+      ]
+    },
+    {
+      "id": "PCI-PROFILE-CALLBACK-EN",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Fix the default-off vroot config callback and exclusive bind sequence without adding guest BAR or MSI-X capabilities to that profile.",
+      "expected_skills": [
+        "pcie-vpci-device-model"
+      ],
+      "forbidden_skills": [
+        "vulkan-spirv-compute"
+      ]
+    },
+    {
+      "id": "PCI-PROFILE-CALLBACK-EN-ALT",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Repair the default-off vroot configuration callback and exclusive binding order while keeping guest BAR and MSI-X capabilities out of that profile.",
+      "expected_skills": [
+        "pcie-vpci-device-model"
+      ],
+      "forbidden_skills": [
+        "vulkan-spirv-compute"
+      ]
+    },
+    {
+      "id": "LIFECYCLE-REAL-PRODUCER-EN",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Wire the real QMP disconnect producer into the existing lifecycle coordinator after its mandatory bounded model gate, then implement the stale-completion boundary.",
+      "expected_skills": [
+        "device-lifecycle-resilience",
+        "gpu-virtualization-vfio-user"
+      ],
+      "forbidden_skills": [
+        "epoch"
+      ]
+    },
+    {
+      "id": "LIFECYCLE-REAL-PRODUCER-EN-ALT",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "After the required bounded model gate passes, connect the real QMP disconnect producer to the existing lifecycle coordinator and isolate stale completion callbacks.",
+      "expected_skills": [
+        "device-lifecycle-resilience",
+        "gpu-virtualization-vfio-user"
+      ],
+      "forbidden_skills": [
+        "epoch"
+      ]
+    },
+    {
+      "id": "EXPERT-GPU-BENCH-NEAR-MISS-EN",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Only interpret a standalone Vulkan FMA probe; do not call its arithmetic rate the throughput of stock PyTorch CUDA or change the route.",
+      "expected_skills": [
+        "main",
+        "vulkan-spirv-compute"
+      ],
+      "forbidden_skills": [
+        "cuda-driver-abi-compatibility",
+        "epoch",
+        "pytorch-cuda-profile"
+      ]
+    },
+    {
+      "id": "EXPERT-GPU-BENCH-NEAR-MISS-EN-ALT",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Interpret only a standalone Vulkan FMA probe result; keep its arithmetic throughput separate from stock PyTorch CUDA call throughput and preserve the route.",
+      "expected_skills": [
+        "main",
+        "vulkan-spirv-compute"
+      ],
+      "forbidden_skills": [
+        "cuda-driver-abi-compatibility",
+        "epoch",
+        "pytorch-cuda-profile"
+      ]
+    },
+    {
+      "id": "EXPERT-KERNEL-NAME-NEAR-MISS-EN",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Explain where the Linux kernel driver's ioctl implementation lives; this is a source-navigation question, not a compute Kernel IR change.",
+      "expected_skills": [
+        "main",
+        "linux-device-driver-uapi"
+      ],
+      "forbidden_skills": [
+        "ptx-simt-semantics",
+        "mlir-compiler-engineering"
+      ]
+    },
+    {
+      "id": "EXPERT-KERNEL-NAME-NEAR-MISS-EN-ALT",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Explain the source location of the Linux kernel driver's ioctl implementation, without changing compute Kernel IR.",
+      "expected_skills": [
+        "main",
+        "linux-device-driver-uapi"
+      ],
+      "forbidden_skills": [
+        "ptx-simt-semantics",
+        "mlir-compiler-engineering"
+      ]
+    },
+    {
+      "id": "PYTORCH-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Extend the pinned stock PyTorch CUDA profile with a newly observed fatbin kernel signature while preserving its exact artifact identity and argument normalization.",
+      "expected_skills": [
+        "pytorch-cuda-profile"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PYTORCH-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Repair the finite PyTorch profile admission checks so a new tensor shape is matched to its actual stock fatbin and qualified executable variant.",
+      "expected_skills": [
+        "pytorch-cuda-profile"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PYTORCH-P3",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Trace the stock client's final unfused retry after a profile rejection and update the profile evidence to describe that final operation outcome.",
+      "expected_skills": [
+        "pytorch-cuda-profile"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PYTORCH-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Fix the public cuGetProcAddress version alias for a generic CUDA Driver client with no PyTorch profile changes.",
+      "expected_skills": [
+        "cuda-driver-abi-compatibility"
+      ],
+      "forbidden_skills": [
+        "pytorch-cuda-profile"
+      ]
+    },
+    {
+      "id": "PYTORCH-N2",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Implement a standalone Vulkan shader's memory barrier without changing any stock PyTorch artifact, profile admission, or client path.",
+      "expected_skills": [
+        "vulkan-spirv-compute"
+      ],
+      "forbidden_skills": [
+        "pytorch-cuda-profile"
+      ]
+    },
+    {
+      "id": "CUBLAS-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Implement cuBLASLt matrix-layout and operation descriptor validation with correct library status codes and no new executable profile shape.",
+      "expected_skills": [
+        "cublas-compatibility"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "CUBLAS-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Repair cuBLAS pointer-mode and scalar handling for an already admitted GEMM variant, including host versus device scalar semantics.",
+      "expected_skills": [
+        "cublas-compatibility"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "CUBLAS-P3",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Fix cuBLASLt heuristic and epilogue compatibility so valid unsupported library descriptors report the appropriate status before selecting an executable variant.",
+      "expected_skills": [
+        "cublas-compatibility"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "CUBLAS-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Repair CUDA Driver device-allocation lifetime and invalid-handle errors without changing cuBLAS or cuBLASLt.",
+      "expected_skills": [
+        "cuda-driver-abi-compatibility"
+      ],
+      "forbidden_skills": [
+        "cublas-compatibility"
+      ]
+    },
+    {
+      "id": "CUBLAS-N2",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Define a reusable PTX multiply-accumulate semantic form and implement its CPU execution for a standalone kernel, outside all library adapters.",
+      "expected_skills": [
+        "ptx-simt-semantics",
+        "cpu-backend-performance"
+      ],
+      "forbidden_skills": [
+        "cublas-compatibility"
+      ]
+    },
+    {
+      "id": "WORKER-ISOLATION-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Repair compiler worker socketpair framing so an oversized response is rejected and the subprocess is reaped without leaking descriptors.",
+      "expected_skills": [
+        "compiler-worker-isolation"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "WORKER-ISOLATION-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Implement compiler subprocess deadline and cancellation handling that terminates the child and reports its bounded failure to the caller.",
+      "expected_skills": [
+        "compiler-worker-isolation"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "WORKER-ISOLATION-P3",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Fix compiler worker spawn and resource-limit setup while preserving the existing compile request and artifact format.",
+      "expected_skills": [
+        "compiler-worker-isolation"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "WORKER-ISOLATION-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Fix a pure MLIR conversion legality failure in an existing pass without changing compiler subprocess transport or lifecycle.",
+      "expected_skills": [
+        "mlir-compiler-engineering"
+      ],
+      "forbidden_skills": [
+        "compiler-worker-isolation"
+      ]
+    },
+    {
+      "id": "WORKER-ISOLATION-N2",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Repair artifact-cache quota reservations and eviction under the existing compiler worker protocol.",
+      "expected_skills": [
+        "compiler-artifact-cache"
+      ],
+      "forbidden_skills": [
+        "compiler-worker-isolation"
+      ]
+    },
+    {
+      "id": "ARTIFACT-CACHE-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Repair UID artifact-cache reservation accounting so concurrent compiles respect quota and release unused reservations.",
+      "expected_skills": [
+        "compiler-artifact-cache"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "ARTIFACT-CACHE-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Implement atomic artifact publication and corrupt-entry reconciliation in the existing mutable compiler cache.",
+      "expected_skills": [
+        "compiler-artifact-cache"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "ARTIFACT-CACHE-P3",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Fix administrative AOT installation, cache pins, and eviction while retaining the backend-supplied executable identity.",
+      "expected_skills": [
+        "compiler-artifact-cache"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "ARTIFACT-CACHE-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Tune effective CPU placement after a cpuset change without changing persistent compiled-artifact keys or storage.",
+      "expected_skills": [
+        "cpu-backend-performance"
+      ],
+      "forbidden_skills": [
+        "compiler-artifact-cache"
+      ]
+    },
+    {
+      "id": "ARTIFACT-CACHE-N2",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Repair compiler subprocess timeout and child reaping with the existing cache format and publication policy.",
+      "expected_skills": [
+        "compiler-worker-isolation"
+      ],
+      "forbidden_skills": [
+        "compiler-artifact-cache"
+      ]
+    },
+    {
+      "id": "DAEMON-EXECUTION-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Fix metafluxd session teardown so outstanding modules and buffers remain owned until their scheduled requests complete.",
+      "expected_skills": [
+        "daemon-execution-runtime"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "DAEMON-EXECUTION-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Bind a daemon session to its selected backend before creating resources, and reject later attempts to execute through a different backend.",
+      "expected_skills": [
+        "daemon-execution-runtime"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "DAEMON-EXECUTION-P3",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Repair metafluxd launch dispatch and completion bookkeeping for module unload without changing any neutral request layout.",
+      "expected_skills": [
+        "daemon-execution-runtime"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "DAEMON-EXECUTION-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Document the byte layout and version projection of an existing neutral request field without changing daemon dispatch or object ownership.",
+      "expected_skills": [
+        "runtime-contracts-registry"
+      ],
+      "forbidden_skills": [
+        "daemon-execution-runtime"
+      ]
+    },
+    {
+      "id": "DAEMON-EXECUTION-N2",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Fix resident Vulkan pipeline reuse inside the backend with unchanged service request scheduling and session ownership.",
+      "expected_skills": [
+        "vulkan-spirv-compute"
+      ],
+      "forbidden_skills": [
+        "daemon-execution-runtime"
+      ]
+    },
+    {
+      "id": "PROCESS-ACTIVATION-P1",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Repair process-scoped CUDA and NVML provider selection so the vendor pair uses the same isolated glibc namespace and preserves explicit managed and passthrough behavior.",
+      "expected_skills": [
+        "process-activation"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PROCESS-ACTIVATION-P2",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Fix the real client activation path's daemon socket discovery and inherited-descriptor handling without treating the release-test fd3 launcher as a product launcher.",
+      "expected_skills": [
+        "process-activation"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PROCESS-ACTIVATION-P3",
+      "kind": "single",
+      "locale": "en",
+      "prompt": "Connect an ordinary application's selected provider to the daemon endpoint and required device access, keeping activation separate from package generation.",
+      "expected_skills": [
+        "process-activation"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "PROCESS-ACTIVATION-N1",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Update RPM package dependency metadata only; leave provider loading, daemon discovery, and application activation unchanged.",
+      "expected_skills": [],
+      "forbidden_skills": [
+        "process-activation"
+      ]
+    },
+    {
+      "id": "PROCESS-ACTIVATION-N2",
+      "kind": "near-miss",
+      "locale": "en",
+      "prompt": "Repair CUDA default-stream and per-thread-default-stream API semantics without changing provider selection or loader namespaces.",
+      "expected_skills": [
+        "cuda-driver-abi-compatibility"
+      ],
+      "forbidden_skills": [
+        "process-activation"
+      ]
+    },
+    {
+      "id": "COMPOSE-PROFILE-CUBLAS",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "After a supported warm cuBLASLt variant, repair rejection of a valid unsupported shape and follow the stock PyTorch client's retry through its final observed operation outcome.",
+      "expected_skills": [
+        "pytorch-cuda-profile",
+        "cublas-compatibility",
+        "cuda-driver-abi-compatibility"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMPOSE-WORKER-CACHE",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "On compiler subprocess cancellation, release the artifact-cache reservation only after the worker has stopped, and prevent partial output publication.",
+      "expected_skills": [
+        "compiler-worker-isolation",
+        "compiler-artifact-cache"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMPOSE-MLIR-CACHE",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Change the actual MLIR target pipeline and propagate its compiler identity into persistent artifact keys so stale binaries are rejected.",
+      "expected_skills": [
+        "mlir-compiler-engineering",
+        "compiler-artifact-cache"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMPOSE-NEUTRAL-DAEMON-CUDA",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Extend a neutral module request lifetime field and apply it to CUDA-visible unload and daemon request completion ownership.",
+      "expected_skills": [
+        "runtime-contracts-registry",
+        "cuda-driver-abi-compatibility",
+        "daemon-execution-runtime"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMPOSE-PROFILE-CPU-MEASURE",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Report the current stock PyTorch CUDA CPU compute rate using the exact pinned profile and same-path measurements; perform analysis and benchmarking only.",
+      "expected_skills": [
+        "main",
+        "pytorch-cuda-profile",
+        "cpu-backend-performance"
+      ],
+      "forbidden_skills": [
+        "iteration",
+        "batch",
+        "epoch"
+      ]
+    },
+    {
+      "id": "COMPOSE-ACTIVATION-PROFILE",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Wire ordinary stock PyTorch application activation into the real provider and daemon socket path, then qualify the existing profile through that application entrypoint.",
+      "expected_skills": [
+        "process-activation",
+        "pytorch-cuda-profile"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMPOSE-DAEMON-VULKAN-PROFILE",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Implement stock eager add through the daemon's fixed physical AMD Vulkan context and remove avoidable warm dispatch and resident-pipeline overhead.",
+      "expected_skills": [
+        "pytorch-cuda-profile",
+        "cuda-driver-abi-compatibility",
+        "daemon-execution-runtime",
+        "vulkan-spirv-compute"
+      ],
+      "forbidden_skills": []
+    },
+    {
+      "id": "COMPOSE-NVML-ACTIVATION",
+      "kind": "composition",
+      "locale": "en",
+      "prompt": "Expose an existing real runtime metric through an NVML getter and make the stock client's CUDA and NVML providers select a consistent mode for the same process.",
+      "expected_skills": [
+        "nvml-telemetry-compatibility",
+        "process-activation"
       ],
       "forbidden_skills": []
     }

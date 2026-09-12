@@ -31,6 +31,33 @@ Generated files remain with the component that owns their source manifest.
 Consumers may wrap generated types behind local APIs, but they may not copy field
 lists, offsets, opcodes, masks, or version numbers into private definitions.
 
+## Changing a contract
+
+Name the crossing boundary before defining fields. Enumerate every generated
+header, encoder/decoder, layout assertion, documentation table and byte fixture
+affected by the canonical change. Include the runtime/provider/kernel/backend
+consumers required by that boundary; keep the language wall and independent
+client-protocol/backend-ABI versions intact.
+
+Specify version negotiation, struct_size where applicable, capability bits,
+extension handling, reserved fields, downgrade behavior and ownership/lifetime.
+For mapped data also specify byte order, width, alignment, cache-line placement,
+atomics, publication/acquire edges, doorbell arming, wrap behavior and process
+death recovery. Use [shared fast path](shared-fast-path-and-abi.md) for those
+mechanics and [kernel requests](kernel-request-lifetime.md) for module intake.
+
+Implement the definition and its generated projections/consumers as one bounded
+unit. Select verification for the changed boundary after that implementation:
+
+- Compare generated C and C++ size, alignment, offset, enum, reserved-field, and
+  byte fixtures on every supported build; include native/compat UAPI where used.
+- Prove every public milestone-0.1.1.0 data-plane layout is generated from the selected
+  canonical schema and that no kernel, server, provider, or backend copy drifts.
+
+Report the canonical owner and generated outputs, affected negotiation/lifetime
+rules and actual layout/byte/concurrency checks. Name a missing harness and its
+owner explicitly; proposed fields or a compile pass are not runtime evidence.
+
 Primary repository sources: [contracts](../../../../contracts/README.md),
 [component ownership](../../../memory/component-map.md), and
 [work-item-0.1.1.1](../../../plan/milestone-0.1.1.0-kernel-guest-transport/work/work-item-0.1.1.1-abi-benchmark-contract.md),

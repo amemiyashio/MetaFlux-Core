@@ -1,4 +1,4 @@
 interface:
   display_name: "Device Lifecycle Resilience"
   short_description: "Implement lifecycle transitions and fault handling"
-  default_prompt: "Use $device-lifecycle-resilience skill to implement the requested lifecycle transition or fault-handling change, or provide analysis when that is the request; select checks for the affected behavior."
+  default_prompt: "Use $device-lifecycle-resilience skill to trace the real event producer to its authority and adapter, satisfy the model prerequisite, and implement the missing transition and stale-object behavior; keep analysis-only requests read-only."

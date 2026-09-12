@@ -17,6 +17,17 @@ shader-module creation, pipeline creation, or Vulkan allocation. A changed drive
 device, target, argument ABI, pipeline UUID, compiler epoch, or pass pipeline
 must miss.
 
+This is the warm-path obligation, not a statement that every current route
+already meets it. Inspect resident pipeline/resource ownership in the backend
+runtime, then the production caller. The current daemon
+[`VulkanExecutionRoute::launch`](../../../../services/metafluxd/src/vulkan_execution.cpp)
+resets/allocates descriptor sets per launch and can grow staging storage; a
+component cache test does not discharge those costs. Move reusable setup to
+preparation with explicit concurrency/lifetime ownership, retain validation of
+mutable launch values and generations, and measure the same request through
+completion. [Stock route](stock-route.md) and [benchmarking](benchmarking.md)
+separate component, daemon and physical client evidence.
+
 ## Device loss
 
 On `VK_ERROR_DEVICE_LOST` or an equivalent fatal worker condition:
@@ -34,3 +45,7 @@ On `VK_ERROR_DEVICE_LOST` or an equivalent fatal worker condition:
 Inject loss during import, compile, pipeline creation, submit, copy, timeline
 wait, cache publication/load, and teardown. Verify no stale completion, address,
 pipeline, or cache residency crosses into the replacement generation.
+Select injection phases touched by the change during implementation; preserve
+the active lifecycle Exit Gate for acceptance. Lifecycle authority composes
+[$device-lifecycle-resilience](../../device-lifecycle-resilience/SKILL.md) skill;
+backend cleanup does not publish a replacement generation on its own.

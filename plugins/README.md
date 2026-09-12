@@ -2,7 +2,7 @@
 
 MetaFlux separates first-party plugins along two independent axes:
 
-- `compat/`: compatibility-layer plugins (兼容层插件) that present an existing
+- `compat/`: compatibility-layer plugins that present an existing
   application ecosystem and translate its ABI, management API, compiler input,
   and semantics into MetaFlux contracts.
 - `backend/`: execution backend plugins that compile and execute MetaFlux IR on

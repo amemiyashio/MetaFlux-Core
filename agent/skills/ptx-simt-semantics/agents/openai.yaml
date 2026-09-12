@@ -1,4 +1,4 @@
 interface:
   display_name: "PTX SIMT Semantics"
-  short_description: "Implement PTX forms and independent semantic oracles"
-  default_prompt: "Use $ptx-simt-semantics skill to implement the requested PTX or Kernel IR semantic change, or provide analysis when that is the request; select checks for the affected behavior."
+  short_description: "Carry PTX families into verified IR and independent oracles"
+  default_prompt: "Use $ptx-simt-semantics skill to carry the requested semantic family through parser, legal Kernel IR representation and independent oracle when implementation is requested. For analysis, review or benchmarking, stay in that mode. Reuse the existing manifests and cover each advertising backend."

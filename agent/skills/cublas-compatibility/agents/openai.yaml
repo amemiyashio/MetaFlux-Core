@@ -1,0 +1,6 @@
+interface:
+  display_name: "cuBLAS Compatibility"
+  short_description: "Implement bounded cuBLAS and cuBLASLt translation"
+  default_prompt: "Use $cublas-compatibility skill to trace a cuBLASLt descriptor through heuristic selection, exact status mapping and profile admission, implement the missing adapter behavior, and check fresh and reused handles plus the stock retry outcome; preserve analysis or benchmark scope."
+policy:
+  allow_implicit_invocation: true

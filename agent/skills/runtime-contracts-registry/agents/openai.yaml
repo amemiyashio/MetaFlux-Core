@@ -1,4 +1,4 @@
 interface:
   display_name: "Runtime Contracts and Registry"
-  short_description: "Implement neutral contracts and their consumers"
-  default_prompt: "Use $runtime-contracts-registry skill to implement the requested neutral protocol, registry or shared-memory change, or provide analysis when that is the request; select checks for the affected behavior."
+  short_description: "Trace neutral requests, views and shared lifetimes"
+  default_prompt: "Use $runtime-contracts-registry skill to trace a neutral request or registry transition from its canonical fields to actual consumers, implement the lifetime change, and check its affected scenario; preserve requested analysis scope."

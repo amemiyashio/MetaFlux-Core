@@ -1,4 +1,4 @@
 interface:
   display_name: "Vulkan and SPIR-V Compute"
-  short_description: "Implement Vulkan execution and resource lifetimes"
-  default_prompt: "Use $vulkan-spirv-compute skill to implement the requested Vulkan execution, SPIR-V or resource-lifetime change, or provide analysis when that is the request; select checks for the affected behavior."
+  short_description: "Connect Vulkan requests to physical GPU completion"
+  default_prompt: "Use $vulkan-spirv-compute skill to connect the requested Vulkan behavior to actual selected-device submission, completion and readback when implementation is requested. For analysis, review or benchmarking, stay in that mode. Respect the active Goal's dependency order, fixed-backend contexts, resource generations and zero avoidable warm work; reuse the existing capability profile."

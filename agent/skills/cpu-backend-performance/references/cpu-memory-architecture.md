@@ -1,5 +1,16 @@
 # CPU Memory Architecture
 
+## Source entry and change boundary
+
+Start capability/codegen work at `host_compile_options` in
+[`compiler.cpp`](../../../../plugins/backend/cpu/compiler/src/compiler.cpp), and
+placement work at `ensure_placement` in
+[`executor.cpp`](../../../../plugins/backend/cpu/runtime/src/executor.cpp) and the
+placement implementation beside it. Reuse the current profile; investigate the
+specific incompatible feature, effective mask or NUMA-policy transition before
+expanding a host matrix. Existing qualified AMD evidence does not qualify Intel;
+Intel expansion remains in milestone-2.0.0.0 under decision-0040.
+
 ## Engineering model
 
 For MetaFlux, classify a target by observable properties instead of giving it a
@@ -38,7 +49,10 @@ self-modifying code](https://developer.arm.com/community/arm-community-blogs/b/a
 First-touch pages on the intended NUMA node, pin workers deliberately, and keep
 hot per-stream cursors on separate cache lines. Distinguish compiler ordering,
 CPU memory ordering, kernel DMA ordering, and MMIO ordering; one fence does not
-stand in for all four.
+stand in for all four. Inspect cache-line ownership/false sharing, prefetch,
+TLB/page size, first touch and shared-ring ownership before arithmetic tuning.
+Select worker count, work stealing and oversubscription within the effective
+placement profile; scheduling defaults do not become a helper or object ABI.
 
 ## Effective execution placement
 
@@ -59,6 +73,16 @@ stand in for all four.
 Keep this dynamic placement profile out of stable object compatibility identity
 unless it changes generated code or helper ABI. Record its exact masks and policy
 generation in runtime diagnostics and benchmark metadata.
+
+The current executor checks whether the placement snapshot is still current on
+launch and rebuilds workers at a launch boundary when needed. Preserve that
+refresh path while removing avoidable discovery/allocation work. The checklist
+above is the effective-placement contract, not a claim that every cgroup variant
+has an implemented reader. Test the changed reader or refresh transition with
+restricted masks, offline/hotplug CPUs, invalid explicit pins and NUMA policy;
+include shutdown/concurrent launch coverage when worker ownership changes.
+`metaflux.unit.cpu-placement` owns focused placement checks. Its physical AMD
+integration row may report exit 77 when unavailable; a skip is no host evidence.
 
 Primary sources:
 

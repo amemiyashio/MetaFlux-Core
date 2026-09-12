@@ -14,11 +14,22 @@ Represent support at the full instruction-form level:
 | Target | PTX version, target feature, address size, capability requirement |
 | Oracle | deterministic, allowed-outcome-set, undefined/unsupported |
 
-milestone-0.1.0.0's initial corpus includes entries, parameters, registers, predicates,
-required address spaces, 1D/2D thread and block registers, required loads/stores,
-move and address arithmetic, integer/basic-FP arithmetic, selected fused forms,
-conversions, comparisons, branches, return, and required synchronization. This
-list is intent; the canonical manifest must enumerate exact forms before freeze.
+The existing
+[`capabilities.json`](../../../../plugins/compat/cuda/compiler/ptx/manifest/capabilities.json),
+[`forms.jsonl`](../../../../plugins/compat/cuda/compiler/ptx/manifest/forms.jsonl)
+and [corpus index](../../../../plugins/compat/cuda/compiler/ptx/corpus/index.json)
+own the current exact PTX 9.0/sm_70 subset and fixture digests. The initial corpus
+is accepted; do not reopen its freeze decision or replace these manifests with
+a new draft matrix. The stock PyTorch intake has its own finite dtype/shape
+frontier in the active work item.
+
+Start syntax at `kSupportedForms`/`Parser::parse_instruction` in
+[`parser.cpp`](../../../../plugins/compat/cuda/compiler/ptx/src/parser.cpp), then
+follow the accepted form into the KIR verifier and each advertising backend.
+The current contract excludes atomics, warp/cluster forms, z dimensions,
+approximate/FTZ/saturating variants, dynamic shared memory and generic/local
+addressing. Treat a requested extension as a new exact form with its own
+representation and evidence; presence in PTX 9.x alone grants no support.
 
 ## Translation rules
 
@@ -32,6 +43,13 @@ list is intent; the canonical manifest must enumerate exact forms before freeze.
 - Unknown or unsupported forms produce structured diagnostics containing stable
   code, source range, PTX form, required capability, and supported alternative
   only when one is semantically exact.
+
+For promotion, update the existing affected manifest rows and fixture digests
+with positive and precise negative cases. Preserve directive/version/target,
+declaration, parameter-layout, predicate and control-flow diagnostics when a
+new arithmetic form is added. Read [semantic family](semantic-family.md) for
+representation changes; reuse unrelated accepted rows rather than rebuilding
+their evidence during every implementation step.
 
 ## Primary source
 

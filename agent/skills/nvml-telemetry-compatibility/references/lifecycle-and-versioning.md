@@ -1,5 +1,11 @@
 # Lifecycle and Versioning
 
+For the affected entry point read [symbols.def](../../../../plugins/compat/cuda/management/nvml/symbols.def),
+[dispatch.c](../../../../plugins/compat/cuda/management/nvml/src/dispatch.c),
+[provider.c](../../../../plugins/compat/cuda/management/nvml/src/provider.c), and
+the selected [decision-0016 header inputs](../../../../toolchains/nvidia-headers-1.json).
+Reuse their frozen versions and mode contract before changing a handle or API.
+
 ## Initialization contract
 
 - Maintain one process-visible initialization reference count with explicit
@@ -29,6 +35,12 @@ For count/fill APIs, specify:
 
 Never copy a newer structure into an older caller size. Validate version, size,
 reserved fields, alignment, and array multiplication before writing.
+
+Drive the changed symbol/structure rows from that manifest. Exercise repeated
+and concurrent init/shutdown, pre-init/post-shutdown calls, invalid handles,
+short capacities and concurrent count changes for the affected behavior. Keep
+per-field errors separate from whole-call errors and preserve inert DSO loading,
+provider dependency closure and alias/layout checks when those boundaries change.
 
 ## Primary source
 

@@ -1,5 +1,13 @@
 # Capabilities and Target Environment
 
+Start at `VulkanDeviceContext::initialize` and `select_profile_device` in
+[`vulkan_device.cpp`](../../../../plugins/backend/vulkan/runtime/src/vulkan_device.cpp),
+then follow the resulting profile into `lower_kernel` in
+[`lowering.cpp`](../../../../plugins/backend/vulkan/compiler/src/lowering.cpp).
+Reuse the current profile and exact advertised matrix. Extend its rows only
+when the task adds a device, feature, handle type or qualification boundary;
+an unrelated kernel fix does not reopen device selection.
+
 ## Physical-device profile
 
 Record loader/ICD and driver identities, API version, vendor/device IDs, device
@@ -22,6 +30,12 @@ extensions, resource limits, subgroup constraints, storage classes, execution
 modes, FP policy, and packed-argument/BDA rules into one canonical digest. Feed
 that same object to MLIR conversion, SPIR-V validation, reflection, runtime
 compatibility, diagnostics, and cache identity.
+
+Query support and record the features actually enabled at device creation;
+reported support alone is not enablement. Keep queue ownership, resource limits
+and target digest consistent through preparation and launch. For a stock-client
+task, follow [stock route](stock-route.md) to prove that this device receives the
+request; enumeration or successful component execution alone proves no route.
 
 Never assume subgroup size 32. Warp-dependent operations and unproved
 vote/shuffle/reconvergence fail explicitly. Graphics, images/textures, sparse

@@ -1,4 +1,4 @@
 interface:
   display_name: "CPU Backend Performance"
-  short_description: "Implement and tune CPU execution and warm paths"
-  default_prompt: "Use $cpu-backend-performance skill to implement the requested CPU execution or target-lowering change, or provide analysis when that is the request; select checks for the affected behavior."
+  short_description: "Execute CPU kernel families and remove warm launch costs"
+  default_prompt: "Use $cpu-backend-performance skill to trace the requested behavior to its actual CPU executor and implement the missing family or remove measured warm-path work when requested. For analysis, review or benchmarking, stay in that mode. Reuse the current profile and select evidence for the affected path."

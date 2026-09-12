@@ -1,0 +1,6 @@
+interface:
+  display_name: "Compiler Worker Isolation"
+  short_description: "Bound compiler IPC, cancellation and process cleanup"
+  default_prompt: "Use $compiler-worker-isolation skill to fix or analyze the requested compiler process or IPC failure, preserving bounded limits, cancellation, reap and warm-path bypass within the requested mode."
+policy:
+  allow_implicit_invocation: true

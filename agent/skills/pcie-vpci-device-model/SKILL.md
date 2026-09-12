@@ -5,99 +5,46 @@ description: Implement or review PCI or vPCI Type-0 configuration space, domain 
 
 # PCIe and vPCI Device Model
 
-## Implementation Focus
+Own config-space presentation, enumeration and binding. First select the static
+QEMU guest function or default-off software vroot in the
+[implementation path](references/implementation-path.md). Locate the exact
+config access, bind, BAR/IRQ or removal callback that must change and implement
+its observable behavior with the corresponding consumer.
 
-For an implementation request, use the shared
-[implementation guidance](../review/references/implementation-guidance.md).
-Select the affected inputs and obligations below; broad qualification lists
-do not make every invocation a new inventory or full-suite run.
+Analysis/review requests stay read-only; implementation steps apply to requested
+changes. Use the assignment and Exit Gate through [$main](../main/SKILL.md) skill.
+Reuse the profile's generated config image and identity rules. Follow
+[implementation guidance](../review/references/implementation-guidance.md);
+repeated `lspci` enumeration does not implement a missing data-plane operation.
 
-Choose the concrete guest or vroot observation that must change: config access,
-binding, BAR/IRQ behavior or removal. Implement its callbacks and affected
-consumer path against the selected schema profile. Reuse established config
-images and identity rules; add the relevant boundary access or lifecycle case.
-Do not substitute repeated lspci enumeration for the missing data-plane behavior.
+## Select The Work
 
-## Inputs
+| Task | Read before changing that boundary |
+| --- | --- |
+| Config bytes, access widths, writable masks or BDF | [Config and enumeration](references/config-and-enumeration.md) |
+| Guest BAR0/2/4, MSI-X or doorbell ordering | [BARs and MSI-X](references/bars-msix-ordering.md) |
+| Guest binding, vroot scan, override or sysfs | [Host bridge and binding](references/host-bridge-binding.md) |
+| Reset/remove/re-add and stale access | [Reset and hotplug](references/reset-hotplug.md) |
 
-- The active milestone-0.1.1.0/milestone-0.1.2.0 work item and whether the target is the static QEMU
-  guest function or the default-off bare-metal software root.
-- Exact canonical schema profile, config image/capability list, BDF allocation
-  policy, VID/DID/class, BAR/region contract, MSI-X vectors, driver binding
-  policy, and lifecycle state.
-- `lspci`, sysfs, config-access, BAR, IRQ, reset, add/remove, and concurrent-use
-  evidence for the target kernel/QEMU matrix.
+The guest profile has BARs/MSI-X; the initial vroot fixture advertises no BAR,
+IRQ, PM, PCIe or FLR capability. Never infer capability from the PCI name.
+Use the profile's manifest/import closure, generated image and writable masks;
+callbacks perform no allocation, sleep, RPC or userspace access.
 
-Do not merge the two profiles: the milestone-0.1.1.0 guest function has BARs/MSI-X, while the
-initial milestone-0.1.2.0 vroot fixture deliberately advertises no BAR, IRQ, PM, PCIe, or FLR
-capability.
+UUID is persistent identity; a live incarnation also needs its generation.
+BDF is enumeration-domain-local. Scan-time `device_add()` can expose an unbound
+function before matching; quarantine it, enforce exclusive MetaFlux binding,
+and publish registry `ONLINE` only after successful bind and authority commit.
+Preserve excluded SR-IOV/ATS/PASID/PRI/P2P/AER boundaries.
 
-## Routing
+## Compose At The Crossing
 
-- Use [config and enumeration](references/config-and-enumeration.md) for Type-0
-  images, identity, writable masks, BDF/domain, and enumeration behavior.
-- Use [BARs, MSI-X, and ordering](references/bars-msix-ordering.md) for the guest
-  BAR0/2/4 profile, vectors, access widths, and notification ordering.
-- Use [host bridge and binding](references/host-bridge-binding.md) for QEMU guest
-  attachment, software `pci_host_bridge`, pre-bind, sysfs, and uevents.
-- Use [reset and hotplug](references/reset-hotplug.md) for PCI-visible lifecycle
-  sequencing and stale-access behavior.
-- Route vfio-user wire/DMA transport to `$gpu-virtualization-vfio-user`, kernel
-  cdev/UAPI to `$linux-device-driver-uapi`, and authoritative generation state
-  to `$device-lifecycle-resilience`.
+[$gpu-virtualization-vfio-user](../gpu-virtualization-vfio-user/SKILL.md) skill owns
+wire and guest-DMA transport; [$linux-device-driver-uapi](../linux-device-driver-uapi/SKILL.md) skill
+owns kernel UAPI. [$device-lifecycle-resilience](../device-lifecycle-resilience/SKILL.md) skill
+owns reset/replacement state. Presentation mirrors committed identity and keeps
+old-generation config, BAR and IRQ accesses isolated.
 
-## Workflow
-
-1. Select the profile's owning manifest and validated import closure: the milestone-0.1.1.0
-   root for guest PCI or the milestone-0.1.2.0 vroot extension plus its imported hashes for
-   vroot. Enumerate every implemented config byte, capability, writable mask,
-   side effect, reset value, and unsupported feature before coding callbacks.
-   Generated images/tables are projections, not local sources.
-2. Define identity: canonical UUID, enumeration-domain-local BDF, CI versus
-   release VID/DID, class/revision, subsystem fields, and driver-binding policy.
-3. Build a preallocated Type-0 config image with width/offset validation and
-   serialized presence/add/remove. Config callbacks perform no allocation,
-   sleep, RPC, or userspace access.
-4. For the guest profile, define BAR sizing/probing, mmap regions, access widths,
-   MSI-X table/PBA, vector masking, ioeventfd/irqfd, and DMA/MMIO ordering.
-5. For vroot, define domain/bus/devfn allocation, host bridge ownership,
-   scan/rescan/remove, sysfs/uevent behavior, and exclusive MetaFlux pre-bind.
-   Distinguish config presence, `device_add` visibility, matching enable,
-   successful driver bind, and registry `ONLINE`; do not call
-   `pci_bus_add_device()` the first visibility point. Do not claim unimplemented
-   capabilities to satisfy a probing tool.
-6. Sequence reset/remove/re-add with the lifecycle authority so stale config,
-   BAR, IRQ, cdev, and userspace handles cannot attach to a new generation.
-7. Fuzz config accesses and stress enumeration/lifecycle concurrently on every
-   supported kernel/QEMU pair.
-
-## Output
-
-Select the applicable outputs for the requested task:
-
-- A generated byte/capability/writable-mask config specification for the
-  selected canonical schema profile.
-- A BAR/MSI-X/access/ordering table where those capabilities exist.
-- Enumeration, binding, reset, remove, and re-add state transitions tied to UUID,
-  BDF, generation, and driver ownership.
-- Qualification evidence from `lspci`, sysfs, config fuzzing, IRQ tracing, and
-  lifecycle stress without overstating experimental vroot promotion.
-
-## Verification
-
-- Test config reads/writes for every offset, width, boundary, writable bit,
-  reserved byte, sizing probe, absent function, and concurrent remove.
-- Verify guest BAR sizes, region protections, typed doorbell writes, MSI-X
-  table/PBA masking, vector routing, and no per-command interrupt.
-- Verify UUID and generation across domains while treating BDF as stable only
-  within its enumeration domain; cross-check CUDA/NVML/PCI/sysfs/cdev identity.
-- On vroot, run `lspci -Dnn`, sysfs/uevent/binding tests and the planned 1,000
-  add/remove plus load/unload concurrent-use cycles on Linux 6.12 and 6.18.
-- Trace scan-time `device_add`, uevents, matching enable, override selection,
-  probe, quarantine, removal, and registry commit separately; prove no transient
-  unbound function can match a vendor driver or become registry-online.
-- Regenerate config images, writable masks, BAR tables, and golden-byte fixtures
-  from a clean checkout and compare their owning-definition hashes to the selected
-  profile's owning manifest and validated import closure.
-- Confirm no excluded PCIe capability is advertised and no vendor-owned driver,
-  node, or function is displaced.
+Return the selected profile, changed callback/consumer and exact access/binding
+or lifecycle evidence to parent review. Final qualification retains that
+profile's kernel/QEMU and cycle requirements without claiming other profiles.

@@ -2,6 +2,8 @@
 
 These repository-wide invariants apply in every phase. Stage procedures belong
 to their owning skills; the controller returns the exact current reading set.
+Write repository content, documentation, skill instructions, comments and
+diagnostics in English. Keep routing examples in English as well.
 
 1. Enter through [$main](agent/skills/main/SKILL.md) skill. Before repository
    executables other than host Git/Nix, use

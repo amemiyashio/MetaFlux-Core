@@ -36,8 +36,10 @@ cache attributes, generation, revocation/tombstone behavior, fork policy, and
 VMA open/close ownership. Validate `vm_pgoff` conversion and overflow. Mapping a
 doorbell must not expose adjacent control pages.
 
-The base data-plane UAPI and extension namespace remain pre-freeze until milestone-0.1.1.0
-work-item-0.1.1.4 evidence closes the open decisions. Versioning structure now must permit
-that qualification without claiming v1 stability early.
+The base data-plane envelope is frozen by
+[work-item-0.1.1.4](../../../plan/milestone-0.1.1.0-kernel-guest-transport/work/work-item-0.1.1.4-fault-abi-freeze.md).
+Preserve that accepted base and its hash. Later extension changes qualify their
+own manifest closure; they do not reopen the base or imply stability of an
+unqualified extension.
 
 Primary source: [Linux ioctl design](https://docs.kernel.org/driver-api/ioctl.html).

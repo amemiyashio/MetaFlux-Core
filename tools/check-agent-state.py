@@ -57,6 +57,12 @@ LANE_STATUSES = {"planned", "integrated", "deferred"}
 BATCH_STATUSES = {"open", "integrated"}
 
 DOMAIN_SKILL_SLUGS = {
+    "pytorch-cuda-profile",
+    "cublas-compatibility",
+    "compiler-worker-isolation",
+    "compiler-artifact-cache",
+    "daemon-execution-runtime",
+    "process-activation",
     "runtime-contracts-registry",
     "cuda-driver-abi-compatibility",
     "nvml-telemetry-compatibility",

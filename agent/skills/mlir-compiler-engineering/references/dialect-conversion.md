@@ -1,5 +1,10 @@
 # Dialect Conversion
 
+Use this guide when the selected implementation actually uses dialect
+conversion. First locate the current emitter or pass in
+[target paths](target-lowering.md); a direct CPU LLVM-dialect emission fix does
+not require introducing `ConversionTarget`, ODS or a shared high-level dialect.
+
 ## Conversion contract
 
 1. Define the `ConversionTarget` before patterns. Mark operations/dialects legal,
@@ -28,5 +33,13 @@
 
 Test legal no-op conversion, each rewrite, failed materialization, illegal
 leftovers, nested regions, calls, and diagnostic locations.
+
+For each affected pass, state input/output legality, prerequisites, preserved
+analyses, deterministic ordering and failure diagnostics. Keep verifier-after-pass
+checks in debug/CI and inspect the first invalid intermediate representation.
+Preserving an analysis requires proof that its assumptions survive the rewrite;
+pass order or pattern benefit must not accidentally decide source semantics.
+Select unit/pass/conversion tests for these changes and the target's actual
+end-to-end check; formal verification selects covering sets once per phase.
 
 Primary source: [MLIR Dialect Conversion](https://mlir.llvm.org/docs/DialectConversion/).

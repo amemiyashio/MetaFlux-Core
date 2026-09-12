@@ -1,5 +1,19 @@
 # Qualification
 
+Choose checks for the completed behavior and requested target matrix. The ABI
+and behavioral matrices below define qualification coverage; they do not require
+rebuilding every matrix before an ordinary implementation edit.
+
+| Changed behavior | Existing evidence owner |
+| --- | --- |
+| Export/profile row or alias | [Surface validator](../../../../plugins/compat/cuda/abi/driver/tests/validate_surface_profile.py) and [provider tests](../../../../plugins/compat/cuda/abi/driver/tests/CMakeLists.txt) |
+| Stock profile, application request chain or executor mode | [$pytorch-cuda-profile](../../pytorch-cuda-profile/SKILL.md) skill and its [corpus evidence](../../pytorch-cuda-profile/references/corpus-evidence.md) |
+| Library descriptors, fresh/cached rejection or stock retries | [$cublas-compatibility](../../cublas-compatibility/SKILL.md) skill and its [admission evidence](../../cublas-compatibility/references/library-admission.md) |
+
+Read [CTest registration](../../../../tests/compatibility/registration.cmake) to
+select the actual mode and prerequisites. The linked experts own their
+stock-client qualification details; retain the generic ABI matrices below.
+
 ## ABI matrix
 
 For every selected target version, record:
@@ -28,10 +42,15 @@ expected observable outcome and classification. When CUDA defines no result for
 an invalid or stale handle, test a deterministic rejection only as explicitly
 labeled MetaFlux-strengthened behavior.
 
+Include version mismatch and generated typed-stub cases when those bindings
+change. Preserve C/C++ layout, dependency closure, constructor-free load and
+simultaneous CUDA/NVML checks when their respective boundaries are affected.
+
 ## End-to-end evidence
 
-Run one unmodified Driver API binary through interpreter, cold JIT, warm cache,
-and AOT. Compare integer bytes and the declared per-operation floating-point
+When the owning execution workstream is active, run the unmodified Add/Copy
+Driver API path through interpreter, cold JIT, warm cache and AOT. Compare
+integer bytes and the declared per-operation floating-point
 oracle. Verify default, unfiltered CUDA/NVML enumeration when both providers
 capture the same process-view revision; with `CUDA_VISIBLE_DEVICES`, correlate
 common live incarnations by `(UUID, generation)`, never ordinal or BDF alone.

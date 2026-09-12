@@ -1,4 +1,4 @@
 interface:
   display_name: "NVML Telemetry Compatibility"
-  short_description: "Implement NVML queries with real telemetry"
-  default_prompt: "Use $nvml-telemetry-compatibility skill to implement the requested NVML query or telemetry-mapping change, or provide analysis when that is the request; select checks for the affected behavior."
+  short_description: "Trace NVML queries to real producers and snapshots"
+  default_prompt: "Use $nvml-telemetry-compatibility skill to trace a requested nvidia-smi field or setter to its real producer and snapshot, implement its NVML mapping, and verify freshness and errors; preserve requested analysis scope."

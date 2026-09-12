@@ -26,7 +26,20 @@ distributions with confidence intervals or another stated uncertainty method.
 Never report only the best sample. Preserve failures and outliers with reasons
 instead of silently deleting them.
 
-milestone-0.1.0.0 numeric budgets are provisional until the reference-host harness archives
-its baseline. A smoke result guides work but does not promote a binding gate.
+The [core performance contract](../../../plan/milestone-0.1.0.0-core-foundation/plan.md)
+keeps milestone-0.1.0.0 numeric budgets diagnostic. Under decision-0040, only the
+complete milestone-2.0.0.0 physical NVIDIA H2D/D2H, passthrough and device-identity
+harness may promote them to binding gates. An AMD-only baseline does not do so.
+Keep structural zero-allocation/copy/lock obligations distinct from these numeric
+budgets and disclose the exact production boundary each measurement covers.
+
+For a stock client result, correlate the module, selected CPU mode and executed
+entry with the client request. Separate preparation/first launch from steady
+launches, and include argument preparation and completion in a claimed request
+cost. The executor-only allocation audit demonstrates its own boundary and
+constant counts, not zero allocations throughout the service. Read
+[execution path](execution-path.md) before attributing that result to JIT/AOT or
+the stock PyTorch route. Reuse the existing harness/profile for the changed path;
+broader qualification belongs to the active Exit Gate.
 
 Primary source: [LLVM benchmarking guidelines](https://llvm.org/docs/Benchmarking.html).

@@ -1,4 +1,4 @@
 interface:
   display_name: "PCIe and vPCI Device Model"
   short_description: "Implement PCI presentation, binding and hotplug"
-  default_prompt: "Use $pcie-vpci-device-model skill to implement the requested PCI configuration, binding or hotplug change, or provide analysis when that is the request; select checks for the affected behavior."
+  default_prompt: "Use $pcie-vpci-device-model skill to select the guest or vroot profile and implement the requested config, binding or hotplug callback with its consumer; keep analysis-only requests read-only."

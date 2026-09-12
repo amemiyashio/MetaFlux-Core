@@ -111,6 +111,8 @@ to the configured bound.
   completeness, and tombstone isolation invariants;
 - the minimal counterexample and replay sequence for every failed invariant.
 
-work-item-0.1.2.1 is incomplete when the checker, any input, or this artifact is absent.
-Changing bounds requires review of the versioned bounds file and regenerating the
-artifact; reducing bounds cannot silently preserve a prior pass.
+A current model qualification fails when the checker, an input or its generated
+evidence is absent. This does not reopen accepted work-item-0.1.2.1 or make a
+temporary artifact product authority. Changing bounds requires review of the
+versioned bounds file and fresh evidence; reducing bounds never preserves a
+prior pass silently.

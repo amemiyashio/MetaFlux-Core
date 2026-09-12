@@ -5,99 +5,49 @@ description: Implement or review Linux 6.12 or 6.18 character-device UAPI, ioctl
 
 # Linux Device Driver UAPI
 
-## Implementation Focus
+Own Linux cdev/UAPI and kernel buffer lifetimes. First trace the affected
+userspace operation in `transports/cdev/client/src/cdev.c` to its handler in
+`linux-kernel-drivers/core/metaflux_core_main.c`. Name the fd, VMA or pinned
+buffer whose behavior changes; implement its successful path and unwind
+together. A close is not proof that its VMAs or callbacks are gone.
 
-For an implementation request, use the shared
-[implementation guidance](../review/references/implementation-guidance.md).
-Select the affected inputs and obligations below; broad qualification lists
-do not make every invocation a new inventory or full-suite run.
+Analysis/review requests stay read-only; implementation steps apply to requested
+changes. Use the assignment and Exit Gate through [$main](../main/SKILL.md) skill.
+Reuse the frozen schema and target-kernel matrix. Select the relevant readings
+below before editing; [implementation guidance](../review/references/implementation-guidance.md)
+keeps focused checks tied to an actual implementation uncertainty.
 
-Choose the affected userspace operation and follow its fd/VMA/buffer ownership
-through the kernel to completion or teardown. Implement the operation and its
-unwind together, reusing established UAPI projections and version shims.
-Model the relevant race before coding; use targeted lifetime/fault checks during
-repair and the required kernel matrix for final qualification, rather than
-rebuilding every kernel after each local edit.
+## Select The Work
 
-## Inputs
+| Task | Read before changing that boundary |
+| --- | --- |
+| Trace a cdev/worker operation or choose source/tests | [Implementation path](references/implementation-path.md) |
+| ioctl, compat, mmap or generated public bytes | [UAPI compatibility](references/uapi-compatibility.md) |
+| fd/VMA references, revoke, remove or finalization | [Object lifetime](references/object-and-vma-lifetime.md) |
+| Pin/map/unmap, DMA, ring or notification ordering | [DMA and ordering](references/dma-pinning-ordering.md) |
+| Kernel version/shim changes or final qualification | [Kernel qualification](references/kernel-qualification.md) |
 
-- The active milestone-0.1.1.0/milestone-0.1.2.0 work item, target Linux/Kbuild matrix, canonical
-  transport-envelope schema manifest, Linux UAPI projection, and native/compat
-  callers.
-- Object ownership graph, fd/VMA/mapping/queue/eventfd/worker lifetimes, DMA
-  directions, ordering protocol, quotas, and fault model affected by the task.
-- Existing KUnit, userspace ABI, KASAN/KCSAN/lockdep/kmemleak, and teardown
-  evidence.
+Keep fixed-width UAPI definitions in `contracts/uapi/linux/`; generate all
+consumers from the owning manifest. Later extensions import the frozen base;
+never add an extension definition retroactively to its base allowlist.
+Probe the exact target kernel's APIs for shims and build with its Kbuild using
+Nix-provided tools. Privileged live work uses
+[$manage-host-privilege](../manage-host-privilege/SKILL.md) skill.
 
-Do not copy internal kernel structures into UAPI. Use fixed-width, explicitly
-sized records and compile-probed compatibility shims for supported kernels.
+Implement ring publication and armed waits without per-command interrupts.
+Preserve the warm path's no-syscall/allocation/global-lock design and every
+pin/map/drain/unmap/unpin ownership edge; performance work retains correctness.
 
-## Routing
+## Compose At The Crossing
 
-- Use [UAPI compatibility](references/uapi-compatibility.md) for cdev, ioctl,
-  compat, extension, and mmap contracts.
-- Use [object and VMA lifetime](references/object-and-vma-lifetime.md) for krefs,
-  tombstones, close/remove races, and teardown.
-- Use [DMA, pinning, and ordering](references/dma-pinning-ordering.md) for
-  `FOLL_PIN`, SG/DMA ownership, eventfd, barriers, and unmap drain.
-- Use [kernel qualification](references/kernel-qualification.md) for supported
-  kernel builds, dynamic analysis, fuzzing, and evidence.
-- Route vfio-user negotiation to `$gpu-virtualization-vfio-user`, PCI config and
-  BAR/MSI-X presentation to `$pcie-vpci-device-model`, and cross-transport reset
-  state to `$device-lifecycle-resilience`.
+Use [$runtime-contracts-registry](../runtime-contracts-registry/SKILL.md) skill
+for shared contract changes, [$device-lifecycle-resilience](../device-lifecycle-resilience/SKILL.md) skill
+for authoritative generation transitions, [$pcie-vpci-device-model](../pcie-vpci-device-model/SKILL.md) skill
+for config/BAR/MSI-X presentation, and
+[$gpu-virtualization-vfio-user](../gpu-virtualization-vfio-user/SKILL.md) skill
+for the vfio-user wire. Kernel code consumes these contracts; it implements
+neither CUDA semantics nor tensor execution.
 
-## Workflow
-
-1. Draw the object/refcount graph and name the authority, lock, generation, and
-   terminal state for every fd-, VMA-, mapping-, queue-, event-, and worker-owned
-   object before changing code.
-2. Update the zone-owned Linux UAPI definitions in the selected manifest closure.
-   Definitions on the frozen milestone-0.1.1.0 base allowlist remain referenced exactly once
-   by its base manifest; later lifecycle definitions are referenced by their own
-   extension manifest and never retroactively added to the base. Generate the
-   fixed-width size/version, flags, reserved-zero policy, extension namespace,
-   limits, compat layouts, and byte fixtures; never make a kernel-private struct
-   or handwritten duplicate the normative layout. Define exact errno and
-   overflow behavior for every rejection.
-3. Specify `open`, ioctl, `mmap`, `poll`/wait, eventfd registration, close,
-   remove, daemon death, and module-unload transitions including concurrent
-   interleavings.
-4. For each userspace buffer, choose pin API, long-term/write flags, accounting,
-   DMA direction, SG mapping, synchronization, dirtying, drain, unmap, and unwind
-   order. Reject unsupported memory rather than downgrading silently.
-5. Encode ring publication/consumption and doorbell/completion ordering with the
-   project atomic and DMA/MMIO barrier contract. Separate polling from armed
-   waits and avoid per-command interrupts.
-6. Keep kernel-version differences in compile-probed compatibility shims. Create
-   their source home only with real implementation, following
-   [Roadmap Homes](../../../docs/roadmap.md#kernel-compatibility-shims).
-   Never weaken ownership or ordering based on a version check alone.
-7. Add fault injection and concurrent teardown tests before performance work.
-
-## Output
-
-Select the applicable outputs for the requested task:
-
-- The canonical schema projection plus generated UAPI/errno/compat table,
-  native/compat layout fixtures, and object/refcount state diagram.
-- A pin/map/sync/drain/unmap/unpin ledger for each buffer class.
-- Explicit ordering pairs for descriptor, doorbell, completion, timeline, and
-  event notification.
-- Kernel qualification results across the pinned matrix, with unresolved ABI
-  decisions clearly marked as pre-freeze.
-
-## Verification
-
-- Build with each supported target Kbuild toolchain and `LLVM=1` where the
-  target configuration supports it; run native and compat ABI/layout tests.
-- Exercise short size, unknown extension/flag, reserved bits, nulls, overflow,
-  bad offset/width, stale generation, permission, and interrupted wait cases.
-- Verify the selected manifest references each definition in its own allowlist
-  once, extension imports preserve the frozen base hash, and kernel, C17, C++20,
-  native, and compat generated byte/offset fixtures agree.
-- Race open/mmap/ioctl/poll/close/unmap/remove/worker death under KUnit, KASAN,
-  KCSAN, lockdep, and kmemleak as applicable.
-- Prove every page and DMA mapping unwinds exactly once on every injected failure
-  and no successful unmap leaves a server/backend/callback reference.
-- Measure the active cdev path only after tracing proves no warm enqueue syscall,
-  allocation, or global lock.
+Return the changed operation, exact lifetime/errno boundary and affected
+native/compat or race evidence to parent review. Select the relevant final
+matrix once; a module load or one happy ioctl does not qualify the UAPI.

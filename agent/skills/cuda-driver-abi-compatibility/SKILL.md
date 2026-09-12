@@ -1,100 +1,58 @@
 ---
 name: cuda-driver-abi-compatibility
-description: Implement or review libcuda.so compatibility for CUDA Driver symbols, ELF version aliases, cuGetProcAddress, contexts, modules, memory, streams, events, and CUDA error behavior. Use for provider ABI work, the stock PyTorch CUDA profile, or CUDA-visible lifecycle behavior. Do not use for PTX semantics, compiler lowering, NVML telemetry, or backend execution policy.
+description: Implement or review CUDA Driver ABI exports, version resolution, contexts, modules, memory, streams, events and observable errors. Own generic CUDA object and call semantics; compose the PyTorch profile and cuBLAS experts for stock-kernel intake and library translation.
 ---
 
 # CUDA Driver ABI Compatibility
 
-## Implementation Focus
+Start with the requested client call and its first missing translation or
+lifecycle behavior. Read the relevant work item and selected provider manifest,
+then trace that call in
+[Driver dispatch](../../../plugins/compat/cuda/abi/driver/src/dispatch.c),
+[Driver behavior](../../../plugins/compat/cuda/abi/driver/src/provider.c).
+Locate the failing ABI binding, object transition or error observation point
+before choosing an edit. Delegate stock profile and library-specific behavior
+through their owning experts below.
 
-For an implementation request, use the shared
+Read the complete reference for the affected task. Explicit analysis or
+review-only requests stay read-only; benchmark requests measure the requested
+path without implicitly changing behavior. For implementation, deliver the missing
+behavior and real consumer using the shared
 [implementation guidance](../review/references/implementation-guidance.md).
-Select the affected inputs and obligations below; broad qualification lists
-do not make every invocation a new inventory or full-suite run.
 
-Trace the stock client's actual call through symbol resolution, descriptor
-admission, fresh/reused handles, module identity and daemon completion. Implement
-the missing translation or lifecycle behavior with its real client consumer.
-Before removing a fallback, prove reachability across admitted configurations,
-not just corpus entries; follow client-side retries after a typed rejection.
-A fixed-profile rejection repair does not add supported shapes.
+| Task | Read |
+| --- | --- |
+| Export, version alias, typed stub, `cuGetProcAddress` | [Symbols and versioning](references/symbols-and-versioning.md) |
+| Context/module/function/memory/stream/event lifetime or CUDA errors | [Object semantics](references/object-semantics.md) |
+| Stock PyTorch internal tables, fatbins, argument normalization or executable profile | [$pytorch-cuda-profile](../pytorch-cuda-profile/SKILL.md) skill |
+| cuBLAS/cuBLASLt descriptors, scalars, heuristics, status mapping or retries | [$cublas-compatibility](../cublas-compatibility/SKILL.md) skill |
+| Select ABI and handle checks for the completed slice | [Qualification](references/qualification.md) |
 
-## Inputs
+Keep these boundaries visible throughout implementation:
 
-- The active milestone/work item and the exact CUDA header manifest or target
-  release set being qualified.
-- The provider ABI manifest, generated exports, version script, object tables,
-  and the unmodified acceptance application relevant to the change.
-- The current client protocol and registry-view contracts when behavior crosses
-  the provider boundary.
+- Pinned headers and manifests fix the ABI. Label behavior as normative,
+  observed on a named driver/client build, or MetaFlux-strengthened; an
+  observation is not a universal CUDA guarantee.
+- Loading a DSO creates no provider state. Initialization is lazy and reentrant;
+  handles bind owner, context and generation. Preserve asynchronous error
+  observation points and teardown of outstanding references.
+- Providers remain C17. They translate requests through
+  the neutral client protocol; tensor execution and result materialization
+  belong to the daemon/backend. Keep C++/LLVM/MLIR and backend dependencies out.
+- Reuse unchanged manifests and object models. Preserve qualified warm-path
+  allocation, locking and registration properties when changing call behavior.
+  Use the profile and library experts for their admission invariants.
 
-Do not infer a CUDA surface from memory. Treat pinned headers and the repository
-manifest as the versioned source of truth.
+Compose [$runtime-contracts-registry](../runtime-contracts-registry/SKILL.md) skill
+for neutral requests, shared views or freeze rules and
+[$device-lifecycle-resilience](../device-lifecycle-resilience/SKILL.md) skill for
+reset/loss/replacement. PTX meaning belongs to
+[$ptx-simt-semantics](../ptx-simt-semantics/SKILL.md) skill; conversion mechanics to
+[$mlir-compiler-engineering](../mlir-compiler-engineering/SKILL.md) skill; CPU execution to
+[$cpu-backend-performance](../cpu-backend-performance/SKILL.md) skill; telemetry to
+[$nvml-telemetry-compatibility](../nvml-telemetry-compatibility/SKILL.md) skill.
 
-## Routing
-
-- Use [symbols and versioning](references/symbols-and-versioning.md) for exports,
-  aliases, typed stubs, and `cuGetProcAddress`.
-- Use [object semantics](references/object-semantics.md) for contexts, handles,
-  memory, modules, streams, events, teardown, and errors.
-- Use [qualification](references/qualification.md) for ABI and application
-  evidence.
-- Route PTX meaning to `$ptx-simt-semantics`, lowering mechanics to
-  `$mlir-compiler-engineering`, CPU execution to `$cpu-backend-performance`, and
-  telemetry or `nvidia-smi` behavior to `$nvml-telemetry-compatibility`.
-- Compose `$runtime-contracts-registry` when process-view membership, ordering,
-  `registry_view_id`, or provider freeze rules change, and
-  `$device-lifecycle-resilience` when reset/loss/replacement generation changes.
-  This skill owns the CUDA-visible mapping, handle lifetime, and error outcome;
-  it consumes rather than redefines those shared contracts.
-
-## Workflow
-
-1. Freeze the target header/driver matrix and map each requested API to its
-   canonical declaration, aliases, minimum API version, and implementation
-   status.
-2. Prove the ELF surface before behavior: SONAME, symbol names, symbol versions,
-   visibility, aliases, calling convention, data layouts, and dependencies.
-3. Define initialization and registry-view acquisition so loading the DSO alone
-   creates no state and the first real call is lazy, reentrant, and fail-safe.
-4. Classify every observable behavior as normative for the pinned header/spec,
-   observed on a named target driver family/build, or MetaFlux-strengthened where
-   CUDA leaves behavior undefined or unspecified. Never present an observation or
-   strengthening as a CUDA compatibility guarantee.
-5. Specify each handle class with owner, generation, valid transitions,
-   concurrency rule, destruction behavior, stale-handle outcome, and behavior
-   classification.
-6. Trace synchronous and asynchronous error delivery through copies, launches,
-   events, and synchronization points. Preserve normative CUDA observation points;
-   qualify selection/order among multiple pending errors on named driver builds
-   when the specification does not fix it.
-7. Keep the provider C17-only and route execution through the ecosystem-neutral
-   client protocol. Do not introduce LLVM/MLIR, a backend dependency, or a C++
-   object across the provider boundary.
-8. Build positive, negative, short-buffer, version-mismatch, repeated-lifecycle,
-   and concurrent tests from the manifest rather than hand-picking symbols.
-
-## Output
-
-Select the applicable outputs for the requested task:
-
-- A versioned symbol/alias/status matrix and any manifest changes.
-- An object-lifecycle and error-semantics table for affected APIs, with each row
-  labeled normative, observed on a named driver build, or MetaFlux-strengthened.
-- A bounded implementation slice naming provider, protocol, and test owners.
-- Qualification evidence with exact target headers, commands, and observed
-  behavior; list unsupported calls and their typed CUDA errors explicitly.
-
-## Verification
-
-- Compare generated exports and versions with the pinned manifest and target
-  headers; inspect the DSO with `readelf` or equivalent ELF tools.
-- Verify C/C++ layout probes, dependency closure, constructor-free loading, and
-  simultaneous CUDA/NVML loading.
-- Run the unmodified Add/Copy path across interpreter, cold JIT, warm JIT, and
-  AOT when the owning workstream is active.
-- Exercise nulls, short buffers, invalid ordinals, stale handles, duplicate
-  destroy, concurrent init/shutdown, fault injection, and every generated stub;
-  verify each expected result carries its behavior classification and evidence.
-- Report planned gates as planned. Do not claim provider compatibility from a
-  fixture-only or compile-only result.
+Return the behavior delta, affected ABI/lifetime rows, actual client and
+executor evidence, typed errors, and remaining unsupported scope. Select checks
+for that delta before formal verification; fixture or export success alone
+does not qualify the stock client or every execution mode.

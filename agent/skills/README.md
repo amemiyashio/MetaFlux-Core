@@ -1,7 +1,7 @@
 # MetaFlux Skills
 
 Enter through [$main](main/SKILL.md) skill, then read only the workflows and domain
-skills that own the task. The 25 packages remain in this single directory;
+skills that own the task. The 31 packages remain in this single directory;
 `.agents/skills` links here. Shared mechanisms live in `agent/lib/`; stage
 helpers and references live with their owning skill. The main entry owns the
 [skill-reference convention](main/SKILL.md#skill-references).
@@ -35,19 +35,42 @@ The roster and explicit-only policy have one owner in
 
 ## Domain
 
+Start with the expert that owns the requested behavior. Its short entry gives a
+first source action and a task-to-reference table; read the selected topic fully
+before editing, and compose another expert only at its affected boundary.
+Specialist guides preserve the current work-item Exit Gate. They do not create
+execution stages or turn a read-only question into implementation.
+
 | Skill | Status | Use when |
 | --- | --- | --- |
-| [$runtime-contracts-registry](runtime-contracts-registry/SKILL.md) skill | Active | Neutral registry, client protocol, shared layout, backend ABI, and schema ownership |
-| [$cuda-driver-abi-compatibility](cuda-driver-abi-compatibility/SKILL.md) skill | Active | CUDA Driver symbols, objects, and error behavior |
-| [$nvml-telemetry-compatibility](nvml-telemetry-compatibility/SKILL.md) skill | Active | NVML telemetry and stock nvidia-smi |
-| [$ptx-simt-semantics](ptx-simt-semantics/SKILL.md) skill | Active | PTX and SIMT semantic-oracle meaning |
-| [$mlir-compiler-engineering](mlir-compiler-engineering/SKILL.md) skill | Active | Kernel IR/MLIR conversion and compiler passes |
-| [$cpu-backend-performance](cpu-backend-performance/SKILL.md) skill | Active | CPU execution, SIMD, topology, and performance |
+| [$pytorch-cuda-profile](pytorch-cuda-profile/SKILL.md) skill | Active | Stock kernel/argument intake, finite profile admission, corpus and final client outcome |
+| [$cublas-compatibility](cublas-compatibility/SKILL.md) skill | Active | cuBLAS/Lt descriptors, layouts, heuristics, epilogues and typed library errors |
+| [$cuda-driver-abi-compatibility](cuda-driver-abi-compatibility/SKILL.md) skill | Active | Generic Driver exports, resolver/version ABI, contexts, objects and CUDA errors |
+| [$nvml-telemetry-compatibility](nvml-telemetry-compatibility/SKILL.md) skill | Active | Real telemetry producer-to-snapshot-to-NVML behavior and stock nvidia-smi |
+| [$process-activation](process-activation/SKILL.md) skill | Active | Process provider selection, loader coexistence, daemon/socket activation and device access |
+| [$runtime-contracts-registry](runtime-contracts-registry/SKILL.md) skill | Active | Neutral kernel requests/lifetimes, registry, shared layout, backend ABI and schemas |
+| [$daemon-execution-runtime](daemon-execution-runtime/SKILL.md) skill | Active | Session objects, prepared modules, backend dispatch, completion and teardown |
+| [$ptx-simt-semantics](ptx-simt-semantics/SKILL.md) skill | Active | Reusable PTX/Kernel IR forms, SIMT meaning and independent oracles |
+| [$mlir-compiler-engineering](mlir-compiler-engineering/SKILL.md) skill | Active | Actual Kernel IR/MLIR emitters, legality, compiler passes and cache identity |
+| [$compiler-worker-isolation](compiler-worker-isolation/SKILL.md) skill | Active | Compiler child protocol, process limits, deadlines, cancellation and reaping |
+| [$compiler-artifact-cache](compiler-artifact-cache/SKILL.md) skill | Active | Semantic cache identity, per-UID mutable/AOT tiers, atomic publication, pins and eviction |
+| [$cpu-backend-performance](cpu-backend-performance/SKILL.md) skill | Active | Generic CPU execution, shape families, SIMD, topology and same-path performance |
 | [$linux-device-driver-uapi](linux-device-driver-uapi/SKILL.md) skill | Active | Linux cdev UAPI, mapping, DMA, ordering, and lifetime |
 | [$gpu-virtualization-vfio-user](gpu-virtualization-vfio-user/SKILL.md) skill | Active | vfio-user transport and containment |
 | [$pcie-vpci-device-model](pcie-vpci-device-model/SKILL.md) skill | Active | PCI/vPCI config, BAR/MSI-X, binding, and hotplug |
 | [$device-lifecycle-resilience](device-lifecycle-resilience/SKILL.md) skill | Active | Cross-adapter generation, drain, and fault state machines |
-| [$vulkan-spirv-compute](vulkan-spirv-compute/SKILL.md) skill | Active | Vulkan/SPIR-V compute and target-runtime behavior |
+| [$vulkan-spirv-compute](vulkan-spirv-compute/SKILL.md) skill | Active | Fixed AMD Vulkan request-to-GPU completion, SPIR-V and warm runtime |
+
+The 17 experts form three practical groups without extra directory nesting:
+client integration (PyTorch, cuBLAS, Driver, NVML and activation), execution and
+compilation (neutral contracts, daemon, PTX, MLIR, compiler worker/cache and
+CPU/Vulkan), and device transport/lifecycle (Linux UAPI, vfio-user, PCI/vPCI and
+lifecycle). These groups organize discovery; they are not new workflow stages.
+Select by the missing behavior, then compose only the crossed owners. For
+example, a new stock shape family uses profile admission plus PTX/backend
+semantics; a compiler timeout starts at worker isolation, without loading a
+registry or Driver manual. Path-owned rules select implementation modules;
+semantic cross-boundary changes explicitly load their additional owners.
 
 ## Utility
 
@@ -71,5 +94,5 @@ The parent reviews coding-subagent work before another dispatch. Maintenance,
 Batch acceptance, and Epoch activation publish automatically unless the user
 limits publication. No script creates agents, source copies, or application
 contexts. Every stop uses the diagnostic contract of [$recover](recover/SKILL.md) skill.
-The bilingual [routing corpus](trigger-evals.json) checks entry boundaries;
+The English [routing corpus](trigger-evals.json) checks entry boundaries;
 behavioral tests separately check executable transitions.

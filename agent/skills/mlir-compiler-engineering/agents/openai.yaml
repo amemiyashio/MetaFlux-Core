@@ -1,4 +1,4 @@
 interface:
   display_name: "MLIR Compiler Engineering"
-  short_description: "Implement Kernel IR conversion and pass pipelines"
-  default_prompt: "Use $mlir-compiler-engineering skill to implement the requested Kernel IR conversion or pass-pipeline change, or provide analysis when that is the request; select checks for the affected behavior."
+  short_description: "Complete actual CPU or Vulkan compiler emission paths"
+  default_prompt: "Use $mlir-compiler-engineering skill to implement or analyze the first missing emitter/conversion step on the requested CPU or Vulkan path, preserving legality and execution evidence while handing worker lifecycle and artifact persistence to their owners."

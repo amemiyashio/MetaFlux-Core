@@ -1,0 +1,4 @@
+interface:
+  display_name: "Daemon Execution Runtime"
+  short_description: "Implement session dispatch and retained resource lifetime"
+  default_prompt: "Use $daemon-execution-runtime skill to implement the missing session-to-backend transition, preserve resource lifetime and verify actual completion; keep an explicit analysis or benchmark request in that mode."

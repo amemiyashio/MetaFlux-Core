@@ -1,4 +1,4 @@
 interface:
   display_name: "GPU Virtualization with vfio-user"
   short_description: "Implement vfio-user guest transport behavior"
-  default_prompt: "Use $gpu-virtualization-vfio-user skill to implement the requested vfio-user guest transport change, or provide analysis when that is the request; select checks for the affected behavior."
+  default_prompt: "Use $gpu-virtualization-vfio-user skill to locate the actual guest/server consumer, implement its missing transport and DMA lifetime behavior, and qualify that path; keep analysis-only requests read-only."

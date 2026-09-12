@@ -1,0 +1,6 @@
+interface:
+  display_name: "Compiler Artifact Cache"
+  short_description: "Preserve JIT/AOT identity and persistent cache lifetimes"
+  default_prompt: "Use $compiler-artifact-cache skill to fix or analyze the requested artifact identity, publication, quota or pin behavior while preserving mode provenance and avoiding repeated resident warm work."
+policy:
+  allow_implicit_invocation: true

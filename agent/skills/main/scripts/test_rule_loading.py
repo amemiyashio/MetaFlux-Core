@@ -176,6 +176,35 @@ class RuleLoadingTests(unittest.TestCase):
         controller.step(self.root, "review", {"summary": "Reviewed package creation and removal"})
         self.assertEqual(controller.step(self.root, "evaluate", {})["stage"], "delivery")
 
+    def test_specialist_selection_follows_execution_owners(self):
+        cases = (
+            ("tests/compatibility/run_pytorch_cuda_cpu_frontier.py", "pytorch-cuda-profile",
+             {"cuda-driver-abi-compatibility", "compiler-worker-isolation"}),
+            ("plugins/compat/cuda/libraries/cublas/src/provider.c", "cublas-compatibility",
+             {"cuda-driver-abi-compatibility", "cpu-backend-performance"}),
+            ("services/metafluxd/src/compiler_worker_client.cpp", "compiler-worker-isolation",
+             {"runtime-contracts-registry", "daemon-execution-runtime", "mlir-compiler-engineering"}),
+            ("compiler/core/src/artifact_cache.cpp", "compiler-artifact-cache",
+             {"mlir-compiler-engineering", "ptx-simt-semantics"}),
+            ("services/metafluxd/src/server.cpp", "daemon-execution-runtime",
+             {"compiler-worker-isolation", "runtime-contracts-registry"}),
+            ("plugins/compat/cuda/passthrough/src/passthrough.c", "process-activation",
+             {"cuda-driver-abi-compatibility", "nvml-telemetry-compatibility"}),
+        )
+        for path, owner, unrelated in cases:
+            with self.subTest(path=path):
+                selected = set(rules.required(fixture.SOURCE_ROOT, "iteration", [path], action="implement"))
+                self.assertIn(owner, selected)
+                self.assertTrue(selected.isdisjoint(unrelated), selected)
+                # Semantic crossings still add their explicitly requested owner.
+                composed = rules.required(fixture.SOURCE_ROOT, "iteration", [path],
+                                          ["runtime-contracts-registry"], action="review")
+                self.assertIn(owner, composed)
+                self.assertIn("runtime-contracts-registry", composed)
+                self.assertIn("review", composed)
+                self.assertNotIn(owner, rules.required(fixture.SOURCE_ROOT, "iteration", [path],
+                                                       action="publish"))
+
     def test_wrong_workflow_and_missing_scope_rules_rejected(self):
         controller.begin(self.root, fixture.request(self.root, "iteration"))
         self.load()

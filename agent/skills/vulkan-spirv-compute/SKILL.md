@@ -1,123 +1,60 @@
 ---
 name: vulkan-spirv-compute
-description: Implement or review Vulkan 1.3 compute device and queue selection, capability profiles, buffer device address, memory and Synchronization2, SPIR-V target environments and validation, pipeline caches, device loss, and rejection of unsupported subgroup assumptions. Use for Vulkan backend work and physical AMD PyTorch CUDA qualification. Do not use for MLIR conversion mechanics, graphics, or presentation.
+description: Implement or review Vulkan compute lowering, fixed-context physical AMD execution, memory/synchronization, resident pipelines and device loss. Use for the stock PyTorch GPU route or backend changes; MLIR mechanics and CUDA stream translation have separate owners.
 ---
 
 # Vulkan and SPIR-V Compute
 
-## Implementation Focus
+For an implementation request, connect its first missing step to selected-device
+completion and readback. For analysis, review or benchmarking, stay within that
+requested mode and report evidence without claiming a new GPU route.
+Begin with `Session::process_launch` and
+module preparation in
+[`server.cpp`](../../../services/metafluxd/src/server.cpp), then
+`VulkanExecutionRoute::prepare/launch` in
+[`vulkan_execution.cpp`](../../../services/metafluxd/src/vulkan_execution.cpp).
 
-For an implementation request, use the shared
-[implementation guidance](../review/references/implementation-guidance.md).
-Select the affected inputs and obligations below; broad qualification lists
-do not make every invocation a new inventory or full-suite run.
+For a component task, start instead at its owning compiler/runtime symbol in
+the guides below. The current Goal qualifies the CPU profile before the physical
+AMD stock-client route; this skill does not reorder that route. Reuse the current
+device/capability matrix unless the requested change expands or invalidates it.
 
-Start at the first missing step from the assigned real client request to the
-selected physical device and result readback. Implement that path with fixed
-context routing and reuse prepared pipelines/resources on warm launches. For
-the PyTorch AMD lane, the first observable unit is stock eager add/copy/readback
-with correlated GPU completion; a standalone shader benchmark or enumeration
-is a diagnostic input, not that integration result.
+| Task | Read only the relevant guide |
+| --- | --- |
+| Stock request routing, eager add/copy/readback or actual GPU evidence | [Stock daemon route](references/stock-route.md) |
+| Device/queue/feature/limit selection or target digest | [Capabilities and target](references/capabilities-target-env.md) |
+| New SPIR-V emission, validation, reflection or argument mapping | [SPIR-V validation](references/spirv-validation.md) |
+| Memory tiers/imports, visibility, queues, streams/events | [Memory and synchronization](references/memory-sync.md) |
+| Resident pipeline/cache, warm launch or loss/replacement generation | [Cache and device loss](references/cache-device-loss.md) |
+| Physical throughput, timing windows or overhead attribution | [Benchmarking](references/benchmarking.md) |
 
-## Inputs
+Use only queried and enabled features represented by the exact target digest.
+Lowering, SPIR-V validation, reflection, runtime and cache must agree before
+pipeline creation. Preserve workgroup, FP, address/BDA and packed-argument
+semantics; reject unproved subgroup/warp assumptions and unsupported forms.
 
-- The active Vulkan-owning work item, exact Vulkan loader/ICD/driver-family matrix,
-  physical-device properties/features/limits, and serialized target environment.
-- Kernel IR semantic requirements, SPIR-V module/reflection, packed argument ABI,
-  memory tier, queue/timeline plan, cache keys, and lifecycle generation.
-- Validation output, differential fixtures, API traces, pipeline/cache evidence,
-  and device-loss fault traces relevant to the task.
+A logical context fixes its backend before resource success. Per-kernel CPU
+fallback never qualifies Vulkan. Complete actual GPU work before publishing
+completion, preserving dependencies, visibility and resource generations.
+Only explicit staging is the baseline; imported memory requires its exact
+handle/ownership/synchronization evidence. Lost devices never reuse old resources.
 
-Use only features actually queried and enabled for the selected logical context.
-A reported physical capability is not usable until enabled and represented in the
-target environment and cache identity.
+Prepare reusable pipelines, descriptors, command resources and allocations
+before warm execution. Prove no compiler/validator, shader or pipeline creation,
+Vulkan allocation or MetaFlux heap allocation on the claimed warm path. A direct
+component warm trace does not automatically prove the daemon's warm behavior.
 
-## Routing
+Compose [$mlir-compiler-engineering](../mlir-compiler-engineering/SKILL.md) skill for
+conversion mechanics and [$ptx-simt-semantics](../ptx-simt-semantics/SKILL.md) skill for
+source meaning. Lifecycle authority uses [$device-lifecycle-resilience](../device-lifecycle-resilience/SKILL.md) skill;
+neutral ABI uses [$runtime-contracts-registry](../runtime-contracts-registry/SKILL.md) skill.
+Service dispatch uses [$daemon-execution-runtime](../daemon-execution-runtime/SKILL.md) skill;
+ordinary client startup uses [$process-activation](../process-activation/SKILL.md) skill.
+CUDA default/PTDS translation belongs to provider/runtime before neutral Graph IR.
 
-- Use [capabilities and target environment](references/capabilities-target-env.md)
-  for device/queue selection, features, limits, BDA, and SPIR-V constraints.
-- Use [memory and synchronization](references/memory-sync.md) for memory tiers,
-  imports, queues, Synchronization2, timelines, and stream/event ordering.
-- Use [SPIR-V validation](references/spirv-validation.md) for module environment,
-  validation, reflection, packed arguments, and semantic diagnostics.
-- Use [cache and device loss](references/cache-device-loss.md) for portable and
-  device caches, warm launch, eviction, corruption, and lifecycle integration.
-- Route dialect/conversion/pass implementation to `$mlir-compiler-engineering`,
-  PTX source meaning to `$ptx-simt-semantics`, and cross-transport generation
-  handling to `$device-lifecycle-resilience`. Route neutral external-memory ABI
-  fields to `$runtime-contracts-registry` and transport import mechanics to the
-  matching transport skill.
-- Vulkan consumes ecosystem-neutral Graph IR dependency edges. Compose
-  `$cuda-driver-abi-compatibility` and `$runtime-contracts-registry` when changing
-  translation of CUDA legacy-default or per-thread-default stream behavior; the
-  target backend never interprets those CUDA modes itself.
-
-## Workflow
-
-1. Freeze the driver-family/device matrix and query API version, extensions,
-   features, limits, queue families, memory properties, UUIDs, and BDA support.
-   Select and enable one coherent capability profile.
-2. Serialize an exact target environment used by lowering, validation,
-   reflection, runtime checks, diagnostics, and cache keys. Reject any mismatch
-   before pipeline creation.
-3. Define CTA/workgroup, builtin, Workgroup storage, barrier, atomic, FP,
-   subgroup, pointer/BDA, and packed-argument mappings. Unsupported CUDA/PTX
-   semantics fail explicitly; never fall back per kernel inside a Vulkan context.
-4. Select one truthful memory tier per allocation/import and define handle-type
-   compatibility, fd ownership, temporary/permanent import, queue-family
-   ownership transfer, permissions, flush/invalidate, external synchronization,
-   generation, and unregister/device-loss lifetime.
-5. Execute explicit Graph IR FIFO, dependency, copy-visibility, and event edges
-   using `vkQueueSubmit2` and timeline semaphores. Batching may preserve but never
-   weaken dependencies; no CUDA stream mode crosses this target boundary.
-   A generation-bound context keeps its generation across reset: resubmission
-   stays on the context's own generation, and a foreign generation is
-   `stale_generation` by contract, not a re-armable value.
-6. Validate and reflect SPIR-V before creating a shader module/pipeline. Publish
-   portable and device-bound cache entries atomically with complete identities.
-7. Integrate device loss with the milestone-0.1.2.0 authority: stop admission, isolate old
-   resources, publish lost by deadline, and never reuse a failed context or its
-   device addresses.
-8. On physical execution measurement, treat per-lane chain depth as the primary
-   throughput knob: RDNA3-class adapters are latency-limited on low-ILP FMA
-   kernels by an order of magnitude versus their chain-parallel form, and
-   elementwise streaming through the host-visible staging tier is
-   bandwidth-bound long before shader throughput. Anchor device timestamp
-   windows to the host completion observation and keep the anchors monotonic;
-   record the chain depth, memory tier, and clock assumptions beside the
-   numbers.
-
-## Output
-
-Select the applicable outputs for the requested task:
-
-- A selected capability/limit/queue/memory profile and serialized target digest.
-- A semantic mapping and unsupported-diagnostic table.
-- Memory/synchronization/resource-lifetime and packed-argument contracts.
-- Portable/device cache identity plus validation, differential, warm-path, and
-  device-loss qualification evidence across the required driver families.
-
-## Verification
-
-- Cross-check queried, enabled, target-environment, SPIR-V-declared, reflected,
-  and cache-key capabilities; any disagreement is a hard pre-pipeline failure.
-- Run `spirv-val` for the exact Vulkan environment and negative tests for missing
-  features, limits, storage classes, scopes, memory semantics, layouts, and BDA.
-- Differentially compare every advertised form on the active milestone's exact
-  device/driver matrix with CPU/interpreter/native references as applicable.
-  PyTorch's first physical AMD route belongs to work-item-0.2.0.3; physical
-  AMD+NVIDIA dual-driver qualification belongs to work-item-2.0.0.3 under
-  decision-0040 and does not block that first AMD route.
-- Separate model tests, software ICD runs, physical component fixtures and
-  real-client GPU qualification. The latter requires actual device identity
-  and correlated GPU submission/completion; successful enumeration, optional
-  adapter code, compilation counters, CPU results or a skipped probe do not
-  supply it. Read the current daemon adapter boundary before claiming it
-  satisfies the fixed-backend policy.
-- Test neutral FIFO/dependency graphs, copies, barriers, atomics, imports,
-  handle-type ownership transfer, temporary/permanent payloads, external/foreign
-  queue families, unregister, cache corruption/change, and device loss over
-  memfd, cdev, and guest vfio-user where the milestone requires them. Test CUDA
-  default-stream translation only in the composed provider/runtime suite.
-- Trace warm launch to prove no MLIR/SPIR-V compiler/validator, shader module,
-  pipeline creation, Vulkan allocation, or MetaFlux heap allocation occurs.
+Verify affected advertised forms on their required device/driver rows and run
+the exact SPIR-V validator. Physical stock-client acceptance needs named AMD
+device identity and correlated submission/completion; skips, software ICD,
+enumeration and CPU results do not qualify it. Dual-driver promotion remains
+milestone-2.0.0.0. Hand the implemented behavior and evidence to
+[$review](../review/SKILL.md) skill without another unchanged matrix run.

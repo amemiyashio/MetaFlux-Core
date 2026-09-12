@@ -1,4 +1,6 @@
 interface:
   display_name: "CUDA Driver ABI Compatibility"
-  short_description: "Implement CUDA Driver calls and object behavior"
-  default_prompt: "Use $cuda-driver-abi-compatibility skill to implement the requested CUDA Driver ABI or object-lifecycle change, or provide analysis when that is the request; select checks for the affected behavior."
+  short_description: "Trace CUDA ABI bindings, object lifetime and errors"
+  default_prompt: "Use $cuda-driver-abi-compatibility skill to trace a CUDA call through its ABI binding, handle lifetime and error observation point, implement the missing Driver behavior, and check stale objects and asynchronous errors; preserve analysis or benchmark scope."
+policy:
+  allow_implicit_invocation: true

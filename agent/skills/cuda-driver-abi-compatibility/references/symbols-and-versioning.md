@@ -5,8 +5,10 @@ Load this reference for export generation, version aliases, typed stubs, or
 
 ## Repository checklist
 
-1. Name the selected header packages and hashes. The open milestone-0.1.0.0 header
-   acquisition decision must close before the work-item-0.1.0.4 manifest freezes.
+1. Read the selected packages and hashes from the current
+   [decision-0016 inputs](../../../../toolchains/README.md#cudanvml-abi-inputs-decision-0016)
+   and [header manifest](../../../../toolchains/nvidia-headers-1.json).
+   Reuse that frozen identity; header acquisition is already decided.
 2. Generate, rather than manually duplicate, the canonical symbol, required
    `_v2`/`_v3`, PTDS alias, declaration, version node, and implementation status.
 3. Keep implementation symbols hidden. Export only the manifest surface through
@@ -24,6 +26,14 @@ Load this reference for export generation, version aliases, typed stubs, or
    or heap state before the first real API call.
 
 ## Evidence
+
+Start with the [symbol authority](../../../../plugins/compat/cuda/abi/driver/symbols.def),
+[provider dispatch](../../../../plugins/compat/cuda/abi/driver/src/dispatch.c),
+[surface profile](../../../../plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1.json)
+and its [validator](../../../../plugins/compat/cuda/abi/driver/tests/validate_surface_profile.py).
+Check the affected declaration, API version and alias before changing behavior.
+When an ABI surface changes, prove calling convention and data layout as well as
+symbol spelling; a matching export name alone is insufficient.
 
 - Diff canonicalized exports, ELF symbol versions, sizes, bindings, and
   visibility against a checked-in expected manifest.

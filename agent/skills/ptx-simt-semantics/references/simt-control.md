@@ -1,5 +1,20 @@
 # SIMT Control
 
+## Current representation first
+
+Read `operation_contract`, `may_be_predicated` and `verify_kernel` in
+[`kernel_ir.cpp`](../../../../compiler/core/src/kernel_ir.cpp) before proposing
+new control flow. Current Kernel IR is single-assignment, permits only its
+bounded final-return branch form, and rejects branch plus `bar.sync` to preserve
+unconditional CTA participation. Predication is limited to its admitted store
+operations. Keep direct invalid-KIR cases for these constraints; the parser is
+not their only ingress.
+
+The model below describes what a requested extension must preserve. It is not
+a claim that arbitrary loops, nested reconvergence or conditional barriers are
+already represented. New control needs an explicit representation, verifier,
+independent oracle and actual backend execution before its support row changes.
+
 ## Execution state
 
 Model a grid of CTAs; each CTA owns thread state, shared state, barrier state,
@@ -30,6 +45,10 @@ advertised PTX form normatively requires it.
 - Never lower a CTA barrier to a host thread barrier without proving scheduling
   cannot deadlock when CTAs or lanes are multiplexed.
 
-Test all-taken, none-taken, partial masks, nested divergence, divergent return,
-loop reconvergence, multiple barrier phases, and invalid conditional barrier
-participation against the pinned [PTX ISA](https://docs.nvidia.com/cuda/parallel-thread-execution/).
+For changed advertised forms, select all-taken, none-taken, partial-mask,
+divergent-return and barrier-phase cases as applicable. An extension admitting
+nested divergence or loops also needs nested/backedge reconvergence cases;
+unsupported control keeps precise negative cases. Always preserve invalid
+conditional-barrier rejection against the pinned
+[PTX ISA](https://docs.nvidia.com/cuda/parallel-thread-execution/). Broad future
+control coverage is not a reason to rerun unchanged unrelated suites per edit.

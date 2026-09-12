@@ -1,0 +1,6 @@
+interface:
+  display_name: "PyTorch CUDA Profile"
+  short_description: "Trace stock kernels into exact executable profiles"
+  default_prompt: "Use $pytorch-cuda-profile skill to trace a pinned stock PyTorch operation through argument admission and its PTX artifact, implement a missing profile row, and correlate every request with executor evidence; keep analysis and benchmark scope explicit."
+policy:
+  allow_implicit_invocation: true

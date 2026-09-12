@@ -10,6 +10,12 @@ target's source is authoritative for API shape.
 
 ## Test matrix
 
+Select the affected checks during implementation; the work item's final gate
+retains its required target matrix. Compare kernel, C17 and C++20 generated
+native/compat byte and offset fixtures against the selected manifest closure.
+Each allowlisted definition is referenced once; extensions preserve the frozen
+base hash. Regenerate changed projections instead of repairing private copies.
+
 - KUnit for state, range, extension, refcount, and ordering helpers.
 - Userspace native/compat tests for ioctl encoding, layouts, mmap, poll/wait,
   eventfd, errno, and interrupted calls.

@@ -31,9 +31,12 @@ relation is written down.
 
 ## Tests
 
-Cover same-address contention, independent addresses, read-modify-write return
-values, visibility across barrier phases, stale generation, out-of-bounds,
-integer overflow, aliases, and unsupported scope/order combinations. For each
+Select cases for the changed admitted forms: visibility across barrier phases,
+stale generation, out-of-bounds, integer overflow, aliases and unsupported
+scope/order combinations. When an atomic form is newly admitted, also cover
+same-address contention, independent addresses and read-modify-write return
+values. The current subset's atomic exclusion remains a negative boundary, not
+an instruction to build a new atomic corpus for an unrelated memory change. For each
 litmus test, derive the allowed outcome set and named forbidden outcomes from the
 pinned model. Use exhaustive finite enumeration or equivalent model evidence when
 practical; randomized interpreter schedules sample the set but do not prove it

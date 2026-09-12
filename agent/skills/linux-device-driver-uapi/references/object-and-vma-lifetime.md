@@ -23,6 +23,8 @@ that userspace stopped accessing existing mappings. VMA open/close callbacks
 must hold their own reference. Avoid invoking user callbacks, eventfd signaling,
 or sleeping finalizers while holding locks that teardown paths reacquire.
 
+During implementation select cases within the changed ownership boundary;
+the work item's final qualification retains its complete required coverage.
 Test fd duplication, forked VMAs, process exit, daemon death, concurrent ioctl
 and unmap, remove during page fault, worker completion after revoke, repeated
 remove, and module unload. KASAN/KCSAN/lockdep/kmemleak evidence should name the

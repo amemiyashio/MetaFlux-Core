@@ -1,0 +1,4 @@
+interface:
+  display_name: "Process Activation"
+  short_description: "Connect stock processes to selected providers and services"
+  default_prompt: "Use $process-activation skill to implement the requested process entry or loader/daemon connection with clean teardown and unchanged stock APIs; preserve read-only scope when only analysis is requested."

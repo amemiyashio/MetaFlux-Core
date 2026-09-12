@@ -18,6 +18,13 @@ Classify every row as exactly one of:
 
 ## Required model
 
+Trace the affected handle through
+[provider.c](../../../../plugins/compat/cuda/abi/driver/src/provider.c) and its
+[semantics test](../../../../plugins/compat/cuda/abi/driver/tests/provider_test.c).
+For each changed class retain owner, generation, valid transitions, concurrency
+rule, destruction behavior and error classification. Initialization acquires the
+shared view lazily and reentrantly; DSO loading alone remains inert.
+
 - **Device:** consume the runtime-owned process-view contract. The default,
   unfiltered ordinal view follows the membership/order revision captured at CUDA
   initialization. Apply `CUDA_VISIBLE_DEVICES` filtering and reordering once,
