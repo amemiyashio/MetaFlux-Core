@@ -1,7 +1,7 @@
 ---
 status: Verified
 decision: decision-0033
-updated: 2026-09-11
+updated: 2026-09-12
 ---
 
 # Goal-First Multi-Agent Execution
@@ -82,6 +82,36 @@ logs. Real CMake fixtures check literal bytes, source-triggered rebuilds and
 unchanged compile/link outputs; full dev qualification verifies the repository
 consumers. This decision changes workflow/build scheduling only, preserving
 product targets, accepted results and the zero-overhead design objective.
+
+## Final Acceptance And Staging Recovery (decision-0060)
+
+Final Batch verification uses one controller-generated metadata/state/routing
+plan. The integration wrapper owns fresh product checks; candidates retain
+their own independent execution evidence. The exact pending transaction must
+prove all post-integration changes before any final command executes. Product,
+Exit Gate, mode or unrelated authority changes invalidate that proof.
+
+Rationale: copying an integration plan into the Batch request caused unnecessary
+third and later product-suite runs despite the existing metadata-only policy.
+An omitted staging step was then misdiagnosed as stale review evidence. The
+index and worktree actually differed; repeating tests did not repair that.
+
+The [controller protocol](../../agent/skills/main/references/controller.md)
+owns the generated plan and its early validation. The commit guard continues
+to require exact staged content, current review, receipt and rule versions.
+After those facts validate, an index-only mismatch names the affected paths
+and directs staging followed by the same delivery retry. No receipt, review,
+log or pending transaction is discarded solely to repair staging.
+
+Verification exercises a real integration sentinel followed by the actual
+final metadata commands and guarded commit, proving the product command does
+not run a third time. Further scenarios reject a product plan at begin and
+preflight, a repair that replaces the fixed plan, missing transactions,
+semantic/mode changes, stale evidence and unreviewed index contents. An
+unstaged reviewed change commits with its original receipt after staging.
+The complete dev regression remains the Epoch activation requirement. Product
+targets, lane order, completed results and zero-overhead runtime goals retain
+their existing meanings.
 
 ## Rule Loading Boundary
 

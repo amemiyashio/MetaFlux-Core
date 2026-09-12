@@ -119,6 +119,11 @@ execute fresh checks; no receipt or source hash is a cross-phase test cache.
 The [controller interface](references/controller.md#verification-and-acceptance)
 owns selection, exact execution evidence, metadata checks and recovery.
 
+For a Batch request, omit `checks`: the controller supplies the fixed final
+metadata/state/routing plan. Pass the product integration plan separately to
+`batch.py verify --checks`. Copying product checks into the Batch request is
+rejected before execution.
+
 The parent reviews returned diffs against its briefing before verification or
 another coding dispatch. Coding subagents never change Goal, accept, govern,
 commit, publish, or create execution contexts. The application supplies worker
@@ -133,6 +138,12 @@ checks, requiring full expected HEAD/tree, receipt, and operation kind. It never
 modifies Git identity configuration. Both paths require this controller's active delivery
 state and its current loaded rules; an old receipt does not revive a resumed or
 replaced operation.
+
+Stage the exact reviewed paths before `step deliver`. If delivery reports
+unstaged verified paths, inspect and stage those paths, then retry delivery
+with the same receipt. Staging unchanged bytes and modes requires no new
+review or tests. Use `resume` for interrupted state recovery, not a missing
+`git add`; it invalidates pre-commit evidence and rolls back pending acceptance.
 
 The hook checks candidate state, routing and whitespace between those guards.
 Behavioral self-tests belong in the reviewed verification plan and remain CTest

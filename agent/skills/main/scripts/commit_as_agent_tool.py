@@ -36,6 +36,12 @@ COMMIT_GATE_ENVIRONMENT = {
     "kind": "METAFLUX_COMMIT_KIND",
 }
 COMMIT_KINDS = ("maintenance", "iteration", "batch", "epoch")
+INPUT_REPAIR_ACTION = (
+    "Follow the specific input diagnostic with $main skill. For staging alone, "
+    "stage the reported reviewed paths and retry delivery with the same receipt. "
+    "For stale evidence, inspect and repair that prerequisite; recover an "
+    "interrupted commit or publication by its exact revision."
+)
 SCRIPT = Path(__file__).resolve()
 DETECTOR_SCRIPT = (
     SCRIPT.parents[2]
@@ -275,7 +281,7 @@ def check_commit_gate(root: Path, environment: dict[str, str]) -> None:
             code="commit-gate.input-changed",
             summary="The Git commit gate's verification inputs need revalidation.",
             evidence=(str(error),),
-            required_action="Preserve current state and use $main skill with resume before another commit.",
+            required_action=INPUT_REPAIR_ACTION,
             resume_when="Expected HEAD/tree, operation kind, and the current receipt agree.",
         ) from error
 
@@ -362,7 +368,7 @@ def main() -> int:
                            "Committed tree differs from expected tree; preserve the exact revision for inspection")
     except (ws.WorkflowError, OSError, ValueError, KeyError, TypeError) as error:
         emit_diagnostics((helper_error(code="commit-helper.input-changed", summary="The guarded commit inputs need revalidation.",
-            evidence=(str(error),), required_action="Preserve current state and use $main skill with resume.",
+            evidence=(str(error),), required_action=INPUT_REPAIR_ACTION,
             resume_when="Expected HEAD/tree and the current verification receipt agree.").diagnostic,),
             diagnostic_format=arguments.diagnostic_format)
         return 2

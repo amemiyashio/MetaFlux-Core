@@ -148,6 +148,12 @@ daemon's operation-specific concat branch is bypassed; a dedicated unrolled
 PTX artifact copies the twelve words through the generic CPU interpreter or
 compiled executor. This is a fixed two-input, six-element CPU claim and does
 not generalize variable arity, non-contiguous inputs, or Vulkan execution.
+Provider admission requires exactly two sources with six elements each before
+module materialization. Other lengths or source counts receive
+`CUDA_ERROR_NOT_SUPPORTED` as a MetaFlux profile limit. The standalone stock
+concat gate checks int32 and float32 results, repeated launches, and rejection
+of `4+4`, unequal lengths, an invalid second-source length, and three sources
+without module registration or daemon tensor execution.
 
 The strided-contiguous-copy-u32 slice promotes the pinned 4x6 int32 transpose
 materialization into a compiled profile. The provider carries the decoded

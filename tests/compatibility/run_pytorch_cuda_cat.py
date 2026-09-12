@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Qualify pinned stock PyTorch contiguous dim-0 concat through MetaFlux."""
+"""Qualify stock PyTorch's fixed two-source, six-word dim-0 concat profile."""
 
 from __future__ import annotations
 
@@ -46,6 +46,10 @@ def arguments() -> argparse.Namespace:
             "unsupported-layout",
             "unsupported-dtype",
             "source-capacity",
+            "unsupported-length",
+            "unequal-length",
+            "unsupported-right-length",
+            "unsupported-arity",
         ),
         default="positive",
     )
@@ -113,9 +117,11 @@ def application(case: str, profile_path: Path) -> dict[str, Any]:
 
     if case == "positive":
         cases = (
-            ([[1, 2, 3, 4], [5, 6, 7, 8]], [1, 2, 3, 4, 5, 6, 7, 8]),
-            ([[1, 2], [3, 4, 5]], [1, 2, 3, 4, 5]),
-            ([[1], [2, 3], [4, 5, 6]], [1, 2, 3, 4, 5, 6]),
+            ([list(range(1, 7)), list(range(7, 13))], list(range(1, 13))),
+            ([[-1, -2, -3, -4, -5, -6], [6, 5, 4, 3, 2, 1]],
+             [-1, -2, -3, -4, -5, -6, 6, 5, 4, 3, 2, 1]),
+            ([[0, 2, 0, 4, 0, 6], [7, 0, 9, 0, 11, 0]],
+             [0, 2, 0, 4, 0, 6, 7, 0, 9, 0, 11, 0]),
         )
         observed: list[list[int]] = []
         for inputs, expected in cases:
@@ -125,13 +131,15 @@ def application(case: str, profile_path: Path) -> dict[str, Any]:
             if result != expected:
                 raise RuntimeError(f"concat mismatch: expected {expected!r}, observed {result!r}")
             observed.append(result)
-        float_inputs = ([1.25, -2.5], [3.75])
+        float_inputs = ([1.25, -2.5, 3.75, 0.0, 5.5, -6.25],
+                        [7.75, 8.5, -9.25, 10.0, 11.5, 12.25])
         float_output = torch.cat(
             [cuda_tensor(torch, values, torch.float32) for values in float_inputs], dim=0
         )
         torch.cuda.synchronize()
         float_result = [float(value) for value in float_output.to("cpu").tolist()]
-        float_expected = [1.25, -2.5, 3.75]
+        float_expected = [1.25, -2.5, 3.75, 0.0, 5.5, -6.25,
+                          7.75, 8.5, -9.25, 10.0, 11.5, 12.25]
         if float_result != float_expected:
             raise RuntimeError(
                 f"float32 concat mismatch: expected {float_expected!r}, observed {float_result!r}"
@@ -145,19 +153,28 @@ def application(case: str, profile_path: Path) -> dict[str, Any]:
 
     try:
         if case == "unsupported-dimension":
-            left = cuda_tensor(torch, [1, 2, 3, 4]).reshape(2, 2)
-            right = cuda_tensor(torch, [5, 6, 7, 8]).reshape(2, 2)
+            left = cuda_tensor(torch, [1, 2, 3, 4, 5, 6]).reshape(2, 3)
+            right = cuda_tensor(torch, [7, 8, 9, 10, 11, 12]).reshape(2, 3)
             torch.cat((left, right), dim=1)
         elif case == "unsupported-layout":
-            left = cuda_tensor(torch, [1, 2, 3, 4]).reshape(2, 2).t()
-            right = cuda_tensor(torch, [5, 6, 7, 8]).reshape(2, 2).t()
+            left = cuda_tensor(torch, [1, 2, 3, 4, 5, 6]).reshape(2, 3).t()
+            right = cuda_tensor(torch, [7, 8, 9, 10, 11, 12]).reshape(2, 3).t()
             torch.cat((left, right), dim=0)
         elif case == "unsupported-dtype":
-            left = torch.tensor([1, 2], dtype=torch.int64, device="cuda:0")
-            right = torch.tensor([3, 4], dtype=torch.int64, device="cuda:0")
+            left = cuda_tensor(torch, [1, 2, 3, 4, 5, 6], torch.int64)
+            right = cuda_tensor(torch, [7, 8, 9, 10, 11, 12], torch.int64)
             torch.cat((left, right), dim=0)
+        elif case == "source-capacity":
+            torch.cat([cuda_tensor(torch, [index] * 6) for index in range(32)], dim=0)
         else:
-            torch.cat([cuda_tensor(torch, [index]) for index in range(32)], dim=0)
+            # These are profile limits, not CUDA specification requirements.
+            inputs = {
+                "unsupported-length": ([1, 2, 3, 4], [5, 6, 7, 8]),
+                "unequal-length": ([1, 2], [3, 4, 5]),
+                "unsupported-right-length": ([1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11]),
+                "unsupported-arity": ([1] * 6, [2] * 6, [3] * 6),
+            }[case]
+            torch.cat([cuda_tensor(torch, values) for values in inputs], dim=0)
         torch.cuda.synchronize()
     except RuntimeError as error:
         message = str(error)
@@ -293,6 +310,10 @@ def runner(parsed: argparse.Namespace) -> dict[str, Any]:
                     "unsupported-layout",
                     "unsupported-dtype",
                     "source-capacity",
+                    "unsupported-length",
+                    "unequal-length",
+                    "unsupported-right-length",
+                    "unsupported-arity",
                 )
             },
         }

@@ -1,6 +1,6 @@
 ---
 status: Current
-updated: 2026-09-11
+updated: 2026-09-12
 ---
 
 # Decision Index
@@ -71,6 +71,7 @@ an index row does not promote `Proposed` material to `Verified`.
 | decision-0057 | Repository commands initialize tools and environment through clean Nix entry, excluding inherited preloads and ambient search paths | [Clean tool environment](../../toolchains/README.md#clean-tool-environment-decision-0057) | Tool initialization boundary; inherited-preload startup failure reproduced |
 | decision-0058 | Necessary same-task file scope amendments and explicitly confirmed pre-commit Epoch replacement preserve exact inputs and invalidate prior rules, review and verification | [Scope recovery](../../docs/architecture/agent-execution.md#scope-recovery-decision-0058) | Agent recovery governance; product targets and accepted results unchanged |
 | decision-0059 | Coherent verification slices, per-phase CTest coverage preflight, exact integration/acceptance evidence, isolated attempts and stable generated inputs | [Verification scheduling](../../docs/architecture/agent-execution.md#verification-scheduling-decision-0059) | Workflow/build governance; independent product qualification preserved |
+| decision-0060 | Controller-generated Batch metadata checks prevent repeated product suites; staging-only delivery recovery preserves exact passing evidence | [Final acceptance and staging recovery](../../docs/architecture/agent-execution.md#final-acceptance-and-staging-recovery-decision-0060) | Workflow governance; independent integration, exact commit guards and product scope preserved |
 
 New decisions receive the next `decision-NNNN` identifier and point to a plan or
 architecture record containing rationale, consequences, and verification state.

@@ -17,6 +17,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import main as controller
+import commit_as_agent_tool as commit_helper
 import rule_loading as rules
 import workflow_state as ws
 
@@ -36,6 +37,24 @@ def fixture(root: Path) -> str:
             destination = root / source.relative_to(SOURCE_ROOT)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
+    # Exercise the actual metadata/transaction command in the fixture repo.
+    # The fixture's small state/routing owners check its own reduced schema.
+    for relative in ("agent/skills/main/scripts/main.py", "agent/skills/main/scripts/workflow_state.py",
+                     "agent/skills/main/scripts/rule_loading.py", "agent/skills/main/scripts/verification.py",
+                     "agent/skills/batch/scripts/batch.py"):
+        destination = root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(SOURCE_ROOT / relative, destination)
+    (root / "tools").mkdir()
+    shutil.copy2(SOURCE_ROOT / "tools/agent_diagnostics.py", root / "tools/agent_diagnostics.py")
+    (root / "tools/check-agent-state.py").write_text(
+        "import json\nfrom pathlib import Path\n"
+        "goal = json.loads(Path('agent/goal.json').read_text())\n"
+        "assert goal['schema_version'] == 4 and goal['lanes']\n")
+    (root / "tools/check-skill-routing.py").write_text(
+        "from pathlib import Path\n"
+        "assert all((Path('agent/skills') / name / 'SKILL.md').is_file() "
+        "for name in ('main', 'epoch', 'batch', 'iteration'))\n")
     lanes = [{"id": "lane-one", "work_item": "work-item-0.2.0.1", "iteration": "iteration-0002",
               "status": "planned", "depends_on": [], "outcome": "First result", "acceptance": ["Pass gate"]},
              {"id": "lane-two", "work_item": "work-item-0.2.0.2", "iteration": "iteration-0003",
@@ -75,6 +94,8 @@ def request(root: Path, kind: str = "maintenance") -> dict:
         lane = next(x for x in goal["lanes"] if x["work_item"] == goal["target"]["work_item"])
         value["assignment"] = {"epoch": goal["epoch"], "batch": goal["batch"]["id"],
                                "iteration": lane["iteration"], "lane": lane["id"]}
+    if kind == "batch":
+        value.pop("checks")
     return value
 
 
@@ -148,6 +169,78 @@ class WorkflowScenarios(unittest.TestCase):
             controller.step(self.root, "evaluate", {})
         self.assertEqual(controller.inspect(self.root)["stage"], "implementation")
         self.assertEqual(ws.oid(self.root), self.base)
+
+    def test_staging_only_failure_preserves_receipt_and_delivers_without_retesting(self):
+        controller.begin(self.root, request(self.root))
+        prepare(self.root)
+        (self.root / "product.txt").write_text("reviewed update\n")
+        controller.step(self.root, "review", {"summary": "Review staging recovery behavior"})
+        controller.step(self.root, "evaluate", {})
+        state_path = ws.local_path(self.root, "state.json")
+        before_state = state_path.read_bytes()
+        evidence = ws.read_json(state_path)["receipt"]
+        verification_path = ws.local_path(self.root, "verification.json")
+        before_verification = verification_path.read_bytes()
+        logs = {result["log"]: Path(result["log"]).read_bytes() for result in evidence["results"]}
+        with patch.object(ws, "evaluate", side_effect=AssertionError("unnecessary verification")):
+            with self.assertRaisesRegex(ws.WorkflowError, "not fully staged.*product.txt.*same receipt"):
+                controller.step(self.root, "deliver", {"agent_tool": "fixture-agent", "message": "Deliver"})
+            with self.assertRaises(commit_helper.DiagnosticError) as failed_gate:
+                commit_helper.check_commit_gate(self.root, {
+                    "METAFLUX_EXPECTED_HEAD": self.base,
+                    "METAFLUX_EXPECTED_TREE": ws.oid(self.root, ":"),
+                    "METAFLUX_VERIFICATION_RECEIPT": str(ws.local_path(self.root, "receipts/" + evidence["digest"] + ".json")),
+                    "METAFLUX_COMMIT_KIND": "maintenance",
+                })
+            self.assertIn("not fully staged", str(failed_gate.exception.diagnostic.evidence))
+            self.assertNotIn("resume", failed_gate.exception.diagnostic.required_action)
+            helper_result = subprocess.run([
+                sys.executable, "-B", str(SOURCE_ROOT / "agent/skills/main/scripts/commit_as_agent_tool.py"),
+                "--agent-tool", "fixture-agent", "--expected-head", self.base,
+                "--expected-tree", ws.oid(self.root, ":"), "--kind", "maintenance",
+                "--receipt", str(ws.local_path(self.root, "receipts/" + evidence["digest"] + ".json")),
+                "--diagnostic-format", "json", "--", "-m", "Must remain unstaged",
+            ], cwd=self.root, env=ws.environment(self.root), capture_output=True, text=True)
+            self.assertEqual(helper_result.returncode, 2)
+            diagnostic = next(json.loads(line)["errors"][0] for line in helper_result.stderr.splitlines() if line.startswith("{"))
+            self.assertIn("not fully staged", str(diagnostic["evidence"]))
+            self.assertNotIn("resume", diagnostic["required_action"])
+            self.assertEqual(state_path.read_bytes(), before_state)
+            ws.git(self.root, "add", "--", "product.txt")
+            with ws.lock(self.root):
+                controller.step(self.root, "deliver", {"agent_tool": "fixture-agent", "message": "Deliver staged content"})
+        self.assertEqual(controller.inspect(self.root)["stage"], "publication")
+        self.assertEqual(ws.read_json(state_path)["receipt"], evidence)
+        self.assertEqual(verification_path.read_bytes(), before_verification)
+        self.assertTrue(all(Path(path).read_bytes() == data for path, data in logs.items()))
+
+    def test_unreviewed_index_is_not_committed_or_overwritten(self):
+        controller.begin(self.root, request(self.root))
+        prepare(self.root)
+        (self.root / "product.txt").write_text("reviewed update\n")
+        controller.step(self.root, "review", {"summary": "Review index isolation"})
+        controller.step(self.root, "evaluate", {})
+        bad_blob = ws.git(self.root, "hash-object", "-w", "--stdin", data=b"unreviewed staged content\n").decode().strip()
+        ws.git(self.root, "update-index", "--cacheinfo", "100644", bad_blob, "product.txt")
+        index = ws.git(self.root, "ls-files", "--stage", "-z")
+        with self.assertRaisesRegex(ws.WorkflowError, "not fully staged"):
+            controller.step(self.root, "deliver", {"agent_tool": "fixture-agent", "message": "Must reject"})
+        self.assertEqual(ws.oid(self.root), self.base)
+        self.assertEqual(ws.git(self.root, "ls-files", "--stage", "-z"), index)
+
+    def test_stale_content_or_mode_is_not_reported_as_staging_only(self):
+        controller.begin(self.root, request(self.root))
+        prepare(self.root)
+        product = self.root / "product.txt"
+        product.write_text("reviewed update\n")
+        controller.step(self.root, "review", {"summary": "Review stale content rejection"})
+        controller.step(self.root, "evaluate", {})
+        for mutation in (lambda: product.write_text("unreviewed update\n"), lambda: product.chmod(0o755)):
+            mutation()
+            with self.assertRaisesRegex(ws.WorkflowError, "Tested content or toolchain has changed"):
+                controller.step(self.root, "deliver", {"agent_tool": "fixture-agent", "message": "Must reject"})
+            product.write_text("reviewed update\n")
+            product.chmod(0o644)
 
     def test_maintenance_commit_auto_publication_and_postcommit_recovery(self):
         goal = (self.root / "agent/goal.json").read_bytes()

@@ -37,6 +37,15 @@ test names whose environment-dependent skip is expected. An exit-zero CTest
 command alone does not prove that its tests executed. Skips remain explicit
 receipt results and never satisfy a whole-work-item Exit Gate.
 
+Batch requests omit `checks`. `begin` inserts `batch_metadata_checks()` from
+the controller as the sole final plan: exact transaction metadata, Agent state,
+and skill routing. An explicitly supplied plan must equal that canonical plan;
+builds, product tests, optional skips and additional checks are rejected.
+Begin, active-state validation, preflight, repair, review, evaluation and the
+commit guard enforce this boundary. Supply fresh product integration checks
+only to `batch.py verify --checks PLAN.json`; that wrapper preflights its own
+plan. There is no second final-plan state or compatibility reader.
+
 ## Rule Loading Before Mutation
 
 Begin the bounded request first, then run `load-rules` and read its output in the
@@ -224,7 +233,9 @@ post-integration delta is solely that pending acceptance transaction, using
 recorded before/after blobs and modes and the validated integration receipt.
 The main controller repeats this proof before any final Batch check. Reload
 rules through the main controller, review and evaluate metadata/state/routing
-with kind `batch`, then deliver. The exact proof avoids a third product run;
+with kind `batch` and the generated final plan, stage the reviewed acceptance
+paths, then deliver. Review binds the advanced tree; staging those same bytes
+and modes does not change that binding. The exact proof avoids a third product run;
 arbitrary Markdown, Goal or work-item edits receive no exemption. A changed
 product input or non-transaction semantic edit requires fresh integration
 verification before acceptance. The acceptance trailer includes the
@@ -253,3 +264,12 @@ when HEAD and content have not changed. Lost pre-commit state requires a new
 validation remains independent of the integrator's current operation.
 Missing input and stale content or rules fail the guard. It preserves
 candidate-hook diagnostics and verifies the committed tree.
+
+A delivery rejection distinguishes stale evidence from omitted staging. The
+guard validates the current receipt before listing paths whose index entries
+differ from verified working content. For the latter, use `git add --` with
+the reported reviewed paths through clean Nix, then retry `step deliver` with
+the original payload and receipt. The controller leaves delivery state and
+verification logs intact. Do not re-review, reevaluate, or roll back a pending
+acceptance with `resume` solely to repair staging. Changed content, modes,
+rules, HEAD or toolchain still require their normal evidence recovery.

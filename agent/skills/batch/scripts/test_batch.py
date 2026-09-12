@@ -37,6 +37,24 @@ class BatchScenarios(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_final_plan_is_generated_and_product_plan_rejected_before_execution(self):
+        task = fixture.request(self.root, "batch")
+        wrong = {**task, "checks": fixture.checks()}
+        with self.assertRaisesRegex(ws.WorkflowError, "Batch final checks"):
+            controller.begin(self.root, wrong)
+        self.assertFalse(ws.local_path(self.root, "state.json").exists())
+        controller.begin(self.root, task)
+        state_path = ws.local_path(self.root, "state.json")
+        self.assertEqual(ws.read_json(state_path)["request"]["checks"], controller.batch_metadata_checks())
+        fixture.prepare(self.root)
+        before = state_path.read_bytes()
+        with patch.object(controller.verification, "preflight", side_effect=AssertionError("product enumeration started")):
+            with self.assertRaisesRegex(ws.WorkflowError, "Batch final checks"):
+                controller.preflight(self.root, fixture.checks())
+        with self.assertRaisesRegex(ws.WorkflowError, "Batch final checks"):
+            controller.step(self.root, "repair", {"checks": fixture.checks()})
+        self.assertEqual(state_path.read_bytes(), before)
+
     def advance(self, *, validator=lambda root: None):
         evidence = fixture.receipt(self.root, "integration", self.base)
         return batch.advance_delivery(self.delivery, self.root, integration_receipt=evidence, state_validator=validator)
@@ -56,6 +74,15 @@ class BatchScenarios(unittest.TestCase):
         self.assertEqual(before_work, work.read_bytes())
         txn = ws.read_json(ws.local_path(self.root, "acceptance.json"))
         revision = fixture.commit_operation(self.root, "batch")
+        # A published/completed Batch must not constrain the next task's
+        # explicit read-only preflight (even before the next begin).
+        state_path = ws.local_path(self.root, "state.json")
+        state = ws.read_json(state_path)
+        state["stage"] = "complete"
+        ws.atomic_json(state_path, state)
+        before_preflight = state_path.read_bytes()
+        self.assertIn("checks", controller.preflight(self.root, fixture.checks()))
+        self.assertEqual(state_path.read_bytes(), before_preflight)
         self.assertEqual(batch.check_delivery(self.delivery, self.root)["action"], "no-op")
         ws.atomic_json(ws.local_path(self.root, "acceptance.json"), txn)
         controller.recover(self.root)
@@ -196,6 +223,21 @@ class BatchScenarios(unittest.TestCase):
         self.assertEqual(checked["changed_paths"], ["agent/goal.json"])
         self.assertEqual(checked["integration_receipt"], evidence["digest"])
         self.assertEqual(before, marker.stat().st_mtime_ns)
+        # Run the real final commands after advance. Integration's product
+        # sentinel must not execute again, including at guarded delivery.
+        fixture.load_operation_rules(self.root)
+        controller.step(self.root, "review", {"summary": "Review exact metadata-only transition"})
+        controller.step(self.root, "evaluate", {})
+        final = ws.read_json(ws.local_path(self.root, "state.json"))["receipt"]
+        self.assertEqual(final["checks"], controller.batch_metadata_checks())
+        self.assertEqual(len(final["results"]), 3)
+        self.assertTrue(all(result["returncode"] == 0 for result in final["results"]))
+        self.assertEqual(before, marker.stat().st_mtime_ns)
+        ws.git(self.root, "add", "--", "agent/goal.json")
+        with ws.lock(self.root):
+            controller.step(self.root, "deliver", {"agent_tool": "fixture-agent", "message": "Accept metadata only"})
+        self.assertEqual(before, marker.stat().st_mtime_ns)
+        self.assertEqual(controller.inspect(self.root)["stage"], "publication")
 
     def test_bad_candidate_and_missing_transaction_fail_before_checks(self):
         controller.begin(self.root, fixture.request(self.root, "batch"))
@@ -224,6 +266,26 @@ class BatchScenarios(unittest.TestCase):
         with self.assertRaises(ws.WorkflowError):
             batch.check_metadata(self.root)
         product.chmod(mode)
+        batch.check_metadata(self.root)
+
+    def test_final_evaluation_rejects_semantic_tampering_before_commands(self):
+        controller.begin(self.root, fixture.request(self.root, "batch"))
+        fixture.prepare(self.root)
+        self.advance()
+        fixture.load_operation_rules(self.root)
+        product = self.root / "product.txt"
+        goal = self.root / "agent/goal.json"
+        work = batch.find_work_item(self.root, "work-item-0.2.0.1")
+        for path in (product, goal, work):
+            before = path.read_bytes()
+            for change in (lambda: path.write_bytes(before + b"\n"), lambda: path.chmod(0o755)):
+                change()
+                controller.step(self.root, "review", {"summary": "Review final gate rejection fixture"})
+                with patch.object(ws, "evaluate", side_effect=AssertionError("final commands started")):
+                    with self.assertRaises(ws.WorkflowError):
+                        controller.step(self.root, "evaluate", {})
+                path.write_bytes(before)
+                path.chmod(0o644)
         batch.check_metadata(self.root)
 
     def test_skipped_ctest_is_not_whole_exit_gate_evidence(self):

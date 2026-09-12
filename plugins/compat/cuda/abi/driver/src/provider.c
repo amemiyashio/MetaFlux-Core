@@ -7678,7 +7678,10 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       (void)memcpy(&output_pointer, kernel_parameters[0], sizeof(output_pointer));
       (void)memcpy(&concat_dim, kernel_parameters[3], sizeof(concat_dim));
       (void)memcpy(&trailing_size, kernel_parameters[4], sizeof(trailing_size));
-      if (output_pointer == UINT64_C(0) || concat_dim != UINT32_C(0) ||
+      /* The profile artifact is unrolled for exactly two six-word sources.
+         Reject other metadata before registering that fixed-shape module. */
+      if (source_count != UINT32_C(2) || output_pointer == UINT64_C(0) ||
+          concat_dim != UINT32_C(0) ||
           trailing_size != UINT32_C(1)) {
         mf_cuda_queue_unlock();
         return CUDA_ERROR_NOT_SUPPORTED;
@@ -7713,7 +7716,8 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         (void)memcpy(&source_contiguous,
                      metadata + UINT32_C(2560) + source_slot * sizeof(source_contiguous),
                      sizeof(source_contiguous));
-        if (source_pointer == UINT64_C(0) || source_offset != running_elements ||
+        if (source_elements != UINT32_C(6) || source_pointer == UINT64_C(0) ||
+            source_offset != running_elements ||
             source_dim_size != source_elements || source_contiguous == UINT8_C(0) ||
             UINT32_MAX - running_elements < source_elements) {
           mf_cuda_queue_unlock();

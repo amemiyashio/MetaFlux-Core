@@ -98,8 +98,10 @@ class CatAffinityTests(unittest.TestCase):
     def test_every_case_runs_pinned_and_success_restores_affinity(self):
         result = cat.runner(self.arguments)
         self.assertEqual(list(result["cases"]), ["positive", "unsupported-dimension",
-                         "unsupported-layout", "unsupported-dtype", "source-capacity"])
-        self.assertEqual(self.run_case.call_count, 5)
+                         "unsupported-layout", "unsupported-dtype", "source-capacity",
+                         "unsupported-length", "unequal-length", "unsupported-right-length",
+                         "unsupported-arity"])
+        self.assertEqual(self.run_case.call_count, 9)
         self.assertEqual(result["affinity"], {"original_cpu_count": 3, "selected_cpu": 4})
         self.assertEqual(self.affinity, self.original)
 

@@ -393,7 +393,6 @@ def validate_acceptance(root: Path) -> None:
 def commit_guard(root: Path, expected_head: str, expected_tree: str, receipt: dict[str, Any], *, kind: str) -> None:
     require(oid(root) == expected_head, "Expected HEAD changed")
     require(oid(root, ":") == expected_tree, "Expected staged tree changed")
-    require(content(root, expected_tree) == content(root), "Staged tree differs from the reviewed working tree")
     validate_receipt(root, receipt, kind=kind)
     import main as controller
     state_path = local_path(root, "state.json")
@@ -412,6 +411,13 @@ def commit_guard(root: Path, expected_head: str, expected_tree: str, receipt: di
     controller.require_rules(root, state)
     require(read_json(local_path(root, "rules.json")) == receipt["review"]["rules"],
             "Current loaded rules differ from the reviewed commit evidence")
+    staged, reviewed = entries(root, expected_tree), entries(root)
+    unstaged = sorted(name for name in staged.keys() | reviewed.keys() if staged.get(name) != reviewed.get(name))
+    require(not unstaged,
+            "Verified content is not fully staged: " + json.dumps(unstaged, ensure_ascii=True) +
+            ". Stage these reviewed paths with git add -- inside the clean Nix entry, "
+            "then retry main.py step deliver with the same receipt. "
+            "Do not resume, review, or rerun evaluation for staging alone.")
     if kind == "batch":
         validate_acceptance(root)
     elif kind in {"maintenance", "iteration"}:

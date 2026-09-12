@@ -103,6 +103,8 @@ the repository gates.
    Candidate and integration still require fresh independent execution.
    Exact acceptance metadata proof is owned by the controller; no general
    source-hash test cache or arbitrary documentation exemption exists.
+   Batch requests omit `checks` to receive the controller's fixed final
+   metadata/state/routing plan; product checks belong to integration verification.
    Agent commits use the [$main](agent/skills/main/SKILL.md) skill's shared commit helper, requiring
    full expected HEAD, exact staged tree, operation kind, and an actual
    content-bound receipt with its rule-loading certificate. Pre-commit invokes
@@ -116,6 +118,9 @@ the repository gates.
    stores tool facts or changes Git configuration. Candidate checks and their
    self-tests are side-effect-free with respect to the invoking repository,
    including from linked worktrees.
+   Stage the exact reviewed paths before delivery. A staging-only rejection
+   keeps the passing receipt: stage the reported paths and retry delivery;
+   do not rerun tests or roll back acceptance to correct a missing `git add`.
 9. **Report actionable task stops.** Follow the sole diagnostic contract in
    [$main](agent/skills/main/SKILL.md#task-stop-diagnostics) skill whenever
    a gate, required verification, or loaded Skill prohibition blocks the next

@@ -29,6 +29,32 @@ NEXT = {"preparation": "confirm scope and supplied execution context",
         "complete": "report the exact delivery"}
 
 
+def batch_metadata_checks() -> list[dict[str, Any]]:
+    """Final acceptance has one fixed plan; product checks belong to integration."""
+    return [
+        {"id": "batch-metadata", "argv": ["python3", "-B", "agent/skills/batch/scripts/batch.py", "check-metadata", "--root", "."]},
+        {"id": "agent-state", "argv": ["python3", "-B", "tools/check-agent-state.py", "."]},
+        {"id": "skill-routing", "argv": ["python3", "-B", "tools/check-skill-routing.py", "."]},
+    ]
+
+
+def require_batch_metadata_checks(request: dict[str, Any]) -> None:
+    if request.get("kind") == "batch":
+        ws.require(request.get("checks") == batch_metadata_checks(),
+                   "Batch final checks must be the controller's metadata/state/routing plan; "
+                   "omit checks in begin and supply product checks to batch.py verify --checks PLAN.json")
+
+
+def preflight(root: Path, checks: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    path = ws.local_path(root, "state.json")
+    state = ws.read_json(path) if path.exists() else {}
+    request = state.get("request", {})
+    selected = request.get("checks") if checks is None else checks
+    if checks is None or state.get("stage") in {"preparation", "implementation", "review", "evaluation", "delivery"}:
+        require_batch_metadata_checks({**request, "checks": selected})
+    return {"checks": verification.preflight(root, selected, defer_unconfigured=True)}
+
+
 def inspect(root: Path) -> dict[str, Any]:
     path = ws.local_path(root, "state.json")
     state = ws.read_json(path) if path.exists() else None
@@ -99,6 +125,7 @@ def validate_request(root: Path, request: dict[str, Any]) -> None:
     ws.require(isinstance(request.get("objective"), str) and bool(request["objective"].strip()), "A bounded objective is required")
     validate_paths(root, request.get("allowed_paths"))
     ws.validate_plan(request.get("checks"))
+    require_batch_metadata_checks(request)
     ws.require(isinstance(request.get("skills", []), list), "Additional skills must be a list")
     rules.required(root, request["kind"], request["allowed_paths"], request.get("skills", []))
     ws.exact_commit(root, request.get("base_revision", ""))
@@ -122,6 +149,8 @@ def validate_request(root: Path, request: dict[str, Any]) -> None:
 def begin(root: Path, request: dict[str, Any]) -> dict[str, Any]:
     if request.get("kind") == "read-only":
         return inspect(root)
+    if request.get("kind") == "batch" and "checks" not in request:
+        request = {**request, "checks": batch_metadata_checks()}
     validate_request(root, request)
     path = ws.local_path(root, "state.json")
     if path.exists():
@@ -271,6 +300,7 @@ def validate_state(root: Path, state: dict[str, Any]) -> None:
                    record["publication"] == state["request"].get("publication", "auto"), "Cached request disagrees with its committed delivery")
     else:
         ws.require(ws.digest(state["request"]) == state["run"], "Current request changed; re-read the user scope")
+        require_batch_metadata_checks(state["request"])
         scope(root, state["request"])
 
 
@@ -384,6 +414,7 @@ def step(root: Path, event: str, payload: dict[str, Any]) -> dict[str, Any]:
         if "checks" in payload:
             checks = payload["checks"]
             ws.validate_plan(checks)
+            require_batch_metadata_checks({**request, "checks": checks})
             replacements = {check["id"]: check for check in checks}
             for check in request["checks"]:
                 if check["id"] not in replacements:
@@ -409,8 +440,8 @@ def main() -> int:
     parser.add_argument("--root", type=Path, default=Path("."))
     sub = parser.add_subparsers(dest="action", required=True)
     sub.add_parser("inspect")
-    preflight = sub.add_parser("preflight")
-    preflight.add_argument("--checks", type=Path)
+    preflight_parser = sub.add_parser("preflight")
+    preflight_parser.add_argument("--checks", type=Path)
     start = sub.add_parser("begin")
     start.add_argument("request", type=Path, nargs="?")
     start.add_argument("--request-json")
@@ -432,8 +463,7 @@ def main() -> int:
     root = args.root.resolve()
     try:
         if args.action == "preflight":
-            checks = ws.read_json(args.checks) if args.checks else ws.read_json(ws.local_path(root, "state.json"))["request"]["checks"]
-            result = {"checks": verification.preflight(root, checks, defer_unconfigured=True)}
+            result = preflight(root, ws.read_json(args.checks) if args.checks else None)
         elif args.action == "inspect":
             result = inspect(root)
         else:
@@ -454,7 +484,7 @@ def main() -> int:
         emit_diagnostics((task_stop_error(code="workflow.transition-invalid", source="main",
             summary="The next workflow transition needs corrected evidence.", evidence=(str(error),),
             responsibility="current-agent", disposition="preserve-and-report",
-            required_action="Inspect with $main skill and correct the reported prerequisite: rescope necessary same-task paths, supersede only for explicit Epoch governance, or resume exact delivery/publication. Do not repeat unchanged evidence.",
+            required_action="Follow the specific evidence with $main skill. For staging alone, stage the reported reviewed paths and retry delivery with the same receipt. For scope or stale evidence, inspect and repair that prerequisite; recover interrupted delivery/publication by its exact revision. Do not repeat unchanged checks.",
             resume_when="The exact context and required review, verification, or publication evidence match.").diagnostic,))
         return 1
     print(json.dumps(result, sort_keys=True))

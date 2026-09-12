@@ -15,6 +15,11 @@ state transition. Bootstrap and diagnostics are owned by [$main](../main/SKILL.m
 1. Require the supplied current-main integration context and delivery v2.
    Run `scripts/batch.py check DELIVERY --root .`. Check existing validated
    acceptance history before new-candidate identity to make retries idempotent.
+   A no-op reports the existing exact acceptance and publication state without
+   beginning another operation. For a new candidate, begin the Batch request
+   with `checks` omitted so the main controller supplies its fixed final
+   metadata plan. Product checks belong only in step 3's integration plan;
+   they are rejected in a Batch request.
 2. Review the exact base..tip scope and current Exit Gate with the owning
    domain skills. Reject drift. Keep a current-HEAD candidate in place; prepare
    a divergent candidate with `git merge --no-commit --no-ff TIP`. Never accept
@@ -41,11 +46,14 @@ state transition. Bootstrap and diagnostics are owned by [$main](../main/SKILL.m
 6. Run `scripts/batch.py check-metadata --root .`. Its exact transaction proof
    limits the post-integration delta to the recorded Goal/work-item acceptance
    changes, including modes and blobs. Reload rules through [$main](../main/SKILL.md) skill,
-   review the transition, and evaluate final metadata/state/routing
-   checks. That proof preserves the fresh integration evidence without a third
+   review the current advanced tree, and evaluate the controller's fixed final
+   metadata/state/routing checks. That proof preserves the fresh integration evidence without a third
    product-suite run. A product or other semantic change invalidates it and
    requires repair and fresh integration verification. Then commit the
-   exact staged acceptance tree through [$main](../main/SKILL.md) skill's helper. Its Git trailers bind
+   exact acceptance tree, staging its reviewed paths before delivery through
+   [$main](../main/SKILL.md) skill's helper. A staging-only rejection preserves the
+   receipt: stage the reported paths and retry delivery without new evaluation
+   or transaction rollback. Its Git trailers bind
    the candidate, delivery identity, acceptance kind, and receipt digest.
 7. Publish that exact commit through [$main](../main/SKILL.md) skill's shared transport. Resume failed
    publication without accepting again. Return the next exact tuple and base;
