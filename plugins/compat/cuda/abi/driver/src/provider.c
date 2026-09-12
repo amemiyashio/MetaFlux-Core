@@ -7485,12 +7485,11 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
         strstr(kernel_name, "gpu_kernel_impl_nocast") != (char*)0 &&
         strstr(kernel_name, "direct_copy_kernel_cuda") != (char*)0 &&
         kernel_parameters[0] != (void*)0 && kernel_parameters[1] != (void*)0) {
-      /* torch strided contiguous copy: the kernel's second argument is the
-         launch closure {OffsetCalculator<2> at +0, data pointers at +504 and
-         +512}. The adapter decodes dims, sizes, and per-argument byte
-         strides from the calculator and ships them as extra u32 entries; the
-         daemon scatters the copy natively so transposed views keep their
-         element order. */
+      /* The pinned frontier row is a 4x6 int32 transpose materialized as a
+         contiguous 6x4 output. The adapter decodes the OffsetCalculator and
+         retains the neutral descriptor, but the profile artifact is only
+         valid for this exact layout. Other layouts fail before a module is
+         materialized instead of receiving a fixed-shape result. */
       const unsigned char* closure = (const unsigned char*)kernel_parameters[1];
       const int32_t dims = *(const int32_t*)closure;
       if (dims <= 0 || dims > 2) {
@@ -7514,6 +7513,13 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
                      closure + UINT32_C(304) + (size_t)dim * UINT32_C(8) + UINT32_C(4),
                      sizeof(uint32_t));
       }
+      if (dims != UINT32_C(2) || normalized_element_count != UINT32_C(24) ||
+          normalized_extra[0] != UINT32_C(4) || normalized_extra[1] != UINT32_C(6) ||
+          normalized_extra[2] != UINT32_C(4) || normalized_extra[3] != UINT32_C(16) ||
+          normalized_extra[4] != UINT32_C(24) || normalized_extra[5] != UINT32_C(4)) {
+        mf_cuda_queue_unlock();
+        return CUDA_ERROR_NOT_SUPPORTED;
+      }
       if (normalized_element_count == UINT32_C(0) ||
           normalized_pointers[0] == (CUdeviceptr)0 ||
           normalized_pointers[1] == (CUdeviceptr)0) {
@@ -7523,7 +7529,8 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       module_record = &mf_cuda_global.modules[function_record->aux];
       result = mf_cuda_materialize_pytorch_baseline_locked(
           module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_STRIDED_COPY_U32_V1,
-          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          mf_pytorch_baseline_strided_copy_u32_ptx,
+          sizeof(mf_pytorch_baseline_strided_copy_u32_ptx) - 1U,
           "strided-copy-u32");
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();

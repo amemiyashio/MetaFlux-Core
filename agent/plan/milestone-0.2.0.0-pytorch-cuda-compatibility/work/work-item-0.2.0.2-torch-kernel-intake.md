@@ -95,9 +95,9 @@ guarded quotient, reproducing the daemon-native arithmetic bit for bit.
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |
-| Compiled cases | 35 |
-| Unique compiled PTX sources | 35 |
-| Cases outside compiled subset | 6 |
+| Compiled cases | 36 |
+| Unique compiled PTX sources | 36 |
+| Cases outside compiled subset | 5 |
 | Classified gaps | 2 |
 
 Every supported interpreter-mode case records its neutral request, daemon
@@ -109,8 +109,9 @@ The corpus remains `frontier-not-frozen`, with `exit_gate_complete: false`.
 The compiled subset includes arithmetic, fill, scalar/alpha operations,
 absolute value, square root, exponential, sigmoid, comparisons, int32-to-float32
 cast, ReLU, clamp, the pinned six-element int32 sum, signed int32 clamp-min,
-signed int32 max/min reductions, and the four-element float32 sum/mean reductions. The two float32 clamp inputs
-share one kernel. Profile-owned PTX
+signed int32 max/min reductions, the pinned strided contiguous copy, and the
+four-element float32 sum/mean reductions. The two float32 clamp inputs share
+one kernel. Profile-owned PTX
 lives beside the PyTorch CPU profile and is generated into the C17 provider at
 configure time.
 
@@ -121,6 +122,15 @@ daemon's operation-specific concat branch is bypassed; a dedicated unrolled
 PTX artifact copies the twelve words through the generic CPU interpreter or
 compiled executor. This is a fixed two-input, six-element CPU claim and does
 not generalize variable arity, non-contiguous inputs, or Vulkan execution.
+
+The strided-contiguous-copy-u32 slice promotes the pinned 4x6 int32 transpose
+materialization into a compiled profile. The provider carries the decoded
+two-dimensional size and byte-stride descriptor through the neutral request,
+but admits only the observed 4x6 source iteration layout (`sizes=4,6`, output
+byte strides `4,16`, input byte strides `24,4`, 24 elements). The profile artifact performs the
+transpose through the compiled entry; other layouts are rejected before module
+materialization rather than receiving fixed-shape data. The daemon has no
+operation-specific strided-copy tensor branch for this row.
 
 The exponential slice carries actual `ExpF32` semantics through canonical
 Kernel IR, the compiler-worker protocol and the generic CPU executors. Its
@@ -235,9 +245,8 @@ and decision-0053 remains the closed library boundary.
 
 ## Remaining Work
 
-Rows outside the manifest's compiled subset cover the int64 accumulator reduction, strided copy,
-arange, library-backed
-matrix/linear and softmax. They cross the
+Rows outside the manifest's compiled subset cover library-backed
+matrix/linear operations. They cross the
 neutral daemon boundary but use operation-specific daemon CPU branches.
 Promote their actual semantics into canonical Kernel IR and the compiled
 pipeline; a copy-shaped placeholder associated with a native operation is not

@@ -44,6 +44,7 @@ EXPECTED_COMPILED_SUBSET = [
     "max-i32",
     "min-i32",
     "cast-i32-f32",
+    "strided-contiguous-copy-u32",
     "concat-u32",
     "relu-f32",
     "clamp-min-nonzero-f32",
@@ -128,8 +129,8 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
             for entry in compiled_entries
             for source in frontier.compiled_ptx_sources(entry)
         ]
-        self.assertEqual(len(compiled_entries), 35)
-        self.assertEqual(len(set(compiled_sources)), 35)
+        self.assertEqual(len(compiled_entries), 36)
+        self.assertEqual(len(set(compiled_sources)), 36)
         sqrt = next(entry for entry in compiled_entries if entry["id"] == "sqrt-f32")
         self.assertEqual(
             frontier.compiled_ptx(sqrt),
