@@ -47,6 +47,8 @@
    "relu-f32",
    "clamp-min-nonzero-f32",
    "clamp-min-negative-f32",
+   "softmax-f32",
+   "softmax-f32-nonlast",
    "sigmoid-f32",
    "arange-i64",
    "exp-f32",
@@ -734,7 +736,10 @@
    },
    "expected_requests": [
     "baseline:softmax-f32:1:2:module-load"
-   ]
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/softmax-f32.ptx"
+   }
   },
   {
    "id": "softmax-f32-nonlast",
@@ -757,7 +762,10 @@
    },
    "expected_requests": [
     "baseline:softmax-dim-f32:1:2:module-load"
-   ]
+   ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/softmax-dim-f32.ptx"
+   }
   },
   {
    "id": "sigmoid-f32",

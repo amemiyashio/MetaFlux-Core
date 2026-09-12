@@ -1357,6 +1357,10 @@ private:
         result = select(vinput(2U), vinput(0U), vinput(1U), vtype("i32"), &operation,
                         vtype("i1"));
         break;
+      case Opcode::SelectF32:
+        result = select(vinput(2U), vinput(0U), vinput(1U), vtype("f32"), &operation,
+                        vtype("i1"));
+        break;
       default:
         break;
       }
@@ -1922,6 +1926,9 @@ private:
       break;
     case Opcode::SelectU32:
       result = select(input(2U), input(0U), input(1U), "i32", &operation);
+      break;
+    case Opcode::SelectF32:
+      result = select(input(2U), input(0U), input(1U), "f32", &operation);
       break;
     case Opcode::StoreGlobalU8:
       emit_global_store_u8(state, operation, lane64, input(1U));

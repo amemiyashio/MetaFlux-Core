@@ -48,7 +48,7 @@
   "sha256": "207acfec55e860c94809b3a5c2d892f6fe70622105cd421a3c76d93617f6e76a"
  },
  "forms_path": "forms.jsonl",
- "forms_sha256": "0152274db2f4c5b9dfed6afa1f61ddf38f5c6d675148bd0b3be3fb4ff41d6b65",
+ "forms_sha256": "1fda1e1bc691de6cefc72085be9c8d93a71ecd100ecf8f467c5f6a6a34064a88",
  "corpus_index_path": "../corpus/index.json",
- "corpus_index_sha256": "eb5a9b7a078a1edb0a61686b7eb570ff31c414fb1015f8487029bb0f3983a137"
+ "corpus_index_sha256": "c23c67c220400901b22bac68b7cda9859b6167fd6c2115de8cc99897fc1c5096"
 }

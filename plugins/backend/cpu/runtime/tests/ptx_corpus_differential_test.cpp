@@ -299,6 +299,17 @@ bool test_exp_form() {
   return expect(count == 23U, "all exponential boundary oracle rows must execute");
 }
 
+bool test_float_select() {
+  std::vector<std::uint32_t> selected(1U, 0U), source{0x3f800000U, 0x40000000U};
+  const std::array<Argument, 3> arguments{buffer(selected, true), buffer(source, false), 1U};
+  if (!execute("positive-float-select.ptx", arguments) ||
+      !expect(selected[0] == 0x40000000U,
+              "selp.f32 must select the greater adjacent binary32 value")) {
+    return false;
+  }
+  return true;
+}
+
 bool test_executed_form_coverage() {
   for (const auto& form : metaflux::compiler::ptx::supported_forms()) {
     if (!expect(executed_kernel_ir.find("OP " + std::string(form.kernel_ir_op)) !=
@@ -317,7 +328,7 @@ int main() {
   return test_add_and_control() && test_integer_forms() && test_abs_int_min() && test_fp_forms() &&
                  test_fp_environment_rejection() && test_conversion_and_predication() &&
                  test_signed_conversion() && test_2d_special_registers() &&
-                 test_shared_barrier() && test_edge_oracles() && test_exp_form() &&
+                 test_shared_barrier() && test_edge_oracles() && test_exp_form() && test_float_select() &&
                  test_executed_form_coverage()
              ? 0
              : 1;

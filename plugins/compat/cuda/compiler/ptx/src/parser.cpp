@@ -17,7 +17,7 @@
 namespace metaflux::compiler::ptx {
 namespace {
 
-constexpr std::array<SupportedForm, 41> kSupportedForms{{
+constexpr std::array<SupportedForm, 42> kSupportedForms{{
     {"ld-param-u64", "ld.param.u64", "b64,param.u64", "param,register", "", 70,
      "load_parameter_address", "bounded global buffer handle"},
     {"ld-param-u32", "ld.param.u32", "b32,param.u32", "param,register", "", 70,
@@ -52,6 +52,8 @@ constexpr std::array<SupportedForm, 41> kSupportedForms{{
      "signed greater-than"},
     {"selp-b32", "selp.b32", "b32,b32,pred", "register", "", 70, "select_u32",
      "predicate-selected 32-bit value"},
+    {"selp-f32", "selp.f32", "f32,f32,pred", "register", "", 70, "select_f32",
+     "predicate-selected binary32 value"},
     {"st-global-u8", "st.global.u8", "global-address,b32", "global,register", "guard:none|@p|@!p",
      70, "store_global_u8", "checked exact u8 byte store"},
     {"abs-s32", "abs.s32", "s32,s32", "register", "", 70, "abs_s32",
@@ -905,6 +907,8 @@ private:
                           ValueKind::U32);
     } else if (opcode.text == "selp.b32") {
       parse_select(opcode);
+    } else if (opcode.text == "selp.f32") {
+      parse_select_f32(opcode);
     } else if (opcode.text == "st.global.u8") {
       parse_store_memory(opcode, Opcode::StoreGlobalU8, DeclaredRegisterKind::B64,
                          ValueKind::GlobalAddress, DeclaredRegisterKind::B32, ValueKind::U32,
@@ -1149,6 +1153,23 @@ private:
     if (!failed_ && result.has_value() && true_value.has_value() && false_value.has_value() &&
         predicate.has_value()) {
       add_operation(Opcode::SelectU32, result->index,
+                    {true_value->index, false_value->index, predicate->index}, 0, false,
+                    opcode.location);
+    }
+  }
+
+  void parse_select_f32(const Token& opcode) {
+    const auto result = take_result(DeclaredRegisterKind::F32, ValueKind::F32);
+    comma();
+    const auto true_value = take_source(DeclaredRegisterKind::F32, ValueKind::F32);
+    comma();
+    const auto false_value = take_source(DeclaredRegisterKind::F32, ValueKind::F32);
+    comma();
+    const auto predicate = take_source(DeclaredRegisterKind::Predicate, ValueKind::Predicate);
+    semicolon();
+    if (!failed_ && result.has_value() && true_value.has_value() && false_value.has_value() &&
+        predicate.has_value()) {
+      add_operation(Opcode::SelectF32, result->index,
                     {true_value->index, false_value->index, predicate->index}, 0, false,
                     opcode.location);
     }

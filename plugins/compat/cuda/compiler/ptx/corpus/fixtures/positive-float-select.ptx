@@ -1,0 +1,37 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.entry float_select(
+  .param .u64 output,
+  .param .u64 input,
+  .param .u32 count
+)
+{
+  .reg .pred %p<4>;
+  .reg .b32 %r<8>;
+  .reg .f32 %f<4>;
+  .reg .b64 %rd<8>;
+  ld.param.u64 %rd0, [output];
+  ld.param.u64 %rd1, [input];
+  ld.param.u32 %r0, [count];
+  mov.u32 %r1, %tid.x;
+  mov.u32 %r2, %ctaid.x;
+  mov.u32 %r3, %ntid.x;
+  mad.lo.u32 %r4, %r2, %r3, %r1;
+  mov.u32 %r5, 1;
+  setp.ge.u32 %p1, %r4, %r0;
+  @%p1 bra done;
+  mul.wide.u32 %rd2, %r4, 4;
+  add.u64 %rd3, %rd1, %rd2;
+  add.u64 %rd4, %rd0, %rd2;
+  ld.global.f32 %f1, [%rd3];
+  add.u32 %r6, %r4, %r5;
+  mul.wide.u32 %rd5, %r6, 4;
+  add.u64 %rd6, %rd1, %rd5;
+  ld.global.f32 %f2, [%rd6];
+  setp.lt.f32 %p2, %f1, %f2;
+  selp.f32 %f3, %f2, %f1, %p2;
+  st.global.f32 [%rd4], %f3;
+done:
+  ret;
+}

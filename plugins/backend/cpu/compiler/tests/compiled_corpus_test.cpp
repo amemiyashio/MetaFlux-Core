@@ -607,6 +607,14 @@ bool test_exp_compiled(Harness& harness) {
   return expect(count == 23U, "all exponential boundary rows must pass all four CPU modes");
 }
 
+bool test_float_select_compiled(Harness& harness) {
+  std::vector<std::uint32_t> selected(1U, 0U), source{0x3f800000U, 0x40000000U};
+  const std::array<Argument, 3> arguments{buffer(selected, true), buffer(source, false), 1U};
+  return harness.execute_fixture("positive-float-select.ptx", arguments) &&
+         expect(selected[0] == 0x40000000U,
+                "compiled selp.f32 must select the greater adjacent binary32 value");
+}
+
 bool test_compiled_form_coverage() {
   for (const auto& form : metaflux::compiler::ptx::supported_forms()) {
     if (!expect(
@@ -628,7 +636,8 @@ int main() {
                  test_signed_conversion(harness) && test_2d_special_registers(harness) &&
                  test_shared_barrier(harness) &&
                  test_edge_oracles(harness) && test_random_add_copy(harness) &&
-                 test_exp_compiled(harness) && test_compiled_form_coverage()
+                 test_exp_compiled(harness) && test_float_select_compiled(harness) &&
+                 test_compiled_form_coverage()
              ? 0
              : 1;
 }

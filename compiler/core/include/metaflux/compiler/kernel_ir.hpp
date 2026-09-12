@@ -107,6 +107,7 @@ enum class Opcode : std::uint32_t {
   SetPredicateLtF32,
   SetPredicateGtS32,
   SelectU32,
+  SelectF32,
   BranchIf,
   LoadGlobalU32,
   StoreGlobalU32,

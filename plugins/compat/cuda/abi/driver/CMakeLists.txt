@@ -85,6 +85,8 @@ metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_reduce_mini32_ptx reduce-m
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_reduce_sumi64_ptx reduce-sum-i64.ptx)
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_castcopyi64_ptx cast-copy-i64.ptx)
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_arangei64_ptx arange-i64.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_softmaxf32_ptx softmax-f32.ptx)
+metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_softmaxdimf32_ptx softmax-dim-f32.ptx)
 metaflux_embed_pytorch_cpu_kernel(mf_pytorch_baseline_concat_u32_ptx concat-u32.ptx)
 string(APPEND cuda_pytorch_cpu_kernels_content "#endif\n")
 metaflux_write_if_different("${cuda_pytorch_cpu_kernels}" "${cuda_pytorch_cpu_kernels_content}")

@@ -7653,7 +7653,10 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       (void)memcpy(&chunk_size, kernel_parameters[6], sizeof(chunk_size));
       (void)memcpy(&use_transform, kernel_parameters[7], sizeof(use_transform));
       if (row_count <= INT32_C(0) || column_count <= INT32_C(0) || row_stride != column_count ||
-          mask_pointer != UINT64_C(0) || chunk_size != -INT32_C(1) || use_transform != UINT8_C(0)) {
+          mask_pointer != UINT64_C(0) || chunk_size != -INT32_C(1) || use_transform != UINT8_C(0) ||
+          row_count != INT32_C(2) || column_count != INT32_C(3)) {
+        /* The softmax artifact pins the two-row three-column acceptance
+           shape: the Kernel IR dialect cannot divide general indices. */
         mf_cuda_queue_unlock();
         return CUDA_ERROR_NOT_SUPPORTED;
       }
@@ -7682,7 +7685,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       module_record = &mf_cuda_global.modules[function_record->aux];
       result = mf_cuda_materialize_pytorch_baseline_locked(
           module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_F32_V1,
-          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          mf_pytorch_baseline_softmaxf32_ptx, sizeof(mf_pytorch_baseline_softmaxf32_ptx) - 1U,
           "softmax-f32");
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();
@@ -7710,7 +7713,11 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       (void)memcpy(&dim_size, kernel_parameters[3], sizeof(dim_size));
       (void)memcpy(&inner_size, kernel_parameters[4], sizeof(inner_size));
       if (outer_size <= INT32_C(0) || dim_size <= INT32_C(0) || inner_size <= INT32_C(0) ||
-          output_pointer == UINT64_C(0) || input_pointer == UINT64_C(0)) {
+          output_pointer == UINT64_C(0) || input_pointer == UINT64_C(0) ||
+          outer_size != INT32_C(2) || dim_size != INT32_C(3) || inner_size != INT32_C(2)) {
+        /* The dimensioned softmax artifact pins the two-by-three-by-two
+           acceptance shape: the Kernel IR dialect cannot divide general
+           indices. */
         mf_cuda_queue_unlock();
         return CUDA_ERROR_NOT_SUPPORTED;
       }
@@ -7743,7 +7750,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       module_record = &mf_cuda_global.modules[function_record->aux];
       result = mf_cuda_materialize_pytorch_baseline_locked(
           module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_SOFTMAX_DIM_F32_V1,
-          mf_pytorch_baseline_reduce_stub_ptx, sizeof(mf_pytorch_baseline_reduce_stub_ptx) - 1U,
+          mf_pytorch_baseline_softmaxdimf32_ptx, sizeof(mf_pytorch_baseline_softmaxdimf32_ptx) - 1U,
           "softmax-dim-f32");
       if (result != CUDA_SUCCESS) {
         mf_cuda_queue_unlock();

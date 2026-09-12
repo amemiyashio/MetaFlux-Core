@@ -4,8 +4,8 @@
  "target": "sm_70",
  "digest_algorithm": "sha256",
  "aggregate_definition": "sha256 of UTF-8 id, NUL, fixture sha256, LF in lexical id order",
- "corpus_sha256": "3c1e2f0b35d586778b14cb7334a118a625df8319a5a48008b8d40bf42ec271ed",
- "forms_sha256": "0152274db2f4c5b9dfed6afa1f61ddf38f5c6d675148bd0b3be3fb4ff41d6b65",
+ "corpus_sha256": "9f560500c8ed7bc9875a57fcd58c817c965ad231d96fd7494a3aaf94666be1d9",
+ "forms_sha256": "1fda1e1bc691de6cefc72085be9c8d93a71ecd100ecf8f467c5f6a6a34064a88",
  "fixtures": [
   {
    "id": "edge-2d-specials",
@@ -384,6 +384,33 @@
    ],
    "oracle": "23 independently rounded 150-digit decimal exponential references embedded in the fixture; finite 2 ULP accuracy and explicit zero/infinity/NaN classification; bit-exact CPU mode agreement",
    "sha256": "384d76dfd3d787c9bb66ca9d3eb59276ff9ca566a40b6d09ead6cf89b1eec417"
+  },
+  {
+   "id": "positive-float-select",
+   "path": "fixtures/positive-float-select.ptx",
+   "sha256": "148d97e7602d3235abdb99553009d0a9a8177dbb4203f14a275a34e0d0b1a7a6",
+   "classes": [
+    "positive",
+    "edge"
+   ],
+   "forms": [
+    "ld-param-u64",
+    "ld-param-u32",
+    "mov-special-u32",
+    "mad-lo-u32",
+    "mov-immediate-u32",
+    "setp-ge-u32",
+    "bra-predicate",
+    "mul-wide-u32",
+    "add-u64-global-address",
+    "add-u32",
+    "ld-global-f32",
+    "setp-lt-f32",
+    "selp-f32",
+    "st-global-f32",
+    "ret"
+   ],
+   "oracle": "per-thread binary32 maximum of two adjacent loaded values selected with selp.f32"
   }
  ]
 }

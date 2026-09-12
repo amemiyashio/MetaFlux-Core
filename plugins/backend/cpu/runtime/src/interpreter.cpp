@@ -91,6 +91,7 @@ enum class Opcode : std::uint32_t {
   SetPredicateLtF32,
   SetPredicateGtS32,
   SelectU32,
+  SelectF32,
   BranchIf,
   LoadGlobalU32,
   StoreGlobalU32,
@@ -205,7 +206,7 @@ std::optional<ValueKind> parse_value_kind(std::string_view text) {
 
 std::optional<Opcode> parse_opcode(std::string_view text) {
   using Pair = std::pair<std::string_view, Opcode>;
-  constexpr std::array<Pair, 42> entries{{
+  constexpr std::array<Pair, 43> entries{{
       {"load_parameter_address", Opcode::LoadParameterAddress},
       {"load_parameter_u32", Opcode::LoadParameterU32},
       {"load_parameter_f32", Opcode::LoadParameterF32},
@@ -237,6 +238,7 @@ std::optional<Opcode> parse_opcode(std::string_view text) {
       {"set_predicate_lt_f32", Opcode::SetPredicateLtF32},
       {"set_predicate_gt_s32", Opcode::SetPredicateGtS32},
       {"select_u32", Opcode::SelectU32},
+      {"select_f32", Opcode::SelectF32},
       {"branch_if", Opcode::BranchIf},
       {"load_global_u32", Opcode::LoadGlobalU32},
       {"store_global_u32", Opcode::StoreGlobalU32},
@@ -330,6 +332,8 @@ OperationContract operation_contract(Opcode opcode) {
     return {true, Predicate, {U32, U32, U32}, 2};
   case SelectU32:
     return {true, U32, {U32, U32, Predicate}, 3};
+  case SelectF32:
+    return {true, F32, {F32, F32, Predicate}, 3};
   case BranchIf:
     return {false, U32, {Predicate, U32, U32}, 1};
   case LoadGlobalU32:
@@ -1092,6 +1096,12 @@ std::optional<ExecutionResult> execute_one(const Kernel& kernel,
     values[operation.result] = std::get<bool>(values[operation.inputs[2]])
                                    ? std::get<std::uint32_t>(values[operation.inputs[0]])
                                    : std::get<std::uint32_t>(values[operation.inputs[1]]);
+    ++thread.pc;
+    break;
+  case Opcode::SelectF32:
+    values[operation.result] = std::get<bool>(values[operation.inputs[2]])
+                                   ? std::get<float>(values[operation.inputs[0]])
+                                   : std::get<float>(values[operation.inputs[1]]);
     ++thread.pc;
     break;
   case Opcode::SetPredicateEqU32:

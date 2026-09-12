@@ -82,12 +82,22 @@ no 64-bit multiply form, so the provider rejects other start or step values
 for the pinned artifact, mirroring the reduction extent gates; generalizing
 the progression needs a dialect extension slice.
 
+The two softmax cases joined the compiled subset together with the dialect
+form they need: the Kernel IR had no float select, so `selp.f32` (f32, f32,
+pred) is now an advertised form across the parser, serializer, interpreter
+and CPU compiler with its sealed manifest fixture. Both artifacts pin the
+observed shapes (two-by-three row softmax and two-by-three-by-two dimension
+softmax) because the dialect cannot divide general thread indices; the
+provider rejects other shape parameters, and each thread re-evaluates the
+full three-element slice maximum, exponential sum in index order and its own
+guarded quotient, reproducing the daemon-native arithmetic bit for bit.
+
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |
-| Compiled cases | 33 |
-| Unique compiled PTX sources | 33 |
-| Cases outside compiled subset | 8 |
+| Compiled cases | 35 |
+| Unique compiled PTX sources | 35 |
+| Cases outside compiled subset | 6 |
 | Classified gaps | 2 |
 
 Every supported interpreter-mode case records its neutral request, daemon
