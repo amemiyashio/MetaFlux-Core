@@ -95,6 +95,27 @@ if(BUILD_TESTING AND METAFLUX_BUILD_TESTS)
         WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
     )
     if(TARGET metaflux_cublas_provider)
+      foreach(metaflux_matmul_admission_mode IN ITEMS interpreter cold-jit warm-jit aot)
+        add_test(
+          NAME "metaflux.compatibility.pytorch-cuda-matmul-admission.${metaflux_matmul_admission_mode}"
+          COMMAND
+            "${METAFLUX_NIX_EXECUTABLE}" develop ".#pytorch-baseline"
+            --ignore-environment --keep HOME --keep USER --command
+            python3 -B
+            "${CMAKE_CURRENT_SOURCE_DIR}/compatibility/run_pytorch_cuda_matmul_admission.py"
+            --daemon $<TARGET_FILE:metafluxd>
+            --provider-dir $<TARGET_FILE_DIR:metaflux_cuda_provider>
+            --cublas-provider $<TARGET_FILE:metaflux_cublas_provider>
+            --execution-mode "${metaflux_matmul_admission_mode}"
+        )
+        set_tests_properties(
+          "metaflux.compatibility.pytorch-cuda-matmul-admission.${metaflux_matmul_admission_mode}"
+          PROPERTIES
+            LABELS "compatibility;integration;cuda;pytorch;cpu;compiler"
+            TIMEOUT 300
+            WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+        )
+      endforeach()
       add_test(
         NAME metaflux.compatibility.pytorch-cuda-cpu-frontier
         COMMAND

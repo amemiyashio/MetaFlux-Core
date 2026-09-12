@@ -6596,6 +6596,13 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       compiled_matmul_ptx_size = sizeof(mf_pytorch_baseline_matmulrectf32_ptx) - 1U;
       compiled_matmul_name = "matmul-rect-f32";
     }
+    if (compiled_matmul == 0) {
+      /* Only the declared variants carry executable tensor semantics. The
+         library's registration artifact is a placeholder, and a prior warm
+         variant cannot represent a different shape or layout. */
+      mf_cuda_queue_unlock();
+      return CUDA_ERROR_NOT_SUPPORTED;
+    }
     normalized_buffer_count = buffer_count;
     normalized_element_count_index = buffer_count;
     normalized_entry_total = argument_count;
@@ -6616,40 +6623,12 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       normalized_scalars[index] = descriptor[index - buffer_count];
       normalized_parameters[index] = &normalized_scalars[index];
     }
-    if (compiled_matmul != 0) {
-      result = mf_cuda_materialize_pytorch_baseline_locked(
-          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1,
-          compiled_matmul_ptx, compiled_matmul_ptx_size, compiled_matmul_name);
-      if (result != CUDA_SUCCESS) {
-        mf_cuda_queue_unlock();
-        return result;
-      }
-    } else if (module_record->remote_id == UINT64_C(0)) {
-      mf_client_completion_v1 load_completion = {0};
-      const mf_cuda_command load_command = {
-          MF_CUDA_COMMAND_MODULE_LOAD,
-          module_record->materialized_id,
-          {module_record->materialized_generation, 0, 0, 0},
-          UINT32_C(0)};
-      result = mf_cuda_submit_locked(&load_command, &load_completion);
-      if (result == CUDA_SUCCESS &&
-          (load_completion.result_id == UINT64_C(0) ||
-           load_completion.result_generation == UINT64_C(0))) {
-        result = CUDA_ERROR_UNKNOWN;
-      }
-      if (result != CUDA_SUCCESS) {
-        mf_cuda_queue_unlock();
-        return result;
-      }
-      module_record->remote_id = load_completion.result_id;
-      module_record->remote_generation = load_completion.result_generation;
-      if (mf_cuda_entry_trace_enabled() != 0) {
-        fprintf(stderr, "MF_PYTORCH_BASELINE_MODULE artifact=%llu/%llu module=%llu/%llu\n",
-                (unsigned long long)module_record->materialized_id,
-                (unsigned long long)module_record->materialized_generation,
-                (unsigned long long)load_completion.result_id,
-                (unsigned long long)load_completion.result_generation);
-      }
+    result = mf_cuda_materialize_pytorch_baseline_locked(
+        module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1,
+        compiled_matmul_ptx, compiled_matmul_ptx_size, compiled_matmul_name);
+    if (result != CUDA_SUCCESS) {
+      mf_cuda_queue_unlock();
+      return result;
     }
     kernel_parameters = normalized_parameters;
     goto daemon_launch;

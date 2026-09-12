@@ -64,8 +64,7 @@ requests — the int32-to-int64 cast-copy companion and the reduction — and th
 corpus compiled declaration therefore carries a source list: one source per
 baseline request. The `cast-copy-i64.ptx` artifact widens each loaded int32
 word to a sign-extended int64 pair with dialect-legal forms (`sub.u32`
-produces the 0xFFFFFFFF high half), and the daemon excludes the cast-copy
-operation from its native branch so both requests execute canonically with
+produces the 0xFFFFFFFF high half), and both requests execute canonically with
 per-request executor evidence in every mode. The compiled runner resolves a
 case's sources from either a string or a list, requires no more sources than
 requests, and the AOT-miss check accepts a non-empty prefix of the expected
@@ -90,7 +89,7 @@ observed shapes (two-by-three row softmax and two-by-three-by-two dimension
 softmax) because the dialect cannot divide general thread indices; the
 provider rejects other shape parameters, and each thread re-evaluates the
 full three-element slice maximum, exponential sum in index order and its own
-guarded quotient, reproducing the daemon-native arithmetic bit for bit.
+guarded quotient with the pinned profile's bit-exact arithmetic order.
 
 | Corpus metric | Count |
 | --- | --- |
@@ -102,8 +101,9 @@ guarded quotient, reproducing the daemon-native arithmetic bit for bit.
 
 Every supported interpreter-mode case records its neutral request, daemon
 module intake and CPU completion, and rejects provider-local execution.
-Interpreter-mode success includes operation-specific daemon CPU execution;
-it does not prove that every row has generic Kernel IR interpreter semantics.
+Every supported row requires correlated generic executor completion. The daemon
+has no operation-specific CPU tensor execution branch; a successful artifact
+load alone does not establish tensor execution.
 The corpus remains `frontier-not-frozen`, with `exit_gate_complete: false`.
 
 The compiled subset includes arithmetic, fill, scalar/alpha operations,
@@ -124,13 +124,34 @@ artifacts. The cuBLASLt bias-linear request adds a fifth artifact with an
 explicit bias buffer and epilogue identity. The provider keeps the neutral
 request and materializes the exact shape/variant; a warm launch does no
 registration work when its module/operation/variant cache identity matches,
-including distinct identities for addmm and bias-linear. Other shapes,
-transposes, beta values and bias epilogues remain on the closed library-backed
-boundary. The artifacts use the same column-major request contract as the
+including distinct identities for addmm and bias-linear. Requests satisfying
+the neutral descriptor's validation but matching none of these five variants
+receive `CUDA_ERROR_NOT_SUPPORTED` at Driver profile admission, mapped to
+`CUBLAS_STATUS_NOT_SUPPORTED` by the library adapter. Malformed descriptors
+retain their existing invalid-value errors. This is a MetaFlux profile limit,
+not a restriction imposed by CUDA. Admission occurs before executable module
+materialization or launch:
+neither the library's `ret`-only registration artifact nor a previously cached
+fixed-shape variant provides semantics for an unmatched request. Initial
+library artifact registration is separate from executable module loading.
+The artifacts use the same column-major request contract as the
 existing cuBLAS adapter, emit one daemon submission, and are exercised by the
 generic interpreter, cold JIT, warm JIT and AOT executors.
 This is a fixed-shape CPU slice and does not claim general GEMM or Vulkan
 execution.
+
+The real-client matmul admission gate exercises fresh unsupported requests and
+supported → unsupported → supported sequences for SGEMM and bias-linear,
+checking exact positive results, stable rejection, and module, launch-attempt
+and executor-completion counts. It verifies that a rejected shape leaves the
+supported cached variant usable. Stock PyTorch propagates SGEMM's
+`CUBLAS_STATUS_NOT_SUPPORTED`; after a cuBLASLt rejection it warns and tries
+its unfused path. For the tested 3x3 bias-linear probe, that path's copy kernel
+also returns CUDA unsupported. The gate checks both the cuBLASLt warning and
+the final CUDA error, with no executable module load or CPU completion during
+either rejected attempt. The admission guard adds no allocation, registration
+or daemon request to the successful warm path; this structural fact is not a
+measured latency or zero-overhead performance claim.
 
 The provider's warm materialization identity is now observable without adding
 work to the normal path: when diagnostic tracing is enabled, a repeated launch
@@ -144,9 +165,8 @@ daemon registration or tensor execution.
 The concat-u32 slice adds the pinned two-source contiguous `torch.cat` row.
 The provider decodes the source metadata and submits destination, two source
 buffers, lengths, and total count as a neutral six-parameter request. The
-daemon's operation-specific concat branch is bypassed; a dedicated unrolled
-PTX artifact copies the twelve words through the generic CPU interpreter or
-compiled executor. This is a fixed two-input, six-element CPU claim and does
+dedicated unrolled PTX artifact copies the twelve words through the generic CPU
+interpreter or compiled executor. This is a fixed two-input, six-element CPU claim and does
 not generalize variable arity, non-contiguous inputs, or Vulkan execution.
 Provider admission requires exactly two sources with six elements each before
 module materialization. Other lengths or source counts receive
@@ -187,9 +207,8 @@ physical AMD GPU execution or the complete corpus.
 The float32 reduction slice adds the pinned four-element `torch.sum` and
 `torch.mean` rows to the compiled subset. The provider keeps the neutral
 destination/source/count request and rejects other reduction extents until
-Kernel IR v2 has a bounded loop form. The daemon bypasses its operation-specific
-float32 reduction branch for these two operation IDs, so the checked-in
-unrolled PTX is parsed, verified, and executed by the generic CPU interpreter
+Kernel IR v2 has a bounded loop form. The checked-in unrolled PTX is parsed,
+verified, and executed by the generic CPU interpreter
 or compiled CPU artifact. The store is predicated to one logical lane and the
 mean divisor is carried as a neutral u32 scalar. This slice establishes no
 general reduction-shape or Vulkan qualification claim.
@@ -197,24 +216,21 @@ general reduction-shape or Vulkan qualification claim.
 The integer reduction slice adds the pinned six-element
 `torch.sum(i32, dtype=int32)` row. The provider accepts only that source
 extent, rejects other extents before module materialization, and sends a
-neutral destination/source/unused/count request to the daemon. Operation 19
-now bypasses the daemon-native reduction branch; its unrolled `u32` bit-sum is
+neutral destination/source/unused/count request to the daemon. Its unrolled `u32` bit-sum is
 parsed, verified, and executed through the generic CPU interpreter, JIT, or AOT
 artifact. Other integer reductions remain outside this compiled claim, and this
 slice does not freeze a general reduction corpus or qualify Vulkan execution.
 
 The signed int32 clamp-min slice adds the pinned `torch.relu` row. The provider
 normalizes its destination, source, neutral scalar, element count, and signed
-floor into a versioned request, and operation 35 bypasses the daemon's native
-clamp branch. Its dedicated PTX uses a signed compare and select, is parsed and
+floor into a versioned request. Its dedicated PTX uses a signed compare and select, is parsed and
 verified as canonical Kernel IR, and executes through the generic CPU
 interpreter, JIT, or AOT artifact. This remains a six-element pinned shape
 claim and does not generalize clamp coverage or qualify Vulkan execution.
 
 The signed int32 max/min slice adds the pinned six-element `torch.max(i32)`
 and `torch.min(i32)` rows. The provider accepts only that source extent with
-one destination element, selects dedicated signed compare/select PTX, and
-operation IDs 22 and 23 bypass the daemon-native reduction branch. Each
+one destination element and selects dedicated signed compare/select PTX. Each
 artifact is parsed and verified as canonical Kernel IR and executes through
 the generic CPU interpreter, JIT, or AOT artifact with exact results `100`
 and `-999`; this remains a fixed-shape CPU claim and does not generalize
@@ -228,8 +244,8 @@ occur during preparation/loading, with no added warm-launch lookup or hashing.
 The real-client gate enables `METAFLUX_TRACE_EXECUTION=1` and correlates client
 PID, session, request, module generation, protocol operation and actual executor
 after successful generic CPU execution. Compiled rows reject missing, duplicate,
-wrong-operation or wrong-mode completion records. This optional qualification trace is disabled normally;
-daemon-native branches supply no generic-executor completion evidence.
+wrong-operation or wrong-mode completion records. This optional qualification
+trace is disabled normally and reports only the backend executor that completed.
 
 The compiled `abs.s32` exposed an incorrect signed-mask formula in both the
 scalar and SIMD LLVM emitters. The lowering now implements
@@ -260,8 +276,9 @@ and decision-0053 remains the closed library boundary.
 - [x] Close the library-backed operator boundary in decision-0053: pinned
   float32 SGEMM and single-batch cuBLASLt bias-linear calls translate to the
   neutral matmul request; the observed 2x2 and 2x3-by-3x4 SGEMM rows now use
-  the canonical compiled profiles while broader calls remain library-backed
-  or fail with typed statuses before submission.
+  the canonical compiled profiles. Configurations outside the five admitted
+  variants fail with typed statuses before executable module materialization
+  or tensor submission.
 - [ ] Freeze and qualify the existing versioned real-client CPU corpus covering supported operation
   categories, exact inputs and outputs, module volume, repeated function
   resolution, cold/warm cache behavior, and classified unsupported operations.

@@ -1381,7 +1381,6 @@ struct Object final {
   std::unique_ptr<PreparedModule> prepared_module;
   std::unique_ptr<VulkanKernelModule> vulkan_module;
   uint32_t kernel_operation = 0U;
-  bool canonical_matmul = false;
 #if METAFLUX_DAEMON_CDEV_BACKEND
   mf_backend_memory_v1 cdev_backend_memory = 0U;
   mf_backend_module_v1 cdev_backend_module = 0U;
@@ -3142,8 +3141,7 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
       module->prepared_module->launch(arguments, dimensions, process_stop_token());
   if (result.ok()) {
     memory_active = module->prepared_module->accesses_global_memory();
-    // Emit only after the generic executor actually completes. Native tensor
-    // branches return earlier and therefore cannot supply this evidence.
+    // Emit only after the generic executor actually completes.
     // Qualification opts in once per session; normal launches do no log I/O.
     if (trace_execution_) {
       std::fprintf(stderr,
@@ -3257,12 +3255,7 @@ mf_shared_status_v1 Session::process_command(const mf_ring_descriptor_v1& comman
       Object* loaded_artifact = nullptr;
       if (resolve(command.target_id, command.arguments[0], ObjectKind::kArtifact,
                   loaded_artifact) == MF_SHARED_SUCCESS) {
-      module_object->kernel_operation = loaded_artifact->kernel_operation;
-      module_object->canonical_matmul = parsed.kernel->name == "matmul_f32" ||
-                                         parsed.kernel->name == "matmul_rect_f32" ||
-                                         parsed.kernel->name == "linear_f32" ||
-                                         parsed.kernel->name == "addmm_f32" ||
-                                         parsed.kernel->name == "linear_bias_f32";
+        module_object->kernel_operation = loaded_artifact->kernel_operation;
       }
     }
     if (vulkan_route_ != nullptr && module_object != nullptr &&
