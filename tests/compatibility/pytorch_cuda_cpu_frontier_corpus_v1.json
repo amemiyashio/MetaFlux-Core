@@ -48,6 +48,7 @@
    "relu-f32",
    "clamp-min-nonzero-f32",
    "clamp-min-negative-f32",
+   "matmul-f32",
    "softmax-f32",
    "softmax-f32-nonlast",
    "sigmoid-f32",
@@ -645,9 +646,13 @@
    "expected_requests": [
     "baseline:matmul-f32:1:2:module-load"
    ],
+   "compiled": {
+    "ptx": "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/matmul-f32.ptx"
+   },
    "expected_library_calls": [
     "sgemm-f32"
-   ]
+   ],
+   "aot_miss_error": "CUDA error: CUBLAS_STATUS_NOT_SUPPORTED when calling `cublasSgemm( handle, opa, opb, m, n, k, &alpha, a, lda, b, ldb, &beta, c, ldc)`"
   },
   {
    "id": "matmul-rect-f32",

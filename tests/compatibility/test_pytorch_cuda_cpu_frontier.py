@@ -49,6 +49,7 @@ EXPECTED_COMPILED_SUBSET = [
     "relu-f32",
     "clamp-min-nonzero-f32",
     "clamp-min-negative-f32",
+    "matmul-f32",
     "softmax-f32",
     "softmax-f32-nonlast",
     "sigmoid-f32",
@@ -117,6 +118,17 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
         self.assertEqual(corpus["cases"][-9]["id"], "linear-no-bias-f32")
         self.assertEqual(corpus["cases"][-10]["id"], "matmul-rect-f32")
         self.assertEqual(corpus["cases"][-11]["id"], "matmul-f32")
+        self.assertEqual(
+            corpus["cases"][-11]["aot_miss_error"],
+            "CUDA error: CUBLAS_STATUS_NOT_SUPPORTED when calling `cublasSgemm( handle, opa, opb, m, n, k, &alpha, a, lda, b, ldb, &beta, c, ldc)`",
+        )
+        self.assertEqual(
+            frontier.compiled_ptx(
+                next(entry for entry in corpus["cases"] if entry["id"] == "matmul-f32")
+            ),
+            frontier.ROOT
+            / "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/matmul-f32.ptx",
+        )
         self.assertEqual(corpus["cases"][-12]["id"], "clamp-min-negative-f32")
         self.assertEqual(corpus["gaps"][0]["id"], "sigmoid-f64")
         self.assertEqual(corpus["gaps"][1]["id"], "exp-f64")
@@ -129,8 +141,8 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
             for entry in compiled_entries
             for source in frontier.compiled_ptx_sources(entry)
         ]
-        self.assertEqual(len(compiled_entries), 36)
-        self.assertEqual(len(set(compiled_sources)), 36)
+        self.assertEqual(len(compiled_entries), 37)
+        self.assertEqual(len(set(compiled_sources)), 37)
         sqrt = next(entry for entry in compiled_entries if entry["id"] == "sqrt-f32")
         self.assertEqual(
             frontier.compiled_ptx(sqrt),

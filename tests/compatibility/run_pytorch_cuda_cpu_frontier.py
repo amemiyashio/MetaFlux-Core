@@ -549,7 +549,7 @@ def run_case(
     if not expect_success:
         if process.returncode == 0:
             raise RuntimeError(f"application {case_id} unexpectedly succeeded")
-        require_stable_gap(payload, STABLE_AOT_MISS)
+        require_stable_gap(payload, entry.get("aot_miss_error", STABLE_AOT_MISS))
         expected_requests = entry["expected_requests"]
         expected_library_calls = entry.get("expected_library_calls", [])
         observed_requests = provider["requests"]

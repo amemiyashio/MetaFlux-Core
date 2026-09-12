@@ -95,9 +95,9 @@ guarded quotient, reproducing the daemon-native arithmetic bit for bit.
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |
-| Compiled cases | 36 |
-| Unique compiled PTX sources | 36 |
-| Cases outside compiled subset | 5 |
+| Compiled cases | 37 |
+| Unique compiled PTX sources | 37 |
+| Cases outside compiled subset | 4 |
 | Classified gaps | 2 |
 
 Every supported interpreter-mode case records its neutral request, daemon
@@ -109,11 +109,21 @@ The corpus remains `frontier-not-frozen`, with `exit_gate_complete: false`.
 The compiled subset includes arithmetic, fill, scalar/alpha operations,
 absolute value, square root, exponential, sigmoid, comparisons, int32-to-float32
 cast, ReLU, clamp, the pinned six-element int32 sum, signed int32 clamp-min,
-signed int32 max/min reductions, the pinned strided contiguous copy, and the
-four-element float32 sum/mean reductions. The two float32 clamp inputs share
-one kernel. Profile-owned PTX
+signed int32 max/min reductions, the pinned strided contiguous copy, the
+four-element float32 sum/mean reductions, and the pinned 2x2 float32 matmul.
+The two float32 clamp inputs share one kernel. Profile-owned PTX
 lives beside the PyTorch CPU profile and is generated into the C17 provider at
 configure time.
+
+The matmul-f32 slice promotes the observed stock cuBLAS SGEMM request for a
+2x2, non-transposed, alpha-one, beta-zero configuration into a fixed unrolled
+Kernel IR artifact. The provider keeps the neutral fourteen-entry request and
+materializes `matmul-f32.ptx` only for that exact descriptor; other shapes,
+transposes, beta values and bias epilogues remain on the closed library-backed
+boundary. The artifact uses the same column-major request contract as the
+existing cuBLAS adapter, emits one daemon submission, and is exercised by the
+generic interpreter, cold JIT, warm JIT and AOT executors. This is a fixed-shape
+CPU slice and does not claim general GEMM or Vulkan execution.
 
 The concat-u32 slice adds the pinned two-source contiguous `torch.cat` row.
 The provider decodes the source metadata and submits destination, two source
@@ -227,8 +237,9 @@ and decision-0053 remains the closed library boundary.
   versioned canonical Kernel IR in the daemon/compiler worker.
 - [x] Close the library-backed operator boundary in decision-0053: pinned
   float32 SGEMM and single-batch cuBLASLt bias-linear calls translate to the
-  neutral matmul request and execute only in the daemon; broader calls fail
-  with typed statuses before submission.
+  neutral matmul request; the observed 2x2 SGEMM row now uses the canonical
+  compiled profile while broader calls remain library-backed or fail with
+  typed statuses before submission.
 - [ ] Freeze and qualify the existing versioned real-client CPU corpus covering supported operation
   categories, exact inputs and outputs, module volume, repeated function
   resolution, cold/warm cache behavior, and classified unsupported operations.

@@ -1381,6 +1381,7 @@ struct Object final {
   std::unique_ptr<PreparedModule> prepared_module;
   std::unique_ptr<VulkanKernelModule> vulkan_module;
   uint32_t kernel_operation = 0U;
+  bool canonical_matmul = false;
 #if METAFLUX_DAEMON_CDEV_BACKEND
   mf_backend_memory_v1 cdev_backend_memory = 0U;
   mf_backend_module_v1 cdev_backend_module = 0U;
@@ -3099,7 +3100,7 @@ mf_shared_status_v1 Session::process_launch(const mf_ring_descriptor_v1& command
     return MF_SHARED_MALFORMED;
   }
   const uint32_t operation = module->kernel_operation;
-  if (operation != 0U &&
+  if (operation != 0U && !module->canonical_matmul &&
       operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_SUM_I32_V1 &&
       operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MAX_I32_V1 &&
       operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_REDUCE_MIN_I32_V1 &&
@@ -3612,6 +3613,7 @@ mf_shared_status_v1 Session::process_command(const mf_ring_descriptor_v1& comman
       if (resolve(command.target_id, command.arguments[0], ObjectKind::kArtifact,
                   loaded_artifact) == MF_SHARED_SUCCESS) {
         module_object->kernel_operation = loaded_artifact->kernel_operation;
+        module_object->canonical_matmul = parsed.kernel->name == "matmul_f32";
       }
     }
     if (vulkan_route_ != nullptr && module_object != nullptr &&

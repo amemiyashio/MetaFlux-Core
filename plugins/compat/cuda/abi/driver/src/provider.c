@@ -4801,6 +4801,7 @@ CUresult cuModuleLoadData(CUmodule* module, const void* image) {
   uint16_t control_opcode = MF_CLIENT_CONTROL_ARTIFACT_REGISTER_V1;
   uint16_t control_flags = MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD | MF_CLIENT_CONTROL_FLAG_PTX;
   uint32_t kernel_operation = UINT32_C(0);
+  int defer_module_load = 0;
   CUresult result = CUDA_SUCCESS;
   if (module == (CUmodule*)0 || image == (const void*)0) {
     return CUDA_ERROR_INVALID_VALUE;
@@ -4821,6 +4822,8 @@ CUresult cuModuleLoadData(CUmodule* module, const void* image) {
       } else {
         image_size = (size_t)request_size;
         kernel_operation = mf_client_load_le32_v1(request->bytes + 20);
+        defer_module_load =
+            kernel_operation == MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1;
         control_opcode = MF_CLIENT_CONTROL_KERNEL_REQUEST_REGISTER_V1;
         control_flags = MF_CLIENT_CONTROL_FLAG_PAYLOAD_FD;
       }
@@ -4840,7 +4843,7 @@ CUresult cuModuleLoadData(CUmodule* module, const void* image) {
         control_opcode, control_flags, mf_cuda_global.transport.runtime_context_id,
         (uint64_t)image_size, image, (uint64_t)image_size, &artifact_id, &artifact_generation);
   }
-  if (result == CUDA_SUCCESS) {
+  if (result == CUDA_SUCCESS && defer_module_load == 0) {
     command.kind = MF_CUDA_COMMAND_MODULE_LOAD;
     command.target = artifact_id;
     command.arguments[0] = artifact_generation;
@@ -4850,7 +4853,7 @@ CUresult cuModuleLoadData(CUmodule* module, const void* image) {
     command.flags = UINT32_C(0);
     result = mf_cuda_submit_locked(&command, &completion);
   }
-  if (result == CUDA_SUCCESS &&
+  if (result == CUDA_SUCCESS && defer_module_load == 0 &&
       (completion.result_id == UINT64_C(0) || completion.result_generation == UINT64_C(0))) {
     result = CUDA_ERROR_UNKNOWN;
   }
@@ -4868,10 +4871,6 @@ CUresult cuModuleLoadData(CUmodule* module, const void* image) {
         mf_cuda_entry_trace_enabled() != 0) {
       fprintf(stderr, "MF_PYTORCH_BASELINE_REQUEST profile=baseline operation=matmul-f32 "
                       "version=1 kernel-ir=2 lifetime=module-load\n");
-      fprintf(stderr, "MF_PYTORCH_BASELINE_MODULE artifact=%llu/%llu module=%llu/%llu\n",
-              (unsigned long long)artifact_id, (unsigned long long)artifact_generation,
-              (unsigned long long)completion.result_id,
-              (unsigned long long)completion.result_generation);
     }
     *module = (CUmodule)(uintptr_t)mf_cuda_token(MF_CUDA_TAG_MODULE, module_index,
                                                  mf_cuda_global.modules[module_index].generation);
@@ -4929,7 +4928,8 @@ CUresult cuModuleGetFunction(CUfunction* function, CUmodule module, const char* 
      compiler coverage. An approved adapter materializes its own neutral
      daemon artifact at launch time. */
   if (result == CUDA_SUCCESS && mf_module_deferred[module_index] == 0 &&
-      module_record->remote_id == UINT64_C(0)) {
+      module_record->remote_id == UINT64_C(0) &&
+      mf_module_kernel_operation[module_index] != MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1) {
     mf_client_completion_v1 load_completion = {0};
     const mf_cuda_command load_command = {MF_CUDA_COMMAND_MODULE_LOAD,
                                           module_record->materialized_id,
@@ -6321,7 +6321,7 @@ static CUresult mf_cuda_materialize_pytorch_baseline_locked(mf_cuda_object* modu
   if (result != CUDA_SUCCESS) {
     return result;
   }
-  if (mf_cuda_entry_trace_enabled() != 0) {
+  if (mf_cuda_entry_trace_enabled() != 0 && operation != MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1) {
     fprintf(stderr, "MF_PYTORCH_BASELINE_REQUEST profile=baseline operation=%s "
                     "version=1 kernel-ir=2 lifetime=module-load\n", operation_name);
   }
@@ -6465,6 +6465,7 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
     uint32_t descriptor_count = UINT32_C(11);
     uint32_t argument_count = UINT32_C(14);
     uint32_t index = UINT32_C(0);
+    int compiled_matmul = 0;
     if (strcmp(kernel_name, "metaflux_cublas_lt_matmul_bias_f32") == 0) {
       with_bias = UINT32_C(1);
       buffer_count = UINT32_C(4);
@@ -6514,6 +6515,13 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       mf_cuda_queue_unlock();
       return CUDA_ERROR_INVALID_VALUE;
     }
+    module_record = &mf_cuda_global.modules[function_record->aux];
+    compiled_matmul = with_bias == UINT32_C(0) && descriptor[1] == UINT32_C(0) &&
+        descriptor[2] == UINT32_C(0) && descriptor[0] == UINT32_C(4) &&
+        descriptor[3] == UINT32_C(2) && descriptor[4] == UINT32_C(2) &&
+        descriptor[5] == UINT32_C(2) && descriptor[6] == UINT32_C(2) &&
+        descriptor[7] == UINT32_C(2) && descriptor[8] == UINT32_C(2) &&
+        descriptor[9] == UINT32_C(0x3f800000) && descriptor[10] == UINT32_C(0);
     normalized_buffer_count = buffer_count;
     normalized_element_count_index = buffer_count;
     normalized_entry_total = argument_count;
@@ -6534,7 +6542,42 @@ static CUresult mf_cuda_launch_kernel(CUfunction function, unsigned int grid_x, 
       normalized_scalars[index] = descriptor[index - buffer_count];
       normalized_parameters[index] = &normalized_scalars[index];
     }
-    module_record = &mf_cuda_global.modules[function_record->aux];
+    if (compiled_matmul != 0) {
+      result = mf_cuda_materialize_pytorch_baseline_locked(
+          module_record, MF_CLIENT_KERNEL_REQUEST_OPERATION_MATMUL_F32_V1,
+          mf_pytorch_baseline_matmulf32_ptx,
+          sizeof(mf_pytorch_baseline_matmulf32_ptx) - 1U, "matmul-f32");
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+    } else if (module_record->remote_id == UINT64_C(0)) {
+      mf_client_completion_v1 load_completion = {0};
+      const mf_cuda_command load_command = {
+          MF_CUDA_COMMAND_MODULE_LOAD,
+          module_record->materialized_id,
+          {module_record->materialized_generation, 0, 0, 0},
+          UINT32_C(0)};
+      result = mf_cuda_submit_locked(&load_command, &load_completion);
+      if (result == CUDA_SUCCESS &&
+          (load_completion.result_id == UINT64_C(0) ||
+           load_completion.result_generation == UINT64_C(0))) {
+        result = CUDA_ERROR_UNKNOWN;
+      }
+      if (result != CUDA_SUCCESS) {
+        mf_cuda_queue_unlock();
+        return result;
+      }
+      module_record->remote_id = load_completion.result_id;
+      module_record->remote_generation = load_completion.result_generation;
+      if (mf_cuda_entry_trace_enabled() != 0) {
+        fprintf(stderr, "MF_PYTORCH_BASELINE_MODULE artifact=%llu/%llu module=%llu/%llu\n",
+                (unsigned long long)module_record->materialized_id,
+                (unsigned long long)module_record->materialized_generation,
+                (unsigned long long)load_completion.result_id,
+                (unsigned long long)load_completion.result_generation);
+      }
+    }
     kernel_parameters = normalized_parameters;
     goto daemon_launch;
   }
