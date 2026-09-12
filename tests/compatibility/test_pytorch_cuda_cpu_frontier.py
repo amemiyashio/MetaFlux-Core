@@ -52,6 +52,8 @@ EXPECTED_COMPILED_SUBSET = [
     "matmul-f32",
     "matmul-rect-f32",
     "linear-no-bias-f32",
+    "addmm-f32",
+    "linear-bias-f32",
     "softmax-f32",
     "softmax-f32-nonlast",
     "sigmoid-f32",
@@ -145,6 +147,20 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
             frontier.ROOT
             / "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/linear-f32.ptx",
         )
+        self.assertEqual(
+            frontier.compiled_ptx(
+                next(entry for entry in corpus["cases"] if entry["id"] == "addmm-f32")
+            ),
+            frontier.ROOT
+            / "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/addmm-f32.ptx",
+        )
+        self.assertEqual(
+            frontier.compiled_ptx(
+                next(entry for entry in corpus["cases"] if entry["id"] == "linear-bias-f32")
+            ),
+            frontier.ROOT
+            / "plugins/compat/cuda/abi/driver/profiles/pytorch-cuda-cpu-v1/linear-bias-f32.ptx",
+        )
         self.assertEqual(corpus["cases"][-12]["id"], "clamp-min-negative-f32")
         self.assertEqual(corpus["gaps"][0]["id"], "sigmoid-f64")
         self.assertEqual(corpus["gaps"][1]["id"], "exp-f64")
@@ -157,8 +173,8 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
             for entry in compiled_entries
             for source in frontier.compiled_ptx_sources(entry)
         ]
-        self.assertEqual(len(compiled_entries), 39)
-        self.assertEqual(len(set(compiled_sources)), 39)
+        self.assertEqual(len(compiled_entries), 41)
+        self.assertEqual(len(set(compiled_sources)), 41)
         sqrt = next(entry for entry in compiled_entries if entry["id"] == "sqrt-f32")
         self.assertEqual(
             frontier.compiled_ptx(sqrt),

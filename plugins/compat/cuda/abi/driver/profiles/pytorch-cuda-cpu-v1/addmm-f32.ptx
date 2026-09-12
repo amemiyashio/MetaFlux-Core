@@ -1,0 +1,89 @@
+.version 9.0
+.target sm_70
+.address_size 64
+.visible .entry addmm_f32(
+  .param .u64 destination,
+  .param .u64 left,
+  .param .u64 right,
+  .param .u32 element_count,
+  .param .u32 transpose_left,
+  .param .u32 transpose_right,
+  .param .u32 rows,
+  .param .u32 columns,
+  .param .u32 inner,
+  .param .u32 leading_left,
+  .param .u32 leading_right,
+  .param .u32 leading_destination,
+  .param .u32 alpha_bits,
+  .param .u32 beta_bits
+)
+{
+  .reg .pred %p;
+  .reg .b32 %r<8>;
+  .reg .b64 %rd<16>;
+  .reg .f32 %f<26>;
+
+  ld.param.u64 %rd0, [destination];
+  ld.param.u64 %rd1, [left];
+  ld.param.u64 %rd2, [right];
+
+  mov.u32 %r0, %tid.x;
+  mov.u32 %r1, %ctaid.x;
+  mov.u32 %r2, %ntid.x;
+  mad.lo.u32 %r3, %r1, %r2, %r0;
+  mov.u32 %r4, 0;
+  setp.eq.u32 %p, %r3, %r4;
+  @!%p bra done;
+
+  mov.u32 %r5, 1;
+  mul.wide.u32 %rd3, %r5, 4;
+  add.u64 %rd4, %rd0, %rd3;
+  add.u64 %rd5, %rd1, %rd3;
+  add.u64 %rd6, %rd2, %rd3;
+  mov.u32 %r6, 2;
+  mul.wide.u32 %rd7, %r6, 4;
+  add.u64 %rd8, %rd0, %rd7;
+  add.u64 %rd9, %rd1, %rd7;
+  add.u64 %rd10, %rd2, %rd7;
+  mov.u32 %r7, 3;
+  mul.wide.u32 %rd11, %r7, 4;
+  add.u64 %rd12, %rd0, %rd11;
+  add.u64 %rd13, %rd1, %rd11;
+  add.u64 %rd14, %rd2, %rd11;
+
+  ld.global.f32 %f0, [%rd1];
+  ld.global.f32 %f1, [%rd9];
+  ld.global.f32 %f2, [%rd2];
+  ld.global.f32 %f3, [%rd6];
+  ld.global.f32 %f18, [%rd0];
+  ld.global.f32 %f19, [%rd4];
+  ld.global.f32 %f20, [%rd8];
+  ld.global.f32 %f21, [%rd12];
+  mul.rn.f32 %f4, %f0, %f2;
+  fma.rn.f32 %f5, %f1, %f3, %f4;
+  add.rn.f32 %f22, %f5, %f18;
+  st.global.f32 [%rd0], %f22;
+
+  ld.global.f32 %f6, [%rd5];
+  ld.global.f32 %f7, [%rd13];
+  mul.rn.f32 %f8, %f6, %f2;
+  fma.rn.f32 %f9, %f7, %f3, %f8;
+  add.rn.f32 %f23, %f9, %f19;
+  st.global.f32 [%rd4], %f23;
+
+  ld.global.f32 %f10, [%rd1];
+  ld.global.f32 %f11, [%rd9];
+  ld.global.f32 %f12, [%rd10];
+  ld.global.f32 %f13, [%rd14];
+  mul.rn.f32 %f14, %f10, %f12;
+  fma.rn.f32 %f15, %f11, %f13, %f14;
+  add.rn.f32 %f24, %f15, %f20;
+  st.global.f32 [%rd8], %f24;
+
+  mul.rn.f32 %f16, %f6, %f12;
+  fma.rn.f32 %f17, %f7, %f13, %f16;
+  add.rn.f32 %f25, %f17, %f21;
+  st.global.f32 [%rd12], %f25;
+done:
+  ret;
+}

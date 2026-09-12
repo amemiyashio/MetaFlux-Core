@@ -3612,10 +3612,12 @@ mf_shared_status_v1 Session::process_command(const mf_ring_descriptor_v1& comman
       Object* loaded_artifact = nullptr;
       if (resolve(command.target_id, command.arguments[0], ObjectKind::kArtifact,
                   loaded_artifact) == MF_SHARED_SUCCESS) {
-        module_object->kernel_operation = loaded_artifact->kernel_operation;
-    module_object->canonical_matmul = parsed.kernel->name == "matmul_f32" ||
+      module_object->kernel_operation = loaded_artifact->kernel_operation;
+      module_object->canonical_matmul = parsed.kernel->name == "matmul_f32" ||
                                          parsed.kernel->name == "matmul_rect_f32" ||
-                                         parsed.kernel->name == "linear_f32";
+                                         parsed.kernel->name == "linear_f32" ||
+                                         parsed.kernel->name == "addmm_f32" ||
+                                         parsed.kernel->name == "linear_bias_f32";
       }
     }
     if (vulkan_route_ != nullptr && module_object != nullptr &&

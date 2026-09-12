@@ -95,9 +95,9 @@ guarded quotient, reproducing the daemon-native arithmetic bit for bit.
 | Corpus metric | Count |
 | --- | --- |
 | Supported cases | 41 |
-| Compiled cases | 39 |
-| Unique compiled PTX sources | 39 |
-| Cases outside compiled subset | 2 |
+| Compiled cases | 41 |
+| Unique compiled PTX sources | 41 |
+| Cases outside compiled subset | 0 |
 | Classified gaps | 2 |
 
 Every supported interpreter-mode case records its neutral request, daemon
@@ -111,21 +111,24 @@ absolute value, square root, exponential, sigmoid, comparisons, int32-to-float32
 cast, ReLU, clamp, the pinned six-element int32 sum, signed int32 clamp-min,
 signed int32 max/min reductions, the pinned strided contiguous copy, the
 four-element float32 sum/mean reductions, and the pinned 2x2, 2x3-by-3x4
-matmul, and 2x3-by-3x2 transposed-weight linear float32 shapes.
+matmul, 2x3-by-3x2 transposed-weight linear, 2x2 beta=1 addmm, and 2x3-by-3x2
+transposed-weight bias-linear float32 shapes.
 The two float32 clamp inputs share one kernel. Profile-owned PTX
 lives beside the PyTorch CPU profile and is generated into the C17 provider at
 configure time.
 
 The matmul profile promotes the observed stock cuBLAS SGEMM request for a
-2x2, a 2x3-by-3x4 non-transposed shape, and a 2x3-by-3x2 transposed-weight
-linear shape into three fixed unrolled Kernel IR artifacts. The provider keeps
-the neutral fourteen-entry request and materializes the exact shape variant; a
-warm launch does no registration work when its module/operation/variant cache
-identity matches, including a distinct identity for the linear artifact. Other
-shapes, transposes, beta values and bias epilogues remain on the closed
-library-backed boundary. The artifacts use the same column-major request
-contract as the existing cuBLAS adapter, emit one daemon submission, and are
-exercised by the generic interpreter, cold JIT, warm JIT and AOT executors.
+2x2, a 2x3-by-3x4 non-transposed shape, a 2x3-by-3x2 transposed-weight linear
+shape, and the fixed beta=1 addmm shape into four fixed unrolled Kernel IR
+artifacts. The cuBLASLt bias-linear request adds a fifth artifact with an
+explicit bias buffer and epilogue identity. The provider keeps the neutral
+request and materializes the exact shape/variant; a warm launch does no
+registration work when its module/operation/variant cache identity matches,
+including distinct identities for addmm and bias-linear. Other shapes,
+transposes, beta values and bias epilogues remain on the closed library-backed
+boundary. The artifacts use the same column-major request contract as the
+existing cuBLAS adapter, emit one daemon submission, and are exercised by the
+generic interpreter, cold JIT, warm JIT and AOT executors.
 This is a fixed-shape CPU slice and does not claim general GEMM or Vulkan
 execution.
 
@@ -260,13 +263,12 @@ and decision-0053 remains the closed library boundary.
 
 ## Remaining Work
 
-Rows outside the manifest's compiled subset cover library-backed
-matrix/linear operations. They cross the
-neutral daemon boundary but use operation-specific daemon CPU branches.
-Promote their actual semantics into canonical Kernel IR and the compiled
-pipeline; a copy-shaped placeholder associated with a native operation is not
-that operation's semantic implementation. Cast is already in the compiled
-subset and is not remaining work.
+The fixed matrix/linear rows are now all represented by canonical Kernel IR
+artifacts; there are no supported rows outside the compiled subset. The two
+remaining classified gaps are the explicit float64 sigmoid and exponential
+probes, which still return stable unsupported errors. Broader shapes,
+transposes, beta values and bias configurations remain outside this finite
+profile and require their own positive and negative evidence.
 
 For each bounded slice, select an explicit remaining operation family, define
 its dtype/shape/layout and error boundary, review neutral request lifetime and
