@@ -6310,6 +6310,10 @@ static CUresult mf_cuda_materialize_pytorch_baseline_locked(mf_cuda_object* modu
   if (module_record->remote_id != UINT64_C(0) && module_record->remote_generation != UINT64_C(0) &&
       mf_module_materialized_operation[module_record->aux] == operation &&
       mf_module_materialized_variant[module_record->aux] == materialized_variant) {
+    if (mf_cuda_entry_trace_enabled() != 0) {
+      fprintf(stderr, "MF_PYTORCH_BASELINE_WARM_HIT operation=%s variant=%u\n", operation_name,
+              (unsigned)materialized_variant);
+    }
     return CUDA_SUCCESS;
   }
   /* An operation switch replaces the module/artifact ids in place; the

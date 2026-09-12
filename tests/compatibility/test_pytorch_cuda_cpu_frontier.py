@@ -186,6 +186,7 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
         evidence = frontier.parse_provider_evidence(
             "MF_LAUNCH f=0x1 grid=1x128\n"
             "MF_PYTORCH_BASELINE_MODULE artifact=0x1\n"
+            "MF_PYTORCH_BASELINE_WARM_HIT operation=cast-copy-i64 variant=0\n"
             "MF_PYTORCH_BASELINE_REQUEST profile=baseline operation=cast-copy-i64 "
             "version=1 kernel-ir=2 lifetime=module-load\n"
             "MF_PYTORCH_BASELINE_MODULE artifact=0x2\n"
@@ -202,6 +203,7 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
             ],
         )
         self.assertEqual(evidence["module_loads"], 2)
+        self.assertEqual(evidence["warm_cache_hits"], 1)
         self.assertEqual(
             evidence["library_calls"], ["sgemm-f32", "lt-matmul-bias-f32"]
         )
@@ -210,6 +212,13 @@ class CpuFrontierEvidenceTests(unittest.TestCase):
     def test_provider_evidence_exposes_forbidden_local_execution(self) -> None:
         evidence = frontier.parse_provider_evidence("MF_SEMANTIC relu\n")
         self.assertEqual(evidence["local_execution"], 1)
+
+    def test_provider_evidence_counts_only_explicit_warm_identity_hits(self) -> None:
+        evidence = frontier.parse_provider_evidence(
+            "MF_PYTORCH_BASELINE_WARM_HIT operation=elementwise-add-i32 variant=0\n"
+            "MF_PYTORCH_BASELINE_MODULE artifact=0x1\n"
+        )
+        self.assertEqual(evidence["warm_cache_hits"], 1)
 
     def test_daemon_statistics_require_one_record(self) -> None:
         line = (

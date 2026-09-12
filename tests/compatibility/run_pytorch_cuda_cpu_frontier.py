@@ -366,6 +366,9 @@ def parse_provider_evidence(trace: str) -> dict[str, Any]:
         ],
         "launches": len(re.findall(r"^MF_LAUNCH ", trace, re.MULTILINE)),
         "module_loads": len(re.findall(r"^MF_PYTORCH_BASELINE_MODULE ", trace, re.MULTILINE)),
+        "warm_cache_hits": len(
+            re.findall(r"^MF_PYTORCH_BASELINE_WARM_HIT ", trace, re.MULTILINE)
+        ),
         "local_execution": len(re.findall(r"^MF_SEMANTIC ", trace, re.MULTILINE)),
     }
 
@@ -588,6 +591,11 @@ def run_case(
             raise RuntimeError(f"provider did not observe every launch for {case_id}")
         if provider["module_loads"] != len(expected_requests):
             raise RuntimeError(f"provider module intake drifted for {case_id}: {provider!r}")
+        expected_warm_hits = max(0, provider["launches"] - provider["module_loads"])
+        if provider["warm_cache_hits"] != expected_warm_hits:
+            raise RuntimeError(
+                f"provider warm-path registration drifted for {case_id}: {provider!r}"
+            )
     return {"application": payload, "provider": provider}
 
 

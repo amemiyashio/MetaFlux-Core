@@ -132,6 +132,15 @@ generic interpreter, cold JIT, warm JIT and AOT executors.
 This is a fixed-shape CPU slice and does not claim general GEMM or Vulkan
 execution.
 
+The provider's warm materialization identity is now observable without adding
+work to the normal path: when diagnostic tracing is enabled, a repeated launch
+emits `MF_PYTORCH_BASELINE_WARM_HIT` only after the module's operation and
+variant identities match. The real-client frontier gate binds that count to
+`launches - module_loads` for every supported row, so a second registration
+cannot be hidden behind a successful result. Tracing is disabled by default;
+the identity check remains the existing early-return path and performs no
+daemon registration or tensor execution.
+
 The concat-u32 slice adds the pinned two-source contiguous `torch.cat` row.
 The provider decodes the source metadata and submits destination, two source
 buffers, lengths, and total count as a neutral six-parameter request. The
