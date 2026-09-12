@@ -19,14 +19,52 @@ ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / "tools"))
 from agent_diagnostics import emit_diagnostics, task_stop_error  # noqa: E402
 
-NEXT = {"preparation": "confirm scope and supplied execution context",
-        "implementation": "implement the bounded scope; request parent review",
-        "review": "parent reviews exact content and check plan",
-        "evaluation": "execute the reviewed check plan",
+NEXT = {"preparation": "identify the requested behavior, affected owners and supplied context; load rules and prepare",
+        "implementation": "complete the requested behavior, then obtain parent review",
+        "review": "parent reviews the behavior change, reachable boundaries and covering check plan",
+        "evaluation": "execute the reviewed check plan once; retain its live tool session",
         "delivery": "stage the reviewed paths and create one guarded commit",
         "publication": "publish the exact commit through the governed transport",
         "handoff": "supply or reuse the exact next execution context",
         "complete": "report the exact delivery"}
+
+
+def operation_guidance(root: Path, state: dict | None, attempt: dict | None) -> str:
+    """Describe the next action from existing facts; never advance or verify here."""
+    if state is None:
+        default = "read the request and dispatch $main skill, $epoch skill, $batch skill, or $iteration skill"
+    else:
+        default = NEXT[state["stage"]]
+    precommit = state is None or state["stage"] in {"preparation", "implementation", "review", "evaluation", "delivery"}
+    current = bool(state and attempt and attempt.get("request") == state["run"])
+    if precommit and attempt and attempt.get("lock_busy"):
+        if current and attempt.get("status") == "running":
+            return ("continue the existing verification tool session; inspect check " + attempt.get("check", "preflight") +
+                    " at " + attempt.get("log", "the current attempt") + "; do not start another evaluation")
+        return "verification is running in the shared repository; inspect its owning session before editing or starting checks"
+    if state is None:
+        return default
+    stage, task = state["stage"], state["request"]
+    failed_evaluation = (stage == "evaluation" and current and
+                         attempt.get("input") == ws.snapshot(root) and
+                         attempt.get("plan") == state.get("review", {}).get("plan"))
+    if current and (stage == "implementation" or failed_evaluation):
+        if attempt["status"] in {"failed", "interrupted"}:
+            return ("repair " + task["objective"] + ": inspect " + attempt.get("check", "verification") +
+                    " at " + attempt.get("log", "the current attempt") + "; " + attempt.get("error", "attempt interrupted") +
+                    "; change the cause before renewed review and evaluation")
+    if stage == "implementation":
+        if task["kind"] == "batch":
+            if ws.local_path(root, "acceptance.json").is_file():
+                return "check the pending acceptance metadata, reload rules, review and evaluate the fixed metadata plan"
+            if current and attempt["kind"] == "integration" and attempt["status"] == "passed":
+                if attempt["input"] == ws.snapshot(root):
+                    return ("continue $batch skill acceptance with integration receipt " + attempt["receipt"] +
+                            "; advance revalidates the exact delivery and evidence")
+                return "the integrated content changed; finish the repair and review the changed tree before fresh integration checks"
+        return ("implement " + task["objective"] +
+                "; complete its observable behavior before parent review; use focused checks only to resolve a specific uncertainty")
+    return default
 
 
 def batch_metadata_checks() -> list[dict[str, Any]]:
@@ -62,7 +100,8 @@ def inspect(root: Path) -> dict[str, Any]:
     goal = ws.read_json(goal_path) if goal_path.exists() else {}
     stage = state["stage"] if state else "preparation"
     target: Any = state["request"]["kind"] if state else None
-    next_operation = NEXT[stage] if state else "read the request and dispatch $main skill, $epoch skill, $batch skill, or $iteration skill"
+    running = verification.status(root)
+    next_operation = operation_guidance(root, state, running)
     if state and stage == "handoff" and state.get("context_refresh_required"):
         target = {"operation": state["request"]["kind"], "required_base_revision": state["remote_main_revision"]}
         next_operation = "application supplies a context at remote main; reread its Goal before selecting work"
@@ -77,7 +116,6 @@ def inspect(root: Path) -> dict[str, Any]:
     evidence = {"head": ws.oid(root), "epoch": goal.get("epoch"),
                                            "commit": state.get("commit") if state else None,
                                            "recovery_token": recovery_token(root, state) if state else None}
-    running = verification.status(root)
     if running:
         evidence["verification"] = running
     return {"stage": stage, "evidence": evidence,

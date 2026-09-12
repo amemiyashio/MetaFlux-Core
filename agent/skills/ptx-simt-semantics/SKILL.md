@@ -1,9 +1,23 @@
 ---
 name: ptx-simt-semantics
-description: Specify or review PTX 9.x subset parsing, Kernel IR semantics, state spaces, predication, divergent SIMT control flow, CTA barriers, atomics, memory ordering, and deterministic or allowed-outcome semantic-oracle tests. Use whenever PTX source meaning or its oracle changes, including milestone-0.1.0.0 CPU and milestone-0.1.3.0 Vulkan paths. Do not use for CPU interpreter implementation, MLIR pass implementation, CUDA ELF ABI, or target-runtime tuning.
+description: Specify, implement, or review PTX 9.x subset parsing, Kernel IR semantics, state spaces, predication, divergent SIMT control flow, CTA barriers, atomics, memory ordering, and deterministic or allowed-outcome semantic-oracle tests. Use whenever PTX source meaning or its oracle changes, including milestone-0.1.0.0 CPU and milestone-0.1.3.0 Vulkan paths. Do not use for CPU interpreter implementation, MLIR pass implementation, CUDA ELF ABI, or target-runtime tuning.
 ---
 
 # PTX SIMT Semantics
+
+## Implementation Focus
+
+For an implementation request, use the shared
+[implementation guidance](../main/references/implementation-guidance.md).
+Select the affected inputs and obligations below; broad qualification lists
+do not make every invocation a new inventory or full-suite run.
+
+Choose the semantic form needed by the current client or backend capability.
+Implement parser normalization, canonical representation and verifier/oracle
+support together, composing with the backend owner for execution. Prefer a
+bounded reusable form over another fixed-shape artifact when the assignment
+requires shape generality. Keep unsupported forms explicit without treating
+new rejection rows as newly implemented operations.
 
 ## Inputs
 
@@ -57,7 +71,7 @@ width, vector form, state space, qualifiers, scope, and modifiers all matter.
 
 ## Output
 
-Return or implement:
+Select the applicable outputs for the requested task:
 
 - A PTX form/capability matrix and Kernel IR semantic contract.
 - State-transition descriptions for control flow, barriers, memory, and errors.

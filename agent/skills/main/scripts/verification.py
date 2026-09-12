@@ -282,19 +282,25 @@ def junit_result(path: Path, selected: dict, allowed: list[str]) -> dict:
 def execute(root: Path, kind: str, base: str, checks: list[dict], reviewed: dict, before: dict) -> dict:
     with execution_lock(root) as guard:
         ws.require(ws.snapshot(root) == before, "Verification inputs changed before acquiring its lock")
-        resolved = preflight(root, checks, defer_unconfigured=True)
         attempt = uuid.uuid4().hex
         directory = ws.local_path(root, "logs/" + attempt)
         directory.mkdir(parents=True, exist_ok=False)
         state_path = ws.local_path(root, "verification.json")
-        state = {"attempt": attempt, "kind": kind, "base_revision": base, "input": before,
-                 "plan": ws.digest(checks), "status": "running", "started": time.time(), "completed_checks": 0}
+        state = {"attempt": attempt, "request": reviewed["rules"]["request"],
+                 "kind": kind, "base_revision": base, "input": before,
+                 "plan": ws.digest(checks), "check": "preflight", "status": "running",
+                 "started": time.time(), "completed_checks": 0}
         ws.atomic_json(state_path, state)
         results = []
         enumerated = False
         try:
+            resolved = preflight(root, checks, defer_unconfigured=True)
             for number, check in enumerate(checks):
                 if ctest_context(check["argv"]) is not None and not enumerated:
+                    state.update(check="preflight")
+                    state.pop("log", None)
+                    state.pop("check_started", None)
+                    ws.atomic_json(state_path, state)
                     resolved = preflight(root, checks)
                     enumerated = True
                 log = directory / f"{number:04d}.log"

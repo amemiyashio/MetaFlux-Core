@@ -188,8 +188,129 @@ set_tests_properties(consumer PROPERTIES DEPENDS producer)
             with self.assertRaisesRegex(ws.WorkflowError, "already running"):
                 self.evaluate([self.check("alpha", "-R", "^alpha$")])
             self.assertTrue(verification.status(self.root)["lock_busy"])
+            self.assertIn("shared repository", controller.inspect(self.root)["next_operation"])
         self.assertFalse(state_path.exists())
         self.assertFalse((self.root / "tmp/alpha-ran").exists())
+
+    def test_running_evaluation_points_to_owned_session_without_mutation(self):
+        task = fixture.request(self.root)
+        task["checks"] = [self.check("live-alpha", "-R", "^alpha$")]
+        controller.begin(self.root, task)
+        fixture.prepare(self.root)
+        controller.step(self.root, "review", {"summary": "Review live-session guidance"})
+        original = verification.junit_result
+        observations = []
+
+        def observe(*args):
+            paths = [ws.local_path(self.root, name) for name in ("state.json", "verification.json")]
+            before = [path.read_bytes() for path in paths]
+            observed = controller.begin(self.root, {"kind": "read-only"})
+            self.assertEqual([path.read_bytes() for path in paths], before)
+            attempt = observed["evidence"]["verification"]
+            self.assertTrue(attempt["lock_busy"])
+            self.assertIn("existing verification tool session", observed["next_operation"])
+            self.assertIn("live-alpha", observed["next_operation"])
+            self.assertIn(attempt["log"], observed["next_operation"])
+            observations.append(attempt["attempt"])
+            return original(*args)
+
+        with patch.object(verification, "junit_result", side_effect=observe):
+            controller.step(self.root, "evaluate", {})
+        self.assertEqual(len(observations), 1)
+        self.assertEqual(controller.inspect(self.root)["stage"], "delivery")
+        self.assertIn("guarded commit", controller.inspect(self.root)["next_operation"])
+        self.assertEqual(len(list(ws.local_path(self.root, "receipts").glob("*.json"))), 1)
+
+    def test_shared_lock_with_old_local_record_does_not_name_old_session(self):
+        controller.begin(self.root, fixture.request(self.root))
+        fixture.prepare(self.root)
+        path = ws.local_path(self.root, "verification.json")
+        current = ws.read_json(ws.local_path(self.root, "state.json"))["run"]
+        for owner, outcome in (("old-operation", "running"), (current, "passed"), (current, "failed")):
+            ws.atomic_json(path, {"request": owner, "status": outcome,
+                                  "log": "old-log", "check": "old-check"})
+            before = path.read_bytes()
+            with verification.execution_lock(self.root):
+                observed = controller.inspect(self.root)
+                self.assertIn("shared repository", observed["next_operation"])
+                self.assertNotIn("old-log", observed["next_operation"])
+            self.assertEqual(path.read_bytes(), before)
+
+    def test_failed_new_preflight_supersedes_old_integration_hint(self):
+        controller.begin(self.root, fixture.request(self.root, "batch"))
+        fixture.prepare(self.root)
+        rule_loading.load(self.root, "integration", self.base, output=io.StringIO())
+        plan = [self.check("alpha", "-R", "^alpha$")]
+        evidence = ws.evaluate(self.root, "integration", self.base, plan,
+                               ws.review(self.root, "Review first integration plan", plan))
+        self.assertIn(evidence["digest"], controller.inspect(self.root)["next_operation"])
+        marker = (self.root / "tmp/alpha-ran").stat().st_mtime_ns
+        bad_plan = [*plan, self.check("duplicate", "-L", "focused")]
+        with self.assertRaisesRegex(ws.WorkflowError, "Repeated CTest coverage"):
+            ws.evaluate(self.root, "integration", self.base, bad_plan,
+                        ws.review(self.root, "Review replacement plan", bad_plan))
+        observed = controller.inspect(self.root)
+        self.assertIn("preflight", observed["next_operation"])
+        self.assertNotIn(evidence["digest"], observed["next_operation"])
+        self.assertEqual(observed["evidence"]["verification"]["completed_checks"], 0)
+        self.assertEqual((self.root / "tmp/alpha-ran").stat().st_mtime_ns, marker)
+        self.assertEqual(len(list(ws.local_path(self.root, "receipts").glob("*.json"))), 1)
+
+    def test_strict_preflight_failure_does_not_name_successful_configure(self):
+        with (self.root / "CMakeLists.txt").open("a") as stream:
+            stream.write('\nif(ADDITIONAL_TEST)\nadd_test(NAME extra COMMAND "${CMAKE_COMMAND}" -E true)\n'
+                         'set_tests_properties(extra PROPERTIES LABELS "delayed")\nendif()\n')
+        ws.git(self.root, "add", "CMakeLists.txt")
+        ws.git(self.root, "commit", "-qm", "delayed inventory")
+        task = fixture.request(self.root)
+        task["checks"] = [
+            {"id": "configure", "argv": ["cmake", "-S", str(self.root), "-B", str(self.build), "-DADDITIONAL_TEST=ON"]},
+            self.check("by-name", "-R", "^extra$"),
+            self.check("by-label", "-L", "delayed"),
+        ]
+        controller.begin(self.root, task)
+        fixture.prepare(self.root)
+        controller.step(self.root, "review", {"summary": "Review strict post-configuration preflight"})
+        with self.assertRaisesRegex(ws.WorkflowError, "Repeated CTest coverage"):
+            controller.step(self.root, "evaluate", {})
+        observed = controller.inspect(self.root)
+        attempt = observed["evidence"]["verification"]
+        self.assertEqual(attempt["completed_checks"], 1)
+        self.assertEqual(attempt["check"], "preflight")
+        self.assertNotIn("log", attempt)
+        self.assertIn("preflight", observed["next_operation"])
+        self.assertFalse((self.root / "tmp/alpha-ran").exists())
+
+    def test_current_interrupted_attempt_names_cause_without_retry(self):
+        task = fixture.request(self.root)
+        task["checks"] = [self.check("interrupted-alpha", "-R", "^alpha$")]
+        controller.begin(self.root, task)
+        fixture.prepare(self.root)
+        controller.step(self.root, "review", {"summary": "Review interrupted-attempt guidance"})
+        with patch.object(verification, "junit_result", side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                controller.step(self.root, "evaluate", {})
+        path = ws.local_path(self.root, "verification.json")
+        value = ws.read_json(path)
+        value["status"] = "running"
+        ws.atomic_json(path, value)
+        before = path.read_bytes()
+        observed = controller.inspect(self.root)
+        self.assertEqual(observed["evidence"]["verification"]["status"], "interrupted")
+        self.assertIn("interrupted-alpha", observed["next_operation"])
+        self.assertIn(value["log"], observed["next_operation"])
+        self.assertIn(task["objective"], observed["next_operation"])
+        self.assertEqual(path.read_bytes(), before)
+        self.assertFalse(list(ws.local_path(self.root, "receipts").glob("*.json")))
+        # A crash can leave evaluation while the attempt has already recorded failure.
+        value["status"] = "failed"
+        value["error"] = "interrupted after failure recording"
+        ws.atomic_json(path, value)
+        operation_path = ws.local_path(self.root, "state.json")
+        operation = ws.read_json(operation_path)
+        operation["stage"] = "evaluation"
+        ws.atomic_json(operation_path, operation)
+        self.assertIn(value["error"], controller.inspect(self.root)["next_operation"])
 
     def test_interruption_has_no_success_receipt_and_no_automatic_retry(self):
         plan = [self.check("alpha", "-R", "^alpha$")]

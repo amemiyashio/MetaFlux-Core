@@ -1,6 +1,6 @@
 interface:
   display_name: "MetaFlux Main"
-  short_description: "Control repository work and resume verified transitions"
-  default_prompt: "Use $main skill to manage this MetaFlux task through review, verification, and delivery."
+  short_description: "Direct useful implementation and exact delivery"
+  default_prompt: "Use $main skill to complete this MetaFlux task through concrete implementation, review, scoped verification and delivery, preserving explicit read-only requests."
 policy:
   allow_implicit_invocation: true

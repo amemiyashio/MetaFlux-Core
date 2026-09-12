@@ -1,9 +1,23 @@
 ---
 name: runtime-contracts-registry
-description: Design or review ecosystem-neutral registry and provider views, client negotiation, shared-memory layouts, backend C ABI, and canonical schema generation. Use across milestones for milestone-0.1.0.0 runtime/contracts, milestone-0.1.1.0 data-plane schema ownership, milestone-0.1.2.0 process-view lifecycle, or milestone-0.1.3.0 neutral external-memory ABI. Do not use for ecosystem API semantics, target lowering, or layer-local transport mechanics.
+description: Implement or review ecosystem-neutral registry and provider views, client negotiation, shared-memory layouts, backend C ABI, and canonical schema generation. Use across milestones for milestone-0.1.0.0 runtime/contracts, milestone-0.1.1.0 data-plane schema ownership, milestone-0.1.2.0 process-view lifecycle, or milestone-0.1.3.0 neutral external-memory ABI. Do not use for ecosystem API semantics, target lowering, or layer-local transport mechanics.
 ---
 
 # Runtime Contracts and Registry
+
+## Implementation Focus
+
+For an implementation request, use the shared
+[implementation guidance](../main/references/implementation-guidance.md).
+Select the affected inputs and obligations below; broad qualification lists
+do not make every invocation a new inventory or full-suite run.
+
+Trace one real producer-to-consumer request or state transition. Implement the
+canonical field/lifetime change, generated projections and affected consumers
+as one coherent unit; identify the first owner still missing behavior. Reuse
+unchanged negotiated contracts and frozen schemas. For a warm-path change,
+account for actual copies, registration, locking and dispatch rather than
+adding a parallel request representation or reporting only layout-test passes.
 
 ## Inputs
 
@@ -57,7 +71,7 @@ not privately redefine it.
 
 ## Output
 
-Return or implement:
+Select the applicable outputs for the requested task:
 
 - A boundary/owner table naming the canonical schema and every generated output.
 - Registry-view, snapshot, negotiation, compatibility, and lifetime contracts.

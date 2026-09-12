@@ -1,4 +1,4 @@
 interface:
   display_name: "Linux Device Driver UAPI"
-  short_description: "Review Linux cdev, UAPI, DMA, and lifetime rules"
-  default_prompt: "Use $linux-device-driver-uapi skill to review this Linux character-device UAPI, mapping, DMA, or teardown change."
+  short_description: "Implement Linux cdev, UAPI and buffer lifetimes"
+  default_prompt: "Use $linux-device-driver-uapi skill to implement the requested Linux device UAPI or buffer-lifetime change, or provide analysis when that is the request; select checks for the affected behavior."

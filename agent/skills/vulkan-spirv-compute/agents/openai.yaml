@@ -1,4 +1,4 @@
 interface:
   display_name: "Vulkan and SPIR-V Compute"
-  short_description: "Review Vulkan compute, SPIR-V, cache, and device loss"
-  default_prompt: "Use $vulkan-spirv-compute skill to review this Vulkan compute capability, SPIR-V, synchronization, cache, or device-loss change."
+  short_description: "Implement Vulkan execution and resource lifetimes"
+  default_prompt: "Use $vulkan-spirv-compute skill to implement the requested Vulkan execution, SPIR-V or resource-lifetime change, or provide analysis when that is the request; select checks for the affected behavior."

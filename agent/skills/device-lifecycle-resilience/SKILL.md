@@ -1,9 +1,23 @@
 ---
 name: device-lifecycle-resilience
-description: Design or review generation and epoch state machines across cdev, vfio-user, vPCI, registry, workers, QMP events, reset, remove, re-add, provider enumeration freeze, tombstones, idempotence, deadlines, and fault injection. Use for the milestone-0.1.2.0 lifecycle authority and any backend or transport adapter, including milestone-0.1.3.0 device loss. Do not use for layer-local wire layouts or target compiler/runtime behavior.
+description: Implement or review generation and epoch state machines across cdev, vfio-user, vPCI, registry, workers, QMP events, reset, remove, re-add, provider enumeration freeze, tombstones, idempotence, deadlines, and fault injection. Use for the milestone-0.1.2.0 lifecycle authority and any backend or transport adapter, including milestone-0.1.3.0 device loss. Do not use for layer-local wire layouts or target compiler/runtime behavior.
 ---
 
 # Device Lifecycle Resilience
+
+## Implementation Focus
+
+For an implementation request, use the shared
+[implementation guidance](../main/references/implementation-guidance.md).
+Select the affected inputs and obligations below; broad qualification lists
+do not make every invocation a new inventory or full-suite run.
+
+Select the concrete transition blocking the assigned adapter. Reuse the
+canonical model and implement its guard, side effect, completion and stale
+object behavior through the affected layers. The mandatory model prerequisite
+still applies; after it passes, implement the adapter and its meaningful fault
+boundary instead of repeatedly rechecking an unchanged model. A model-only
+pass does not complete an adapter implementation.
 
 ## Inputs
 
@@ -95,7 +109,7 @@ tombstones; they do not invent replacement identity or advance epoch.
 
 ## Output
 
-Return or implement:
+Select the applicable outputs for the requested task:
 
 - The canonical transition schema, generated transition/ownership/commit table,
   versioned exploration bounds, and machine-readable model-check evidence.

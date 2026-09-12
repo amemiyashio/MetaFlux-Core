@@ -1,9 +1,23 @@
 ---
 name: cpu-backend-performance
-description: Design or review x86 CPU interpreter/runtime and target-lowering implementation, capability detection, effective CPU and NUMA placement, SIMT-to-loop or SIMD mapping, memory ordering, LLVM vectorization, and reproducible performance evidence. Use for milestone-0.1.0.0 CPU execution and tuning. Do not use to redefine the PTX semantic oracle, own MLIR conversion mechanics, or design processor circuits.
+description: Implement or review x86 CPU interpreter/runtime and target-lowering implementation, capability detection, effective CPU and NUMA placement, SIMT-to-loop or SIMD mapping, memory ordering, LLVM vectorization, and reproducible performance evidence. Use for milestone-0.1.0.0 CPU execution and tuning and the stock PyTorch CUDA CPU profile. Do not use to redefine the PTX semantic oracle, own MLIR conversion mechanics, or design processor circuits.
 ---
 
 # CPU Backend Performance
+
+## Implementation Focus
+
+For an implementation request, use the shared
+[implementation guidance](../main/references/implementation-guidance.md).
+Select the affected inputs and obligations below; broad qualification lists
+do not make every invocation a new inventory or full-suite run.
+
+Start from the real request-to-executor path and its limiting operation. For
+PyTorch CUDA work, implement a coherent operator or shape family through the
+canonical CPU executor; for tuning, remove a demonstrated warm-path cost and
+measure the same-path result. Reuse the existing target/cache/placement profile
+unless this change affects it. Compilation counts and suite elapsed time are
+not execution or throughput improvements.
 
 ## Inputs
 
@@ -75,7 +89,7 @@ and runtime dispatch prove the loaded object is compatible with that host.
 
 ## Output
 
-Return or implement:
+Select the applicable outputs for the requested task:
 
 - A stable CPU capability profile and object-compatibility predicate, plus a
   separate dynamic effective-placement profile and refresh/fallback policy.

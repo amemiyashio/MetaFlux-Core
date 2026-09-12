@@ -1,9 +1,22 @@
 ---
 name: nvml-telemetry-compatibility
-description: Design or review libnvidia-ml.so compatibility for NVML lifecycle, versioned APIs, count/fill queries, telemetry snapshots, process reporting, and stock nvidia-smi qualification. Use for milestone-0.1.0.0 NVML provider work or NVML-visible milestone-0.1.2.0 lifecycle behavior. Do not use for CUDA execution, PTX lowering, or invented physical telemetry.
+description: Implement or review libnvidia-ml.so compatibility for NVML lifecycle, versioned APIs, count/fill queries, telemetry snapshots, process reporting, and stock nvidia-smi qualification. Use for milestone-0.1.0.0 NVML provider work or NVML-visible milestone-0.1.2.0 lifecycle behavior. Do not use for CUDA execution, PTX lowering, or invented physical telemetry.
 ---
 
 # NVML Telemetry Compatibility
+
+## Implementation Focus
+
+For an implementation request, use the shared
+[implementation guidance](../main/references/implementation-guidance.md).
+Select the affected inputs and obligations below; broad qualification lists
+do not make every invocation a new inventory or full-suite run.
+
+Start from a requested stock-tool query or setter and trace it to the actual
+producer, snapshot and API mapping. Implement that path and its freshness/error
+behavior together. Reuse the symbol and field matrices; a missing producer
+needs an implementation in its owning layer or an explicit unsupported field,
+not plausible data. An additional N/A result is not new measured telemetry.
 
 ## Inputs
 
@@ -57,7 +70,7 @@ license to synthesize a plausible value.
 
 ## Output
 
-Return or implement:
+Select the applicable outputs for the requested task:
 
 - A version/symbol/structure matrix and API-to-field provenance table.
 - Lifecycle, snapshot freshness, count/fill, and setter completion semantics.

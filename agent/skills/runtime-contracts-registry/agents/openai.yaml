@@ -1,4 +1,4 @@
 interface:
   display_name: "Runtime Contracts and Registry"
-  short_description: "Review neutral runtime contracts and registry semantics"
-  default_prompt: "Use $runtime-contracts-registry skill to review this registry, provider-view, shared-memory, client-protocol, or backend-ABI change."
+  short_description: "Implement neutral contracts and their consumers"
+  default_prompt: "Use $runtime-contracts-registry skill to implement the requested neutral protocol, registry or shared-memory change, or provide analysis when that is the request; select checks for the affected behavior."

@@ -1,9 +1,23 @@
 ---
 name: cuda-driver-abi-compatibility
-description: Design or review libcuda.so compatibility for CUDA Driver symbols, ELF version aliases, cuGetProcAddress, contexts, modules, memory, streams, events, and CUDA error behavior. Use for milestone-0.1.0.0 provider ABI work or CUDA-visible milestone-0.1.2.0 lifecycle behavior. Do not use for PTX semantics, compiler lowering, NVML telemetry, or backend execution policy.
+description: Implement or review libcuda.so compatibility for CUDA Driver symbols, ELF version aliases, cuGetProcAddress, contexts, modules, memory, streams, events, and CUDA error behavior. Use for provider ABI work, the stock PyTorch CUDA profile, or CUDA-visible lifecycle behavior. Do not use for PTX semantics, compiler lowering, NVML telemetry, or backend execution policy.
 ---
 
 # CUDA Driver ABI Compatibility
+
+## Implementation Focus
+
+For an implementation request, use the shared
+[implementation guidance](../main/references/implementation-guidance.md).
+Select the affected inputs and obligations below; broad qualification lists
+do not make every invocation a new inventory or full-suite run.
+
+Trace the stock client's actual call through symbol resolution, descriptor
+admission, fresh/reused handles, module identity and daemon completion. Implement
+the missing translation or lifecycle behavior with its real client consumer.
+Before removing a fallback, prove reachability across admitted configurations,
+not just corpus entries; follow client-side retries after a typed rejection.
+A fixed-profile rejection repair does not add supported shapes.
 
 ## Inputs
 
@@ -62,7 +76,7 @@ manifest as the versioned source of truth.
 
 ## Output
 
-Return or implement:
+Select the applicable outputs for the requested task:
 
 - A versioned symbol/alias/status matrix and any manifest changes.
 - An object-lifecycle and error-semantics table for affected APIs, with each row

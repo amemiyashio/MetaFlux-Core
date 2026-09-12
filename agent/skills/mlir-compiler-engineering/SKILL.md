@@ -1,9 +1,22 @@
 ---
 name: mlir-compiler-engineering
-description: Design or review Kernel IR to MLIR boundaries, ODS operations, verifiers, Dialect Conversion, TypeConverter use, pass pipelines, target-lowering conversion mechanics, compiler epochs, caches, diagnostics, and reproducers. Use for milestone-0.1.0.0 or milestone-0.1.3.0 compiler engineering. Do not use to redefine PTX semantics or own target-backend lowering policy, implementation, validation, or runtime behavior.
+description: Implement or review Kernel IR to MLIR boundaries, ODS operations, verifiers, Dialect Conversion, TypeConverter use, pass pipelines, target-lowering conversion mechanics, compiler epochs, caches, diagnostics, and reproducers. Use for CPU/Vulkan compiler engineering and PyTorch CUDA corpus lowering. Do not use to redefine PTX semantics or own target-backend lowering policy, implementation, validation, or runtime behavior.
 ---
 
 # MLIR Compiler Engineering
+
+## Implementation Focus
+
+For an implementation request, use the shared
+[implementation guidance](../main/references/implementation-guidance.md).
+Select the affected inputs and obligations below; broad qualification lists
+do not make every invocation a new inventory or full-suite run.
+
+Choose the first unsupported conversion on the requested execution path, then
+carry that semantic family through verifier, conversion legality, lowering and
+the owning backend's actual executor. Inspect the first divergent IR instead
+of repeatedly running the entire pipeline. A new pass, artifact or compilation
+counter alone is not the delivered client behavior.
 
 ## Inputs
 
@@ -58,7 +71,7 @@ latest documentation is design guidance, not proof of LLVM/MLIR 22.1.8 behavior.
 
 ## Output
 
-Return or implement:
+Select the applicable outputs for the requested task:
 
 - A boundary/invariant table and affected operation/type definitions.
 - An ordered pass pipeline with legality and type-conversion contracts.

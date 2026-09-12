@@ -1,4 +1,4 @@
 interface:
   display_name: "Device Lifecycle Resilience"
-  short_description: "Review lifecycle models, epochs, views, and fault recovery"
-  default_prompt: "Use $device-lifecycle-resilience skill to review this reset, remove, re-add, generation/epoch, provider-view, model-checking, or fault-handling change."
+  short_description: "Implement lifecycle transitions and fault handling"
+  default_prompt: "Use $device-lifecycle-resilience skill to implement the requested lifecycle transition or fault-handling change, or provide analysis when that is the request; select checks for the affected behavior."

@@ -1,9 +1,23 @@
 ---
 name: vulkan-spirv-compute
-description: Design or review Vulkan 1.3 compute device and queue selection, capability profiles, buffer device address, memory and Synchronization2, SPIR-V target environments and validation, pipeline caches, device loss, and rejection of unsupported subgroup assumptions. Use for milestone-0.1.3.0 Vulkan backend work. Do not use for MLIR conversion mechanics, graphics, or presentation.
+description: Implement or review Vulkan 1.3 compute device and queue selection, capability profiles, buffer device address, memory and Synchronization2, SPIR-V target environments and validation, pipeline caches, device loss, and rejection of unsupported subgroup assumptions. Use for Vulkan backend work and physical AMD PyTorch CUDA qualification. Do not use for MLIR conversion mechanics, graphics, or presentation.
 ---
 
 # Vulkan and SPIR-V Compute
+
+## Implementation Focus
+
+For an implementation request, use the shared
+[implementation guidance](../main/references/implementation-guidance.md).
+Select the affected inputs and obligations below; broad qualification lists
+do not make every invocation a new inventory or full-suite run.
+
+Start at the first missing step from the assigned real client request to the
+selected physical device and result readback. Implement that path with fixed
+context routing and reuse prepared pipelines/resources on warm launches. For
+the PyTorch AMD lane, the first observable unit is stock eager add/copy/readback
+with correlated GPU completion; a standalone shader benchmark or enumeration
+is a diagnostic input, not that integration result.
 
 ## Inputs
 
@@ -75,7 +89,7 @@ target environment and cache identity.
 
 ## Output
 
-Return or implement:
+Select the applicable outputs for the requested task:
 
 - A selected capability/limit/queue/memory profile and serialized target digest.
 - A semantic mapping and unsupported-diagnostic table.

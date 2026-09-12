@@ -113,6 +113,44 @@ The complete dev regression remains the Epoch activation requirement. Product
 targets, lane order, completed results and zero-overhead runtime goals retain
 their existing meanings.
 
+## Implementation Direction (decision-0061)
+
+The Agent harness is the repository's `agent/` entry guidance, flow controller
+and skills. A product-advancement request starts with an observable before/after
+behavior and the first missing source owner. The parent implements or briefs
+that coherent unit, then reviews its actual callers, admitted inputs, lifetime
+and execution path. Existing profiles and matrices are reusable inputs.
+
+The shared [implementation guidance](../../agent/skills/main/references/implementation-guidance.md)
+owns task selection and review criteria. Flow skills apply it at dispatch,
+candidate review, integration and governance; domain skills identify concrete
+implementation paths before their broad qualification menus. Analysis,
+maintenance and benchmark requests retain their requested outcomes. This is
+guidance for useful work, not a line-count quota, test-time budget, extra
+approval, progress score, or another authority file.
+
+Rationale: procedural compliance can consume an Iteration without completing a
+useful behavior. Existing corpus success also failed to expose a reachable
+fallback during code removal. Source-path review, independent boundary evidence
+and explicit before/after outcomes address that failure. Correct rejection is
+a correctness result; it does not add compatibility. Zero-overhead design
+requires both warm-path cost analysis and appropriately scoped measurements,
+not suite duration or standalone arithmetic throughput.
+
+The controller derives its next-operation hint from current operation and
+verification facts. A running attempt points to its existing session and log;
+a failed attempt points to its cause; a qualified delivery points to acceptance
+or publication. Attempt/request correlation excludes stale runs, and inspection
+neither launches checks nor changes state. Exact receipt and transition guards
+remain authoritative. The controller protocol owns these mechanics.
+
+Verification covers running and interrupted attempts, current versus stale
+operation records, failed-cause repair, unchanged integration acceptance,
+post-acceptance metadata and delivery without extra tests. Independent realistic
+skill scenarios check implementation selection and preservation of user scope.
+Epoch activation retains the complete dev regression, product objective, lane
+dependencies, delivery IDs and accepted results.
+
 ## Rule Loading Boundary
 
 The [skill-reference convention](../../agent/skills/main/SKILL.md#skill-references)

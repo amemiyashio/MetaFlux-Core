@@ -93,6 +93,14 @@ arbitrary-shell sandbox.
 
 The state response contains stage, evidence, next operation, and delivery
 target; `load-rules` also emits the required bodies before that response.
+The next-operation hint follows the current objective and actual verification
+state. A busy verification lock directs the Agent to the owning live session,
+not another evaluation. The attempt's `request` binds it to the operation run;
+an older run's result does not redirect a new task. Current failures name the
+check/log and call for cause repair; passing integration with unchanged inputs
+directs Batch acceptance, and a pending transaction directs final metadata
+review. These are read-only hints; the existing transition and evidence guards
+still decide whether an action is valid. No test is launched by inspection.
 When a failed check needs a different execution plan, `repair` may replace
 `checks` while retaining each required/optional boundary. A redundant CTest
 check ID may be removed only when actual enumeration proves its entire test

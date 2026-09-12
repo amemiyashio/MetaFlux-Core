@@ -29,6 +29,15 @@ already explicitly approved for implementation supplies that confirmation.
 Changed evidence invalidates the proposal; re-audit rather than applying it.
 A semantic no-op leaves the Epoch unchanged.
 
+For Agent-harness governance, trace how `agent/` entry instructions, controller
+output and domain guidance affect the next implementation action. Prefer a
+specific correction demonstrated by a realistic task over more generic rules,
+new reports or extra gates. Use
+[implementation guidance](../main/references/implementation-guidance.md) to
+review whether the resulting flow leads to useful implementation and timely
+delivery. Exercise changed guidance independently with representative scenarios;
+do not present a governance publication as product capability or performance.
+
 ## Confirmed Governance
 
 The governing parent is the sole current-authority and Goal writer for the

@@ -1,9 +1,23 @@
 ---
 name: linux-device-driver-uapi
-description: Design or review Linux 6.12 or 6.18 character-device UAPI, ioctl and mmap behavior, kref and VMA lifetime, long-term page pinning, DMA, eventfd, MMIO barriers, teardown, and kernel qualification. Use for milestone-0.1.1.0 transport and milestone-0.1.2.0 kernel lifecycle-adapter work. Do not use for vfio-user wire protocol or PCI configuration-space design.
+description: Implement or review Linux 6.12 or 6.18 character-device UAPI, ioctl and mmap behavior, kref and VMA lifetime, long-term page pinning, DMA, eventfd, MMIO barriers, teardown, and kernel qualification. Use for milestone-0.1.1.0 transport and milestone-0.1.2.0 kernel lifecycle-adapter work. Do not use for vfio-user wire protocol or PCI configuration-space design.
 ---
 
 # Linux Device Driver UAPI
+
+## Implementation Focus
+
+For an implementation request, use the shared
+[implementation guidance](../main/references/implementation-guidance.md).
+Select the affected inputs and obligations below; broad qualification lists
+do not make every invocation a new inventory or full-suite run.
+
+Choose the affected userspace operation and follow its fd/VMA/buffer ownership
+through the kernel to completion or teardown. Implement the operation and its
+unwind together, reusing established UAPI projections and version shims.
+Model the relevant race before coding; use targeted lifetime/fault checks during
+repair and the required kernel matrix for final qualification, rather than
+rebuilding every kernel after each local edit.
 
 ## Inputs
 
@@ -62,7 +76,7 @@ sized records and compile-probed compatibility shims for supported kernels.
 
 ## Output
 
-Return or implement:
+Select the applicable outputs for the requested task:
 
 - The canonical schema projection plus generated UAPI/errno/compat table,
   native/compat layout fixtures, and object/refcount state diagram.

@@ -17,6 +17,11 @@ Do not create an execution context or select a sibling lane.
    Group related operations sharing one implementation boundary and oracle
    when they form a reviewable behavior family. Do not split deliveries merely
    by line count or number of files; keep distinct semantic risks separate.
+   Apply [implementation guidance](../main/references/implementation-guidance.md):
+   name the observable before/after change and limiting source owner, then
+   implement it. Reuse established profile and manifest facts. A cleanup slice
+   for a product-advancement request must explain the dependency it removes;
+   include the enabled behavior when it fits this assignment.
    Trace affected manifests, summaries and test consumers into the declared
    scope. Use the controller's `rescope` through [$main](../main/SKILL.md) skill
    for necessary omitted companion files, with fresh rules, preparation,
@@ -29,6 +34,9 @@ Do not create an execution context or select a sibling lane.
    The parent reviews the returned diff in conversation before another
    dispatch, evaluation, or commit. Subagents do not change Goal, integrate,
    govern, commit, push, or create contexts.
+   Brief a source-and-test behavior change, not an open-ended request to keep
+   testing. Require the returned implementation and its boundary analysis;
+   advice alone does not complete an implementation briefing.
 4. During implementation, use affected target builds and focused checks to
    answer concrete questions. Finish the coherent slice and parent review,
    preflight the covering check plan, then run [$main](../main/SKILL.md) skill's

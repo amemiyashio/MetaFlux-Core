@@ -24,11 +24,19 @@ state transition. Bootstrap and diagnostics are owned by [$main](../main/SKILL.m
    domain skills. Reject drift. Keep a current-HEAD candidate in place; prepare
    a divergent candidate with `git merge --no-commit --no-ff TIP`. Never accept
    an obscured stale ancestor as a fresh candidate.
+   Compare the delivered behavior with its briefing using
+   [implementation guidance](../main/references/implementation-guidance.md).
+   Review actual admitted callers and fresh/reused state before accepting a
+   dead-code or fallback-removal claim. Passing existing corpus rows alone
+   does not show that an unrepresented reachable path remains correct.
 3. Resolve only bounded composition defects. Select fresh covering checks on
    the actual merged tree, without repeating a focused CTest gate also selected
    by that phase's full suite. Promote material knowledge
    using [$main](../main/SKILL.md) skill's shared reference before the final combined evaluation.
    A worker receipt is entry evidence, not a replacement for integration checks.
+   Choose checks for the merged behavior and shared risks; a candidate's broad
+   test list is not automatically the right integration plan. Preserve required
+   modes and prerequisites, and proceed to acceptance after that plan passes.
    Run `scripts/batch.py load-rules DELIVERY --root .` and read the emitted
    bodies. Then run `scripts/batch.py verify DELIVERY --root . --checks PLAN.json
    --summary 'Actual parent review'`. The wrapper derives the integration base

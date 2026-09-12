@@ -14,6 +14,21 @@ invented product Iteration and leaves Goal unchanged.
 Source and measured tests outrank verified architecture, approved plans, memory,
 and validated experience. Proposed material describes intent, not capability.
 
+## Implementation Direction
+
+For a request to advance the product, identify the next observable behavior and
+its missing implementation owner, then deliver that coherent change. Reuse
+established profiles and contracts. Inspection and focused checks resolve
+specific uncertainties; the formal plan validates the completed slice. Passing
+unchanged tests, growing case counts or deleting code does not alone establish
+product progress. The shared [implementation guidance](skills/main/references/implementation-guidance.md)
+owns selection, source-path review, zero-overhead evidence and verification use.
+It preserves explicit read-only, benchmark and maintenance requests.
+
+Controller inspection points to the current implementation objective, an
+existing verification session, a concrete failed cause, or the next delivery
+action as appropriate. Temporary verification status does not grant acceptance.
+
 ## Execution Scale
 
 | Concept | Meaning |

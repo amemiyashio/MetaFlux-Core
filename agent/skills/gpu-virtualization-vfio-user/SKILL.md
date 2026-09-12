@@ -1,9 +1,22 @@
 ---
 name: gpu-virtualization-vfio-user
-description: Design or review QEMU/KVM vfio-user negotiation, shared guest RAM, DMA map and unmap, IOVA epochs, ioeventfd or IRQ transport, reset, disconnect, and failure containment. Use for milestone-0.1.1.0 static guest and milestone-0.1.2.0 vfio-user lifecycle-adapter work. Do not use for PCI config-space layout, kernel cdev UAPI, or physical VFIO passthrough setup.
+description: Implement or review QEMU/KVM vfio-user negotiation, shared guest RAM, DMA map and unmap, IOVA epochs, ioeventfd or IRQ transport, reset, disconnect, and failure containment. Use for milestone-0.1.1.0 static guest and milestone-0.1.2.0 vfio-user lifecycle-adapter work. Do not use for PCI config-space layout, kernel cdev UAPI, or physical VFIO passthrough setup.
 ---
 
 # GPU Virtualization with vfio-user
+
+## Implementation Focus
+
+For an implementation request, use the shared
+[implementation guidance](../main/references/implementation-guidance.md).
+Select the affected inputs and obligations below; broad qualification lists
+do not make every invocation a new inventory or full-suite run.
+
+Start from the missing guest-visible negotiation, mapping or submission
+behavior. Implement its complete ownership path through the server and real
+guest consumer, retaining shared-memory steady-state execution. Reuse the
+pinned protocol matrix; use a focused trace to locate the first failing boundary.
+A socket probe or regenerated region image alone does not deliver guest compute.
 
 ## Inputs
 
@@ -66,7 +79,7 @@ model. Validate every guest-derived range, flag, offset, width, epoch, and quota
 
 ## Output
 
-Return or implement:
+Select the applicable outputs for the requested task:
 
 - A model-selection rationale and exact negotiation/capability matrix, including
   reset/migration advertisement bits and unsupported-command results.

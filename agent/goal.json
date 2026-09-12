@@ -1,6 +1,6 @@
 {
   "schema_version": 4,
-  "epoch": "epoch-0021",
+  "epoch": "epoch-0022",
   "batch": {
     "id": "batch-0001",
     "status": "open"
@@ -28,7 +28,7 @@
     {
       "id": "lane-pytorch-cuda-cpu-profile",
       "work_item": "work-item-0.2.0.2",
-      "iteration": "iteration-0004",
+      "iteration": "iteration-0002",
       "outcome": "Broaden the baseline into a versioned PyTorch CUDA CPU profile with a complete provider-surface matrix, handle-negative coverage, canonical neutral request and Kernel IR boundaries, and a backend-executed operator corpus.",
       "status": "planned",
       "depends_on": [

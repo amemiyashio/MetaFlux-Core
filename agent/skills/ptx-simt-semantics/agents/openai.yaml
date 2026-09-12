@@ -1,4 +1,4 @@
 interface:
   display_name: "PTX SIMT Semantics"
-  short_description: "Review PTX semantics and result-oracle correctness"
-  default_prompt: "Use $ptx-simt-semantics skill to define or review PTX and SIMT semantics, including deterministic or allowed-outcome result oracles, for this Kernel IR change."
+  short_description: "Implement PTX forms and independent semantic oracles"
+  default_prompt: "Use $ptx-simt-semantics skill to implement the requested PTX or Kernel IR semantic change, or provide analysis when that is the request; select checks for the affected behavior."

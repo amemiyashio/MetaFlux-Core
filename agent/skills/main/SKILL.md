@@ -105,6 +105,12 @@ evidence for a product requirement that needed that environment.
 
 ## Shared Delivery Boundary
 
+Use [implementation guidance](references/implementation-guidance.md) when
+choosing and reviewing work. For a product-advancement request, identify what
+the user can do after the slice, the first missing implementation on that path,
+and the owning files. Then implement that behavior. A growing test inventory,
+cleanup count or repeated green baseline is not the product objective.
+
 Choose a coherent, independently reviewable behavior slice, including its
 necessary source, tests and canonical summaries. Line count is not a delivery
 boundary. During implementation, use fast affected targets and focused tests
@@ -174,6 +180,10 @@ completion proof.
 Use the common Git lock and expected HEAD/tree checks for shared mutations.
 Before starting or retrying a long run, inspect its current attempt, check and
 log. Reuse the live tool session for output; a quiet test is not a failed test.
+Inspection derives guidance from the current request and verification attempt:
+running work points to its session, failure points to its cause, passed
+integration points to acceptance, and delivery points to the guarded commit.
+An old operation's verification record does not direct the current task.
 The separate shared verification lock rejects concurrent runs. Interrupted
 attempts retain unique logs and provide no successful receipt or automatic
 retry. Preserve raw failure output and repair its cause before reevaluation.

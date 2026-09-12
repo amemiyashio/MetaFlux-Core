@@ -233,3 +233,8 @@ Verification scheduling follows [decision-0059](../../docs/architecture/agent-ex
 coherent slices, preflighted per-phase coverage, independent integration,
 exact acceptance transactions and recoverable current attempts. It adds no
 product progress authority or cross-phase test cache.
+
+Implementation selection follows [decision-0061](../../docs/architecture/agent-execution.md#implementation-direction-decision-0061):
+advance an observable requested behavior, reuse established inputs, and use
+verification to resolve uncertainty and qualify the coherent delivery. Keep
+explicit analysis and maintenance scope; activity counts are not capability.

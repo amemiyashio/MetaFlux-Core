@@ -167,8 +167,55 @@ class WorkflowScenarios(unittest.TestCase):
         controller.step(self.root, "review", {"summary": "Reviewed failure fixture"})
         with self.assertRaises(ws.WorkflowError):
             controller.step(self.root, "evaluate", {})
-        self.assertEqual(controller.inspect(self.root)["stage"], "implementation")
+        observed = controller.inspect(self.root)
+        self.assertEqual(observed["stage"], "implementation")
+        attempt = observed["evidence"]["verification"]
+        self.assertEqual(attempt["request"], ws.read_json(ws.local_path(self.root, "state.json"))["run"])
+        self.assertIn(task["objective"], observed["next_operation"])
+        self.assertIn(attempt["log"], observed["next_operation"])
+        self.assertIn("Required verification failed: fail", observed["next_operation"])
         self.assertEqual(ws.oid(self.root), self.base)
+
+    def test_old_attempt_does_not_redirect_new_objective(self):
+        task = request(self.root)
+        controller.begin(self.root, task)
+        prepare(self.root)
+        ordinary = controller.inspect(self.root)["next_operation"]
+        self.assertIn(task["objective"], ordinary)
+        path = ws.local_path(self.root, "verification.json")
+        for outcome in ("failed", "passed", "running"):
+            ws.atomic_json(path, {"request": "another-operation", "status": outcome,
+                                  "check": "old-check", "log": "old-log", "error": "old failure"})
+            before = path.read_bytes()
+            observed = controller.inspect(self.root)
+            self.assertEqual(observed["next_operation"], ordinary)
+            self.assertEqual(path.read_bytes(), before)
+
+    def test_integration_guidance_uses_current_input_without_advancing(self):
+        task = request(self.root, "batch")
+        controller.begin(self.root, task)
+        prepare(self.root)
+        state = ws.read_json(ws.local_path(self.root, "state.json"))
+        plan = checks()
+        rules.load(self.root, "integration", self.base, output=io.StringIO())
+        evidence = ws.evaluate(self.root, "integration", self.base, plan,
+                               ws.review(self.root, "Review integration input and behavior", plan))
+        before = ws.local_path(self.root, "state.json").read_bytes()
+        observed = controller.inspect(self.root)
+        self.assertEqual(observed["stage"], "implementation")
+        self.assertIn(evidence["digest"], observed["next_operation"])
+        self.assertEqual(ws.local_path(self.root, "state.json").read_bytes(), before)
+        self.assertFalse(ws.local_path(self.root, "acceptance.json").exists())
+        self.assertEqual(ws.read_json(self.root / "agent/goal.json")["lanes"][0]["iteration"], "iteration-0002")
+        (self.root / "product.txt").write_text("new unverified content\n")
+        changed = controller.inspect(self.root)
+        self.assertNotIn(evidence["digest"], changed["next_operation"])
+        self.assertIn("changed", changed["next_operation"])
+        self.assertEqual(state["run"], ws.read_json(ws.local_path(self.root, "state.json"))["run"])
+        # A pending file directs transaction checking, never assumes acceptance.
+        ws.atomic_json(ws.local_path(self.root, "acceptance.json"), {})
+        self.assertIn("check the pending acceptance metadata", controller.inspect(self.root)["next_operation"])
+        self.assertEqual(ws.local_path(self.root, "state.json").read_bytes(), before)
 
     def test_staging_only_failure_preserves_receipt_and_delivers_without_retesting(self):
         controller.begin(self.root, request(self.root))
@@ -177,6 +224,7 @@ class WorkflowScenarios(unittest.TestCase):
         controller.step(self.root, "review", {"summary": "Review staging recovery behavior"})
         controller.step(self.root, "evaluate", {})
         state_path = ws.local_path(self.root, "state.json")
+        self.assertIn("guarded commit", controller.inspect(self.root)["next_operation"])
         before_state = state_path.read_bytes()
         evidence = ws.read_json(state_path)["receipt"]
         verification_path = ws.local_path(self.root, "verification.json")
